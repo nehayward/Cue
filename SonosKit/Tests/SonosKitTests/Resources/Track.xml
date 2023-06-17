@@ -1,0 +1,15 @@
+<DIDL-Lite
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
+    xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"
+    xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">
+    <item id="-1" parentID="-1" restricted="true">
+        <res protocolInfo="sonos.com-http:*:audio/mp4:*" duration="0:04:00">x-sonos-http:song%3a1686632018.mp4?sid=204&amp;flags=8232&amp;sn=4</res>
+        <r:streamContent></r:streamContent>
+        <upnp:albumArtURI>/getaa?s=1&amp;u=x-sonos-http%3asong%253a1686632018.mp4%3fsid%3d204%26flags%3d8232%26sn%3d4</upnp:albumArtURI>
+        <dc:title>Enjoy Your Life</dc:title>
+        <upnp:class>object.item.audioItem.musicTrack</upnp:class>
+        <dc:creator>Romy</dc:creator>
+        <upnp:album>Enjoy Your Life (DJ HEARTSTRING Remix) - Single</upnp:album>
+    </item>
+</DIDL-Lite>
