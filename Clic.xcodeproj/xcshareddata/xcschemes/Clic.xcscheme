@@ -14,24 +14,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-               BuildableName = "Sonos (Watch).app"
-               BlueprintName = "Sonos (Watch)"
-               ReferencedContainer = "container:Sonos.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
                BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
-               BuildableName = "Sonos.app"
-               BlueprintName = "Sonos"
-               ReferencedContainer = "container:Sonos.xcodeproj">
+               BuildableName = "Clic.app"
+               BlueprintName = "Clic"
+               ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -57,10 +43,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-            BuildableName = "Sonos (Watch).app"
-            BlueprintName = "Sonos (Watch)"
-            ReferencedContainer = "container:Sonos.xcodeproj">
+            BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
+            BuildableName = "Clic.app"
+            BlueprintName = "Clic"
+            ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -74,10 +60,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-            BuildableName = "Sonos (Watch).app"
-            BlueprintName = "Sonos (Watch)"
-            ReferencedContainer = "container:Sonos.xcodeproj">
+            BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
+            BuildableName = "Clic.app"
+            BlueprintName = "Clic"
+            ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -18,7 +18,7 @@
                BlueprintIdentifier = "E97C0D402A325CC5005AB0E0"
                BuildableName = "Widgets.appex"
                BlueprintName = "Widgets"
-               ReferencedContainer = "container:Sonos.xcodeproj">
+               ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -30,9 +30,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
-               BuildableName = "Sonos.app"
-               BlueprintName = "Sonos"
-               ReferencedContainer = "container:Sonos.xcodeproj">
+               BuildableName = "Clic.app"
+               BlueprintName = "Clic"
+               ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -64,16 +64,16 @@
             BlueprintIdentifier = "E97C0D402A325CC5005AB0E0"
             BuildableName = "Widgets.appex"
             BlueprintName = "Widgets"
-            ReferencedContainer = "container:Sonos.xcodeproj">
+            ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
-            BuildableName = "Sonos.app"
-            BlueprintName = "Sonos"
-            ReferencedContainer = "container:Sonos.xcodeproj">
+            BuildableName = "Clic.app"
+            BlueprintName = "Clic"
+            ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <EnvironmentVariables>
@@ -107,9 +107,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
-            BuildableName = "Sonos.app"
-            BlueprintName = "Sonos"
-            ReferencedContainer = "container:Sonos.xcodeproj">
+            BuildableName = "Clic.app"
+            BlueprintName = "Clic"
+            ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
