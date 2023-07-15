@@ -3,59 +3,132 @@ import SonosKit
 
 struct ZoneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var device: SonosDevice
-    @State var isPlaying: Bool = false
-    @State var url: URL?
+    @Environment(Popover.self) var popover: Popover
+
+    var roomGroup: GroupRoom
+
+
+    @State private var multiSelection = Set<String>()
+    @State private var isEditing: Bool = false
+    @State private var volume: Double = 0
+    @State var show: Bool = false
 
     var body: some View {
-        let _ = Self._printChanges() // This have been added to code
-
-        VStack(alignment: .leading) {
-            HStack {
-                VStack(alignment: .listRowSeparatorLeading) {
-                    Label(device.name, systemImage: "hifispeaker.fill")
-                    Text(device.ipAddress)
-                        .textSelection(.enabled)
+        HStack {
+            VStack(alignment: .leading) {
+                HStack {
+                    VStack {
+                        Text(roomGroup.coordinatorRoom.name + "\(roomGroup.rooms.count > 1 ? "+" : "")")
+                            .contextMenu {
+                                ForEach(roomGroup.rooms) { room in
+                                    Text(room.name)
+                                }
+                            }
+                    }
+                    Spacer()
                 }
-                Spacer()
+                .fontDesign(.rounded)
+                Text(roomGroup.coordinatorRoom.track.name)
+                    .font(.caption)
+               VolumeControlView(roomGroup: roomGroup)
+            }
+            VStack(spacing: 18) {
                 Button(action: {
                     Task {
-                        if isPlaying {
-                            await sonosService.pause(ip: device.ipAddress)
+                        if roomGroup.coordinatorRoom.isPlaying {
+                            await sonosService.pause(ip: roomGroup.coordinatorRoom.ip)
                         } else {
-                            await sonosService.play(ip: device.ipAddress)
+                            await sonosService.play(ip: roomGroup.coordinatorRoom.ip)
                         }
-                        isPlaying.toggle()
                     }
                 }, label: {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+
+                    Gauge(
+                        value: roomGroup.coordinatorRoom.track.playbackPosition,
+                        in: 0...roomGroup.coordinatorRoom.track.duration,
+                        label: {
+
+                        },
+                        currentValueLabel: {
+                            Image(systemName: roomGroup.coordinatorRoom.isPlaying ? "pause.circle.fill" : "play")
+                                .foregroundStyle(.tint, .thickMaterial)
+                                .contentTransition(.symbolEffect(.replace.downUp))
+                                .font(.title)
+                        },
+                        markedValueLabels: {
+    //                                Text("0%").tag(0.0)
+    //                                Text("50%").tag(0.5)
+    //                                Text("100%").tag(1.0)
+                        }
+                    )
+                    .tint(Color.primary.gradient)
+                    .gaugeStyle(.accessoryCircularCapacity)
+                    .animation(.linear, value: roomGroup.coordinatorRoom.track.playbackPosition)
+                    .scaleEffect(0.6)
                 })
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
+
+
+
+                Button(action: {
+//                    multiSelection = Set(roomGroup.rooms.map(\.id))
+//                    show = true
+
+                    popover.isShowing = true
+                }, label: {
+                    Image(systemName: roomGroup.rooms.count > 1 ? "hifispeaker.2" :  "hifispeaker")
+                        .frame(width: 20)
+                        .foregroundStyle(.tint, .thickMaterial)
+                })
+                .buttonStyle(.plain)
+
+
+            }.padding(.leading)
+        }
+        .padding(.leading)
+        .onAppear {
+            volume = roomGroup.coordinatorRoom.volume
+        }
+        .onChange(of: roomGroup.coordinatorRoom.volume) { oldValue, newValue in
+            guard !isEditing else { return }
+            withAnimation {
+                volume = newValue
             }
-            .fontDesign(.rounded)
-            Slider(value: $device.volume, in: 0...100, step: 5)
-                .onChange(of: device.volume) { oldValue, newValue in
-                    newValue
+        }
+        .onChange(of: volume) { oldValue, newValue in
+            if isEditing {
+                Task {
+                    await sonosService.setDeviceVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
+                }
+            }
+        }
+        .background {
+            EmptyView()
+                .sheet(isPresented: $show) {
+                    GroupScreen(roomGroup: roomGroup, multiSelection: multiSelection)
                 }
         }
-        .task {
-            let volume = await sonosService.getVolume(ip: device.ipAddress)
-            withAnimation {
-                device.volume = volume
-            }
-            let playback = await sonosService.getPlaybackInfo(ip: device.ipAddress)
+//        .task {
+//            await sonosService.load()
+//        }
 
-            if playback == "PLAYING" {
-                isPlaying = true
-            } else {
-                isPlaying = false
-            }
-        }
+//        .sheet(isPresented: $show) {
+//            Text(roomGroup.coordinatorRoom.name)
+//                .presentationDetenats([.fraction(0.2)])
+//                .presentationDragIndicator(.visible)
+//        }
     }
 }
 
-//#Preview {
-//    ZoneView(device: .constant(SonosDevice(name: "Kitchen", ipAddress: "192.168.4.153", volume: 0)))
-//        .environment(SonosService())
-//}
-//
+#Preview {
+    List {
+        Section {
+            ZoneView(roomGroup: GroupRoom(id: "", coordinatorID: "Kitchen", rooms: [Room(id: "Kitchen", ip: "192", name: "Kitchen")]))
+                .environment(SonosService())
+        }
+        Section {
+            ZoneView(roomGroup: GroupRoom(id: "", coordinatorID: "Garage", rooms: [Room(id: "Garage", ip: "192", name: "Garage"), Room(id: "Kitchen", ip: "192", name: "Kitchen")]))
+                .environment(SonosService())
+        }
+    }
+}

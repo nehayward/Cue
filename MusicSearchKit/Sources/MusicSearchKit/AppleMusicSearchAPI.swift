@@ -11,14 +11,15 @@ final class AppleMusicSearchAPI {
         self.decoder = decoder
     }
 
-    func search(for query: String) async -> [ItunesResult] {
+    func search(for query: String, limit: Int = 25) async -> [ItunesResult] {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "itunes.apple.com"
         components.path = "/search"
         components.queryItems = [
             URLQueryItem(name: "term", value: query),
-            URLQueryItem(name: "media", value: "music")
+            URLQueryItem(name: "media", value: "music"),
+            URLQueryItem(name: "limit", value: "\(limit)")
         ]
         guard let url = components.url else { return [] }
 

@@ -4,12 +4,14 @@ public struct ItunesResult: Identifiable, Decodable {
     public var id: String { trackID.description }
     public let artistName: String
     public let trackName: String
+    public let trackCensoredName: String?
     public let album: String
     public let artistID: Int
     public let collectionID: Int?
     public let trackID: Int
     public let type: String
     public let artworkUrl100: String
+    public let durationInMiliSeconds: Int
     public var artworkURL: String {
         artworkUrl100.replacingOccurrences(of: "100", with: "500")
     }
@@ -26,15 +28,19 @@ public struct ItunesResult: Identifiable, Decodable {
             self.collectionID = 0
             self.trackID = 0
             self.type = ""
+            self.trackCensoredName = ""
+            self.durationInMiliSeconds = 0
             return
         }
         self.artistName = try container.decode(String.self, forKey: .artistName)
         self.trackName = try container.decode(String.self, forKey: .trackName)
+        self.trackCensoredName = try container.decodeIfPresent(String.self, forKey: .trackCensoredName)
         self.album = try container.decodeIfPresent(String.self, forKey: .album) ?? ""
         self.artworkUrl100 = try container.decode(String.self, forKey: .artworkUrl100)
         self.artistID = try container.decode(Int.self, forKey: .artistId)
         self.collectionID = try container.decodeIfPresent(Int.self, forKey: .collectionId)
         self.trackID = try container.decode(Int.self, forKey: .trackId)
+        self.durationInMiliSeconds = try container.decodeIfPresent(Int.self, forKey: .durationInMiliSeconds) ?? 0
         self.type = type
     }
 
@@ -42,11 +48,13 @@ public struct ItunesResult: Identifiable, Decodable {
         case type = "wrapperType"
         case artistName
         case trackName
+        case trackCensoredName
         case album = "collectionName"
         case artworkUrl100
         case artistId
         case collectionId
         case trackId
+        case durationInMiliSeconds = "trackTimeMillis"
     }
 
 }

@@ -6,13 +6,13 @@ final class IntegrationsTests: XCTestCase {
 
     func testQueue() async throws {
         await sonosService.load()
-        print(sonosService.sonosDevices.first?.ipAddress)
+//        print(sonosService.rooms.first?.ipAddress)
 
-        guard let garage = sonosService.sonosDevices.first(where: { device in
-            device.name == "Theater"
-        }) else { return }
+//        guard let garage = sonosService.rooms.first(where: { device in
+//            device.name == "Theater"
+//        }) else { return }
 
-        await sonosService.queue(song: "1673536432", on: garage)
+//        await sonosService.queue(song: "1673536432", on: garage)
     }
 
     

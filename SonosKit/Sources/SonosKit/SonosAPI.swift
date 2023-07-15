@@ -1,49 +1,34 @@
 import Foundation
+import OSLog
+import Network
 
-class SonosAPI {
+final class SonosAPI {
+    private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
+    private let session: URLSession
 
-    func subscribe(ip: String, deviceIP: String) {
-        
-        let url = URL(string: "http://\(ip):1400/MediaRenderer/RenderingControl/Event")!
-        let callbackURL = "http://\(deviceIP):9094"
-        let headers = [
-            "CALLBACK": "<\(callbackURL)>",
-            "NT": "upnp:event",
-            "TIMEOUT": "Second-300"
-        ]
+    private let pathMonitor: NWPathMonitor
+    private var path: NWPath?
+    private let backgroudQueue = DispatchQueue.global(qos: .background)
+    private var isOnWifi: Bool = false
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "SUBSCRIBE"
-        request.allHTTPHeaderFields = headers
 
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("Error subscribing: \(error)")
-                return
-            }
-            if let response = response as? HTTPURLResponse {
-                print("Subscription response: \(response.statusCode)")
-            }
+    lazy var pathUpdateHandler: ((NWPath) -> Void) = { path in
+        self.path = path
+        if path.status == NWPath.Status.satisfied {
+            print("Connected")
+        } else if path.status == NWPath.Status.unsatisfied {
+            print("unsatisfied")
+        } else if path.status == NWPath.Status.requiresConnection {
+            print("requiresConnection")
         }
-        task.resume()
+        self.isOnWifi = !path.isExpensive
     }
 
-    func monitorZones(ip: String, deviceIP: String) async -> String {
-        let url = URL(string: "http://\(ip):1400/MediaRenderer/RenderingControl/Event")!
-        let callbackURL = "http://\(deviceIP):9094"
-        let headers = [
-            "CALLBACK": "<\(callbackURL)>",
-            "NT": "upnp:event",
-            "TIMEOUT": "Second-300"
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "SUBSCRIBE"
-        request.allHTTPHeaderFields = headers
-
-        guard let (data, _) = try? await URLSession.shared.data(for: request) else { return "" }
-        print(String(data: data, encoding: .utf8))
-        return ""
+    init(session: URLSession = .shared) {
+        self.session = session
+        pathMonitor = NWPathMonitor()
+        pathMonitor.pathUpdateHandler = self.pathUpdateHandler
+        pathMonitor.start(queue: backgroudQueue)
     }
 
     func setVolume(ipAddress: String, volume: Int) async {
@@ -98,6 +83,39 @@ class SonosAPI {
         return 0
     }
 
+    func getGroupVolume(ipAddress: String) async -> Double {
+        let arguments: [String: Any] = [
+            "InstanceID": 0
+        ]
+
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
+            let volume = XMLParserSonos().parseGroupVolume(xml: xmlString)
+            return Double(volume)
+        }
+
+        return 0
+    }
+
+    func setGroupVolume(ipAddress: String, volume: Int) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "DesiredVolume": volume
+        ]
+
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+//            if let error = response. {
+//                print("Error getting current track: \(error.localizedDescription)")
+//                return
+//            }
+//            guard let data = data else { return }
+            print(String(data: data, encoding: .utf8))
+            let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
+            print(xml)
+        }
+    }
+
+
     func getCurrentTrack(ipAddress: String) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,
@@ -132,6 +150,17 @@ class SonosAPI {
         }
     }
 
+    func next(ipAddress: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Speed": 1
+        ]
+
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "Next", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+
+        }
+    }
+
 
     func playbackInfo(ipAddress: String) async -> String {
         let arguments: [String: Any] = [
@@ -140,7 +169,6 @@ class SonosAPI {
 
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-
             guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
             let playbackInfo = XMLParserSonos().parsePlaybackInfo(xml: xmlString)
             return playbackInfo
@@ -149,47 +177,22 @@ class SonosAPI {
         return ""
     }
 
-
-    
-
-    func getZoneInformation(ipAddress: String) {
-        let arguments: [String: Any] = [:]
-
-//        sendSoapRequest(action: "GetZoneGroupState", arguments: arguments, ipAddress: ipAddress) { data, error in
-//            if let error = error {
-//                print("Error getting zone information: \(error.localizedDescription)")
-//                return
-//            }
-//            guard let data = data else { return }
-//            let xml = SWXMLHash.parse(data)
-//            let groups = xml["ZoneGroups"]["ZoneGroup"].all
-//
-//            for group in groups {
-//                let coordinator = group["ZoneGroupCoordinator"].element?.attribute(by: "IPAddress")?.text ?? ""
-//                let members = group["ZoneGroupMember"].all.map { $0.element?.attribute(by: "UUID")?.text ?? "" }
-//                print("Coordinator: \(coordinator), Members: \(members)")
-//            }
-//        }
-    }
-
     func getBatteryLevel(ipAddress: String) {
         guard let url = URL(string: "http://\(ipAddress):1400/status/batterystatus") else { return }
         var request = URLRequest(url: url)
 
-        let session = URLSession.shared
+        let session = session
         let task = session.dataTask(with: request) { data, response, error in
             print(String(data: data!, encoding: .utf8))
         }
         task.resume()
     }
 
-    func getZones(ipAddress: String) async -> [ZoneGroup] {
-        let arguments: [String: Any] = [:]
-
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: arguments, endpoint: "ZoneGroupTopology") {
+    func getGroups(ipAddress: String) async -> [GroupRoom] {
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
             let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
-            return zones
+            return zones.compactMap { $0.toGroup }
         }
         return []
     }
@@ -204,10 +207,12 @@ class SonosAPI {
             let mappedRooms = zones.flatMap { zoneGroup in
                 zoneGroup.zoneGroupMembers.compactMap {
                      if !$0.invisible {
-                         return Room(UUID: $0.UUID, location: $0.location, zoneName: $0.zoneName)
-                     } else {
-                         return nil
+                         let components = URLComponents(string: $0.location)
+                         if let ip = components?.host {
+                             return Room(id: $0.UUID, ip: ip, name: $0.zoneName)
+                         }
                      }
+                    return nil
                  }
              }
 
@@ -229,11 +234,43 @@ class SonosAPI {
         }
     }
 
+    func ungroup(IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Channel": "Master",
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "BecomeCoordinatorOfStandaloneGroup", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            logger.log("Failed to ungroup")
+        }
+    }
+
+    func group(IP: String, to coordinatorID: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Channel": "Master",
+            "CurrentURI": "x-rincon:\(coordinatorID)",
+            "CurrentURIMetaData": ""
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            logger.log("Failed to group")
+        }
+    }
+
+
     func queue(song: String, IP: String) async {
-        var enqueuedURIMetadata = """
+        let enqueuedURIMetadata = """
         &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="10032020song%3a\(song)" restricted="true"&gt;&lt;dc:title&gt;Apple Music&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
-
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
@@ -280,6 +317,84 @@ class SonosAPI {
 //        }
     }
 
+    func monitorRenderingControl(ip: String) async -> String? {
+        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
+            logger.error("Failed lookup deviceIP")
+            return nil
+        }
+
+        let url = URL(string: "http://\(ip):1400/MediaRenderer/RenderingControl/Event")!
+        let callbackURL = "http://\(deviceIP):9094"
+        let headers = [
+            "CALLBACK": "<\(callbackURL)>",
+            "NT": "upnp:event",
+            "TIMEOUT": "Second-300"
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "SUBSCRIBE"
+        request.allHTTPHeaderFields = headers
+
+        guard let (_, response) = try? await session.data(for: request) else {
+            logger.error("Failed to send request")
+            return nil
+        }
+
+        print(response)
+        return ""
+    }
+
+    func monitorAVTransport(ip: String) async -> String? {
+        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
+            logger.error("Failed lookup deviceIP")
+            return nil
+        }
+
+        let url = URL(string: "http://\(ip):1400/MediaRenderer/AVTransport/Event")!
+        let callbackURL = "http://\(deviceIP):9094"
+        let headers = [
+            "CALLBACK": "<\(callbackURL)>",
+            "NT": "upnp:event",
+            "TIMEOUT": "Second-300"
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "SUBSCRIBE"
+        request.allHTTPHeaderFields = headers
+
+        guard let (_, response) = try? await session.data(for: request) else {
+            logger.error("Failed to send request")
+            return nil
+        }
+
+        print(response)
+        return ""
+    }
+
+    func monitorZones(ip: String) async {
+        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
+            return
+        }
+
+        let url = URL(string: "http://\(ip):1400/ZoneGroupTopology/Event")!
+        let callbackURL = "http://\(deviceIP):9094"
+        let headers = [
+            "CALLBACK": "<\(callbackURL)>",
+            "NT": "upnp:event",
+            "TIMEOUT": "Second-300"
+        ]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "SUBSCRIBE"
+        request.allHTTPHeaderFields = headers
+
+        guard let (_, response) = try? await session.data(for: request) else {
+            return
+        }
+
+        print(response)
+
+    }
 
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
         let xmlString = """
@@ -310,8 +425,15 @@ class SonosAPI {
         guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: endpoint) else {
             return nil
         }
-        return try await URLSession.shared.data(for: request)
+        return try await session.data(for: request)
     }
 
 
+}
+
+extension SonosAPI {
+    enum SonosAPIError: Error {
+        case failedLoading
+        case failedParsing
+    }
 }

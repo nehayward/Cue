@@ -3,41 +3,91 @@ import Network
 import UIKit
 
 public final class HTTPServer {
-    var listener : NWListener?
-    let queue = DispatchQueue(label: "HTTP Server Queue")
-    var connected : Bool = false
-    let nwParms = NWParameters.tcp
+
+    var udpListener: NWListener?
+    var backgroundQueueUdpListener = DispatchQueue(label: "udp-lis.bg.queue", attributes: [])
+    var backgroundQueueUdpConnection = DispatchQueue(label: "udp-con.bg.queue", attributes: [])
+    var connections = [NWConnection]()
+
+    let params = NWParameters(tls: nil, tcp: {
+        let tcpOptions = NWProtocolTCP.Options()
+        tcpOptions.enableKeepalive = true
+        tcpOptions.keepaliveIdle   = 2
+        return tcpOptions
+    }())
 
     public var handler: ((String, String) -> Void)?
+    public var zoneHandler: ((String, String) -> Void)?
 
     public func start() {
-        let monitor = IPMonitor(ipType: .ipv4)
-        monitor.pathUpdateHandler = { status in
-          print("\(status.debugDescription)")
-        }
-        listener = try! NWListener(using: nwParms, on: 9094)
-        listener?.newConnectionHandler = { [weak self] (newConnection ) in
-            print("**** New Connection added")
-            if let strongSelf = self {
-                newConnection.start(queue: strongSelf.queue)
-                strongSelf.receive(on: newConnection)
-            }
-        }
-    
-        listener?.stateUpdateHandler = { (newState) in
-            switch newState {
-            case .ready:
-                print("Listener: ✅ Ready and listens on port: \(self.listener?.port?.debugDescription ?? "-")")
-            default:
-                break
-            }
-        }
+        print(IPLookup.shared.deviceIPV4)
+        guard self.udpListener == nil else {
+             print("Already listening. Not starting again")
+             return
+         }
 
-        listener?.start(queue: queue)
+        do {
+            self.udpListener = try NWListener(using: params, on: 9094)
+
+              self.udpListener?.stateUpdateHandler = { (listenerState) in
+                  print("👂🏼👂🏼👂🏼 NWListener Handler called")
+                  switch listenerState {
+                  case .setup:
+                      print("Listener: Setup")
+                  case .waiting(let error):
+                      print("Listener: Waiting \(error)")
+                  case .ready:
+                      print("Listener: ✅ Ready and listens on port: \(self.udpListener?.port?.debugDescription ?? "-")")
+                  case .failed(let error):
+                      print("Listener: Failed \(error)")
+                      self.udpListener = nil
+                  case .cancelled:
+                      print("Listener: 🛑 Cancelled by myOffButton")
+                      for connection in self.connections {
+                          connection.cancel()
+                      }
+                      self.udpListener = nil
+                  default:
+                      break;
+
+                  }
+              }
+
+              self.udpListener?.start(queue: backgroundQueueUdpListener)
+              self.udpListener?.newConnectionHandler = { (incomingUdpConnection) in
+                  print("📞📞📞 NWConnection Handler called ")
+                  incomingUdpConnection.stateUpdateHandler = { (udpConnectionState) in
+
+                      switch udpConnectionState {
+                      case .setup:
+                          print("Connection: 👨🏼‍💻 setup")
+                      case .waiting(let error):
+                          print("Connection: ⏰ waiting: \(error)")
+                      case .ready:
+                          print("Connection: ✅ ready")
+                          self.connections.append(incomingUdpConnection)
+                          self.receive(on: incomingUdpConnection)
+                      case .failed(let error):
+                          print("Connection: 🔥 failed: \(error)")
+                          self.connections.removeAll(where: {incomingUdpConnection === $0})
+                      case .cancelled:
+                          print("Connection: 🛑 cancelled")
+                          self.connections.removeAll(where: {incomingUdpConnection === $0})
+                      default:
+                          break
+                      }
+                  }
+
+                  incomingUdpConnection.start(queue: self.backgroundQueueUdpConnection)
+              }
+
+          } catch {
+              print("🧨🧨🧨 CATCH")
+          }
     }
 
     func receive(on connection: NWConnection) {
-        connection.receiveMessage { content, contentContext, isComplete, error in
+        connection.receive(minimumIncompleteLength: 0, maximumLength: 1200000) { (content, context, isComplete, error) in
             guard let receivedData = content else {
                 print("**** content is nil")
                 return
@@ -53,18 +103,20 @@ public final class HTTPServer {
             let endpoint = connection.currentPath?.remoteEndpoint?.debugDescription.components(separatedBy: ":")
             let response = "HTTP/1.1 200 OK\r\n\r\n"
             let data = response.data(using: .utf8)!
-
-            self.handler?(endpoint?[0] ?? "", c[1])
-            connection.send(content: data, completion: .contentProcessed({ error in
-                   if let error = error {
-                       print("Error sending response: \(error)")
-                   } else {
-                       print("Response sent successfully")
-                   }
-                connection.cancel()
-
-               }))
-
+            if endpoint?.count ?? 0 > 1, c.count > 1 {
+                self.handler?(endpoint?[0] ?? "", c[1])
+                self.zoneHandler?(endpoint?[0] ?? "", c[1])
+            }
+            if isComplete {
+                connection.send(content: data, completion: .contentProcessed({ error in
+                    if let error = error {
+                        print("Error sending response: \(error)")
+                    } else {
+                        print("Response sent successfully")
+                    }
+                    self.receive(on: connection)
+                }))
+            }
         }
     }
 }

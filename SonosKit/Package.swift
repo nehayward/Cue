@@ -28,6 +28,8 @@ let package = Package(
                         .copy("Resources/Track.xml"),
                         .copy("Resources/GetPosition.xml"),
                         .copy("Resources/RendererControl.xml"),
-                        .copy("Resources/AVTransport.xml")]),
+                        .copy("Resources/AVTransport.xml"),
+                        .copy("Resources/GetTransportInfo.xml"),
+                        .copy("Resources/ZoneEvent.xml")]),
     ]
 )

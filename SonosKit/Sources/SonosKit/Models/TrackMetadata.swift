@@ -1,30 +1,48 @@
 import Foundation
-//import SWXMLHash
-//
-//public struct PositionInfo: XMLObjectDeserialization {
-//    public let trackMetadata:
-//    public let zoneGroupMembers: [ZoneGroupMember]
-//
-//    public static func deserialize(_ node: XMLIndexer) throws -> ZoneGroup {
-//        return try ZoneGroup(
-//            ID: node.value(ofAttribute: "ID"),
-//            coordinator: node.value(ofAttribute: "Coordinator"),
-//            zoneGroupMembers: node.filterChildren { elem, index in
-//                elem.name == "ZoneGroupMember"
-//            }.children.map { try $0.value() }
-//        )
-//    }
-//}
+import Observation
 
+@Observable
+public class Track {
+    public var name: String = ""
+    public var artist: String = ""
+    public var album: String = ""
+    public var artworkURL: URL? = nil
+    public var musicService: MusicService = .apple
+    public var duration: TimeInterval = .zero
+    public var playbackPosition: TimeInterval = .zero
 
-public struct Track {
-    public let name: String
-    public let artist: String
-    public let album: String
-
-    public init(name: String, artist: String, album: String) {
+    public init(name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval) {
         self.name = name
         self.artist = artist
         self.album = album
+        self.artworkURL = artworkURL
+        self.musicService = musicService
+        self.duration = duration
+        self.playbackPosition = playbackPosition
     }
 }
+
+
+extension Track: Hashable {
+    public static func == (lhs: Track, rhs: Track) -> Bool {
+        lhs.name == rhs.name &&
+        lhs.artist == rhs.artist &&
+        lhs.album == rhs.album &&
+        lhs.artworkURL == rhs.artworkURL &&
+        lhs.musicService == rhs.musicService &&
+        lhs.duration == rhs.duration &&
+        lhs.playbackPosition == rhs.playbackPosition
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(artist)
+        hasher.combine(album)
+        hasher.combine(artworkURL)
+        hasher.combine(musicService)
+        hasher.combine(duration)
+        hasher.combine(playbackPosition)
+    }
+}
+
+
