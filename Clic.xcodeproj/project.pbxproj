@@ -38,13 +38,15 @@
 		E98527922A5E59B8009016C2 /* SetVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetVolumeIntent.swift */; };
 		E98527942A5E5C90009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
 		E98527952A5E5C99009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
+		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
+		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E9B12B4A2A5F2E3D0008868C /* SonosWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* SonosWidgetView.swift */; };
 		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
 		E9B12B582A5F31790008868C /* WatchTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B572A5F31790008868C /* WatchTimelineProvider.swift */; };
 		E9B12B5A2A5F31790008868C /* WatchConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B592A5F31790008868C /* WatchConfigurationIntent.swift */; };
 		E9B12B5C2A5F317B0008868C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9B12B5B2A5F317B0008868C /* Assets.xcassets */; };
-		E9B12B602A5F317B0008868C /* Widgets (Watch).appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets (Watch).appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BDE57029E3396700D230A8 /* SonosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* SonosApp.swift */; };
 		E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* ContentView.swift */; };
@@ -52,11 +54,11 @@
 		E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
 		E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AF62A57668800FB9118 /* VolumeControlView.swift */; };
-		E9C03AFF2A586F5E00FB9118 /* SonosWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AFE2A586F5E00FB9118 /* SonosWatchApp.swift */; };
+		E9C03AFF2A586F5E00FB9118 /* ClicWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */; };
 		E9C03B012A586F5E00FB9118 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B002A586F5E00FB9118 /* ContentView.swift */; };
 		E9C03B032A586F6100FB9118 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9C03B022A586F6100FB9118 /* Assets.xcassets */; };
 		E9C03B062A586F6100FB9118 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9C03B052A586F6100FB9118 /* Preview Assets.xcassets */; };
-		E9C03B092A586F6100FB9118 /* Clic (Watch).app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Clic (Watch).app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9C03B092A586F6100FB9118 /* Clic Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9C03B0E2A586F7E00FB9118 /* SonosKit */; };
 		E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B112A58721F00FB9118 /* PlayerView.swift */; };
 		E9C03B162A5A195300FB9118 /* SonosSpeakerEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosSpeakerEntity.swift */; };
@@ -110,7 +112,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				E9B12B602A5F317B0008868C /* Widgets (Watch).appex in Embed Foundation Extensions */,
+				E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -121,7 +123,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				E9C03B092A586F6100FB9118 /* Clic (Watch).app in Embed Watch Content */,
+				E9C03B092A586F6100FB9118 /* Clic Watch.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -154,8 +156,10 @@
 		E97C0D652A33D657005AB0E0 /* ConfigurationNowPlayingAppIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigurationNowPlayingAppIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetVolumeIntent.swift; sourceTree = "<group>"; };
 		E98527932A5E5C90009016C2 /* Live.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Live.swift; sourceTree = "<group>"; };
+		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
+		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9B12B482A5F2DC70008868C /* SonosWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosWidgetView.swift; sourceTree = "<group>"; };
-		E9B12B532A5F31790008868C /* Widgets (Watch).appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets (Watch).appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9B12B532A5F31790008868C /* Widgets Watch.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets Watch.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9B12B572A5F31790008868C /* WatchTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTimelineProvider.swift; sourceTree = "<group>"; };
 		E9B12B592A5F31790008868C /* WatchConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConfigurationIntent.swift; sourceTree = "<group>"; };
 		E9B12B5B2A5F317B0008868C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -167,8 +171,8 @@
 		E9BDE57329E3396800D230A8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9C03AF62A57668800FB9118 /* VolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeControlView.swift; sourceTree = "<group>"; };
-		E9C03AFC2A586F5E00FB9118 /* Clic (Watch).app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic (Watch).app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E9C03AFE2A586F5E00FB9118 /* SonosWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosWatchApp.swift; sourceTree = "<group>"; };
+		E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicWatchApp.swift; sourceTree = "<group>"; };
 		E9C03B002A586F5E00FB9118 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E9C03B022A586F6100FB9118 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9C03B052A586F6100FB9118 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -230,7 +234,6 @@
 				E97C0D472A325CC5005AB0E0 /* WidgetBundle.swift */,
 				E97C0D492A325CC5005AB0E0 /* SonosWidgetLiveActivity.swift */,
 				E9DAE49A2A5FABA600B03199 /* RemoteWidget */,
-				E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */,
 				E9C03B132A5A191B00FB9118 /* Queries */,
 				E97C0D712A390186005AB0E0 /* Intents */,
 				E97C0D642A33D640005AB0E0 /* NowPlayingWidget */,
@@ -294,8 +297,8 @@
 			children = (
 				E9BDE56C29E3396700D230A8 /* Clic.app */,
 				E97C0D412A325CC5005AB0E0 /* Widgets.appex */,
-				E9C03AFC2A586F5E00FB9118 /* Clic (Watch).app */,
-				E9B12B532A5F31790008868C /* Widgets (Watch).appex */,
+				E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */,
+				E9B12B532A5F31790008868C /* Widgets Watch.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -309,10 +312,12 @@
 				E96396342A3B723B00518A17 /* ArtworkView.swift */,
 				E96396362A3B8F5200518A17 /* ZoneView.swift */,
 				E9C03AF62A57668800FB9118 /* VolumeControlView.swift */,
+				E94F6B0D2A5093BF000240A6 /* PlayerView.swift */,
+				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
-				E94F6B0D2A5093BF000240A6 /* PlayerView.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
+				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */,
 				E98527932A5E5C90009016C2 /* Live.swift */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
@@ -341,7 +346,7 @@
 		E9C03AFD2A586F5E00FB9118 /* Watch */ = {
 			isa = PBXGroup;
 			children = (
-				E9C03AFE2A586F5E00FB9118 /* SonosWatchApp.swift */,
+				E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */,
 				E9C03B002A586F5E00FB9118 /* ContentView.swift */,
 				E9C03B112A58721F00FB9118 /* PlayerView.swift */,
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
@@ -365,6 +370,7 @@
 		E9C03B132A5A191B00FB9118 /* Queries */ = {
 			isa = PBXGroup;
 			children = (
+				E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */,
 				E9C03B142A5A192300FB9118 /* SonosSpeakerEntity.swift */,
 			);
 			path = Queries;
@@ -417,7 +423,7 @@
 			);
 			name = "Widgets (Watch)";
 			productName = WatchWidgetsExtension;
-			productReference = E9B12B532A5F31790008868C /* Widgets (Watch).appex */;
+			productReference = E9B12B532A5F31790008868C /* Widgets Watch.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		E9BDE56B29E3396700D230A8 /* Clic */ = {
@@ -463,7 +469,7 @@
 				E9C03B0E2A586F7E00FB9118 /* SonosKit */,
 			);
 			productName = "SonosWatch Watch App";
-			productReference = E9C03AFC2A586F5E00FB9118 /* Clic (Watch).app */;
+			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -596,10 +602,12 @@
 				E98527922A5E59B8009016C2 /* SetVolumeIntent.swift in Sources */,
 				E985278F2A5E5955009016C2 /* SonosDeviceQuery.swift in Sources */,
 				E985278D2A5E0848009016C2 /* SonosWidgetLiveActivity.swift in Sources */,
+				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
 				E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */,
 				E98527942A5E5C90009016C2 /* Live.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
+				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayIntent.swift in Sources */,
@@ -616,7 +624,7 @@
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,
 				E9C03B012A586F5E00FB9118 /* ContentView.swift in Sources */,
-				E9C03AFF2A586F5E00FB9118 /* SonosWatchApp.swift in Sources */,
+				E9C03AFF2A586F5E00FB9118 /* ClicWatchApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -648,6 +656,7 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
@@ -667,13 +676,15 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,4";
+				TARGETED_DEVICE_FAMILY = "1,4";
 			};
 			name = Debug;
 		};
@@ -684,6 +695,7 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
@@ -703,12 +715,14 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,4";
+				TARGETED_DEVICE_FAMILY = "1,4";
 			};
 			name = Release;
 		};
@@ -718,14 +732,15 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2023.1;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WatchWidgets;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic Watch Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -735,8 +750,9 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watchkitapp.WatchWidgets;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch.Widgets;
+				PRODUCT_NAME = "Widgets Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -753,14 +769,15 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2023.1;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WatchWidgets;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic Watch Widgets";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -770,8 +787,9 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watchkitapp.WatchWidgets;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch.Widgets;
+				PRODUCT_NAME = "Widgets Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -838,6 +856,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Debug;
 		};
@@ -892,6 +911,7 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
@@ -901,6 +921,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
@@ -921,15 +942,17 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2023.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -939,6 +962,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
@@ -959,15 +983,17 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2023.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -978,6 +1004,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
@@ -997,9 +1024,10 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				MARKETING_VERSION = 2023.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
+				PRODUCT_NAME = "Clic Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -1017,6 +1045,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
@@ -1036,9 +1065,10 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				MARKETING_VERSION = 2023.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
+				PRODUCT_NAME = "Clic Watch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

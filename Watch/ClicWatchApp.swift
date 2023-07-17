@@ -1,27 +1,23 @@
 import SwiftUI
 import SonosKit
-import ActivityKit
-import WidgetKit
 
 @main
-struct SonosApp: App {
+struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @State var selected: String?
 
     var sonosService = SonosService()
+    var popOver = Popover()
 
     var body: some Scene {
         WindowGroup {
             ContentView(selected: $selected)
+                .environment(popOver)
                 .environment(sonosService)
                 .task {
-                    sonosService.monitor()
-                    //                LiveActivityMajnager.shared.createActivity()
+                    sonosService.monitorWatch()
                 }
         }.onChange(of: scenePhase) { oldValue, newValue in
-            if newValue == .background {
-                WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
-            }
             if newValue == .active {
                 Task {
                     try await Task.sleep(for: .seconds(1))
@@ -33,6 +29,3 @@ struct SonosApp: App {
         }
     }
 }
-
-
-

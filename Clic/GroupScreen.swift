@@ -6,48 +6,60 @@ struct GroupScreen: View {
     @Environment(\.dismiss) var dismiss
 
     @Bindable var roomGroup: GroupRoom
-    @State var multiSelection = Set<String>()
+    @State var viewModel: GroupScreenViewModel
 
     var body: some View {
-        List(selection: $multiSelection) {
-            Section {
-                HStack {
-                    ArtworkView(group: roomGroup)
-                        .frame(width: 72, height: 72)
-                    ZoneView(roomGroup: roomGroup)
-                }
-            }
-            ForEach(sonosService.rooms) { room in
-                HStack {
-                    //                        Image(systemName: roomGroup.rooms.contains(room) ? "checkmark.circle" : "circle")
+        NavigationStack {
+            List {
+                ForEach(sonosService.rooms) { room in
+                    if room != roomGroup.coordinatorRoom {
+                        Button {
+                            viewModel.buttonAction(id: room.id)
+                        } label: {
+                            HStack {
+                                Text(room.name)
+                                Spacer()
+                                Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                    .contentTransition(.symbolEffect(.automatic))
 
-                        Text(room.name)
-
+                            }
+                        }
+                    }
                 }
                 .listRowBackground(Color.clear)
             }
-        }
-        .scrollContentBackground(.hidden)
-        .overlay(alignment: .bottom) {
-            Button {
-                let rooms = sonosService.rooms.filter { room in
-                    multiSelection.contains(room.id)
+            .scrollContentBackground(.hidden)
+            .toolbar {
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
+                        let rooms = sonosService.rooms.filter { room in
+                            viewModel.selections.contains(room.id)
+                        }
+                        Task {
+                            dismiss()
+                            await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+                        }
+                    } label: {
+                        Text(viewModel.groupingLabel)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                Task {
-                    dismiss()
-                    await sonosService.group(rooms: rooms, to: roomGroup.coordinatorID)
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .cancel) {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
                 }
-            } label: {
-                Text("Done")
-                    .fontWeight(.bold)
             }
-            .buttonStyle(.borderedProminent)
-        }
-        .environment(\.editMode, .constant(EditMode.active))
-        .task {
-            if sonosService.rooms.isEmpty {
-                await sonosService.load()
+            .task {
+                if sonosService.rooms.isEmpty {
+                    await sonosService.load()
+                }
             }
+            .navigationTitle("\(roomGroup.coordinatorRoom.name)")
+            .navigationBarTitleDisplayMode(.inline)
+//
         }
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])
@@ -58,7 +70,7 @@ struct GroupScreen: View {
     Text("HERE")
         .sheet(isPresented: .constant(true), content: {
             GroupScreen(roomGroup: GroupRoom(id: "", coordinatorID: "", rooms: [
-                Room(id: "", ip: "", name: "Kitchen")]))
+                Room(id: "", ip: "", name: "Kitchen")]), viewModel: GroupScreenViewModel(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")])))
             .environment(SonosService())
         })
 }

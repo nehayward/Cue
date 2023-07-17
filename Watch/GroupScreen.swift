@@ -6,13 +6,7 @@ struct GroupScreen: View {
     @Environment(\.dismiss) var dismiss
 
     @Bindable var roomGroup: GroupRoom
-//    @State var selections = Set<String>()
-    var viewModel: GroupScreenViewModel
-
-    init(roomGroup: GroupRoom) {
-        self.roomGroup = roomGroup
-        self.viewModel = GroupScreenViewModel(group: roomGroup)
-    }
+    @State var viewModel: GroupScreenViewModel
 
     var body: some View {
         List {
@@ -68,7 +62,7 @@ struct GroupScreen: View {
     Text("HERE")
         .sheet(isPresented: .constant(true), content: {
             GroupScreen(roomGroup: GroupRoom(id: "", coordinatorID: "", rooms: [
-                Room(id: "", ip: "", name: "Kitchen")]))
+                Room(id: "", ip: "", name: "Kitchen")]), viewModel: GroupScreenViewModel(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")])))
             .environment(SonosService())
         })
 }

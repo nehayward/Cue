@@ -45,4 +45,19 @@ extension Track: Hashable {
     }
 }
 
+public extension Track {
+    var timestamp: String {
+        let seconds = playbackPosition / 1000
+        let minutes = seconds / 60
+        let remainingSeconds = seconds.truncatingRemainder(dividingBy: 60)
 
+        return String(format: "%01.0f:%02.0f", minutes, remainingSeconds)
+    }
+
+    var remainingTimestamp: String {
+        let seconds = (duration - playbackPosition) / 1000
+        let minutes = seconds / 60
+        let remainingSeconds = seconds.truncatingRemainder(dividingBy: 60)
+        return String(format: "%01.0f:%02.0f", minutes, 60 - abs(remainingSeconds))
+    }
+}

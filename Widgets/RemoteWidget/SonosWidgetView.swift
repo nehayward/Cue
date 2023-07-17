@@ -19,42 +19,44 @@ struct SonosWidgetEntryView : View {
                 VStack(spacing: 0) {
                     Label(speakerIP.name, systemImage: "hifispeaker.fill")
                         .padding(.bottom, 12)
-                    HStack(spacing: 24) {
-                        Button(intent: PlayIntent(speaker: speakerIP)) {
-                            Image(systemName: "playpause.circle.fill")
-                                .resizable()
-                                .tint(.secondary)
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
+                    HStack {
+                        VStack(spacing: 24) {
+                            Button(intent: PlayIntent(speaker: speakerIP)) {
+                                Image(systemName: "playpause.circle.fill")
+                                    .resizable()
+                                    .tint(.secondary)
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                            }
+                            
+                            Button(intent: NextIntent(speaker: speakerIP)) {
+                                Image(systemName: "forward.circle.fill")
+                                    .resizable()
+                                    .tint(.secondary)
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                            }
                         }
-
-                        Button(intent: NextIntent(speaker: speakerIP)) {
-                            Image(systemName: "forward.circle.fill")
-                                .resizable()
-                                .tint(.secondary)
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
+                        .padding(.bottom, 12)
+                        VStack(spacing: 24) {
+                            Button(intent: SetVolumeIntent(speaker: speakerIP, volume: 5)) {
+                                Image(systemName: "plus.circle.fill")
+                                    .resizable()
+                                    .tint(.secondary)
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                            }
+                            Button(intent: SetVolumeIntent(speaker: speakerIP, volume: -5)) {
+                                Image(systemName: "minus.circle.fill")
+                                    .resizable()
+                                    .tint(.secondary)
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                            }
                         }
+                        .padding(.bottom, 12)
+                        
                     }
-                    .padding(.bottom, 12)
-                    HStack(spacing: 24) {
-                        Button(intent: SetVolumeIntent(speaker: speakerIP, volume: -5)) {
-                            Image(systemName: "minus.circle.fill")
-                                .resizable()
-                                .tint(.secondary)
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
-                        }
-                        Button(intent: SetVolumeIntent(speaker: speakerIP, volume: 5)) {
-                            Image(systemName: "plus.circle.fill")
-                                .resizable()
-                                .tint(.secondary)
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
-                        }
-                    }
-                    .padding(.bottom, 12)
-
                     ProgressView(value: Double(entry.volume), total: 100)
                 }
                 .buttonStyle(.borderless)

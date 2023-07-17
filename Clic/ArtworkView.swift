@@ -14,8 +14,10 @@ struct ArtworkView: View {
             case .success(let image):
                 image
                     .resizable()
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .shadow(radius: 2)
             default:
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 4)
                     .foregroundStyle(.ultraThinMaterial)
             }
         }

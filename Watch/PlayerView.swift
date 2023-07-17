@@ -54,7 +54,7 @@ struct PlayerView: View {
                 .foregroundStyle(.tint, .thinMaterial)
                 .bold()
             Text(group.coordinatorRoom.track.artist)
-                .foregroundStyle(.ultraThickMaterial)
+                .foregroundStyle(.tint, .ultraThickMaterial)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -70,7 +70,7 @@ struct PlayerView: View {
                         .blur(radius: 20)
                 default:
                     RoundedRectangle(cornerRadius: 12)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.thinMaterial)
                 }
             }
             .ignoresSafeArea()
@@ -82,7 +82,7 @@ struct PlayerView: View {
                 Button {
                     showGroup.toggle()
                 } label: {
-                    Image(systemName: "hifispeaker")
+                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                         .foregroundStyle(.foreground)
                 }
             }
@@ -130,14 +130,14 @@ struct PlayerView: View {
             }
         }
         .sheet(isPresented: $showGroup) {
-            GroupScreen(roomGroup: group)
+            GroupScreen(roomGroup: group, viewModel: GroupScreenViewModel(group: group))
         }
         .onChange(of: volume) {
             Task {
                 await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             }
-
         }
+        .navigationTitle(group.coordinatorRoom.name)
     }
 }
 

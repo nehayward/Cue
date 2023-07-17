@@ -13,9 +13,11 @@ struct VolumeControlView: View {
             Slider(value: $volume, in: 0...100, step: 2) { isEditing in
                 self.isEditing = isEditing
             }
+            Text("\(volume, specifier: "%02.0f")")
+                .monospacedDigit()
         }
         .onAppear {
-            volume = roomGroup.coordinatorRoom.volume
+            volume = roomGroup.groupVolume
         }
         .onChange(of: roomGroup.coordinatorRoom.volume) { oldValue, newValue in
             guard !isEditing else { return }
@@ -26,7 +28,7 @@ struct VolumeControlView: View {
         .onChange(of: volume) { oldValue, newValue in
             if isEditing {
                 Task {
-                    await sonosService.setDeviceVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
+                    await sonosService.setGroupVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
                 }
             }
         }

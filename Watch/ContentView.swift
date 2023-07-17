@@ -9,10 +9,9 @@ class Popover {
 
 struct ContentView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @State var selected: String? = nil
-
     @Environment(Popover.self) var popOver: Popover
-
+    @Binding var selected: String?
+    
     var body: some View {
         NavigationSplitView {
             List (sonosService.groups, selection: $selected) { group in
@@ -20,7 +19,7 @@ struct ContentView: View {
                     HStack {
                         VStack(alignment: .leading) {
                             HStack {
-                                Image(systemName: "hifispeaker")
+                                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                                 Text(group.coordinatorRoom.name)
                             }
                             Text(group.coordinatorRoom.track.name)
@@ -71,17 +70,14 @@ struct ContentView: View {
                 .environment(popOver)
             }
         }
-        .task {
-            await sonosService.load()
-        }
-        .onAppear {
-            Task {
-                try await Task.sleep(for: .seconds(1))
-                selected = sonosService.groups.first(where: { room in
-                    room.coordinatorRoom.isPlaying
-                })?.coordinatorID
-                print(selected)
-            }
+        .onChange(of: selected) {
+            guard let selected else { return }
+            let selectedGroup = sonosService.groups.first(where: { room in
+                room.coordinatorID == selected
+            })
+
+            guard let selectedGroup else { return }
+            sonosService.selectedGroup = selectedGroup
         }
         .overlay {
             if popOver.isShowing {
@@ -110,7 +106,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
 }

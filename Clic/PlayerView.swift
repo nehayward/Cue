@@ -135,10 +135,6 @@ struct PlayerView: View {
 }
 
 #Preview {
-    List {
-
-    }.sheet(isPresented: .constant(true)) {
-        PlayerView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.50", name: "Garage")]))
-            .environment(SonosService())
-    }
+    PlayerView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.50", name: "Garage")]))
+        .environment(SonosService())
 }

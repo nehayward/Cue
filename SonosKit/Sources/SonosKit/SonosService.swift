@@ -8,12 +8,17 @@ import SwiftUI
 public final class SonosService {
     public var groups: [GroupRoom] = []
     public var rooms: [Room] = []
+    public var selectedGroup: GroupRoom? = nil
 
     private var sonosSystemDiscoverService = SonosSystemDiscoverService()
     private var sonosAPI = SonosAPI()
     private var musicSearch = MusicSearchService()
 
-    public init () { }
+    public init () {
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            monitor()
+        }
+    }
 
     public func monitor() {
         Task {
@@ -25,9 +30,93 @@ public final class SonosService {
         }
     }
 
+
+    public func monitorWatch(frequency: TimeInterval = 1) {
+        Task {
+            repeat {
+                // code you want to repeat
+                await fetch()
+                try? await Task.sleep(for: .seconds(frequency)) // exception thrown when cancelled by SwiftUI when this view disappears.
+            } while (!Task.isCancelled)
+        }
+    }
+
     @MainActor
     public func load() async {
         let groups = await getGroups()
+        for group in groups.indices {
+            let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
+            groups[group].groupVolume = groupVolume
+
+            for room in groups[group].rooms.indices {
+                let volume = await getVolume(ip: groups[group].rooms[room].ip)
+                groups[group].rooms[room].volume = volume
+
+                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
+                groups[group].rooms[room].isPlaying = playbackInfo == "PLAYING"
+
+//                if playbackInfo != "PLAYING", !groups[group].rooms[room].track.name.isEmpty {
+//                    continue
+//                }
+
+                guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
+                groups[group].rooms[room].track = track
+
+                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+                    continue
+                }
+                if artworkURL != track.artworkURL {
+                    track.artworkURL = artworkURL
+                }
+            }
+        }
+
+        self.groups = groups
+        self.rooms = groups.flatMap(\.rooms)
+        return
+    }
+
+    @MainActor
+    public func fetch() async {
+        let groups = await getGroups()
+        if self.groups.isEmpty || groups.count != self.groups.count {
+            self.groups = groups
+        }
+
+        if let selectedGroup {
+            guard let index = groups.firstIndex(of: selectedGroup) else {
+                self.selectedGroup = nil
+                return
+            }
+
+            let groupVolume = await getGroupVolume(ip: groups[index].coordinatorRoom.ip)
+            groups[index].groupVolume = groupVolume
+            
+            for room in groups[index].rooms.indices {
+                let volume = await getVolume(ip: groups[index].rooms[room].ip)
+                groups[index].rooms[room].volume = volume
+                
+                let playbackInfo = await getPlaybackInfo(ip: groups[index].rooms[room].ip)
+                groups[index].rooms[room].isPlaying = playbackInfo == "PLAYING"
+
+//                if playbackInfo != "PLAYING" {
+//                    continue
+//                }
+
+                guard let track = await getTrack(ip: groups[index].rooms[room].ip) else { continue }
+                groups[index].rooms[room].track = track
+                
+                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+                    continue
+                }
+                if artworkURL != track.artworkURL {
+                    track.artworkURL = artworkURL
+                }
+            }
+            
+            return
+        }
+
         for group in groups.indices {
             for room in groups[group].rooms.indices {
                 let volume = await getVolume(ip: groups[group].rooms[room].ip)
@@ -36,42 +125,24 @@ public final class SonosService {
                 let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
                 groups[group].rooms[room].isPlaying = playbackInfo == "PLAYING"
 
+//                if playbackInfo != "PLAYING" {
+//                    continue
+//                }
+
                 guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
                 groups[group].rooms[room].track = track
-                
+
                 guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
                     continue
                 }
-                track.artworkURL = artworkURL
-
-                let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
-                groups[group].groupVolume = groupVolume
-
-//
-//                if groups[group].rooms[room].name == "Garage" {
-//                    print("*****************")
-//                    print(volume)
-//                    print("*****************")
-//                }
-                
-            }
-            if groups[group].rooms.first?.name == "Gym" {
-                print("*****************")
-                print(groups[group].coordinatorID)
-                print(groups[group].id)
-                print("*****************")
+                if artworkURL != track.artworkURL {
+                    track.artworkURL = artworkURL
+                }
             }
         }
 
         self.groups = groups
         self.rooms = groups.flatMap(\.rooms)
-//        for device in sonosDevices {
-//            device.volume = await getVolume(ip: device.ipAddress)
-////            guard let track = await getTrack(ip: device.ipAddress) else { return }
-////            guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
-////                return
-////            }
-//        }
         return
     }
 
@@ -105,6 +176,7 @@ public final class SonosService {
                 await sonosAPI.ungroup(IP: element.ip)
             }
         }
+        selectedGroup = nil
     }
 
 

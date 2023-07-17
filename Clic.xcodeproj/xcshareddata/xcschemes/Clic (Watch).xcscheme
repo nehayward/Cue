@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-               BuildableName = "Clic (Watch).app"
+               BuildableName = "Clic Watch.app"
                BlueprintName = "Clic (Watch)"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
@@ -58,7 +58,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-            BuildableName = "Clic (Watch).app"
+            BuildableName = "Clic Watch.app"
             BlueprintName = "Clic (Watch)"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
@@ -75,7 +75,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-            BuildableName = "Clic (Watch).app"
+            BuildableName = "Clic Watch.app"
             BlueprintName = "Clic (Watch)"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>

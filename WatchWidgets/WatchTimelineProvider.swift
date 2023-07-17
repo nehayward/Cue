@@ -28,7 +28,7 @@ struct Provider: AppIntentTimelineProvider {
 
     func recommendations() -> [AppIntentRecommendation<WatchConfigurationIntent>] {
         // Create an array with all the preconfigured widgets to show.
-        [AppIntentRecommendation(intent: WatchConfigurationIntent(), description: "Example Widget")]
+        [AppIntentRecommendation(intent: WatchConfigurationIntent(), description: "Clic")]
     }
 
 

@@ -3,15 +3,12 @@ import SonosKit
 
 struct ZoneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Popover.self) var popover: Popover
-
     var roomGroup: GroupRoom
-
 
     @State private var multiSelection = Set<String>()
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
-    @State var show: Bool = false
+    @State var showGroupScreen: Bool = false
 
     var body: some View {
         HStack {
@@ -30,6 +27,8 @@ struct ZoneView: View {
                 .fontDesign(.rounded)
                 Text(roomGroup.coordinatorRoom.track.name)
                     .font(.caption)
+                Text(roomGroup.coordinatorRoom.track.artist)
+                    .font(.caption)
                VolumeControlView(roomGroup: roomGroup)
             }
             VStack(spacing: 18) {
@@ -42,7 +41,6 @@ struct ZoneView: View {
                         }
                     }
                 }, label: {
-
                     Gauge(
                         value: roomGroup.coordinatorRoom.track.playbackPosition,
                         in: 0...roomGroup.coordinatorRoom.track.duration,
@@ -50,39 +48,28 @@ struct ZoneView: View {
 
                         },
                         currentValueLabel: {
-                            Image(systemName: roomGroup.coordinatorRoom.isPlaying ? "pause.circle.fill" : "play")
-                                .foregroundStyle(.tint, .thickMaterial)
-                                .contentTransition(.symbolEffect(.replace.downUp))
-                                .font(.title)
-                        },
-                        markedValueLabels: {
-    //                                Text("0%").tag(0.0)
-    //                                Text("50%").tag(0.5)
-    //                                Text("100%").tag(1.0)
+                            Image(systemName: roomGroup.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                .renderingMode(.template)
+                                .foregroundColor(.accentColor)
+                                .contentTransition(.symbolEffect(.automatic))
+
                         }
                     )
-                    .tint(Color.primary.gradient)
+                    .tint(.accentColor)
                     .gaugeStyle(.accessoryCircularCapacity)
                     .animation(.linear, value: roomGroup.coordinatorRoom.track.playbackPosition)
                     .scaleEffect(0.6)
                 })
                 .buttonStyle(.plain)
 
-
-
                 Button(action: {
-//                    multiSelection = Set(roomGroup.rooms.map(\.id))
-//                    show = true
-
-                    popover.isShowing = true
+                    showGroupScreen = true
                 }, label: {
                     Image(systemName: roomGroup.rooms.count > 1 ? "hifispeaker.2" :  "hifispeaker")
                         .frame(width: 20)
                         .foregroundStyle(.tint, .thickMaterial)
                 })
                 .buttonStyle(.plain)
-
-
             }.padding(.leading)
         }
         .padding(.leading)
@@ -102,21 +89,9 @@ struct ZoneView: View {
                 }
             }
         }
-        .background {
-            EmptyView()
-                .sheet(isPresented: $show) {
-                    GroupScreen(roomGroup: roomGroup, multiSelection: multiSelection)
-                }
+        .sheet(isPresented: $showGroupScreen) {
+            GroupScreen(roomGroup: roomGroup, viewModel: GroupScreenViewModel(group: roomGroup))
         }
-//        .task {
-//            await sonosService.load()
-//        }
-
-//        .sheet(isPresented: $show) {
-//            Text(roomGroup.coordinatorRoom.name)
-//                .presentationDetenats([.fraction(0.2)])
-//                .presentationDragIndicator(.visible)
-//        }
     }
 }
 

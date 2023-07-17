@@ -10,7 +10,7 @@ final class GroupScreenViewModel {
 
     init(group: GroupRoom) {
         self.group = group
-        
+
         var ids = Set(group.rooms.map { $0.id })
         ids.remove(group.coordinatorRoom.id)
         self.selections = ids

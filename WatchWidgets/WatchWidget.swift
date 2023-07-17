@@ -20,9 +20,8 @@ struct WatchWidget: Widget {
     }
 }
 
-
-//#Preview(as: .systemMedium) {
-//    WatchWidgetsEntryView()
-//} timeline: {
-//    SimpleEntry(date: .now, configuration: ConfigurationAppIntent(speakerIP: SonosSpeakerEntity(id: "", name: "Kitchen", ip: "", volume: 0)), volume: 0, track: Track(name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
-//}
+#Preview(as: .accessoryCorner) {
+    WatchWidget()
+} timeline: {
+    SimpleEntry(date: .now, configuration: WatchConfigurationIntent())
+}

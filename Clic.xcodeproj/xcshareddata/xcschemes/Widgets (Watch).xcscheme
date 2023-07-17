@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E9B12B522A5F31790008868C"
-               BuildableName = "Widgets (Watch).appex"
+               BuildableName = "Widgets Watch.appex"
                BlueprintName = "Widgets (Watch)"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
@@ -29,7 +29,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E9C03AFB2A586F5E00FB9118"
-               BuildableName = "Clic (Watch).app"
+               BuildableName = "Clic Watch.app"
                BlueprintName = "Clic (Watch)"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
@@ -73,12 +73,21 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
+            BlueprintIdentifier = "E9B12B522A5F31790008868C"
+            BuildableName = "Widgets Watch.appex"
+            BlueprintName = "Widgets (Watch)"
+            ReferencedContainer = "container:Clic.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9BDE56B29E3396700D230A8"
             BuildableName = "Clic.app"
             BlueprintName = "Clic"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "_XCWidgetKind"
@@ -108,7 +117,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E9B12B522A5F31790008868C"
-            BuildableName = "Widgets (Watch).appex"
+            BuildableName = "Widgets Watch.appex"
             BlueprintName = "Widgets (Watch)"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>

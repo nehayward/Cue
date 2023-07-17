@@ -1,180 +1,91 @@
 import SwiftUI
 import SonosKit
 
-enum ActiveSheet: Identifiable {
-    case first, second
-
-    var id: Int {
-        hashValue
-    }
-}
-
 struct ContentView: View {
-
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Popover.self) var popover: Popover
 
-    @State var room: GroupRoom? = nil
-    @State var selected: String? = nil
+    @State var group: GroupRoom? = nil
+    @Binding var selected: String?
     @State var isEditing = false
     @State var grouping = false
+    @State var isShowing = false
 
     @State var multiSelection = Set<String>()
     @Namespace var namespace
-    @State var activeSheet: ActiveSheet?
 
-    @State var showGroup: Bool = false
-
+    
     var body: some View {
-        List {
-            ForEach(sonosService.groups) { group in
-                if selected != group.coordinatorID {
+            NavigationSplitView {
+                List (sonosService.groups, selection: $selected) { group in
                     Section {
                         HStack {
                             ArtworkView(group: group)
                                 .frame(width: 72, height: 72)
                             ZoneView(roomGroup: group)
                         }
-                        .matchedGeometryEffect(id: group.id, in: namespace)
-                        .onTapGesture {
-                            activeSheet = .second
-                            withAnimation {
-                                selected = group.coordinatorID
-                            }
-                            room = group
-                            
-                        }
-                    }.sheet(item: $activeSheet) { sheet in
-                        switch sheet {
-                        case .first, .second:
-                            if selected != nil {
-                                PlayerView(group: sonosService.groups.first(where: { group in
-                                    group.coordinatorID == selected!
-                                })!)
-                //                    .matchedGeometryEffect(id: selected!.id, in: namespace)
-                                .environment(sonosService)
-                                .sheet(isPresented: $showGroup) {
-                                    SceneBuilderScreen()
-                                }
-                            }
+                        .overlay {
+                            NavigationLink(value:  group,
+                                           label: { EmptyView() })
+                            .opacity(0)
                         }
                     }
+                    .tag(group.coordinatorID)
+                }
+//                VStack {
+//                    SceneView(show: $isShowing)
+//                    //                    .listRowBackground(Color.clear)
+//                    Slider(value: .constant(0))
+//                }
+//                .backgroundStyle(.thinMaterial)
+
+//                    .listRowInsets(EdgeInsets())
+            } detail: {
+                if selected != nil {
+                    LargePlayerView(group: sonosService.groups.first(where: { group in
+                        group.coordinatorID == selected!
+                    })!)
+                    .environment(sonosService)
                 }
             }
-            
-            SceneView(show: $showGroup)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-        }
-        .safeAreaPadding(.bottom, 140)
-//        .overlay(alignment: .bottom) {
-//            if selected != nil{
-//
-////                HStack {
-////                    Text(selected.rooms[0].name)
-////                    Text(selected.rooms[0].track.name)
-////                }
-////                .frame(maxWidth: .infinity, maxHeight: 40)
-////                .padding()
-////                .background {
-////                    RoundedRectangle(cornerRadius: 12)
-////                        .foregroundStyle(.ultraThickMaterial)
-////                }
-////                .animation(.easeInOut(duration: 1), value: selected.id)
-//
-//                    HStack {
-//                        ArtworkView(group: selected!)
-//                        ZoneView(roomGroup: selected!)
-//                    }
-//                    .matchedGeometryEffect(id: selected!.id, in: namespace)
-//
-//
-//            }
-//        }
-        .listSectionSpacing(10)
-        .onAppear {
-            sonosService.monitor()
-        }
-//        .overlay(alignment: .bottom) {
-//            Rectangle()
-//                .ignoresSafeArea()
-//                .frame(height: 60)
-//                .foregroundStyle(.thinMaterial)
-//                .overlay {
-//                    HStack {
-//                        if grouping {
-//                            Button("Cancel") {
-//                                multiSelection.removeAll()
-//                                grouping = false
-//                            }
-//                        }
-//                        if grouping {
-//                            Spacer()
-//                        }
-//                        Button {
-//                            if multiSelection.count > 1 {
-//                                if let firstRoom = multiSelection.popFirst() {
-//
-////                                    sonosService.group(rooms: multiSelection, to: firstRoom.coordinatorID)
-//                                }
-//                                grouping = false
-//                            } else {
-//                                grouping.toggle()
-//                            }
-//                        } label: {
-//                            HStack {
-//                                Image(systemName: "hifispeaker.2.fill")
-//                                Text(!grouping ? "Group" : "Grouping \(multiSelection.count)")
-//                                    .frame(minWidth: 100, alignment: .leading)
-//                            }
-//                        }
-//                        .buttonStyle(.borderedProminent)
-//                    }
-//                    .animation(nil)
-//                    .padding()
-//                }
-//                .animation(nil)
-//
-//        }
-//        .toolbar {
-//            ToolbarItemGroup(placement: .bottomBar) {
-//                Button {
-//                    isEditing.toggle()
-//                } label: {
-//                    HStack {
-//                        Text(multiSelection.isEmpty ? "Group" : "Cancel")
-//                        Image(systemName: "hifispeaker.2.fill")
-//                    }
-//                }
-//                Spacer()
-//                Button {
-//                    isEditing = false
-//                    print(multiSelection)
-//                } label: {
-//                    HStack {
-//                        Text(!multiSelection.isEmpty ? "Group" : "")
-//                    }
+//            .onChange(of: sonosService.groups) {
+//                Task {
+//                    try await Task.sleep(for: .seconds(1))
+//                    selected = sonosService.groups.first(where: { room in
+//                        room.coordinatorRoom.isPlaying
+//                    })?.coordinatorID
 //                }
 //            }
-//            ToolbarItemGroup(placement: .secondaryAction) {
-//                Button("Settings") {
-//                    print("Credits tapped")
-//                }
+//            .onChange(of: selected) {
+//                guard let selected else { return }
+//                let selectedGroup = sonosService.groups.first(where: { room in
+//                    room.coordinatorID == selected
+//                })
 //
-//                Button("Email Me") {
-//                    print("Email tapped")
-//                }
+//                guard let selectedGroup else { return }
+//                sonosService.selectedGroup = selectedGroup
 //            }
-//
-//        }
-//        .environment(\.editMode, .constant(self.isEditing ? EditMode.active : EditMode.inactive))
+            .overlay {
+                if sonosService.groups.isEmpty {
+                    Rectangle()
+                        .ignoresSafeArea()
+                        .foregroundStyle(.ultraThinMaterial)
+                        .overlay {
+                            Text("Searching...")
+                                .animation(nil)
+                        }
+                        .transition(.opacity)
+                }
+            }
+            .background(Color.clear)
 
+        .safeAreaPadding(.bottom, 140)
+        .listSectionSpacing(10)
     }
 }
 
 #Preview {
     NavigationStack {
-        ContentView()
+        ContentView(selected: .constant(nil))
             .environment(SonosService())
     }
 }
