@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import WidgetKit
 
 @main
 struct ClicWatchApp: App {
@@ -25,6 +26,9 @@ struct ClicWatchApp: App {
                         room.coordinatorRoom.isPlaying
                     })?.coordinatorID
                 }
+            }
+            if newValue == .background {
+                WidgetCenter.shared.reloadTimelines(ofKind: "WatchWidget")
             }
         }
     }

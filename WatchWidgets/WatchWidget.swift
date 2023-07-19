@@ -6,13 +6,13 @@ struct WatchWidget: Widget {
     let kind: String = "WatchWidget"
 
     var families: [WidgetFamily] {
-        [.accessoryCircular, .accessoryRectangular]
+        [.accessoryCircular, .accessoryCorner]
     }
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind,
                                intent: WatchConfigurationIntent.self,
-                               provider: Provider()
+                               provider: NowPlayingProvider()
         ) { entry in
             WatchWidgetsEntryView(entry: entry)
         }
@@ -20,8 +20,8 @@ struct WatchWidget: Widget {
     }
 }
 
-#Preview(as: .accessoryCorner) {
+#Preview(as: .accessoryCircular) {
     WatchWidget()
 } timeline: {
-    SimpleEntry(date: .now, configuration: WatchConfigurationIntent())
+    NowPlayingEntry(date: .now, configuration: WatchConfigurationIntent(), info: nil)
 }

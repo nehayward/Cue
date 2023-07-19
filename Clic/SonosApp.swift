@@ -16,7 +16,6 @@ struct SonosApp: App {
                 .environment(sonosService)
                 .task {
                     sonosService.monitor()
-                    //                LiveActivityMajnager.shared.createActivity()
                 }
         }.onChange(of: scenePhase) { oldValue, newValue in
             if newValue == .background {
@@ -24,15 +23,18 @@ struct SonosApp: App {
             }
             if newValue == .active {
                 Task {
-                    try await Task.sleep(for: .seconds(1))
+                    try await Task.sleep(for: .milliseconds(300))
                     selected = sonosService.groups.first(where: { room in
                         room.coordinatorRoom.isPlaying
                     })?.coordinatorID
                 }
             }
         }
+        .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
+            LiveActivityManager.shared.createActivity(with: sonosService.groups)
+        }
+//        .backgroundTask(.appRefresh(UUID().uuidString)) { action in
+//            LiveActivityManager.shared.refresh()
+//        }
     }
 }
-
-
-

@@ -72,7 +72,7 @@ class XMLParserSonos {
 
     func parseGroupRelativeVolume(xml: String) -> Int {
         let xml = XMLHash.parse(xml)
-        let volume = xml["s:Envelope"]["s:Body"]["u:SetRelativeVolumeResponse"]["NewVolume"].element?.text
+        let volume = xml["s:Envelope"]["s:Body"]["u:SetRelativeGroupVolumeResponse"]["NewVolume"].element?.text
         return Int(volume ?? "0")!
     }
 
@@ -138,7 +138,6 @@ class XMLParserSonos {
                        let seconds = Int(components[2])
                     {
                         let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-                        print(totalMilliseconds) // Output: 220000
                         playbackPosition = TimeInterval(totalMilliseconds)
                     }
                 }
@@ -153,7 +152,6 @@ class XMLParserSonos {
            let seconds = Int(trackDurationComponents[2])
         {
             let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-            print(totalMilliseconds) // Output: 220000
             trackDuration = TimeInterval(totalMilliseconds)
         }
 
@@ -185,9 +183,6 @@ class XMLParserSonos {
         }
 
         let masterVolume: String = masterChannelElement["Volume"].element?.allAttributes["val"]?.text ?? ""
-
-        print(masterVolume)
-
         return Double(masterVolume) ?? 0
 
     }
@@ -206,8 +201,6 @@ class XMLParserSonos {
         }
 
         let masterVolume: String = masterChannelElement["Volume"].element?.allAttributes["val"]?.text ?? ""
-
-        print(masterVolume)
 
         return Double(masterVolume) ?? 0
 

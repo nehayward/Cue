@@ -41,7 +41,7 @@ struct VolumeControlView: View {
         .onChange(of: volume) { oldValue, newValue in
             if isEditing {
                 Task {
-                    await sonosService.setDeviceVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
+                    await sonosService.setGroupVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
                 }
             }
         }

@@ -67,6 +67,22 @@ final class SonosAPI {
         return 0
     }
 
+    func setRelativeGroupVolume(ipAddress: String, volume: Int) async -> Int {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Adjustment": volume
+        ]
+
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
+            let volume = XMLParserSonos().parseGroupRelativeVolume(xml: xmlString)
+            return volume
+        }
+
+        return 0
+    }
+
+
 
     func getVolume(ipAddress: String) async -> Double {
         let arguments: [String: Any] = [
@@ -317,85 +333,7 @@ final class SonosAPI {
 //        }
     }
 
-    func monitorRenderingControl(ip: String) async -> String? {
-        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
-            logger.error("Failed lookup deviceIP")
-            return nil
-        }
-
-        let url = URL(string: "http://\(ip):1400/MediaRenderer/RenderingControl/Event")!
-        let callbackURL = "http://\(deviceIP):9094"
-        let headers = [
-            "CALLBACK": "<\(callbackURL)>",
-            "NT": "upnp:event",
-            "TIMEOUT": "Second-300"
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "SUBSCRIBE"
-        request.allHTTPHeaderFields = headers
-
-        guard let (_, response) = try? await session.data(for: request) else {
-            logger.error("Failed to send request")
-            return nil
-        }
-
-        print(response)
-        return ""
-    }
-
-    func monitorAVTransport(ip: String) async -> String? {
-        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
-            logger.error("Failed lookup deviceIP")
-            return nil
-        }
-
-        let url = URL(string: "http://\(ip):1400/MediaRenderer/AVTransport/Event")!
-        let callbackURL = "http://\(deviceIP):9094"
-        let headers = [
-            "CALLBACK": "<\(callbackURL)>",
-            "NT": "upnp:event",
-            "TIMEOUT": "Second-300"
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "SUBSCRIBE"
-        request.allHTTPHeaderFields = headers
-
-        guard let (_, response) = try? await session.data(for: request) else {
-            logger.error("Failed to send request")
-            return nil
-        }
-
-        print(response)
-        return ""
-    }
-
-    func monitorZones(ip: String) async {
-        guard let deviceIP = IPLookup.shared.deviceIPV4 else {
-            return
-        }
-
-        let url = URL(string: "http://\(ip):1400/ZoneGroupTopology/Event")!
-        let callbackURL = "http://\(deviceIP):9094"
-        let headers = [
-            "CALLBACK": "<\(callbackURL)>",
-            "NT": "upnp:event",
-            "TIMEOUT": "Second-300"
-        ]
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "SUBSCRIBE"
-        request.allHTTPHeaderFields = headers
-
-        guard let (_, response) = try? await session.data(for: request) else {
-            return
-        }
-
-        print(response)
-
-    }
-
+    
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
         let xmlString = """
             <?xml version="1.0" encoding="utf-8"?>

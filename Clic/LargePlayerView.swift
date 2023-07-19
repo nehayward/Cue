@@ -89,8 +89,6 @@ struct LargePlayerView: View {
             group.coordinatorRoom.track.duration = 2000
             Task {
                 repeat {
-                    // code you want to repeat
-
                     try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
                     group.rooms[0].track.playbackPosition += 1000
 

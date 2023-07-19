@@ -7,22 +7,15 @@ struct NowPlayingWidget: Widget {
     let kind: String = "NowPlayingWidget"
 
     var families: [WidgetFamily] {
-        [.accessoryCircular, .accessoryRectangular, .systemSmall, .systemMedium]
+        // MARK: TODO add back
+//        [.accessoryCircular, .accessoryRectangular, .systemSmall, .systemMedium]
+        [.systemMedium]
     }
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationNowPlayingAppIntent.self, provider: NowPlayingProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: NowPlayingWidgetConfigurationIntent.self, provider: NowPlayingProvider()) { entry in
             NowPlayingWidgetView(entry: entry)
         }
         .supportedFamilies(families)
-        .contentMarginsDisabled()
     }
 }
-
-extension ConfigurationNowPlayingAppIntent {
-    static var duaLipaInGarage: ConfigurationNowPlayingAppIntent {
-        let intent = ConfigurationNowPlayingAppIntent()
-        return intent
-    }
-}
-

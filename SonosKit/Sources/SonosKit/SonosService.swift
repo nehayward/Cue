@@ -16,7 +16,7 @@ public final class SonosService {
 
     public init () {
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-            monitor()
+            monitorWatch()
         }
     }
 
@@ -43,44 +43,52 @@ public final class SonosService {
 
     @MainActor
     public func load() async {
-        let groups = await getGroups()
+        let newGroup = await getGroups()
+        if !newGroup.isEmpty && newGroup.count != self.groups.count {
+            self.groups = newGroup
+            self.rooms = newGroup.flatMap(\.rooms)
+        }
+
         for group in groups.indices {
             let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
             groups[group].groupVolume = groupVolume
 
             for room in groups[group].rooms.indices {
+                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
+                if playbackInfo == "PLAYING" {
+                    groups[group].rooms[room].isPlaying = true
+                } else if playbackInfo == "PAUSED_PLAYBACK" || playbackInfo == "STOPPED" {
+                    groups[group].rooms[room].isPlaying = false
+                }
+            }
+
+            for room in groups[group].rooms.indices {
                 let volume = await getVolume(ip: groups[group].rooms[room].ip)
                 groups[group].rooms[room].volume = volume
 
-                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
-                groups[group].rooms[room].isPlaying = playbackInfo == "PLAYING"
-
-//                if playbackInfo != "PLAYING", !groups[group].rooms[room].track.name.isEmpty {
-//                    continue
-//                }
-
                 guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
-                groups[group].rooms[room].track = track
+
+                let previousArtwork = track.artworkURL
 
                 guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
                     continue
                 }
-                if artworkURL != track.artworkURL {
-                    track.artworkURL = artworkURL
+                if artworkURL != previousArtwork {
+                    groups[group].rooms[room].track = track
+                    groups[group].rooms[room].track.artworkURL = artworkURL
                 }
+                groups[group].rooms[room].track = track
             }
         }
-
-        self.groups = groups
-        self.rooms = groups.flatMap(\.rooms)
         return
     }
 
     @MainActor
     public func fetch() async {
-        let groups = await getGroups()
-        if self.groups.isEmpty || groups.count != self.groups.count {
-            self.groups = groups
+        let newGroup = await getGroups()
+        if !newGroup.isEmpty && newGroup.count != self.groups.count {
+            self.groups = newGroup
+            self.rooms = newGroup.flatMap(\.rooms)
         }
 
         if let selectedGroup {
@@ -95,23 +103,26 @@ public final class SonosService {
             for room in groups[index].rooms.indices {
                 let volume = await getVolume(ip: groups[index].rooms[room].ip)
                 groups[index].rooms[room].volume = volume
-                
-                let playbackInfo = await getPlaybackInfo(ip: groups[index].rooms[room].ip)
-                groups[index].rooms[room].isPlaying = playbackInfo == "PLAYING"
 
-//                if playbackInfo != "PLAYING" {
-//                    continue
-//                }
+                let playbackInfo = await getPlaybackInfo(ip: groups[index].rooms[room].ip)
+                if playbackInfo == "PLAYING" {
+                    groups[index].rooms[room].isPlaying = true
+                } else if playbackInfo == "PAUSED" {
+                    groups[index].rooms[room].isPlaying = false
+                }
 
                 guard let track = await getTrack(ip: groups[index].rooms[room].ip) else { continue }
-                groups[index].rooms[room].track = track
-                
+
+                let previousArtwork = track.artworkURL
+
                 guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
                     continue
                 }
-                if artworkURL != track.artworkURL {
-                    track.artworkURL = artworkURL
+                if artworkURL != previousArtwork {
+                    groups[index].rooms[room].track = track
+                    groups[index].rooms[room].track.artworkURL = artworkURL
                 }
+                groups[index].rooms[room].track = track
             }
             
             return
@@ -119,30 +130,35 @@ public final class SonosService {
 
         for group in groups.indices {
             for room in groups[group].rooms.indices {
+                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
+                if playbackInfo == "PLAYING" {
+                    groups[group].rooms[room].isPlaying = true
+                } else if playbackInfo == "PAUSED" {
+                    groups[group].rooms[room].isPlaying = false
+                }
+            }
+
+            let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
+            groups[group].groupVolume = groupVolume
+
+            for room in groups[group].rooms.indices {
                 let volume = await getVolume(ip: groups[group].rooms[room].ip)
                 groups[group].rooms[room].volume = volume
 
-                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
-                groups[group].rooms[room].isPlaying = playbackInfo == "PLAYING"
-
-//                if playbackInfo != "PLAYING" {
-//                    continue
-//                }
-
                 guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
-                groups[group].rooms[room].track = track
+                let previousArtwork = track.artworkURL
 
                 guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
                     continue
                 }
-                if artworkURL != track.artworkURL {
-                    track.artworkURL = artworkURL
+                if artworkURL != previousArtwork {
+                    groups[group].rooms[room].track = track
+                    groups[group].rooms[room].track.artworkURL = artworkURL
                 }
+                groups[group].rooms[room].track = track
             }
         }
 
-        self.groups = groups
-        self.rooms = groups.flatMap(\.rooms)
         return
     }
 
@@ -179,9 +195,12 @@ public final class SonosService {
         selectedGroup = nil
     }
 
-
     public func setDeviceVolume(ip: String, volume: Int) async {
         await sonosAPI.setVolume(ipAddress: ip, volume: volume)
+    }
+
+    public func setRelativeVolume(ip: String, volume: Int) async {
+        await sonosAPI.setRelativeVolume(ipAddress: ip, volume: volume)
     }
 
 
@@ -189,17 +208,16 @@ public final class SonosService {
         await sonosAPI.setVolume(ipAddress: ip, volume: volume)
     }
 
-    public func setRelativeVolume(ip: String, volume: Int) async {
-        await sonosAPI.setRelativeVolume(ipAddress: ip, volume: volume)
+    public func setRelativeGroupVolume(ip: String, volume: Int) async {
+        await sonosAPI.setRelativeGroupVolume(ipAddress: ip, volume: volume)
     }
-    
+
     public func getTrack(ip: String) async -> Track? {
         await sonosAPI.getCurrentTrack(ipAddress: ip)
     }
 
     public func getArtwork(song: String, artist: String, album: String) async -> URL? {
         let searchResults = await musicSearch.search(song: song, artist: artist)
-        print(searchResults.first)
         let found = searchResults.first { result in
             result.artistName == artist &&
             (result.trackName == song || result.trackCensoredName == song) &&
@@ -209,12 +227,30 @@ public final class SonosService {
         return url
     }
 
-
     public func pause(ip: String) async {
+        let groupIndex = groups.firstIndex { room in
+            room.coordinatorRoom.ip == ip
+        }
+
+        if let groupIndex {
+            for (index, _) in groups[groupIndex].rooms.enumerated() {
+                groups[groupIndex].rooms[index].isPlaying = false
+            }
+        }
+
         await sonosAPI.pause(ipAddress: ip)
     }
 
     public func play(ip: String) async {
+        let groupIndex = groups.firstIndex { room in
+            room.coordinatorRoom.ip == ip
+        }
+
+        if let groupIndex {
+            for (index, _) in groups[groupIndex].rooms.enumerated() {
+                groups[groupIndex].rooms[index].isPlaying = true
+            }
+        }
         await sonosAPI.play(ipAddress: ip)
     }
 
@@ -234,7 +270,7 @@ public final class SonosService {
         await sonosAPI.playbackInfo(ipAddress: ip)
     }
 
-    public func playDevice(ip: String) async {
+    public func playPauseDevice(ip: String) async {
         let playback =  await sonosAPI.playbackInfo(ipAddress: ip)
         if playback == "PLAYING" {
             await sonosAPI.pause(ipAddress: ip)
@@ -248,21 +284,14 @@ public final class SonosService {
         await sonosAPI.queue(song: song, IP: ip)
     }
 
-//    /// This will listen and update the Sonos volume
-//    public func monitorVolume(sonos: SonosDevice) async {
-//        let SID = await sonosAPI.monitorRenderingControl(ip: sonos.ipAddress)
-//        print(SID)
-//    }
-//
-//    /// This will listen and update the Sonos volume
-//    public func monitorAVTransport(sonos: SonosDevice) async {
-//        let SID = await sonosAPI.monitorAVTransport(ip: sonos.ipAddress)
-//        print(SID)
-//    }
-
-    public func monitorZones(ip: String) async {
-        let SID = await sonosAPI.monitorZones(ip: ip)
-        print(SID)
+    public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
+        let groups = await getGroups()
+        let group = groups.first { group in
+            group.rooms.contains { room in
+                room.id == roomID
+            }
+        }
+        return group?.coordinatorRoom
     }
 }
 

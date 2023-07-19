@@ -84,9 +84,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    NavigationStack {
-        ContentView(selected: .constant(nil))
-            .environment(SonosService())
-    }
+    ContentView(selected: .constant(nil))
+        .environment(SonosService())
 }
 

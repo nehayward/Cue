@@ -2,7 +2,6 @@ import Foundation
 import Network
 import os
 
-
 final class SonosSystemDiscoverService {
     var sonosIP: String = ""
     

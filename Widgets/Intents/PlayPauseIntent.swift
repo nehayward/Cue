@@ -1,10 +1,11 @@
 import AppIntents
 import SonosKit
 
-struct NextIntent: AppIntent {
-    static var title: LocalizedStringResource = "Nest media item."
+struct PlayPauseIntent: AppIntent {
 
-    @Parameter(title: "Sonos Speaker")
+    static var title: LocalizedStringResource = "Play/Pause Sonos Room"
+
+    @Parameter(title: "Sonos Room")
     var room: SonosDeviceEntity
 
     init(room: SonosDeviceEntity) {
@@ -12,7 +13,7 @@ struct NextIntent: AppIntent {
     }
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Nest track \(\.$room)")
+        Summary("Play or pause \(\.$room)")
     }
 
     init() {
@@ -22,7 +23,7 @@ struct NextIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let sonosService = SonosService()
         guard let coordinatorRoom = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
-        await sonosService.next(ip: coordinatorRoom.ip)
+        await sonosService.playPauseDevice(ip: coordinatorRoom.ip)
         return .result()
     }
 }

@@ -16,7 +16,7 @@ struct NowPlayingWidgetView: View {
                 ZStack(alignment: .bottomLeading) {
                     Image(uiImage: UIImage(data: info.data!)!)
                         .resizable()
-                    Label(info.room, systemImage: "hifispeaker.fill")
+                    Label(info.room.name, systemImage: "hifispeaker.fill")
                         .padding(4)
                         .frame(maxWidth: .infinity)
                         .background(.thinMaterial)
@@ -47,31 +47,63 @@ struct NowPlayingWidgetViewMedium: View {
 
     var body: some View {
         if let info = entry.info,
-           let data = entry.info?.data,
-           let image = UIImage(data: data) {
+           let room = entry.info?.room {
 
-            HStack {
-                Image(uiImage: image)
-                    .resizable()
-                    .frame(width: 100, height: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
-                    .padding()
-                    .shadow(radius: 10)
-
+            HStack(alignment: .top) {
+                if let data = entry.info?.data,
+                   let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .frame(width: 120, height: 120)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(radius: 10)
+                }
                 VStack(alignment: .leading) {
-                    Label(info.room, systemImage: "hifispeaker.fill")
+                    Label(info.room.name, systemImage: "hifispeaker.fill")
+                        .blendMode(.hardLight)
                     Text(info.track)
+                        .blendMode(.hardLight)
+                        .bold()
+                        .lineLimit(2)
                     Text(info.artist)
+                        .blendMode(.hardLight)
+                        .lineLimit(1)
+
                 }
-                .foregroundStyle(.thinMaterial)
-                VStack {
-                    Image(systemName: "play")
-                    Image(systemName: "forward.end.fill")
-                }
-                .padding()
+                Spacer()
             }
             .fontDesign(.rounded)
-            .containerBackground(Color(image.averageColor!).gradient, for: .widget)
+            .containerBackground(for: .widget) {
+                if let data = entry.info?.data,
+                   let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .blur(radius: 20)
+                        .ignoresSafeArea()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay {
+                            Rectangle()
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                HStack {
+                    Button(intent: PlayPauseIntent(room: room)) {
+                        Image(systemName: "playpause.fill")
+                            .padding(2)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.secondary)
+
+                    Button(intent: NextIntent(room: room)) {
+                        Image(systemName: "forward.fill")
+                            .padding(2)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.secondary)
+                }
+            }
         } else {
             VStack {
                 Text("Nothing playing")
@@ -84,22 +116,11 @@ struct NowPlayingWidgetViewMedium: View {
 #Preview(as: .systemMedium) {
     NowPlayingWidget()
 } timeline: {
-NowPlayingEntry(date: .now, configuration: .duaLipaInGarage,info: NowPlayingEntry.Info(data: UIImage.duaLipa.jpegData(compressionQuality: 1), room: "Kitchen", track: "Cry", artist: ""))
-//    NowPlayingEntry(date: .now, configuration: .duaLipaInGarage, data: UIImage.barbie.jpegData(compressionQuality: 1), track: "Cry Your Heart Out")
-}
-
-extension UIImage {
-    var averageColor: UIColor? {
-        guard let inputImage = CIImage(image: self) else { return nil }
-        let extentVector = CIVector(x: inputImage.extent.origin.x, y: inputImage.extent.origin.y, z: inputImage.extent.size.width, w: inputImage.extent.size.height)
-
-        guard let filter = CIFilter(name: "CIAreaAverage", parameters: [kCIInputImageKey: inputImage, kCIInputExtentKey: extentVector]) else { return nil }
-        guard let outputImage = filter.outputImage else { return nil }
-
-        var bitmap = [UInt8](repeating: 0, count: 4)
-        let context = CIContext(options: [.workingColorSpace: kCFNull])
-        context.render(outputImage, toBitmap: &bitmap, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil)
-
-        return UIColor(red: CGFloat(bitmap[0]) / 255, green: CGFloat(bitmap[1]) / 255, blue: CGFloat(bitmap[2]) / 255, alpha: CGFloat(bitmap[3]) / 255)
-    }
+    NowPlayingEntry(date: .now,
+                    configuration: .init(),
+                    info: NowPlayingEntry.Info(room: SonosDeviceEntity(id: "", name: "Kitchen", ip: "", volume: 0),
+                                               data: UIImage.barbie.jpegData(compressionQuality: 1),
+                                               track: "Dance the Night (From The Barbie Album)",
+                                               artist: "Dua Lipa")
+    )
 }

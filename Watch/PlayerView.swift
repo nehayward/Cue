@@ -43,13 +43,13 @@ struct PlayerView: View {
                     popOver.isShowing = !isIdle
                 }
                 volume = group.groupVolume
-                popOver.text = "\(group.groupVolume)"
+                popOver.text = String(format: "%.0f", group.groupVolume)
             }, onIdle: {
                 isIdle = true
                 withAnimation {
                     popOver.isShowing = !isIdle
-                }            }
-            )
+                }
+            })
             Text(group.coordinatorRoom.track.name)
                 .foregroundStyle(.tint, .thinMaterial)
                 .bold()
@@ -138,6 +138,9 @@ struct PlayerView: View {
             }
         }
         .navigationTitle(group.coordinatorRoom.name)
+        .onAppear {
+            volume = group.groupVolume
+        }
     }
 }
 

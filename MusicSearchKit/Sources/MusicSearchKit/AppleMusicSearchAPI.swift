@@ -23,7 +23,7 @@ final class AppleMusicSearchAPI {
         ]
         guard let url = components.url else { return [] }
 
-        logger.trace("\(url.absoluteString)")
+//        logger.trace("\(url.absoluteString)")
 
         let request = URLRequest(url: url)
         guard let (data, _) = try? await session.data(for: request) else {
@@ -34,7 +34,7 @@ final class AppleMusicSearchAPI {
             let musicSearch = try decoder.decode(ItunesMusicSearch.self, from: data)
             return musicSearch.results
         } catch {
-            print(error)
+            logger.error("\(error.localizedDescription)")
             return []
         }
     }

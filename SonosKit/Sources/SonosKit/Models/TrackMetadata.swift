@@ -38,7 +38,6 @@ extension Track: Hashable {
         hasher.combine(name)
         hasher.combine(artist)
         hasher.combine(album)
-        hasher.combine(artworkURL)
         hasher.combine(musicService)
         hasher.combine(duration)
         hasher.combine(playbackPosition)
