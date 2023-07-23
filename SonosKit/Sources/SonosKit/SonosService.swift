@@ -16,7 +16,7 @@ public final class SonosService {
 
     public init () {
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-            monitorWatch()
+            monitor()
         }
     }
 
@@ -115,7 +115,7 @@ public final class SonosService {
 
                 let previousArtwork = track.artworkURL
 
-                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album, size: 100) else {
                     continue
                 }
                 if artworkURL != previousArtwork {
@@ -146,15 +146,6 @@ public final class SonosService {
                 groups[group].rooms[room].volume = volume
 
                 guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
-                let previousArtwork = track.artworkURL
-
-                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
-                    continue
-                }
-                if artworkURL != previousArtwork {
-                    groups[group].rooms[room].track = track
-                    groups[group].rooms[room].track.artworkURL = artworkURL
-                }
                 groups[group].rooms[room].track = track
             }
         }
@@ -205,25 +196,29 @@ public final class SonosService {
 
 
     public func setGroupVolume(ip: String, volume: Int) async {
-        await sonosAPI.setVolume(ipAddress: ip, volume: volume)
+        await sonosAPI.setGroupVolume(ipAddress: ip, volume: volume)
     }
 
     public func setRelativeGroupVolume(ip: String, volume: Int) async {
         await sonosAPI.setRelativeGroupVolume(ipAddress: ip, volume: volume)
     }
 
+    public func snapShotGroup(ip: String) async {
+        await sonosAPI.snapshotGroupVolume(ipAddress: ip)
+    }
+
     public func getTrack(ip: String) async -> Track? {
         await sonosAPI.getCurrentTrack(ipAddress: ip)
     }
 
-    public func getArtwork(song: String, artist: String, album: String) async -> URL? {
+    public func getArtwork(song: String, artist: String, album: String, size: Int = 500) async -> URL? {
         let searchResults = await musicSearch.search(song: song, artist: artist)
         let found = searchResults.first { result in
             result.artistName == artist &&
             (result.trackName == song || result.trackCensoredName == song) &&
             result.album == album
         }
-        guard let artworkString = found?.artworkURL, let url = URL(string: artworkString) else { return nil }
+        guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
         return url
     }
 

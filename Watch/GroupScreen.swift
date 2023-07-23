@@ -11,7 +11,7 @@ struct GroupScreen: View {
     var body: some View {
         List {
             ForEach(sonosService.rooms) { room in
-                if room != roomGroup.coordinatorRoom {
+                if room.id != roomGroup.coordinatorRoom.id {
                     Button {
                         viewModel.buttonAction(id: room.id)
                     } label: {

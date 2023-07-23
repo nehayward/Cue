@@ -1,3 +1,4 @@
+import UIKit
 import SwiftUI
 import SonosKit
 
@@ -13,9 +14,12 @@ struct VolumeControlView: View {
             Slider(value: $volume, in: 0...100, step: 2) { isEditing in
                 self.isEditing = isEditing
             }
-            Text("\(volume, specifier: "%02.0f")")
+            .sensoryFeedback(.impact(flexibility: .solid), trigger: volume)
+            Text("\(volume, specifier: "%02.0f")%")
                 .monospacedDigit()
         }
+        .font(.caption)
+        .fontDesign(.rounded)
         .onAppear {
             volume = roomGroup.groupVolume
         }
@@ -31,6 +35,10 @@ struct VolumeControlView: View {
                     await sonosService.setGroupVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
                 }
             }
+        }
+        .onAppear {
+            let thumbImage = UIImage()
+            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
         }
     }
 }

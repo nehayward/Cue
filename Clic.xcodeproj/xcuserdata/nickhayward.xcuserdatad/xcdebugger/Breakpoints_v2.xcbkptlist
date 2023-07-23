@@ -2329,8 +2329,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosAPI.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "248"
-            endingLineNumber = "248"
+            startingLineNumber = "262"
+            endingLineNumber = "262"
             landmarkName = "removeAllTrackFromQueue(IP:)"
             landmarkType = "7">
             <Locations>
@@ -2932,6 +2932,36 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "248"
                   endingLineNumber = "248"
+                  offsetFromSymbolStart = "868">
+               </Location>
+               <Location
+                  uuid = "3C777250-2524-43C5-A634-B9AB9E0BBA3A - 81420ddf056de264"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.removeAllTrackFromQueue(IP: Swift.String) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "262"
+                  endingLineNumber = "262"
+                  offsetFromSymbolStart = "872">
+               </Location>
+               <Location
+                  uuid = "3C777250-2524-43C5-A634-B9AB9E0BBA3A - 35bd5962a6810065"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.removeAllTrackFromQueue(IP: Swift.String) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "262"
+                  endingLineNumber = "262"
                   offsetFromSymbolStart = "868">
                </Location>
             </Locations>
@@ -3660,6 +3690,36 @@
                   endingLineNumber = "112"
                   offsetFromSymbolStart = "200">
                </Location>
+               <Location
+                  uuid = "ECDEB087-8227-4A61-9B55-FF57001B2CE0 - 1ffef0b08c5c16a5"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;Foundation.Data&gt;, Swift.Optional&lt;Network.NWConnection.ContentContext&gt;, Swift.Bool, Swift.Optional&lt;Network.NWError&gt;) -&gt; () in SonosKit.HTTPServer.receive(on: Network.NWConnection) -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Server/Server.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "111"
+                  endingLineNumber = "111"
+                  offsetFromSymbolStart = "3376">
+               </Location>
+               <Location
+                  uuid = "ECDEB087-8227-4A61-9B55-FF57001B2CE0 - 16780b53655c8b3a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;Network.NWError&gt;) -&gt; () in closure #1 @Sendable (Swift.Optional&lt;Foundation.Data&gt;, Swift.Optional&lt;Network.NWConnection.ContentContext&gt;, Swift.Bool, Swift.Optional&lt;Network.NWError&gt;) -&gt; () in SonosKit.HTTPServer.receive(on: Network.NWConnection) -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Server/Server.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "112"
+                  endingLineNumber = "112"
+                  offsetFromSymbolStart = "240">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -3673,8 +3733,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosAPI.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "228"
-            endingLineNumber = "228"
+            startingLineNumber = "242"
+            endingLineNumber = "242"
             landmarkName = "getRoom(ipAddress:)"
             landmarkType = "7">
             <Locations>
@@ -4066,6 +4126,36 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "228"
                   endingLineNumber = "228"
+                  offsetFromSymbolStart = "568">
+               </Location>
+               <Location
+                  uuid = "BA1B8022-ADF6-4833-B413-01C7884EE0C7 - edee7b81e7a1f625"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (SonosKit.ZoneGroupMember) -&gt; Swift.Optional&lt;SonosKit.Room&gt; in closure #1 (SonosKit.ZoneGroup) -&gt; Swift.Array&lt;SonosKit.Room&gt; in SonosKit.SonosAPI.getRoom(ipAddress: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Room&gt;"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "228"
+                  endingLineNumber = "228"
+                  offsetFromSymbolStart = "644">
+               </Location>
+               <Location
+                  uuid = "BA1B8022-ADF6-4833-B413-01C7884EE0C7 - edee7b81e7a1f8db"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (SonosKit.ZoneGroupMember) -&gt; Swift.Optional&lt;SonosKit.Room&gt; in closure #1 (SonosKit.ZoneGroup) -&gt; Swift.Array&lt;SonosKit.Room&gt; in SonosKit.SonosAPI.getRoom(ipAddress: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Room&gt;"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "242"
+                  endingLineNumber = "242"
                   offsetFromSymbolStart = "568">
                </Location>
             </Locations>
@@ -5001,6 +5091,21 @@
                   endingLineNumber = "108"
                   offsetFromSymbolStart = "2780">
                </Location>
+               <Location
+                  uuid = "0DFCDC65-E32D-40FD-86DD-FF908E845F21 - 1ffef0b08c5c16c0"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;Foundation.Data&gt;, Swift.Optional&lt;Network.NWConnection.ContentContext&gt;, Swift.Bool, Swift.Optional&lt;Network.NWError&gt;) -&gt; () in SonosKit.HTTPServer.receive(on: Network.NWConnection) -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Server/Server.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "108"
+                  endingLineNumber = "108"
+                  offsetFromSymbolStart = "2900">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -5229,6 +5334,21 @@
                   endingLineNumber = "122"
                   offsetFromSymbolStart = "4060">
                </Location>
+               <Location
+                  uuid = "E4777B4B-3790-498D-AD8D-96261B94AEFE - 99279fb335acff7c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;Foundation.Data&gt;, Swift.Optional&lt;Network.NWConnection.ContentContext&gt;, Swift.Bool, Swift.Optional&lt;Network.NWError&gt;) -&gt; () in SonosKit.ListenerX.receive() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Server/NetworkListener.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "122"
+                  endingLineNumber = "122"
+                  offsetFromSymbolStart = "4200">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -5456,6 +5576,21 @@
                   startingLineNumber = "105"
                   endingLineNumber = "105"
                   offsetFromSymbolStart = "1584">
+               </Location>
+               <Location
+                  uuid = "6835ED3B-E34D-444D-ACEA-60DF633143A7 - 99279fb335acfd2f"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;Foundation.Data&gt;, Swift.Optional&lt;Network.NWConnection.ContentContext&gt;, Swift.Bool, Swift.Optional&lt;Network.NWError&gt;) -&gt; () in SonosKit.ListenerX.receive() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Server/NetworkListener.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "105"
+                  endingLineNumber = "105"
+                  offsetFromSymbolStart = "1724">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -7069,6 +7204,36 @@
                   endingLineNumber = "26"
                   offsetFromSymbolStart = "208">
                </Location>
+               <Location
+                  uuid = "36DF32D0-C206-4D2F-9534-E0E5E8C93824 - 8092cae060b73d57"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Clic.PlayerView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/PlayerView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "25"
+                  endingLineNumber = "25"
+                  offsetFromSymbolStart = "2592">
+               </Location>
+               <Location
+                  uuid = "36DF32D0-C206-4D2F-9534-E0E5E8C93824 - ae8cd8424cd7a9d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.HStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.frame(width: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, height: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, alignment: SwiftUI.Alignment) -&gt; some&gt;&gt;.0&gt;, SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.contextMenu&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(menuItems: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text, SwiftUI.HStack&lt;&lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;)&gt;&gt;, SwiftUI.HStack&lt;SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.font(Swift.Optional&lt;SwiftUI.Font&gt;) -&gt; some&gt;&gt;.0&gt;)&gt;&gt;)&gt;&gt;, Clic.VolumeControlView)&gt; in Clic.PlayerView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/PlayerView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "26"
+                  endingLineNumber = "26"
+                  offsetFromSymbolStart = "268">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -7082,8 +7247,8 @@
             filePath = "Watch/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "74"
-            endingLineNumber = "74"
+            startingLineNumber = "77"
+            endingLineNumber = "77"
             landmarkName = "body"
             landmarkType = "24">
             <Locations>
@@ -7225,6 +7390,21 @@
                   endingLineNumber = "43"
                   offsetFromSymbolStart = "1160">
                </Location>
+               <Location
+                  uuid = "919A6CD7-84F9-4059-9B35-16EB192BC0CD - ba8e198352b830f6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Clic.LiveActivityManager.createActivity(with: Swift.Array&lt;SonosKit.GroupRoom&gt;) -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/Live.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "43"
+                  endingLineNumber = "43"
+                  offsetFromSymbolStart = "1372">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -7238,28 +7418,13 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "274"
-            endingLineNumber = "274"
+            startingLineNumber = "269"
+            endingLineNumber = "269"
             landmarkName = "playPauseDevice(ip:)"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 160a27493b6127d5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for SonosKit.SonosService.playPauseDevice(ip: Swift.String) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "275"
-                  endingLineNumber = "275"
-                  offsetFromSymbolStart = "160">
-               </Location>
-               <Location
-                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 86dc0e5dcb78ebd3"
+                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 86dc0e5dcb78eb7e"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7269,12 +7434,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "275"
-                  endingLineNumber = "275"
+                  startingLineNumber = "278"
+                  endingLineNumber = "278"
                   offsetFromSymbolStart = "52">
                </Location>
                <Location
-                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 7ce81830b6a421c2"
+                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 7ce81830b6a4216f"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7284,12 +7449,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "275"
-                  endingLineNumber = "275"
+                  startingLineNumber = "278"
+                  endingLineNumber = "278"
                   offsetFromSymbolStart = "44">
                </Location>
                <Location
-                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 160a27493b6127d5"
+                  uuid = "0AEBBE54-B575-41CD-AAB5-E509BAEFDCC8 - 160a27493b612778"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7299,8 +7464,8 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "275"
-                  endingLineNumber = "275"
+                  startingLineNumber = "278"
+                  endingLineNumber = "278"
                   offsetFromSymbolStart = "72">
                </Location>
             </Locations>
@@ -7316,42 +7481,10 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "249"
-            endingLineNumber = "249"
+            startingLineNumber = "244"
+            endingLineNumber = "244"
             landmarkName = "play(ip:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "12055757-8620-4B4E-AD93-E81964855348 - 6a650201bd7f1a5d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.play(ip: Swift.String) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "250"
-                  endingLineNumber = "250"
-                  offsetFromSymbolStart = "416">
-               </Location>
-               <Location
-                  uuid = "12055757-8620-4B4E-AD93-E81964855348 - 6a650201bd7f1a5d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.play(ip: Swift.String) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "250"
-                  endingLineNumber = "250"
-                  offsetFromSymbolStart = "372">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -7364,105 +7497,10 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "237"
-            endingLineNumber = "237"
+            startingLineNumber = "232"
+            endingLineNumber = "232"
             landmarkName = "pause(ip:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "218F58F0-FF6C-420F-B3A5-0F1DE477898E - ef3524e011dda22b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.pause(ip: Swift.String) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "238"
-                  endingLineNumber = "238"
-                  offsetFromSymbolStart = "916">
-               </Location>
-               <Location
-                  uuid = "218F58F0-FF6C-420F-B3A5-0F1DE477898E - ef3524e011dda22b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.pause(ip: Swift.String) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "238"
-                  endingLineNumber = "238"
-                  offsetFromSymbolStart = "800">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "2AB060A9-C975-4139-9976-E19A9A5C1F6D"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Clic/LargePlayerView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "51"
-            endingLineNumber = "51"
-            landmarkName = "body"
-            landmarkType = "24">
-            <Locations>
-               <Location
-                  uuid = "2AB060A9-C975-4139-9976-E19A9A5C1F6D - 603a51fffadd643"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #3 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Button&lt;SwiftUI.Image&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.contentTransition(SwiftUI.ContentTransition) -&gt; some&gt;&gt;.0&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.foregroundStyle&lt;&#x3c4;_0_0, &#x3c4;_0_1 where &#x3c4;_1_0: SwiftUI.ShapeStyle, &#x3c4;_1_1: SwiftUI.ShapeStyle&gt;(&#x3c4;_1_0, &#x3c4;_1_1) -&gt; some&gt;&gt;.0&gt;)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.Text, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.font(Swift.Optional&lt;SwiftUI.Font&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.HStack&lt;SwiftUI.Button&lt;SwiftUI.Image&gt;&gt;)&gt; in Clic.LargePlayerView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/LargePlayerView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "51"
-                  endingLineNumber = "51"
-                  offsetFromSymbolStart = "224">
-               </Location>
-               <Location
-                  uuid = "2AB060A9-C975-4139-9976-E19A9A5C1F6D - 7f575c93286b4908"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(2) await resume partial function for closure #1 @Sendable () async -&gt; () in closure #3 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Button&lt;SwiftUI.Image&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.contentTransition(SwiftUI.ContentTransition) -&gt; some&gt;&gt;.0&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.foregroundStyle&lt;&#x3c4;_0_0, &#x3c4;_0_1 where &#x3c4;_1_0: SwiftUI.ShapeStyle, &#x3c4;_1_1: SwiftUI.ShapeStyle&gt;(&#x3c4;_1_0, &#x3c4;_1_1) -&gt; some&gt;&gt;.0&gt;)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.Text, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.font(Swift.Optional&lt;SwiftUI.Font&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.HStack&lt;SwiftUI.Button&lt;SwiftUI.Image&gt;&gt;)&gt; in Clic.LargePlayerView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/LargePlayerView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "51"
-                  endingLineNumber = "51"
-                  offsetFromSymbolStart = "40">
-               </Location>
-               <Location
-                  uuid = "2AB060A9-C975-4139-9976-E19A9A5C1F6D - aead97a908928a5d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #3 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Button&lt;SwiftUI.Image&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.contentTransition(SwiftUI.ContentTransition) -&gt; some&gt;&gt;.0&gt;, SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.foregroundStyle&lt;&#x3c4;_0_0, &#x3c4;_0_1 where &#x3c4;_1_0: SwiftUI.ShapeStyle, &#x3c4;_1_1: SwiftUI.ShapeStyle&gt;(&#x3c4;_1_0, &#x3c4;_1_1) -&gt; some&gt;&gt;.0&gt;)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.Text, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.font(Swift.Optional&lt;SwiftUI.Font&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, SwiftUI.HStack&lt;SwiftUI.Button&lt;SwiftUI.Image&gt;&gt;)&gt; in Clic.LargePlayerView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/LargePlayerView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "51"
-                  endingLineNumber = "51"
-                  offsetFromSymbolStart = "28">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -7508,6 +7546,36 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "97"
                   endingLineNumber = "97"
+                  offsetFromSymbolStart = "1188">
+               </Location>
+               <Location
+                  uuid = "0B55B79F-4A1D-4873-BF01-5035C586BF60 - 756947bf02f2a3b4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "96"
+                  endingLineNumber = "96"
+                  offsetFromSymbolStart = "1188">
+               </Location>
+               <Location
+                  uuid = "0B55B79F-4A1D-4873-BF01-5035C586BF60 - 5841ee0076fd5d47"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "96"
+                  endingLineNumber = "96"
                   offsetFromSymbolStart = "1188">
                </Location>
             </Locations>
@@ -7618,98 +7686,155 @@
                   endingLineNumber = "146"
                   offsetFromSymbolStart = "1348">
                </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "2182527B-3FD8-446E-AD5F-899757B290AC"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "207"
-            endingLineNumber = "207"
-            landmarkName = "setGroupVolume(ip:volume:)"
-            landmarkType = "7">
-            <Locations>
                <Location
-                  uuid = "2182527B-3FD8-446E-AD5F-899757B290AC - ee7249b553741d4f"
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 4c4130687b55f10f"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.setGroupVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  symbolName = "(16) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
                   moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "208"
-                  endingLineNumber = "208"
-                  offsetFromSymbolStart = "52">
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1556">
                </Location>
                <Location
-                  uuid = "2182527B-3FD8-446E-AD5F-899757B290AC - 5559862f084e777d"
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 40f54432d9864412"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "(2) await resume partial function for SonosKit.SonosService.setGroupVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  symbolName = "(17) await resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
                   moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "208"
-                  endingLineNumber = "208"
-                  offsetFromSymbolStart = "40">
-               </Location>
-               <Location
-                  uuid = "2182527B-3FD8-446E-AD5F-899757B290AC - 9acc3e11b95d594d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for SonosKit.SonosService.setGroupVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "208"
-                  endingLineNumber = "208"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
                   offsetFromSymbolStart = "44">
                </Location>
                <Location
-                  uuid = "2182527B-3FD8-446E-AD5F-899757B290AC - 491a4848a86fce58"
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 920adf301d4b530d"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.SonosService.setGroupVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  symbolName = "(18) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
                   moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "208"
-                  endingLineNumber = "208"
-                  offsetFromSymbolStart = "76">
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "160">
                </Location>
                <Location
-                  uuid = "2182527B-3FD8-446E-AD5F-899757B290AC - ee7249b553741d4f"
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 8c56fa7a59597b0a"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.setGroupVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  symbolName = "(20) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
                   moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "208"
-                  endingLineNumber = "208"
-                  offsetFromSymbolStart = "36">
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1220">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - d21b811dfb3ec508"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(22) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1348">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 616999d70f5a0ffc"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(16) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1556">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - 6ddded8dad89bae1"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(17) await resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "44">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - bf22768f6944adfe"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(18) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "160">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - a17e53c52d5685f9"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(20) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1220">
+               </Location>
+               <Location
+                  uuid = "772A73E5-E60F-4B9C-AC37-94B00DB62741 - ff3328a28f313bfb"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(22) suspend resume partial function for SonosKit.SonosService.fetch() async -&gt; ()"
+                  moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "145"
+                  endingLineNumber = "145"
+                  offsetFromSymbolStart = "1348">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -7894,6 +8019,241 @@
                   startingLineNumber = "28"
                   endingLineNumber = "28"
                   offsetFromSymbolStart = "104">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "02B4D460-BCDC-4071-A3CD-26D7D381D53A"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "19"
+            endingLineNumber = "19"
+            landmarkName = "init()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Clic/GroupVolumeControlView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "79"
+            endingLineNumber = "79"
+            landmarkName = "body"
+            landmarkType = "24">
+            <Locations>
+               <Location
+                  uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF - 22ee61694b2b1272"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0, condition: (&#x3c4;_1_0, &#x3c4;_1_0) -&gt; Swift.Bool) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0, condition: (&#x3c4;_1_0, &#x3c4;_1_0) -&gt; Swift.Bool) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0, condition: (&#x3c4;_1_0, &#x3c4;_1_0) -&gt; Swift.Bool) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "79"
+                  endingLineNumber = "79"
+                  offsetFromSymbolStart = "112">
+               </Location>
+               <Location
+                  uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF - 6c81c23c65181aec"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "79"
+                  endingLineNumber = "79"
+                  offsetFromSymbolStart = "180">
+               </Location>
+               <Location
+                  uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF - 8e1df442ada1513f"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) await resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "79"
+                  endingLineNumber = "79"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF - d1b8045b6aa5968a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "79"
+                  endingLineNumber = "79"
+                  offsetFromSymbolStart = "92">
+               </Location>
+               <Location
+                  uuid = "7A18764B-F984-47FF-894E-A98FF37AADAF - d1b8045b6aa5968a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "79"
+                  endingLineNumber = "79"
+                  offsetFromSymbolStart = "84">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "9EFC3114-EA56-4EAC-9681-4C492FAC292A"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "190"
+            endingLineNumber = "190"
+            landmarkName = "setDeviceVolume(ip:volume:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "9EFC3114-EA56-4EAC-9681-4C492FAC292A - b54bf21af5b9a44b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.setDeviceVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "199"
+                  endingLineNumber = "199"
+                  offsetFromSymbolStart = "52">
+               </Location>
+               <Location
+                  uuid = "9EFC3114-EA56-4EAC-9681-4C492FAC292A - 74f26bd7d6cd5452"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) await resume partial function for SonosKit.SonosService.setDeviceVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "199"
+                  endingLineNumber = "199"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "9EFC3114-EA56-4EAC-9681-4C492FAC292A - ba1e9f771b8368b5"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosService.setDeviceVolume(ip: Swift.String, volume: Swift.Int) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "199"
+                  endingLineNumber = "199"
+                  offsetFromSymbolStart = "44">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "9135C3D3-FDF1-4AE0-A0A0-7C47599721C3"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Clic/GroupVolumeControlView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "90"
+            endingLineNumber = "90"
+            landmarkName = "body"
+            landmarkType = "24">
+            <Locations>
+               <Location
+                  uuid = "9135C3D3-FDF1-4AE0-A0A0-7C47599721C3 - 50f67c1cc371d908"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "90"
+                  endingLineNumber = "90"
+                  offsetFromSymbolStart = "164">
+               </Location>
+               <Location
+                  uuid = "9135C3D3-FDF1-4AE0-A0A0-7C47599721C3 - 43801111b2896448"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) await resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "90"
+                  endingLineNumber = "90"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "9135C3D3-FDF1-4AE0-A0A0-7C47599721C3 - 5423d19a6eb150e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for closure #1 @Sendable () async -&gt; () in closure #2 () -&gt; () in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonStyle&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.PrimitiveButtonStyle&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "90"
+                  endingLineNumber = "90"
+                  offsetFromSymbolStart = "76">
                </Location>
             </Locations>
          </BreakpointContent>

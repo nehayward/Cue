@@ -51,10 +51,9 @@ struct PlayerView: View {
                 }
             })
             Text(group.coordinatorRoom.track.name)
-                .foregroundStyle(.tint, .thinMaterial)
                 .bold()
             Text(group.coordinatorRoom.track.artist)
-                .foregroundStyle(.tint, .ultraThickMaterial)
+                .foregroundColor(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -137,7 +136,7 @@ struct PlayerView: View {
                 await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             }
         }
-        .navigationTitle(group.coordinatorRoom.name)
+        .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
         .onAppear {
             volume = group.groupVolume
         }

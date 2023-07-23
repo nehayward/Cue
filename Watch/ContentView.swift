@@ -20,7 +20,7 @@ struct ContentView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                                Text(group.coordinatorRoom.name)
+                                Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
                             }
                             Text(group.coordinatorRoom.track.name)
                                 .lineLimit(0)
@@ -28,7 +28,7 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button(action: {
+                        Button {
                             Task {
                                 if group.coordinatorRoom.isPlaying {
                                     await sonosService.pause(ip: group.coordinatorRoom.ip)
@@ -36,7 +36,7 @@ struct ContentView: View {
                                     await sonosService.play(ip: group.coordinatorRoom.ip)
                                 }
                             }
-                        }, label: {
+                        } label: {
                             Gauge(
                                 value: group.coordinatorRoom.track.playbackPosition,
                                 in: 0...group.coordinatorRoom.track.duration,
@@ -53,7 +53,7 @@ struct ContentView: View {
                             .gaugeStyle(.accessoryCircularCapacity)
                             .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
                             .scaleEffect(0.6)
-                        })
+                        }
                         .buttonStyle(.plain)
                     }
                     .listRowInsets(EdgeInsets())
@@ -62,12 +62,15 @@ struct ContentView: View {
             }
             .listStyle(.carousel)
         } detail: {
-            if selected != nil {
-                PlayerView(group: sonosService.groups.first(where: { group in
-                    group.coordinatorID == selected!
-                })!)
-                .environment(sonosService)
-                .environment(popOver)
+            if selected != nil, let group = sonosService.groups.first(where: { group in
+                group.coordinatorID == selected!
+            }) {
+                TabView {
+                    PlayerView(group: group)
+                        .environment(sonosService)
+                        .environment(popOver)
+                    GroupVolumeControlScreen(group: group)
+                }
             }
         }
         .onChange(of: selected) {

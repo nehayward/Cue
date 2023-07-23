@@ -10,6 +10,8 @@
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E919EC142A61B8CD00B6022C /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC122A61B8C700B6022C /* VolumeControlView.swift */; };
+		E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
+		E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */; };
 		E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0D2A5093BF000240A6 /* PlayerView.swift */; };
 		E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
 		E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */; };
@@ -72,6 +74,8 @@
 		E9DE849E2A6707E1004C3947 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */; };
 		E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
+		E9F20D582A699F8C00C43F1E /* SonosGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D572A699F8C00C43F1E /* SonosGroupView.swift */; };
+		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +142,8 @@
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E919EC122A61B8C700B6022C /* VolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeControlView.swift; sourceTree = "<group>"; };
+		E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlView.swift; sourceTree = "<group>"; };
+		E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlScreen.swift; sourceTree = "<group>"; };
 		E94F6B0D2A5093BF000240A6 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneBuilderScreen.swift; sourceTree = "<group>"; };
 		E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
@@ -192,6 +198,8 @@
 		E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetRectangularView.swift; sourceTree = "<group>"; };
 		E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityNowPlayingView.swift; sourceTree = "<group>"; };
+		E9F20D572A699F8C00C43F1E /* SonosGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosGroupView.swift; sourceTree = "<group>"; };
+		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
 		E9F3D44C2A02C2780042F208 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E9F3D44D2A02C2900042F208 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SonosKit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -317,9 +325,12 @@
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* SonosApp.swift */,
 				E9BDE57129E3396700D230A8 /* ContentView.swift */,
+				E9F20D572A699F8C00C43F1E /* SonosGroupView.swift */,
 				E96396342A3B723B00518A17 /* ArtworkView.swift */,
 				E96396362A3B8F5200518A17 /* ZoneView.swift */,
+				E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */,
 				E9C03AF62A57668800FB9118 /* VolumeControlView.swift */,
+				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E94F6B0D2A5093BF000240A6 /* PlayerView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
@@ -360,6 +371,7 @@
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
 				E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */,
 				E919EC122A61B8C700B6022C /* VolumeControlView.swift */,
+				E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */,
 				E9C03B022A586F6100FB9118 /* Assets.xcassets */,
 				E9C03B042A586F6100FB9118 /* Preview Content */,
 				E9C03B102A58715700FB9118 /* Info.plist */,
@@ -646,8 +658,11 @@
 				E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */,
 				E98527942A5E5C90009016C2 /* Live.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
+				E9F20D582A699F8C00C43F1E /* SonosGroupView.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
+				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
+				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
@@ -660,6 +675,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E919EC142A61B8CD00B6022C /* VolumeControlView.swift in Sources */,
+				E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,

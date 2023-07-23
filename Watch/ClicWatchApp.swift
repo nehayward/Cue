@@ -21,7 +21,7 @@ struct ClicWatchApp: App {
         }.onChange(of: scenePhase) { oldValue, newValue in
             if newValue == .active {
                 Task {
-                    try await Task.sleep(for: .seconds(1))
+                    await sonosService.fetch()
                     selected = sonosService.groups.first(where: { room in
                         room.coordinatorRoom.isPlaying
                     })?.coordinatorID

@@ -5,14 +5,14 @@ struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
 
-    @Bindable var roomGroup: GroupRoom
+    @Bindable var group: GroupRoom
     @State var viewModel: GroupScreenViewModel
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(sonosService.rooms) { room in
-                    if room != roomGroup.coordinatorRoom {
+                    if room.id != group.coordinatorRoom.id {
                         Button {
                             viewModel.buttonAction(id: room.id)
                         } label: {
@@ -27,7 +27,9 @@ struct GroupScreen: View {
                     }
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             }
+            .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
@@ -37,7 +39,7 @@ struct GroupScreen: View {
                         }
                         Task {
                             dismiss()
-                            await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+                            await sonosService.smartGroup(rooms: rooms, to: group)
                         }
                     } label: {
                         Text(viewModel.groupingLabel)
@@ -57,9 +59,8 @@ struct GroupScreen: View {
                     await sonosService.load()
                 }
             }
-            .navigationTitle("\(roomGroup.coordinatorRoom.name)")
+            .navigationTitle("\(group.coordinatorRoom.name)")
             .navigationBarTitleDisplayMode(.inline)
-//
         }
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])
@@ -69,7 +70,7 @@ struct GroupScreen: View {
 #Preview {
     Text("HERE")
         .sheet(isPresented: .constant(true), content: {
-            GroupScreen(roomGroup: GroupRoom(id: "", coordinatorID: "", rooms: [
+            GroupScreen(group: GroupRoom(id: "", coordinatorID: "", rooms: [
                 Room(id: "", ip: "", name: "Kitchen")]), viewModel: GroupScreenViewModel(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")])))
             .environment(SonosService())
         })

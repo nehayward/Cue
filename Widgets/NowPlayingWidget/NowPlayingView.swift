@@ -13,21 +13,15 @@ struct NowPlayingWidgetView: View {
             NowPlayingWidgetViewMedium(entry: entry)
         default:
             if let info = entry.info {
-                ZStack(alignment: .bottomLeading) {
-                    Image(uiImage: UIImage(data: info.data!)!)
-                        .resizable()
-                    Label(info.room.name, systemImage: "hifispeaker.fill")
-                        .padding(4)
-                        .frame(maxWidth: .infinity)
-                        .background(.thinMaterial)
-                    
-                }
-                .overlay(alignment: .topLeading) {
-                    Text(info.track)
-                        .padding(4)
-                        .frame(maxWidth: .infinity)
-                        .background(.thinMaterial)
-                }
+                Label(info.room.name, systemImage: "hifispeaker.fill")
+                    .padding(4)
+                    .frame(maxWidth: .infinity)
+                    .background(.thinMaterial)
+                Text(info.track)
+                    .padding(4)
+                    .frame(maxWidth: .infinity)
+                    .background(.thinMaterial)
+
                 .fontDesign(.rounded)
                 .containerBackground(.thickMaterial, for: .widget)
                 

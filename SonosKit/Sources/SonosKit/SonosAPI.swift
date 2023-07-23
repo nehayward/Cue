@@ -132,6 +132,20 @@ final class SonosAPI {
     }
 
 
+
+    func snapshotGroupVolume(ipAddress: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+        ]
+
+        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SnapshotGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+            guard let xmlString = String(data: data, encoding: .utf8) else { return }
+            print(xmlString)
+        }
+
+        return
+    }
+
     func getCurrentTrack(ipAddress: String) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,

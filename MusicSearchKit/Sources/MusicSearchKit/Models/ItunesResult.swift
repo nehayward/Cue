@@ -16,6 +16,10 @@ public struct ItunesResult: Identifiable, Decodable {
         artworkUrl100.replacingOccurrences(of: "100", with: "500")
     }
     
+    public func artworkURL(with size: String) -> String {
+        artworkUrl100.replacingOccurrences(of: "100", with: size)
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)

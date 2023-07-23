@@ -7,7 +7,6 @@ final class GroupScreenViewModel {
     var selections: Set<String>
     private let initialSelection: Set<String>
 
-
     init(group: GroupRoom) {
         self.group = group
 

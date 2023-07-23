@@ -14,11 +14,14 @@ struct ArtworkView: View {
             case .success(let image):
                 image
                     .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .shadow(radius: 2)
             default:
                 RoundedRectangle(cornerRadius: 4)
+                    .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.ultraThinMaterial)
+                    .shadow(radius: 2)
             }
         }
     }
