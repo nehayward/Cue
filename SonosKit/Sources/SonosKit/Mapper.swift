@@ -1,10 +1,15 @@
 import Foundation
 
 extension ZoneGroup {
-    var toGroup: GroupRoom {
-        GroupRoom(id: ID,
+    var toGroup: GroupRoom? {
+        let rooms = zoneGroupMembers.compactMap(\.toRoom)
+        if rooms.isEmpty {
+            return nil
+        }
+        
+        return GroupRoom(id: ID,
                   coordinatorID: coordinator,
-                  rooms: zoneGroupMembers.compactMap(\.toRoom)
+                  rooms: rooms
         )
     }
 }

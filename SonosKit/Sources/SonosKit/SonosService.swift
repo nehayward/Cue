@@ -107,7 +107,7 @@ public final class SonosService {
                 let playbackInfo = await getPlaybackInfo(ip: groups[index].rooms[room].ip)
                 if playbackInfo == "PLAYING" {
                     groups[index].rooms[room].isPlaying = true
-                } else if playbackInfo == "PAUSED" {
+                } else if playbackInfo == "PAUSED_PLAYBACK" || playbackInfo == "STOPPED" {
                     groups[index].rooms[room].isPlaying = false
                 }
 
@@ -133,7 +133,7 @@ public final class SonosService {
                 let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
                 if playbackInfo == "PLAYING" {
                     groups[group].rooms[room].isPlaying = true
-                } else if playbackInfo == "PAUSED" {
+                } else if playbackInfo == "PAUSED_PLAYBACK" || playbackInfo == "STOPPED" {
                     groups[group].rooms[room].isPlaying = false
                 }
             }
