@@ -253,6 +253,10 @@ public final class SonosService {
         await sonosAPI.next(ipAddress: ip)
     }
 
+    public func previous(ip: String) async {
+        await sonosAPI.previous(ipAddress: ip)
+    }
+
     public func getVolume(ip: String) async -> Double {
         await sonosAPI.getVolume(ipAddress: ip)
     }

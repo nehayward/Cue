@@ -29,30 +29,31 @@ struct GroupVolumeControlView: View {
                     return !isEditingGroupVolume
                 })
                 .animation(.snappy, value: group.groupVolume)
-
-                Text("\(group.groupVolume, specifier: "%03.0f")%")
-                    .monospacedDigit()
-                Button {
-                    withAnimation(.bouncy(duration: 0.3)) {
-                        isExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: "hifispeaker.2.fill")
-                        .overlay(alignment: .topTrailing) {
-                            Image(systemName: "speaker.wave.2.circle.fill")
-//                                .symbolRenderingMode(.hi)
-                                .resizable()
-                                .frame(width: 10, height: 10)
-                                .padding([.top, .trailing], -3)
-                        }
-                }
-                .buttonStyle(.plain)
                 .onChange(of: group.groupVolume) {
                     if isEditingGroupVolume {
                         Task {
                             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(group.groupVolume))
                         }
                     }
+                }
+
+                Text("\(group.groupVolume, specifier: "%03.0f")%")
+                    .monospacedDigit()
+                if group.rooms.count > 1 {
+                    Button {
+                        withAnimation(.bouncy(duration: 0.3)) {
+                            isExpanded.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "hifispeaker.2.fill")
+                            .overlay(alignment: .topTrailing) {
+                                Image(systemName: "speaker.wave.2.circle.fill")
+                                    .resizable()
+                                    .frame(width: 10, height: 10)
+                                    .padding([.top, .trailing], -3)
+                            }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .frame(height: 20)
@@ -109,7 +110,7 @@ struct GroupVolumeControlView: View {
                                    value: $0.frame(in: .local).size.height)
         })
         .onPreferenceChange(ViewHeightKey.self) { subviewHeight = $0 }
-        .frame(height: isExpanded ? subviewHeight : 20, alignment: .top)
+        .frame(height: isExpanded ? subviewHeight : 30, alignment: .top)
         .padding()
         .clipped()
         .frame(maxWidth: .infinity)

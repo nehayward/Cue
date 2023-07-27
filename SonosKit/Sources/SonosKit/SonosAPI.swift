@@ -192,6 +192,21 @@ final class SonosAPI {
     }
 
 
+    func previous(ipAddress: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+            if (response as? HTTPURLResponse)?.statusCode == 200 {
+                print("Success")
+            }
+        }
+    }
+
     func playbackInfo(ipAddress: String) async -> String {
         let arguments: [String: Any] = [
             "InstanceID": 0,

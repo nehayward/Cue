@@ -1862,8 +1862,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosAPI.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "262"
-            endingLineNumber = "262"
+            startingLineNumber = "277"
+            endingLineNumber = "277"
             landmarkName = "removeAllTrackFromQueue(IP:)"
             landmarkType = "7">
             <Locations>
@@ -3296,8 +3296,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosAPI.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "242"
-            endingLineNumber = "242"
+            startingLineNumber = "257"
+            endingLineNumber = "257"
             landmarkName = "getRoom(ipAddress:)"
             landmarkType = "7">
             <Locations>
@@ -6846,8 +6846,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "269"
-            endingLineNumber = "269"
+            startingLineNumber = "273"
+            endingLineNumber = "273"
             landmarkName = "playPauseDevice(ip:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -7220,8 +7220,8 @@
             filePath = "Clic/GroupVolumeControlView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "79"
-            endingLineNumber = "79"
+            startingLineNumber = "80"
+            endingLineNumber = "80"
             landmarkName = "body"
             landmarkType = "24">
             <Locations>
@@ -7329,8 +7329,8 @@
             filePath = "Clic/GroupVolumeControlView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "90"
-            endingLineNumber = "90"
+            startingLineNumber = "91"
+            endingLineNumber = "91"
             landmarkName = "body"
             landmarkType = "24">
             <Locations>

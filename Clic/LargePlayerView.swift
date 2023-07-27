@@ -40,13 +40,13 @@ struct LargePlayerView: View {
 
             HStack(spacing: 24) {
                 Button {
-
+                    Task {
+                        await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    }
                 } label: {
                     Image(systemName: "backward.fill")
                         .font(.body)
-                        .foregroundStyle(.primary)
                 }
-                .disabled(true)
                 Button{
                     Task {
                         if group.coordinatorRoom.isPlaying {
@@ -71,6 +71,8 @@ struct LargePlayerView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.bottom, 40)
+
 //            VolumeControlView(roomGroup: group)
 //                .padding(.bottom, 24)
 //            HStack {
