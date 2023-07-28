@@ -18,6 +18,8 @@
 		E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396342A3B723B00518A17 /* ArtworkView.swift */; };
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
 		E963963F2A3CD3AE00518A17 /* MusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */; };
+		E966A0CE2A741DD000FF17FC /* PaywallScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */; };
+		E966A0D02A741FDA00FF17FC /* SuperMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = E966A0CF2A741FDA00FF17FC /* SuperMember.swift */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
 		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
@@ -151,6 +153,8 @@
 		E96396342A3B723B00518A17 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
 		E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicSearchScreen.swift; sourceTree = "<group>"; };
+		E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallScreen.swift; sourceTree = "<group>"; };
+		E966A0CF2A741FDA00FF17FC /* SuperMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperMember.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
 		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -243,6 +247,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		E966A0CC2A741DBB00FF17FC /* Paywall */ = {
+			isa = PBXGroup;
+			children = (
+				E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */,
+			);
+			path = Paywall;
+			sourceTree = "<group>";
+		};
 		E97C0D462A325CC5005AB0E0 /* Widgets */ = {
 			isa = PBXGroup;
 			children = (
@@ -299,6 +311,7 @@
 			children = (
 				E96396332A3B700900518A17 /* MusicSearchKit */,
 				E9F3D44D2A02C2900042F208 /* SonosKit */,
+				E966A0CC2A741DBB00FF17FC /* Paywall */,
 				E9BDE56E29E3396700D230A8 /* Clic */,
 				E9C03AFD2A586F5E00FB9118 /* Watch */,
 				E97C0D462A325CC5005AB0E0 /* Widgets */,
@@ -339,6 +352,7 @@
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */,
 				E98527932A5E5C90009016C2 /* Live.swift */,
+				E966A0CF2A741FDA00FF17FC /* SuperMember.swift */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
 			);
@@ -644,6 +658,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E966A0CE2A741DD000FF17FC /* PaywallScreen.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
@@ -665,6 +680,7 @@
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
+				E966A0D02A741FDA00FF17FC /* SuperMember.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9BDE57029E3396700D230A8 /* SonosApp.swift in Sources */,
 			);
@@ -981,7 +997,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1022,7 +1038,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1064,7 +1080,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1105,7 +1121,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;

@@ -3,20 +3,25 @@ import SonosKit
 
 struct ContentView: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SuperMember.self) var superMember: SuperMember
+
     @Binding var selected: String?
 
     var body: some View {
         NavigationSplitView {
-            List (sonosService.groups, selection: $selected) { group in
+            List (sorted, selection: $selected) { group in
                 Section {
-                    HStack(alignment: .top) {
-                        ArtworkView(group: group)
-                            .frame(width: 72, height: 72)
-                        ZoneView(group: group)
-                        Spacer()
-                        MediaControlsView(group: group)
+                    VStack {
+                        HStack(alignment: .top) {
+                            ArtworkView(group: group)
+                                .frame(width: 72, height: 72)
+                            ZoneView(group: group)
+                            Spacer()
+                            MediaControlsView(group: group)
+                        }
+                        Divider()
+                        VolumeControlView(roomGroup: group)
                     }
-                    VolumeControlView(roomGroup: group)
                 } header: {
                     HStack {
                         Image(systemName: "hifispeaker")
@@ -27,10 +32,8 @@ struct ContentView: View {
                 }
                 .tag(group.coordinatorID)
                 .headerProminence(.increased)
-                .listRowSeparator(.visible, edges: .all)
-//                .listRowInsets(EdgeInsets(top: 2, leading: 2, bottom: 2, trailing: 2))
             }
-            
+
 
             //                VStack {
             //                    SceneView(show: $isShowing)
@@ -45,7 +48,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: selected) {
-            guard let selected else { return }
+            guard let selected, superMember.isEnabled else { return }
             let selectedGroup = sonosService.groups.first(where: { room in
                 room.coordinatorID == selected
             })
@@ -66,10 +69,22 @@ struct ContentView: View {
             }
         }
     }
+
+    private var sorted: [GroupRoom] {
+        let sorted = sonosService.groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
+        guard superMember.isEnabled else {
+            if let first = sorted.first {
+                return [first]
+            }
+            return []
+        }
+        return sorted
+    }
 }
 
 #Preview {
     ContentView(selected: .constant(nil))
         .environment(SonosService())
+        .environment(SuperMember())
 }
 

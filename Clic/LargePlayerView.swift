@@ -47,6 +47,8 @@ struct LargePlayerView: View {
                     Image(systemName: "backward.fill")
                         .font(.body)
                 }
+                .buttonStyle(.plain)
+
                 Button{
                     Task {
                         if group.coordinatorRoom.isPlaying {

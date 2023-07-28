@@ -12,6 +12,7 @@ struct ZoneView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
+        .frame(alignment: .top)
         .fontDesign(.rounded)
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-public struct Room: Identifiable {
+public class Room: Identifiable {
     public let id: String
     public let ip: String
     public let name: String
