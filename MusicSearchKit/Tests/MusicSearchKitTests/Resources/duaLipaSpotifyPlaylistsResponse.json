@@ -1,0 +1,782 @@
+{
+  "playlists": {
+    "href": "https://api.spotify.com/v1/search?query=dua+lipa&type=playlist&offset=0&limit=20",
+    "items": [
+      {
+        "collaborative": false,
+        "description": "The complete sounds of Dua Lipa, all in one playlist. Follow Dua on <a href=\"https://www.instagram.com/dualipa/\">Instagram</a>, <a href=\"https://www.tiktok.com/@dualipaofficial\">TikTok</a>, <a href=\"https://twitter.com/DUALIPA\">Twitter </a>&amp; <a href=\"https://www.facebook.com/DuaLipa\">Facebook</a>. ",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/7I1a94XGmUyXaGEYz3yghi"
+        },
+        "href": "https://api.spotify.com/v1/playlists/7I1a94XGmUyXaGEYz3yghi",
+        "id": "7I1a94XGmUyXaGEYz3yghi",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb8abdb4c73685a7352ff07a0e",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa Discography",
+        "owner": {
+          "display_name": "Dua Lipa",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/dualipamusic"
+          },
+          "href": "https://api.spotify.com/v1/users/dualipamusic",
+          "id": "dualipamusic",
+          "type": "user",
+          "uri": "spotify:user:dualipamusic"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "NDQwLDM2ZjQ2MzQ0ZWZmNDk1NmU5NThmNDM4OTEwZmE5OWVmZDU2NjY5YmU=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/7I1a94XGmUyXaGEYz3yghi/tracks",
+          "total": 62
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:7I1a94XGmUyXaGEYz3yghi"
+      },
+      {
+        "collaborative": false,
+        "description": "The essential tracks, all in one playlist.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1DX3fRquEp6m8D"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX3fRquEp6m8D",
+        "id": "37i9dQZF1DX3fRquEp6m8D",
+        "images": [
+          {
+            "height": null,
+            "url": "https://i.scdn.co/image/ab67706f00000003880da7c5be289f2c7787ccd2",
+            "width": null
+          }
+        ],
+        "name": "This Is Dua Lipa",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTY4NjkxODkyNiwwMDAwMDAwMDkyZWQxZGJhOTNjYWVkYTdlYjU4ZTQ5NDM2ZGFjNjVm",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX3fRquEp6m8D/tracks",
+          "total": 48
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1DX3fRquEp6m8D"
+      },
+      {
+        "collaborative": false,
+        "description": "Struggling with your mental health? Then you need my support via my Laser Focused Positivity self-help playlist. 😀",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/0sSWYSlbP6fE63uWW1JZ6J"
+        },
+        "href": "https://api.spotify.com/v1/playlists/0sSWYSlbP6fE63uWW1JZ6J",
+        "id": "0sSWYSlbP6fE63uWW1JZ6J",
+        "images": [
+          {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273d09f96d82310d4d77c14c108ab67616d0000b273ef12a4e8cdb297684e197cc4",
+            "width": 640
+          },
+          {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273d09f96d82310d4d77c14c108ab67616d0000b273ef12a4e8cdb297684e197cc4",
+            "width": 300
+          },
+          {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273d09f96d82310d4d77c14c108ab67616d0000b273ef12a4e8cdb297684e197cc4",
+            "width": 60
+          }
+        ],
+        "name": "Dua Lipa - All Songs",
+        "owner": {
+          "display_name": "🇬🇧  Stewart Harding 🎤🎸✌🏻",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/1145499210"
+          },
+          "href": "https://api.spotify.com/v1/users/1145499210",
+          "id": "1145499210",
+          "type": "user",
+          "uri": "spotify:user:1145499210"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "NTA1LDA4YWRlODZjOTY4MmJiMTQxZmRiODdjOGZhZDVkZTM0M2E1ZjZkMmU=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/0sSWYSlbP6fE63uWW1JZ6J/tracks",
+          "total": 66
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:0sSWYSlbP6fE63uWW1JZ6J"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1E4yMj4BGCYzsQ"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1E4yMj4BGCYzsQ",
+        "id": "37i9dQZF1E4yMj4BGCYzsQ",
+        "images": [
+          {
+            "height": null,
+            "url": "https://seeded-session-images.scdn.co/v1/img/artist/6M2wZ9GZgrQXHCFfjv46we/en",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa Radio",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTY5MDc1MzIyNSwwMDAwMDAwMGRiMDc2NTdlZjIyOWM1NGM4ODVjZTY2ZWE0MDlhMTUy",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1E4yMj4BGCYzsQ/tracks",
+          "total": 50
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1E4yMj4BGCYzsQ"
+      },
+      {
+        "collaborative": false,
+        "description": "Move and dance to Dua Lipa's 'Future Nostalgia.' An experience choreographed for you by Dua.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1DX10Sc03dg4tn"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX10Sc03dg4tn",
+        "id": "37i9dQZF1DX10Sc03dg4tn",
+        "images": [
+          {
+            "height": null,
+            "url": "https://i.scdn.co/image/ab67706f00000003294c4bad44abe1a390245840",
+            "width": null
+          }
+        ],
+        "name": "The Future Nostalgia Experience",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTY4NjkxODI4MCwwMDAwMDAwMDc1M2VjMjM4YTlmYjBlODQ4NDFkODU4NWUyY2Q0Nzdh",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DX10Sc03dg4tn/tracks",
+          "total": 14
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1DX10Sc03dg4tn"
+      },
+      {
+        "collaborative": false,
+        "description": "Sam Smith Dua Lipa The Weekend",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/3Vzn9SKliYq4rsozU6Bo4d"
+        },
+        "href": "https://api.spotify.com/v1/playlists/3Vzn9SKliYq4rsozU6Bo4d",
+        "id": "3Vzn9SKliYq4rsozU6Bo4d",
+        "images": [
+          {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738863bc11d2aa12b54f5aeb36ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273e52d04dfdb4d69b615ff4081",
+            "width": 640
+          },
+          {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738863bc11d2aa12b54f5aeb36ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273e52d04dfdb4d69b615ff4081",
+            "width": 300
+          },
+          {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738863bc11d2aa12b54f5aeb36ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273e52d04dfdb4d69b615ff4081",
+            "width": 60
+          }
+        ],
+        "name": "Dua lipa, Sam Smith, the weekend & various",
+        "owner": {
+          "display_name": "Luis Angel",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/12157474542"
+          },
+          "href": "https://api.spotify.com/v1/users/12157474542",
+          "id": "12157474542",
+          "type": "user",
+          "uri": "spotify:user:12157474542"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTU1LGI0ZWVkNWJkYmJjYzBmM2EyZDk3MzM4ZmI2ZWM0MWFjMmFhMDc5ODY=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/3Vzn9SKliYq4rsozU6Bo4d/tracks",
+          "total": 150
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:3Vzn9SKliYq4rsozU6Bo4d"
+      },
+      {
+        "collaborative": false,
+        "description": "This is Duava. The essential tracks, all in one playlist.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1DZ06evO0kgZhM"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO0kgZhM",
+        "id": "37i9dQZF1DZ06evO0kgZhM",
+        "images": [
+          {
+            "height": null,
+            "url": "https://thisis-images.scdn.co/37i9dQZF1DZ06evO0kgZhM-large.jpg",
+            "width": null
+          }
+        ],
+        "name": "This Is Duava",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MjgxNzg2NjksMDAwMDAwMDBjZmJiN2NkNjE4MTM4Nzk2YzRmZDliYWM3YjQ1N2U1Mw==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO0kgZhM/tracks",
+          "total": 50
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1DZ06evO0kgZhM"
+      },
+      {
+        "collaborative": false,
+        "description": "Let&#x27;s enjoy these beats. 🎶 Photo source: Ohlala!",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/6PHcDRFX1loAqATDskEzh0"
+        },
+        "href": "https://api.spotify.com/v1/playlists/6PHcDRFX1loAqATDskEzh0",
+        "id": "6PHcDRFX1loAqATDskEzh0",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb7a281f4fb6c242ad44d5259b",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa's Best Songs",
+        "owner": {
+          "display_name": "Nika.Vaj",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/jmbzj6gfo3t3gqij1a3k6s3s7"
+          },
+          "href": "https://api.spotify.com/v1/users/jmbzj6gfo3t3gqij1a3k6s3s7",
+          "id": "jmbzj6gfo3t3gqij1a3k6s3s7",
+          "type": "user",
+          "uri": "spotify:user:jmbzj6gfo3t3gqij1a3k6s3s7"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "Mjg3LGJhMTZjN2VjNmViNzY4MWNlZGMyOTUzNGMzN2Q1NDdkMDQ3YjBkN2I=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/6PHcDRFX1loAqATDskEzh0/tracks",
+          "total": 29
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:6PHcDRFX1loAqATDskEzh0"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/78itt08D3nAu2r79crJrb0"
+        },
+        "href": "https://api.spotify.com/v1/playlists/78itt08D3nAu2r79crJrb0",
+        "id": "78itt08D3nAu2r79crJrb0",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb6e494b239d5e47336d74d35c",
+            "width": null
+          }
+        ],
+        "name": "Dua lipa EDM Remixes",
+        "owner": {
+          "display_name": "George",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/4apc6qymkue4erdzo5pwshdeb"
+          },
+          "href": "https://api.spotify.com/v1/users/4apc6qymkue4erdzo5pwshdeb",
+          "id": "4apc6qymkue4erdzo5pwshdeb",
+          "type": "user",
+          "uri": "spotify:user:4apc6qymkue4erdzo5pwshdeb"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MzAsNTVkNmU4MGYzMDBhMTkzYzQxM2RiYzk2NGVmNTgwMjJiNTFmM2RjZA==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/78itt08D3nAu2r79crJrb0/tracks",
+          "total": 13
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:78itt08D3nAu2r79crJrb0"
+      },
+      {
+        "collaborative": false,
+        "description": "This is Du Li. The essential tracks, all in one playlist.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1DZ06evO4nTT6Y"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO4nTT6Y",
+        "id": "37i9dQZF1DZ06evO4nTT6Y",
+        "images": [
+          {
+            "height": null,
+            "url": "https://thisis-images.scdn.co/37i9dQZF1DZ06evO4nTT6Y-large.jpg",
+            "width": null
+          }
+        ],
+        "name": "This Is Du Li",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MjgxNzg2NjksMDAwMDAwMDAxMTNkMTJlOTAzNzQ4NDM2ZTE3YjgyYmZkYjlhMDE3ZA==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO4nTT6Y/tracks",
+          "total": 41
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1DZ06evO4nTT6Y"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/6vDyqo5WrhlcuYTqo7sYvj"
+        },
+        "href": "https://api.spotify.com/v1/playlists/6vDyqo5WrhlcuYTqo7sYvj",
+        "id": "6vDyqo5WrhlcuYTqo7sYvj",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb09ff721e62bd479069f84487",
+            "width": null
+          }
+        ],
+        "name": "Elton John and Dua Lipa",
+        "owner": {
+          "display_name": "Han",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/jonathan.t332"
+          },
+          "href": "https://api.spotify.com/v1/users/jonathan.t332",
+          "id": "jonathan.t332",
+          "type": "user",
+          "uri": "spotify:user:jonathan.t332"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MzAsMzVkYWQxYjQwOWJhMzBiYTQwMDhlMTViMjJjNTc2NGIzMTRlZTY0Mw==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/6vDyqo5WrhlcuYTqo7sYvj/tracks",
+          "total": 19
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:6vDyqo5WrhlcuYTqo7sYvj"
+      },
+      {
+        "collaborative": false,
+        "description": "This is Dual Logic. The essential tracks, all in one playlist.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/37i9dQZF1DZ06evO3BYEyl"
+        },
+        "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO3BYEyl",
+        "id": "37i9dQZF1DZ06evO3BYEyl",
+        "images": [
+          {
+            "height": null,
+            "url": "https://thisis-images.scdn.co/37i9dQZF1DZ06evO3BYEyl-large.jpg",
+            "width": null
+          }
+        ],
+        "name": "This Is Dual Logic",
+        "owner": {
+          "display_name": "Spotify",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/spotify"
+          },
+          "href": "https://api.spotify.com/v1/users/spotify",
+          "id": "spotify",
+          "type": "user",
+          "uri": "spotify:user:spotify"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MjgxNzg2NjgsMDAwMDAwMDA5NzUzNDAwZDY2MTNkY2E3NjU0MTA5Mzg4MTNhZDM0NQ==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/37i9dQZF1DZ06evO3BYEyl/tracks",
+          "total": 46
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:37i9dQZF1DZ06evO3BYEyl"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/2WLvpNkyozjU0Q0cCvJ6Fy"
+        },
+        "href": "https://api.spotify.com/v1/playlists/2WLvpNkyozjU0Q0cCvJ6Fy",
+        "id": "2WLvpNkyozjU0Q0cCvJ6Fy",
+        "images": [
+          {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d0000b273214b60a753733ca0792cf47fab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738583df1a14bea9175f9ac520ab67616d0000b273bd26ede1ae69327010d49946",
+            "width": 640
+          },
+          {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d0000b273214b60a753733ca0792cf47fab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738583df1a14bea9175f9ac520ab67616d0000b273bd26ede1ae69327010d49946",
+            "width": 300
+          },
+          {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d0000b273214b60a753733ca0792cf47fab67616d0000b2736b915e407b70e121e06fe979ab67616d0000b2738583df1a14bea9175f9ac520ab67616d0000b273bd26ede1ae69327010d49946",
+            "width": 60
+          }
+        ],
+        "name": "Dua Lipa as melhores",
+        "owner": {
+          "display_name": "Ana Paula S. Scharf",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/22bp3xhr4clm3dz5f7uue2woa"
+          },
+          "href": "https://api.spotify.com/v1/users/22bp3xhr4clm3dz5f7uue2woa",
+          "id": "22bp3xhr4clm3dz5f7uue2woa",
+          "type": "user",
+          "uri": "spotify:user:22bp3xhr4clm3dz5f7uue2woa"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTAsMDgzOWUwYTExZmQ4ODcyOTEzMTAzOGRmM2U2YWFkNmExYTViMTJiOQ==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/2WLvpNkyozjU0Q0cCvJ6Fy/tracks",
+          "total": 9
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:2WLvpNkyozjU0Q0cCvJ6Fy"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/6p8FKIkzGGG7KGuzzaiu5r"
+        },
+        "href": "https://api.spotify.com/v1/playlists/6p8FKIkzGGG7KGuzzaiu5r",
+        "id": "6p8FKIkzGGG7KGuzzaiu5r",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebbec4ea8bd8138b56c908b5f00",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa (CLEAN)",
+        "owner": {
+          "display_name": "Spotify Canada",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/wxll22hohndc2i8blpfckzl0x"
+          },
+          "href": "https://api.spotify.com/v1/users/wxll22hohndc2i8blpfckzl0x",
+          "id": "wxll22hohndc2i8blpfckzl0x",
+          "type": "user",
+          "uri": "spotify:user:wxll22hohndc2i8blpfckzl0x"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "ODksMjMxM2QxNGU4OGEzOWI4NGNhYzYwN2RkYjE0ZjE5ZjM3YmEyNjcxZQ==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/6p8FKIkzGGG7KGuzzaiu5r/tracks",
+          "total": 31
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:6p8FKIkzGGG7KGuzzaiu5r"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/6G6zvZPbHGidh24m0cAtPl"
+        },
+        "href": "https://api.spotify.com/v1/playlists/6G6zvZPbHGidh24m0cAtPl",
+        "id": "6G6zvZPbHGidh24m0cAtPl",
+        "images": [
+          {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d0000b273210dbb988be90592f4e0a4bdab67616d0000b273419afedd01696303371e1ba4ab67616d0000b27379476cf856443329e6c52c04ab67616d0000b2739f5cce8304c42d3a5463fd23",
+            "width": 640
+          },
+          {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d0000b273210dbb988be90592f4e0a4bdab67616d0000b273419afedd01696303371e1ba4ab67616d0000b27379476cf856443329e6c52c04ab67616d0000b2739f5cce8304c42d3a5463fd23",
+            "width": 300
+          },
+          {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d0000b273210dbb988be90592f4e0a4bdab67616d0000b273419afedd01696303371e1ba4ab67616d0000b27379476cf856443329e6c52c04ab67616d0000b2739f5cce8304c42d3a5463fd23",
+            "width": 60
+          }
+        ],
+        "name": "dua lipa workout playlist",
+        "owner": {
+          "display_name": "Danna",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/9ilaz62ghx95vexfz44663nqk"
+          },
+          "href": "https://api.spotify.com/v1/users/9ilaz62ghx95vexfz44663nqk",
+          "id": "9ilaz62ghx95vexfz44663nqk",
+          "type": "user",
+          "uri": "spotify:user:9ilaz62ghx95vexfz44663nqk"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "NTgyLGMyZTc1YjhjODQzNTgzYTQzNzI5NDQ0OWYyOWZlY2IzNzM0MjlhMjA=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/6G6zvZPbHGidh24m0cAtPl/tracks",
+          "total": 224
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:6G6zvZPbHGidh24m0cAtPl"
+      },
+      {
+        "collaborative": false,
+        "description": "Buena Musica",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/0hIb56NbUTBnUuiJ6eRPZy"
+        },
+        "href": "https://api.spotify.com/v1/playlists/0hIb56NbUTBnUuiJ6eRPZy",
+        "id": "0hIb56NbUTBnUuiJ6eRPZy",
+        "images": [
+          {
+            "height": 640,
+            "url": "https://mosaic.scdn.co/640/ab67616d0000b2735ef878a782c987d38d82b605ab67616d0000b2737a152619a7b55bc621d07901ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273dd0316b194097528348c8eb0",
+            "width": 640
+          },
+          {
+            "height": 300,
+            "url": "https://mosaic.scdn.co/300/ab67616d0000b2735ef878a782c987d38d82b605ab67616d0000b2737a152619a7b55bc621d07901ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273dd0316b194097528348c8eb0",
+            "width": 300
+          },
+          {
+            "height": 60,
+            "url": "https://mosaic.scdn.co/60/ab67616d0000b2735ef878a782c987d38d82b605ab67616d0000b2737a152619a7b55bc621d07901ab67616d0000b273bd26ede1ae69327010d49946ab67616d0000b273dd0316b194097528348c8eb0",
+            "width": 60
+          }
+        ],
+        "name": "Dua Lipa ,Doja Cat ,Ariana Grande y Billie Elish",
+        "owner": {
+          "display_name": "ALIRTAN",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/315v3zzhaxsffjnimelq2n7y4imm"
+          },
+          "href": "https://api.spotify.com/v1/users/315v3zzhaxsffjnimelq2n7y4imm",
+          "id": "315v3zzhaxsffjnimelq2n7y4imm",
+          "type": "user",
+          "uri": "spotify:user:315v3zzhaxsffjnimelq2n7y4imm"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "NjgsN2RjMTRhNGVkYjk1NzkyZGNhMDdmNWVhNmUwOTVhMzFkNGQxZjllMg==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/0hIb56NbUTBnUuiJ6eRPZy/tracks",
+          "total": 53
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:0hIb56NbUTBnUuiJ6eRPZy"
+      },
+      {
+        "collaborative": false,
+        "description": "",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/0ftiGKN8NMvi1XKUIg7fsM"
+        },
+        "href": "https://api.spotify.com/v1/playlists/0ftiGKN8NMvi1XKUIg7fsM",
+        "id": "0ftiGKN8NMvi1XKUIg7fsM",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb0bea23ca52d0ee67ccb26e78",
+            "width": null
+          }
+        ],
+        "name": "Cold heart - Elton John, Dua Lipa",
+        "owner": {
+          "display_name": "cazjase",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/cazjase"
+          },
+          "href": "https://api.spotify.com/v1/users/cazjase",
+          "id": "cazjase",
+          "type": "user",
+          "uri": "spotify:user:cazjase"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "Nyw4YjlkYTAyNjRkMGFlMmVhN2M2NTllNGUwNmFmMGFhMzEwY2E4Zjg2",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/0ftiGKN8NMvi1XKUIg7fsM/tracks",
+          "total": 4
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:0ftiGKN8NMvi1XKUIg7fsM"
+      },
+      {
+        "collaborative": false,
+        "description": "Get tickets for Dua Lipa's <a href=\"https://www.dualipa.com/studio2054\">Studio 2054</a>, a kaleidoscopic rocket fuelled journey through time, space, mirror-balls, roller discos, bucket hats, belting beats, throbbing bass-lines and an absolute slam dunk of the best times in global club culture...",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/21bqszfb14otsTLXeQ8cYb"
+        },
+        "href": "https://api.spotify.com/v1/playlists/21bqszfb14otsTLXeQ8cYb",
+        "id": "21bqszfb14otsTLXeQ8cYb",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb249e4a65c503a5beab2a0c88",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa's Studio 2054",
+        "owner": {
+          "display_name": "Dua Lipa",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/dualipamusic"
+          },
+          "href": "https://api.spotify.com/v1/users/dualipamusic",
+          "id": "dualipamusic",
+          "type": "user",
+          "uri": "spotify:user:dualipamusic"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTEsODNjYTQxYzc5YmM1MDFlYWU5YzFjZWJhMGVjMGQzNzAyNTA5Yjc3ZQ==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/21bqszfb14otsTLXeQ8cYb/tracks",
+          "total": 43
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:21bqszfb14otsTLXeQ8cYb"
+      },
+      {
+        "collaborative": false,
+        "description": "A Collection of Dua Lipa&#x27;s Acoustic &amp; Live Sessions.  #acoustic #sessions #dualipa #live",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/2Y5UoIUDgl1UldhIiFmbDp"
+        },
+        "href": "https://api.spotify.com/v1/playlists/2Y5UoIUDgl1UldhIiFmbDp",
+        "id": "2Y5UoIUDgl1UldhIiFmbDp",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb4ddb44a9e40fe173120e7d55",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa - Acoustic Sessions",
+        "owner": {
+          "display_name": "theguyworkingout",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/1241205398"
+          },
+          "href": "https://api.spotify.com/v1/users/1241205398",
+          "id": "1241205398",
+          "type": "user",
+          "uri": "spotify:user:1241205398"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MjEsMmQ5NjVlYTkyZTQ2MGE3YWEzNGIyNWIwZTE3NmE1NmE3OTMyYTY1Zg==",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/2Y5UoIUDgl1UldhIiFmbDp/tracks",
+          "total": 18
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:2Y5UoIUDgl1UldhIiFmbDp"
+      },
+      {
+        "collaborative": false,
+        "description": "The best of Dua Lipa remixes.",
+        "external_urls": {
+          "spotify": "https://open.spotify.com/playlist/4BYSnCH8lORtH7442z6VAT"
+        },
+        "href": "https://api.spotify.com/v1/playlists/4BYSnCH8lORtH7442z6VAT",
+        "id": "4BYSnCH8lORtH7442z6VAT",
+        "images": [
+          {
+            "height": null,
+            "url": "https://images-ak.spotifycdn.com/image/ab67706c0000bebb59d75888ec07a953e5a2cc96",
+            "width": null
+          }
+        ],
+        "name": "Dua Lipa Club Party Remixes",
+        "owner": {
+          "display_name": "thedavidwillyam",
+          "external_urls": {
+            "spotify": "https://open.spotify.com/user/thedavidwillyam"
+          },
+          "href": "https://api.spotify.com/v1/users/thedavidwillyam",
+          "id": "thedavidwillyam",
+          "type": "user",
+          "uri": "spotify:user:thedavidwillyam"
+        },
+        "primary_color": null,
+        "public": null,
+        "snapshot_id": "MTQ5LDhlYjNiMjFjM2QzNjdjNjM0ZWU3ZjJhYzk4ZWJmMzc1NjkwNGNhNmU=",
+        "tracks": {
+          "href": "https://api.spotify.com/v1/playlists/4BYSnCH8lORtH7442z6VAT/tracks",
+          "total": 31
+        },
+        "type": "playlist",
+        "uri": "spotify:playlist:4BYSnCH8lORtH7442z6VAT"
+      }
+    ],
+    "limit": 20,
+    "next": "https://api.spotify.com/v1/search?query=dua+lipa&type=playlist&offset=20&limit=20",
+    "offset": 0,
+    "previous": null,
+    "total": 32
+  }
+}

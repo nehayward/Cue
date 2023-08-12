@@ -8,6 +8,7 @@ struct LargePlayerView: View {
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var showGroup = false
+    @State private var showSearch = false
 
     @State private var isExpanded: Bool = false
 
@@ -27,6 +28,8 @@ struct LargePlayerView: View {
                 .padding(.bottom, 80)
             VStack {
                 ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
+                    .tint(.primary)
+                    .progressViewStyle(.linear)
                 HStack {
                     Text(group.coordinatorRoom.track.timestamp)
                     Spacer()
@@ -75,6 +78,7 @@ struct LargePlayerView: View {
             }
             .padding(.bottom, 40)
 
+
 //            VolumeControlView(roomGroup: group)
 //                .padding(.bottom, 24)
 //            HStack {
@@ -93,7 +97,7 @@ struct LargePlayerView: View {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
 
             let track = Track(name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
-            track.artworkURL = await sonosService.getArtwork(song: track.name, artist: track.artist, album: track.album)
+            track.artworkURL = await sonosService.getArtwork(from: track)
             group.rooms[0].track = track
             group.coordinatorRoom.track.duration = 2000
             Task {
@@ -116,7 +120,7 @@ struct LargePlayerView: View {
                 .bold()
             }
             ToolbarItem(placement: .bottomBar) {
-                VStack {
+                HStack(spacing: 24) {
                     Button {
                         showGroup.toggle()
                     } label: {
@@ -126,12 +130,23 @@ struct LargePlayerView: View {
                     .fontDesign(.rounded)
                     .buttonStyle(.plain)
                     .font(.body)
-//                    VolumeControlView(roomGroup: group)
+                    Button {
+                        showSearch.toggle()
+                    } label: {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .font(.body)
+                    }
+                    .fontDesign(.rounded)
+                    .buttonStyle(.plain)
+                    .font(.body)
                 }
             }
         }
         .sheet(isPresented: $showGroup) {
             GroupScreen(group: group, viewModel: GroupScreenViewModel(group: group))
+        }
+        .sheet(isPresented: $showSearch) {
+            MusicSearchScreen(group: group)
         }
 //        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
 //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)

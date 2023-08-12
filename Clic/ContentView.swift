@@ -3,7 +3,7 @@ import SonosKit
 
 struct ContentView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(SuperMember.self) var superMember: SuperMember
+    @Environment(SubscriptionService.self) var superMember: SubscriptionService
 
     @Binding var selected: String?
 
@@ -85,6 +85,6 @@ struct ContentView: View {
 #Preview {
     ContentView(selected: .constant(nil))
         .environment(SonosService())
-        .environment(SuperMember())
+        .environment(SubscriptionService())
 }
 

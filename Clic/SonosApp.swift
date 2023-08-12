@@ -12,7 +12,7 @@ struct SonosApp: App {
     @AppStorage("membership") var isEnabled = false
 
     var sonosService = SonosService()
-    var superMember = SuperMember()
+    var superMember = SubscriptionService()
 
     var body: some Scene {
         WindowGroup {
@@ -21,6 +21,7 @@ struct SonosApp: App {
                 .environment(superMember)
                 .task {
                     sonosService.monitor()
+                    await superMember.setup()
                 }
                 .sheet(isPresented: $showPaywall) {
                     PaywallScreen()
@@ -52,15 +53,16 @@ struct SonosApp: App {
                         room.coordinatorRoom.isPlaying
                     })?.coordinatorID
                 }
-                superMember.isEnabled = isEnabled
+//                superMember.isEnabled = isEnabled
             }
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             LiveActivityManager.shared.createActivity(with: sonosService.groups)
         }
         .onChange(of: superMember.isEnabled) {
-            isEnabled = superMember.isEnabled
+//            isEnabled = superMember.isEnabled
         }
+
 //        .backgroundTask(.appRefresh(UUID().uuidString)) { action in
 //            LiveActivityManager.shared.refresh()
 //        }

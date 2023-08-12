@@ -26,7 +26,7 @@ extension GroupRoom: Hashable {
     public static func == (lhs: GroupRoom, rhs: GroupRoom) -> Bool {
         lhs.id == rhs.id &&
         lhs.coordinatorID == rhs.coordinatorID &&
-        lhs.rooms == rhs.rooms
+        lhs.rooms.count == rhs.rooms.count
     }
 
     public func hash(into hasher: inout Hasher) {

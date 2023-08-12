@@ -63,4 +63,13 @@ final class SonosKitTests: XCTestCase {
         let playbackState = XMLParserSonos().parsePlaybackInfo(xml: transportInfoXML)
         print(playbackState)
     }
+
+    func testGetZoneGroupAttributes() throws {
+        let getZoneGroupAttributesURL = Bundle.module.url(forResource: "GetZoneGroupAttributes", withExtension: "xml")
+        let getZoneGroupAttributesXML = try! String(contentsOf: getZoneGroupAttributesURL!)
+        print(getZoneGroupAttributesXML)
+
+        let householdID = XMLParserSonos().parseHouseID(xml: getZoneGroupAttributesXML)
+        print(householdID)
+    }
 }

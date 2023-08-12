@@ -205,6 +205,15 @@ class XMLParserSonos {
         return Double(masterVolume) ?? 0
 
     }
+
+    func parseHouseID(xml: String) -> String {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let householdID = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupAttributesResponse"]["CurrentMuseHouseholdId"].element?.text
+        else {
+            return ""
+        }
+        return householdID
+    }
 }
 
 
@@ -216,6 +225,20 @@ extension String {
         xml = xml.replacingOccurrences(of: "&amp;", with: "&")
         xml = xml.replacingOccurrences(of: "&quot;", with: "\"")
         xml = xml.replacingOccurrences(of: "&apos;", with: "'")
+        return xml
+    }
+
+    var escaped: String {
+        var xml = self
+        xml = xml.replacingOccurrences(of: "&", with: "&amp;")
+        xml = xml.replacingOccurrences(of: "<", with: "&lt;")
+        xml = xml.replacingOccurrences(of: ">", with: "&gt;")
+        return xml
+    }
+
+    var xmlAllowedString: String {
+        var xml = self
+        xml = xml.replacingOccurrences(of: " ", with: "&#32;")
         return xml
     }
 }

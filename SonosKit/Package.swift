@@ -23,13 +23,17 @@ let package = Package(
         .testTarget(
             name: "SonosKitTests",
             dependencies: ["SonosKit"],
-            resources: [.copy("Resources/GetVolumeResponse.xml"),
-                        .copy("Resources/Zone.xml"),
-                        .copy("Resources/Track.xml"),
-                        .copy("Resources/GetPosition.xml"),
-                        .copy("Resources/RendererControl.xml"),
-                        .copy("Resources/AVTransport.xml"),
-                        .copy("Resources/GetTransportInfo.xml"),
-                        .copy("Resources/ZoneEvent.xml")]),
+            resources: [
+                .copy("Resources/GetVolumeResponse.xml"),
+                .copy("Resources/Zone.xml"),
+                .copy("Resources/Track.xml"),
+                .copy("Resources/GetPosition.xml"),
+                .copy("Resources/RendererControl.xml"),
+                .copy("Resources/AVTransport.xml"),
+                .copy("Resources/GetTransportInfo.xml"),
+                .copy("Resources/ZoneEvent.xml"),
+                .copy("Resources/GetZoneGroupAttributes.xml")
+            ]
+        ),
     ]
 )

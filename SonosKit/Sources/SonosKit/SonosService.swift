@@ -14,10 +14,12 @@ public final class SonosService {
     private var sonosAPI = SonosAPI()
     private var musicSearch = MusicSearchService()
 
+    var knownSonosServices: [String: [String]] = [:]
+
     public init () {
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-            monitor()
-        }
+//        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+//            monitor()
+//        }
     }
 
     public func monitor() {
@@ -44,7 +46,7 @@ public final class SonosService {
     @MainActor
     public func load() async {
         let newGroup = await getGroups()
-        if !newGroup.isEmpty && newGroup.count != self.groups.count {
+        if !newGroup.isEmpty && newGroup != self.groups {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
@@ -68,16 +70,21 @@ public final class SonosService {
 
                 guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
 
-                let previousArtwork = track.artworkURL
+                let previousArtwork = groups[group].rooms[room].track.artworkURL
 
-                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+                groups[group].rooms[room].track = track
+                
+                if previousArtwork != nil {
+                    groups[group].rooms[room].track.artworkURL = previousArtwork
+                }
+
+                guard let artworkURL = await getArtwork(from: track) else {
                     continue
                 }
+
                 if artworkURL != previousArtwork {
-                    groups[group].rooms[room].track = track
                     groups[group].rooms[room].track.artworkURL = artworkURL
                 }
-                groups[group].rooms[room].track = track
             }
         }
         return
@@ -86,7 +93,7 @@ public final class SonosService {
     @MainActor
     public func fetch() async {
         let newGroup = await getGroups()
-        if !newGroup.isEmpty && newGroup.count != self.groups.count {
+        if !newGroup.isEmpty && newGroup != groups {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
@@ -113,16 +120,21 @@ public final class SonosService {
 
                 guard let track = await getTrack(ip: groups[index].rooms[room].ip) else { continue }
 
-                let previousArtwork = track.artworkURL
+                let previousArtwork = groups[index].rooms[room].track.artworkURL
 
-                guard let artworkURL = await getArtwork(song: track.name, artist: track.artist, album: track.album, size: 100) else {
+                groups[index].rooms[room].track = track
+
+                if previousArtwork != nil {
+                    groups[index].rooms[room].track.artworkURL = previousArtwork
+                }
+
+                guard let artworkURL = await getArtwork(from: track, size: 100) else {
                     continue
                 }
+
                 if artworkURL != previousArtwork {
-                    groups[index].rooms[room].track = track
                     groups[index].rooms[room].track.artworkURL = artworkURL
                 }
-                groups[index].rooms[room].track = track
             }
             
             return
@@ -155,6 +167,7 @@ public final class SonosService {
 
     public func getGroups() async -> [GroupRoom] {
         guard let ip = try? await sonosSystemDiscoverService.getFirstIP() else { return [] }
+//        let houseID = await sonosAPI.getHouseHoldID(for: ip)
         let groups = await sonosAPI.getGroups(ipAddress: ip)
         return groups
     }
@@ -211,16 +224,31 @@ public final class SonosService {
         await sonosAPI.getCurrentTrack(ipAddress: ip)
     }
 
-    public func getArtwork(song: String, artist: String, album: String, size: Int = 500) async -> URL? {
-        let searchResults = await musicSearch.search(song: song, artist: artist)
-        let found = searchResults.first { result in
-            result.artistName == artist &&
-            (result.trackName == song || result.trackCensoredName == song) &&
-            result.album == album
+    public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
+        switch track.musicService  {
+        case .apple:
+            let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
+            let found = searchResults.first { result in
+                result.artistName == track.artist &&
+                (result.trackName == track.name || result.trackCensoredName == track.name)
+            }
+            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
+            return url
+        case .spotify:
+            guard let spotifySearchResults = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist) else { return nil }
+            guard let tracks = spotifySearchResults.tracks else { return nil }
+
+            let found = tracks.items.first { result in
+                result.name == track.name
+//                (result.trackName == track.name || result == track.name)
+            }
+
+            guard let found else { return nil }
+            guard let artworkString = found.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
+            return url
         }
-        guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
-        return url
     }
+    
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { room in
@@ -281,6 +309,12 @@ public final class SonosService {
     public func queue(song: String, on ip: String) async {
         await sonosAPI.removeAllTrackFromQueue(IP: ip)
         await sonosAPI.queue(song: song, IP: ip)
+    }
+
+    public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
+        await sonosAPI.removeAllTrackFromQueue(IP: ip)
+        await sonosAPI.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
+        await sonosAPI.setAVTransport(IP: ip, ID: group.coordinatorID)
     }
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {

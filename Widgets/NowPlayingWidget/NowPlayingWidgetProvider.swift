@@ -19,7 +19,7 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
             return NowPlayingEntry(date: Date(), configuration: configuration, info: nil)
         }
 
-        guard let artworkURL = await sonosService.getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+        guard let artworkURL = await sonosService.getArtwork(from: track) else {
             let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
             let info = NowPlayingEntry.Info(room: entity, data: nil, track: track.name, artist: track.artist)
             return NowPlayingEntry(date: Date(), configuration: configuration, info: info)
@@ -47,7 +47,7 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
             return Timeline(entries: [entry], policy: .atEnd)
         }
 
-        guard let artworkURL = await sonosService.getArtwork(song: track.name, artist: track.artist, album: track.album) else {
+        guard let artworkURL = await sonosService.getArtwork(from: track) else {
             let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
             let info = NowPlayingEntry.Info(room: entity, data: nil, track: track.name, artist: track.artist)
             let entry = NowPlayingEntry(date: .now, configuration: configuration, info: info)

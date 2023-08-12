@@ -19,8 +19,9 @@
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
 		E963963F2A3CD3AE00518A17 /* MusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */; };
 		E966A0CE2A741DD000FF17FC /* PaywallScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */; };
-		E966A0D02A741FDA00FF17FC /* SuperMember.swift in Sources */ = {isa = PBXBuildFile; fileRef = E966A0CF2A741FDA00FF17FC /* SuperMember.swift */; };
+		E966A0D02A741FDA00FF17FC /* SubscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E966A0CF2A741FDA00FF17FC /* SubscriptionService.swift */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
+		E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = E9736F752A7472AC00BE692C /* RevenueCat */; };
 		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
 		E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D472A325CC5005AB0E0 /* WidgetBundle.swift */; };
@@ -44,6 +45,7 @@
 		E98527952A5E5C99009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
+		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */; };
 		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
@@ -154,7 +156,7 @@
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
 		E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicSearchScreen.swift; sourceTree = "<group>"; };
 		E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallScreen.swift; sourceTree = "<group>"; };
-		E966A0CF2A741FDA00FF17FC /* SuperMember.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperMember.swift; sourceTree = "<group>"; };
+		E966A0CF2A741FDA00FF17FC /* SubscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionService.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
 		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -172,6 +174,7 @@
 		E98527932A5E5C90009016C2 /* Live.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Live.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
+		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetEntryView.swift; sourceTree = "<group>"; };
 		E9B12B532A5F31790008868C /* Widgets Watch.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets Watch.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9B12B572A5F31790008868C /* WatchTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTimelineProvider.swift; sourceTree = "<group>"; };
@@ -232,6 +235,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
+				E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -251,6 +256,7 @@
 			isa = PBXGroup;
 			children = (
 				E966A0CD2A741DD000FF17FC /* PaywallScreen.swift */,
+				E966A0CF2A741FDA00FF17FC /* SubscriptionService.swift */,
 			);
 			path = Paywall;
 			sourceTree = "<group>";
@@ -352,7 +358,6 @@
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E963963E2A3CD3AE00518A17 /* MusicSearchScreen.swift */,
 				E98527932A5E5C90009016C2 /* Live.swift */,
-				E966A0CF2A741FDA00FF17FC /* SuperMember.swift */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
 			);
@@ -370,6 +375,7 @@
 		E9BDE57E29E33B0700D230A8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */,
 				E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */,
 				E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */,
 			);
@@ -507,6 +513,7 @@
 			name = Clic;
 			packageProductDependencies = (
 				E9BDE57F29E33B0700D230A8 /* SonosKit */,
+				E9736F752A7472AC00BE692C /* RevenueCat */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -567,6 +574,9 @@
 				Base,
 			);
 			mainGroup = E9BDE56329E3396700D230A8;
+			packageReferences = (
+				E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */,
+			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -680,7 +690,7 @@
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
-				E966A0D02A741FDA00FF17FC /* SuperMember.swift in Sources */,
+				E966A0D02A741FDA00FF17FC /* SubscriptionService.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9BDE57029E3396700D230A8 /* SonosApp.swift in Sources */,
 			);
@@ -1202,7 +1212,23 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.25.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		E9736F752A7472AC00BE692C /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
 		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;

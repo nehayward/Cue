@@ -8,6 +8,15 @@ final class SonosSystemDiscoverService {
     private var browser: NWBrowser?
     private let sonosServiceType = "_sonos._tcp"
     private lazy var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: String(describing: SonosSystemDiscoverService.self))
+    private let monitor = NWPathMonitor()
+
+    init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            if path.isExpensive {
+                self?.sonosIP.removeAll()
+            }
+        }
+    }
 
     func search() {
         browser = NWBrowser(for: .bonjourWithTXTRecord(type: sonosServiceType, domain: "local."), using: .applicationService)
@@ -29,15 +38,23 @@ final class SonosSystemDiscoverService {
             search()
             let date = Date.now
             while sonosIP.isEmpty {
-                if Date.now > date.addingTimeInterval(3) {
+                if Date.now > date.addingTimeInterval(5) {
                     break
                 }
                 try await Task.sleep(nanoseconds: (UInt64(0.2) * 1_000_000_000))
             }
+            guard let sonosURL = URL(string: sonosIP) else { return "" }
+
+            let response = try await URLSession.shared.data(for: URLRequest(url: sonosURL))
+            if let httpResponse = response.1 as? HTTPURLResponse {
+                print(httpResponse.statusCode)
+            }
+
             return sonosIP
         }
 
-        return try await task.value
+        let ip = try await task.value
+        return ip
     }
 
     private func changeHandler(_ newResults: Set<NWBrowser.Result>, _ changes: Set<NWBrowser.Result.Change>) {
@@ -50,11 +67,12 @@ final class SonosSystemDiscoverService {
             return
         }
 
-        logger.trace("Found location for Sonos device, \(location,  align: .right(columns: 10))")
+        logger.trace("Found Sonos Device: \(location,  align: .right(columns: 10))")
         let components = URLComponents(string: location)
         guard let ip = components?.host else {
             return
         }
+
         logger.trace("Found IP for Sonos device, \(ip,  align: .right(columns: 10))")
         sonosIP = ip
         stop()

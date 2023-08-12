@@ -5,14 +5,7 @@ final class IntegrationsTests: XCTestCase {
     let sonosService = SonosService()
 
     func testQueue() async throws {
-        await sonosService.load()
-//        print(sonosService.rooms.first?.ipAddress)
-
-//        guard let garage = sonosService.rooms.first(where: { device in
-//            device.name == "Theater"
-//        }) else { return }
-
-//        await sonosService.queue(song: "1673536432", on: garage)
+        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", title: "Dua Lipa Discography", owner: "Dua Lipa", on: "192.168.4.49")
     }
 
     

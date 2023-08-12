@@ -20,6 +20,9 @@ let package = Package(
         .testTarget(
             name: "MusicSearchKitTests",
             dependencies: ["MusicSearchKit"],
-            resources: [.copy("Resources/cryYourHeartOutSearch.json")]),
+            resources: [
+                .copy("Resources/cryYourHeartOutSearch.json"),
+                .copy("Resources/duaLipaSpotifyPlaylistsResponse.json")
+            ]),
     ]
 )

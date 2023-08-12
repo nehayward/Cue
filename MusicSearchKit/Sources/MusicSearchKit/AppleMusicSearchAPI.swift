@@ -19,6 +19,7 @@ final class AppleMusicSearchAPI {
         components.queryItems = [
             URLQueryItem(name: "term", value: query),
             URLQueryItem(name: "media", value: "music"),
+            URLQueryItem(name: "entity", value: "song"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         guard let url = components.url else { return [] }
