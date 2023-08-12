@@ -2,7 +2,7 @@ import SwiftUI
 import MusicSearchKit
 import SonosKit
 
-enum MusicSearchSelection: String {
+enum MusicSearchSelection: String, Equatable {
     case spotify
     case apple
 }
@@ -132,7 +132,20 @@ struct MusicSearchScreen: View {
                         results = await musicSearchService.search(song: query, artist: "")
                     }
                 }
-
+            }
+            .onChange(of: musicSearchSelection) {
+                searchTask?.cancel()
+                switch musicSearchSelection {
+                case .spotify:
+                    searchTask = Task {
+                        spotifyResult = await musicSearchService.searchSpotify(song: query, artist: "")
+                        print(spotifyResult)
+                    }
+                case .apple:
+                    searchTask = Task {
+                        results = await musicSearchService.search(song: query, artist: "")
+                    }
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -145,9 +158,38 @@ struct MusicSearchScreen: View {
                     .bold()
                 }
             }
-            .onSubmit {
-                print("HERE")
-            }
+//            .safeAreaInset(edge: .bottom) {
+//                VStack {
+//
+//                    TextField(
+//                        "New message",
+//                        text: $query
+//                    )
+//                    .focused($focusedField)
+//                    .padding()
+//                    .textFieldStyle(.roundedBorder)
+//                    .background(.ultraThinMaterial)
+//                    .onSubmit {
+//                        // append message
+//                    }
+//
+//                    Picker("", selection: $musicSearchSelection) {
+//                        Text("Spotify")
+//                            .tag(MusicSearchSelection.spotify)
+//                        Text("Apple")
+//                            .tag(MusicSearchSelection.apple)
+//                    }
+//                    .pickerStyle(.segmented)
+//                    .padding()
+//                    .background(.ultraThinMaterial)
+//                }
+//            }
+//            .onSubmit {
+//                print("HERE")
+//            }
+//            .task {
+//                focusedField = true
+//            }
             .searchScopes($musicSearchSelection, activation: .onSearchPresentation) {
                 Text("Spotify").tag(MusicSearchSelection.spotify)
                 Text("Apple").tag(MusicSearchSelection.apple)

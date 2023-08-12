@@ -43,13 +43,6 @@ final class SonosSystemDiscoverService {
                 }
                 try await Task.sleep(nanoseconds: (UInt64(0.2) * 1_000_000_000))
             }
-            guard let sonosURL = URL(string: sonosIP) else { return "" }
-
-            let response = try await URLSession.shared.data(for: URLRequest(url: sonosURL))
-            if let httpResponse = response.1 as? HTTPURLResponse {
-                print(httpResponse.statusCode)
-            }
-
             return sonosIP
         }
 
