@@ -14,10 +14,6 @@ struct SonosGroupView: View {
             }
         }
         .tag(group.coordinatorID)
-        .task {
-            await sonosService.load()
-            group = sonosService.groups.first!
-        }
     }
 }
 

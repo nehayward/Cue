@@ -6,7 +6,8 @@ public class GroupRoom: Identifiable {
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
-    
+    public var tvMode: Bool = false
+
     public var groupVolume: Double = 0
     
     public var coordinatorRoom: Room {

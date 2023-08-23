@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SonosKit",
-    platforms: [.iOS(.v17)],
+    platforms: [.iOS(.v17), .watchOS(.v10)],
     products: [
         .library(
             name: "SonosKit",
@@ -32,7 +32,8 @@ let package = Package(
                 .copy("Resources/AVTransport.xml"),
                 .copy("Resources/GetTransportInfo.xml"),
                 .copy("Resources/ZoneEvent.xml"),
-                .copy("Resources/GetZoneGroupAttributes.xml")
+                .copy("Resources/GetZoneGroupAttributes.xml"),
+                .copy("Resources/GetQueue.xml")
             ]
         ),
     ]

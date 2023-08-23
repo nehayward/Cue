@@ -2,10 +2,14 @@ import ActivityKit
 import Foundation
 import SonosKit
 
-class LiveActivityManager {
-    let sonosService = SonosService()
-    static var shared = LiveActivityManager()
+@Observable
+final class LiveActivityManager {
+    let sonosService: SonosService
     var activity: Activity<ClicNowPlayingWidgetAttributes>?
+
+    init(sonosService: SonosService) {
+        self.sonosService = sonosService
+    }
 
     func okay() {
         print(ActivityAuthorizationInfo().areActivitiesEnabled)

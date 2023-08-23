@@ -6,16 +6,16 @@ class SubscriptionService {
     var isEnabled: Bool = true
 
     func setup() async {
-            Purchases.logLevel = .debug
+            Purchases.logLevel = .error
             Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
         // Using Swift Concurrency
         do {
             let offerings = try await Purchases.shared.offerings()
             // Display current offering with offerings.current
-            print(offerings)
+//            print(offerings)
         } catch let error {
             // handle error
-            print(error)
+//            print(error)
         }
     }
 

@@ -8,7 +8,6 @@ struct PlayerView: View {
     @Bindable var group: GroupRoom
     @State var isIdle: Bool = true
     @State var showGroup: Bool = false
-
     @State var volume: Double  = 0
 
     var body: some View {
@@ -21,19 +20,20 @@ struct PlayerView: View {
                 case .success(let image):
                     image
                         .resizable()
+                        .aspectRatio(contentMode: .fit)
                 default:
                     RoundedRectangle(cornerRadius: 12)
+                        .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.thinMaterial)
                 }
             }
             .cornerRadius(12)
             .shadow(radius: 10)
-            .frame(width: 80, height: 80)
             .focusable()
             .digitalCrownRotation(detent: $group.groupVolume,
                                   from: 0,
                                   through: 100,
-                                  by: 1,
+                                  by: 2,
                                   sensitivity: .low,
                                   isContinuous: false,
                                   isHapticFeedbackEnabled: true,
@@ -52,11 +52,21 @@ struct PlayerView: View {
             })
             Text(group.coordinatorRoom.track.name)
                 .bold()
+                .lineLimit(1)
             Text(group.coordinatorRoom.track.artist)
                 .foregroundColor(.secondary)
-            Spacer()
+                .lineLimit(1)
+                .padding(.bottom)
         }
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .center) {
+            if group.coordinatorRoom.track.name.isEmpty {
+                Text("Nothing to play")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .multilineTextAlignment(.center)
+            }
+        }
         .background {
             AsyncImage(
                 url: group.coordinatorRoom.track.artworkURL,
@@ -87,9 +97,14 @@ struct PlayerView: View {
             }
             ToolbarItemGroup (placement: .bottomBar) {
                 Button {
-
+                    Task {
+                        await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    }
                 } label: {
                     Image(systemName: "backward.end.fill")
+                }
+                .transaction { transaction in
+                    transaction.animation = nil
                 }
 
                 Button(action: {
@@ -119,12 +134,18 @@ struct PlayerView: View {
                 })
                 .buttonStyle(.plain)
                 .scaleEffect(0.8)
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
                 Button {
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")
+                }
+                .transaction { transaction in
+                    transaction.animation = nil
                 }
             }
         }
@@ -136,10 +157,19 @@ struct PlayerView: View {
                 await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             }
         }
+        .onChange(of: group) {
+            sonosService.selectedGroup = group
+        }
         .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
         .onAppear {
             volume = group.groupVolume
         }
+//        .task {
+//            let track = Track(name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
+//            track.artworkURL = await sonosService.getArtwork(from: track)
+//            print(track.artworkURL)
+//            group.coordinatorRoom.track = track
+//        }
     }
 }
 

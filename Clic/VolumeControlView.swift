@@ -36,10 +36,6 @@ struct VolumeControlView: View {
                 }
             }
         }
-        .onAppear {
-            let thumbImage = UIImage()
-            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-        }
     }
 }
 

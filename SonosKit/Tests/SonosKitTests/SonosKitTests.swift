@@ -72,4 +72,13 @@ final class SonosKitTests: XCTestCase {
         let householdID = XMLParserSonos().parseHouseID(xml: getZoneGroupAttributesXML)
         print(householdID)
     }
+
+    func testGetQueueParsing() throws {
+        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
+        let getQueueXML = try! String(contentsOf: getQueueURL!)
+//        print(getQueueXML)
+        let tracks = XMLParserSonos().parseQueue(xml: getQueueXML)
+
+//        print(householdID)
+    }
 }

@@ -10,7 +10,14 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
 
     func snapshot(for configuration: NowPlayingWidgetConfigurationIntent, in context: Context) async -> NowPlayingEntry {
         let sonosService = SonosService()
-        await sonosService.load()
+        do {
+            try await sonosService.load()
+        } catch {
+            print(error)
+            return NowPlayingEntry(date: .now, configuration: configuration, info: nil)
+        }
+
+
         guard let group = sonosService.groups.first(where: \.coordinatorRoom.isPlaying) else {
             return NowPlayingEntry(date: .now, configuration: configuration, info: nil)
         }
@@ -36,7 +43,14 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
         let sonosService = SonosService()
         // MARK: Needed for Sonos transitioning delay
         try? await Task.sleep(for: .seconds(2))
-        await sonosService.load()
+        do {
+            try await sonosService.load()
+        } catch {
+            print(error)
+            let entry = NowPlayingEntry(date: .now, configuration: configuration, info: nil)
+            return Timeline(entries: [entry], policy: .atEnd)
+        }
+
         guard let group = sonosService.groups.first(where: \.coordinatorRoom.isPlaying) else {
             let entry = NowPlayingEntry(date: .now, configuration: configuration, info: nil)
             return Timeline(entries: [entry], policy: .atEnd)

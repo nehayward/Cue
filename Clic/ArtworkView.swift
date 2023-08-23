@@ -17,6 +17,26 @@ struct ArtworkView: View {
                     .aspectRatio(contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .shadow(radius: 2)
+                    .overlay(alignment: .bottomTrailing) {
+                        switch group.coordinatorRoom.track.musicService {
+                        case .apple:
+                            Image(systemName: "apple.logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.thickMaterial)
+                                .frame(width: 16, height: 16)
+                                .padding([.trailing, .bottom], 4)
+                        case .spotify:
+                            Image(.spotifyLogo)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.thickMaterial)
+                                .frame(width: 16, height: 16)
+                                .padding([.trailing, .bottom], 4)
+                        }
+                    }
+            case .failure:
+                EmptyView()
             default:
                 RoundedRectangle(cornerRadius: 4)
                     .aspectRatio(contentMode: .fit)

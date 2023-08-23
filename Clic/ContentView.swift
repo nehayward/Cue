@@ -56,18 +56,20 @@ struct ContentView: View {
             guard let selectedGroup else { return }
             sonosService.selectedGroup = selectedGroup
         }
-        .overlay {
-            if sonosService.groups.isEmpty {
-                Rectangle()
-                    .ignoresSafeArea()
-                    .foregroundStyle(.ultraThinMaterial)
-                    .overlay {
-                        Text("Searching...")
-                            .animation(nil)
+        .safeAreaInset(edge: .bottom) {
+            if sonosService.isSearching {
+                Label("Searching", systemImage: "waveform.badge.magnifyingglass")
+                    .imageScale(.large)
+                    .symbolEffect(.variableColor)
+                    .padding()
+                    .background {
+                        Capsule()
+                            .foregroundStyle(.ultraThinMaterial)
                     }
-                    .transition(.opacity)
+                    .transition(.push(from: .bottom).combined(with: .scale))
             }
         }
+        .animation(.spring, value: sonosService.isSearching)
     }
 
     private var sorted: [GroupRoom] {

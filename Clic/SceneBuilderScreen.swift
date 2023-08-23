@@ -37,7 +37,7 @@ struct SceneBuilderScreen: View {
 //        .overlay(alignment: .bottom) {
 //            TextField("", text: $sceneName)
 //        }
-        .overlay(alignment: .bottom) {
+        .safeAreaInset(edge: .bottom) {
             Button {
                 let rooms = sonosService.rooms.filter { room in
                     multiSelection.contains(room.id)

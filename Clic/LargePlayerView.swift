@@ -9,6 +9,7 @@ struct LargePlayerView: View {
     @State private var volume: Double = 0
     @State private var showGroup = false
     @State private var showSearch = false
+    @State private var showQueue = false
 
     @State private var isExpanded: Bool = false
 
@@ -139,6 +140,16 @@ struct LargePlayerView: View {
                     .fontDesign(.rounded)
                     .buttonStyle(.plain)
                     .font(.body)
+
+                    Button {
+                        showQueue.toggle()
+                    } label: {
+                        Image(systemName: "music.note.list")
+                            .font(.body)
+                    }
+                    .fontDesign(.rounded)
+                    .buttonStyle(.plain)
+                    .font(.body)
                 }
             }
         }
@@ -147,6 +158,10 @@ struct LargePlayerView: View {
         }
         .sheet(isPresented: $showSearch) {
             MusicSearchScreen(group: group)
+        }
+        .sheet(isPresented: $showQueue) {
+            QueueScreen(group: group)
+                .presentationDetents([.medium, .large])
         }
 //        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
 //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)

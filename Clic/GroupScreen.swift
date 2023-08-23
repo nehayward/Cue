@@ -56,7 +56,11 @@ struct GroupScreen: View {
             }
             .task {
                 if sonosService.rooms.isEmpty {
-                    await sonosService.load()
+                    do {
+                        try await sonosService.load()
+                    } catch {
+                        print(error)
+                    }
                 }
             }
             .navigationTitle("\(group.coordinatorRoom.name)")

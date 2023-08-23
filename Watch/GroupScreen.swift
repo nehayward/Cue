@@ -16,7 +16,12 @@ struct GroupScreen: View {
                         viewModel.buttonAction(id: room.id)
                     } label: {
                         HStack {
-                            Text(room.name)
+                            VStack(alignment: .leading) {
+                                Text(room.name)
+                                Text(room.volume, format: .number)
+                                    .bold()
+
+                            }
                             Spacer()
                             Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
                         }
@@ -24,8 +29,8 @@ struct GroupScreen: View {
                 }
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .bottomBar) {
+        .safeAreaInset(edge: .bottom) {
+            if viewModel.groupingLabel != "Cancel" {
                 Button {
                     let rooms = sonosService.rooms.filter { room in
                         viewModel.selections.contains(room.id)
@@ -37,20 +42,37 @@ struct GroupScreen: View {
                 } label: {
                     Text(viewModel.groupingLabel)
                 }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .padding()
+                .tint(.blue)
             }
-
-            ToolbarItem(placement: .destructiveAction) {
-                Button(role: .cancel) {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-            }
-
         }
+        .ignoresSafeArea(edges: .bottom)
+
+//        .toolbar {
+//            ToolbarItem(placement: .bottomBar) {
+//                Button {
+//                    let rooms = sonosService.rooms.filter { room in
+//                        viewModel.selections.contains(room.id)
+//                    }
+//                    Task {
+//                        dismiss()
+//                        await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+//                    }
+//                } label: {
+//                    Text(viewModel.groupingLabel)
+//                }
+//                .buttonStyle(.bordered)
+//            }
+//        }
         .task {
             if sonosService.rooms.isEmpty {
-                await sonosService.load()
+                do {
+                    try await sonosService.load()
+                } catch {
+                    print(error)
+                }
             }
         }
         .navigationTitle("\(roomGroup.coordinatorRoom.name)")

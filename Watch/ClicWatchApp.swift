@@ -18,13 +18,55 @@ struct ClicWatchApp: App {
                 .task {
                     sonosService.monitorWatch()
                 }
+//                .overlay {
+//                    if sonosService.monitorTask.isCancelled {
+//                        VStack {
+//                            Text(sonosService.timeSpent, format: .number)
+//                            Text("Cancelled")
+//                                .bold()
+//                            Spacer()
+//                        }
+//                        .ignoresSafeArea()
+//                    } else {
+//                        VStack {
+//                            HStack {
+//                                Text("Is running")
+//                                    .bold()
+//                                Text(sonosService.timeSpent, format: .number)
+//                            }
+//                            Spacer()
+//                        }
+//                        .ignoresSafeArea()
+//                    }
+//                }
+                .safeAreaInset(edge: .bottom) {
+                    if sonosService.systemNotFound {
+                        Button {
+                            sonosService.monitorWatch()
+                        } label: {
+                            Text("No System Found. Search")
+                                .padding()
+                                .background {
+                                    Capsule()
+                                        .foregroundStyle(.thinMaterial)
+                                }
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
+                        .padding()
+                    }
+                }
+                .ignoresSafeArea(edges: .bottom)
+                .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
+                .animation(.spring, value: sonosService.systemNotFound)
         }.onChange(of: scenePhase) { oldValue, newValue in
             if newValue == .active {
                 Task {
-                    await sonosService.fetch()
-                    selected = sonosService.groups.first(where: { room in
-                        room.coordinatorRoom.isPlaying
-                    })?.coordinatorID
+                    try await Task.sleep(for: .milliseconds(500))
+                    if selected == nil {
+                        selected = sonosService.groups.first(where: { room in
+                            room.coordinatorRoom.isPlaying
+                        })?.coordinatorID
+                    }
                 }
             }
             if newValue == .background {

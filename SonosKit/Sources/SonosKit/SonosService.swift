@@ -13,43 +13,114 @@ public final class SonosService {
     private var sonosSystemDiscoverService = SonosSystemDiscoverService()
     private var sonosAPI = SonosAPI()
     private var musicSearch = MusicSearchService()
+    public var networkMonitorService = NetworkMonitorService()
 
-    var knownSonosServices: [String: [String]] = [:]
+    public var systemNotFound: Bool = false
+    public var permissionsDenied: Bool = false
+    public var pulseIsRunning: Bool = false
+    public var isSearching: Bool = false
+
+    public var monitorTask: Task<Void, Error> = .detached { }
+
+    public var timeSpent: Double = 0
 
     public init () {
-//        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-//            monitor()
-//        }
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            monitor()
+        }
     }
 
     public func monitor() {
-        Task {
+
+        monitorTask = Task { [weak self] in
+            guard let self else { return }
+            isSearching = true
+            systemNotFound = false
+            permissionsDenied = false
+            sonosSystemDiscoverService.lastKnownIP = ""
+
             repeat {
                 // code you want to repeat
-                await load()
-                try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
-            } while (!Task.isCancelled)
+                do {
+                    try await load()
+                    isSearching = false
+                    try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
+                } catch SonosServiceError.permissionDenied {
+                    permissionsDenied = true
+                    pulseIsRunning = false
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+//                    monitorTask.cancel()
+                }
+                catch SonosServiceError.sonosSystemNotFound {
+                    systemNotFound = true
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+//                    monitorTask.cancel()
+                }
+                catch {
+                    permissionsDenied = true
+                    pulseIsRunning = false
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+
+//                    monitorTask.cancel()
+                    print(#function, error)
+                }
+                
+            } while (!monitorTask.isCancelled)
         }
     }
 
 
     public func monitorWatch(frequency: TimeInterval = 1) {
-        Task {
+        monitorTask = Task { [weak self] in
+            guard let self else { return }
+            isSearching = true
+            systemNotFound = false
+            permissionsDenied = false
+            sonosSystemDiscoverService.lastKnownIP = ""
+
             repeat {
                 // code you want to repeat
-                await fetch()
-                try? await Task.sleep(for: .seconds(frequency)) // exception thrown when cancelled by SwiftUI when this view disappears.
-            } while (!Task.isCancelled)
+                do {
+                    try await fetch()
+                    isSearching = false
+                    try? await Task.sleep(for: .seconds(frequency)) // exception thrown when cancelled by SwiftUI when this view disappears.
+                } catch SonosServiceError.permissionDenied {
+                    permissionsDenied = true
+                    pulseIsRunning = false
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+                    monitorTask.cancel()
+                }
+                catch SonosServiceError.sonosSystemNotFound {
+                    systemNotFound = true
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+                    monitorTask.cancel()
+                }
+                catch {
+                    permissionsDenied = true
+                    pulseIsRunning = false
+                    isSearching = false
+                    sonosSystemDiscoverService.lastKnownIP = ""
+
+                    monitorTask.cancel()
+                }
+
+            } while (!monitorTask.isCancelled)
         }
     }
 
     @MainActor
-    public func load() async {
-        let newGroup = await getGroups()
+    public func load() async throws {
+        let newGroup = try await getGroups()
         if !newGroup.isEmpty && newGroup != self.groups {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
+        isSearching = false
 
         for group in groups.indices {
             let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
@@ -68,12 +139,22 @@ public final class SonosService {
                 let volume = await getVolume(ip: groups[group].rooms[room].ip)
                 groups[group].rooms[room].volume = volume
 
-                guard let track = await getTrack(ip: groups[group].rooms[room].ip) else { continue }
+//                if await isTVMode(ip: groups[group].rooms[room].ip) {
+//                    groups[group].tvMode = true
+//                    groups[group].coordinatorRoom.track = .init(name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
+//                    continue
+//                }
+//                groups[group].tvMode = false
+
+                guard let track = await getTrack(ip: groups[group].rooms[room].ip) else {
+                    groups[group].rooms[room].track = .init(name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
+                    continue
+                }
 
                 let previousArtwork = groups[group].rooms[room].track.artworkURL
 
                 groups[group].rooms[room].track = track
-                
+
                 if previousArtwork != nil {
                     groups[group].rooms[room].track.artworkURL = previousArtwork
                 }
@@ -91,12 +172,13 @@ public final class SonosService {
     }
 
     @MainActor
-    public func fetch() async {
-        let newGroup = await getGroups()
+    public func fetch() async throws {
+        let newGroup = try await getGroups()
         if !newGroup.isEmpty && newGroup != groups {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
+        isSearching = false
 
         if let selectedGroup {
             guard let index = groups.firstIndex(of: selectedGroup) else {
@@ -106,7 +188,7 @@ public final class SonosService {
 
             let groupVolume = await getGroupVolume(ip: groups[index].coordinatorRoom.ip)
             groups[index].groupVolume = groupVolume
-            
+
             for room in groups[index].rooms.indices {
                 let volume = await getVolume(ip: groups[index].rooms[room].ip)
                 groups[index].rooms[room].volume = volume
@@ -136,7 +218,7 @@ public final class SonosService {
                     groups[index].rooms[room].track.artworkURL = artworkURL
                 }
             }
-            
+
             return
         }
 
@@ -165,16 +247,15 @@ public final class SonosService {
         return
     }
 
-    public func getGroups() async -> [GroupRoom] {
-        guard let ip = try? await sonosSystemDiscoverService.getFirstIP() else { return [] }
-//        let houseID = await sonosAPI.getHouseHoldID(for: ip)
-        let groups = await sonosAPI.getGroups(ipAddress: ip)
+    public func getGroups() async throws -> [GroupRoom] {
+        let ip = try await sonosSystemDiscoverService.getFirstIP()
+        let groups = try await sonosAPI.getGroups(ipAddress: ip)
         return groups
     }
 
     public func group(rooms: [Room], to coordinatorID: String) async {
         // MARK: Only group new rooms
-        let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorID } 
+        let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorID }
         for room in nonCoordinatorRooms {
             await sonosAPI.group(IP: room.ip, to: coordinatorID)
         }
@@ -240,15 +321,20 @@ public final class SonosService {
 
             let found = tracks.items.first { result in
                 result.name == track.name
-//                (result.trackName == track.name || result == track.name)
+                //                (result.trackName == track.name || result == track.name)
             }
 
             guard let found else { return nil }
+            if size == 100, let image = found.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+                guard let url = URL(string: image.url) else { return nil }
+                return url
+            }
+
             guard let artworkString = found.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
         }
     }
-    
+
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { room in
@@ -297,6 +383,10 @@ public final class SonosService {
         await sonosAPI.playbackInfo(ipAddress: ip)
     }
 
+    public func isTVMode(ip: String) async -> Bool {
+        await sonosAPI.mediaInfo(ipAddress: ip)
+    }
+
     public func playPauseDevice(ip: String) async {
         let playback =  await sonosAPI.playbackInfo(ipAddress: ip)
         if playback == "PLAYING" {
@@ -317,14 +407,39 @@ public final class SonosService {
         await sonosAPI.setAVTransport(IP: ip, ID: group.coordinatorID)
     }
 
+
+    public func getQueue(ip: String) async -> [Track] {
+        await sonosAPI.getQueue(IP: ip)
+    }
+
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
-        let groups = await getGroups()
-        let group = groups.first { group in
-            group.rooms.contains { room in
-                room.id == roomID
+        do {
+            let groups = try await getGroups()
+            let group = groups.first { group in
+                group.rooms.contains { room in
+                    room.id == roomID
+                }
             }
+            return group?.coordinatorRoom
+        } catch {
+            print(error)
+            return nil
         }
-        return group?.coordinatorRoom
+    }
+
+    public func pulse() async {
+        do {
+            print("Pulse")
+            try await sonosAPI.pulse()
+            print("Good IP Still")
+            permissionsDenied = false
+            pulseIsRunning = true
+        } catch is URLError {
+            permissionsDenied = true
+            pulseIsRunning = false
+        } catch {
+
+        }
     }
 }
 

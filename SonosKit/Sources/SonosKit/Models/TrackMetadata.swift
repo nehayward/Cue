@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-public class Track {
+public class Track: Identifiable {
     public var name: String = ""
     public var artist: String = ""
     public var album: String = ""
