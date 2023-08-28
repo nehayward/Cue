@@ -13,4 +13,10 @@ final class IntegrationsTests: XCTestCase {
         let tracks = await sonosService.getQueue(ip: garageSonosIP)
         print(tracks)
     }
+
+    func testGetCurrentTransportActions() async throws {
+        let availableActions = await sonosService.getCurrentTransportActions(ip: garageSonosIP)
+        XCTAssert(availableActions.contains(.play))
+        print(availableActions)
+    }
 }

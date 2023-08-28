@@ -20,31 +20,31 @@ final class SonosAPI {
             UserDefaults.standard.set(newValue, forKey: "sonos.ip")
         }
     }
-//
-//    private let pathMonitor: NWPathMonitor
-//    private var path: NWPath?
-//    private let backgroudQueue = DispatchQueue.global(qos: .background)
-//    private var isOnWifi: Bool = false
-//
-//
-//    lazy var pathUpdateHandler: ((NWPath) -> Void) = { path in
-//        self.path = path
-//        if path.status == NWPath.Status.satisfied {
-//            print("Connected")
-//        } else if path.status == NWPath.Status.unsatisfied {
-//            print("unsatisfied")
-//        } else if path.status == NWPath.Status.requiresConnection {
-//            print("requiresConnection")
-//        }
-//        self.isOnWifi = !path.isExpensive
-//    }
+    //
+    //    private let pathMonitor: NWPathMonitor
+    //    private var path: NWPath?
+    //    private let backgroudQueue = DispatchQueue.global(qos: .background)
+    //    private var isOnWifi: Bool = false
+    //
+    //
+    //    lazy var pathUpdateHandler: ((NWPath) -> Void) = { path in
+    //        self.path = path
+    //        if path.status == NWPath.Status.satisfied {
+    //            print("Connected")
+    //        } else if path.status == NWPath.Status.unsatisfied {
+    //            print("unsatisfied")
+    //        } else if path.status == NWPath.Status.requiresConnection {
+    //            print("requiresConnection")
+    //        }
+    //        self.isOnWifi = !path.isExpensive
+    //    }
 
-//    init(session: URLSession = .shared) {
-//        self.session = session
-//        pathMonitor = NWPathMonitor()
-//        pathMonitor.pathUpdateHandler = self.pathUpdateHandler
-//        pathMonitor.start(queue: backgroudQueue)
-//    }
+    //    init(session: URLSession = .shared) {
+    //        self.session = session
+    //        pathMonitor = NWPathMonitor()
+    //        pathMonitor.pathUpdateHandler = self.pathUpdateHandler
+    //        pathMonitor.start(queue: backgroudQueue)
+    //    }
 
     func setVolume(ipAddress: String, volume: Int) async {
         let arguments: [String: Any] = [
@@ -54,11 +54,11 @@ final class SonosAPI {
         ]
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
-//            if let error = response. {
-//                print("Error getting current track: \(error.localizedDescription)")
-//                return
-//            }
-//            guard let data = data else { return }
+            //            if let error = response. {
+            //                print("Error getting current track: \(error.localizedDescription)")
+            //                return
+            //            }
+            //            guard let data = data else { return }
             print(String(data: data, encoding: .utf8))
             let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
             print(xml)
@@ -135,11 +135,11 @@ final class SonosAPI {
         ]
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
-//            if let error = response. {
-//                print("Error getting current track: \(error.localizedDescription)")
-//                return
-//            }
-//            guard let data = data else { return }
+            //            if let error = response. {
+            //                print("Error getting current track: \(error.localizedDescription)")
+            //                return
+            //            }
+            //            guard let data = data else { return }
             print(String(data: data, encoding: .utf8))
             let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
             print(xml)
@@ -223,7 +223,7 @@ final class SonosAPI {
             "InstanceID": 0
         ]
 
-        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
             }
@@ -233,19 +233,18 @@ final class SonosAPI {
         }
     }
 
-    func playbackInfo(ipAddress: String) async -> String {
+    func isPlaying(ipAddress: String) async -> PlaybackStatus {
         let arguments: [String: Any] = [
             "InstanceID": 0,
         ]
 
-
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
+            let xmlString = String(data: data, encoding: .utf8)!
             let playbackInfo = XMLParserSonos().parsePlaybackInfo(xml: xmlString)
             return playbackInfo
         }
 
-        return ""
+        return .transitioning
     }
 
     func mediaInfo(ipAddress: String) async -> Bool {
@@ -298,15 +297,15 @@ final class SonosAPI {
 
             let mappedRooms = zones.flatMap { zoneGroup in
                 zoneGroup.zoneGroupMembers.compactMap {
-                     if !$0.invisible {
-                         let components = URLComponents(string: $0.location)
-                         if let ip = components?.host {
-                             return Room(id: $0.UUID, ip: ip, name: $0.zoneName)
-                         }
-                     }
+                    if !$0.invisible {
+                        let components = URLComponents(string: $0.location)
+                        if let ip = components?.host {
+                            return Room(id: $0.UUID, ip: ip, name: $0.zoneName)
+                        }
+                    }
                     return nil
-                 }
-             }
+                }
+            }
 
             return mappedRooms
         }
@@ -400,6 +399,23 @@ final class SonosAPI {
         }
     }
 
+    func getCurrentTransportActions(IP: String) async -> AvailableActions {
+        let arguments: [String: Any] = [
+            "InstanceID": 0
+        ]
+
+        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetCurrentTransportActions", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                let xmlString = String(data: data, encoding: .utf8)!
+                let transportActions = XMLParserSonos().parseGetCurrentTransportActions(xml: xmlString)
+            }
+            if (response as? HTTPURLResponse)?.statusCode == 200 {
+                print("Success")
+            }
+        }
+        return AvailableActions(arrayLiteral: [.next,.play])
+    }
+
     func getQueue(IP: String) async -> [Track] {
         let arguments: [String: Any] = [
             "ObjectID": "Q:0",
@@ -423,24 +439,12 @@ final class SonosAPI {
         return []
     }
 
-
     func setAVTransport(IP: String, ID: String) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "CurrentURI": "x-rincon-queue:\(ID)#0",
             "CurrentURIMetaData": "",
         ]
-
-//        <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-//          <s:Body>
-//            <u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
-//              <InstanceID>0</InstanceID>
-//              <CurrentURI>x-rincon-queue:RINCON_7828CAC7352E01400#0</CurrentURI>
-//              <CurrentURIMetaData/>
-//            </u:SetAVTransportURI>
-//          </s:Body>
-//        </s:Envelope>
-
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
@@ -504,10 +508,3 @@ final class SonosAPI {
     }
 }
 
-extension SonosAPI {
-    enum SonosAPIError: Error {
-        case failedLoading
-        case failedParsing
-        case deviceNotFound
-    }
-}

@@ -20,19 +20,16 @@ struct VolumeControlView: View {
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .onAppear {
-            volume = roomGroup.groupVolume
-        }
-        .onChange(of: roomGroup.coordinatorRoom.volume) { oldValue, newValue in
+        .onChange(of: roomGroup.groupVolume) {
             guard !isEditing else { return }
             withAnimation {
-                volume = newValue
+                volume = roomGroup.groupVolume
             }
         }
-        .onChange(of: volume) { oldValue, newValue in
+        .onChange(of: volume) {
             if isEditing {
                 Task {
-                    await sonosService.setGroupVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(newValue))
+                    await sonosService.setGroupVolume(ip: roomGroup.coordinatorRoom.ip, volume: Int(volume))
                 }
             }
         }

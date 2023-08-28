@@ -19,7 +19,7 @@
 			<key>isShown</key>
 			<false/>
 			<key>orderHint</key>
-			<integer>7</integer>
+			<integer>9</integer>
 		</dict>
 		<key>SWXMLHashPlayground (Playground) 2.xcscheme</key>
 		<dict>
@@ -54,7 +54,7 @@
 			<key>isShown</key>
 			<false/>
 			<key>orderHint</key>
-			<integer>9</integer>
+			<integer>7</integer>
 		</dict>
 		<key>SonosWatch Watch App.xcscheme_^#shared#^_</key>
 		<dict>

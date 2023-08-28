@@ -2,9 +2,9 @@ import SwiftUI
 import SonosKit
 
 struct SceneView: View {
-//    @Environment(SonosService.self) var sonosService: SonosService
+    //    @Environment(SonosService.self) var sonosService: SonosService
     @Binding var show: Bool
-
+    
     var body: some View {
         ScrollView(.horizontal) {
             HStack {
@@ -42,9 +42,9 @@ struct SceneView: View {
 }
 
 #Preview {
-
-        SceneView(show: .constant(false))
-            .listRowBackground(Color.clear)
-
-
+    
+    SceneView(show: .constant(false))
+        .listRowBackground(Color.clear)
+    
+    
 }

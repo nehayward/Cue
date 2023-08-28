@@ -48,14 +48,6 @@ final class SonosKitTests: XCTestCase {
         XCTAssertNotNil(positionInfo)
     }
 
-
-    func testRendererControlParse() throws {
-        let track = Bundle.module.url(forResource: "RendererControl", withExtension: "xml")
-        let trackXML = try! String(contentsOf: track!)
-        let positionInfo = XMLParserSonos().parseRendererControl(xml: trackXML)
-        print(positionInfo)
-    }
-
     func testPlaybackInfoParse() throws {
         let transportInfoURL = Bundle.module.url(forResource: "GetTransportInfo", withExtension: "xml")
         let transportInfoXML = try! String(contentsOf: transportInfoURL!)
@@ -80,5 +72,12 @@ final class SonosKitTests: XCTestCase {
         let tracks = XMLParserSonos().parseQueue(xml: getQueueXML)
 
 //        print(householdID)
+    }
+
+    func testGetCurrentTransportActions() throws {
+        let xmlURL = Bundle.module.url(forResource: "GetCurrentTransportActions", withExtension: "xml")
+        let xml = try String(contentsOf: xmlURL!)
+        let availableActions = try XCTUnwrap(XMLParserSonos().parseGetCurrentTransportActions(xml: xml))
+        XCTAssert(availableActions.contains([.next,.pause]))
     }
 }

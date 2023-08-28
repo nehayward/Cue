@@ -18,9 +18,7 @@ struct GroupScreen: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(room.name)
-                                Text(room.volume, format: .number)
-                                    .bold()
-
+                                Text("\(room.volume, specifier: "%0.f")%")
                             }
                             Spacer()
                             Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")

@@ -18,27 +18,14 @@ struct ClicWatchApp: App {
                 .task {
                     sonosService.monitorWatch()
                 }
-//                .overlay {
-//                    if sonosService.monitorTask.isCancelled {
-//                        VStack {
-//                            Text(sonosService.timeSpent, format: .number)
-//                            Text("Cancelled")
-//                                .bold()
-//                            Spacer()
-//                        }
-//                        .ignoresSafeArea()
-//                    } else {
-//                        VStack {
-//                            HStack {
-//                                Text("Is running")
-//                                    .bold()
-//                                Text(sonosService.timeSpent, format: .number)
-//                            }
-//                            Spacer()
-//                        }
-//                        .ignoresSafeArea()
-//                    }
-//                }
+                .overlay {
+                    VStack {
+                        Text(!sonosService.monitorTask.isCancelled ? "Running" : "Cancelled")
+                            .bold()
+                        Spacer()
+                    }
+                    .ignoresSafeArea()
+                }
                 .safeAreaInset(edge: .bottom) {
                     if sonosService.systemNotFound {
                         Button {
@@ -58,19 +45,33 @@ struct ClicWatchApp: App {
                 .ignoresSafeArea(edges: .bottom)
                 .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
                 .animation(.spring, value: sonosService.systemNotFound)
-        }.onChange(of: scenePhase) { oldValue, newValue in
-            if newValue == .active {
+                .animation(.smooth, value: sonosService.groups)
+        }.onChange(of: scenePhase) {
+            if scenePhase == .active {
                 Task {
-                    try await Task.sleep(for: .milliseconds(500))
+                    if selected == nil {
+                        selected = sonosService.groups.first(where: { room in
+                            room.coordinatorRoom.isPlaying
+                        })?.coordinatorID
+                        return
+                    }
+                    for group in sonosService.groups {
+                        let playbackInfo = await sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
+                        switch playbackInfo {
+                        case .playing:
+                            group.coordinatorRoom.isPlaying = true
+                        case .paused:
+                            group.coordinatorRoom.isPlaying = false
+                        default:
+                            break
+                        }
+                    }
                     if selected == nil {
                         selected = sonosService.groups.first(where: { room in
                             room.coordinatorRoom.isPlaying
                         })?.coordinatorID
                     }
                 }
-            }
-            if newValue == .background {
-                WidgetCenter.shared.reloadTimelines(ofKind: "WatchWidget")
             }
         }
     }

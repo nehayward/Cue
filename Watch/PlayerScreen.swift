@@ -7,8 +7,10 @@ struct PlayerScreen: View {
     var body: some View {
         TabView {
             PlayerView(group: group)
+                .tag(0)
             if group.rooms.count > 1 {
                 GroupVolumeControlScreen(group: group)
+                    .tag(1)
             }
         }
     }

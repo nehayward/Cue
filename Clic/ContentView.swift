@@ -6,6 +6,7 @@ struct ContentView: View {
     @Environment(SubscriptionService.self) var superMember: SubscriptionService
 
     @Binding var selected: String?
+    @State var isShowing: Bool = false
 
     var body: some View {
         NavigationSplitView {
@@ -33,14 +34,12 @@ struct ContentView: View {
                 .tag(group.coordinatorID)
                 .headerProminence(.increased)
             }
-
-
-            //                VStack {
-            //                    SceneView(show: $isShowing)
-            //                    //                    .listRowBackground(Color.clear)
-            //                    Slider(value: .constant(0))
-            //                }
-            //                .backgroundStyle(.thinMaterial)
+//            VStack {
+//                SceneView(show: $isShowing)
+//                //                    .listRowBackground(Color.clear)
+//                Slider(value: .constant(0))
+//            }
+//            .backgroundStyle(.thinMaterial)
         } detail: {
             if selected != nil, let group = sonosService.groups.first(where: { group in
                 group.coordinatorID == selected! }) {

@@ -44,6 +44,7 @@
 		E98527942A5E5C90009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
 		E98527952A5E5C99009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
+		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
@@ -55,6 +56,7 @@
 		E9B12B5C2A5F317B0008868C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9B12B5B2A5F317B0008868C /* Assets.xcassets */; };
 		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
+		E9B256532A9951FA0083869E /* TVModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeView.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
 		E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* ContentView.swift */; };
@@ -186,6 +188,7 @@
 		E9B12B5B2A5F317B0008868C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9B12B5D2A5F317B0008868C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
+		E9B256512A9951A00083869E /* TVModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeView.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
@@ -251,6 +254,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -395,6 +399,7 @@
 			children = (
 				E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */,
 				E9C03B002A586F5E00FB9118 /* ContentView.swift */,
+				E9B256512A9951A00083869E /* TVModeView.swift */,
 				E987959C2A9667EC002C684A /* PlayerScreen.swift */,
 				E9C03B112A58721F00FB9118 /* PlayerView.swift */,
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
@@ -545,6 +550,7 @@
 			name = "Clic (Watch)";
 			packageProductDependencies = (
 				E9C03B0E2A586F7E00FB9118 /* SonosKit */,
+				E98795A62A969078002C684A /* Kingfisher */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -585,6 +591,7 @@
 			mainGroup = E9BDE56329E3396700D230A8;
 			packageReferences = (
 				E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -714,6 +721,7 @@
 				E919EC142A61B8CD00B6022C /* VolumeControlView.swift in Sources */,
 				E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */,
 				E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */,
+				E9B256532A9951FA0083869E /* TVModeView.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,
@@ -1233,6 +1241,14 @@
 				minimumVersion = 4.25.2;
 			};
 		};
+		E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.9.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1244,6 +1260,11 @@
 		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		E98795A62A969078002C684A /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
 		};
 		E9BDE57F29E33B0700D230A8 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;

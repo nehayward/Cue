@@ -7,6 +7,7 @@ struct SceneBuilderScreen: View {
 
     @State var multiSelection = Set<String>()
     @State var sceneName: String = ""
+    @State var rooms: [Room] = []
 
     var scenes: SonosScene?
 
@@ -14,52 +15,60 @@ struct SceneBuilderScreen: View {
         @Bindable var sonosService = sonosService
 
         List(selection: $multiSelection) {
-            ForEach($sonosService.rooms) { $room in
-//                @Bindable var volume = room.
+            ForEach($rooms) { $room in
                 VStack(alignment: .leading) {
                     Text(room.name)
                     HStack(alignment: .center) {
                         Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
-                        Slider(value: $room.volume , in: 0...100, step: 2) { isEditing in
-//                            self.isEditing = isEditing
-                        }
+                        Slider(value: $room.volume, in: 0...100, step: 2)
                         Text(room.volume, format: .number)
                     }
                 }
                 .listRowBackground(Color.clear)
             }
-            Section {
-                TextField("", text: $sceneName)
-                    .backgroundStyle(.clear)
-            }
         }
         .scrollContentBackground(.hidden)
-//        .overlay(alignment: .bottom) {
-//            TextField("", text: $sceneName)
-//        }
         .safeAreaInset(edge: .bottom) {
-            Button {
-                let rooms = sonosService.rooms.filter { room in
-                    multiSelection.contains(room.id)
-                }
+            VStack {
+                TextField("", text: $sceneName)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                Button {
+                    let rooms = rooms.filter { room in
+                        multiSelection.contains(room.id)
+                    }
 
-                let newScene = SonosScene(name: sceneName, rooms: rooms)
-                print(newScene.name)
-//                Task {
-//                    dismiss()
-////                    await sonosService.group(rooms: rooms, to: roomGroup.coordinatorID)
-//                }
-            } label: {
-                Text("Create Scene")
-//                    .fontWeight(.bold)
+                    let newScene = SonosScene(name: sceneName, rooms: rooms)
+                    print(newScene.name)
+                    print(rooms)
+                    //                Task {
+                    //                    dismiss()
+                    ////                    await sonosService.group(rooms: rooms, to: roomGroup.coordinatorID)
+                    //                }
+                } label: {
+                    Text("Create Scene")
+                        .fontWeight(.bold)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
+            .padding()
+            .background {
+                Rectangle()
+                    .foregroundStyle(.ultraThinMaterial)
+                    .edgesIgnoringSafeArea(.bottom)
+                    .shadow(radius: 2)
+            }
         }
         .environment(\.editMode, .constant(EditMode.active))
         .task {
-//            if sonosService.rooms.isEmpty {
-//                await sonosService.load()
-//            }
+            if sonosService.rooms.isEmpty {
+                try? await sonosService.load()
+                rooms = sonosService.rooms.map {
+                    let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                    room.volume = $0.volume
+                    return room
+                }
+            }
         }
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])
@@ -69,6 +78,10 @@ struct SceneBuilderScreen: View {
             }
 
             sceneName = rooms.map(\.name).joined(separator: " + ")
+        }
+        .task {
+            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            sonosService.monitor()
         }
 
     }

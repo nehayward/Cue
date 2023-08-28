@@ -81,6 +81,8 @@ struct GroupVolumeControlScreen: View {
                         }
                     } label: {
                         Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.thickMaterial)
+                            .bold()
                     }
                     .buttonStyle(.borderedProminent)
                     .padding(.top, 20)

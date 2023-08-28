@@ -109,6 +109,8 @@ struct ClicApp: App {
                     let thumbImage = UIImage()
                     UISlider.appearance().setThumbImage(thumbImage, for: .normal)
                 }
+                .animation(.smooth, value: sonosService.groups)
+
         }
         .onChange(of: scenePhase) {
             if scenePhase == .background {

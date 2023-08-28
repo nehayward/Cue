@@ -160,13 +160,19 @@ class XMLParserSonos {
         return Track(name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
     }
 
-    func parsePlaybackInfo(xml: String) -> String {
+    func parsePlaybackInfo(xml: String) -> PlaybackStatus {
         let xmlParsed = XMLHash.parse(xml)
-        guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetTransportInfoResponse"]["CurrentTransportState"].element?.text
+        guard let status = xmlParsed["s:Envelope"]["s:Body"]["u:GetTransportInfoResponse"]["CurrentTransportState"].element?.text
         else {
-            return ""
+            return .transitioning
         }
-        return name
+        if status == "PLAYING" {
+            return .playing
+        } else if status == "PAUSED_PLAYBACK" || status == "STOPPED" {
+            return .paused
+        }
+        
+        return .transitioning
     }
 
     func parseMediaInfo(xml: String) -> Bool {
@@ -178,23 +184,15 @@ class XMLParserSonos {
         return currentURI.contains("htastream")
     }
 
-//    func parseRendererControl(xml: String) -> Double {
-//        let xmlParsed = XMLHash.parse(xml)
-//        guard let rendererControlXML = xmlParsed["e:propertyset"]["e:property"]["LastChange"].element?.text
-//        else {
-//            return 0
-//        }
-//
-//        let lastChangeXML = XMLHash.parse(rendererControlXML.unescaped)
-//
-//        let masterChannelElement = lastChangeXML["Event"]["InstanceID"].filterChildren { elem, index in
-//            elem.allAttributes["channel"]?.text == "Master"
-//        }
-//
-//        let masterVolume: String = masterChannelElement["Volume"].element?.allAttributes["val"]?.text ?? ""
-//        return Double(masterVolume) ?? 0
-//
-//    }
+    func parseGetCurrentTransportActions(xml: String) -> AvailableActions? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let parseGetCurrentTransportActions = xmlParsed["s:Envelope"]["s:Body"]["u:GetCurrentTransportActionsResponse"]["Actions"].element?.text else {
+            return nil
+        }
+        let actions = parseGetCurrentTransportActions.components(separatedBy: ",")
+        let availableActions = AvailableActions(actions.compactMap(AvailableActions.init))
+        return availableActions
+    }
 
     func parseAVTransport(xml: String) -> Double {
         let xmlParsed = XMLHash.parse(xml)
