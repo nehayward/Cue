@@ -69,6 +69,74 @@ struct ContentView: View {
             }
         }
         .animation(.spring, value: sonosService.isSearching)
+        .task {
+            sonosService.monitor()
+            await superMember.setup()
+        }
+        // MARK: Debug
+//        .overlay {
+//                VStack {
+//                    Text(sonosService.networkMonitorService.isConnected ? "Connected" : "Disconnect")
+//                    Text(!sonosService.monitorTask.isCancelled ? "Running" : "Cancelled")
+//                        .bold()
+//                    Spacer()
+//                }
+//                .ignoresSafeArea()
+//                .padding(.top, 30)
+//        }
+        .safeAreaInset(edge: .bottom) {
+            if sonosService.permissionsDenied {
+                Button {
+                    // MARK: Settings Action
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Text("Local Network Permission Needed")
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.thinMaterial)
+                        }
+                }
+                .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
+                .padding()
+            }
+
+            if sonosService.systemNotFound {
+                Button {
+                    sonosService.monitor()
+                } label: {
+                    Text("No System Found. Search")
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.thinMaterial)
+                        }
+                }
+                .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
+                .padding()
+            }
+
+            if !sonosService.networkMonitorService.isConnected {
+                Text("Please connect to WiFi to find system")
+                    .padding()
+                    .background {
+                        Capsule()
+                            .foregroundStyle(.thinMaterial)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
+                    .padding()
+            }
+        }
+        .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
+        .animation(.spring, value: sonosService.systemNotFound)
+        .animation(.spring, value: sonosService.permissionsDenied)
+        .onAppear {
+            let thumbImage = UIImage()
+            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+        }
+        .animation(.smooth, value: sonosService.groups)
     }
 
     private var sorted: [GroupRoom] {

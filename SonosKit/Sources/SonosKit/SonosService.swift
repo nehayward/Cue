@@ -18,95 +18,122 @@ public final class SonosService {
     public var systemNotFound: Bool = false
     public var permissionsDenied: Bool = false
     public var pulseIsRunning: Bool = false
-    public var isSearching: Bool = false
+    public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
 
-    public var monitorTask: Task<Void, Error> = .detached { }
+    public var monitorTask: Task<Void, Error> = Task { }
+    public var sonosPulse: Task<Void, Error> = Task { }
+    public var isRunning: Bool { !sonosPulse.isCancelled }
 
-    public var timeSpent: Double = 0
-
-    public init () { }
+    public init () { 
+        sonosPulse.cancel()
+    }
 
     @MainActor
     public func monitor() {
-        monitorTask = Task { [weak self] in
-            guard let self else { return }
-            isSearching = true
-            systemNotFound = false
-            permissionsDenied = false
-            sonosSystemDiscoverService.lastKnownIP = ""
+        if isRunning { return }
+        print("Monitoring!")
 
+        self.sonosPulse = Task { [weak self] in
+            guard let self else { return }
             repeat {
-                // code you want to repeat
                 do {
+                    systemNotFound = false
+                    permissionsDenied = false
                     try await load()
                     // MARK: Update room volumes
-
-                    isSearching = false
                     try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
+                    print("Tock", Date.now)
+
                 } catch SonosServiceError.permissionDenied {
                     permissionsDenied = true
-                    pulseIsRunning = false
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-//                    monitorTask.cancel()
+                    sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     systemNotFound = true
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-//                    monitorTask.cancel()
+                    sonosPulse.cancel()
                 }
                 catch {
                     permissionsDenied = true
-                    pulseIsRunning = false
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-
-//                    monitorTask.cancel()
+                    sonosPulse.cancel()
                     print(#function, error)
                 }
-                
-            } while (!monitorTask.isCancelled)
+            } while (!sonosPulse.isCancelled)
         }
     }
 
+//    @MainActor
+//    public func monitor() {
+//        monitorTask = Task { [weak self] in
+//            guard let self else { return }
+//            systemNotFound = false
+//            permissionsDenied = false
+//            do {
+//                try await load()
+//                try? await Task.sleep(for: .seconds(1), clock: .suspending)
+//                print("Tock", Date.now)
+//                monitor()
+//            } catch SonosServiceError.permissionDenied {
+//                permissionsDenied = true
+//                pulseIsRunning = false
+//                sonosSystemDiscoverService.lastKnownIP = ""
+//                //                    monitorTask.cancel()
+//            }
+//            catch SonosServiceError.sonosSystemNotFound {
+//                systemNotFound = true
+//                sonosSystemDiscoverService.lastKnownIP = ""
+//                //                    monitorTask.cancel()
+//            }
+//            catch {
+//                permissionsDenied = true
+//                pulseIsRunning = false
+//                sonosSystemDiscoverService.lastKnownIP = ""
+//
+//                //                    monitorTask.cancel()
+//                print(#function, error)
+//            }
+//        }
+//    }
+
 
     @MainActor
-    public func monitorWatch(frequency: TimeInterval = 1) {
-        monitorTask = Task { [weak self] in
+    public func monitorWatch(duration: Duration = .seconds(1)) {
+        if isRunning { return }
+        print("Monitoring!")
+        self.sonosPulse = Task { [weak self] in
             guard let self else { return }
-            isSearching = true
-            systemNotFound = false
-            permissionsDenied = false
             repeat {
-                // code you want to repeat
                 do {
+                    systemNotFound = false
+                    permissionsDenied = false
                     try await fetch()
-                    try? await Task.sleep(for: .seconds(frequency)) // exception thrown when cancelled by SwiftUI when this view disappears.
+                    try? await Task.sleep(for: duration) // exception thrown when cancelled by SwiftUI when this view disappears.
+                    print("Tock", Date.now)
+
                 } catch SonosServiceError.permissionDenied {
                     permissionsDenied = true
-                    pulseIsRunning = false
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-                    monitorTask.cancel()
+                    sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     systemNotFound = true
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-                    monitorTask.cancel()
+                    sonosPulse.cancel()
                 }
                 catch {
                     permissionsDenied = true
-                    pulseIsRunning = false
-                    isSearching = false
                     sonosSystemDiscoverService.lastKnownIP = ""
-
-                    monitorTask.cancel()
+                    sonosPulse.cancel()
                 }
-
-            } while (!monitorTask.isCancelled)
+            } while (!sonosPulse.isCancelled)
         }
+
+//        Task {
+//            try await Task.sleep(for: .seconds(3))
+//            sonosPulse.cancel()
+//        }
     }
 
     @MainActor
@@ -116,7 +143,6 @@ public final class SonosService {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
-        isSearching = false
         try await updateGroups(from: groups)
         await updateGroupRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
@@ -180,10 +206,9 @@ public final class SonosService {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
-        isSearching = false
         if let selectedGroup {
             print("Selected Group")
-            
+
             guard let groupIndex = groups.firstIndex(of: selectedGroup) else {
                 self.selectedGroup = nil
                 return
@@ -317,6 +342,31 @@ public final class SonosService {
     }
 
     @MainActor
+    public func updateGroupsCheckPlayback() async throws {
+        let newGroup = try await getGroups()
+        if !newGroup.isEmpty && newGroup != groups {
+            self.groups = newGroup
+            self.rooms = newGroup.flatMap(\.rooms)
+        }
+
+        await withThrowingTaskGroup(of: (Void).self) { group in
+            for (_, roomGroup) in groups.enumerated() {
+                group.addTask{
+                    async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
+                    switch await playbackInfo {
+                    case .playing:
+                        roomGroup.coordinatorRoom.isPlaying = true
+                    case .paused:
+                        roomGroup.coordinatorRoom.isPlaying = false
+                    default:
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
     func updateGroupCheckTVMode(from roomGroups: [GroupRoom]) async {
         await withTaskGroup(of: (Void).self) { group in
             for roomGroup in roomGroups {
@@ -328,6 +378,7 @@ public final class SonosService {
         }
     }
 
+    @MainActor
     func updateGroupsWatch(from groups: [GroupRoom]) async throws {
         try await withThrowingTaskGroup(of: (Int, GroupRoom).self) { group in
             for (index, roomGroup) in groups.enumerated() {
@@ -362,7 +413,7 @@ public final class SonosService {
         }
     }
 
-
+    @MainActor
     public func getGroups() async throws -> [GroupRoom] {
         let ip = try await sonosSystemDiscoverService.getFirstIP()
         let groups = try await sonosAPI.getGroups(ipAddress: ip)

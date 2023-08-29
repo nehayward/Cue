@@ -23,7 +23,7 @@ final class SonosAPI {
     //
     //    private let pathMonitor: NWPathMonitor
     //    private var path: NWPath?
-    //    private let backgroudQueue = DispatchQueue.global(qos: .background)
+    //    private let backgroundQueue = DispatchQueue.global(qos: .background)
     //    private var isOnWifi: Bool = false
     //
     //
@@ -43,7 +43,7 @@ final class SonosAPI {
     //        self.session = session
     //        pathMonitor = NWPathMonitor()
     //        pathMonitor.pathUpdateHandler = self.pathUpdateHandler
-    //        pathMonitor.start(queue: backgroudQueue)
+    //        pathMonitor.start(queue: backgroundQueue)
     //    }
 
     func setVolume(ipAddress: String, volume: Int) async {

@@ -3,31 +3,25 @@ import Network
 import os
 
 final class SonosSystemDiscoverService {
-    var sonosIP: String = ""
-    
+    var isSearching: Bool = true
+
     private var browser: NWBrowser?
     private let sonosServiceType = "_sonos._tcp"
-    private lazy var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!, 
+    private lazy var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                              category: String(describing: SonosSystemDiscoverService.self))
-
-    private let pathMonitor: NWPathMonitor
-    private let backgroudQueue = DispatchQueue.global(qos: .background)
 
     private var permissionsDenied: Bool = false
 
-    var lastKnownIP: String? {
+    var lastKnownIP: String {
         get {
-            UserDefaults.standard.string(forKey: "sonos.ip")
+            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "sonos.ip")
         }
     }
 
-    init() {
-        pathMonitor = NWPathMonitor()
-        pathMonitor.start(queue: backgroudQueue)
-    }
+    init() { }
 
     func search() {
         browser = NWBrowser(for: .bonjourWithTXTRecord(type: sonosServiceType, domain: "local."), using: .applicationService)
@@ -37,45 +31,40 @@ final class SonosSystemDiscoverService {
     }
 
     func stop() {
+        isSearching = false
         browser?.cancel()
     }
 
     func getFirstIP() async throws -> String {
-        if pathMonitor.currentPath.isExpensive {
-            sonosIP = ""
-            throw SonosServiceError.noWifi
+        defer {
+            isSearching = false
         }
-
-        if let lastKnownIP, !lastKnownIP.isEmpty {
+        
+        isSearching = true
+        if !lastKnownIP.isEmpty {
             return lastKnownIP
-        }
-
-        guard sonosIP.isEmpty else {
-            return sonosIP
         }
 
         let task = Task {
             search()
             let date = Date.now
-            while sonosIP.isEmpty {
+            while lastKnownIP.isEmpty {
                 if permissionsDenied {
+                    lastKnownIP = ""
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(5) {
+                if Date.now > date.addingTimeInterval(4) {
                     break
                 }
-                try? await Task.sleep(for: .milliseconds(200))
+                try? await Task.sleep(for: .milliseconds(100))
             }
-            lastKnownIP = sonosIP
-
-            if sonosIP.isEmpty {
+            if lastKnownIP.isEmpty {
                 throw SonosServiceError.sonosSystemNotFound
             }
-            return sonosIP
+            return lastKnownIP
         }
-        stop()
-
         let ip = try await task.value
+        stop()
         return ip
     }
 
@@ -106,7 +95,7 @@ final class SonosSystemDiscoverService {
         print("Found IP for Sonos device, \(ip)")
 #endif
         logger.trace("Found IP for Sonos device, \(ip,  align: .right(columns: 10))")
-        sonosIP = ip
+        lastKnownIP = ip
     }
 
     private func stateHandler(_ newState: NWBrowser.State) {
@@ -115,6 +104,7 @@ final class SonosSystemDiscoverService {
             logger.trace("Browser ready. Starting browsing...")
         case let .failed(error):
             logger.trace("Browser failed with error: \(error)")
+            permissionsDenied = true
         case let .waiting(error):
             logger.trace("Browser failed waiting error: \(error)")
             permissionsDenied = true

@@ -24,10 +24,6 @@ struct ClicApp: App {
             ContentView(selected: $selected)
                 .environment(sonosService)
                 .environment(superMember)
-                .task {
-                    sonosService.monitor()
-                    await superMember.setup()
-                }
                 .sheet(isPresented: $showPaywall) {
                     PaywallScreen()
                         .environment(superMember)
@@ -47,96 +43,39 @@ struct ClicApp: App {
                         }
                     }
                 }
-                .overlay {
-                        VStack {
-                            Text(sonosService.networkMonitorService.isConnected ? "Connected" : "Disconnect")
-                            Text(!sonosService.monitorTask.isCancelled ? "Running" : "Cancelled")
-                                .bold()
-                            Spacer()
-                        }
-                        .ignoresSafeArea()
-                        .padding(.top, 30)
-                }
-                .safeAreaInset(edge: .bottom) {
-                    if sonosService.permissionsDenied {
-                        Button {
-                            // MARK: Settings Action
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
-                        } label: {
-                            Text("Local Network Permission Needed")
-                                .padding()
-                                .background {
-                                    Capsule()
-                                        .foregroundStyle(.thinMaterial)
-                                }
-                        }
-                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                        .padding()
-                    }
-
-                    if sonosService.systemNotFound {
-                        Button {
-                            sonosService.monitor()
-                        } label: {
-                            Text("No System Found. Search")
-                                .padding()
-                                .background {
-                                    Capsule()
-                                        .foregroundStyle(.thinMaterial)
-                                }
-                        }
-                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                        .padding()
-                    }
-
-                    if !sonosService.networkMonitorService.isConnected {
-                        Text("Please connect to WiFi to find system")
-                            .padding()
-                            .background {
-                                Capsule()
-                                    .foregroundStyle(.thinMaterial)
-                            }
-                            .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                            .padding()
-                    }
-                }
-                .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
-                .animation(.spring, value: sonosService.systemNotFound)
-                .animation(.spring, value: sonosService.permissionsDenied)
-                .onAppear {
-                    let thumbImage = UIImage()
-                    UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-                }
-                .animation(.smooth, value: sonosService.groups)
-
         }
         .onChange(of: scenePhase) {
-            if scenePhase == .background {
-                WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
-                sonosService.monitorTask.cancel()
-            }
-
-            if scenePhase == .active {
-                print("Foreground")
+            switch scenePhase {
+            case .active:
                 Task {
-                    try await Task.sleep(for: .milliseconds(300))
+                    print("Foreground")
+                    do {
+                        try await sonosService.updateGroupsCheckPlayback()
+                        print("Tock", Date.now)
+                    } catch {
+                        print(error)
+                        // Restart Search
+                        sonosService.monitor()
+                    }
                     if selected == nil {
                         selected = sonosService.groups.first(where: { room in
                             room.coordinatorRoom.isPlaying
                         })?.coordinatorID
                     }
+                    sonosService.monitor()
+//                    superMember.isEnabled = isEnabled
                 }
-                sonosService.monitor()
-
-//                if !sonosService.pulseIsRunning {
-//                }
-////                superMember.isEnabled = isEnabled
-//
-//                Task {
-//                    await sonosService.pulse()
-//                }
+            case .inactive:
+                print("Inactive")
+                WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
+                sonosService.systemNotFound = false
+                Task {
+                    sonosService.sonosPulse.cancel()
+                }
+            case .background:
+                sonosService.systemNotFound = false
+            @unknown default:
+                break
             }
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {

@@ -30,7 +30,7 @@ struct ContentView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if sonosService.isSearching || sonosService.groups.isEmpty {
+            if sonosService.isSearching {
                 Label("Searching", systemImage: "waveform.badge.magnifyingglass")
                     .imageScale(.large)
                     .symbolEffect(.variableColor)
@@ -69,10 +69,42 @@ struct ContentView: View {
         }
         .background(Color.clear)
         .onAppear {
-            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-                sonosService.monitorWatch()
+            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            sonosService.monitorWatch()
+        }
+//        .overlay {
+//            VStack {
+//                Text(!sonosService.sonosPulse.isCancelled ? "Running" : "Cancelled")
+//                    .bold()
+//                Spacer()
+//            }
+//            .ignoresSafeArea()
+//        }
+        .overlay(alignment: .top) {
+            if sonosService.systemNotFound {
+                VStack {
+                    Text("Disconnected")
+                        .bold()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    Button {
+                        sonosService.monitorWatch()
+                    } label: {
+                        Text("Search for System")
+                            .bold()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .foregroundStyle(.thickMaterial)
+                    .padding()
+                }
+                .background {
+                    Rectangle()
+                        .foregroundStyle(.thinMaterial)
+                        .ignoresSafeArea()
+                }
             }
         }
+        .animation(.smooth, value: sonosService.systemNotFound)
+        .animation(.smooth, value: sonosService.groups)
     }
 }
 
