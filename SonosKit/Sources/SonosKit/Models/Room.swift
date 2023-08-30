@@ -9,7 +9,7 @@ public class Room: Identifiable {
     
     public var volume: Double = 0
     public var isPlaying: Bool = false
-    public var track: Track = .init(name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
+    public var track: Track = .init(trackID: "", name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
 
     public init(id: String, ip: String, name: String) {
         self.id = id

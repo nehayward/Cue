@@ -3,6 +3,7 @@ import Observation
 
 @Observable
 public class Track: Identifiable {
+    public var trackID: String = ""
     public var name: String = ""
     public var artist: String = ""
     public var album: String = ""
@@ -11,7 +12,8 @@ public class Track: Identifiable {
     public var duration: TimeInterval = .zero
     public var playbackPosition: TimeInterval = .zero
 
-    public init(name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval) {
+    public init(trackID: String, name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval) {
+        self.trackID = trackID
         self.name = name
         self.artist = artist
         self.album = album
@@ -25,6 +27,7 @@ public class Track: Identifiable {
 
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
+        lhs.trackID == rhs.trackID &&
         lhs.name == rhs.name &&
         lhs.artist == rhs.artist &&
         lhs.album == rhs.album &&
@@ -35,6 +38,7 @@ extension Track: Hashable {
     }
 
     public func hash(into hasher: inout Hasher) {
+        hasher.combine(trackID)
         hasher.combine(name)
         hasher.combine(artist)
         hasher.combine(album)

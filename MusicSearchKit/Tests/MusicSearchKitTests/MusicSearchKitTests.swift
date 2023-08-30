@@ -14,9 +14,9 @@ final class MusicSearchKitTests: XCTestCase {
         let decoder =  JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        let spotifySearch = try decoder.decode(SpotifyResult.self, from: Data(contentsOf: duaLipa))
-        XCTAssertEqual(spotifySearch.playlists.items.count, 20)
-//        XCTAssertEqual(musicSearch.results.first?.trackName, "Cry Your Heart Out")
+        let spotifySearch = try XCTUnwrap(decoder.decode(SpotifyResult.self, from: Data(contentsOf: duaLipa)))
+        let playlists = try XCTUnwrap(spotifySearch.playlists)
+        XCTAssertEqual(playlists.items.count, 20)
     }
 
 }

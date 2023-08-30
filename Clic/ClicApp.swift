@@ -9,10 +9,10 @@ struct ClicApp: App {
     @State var selected: String?
     @State var showPaywall: Bool = false
 
-    @AppStorage("membership") var isEnabled = false
-
     var sonosService = SonosService()
     var superMember = SubscriptionService()
+    var alertService = AlertService()
+
     let liveActivityManager: LiveActivityManager
 
     init() {
@@ -24,11 +24,12 @@ struct ClicApp: App {
             ContentView(selected: $selected)
                 .environment(sonosService)
                 .environment(superMember)
+                .environment(alertService)
                 .sheet(isPresented: $showPaywall) {
                     PaywallScreen()
                         .environment(superMember)
                 }
-                .overlay(alignment: .bottom) {
+                .safeAreaInset(edge: .bottom) {
                     if !superMember.isEnabled {
                         Button {
                             showPaywall = true
@@ -58,9 +59,9 @@ struct ClicApp: App {
                         sonosService.monitor()
                     }
                     if selected == nil {
-                        selected = sonosService.groups.first(where: { room in
-                            room.coordinatorRoom.isPlaying
-                        })?.coordinatorID
+                        guard let playingGroup = sonosService.groups.first(where: {$0.coordinatorRoom.isPlaying}) else { return }
+                        alertService.showAlert(with: "Jumped to playing \(playingGroup.coordinatorRoom.name)")
+                        selected = playingGroup.coordinatorID
                     }
                     sonosService.monitor()
 //                    superMember.isEnabled = isEnabled

@@ -4,13 +4,16 @@ import SonosKit
 struct ContentView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var superMember: SubscriptionService
+    @Environment(AlertService.self) var alertService: AlertService
 
     @Binding var selected: String?
     @State var isShowing: Bool = false
 
     var body: some View {
+        @Bindable var alert = alertService.alert
+
         NavigationSplitView {
-            List (sorted, selection: $selected) { group in
+            List (sonosService.sorted, selection: $selected) { group in
                 Section {
                     VStack {
                         HStack(alignment: .top) {
@@ -55,19 +58,6 @@ struct ContentView: View {
             guard let selectedGroup else { return }
             sonosService.selectedGroup = selectedGroup
         }
-        .safeAreaInset(edge: .bottom) {
-            if sonosService.isSearching {
-                Label("Searching", systemImage: "waveform.badge.magnifyingglass")
-                    .imageScale(.large)
-                    .symbolEffect(.variableColor)
-                    .padding()
-                    .background {
-                        Capsule()
-                            .foregroundStyle(.ultraThinMaterial)
-                    }
-                    .transition(.push(from: .bottom).combined(with: .scale))
-            }
-        }
         .animation(.spring, value: sonosService.isSearching)
         .task {
             sonosService.monitor()
@@ -107,7 +97,8 @@ struct ContentView: View {
                 Button {
                     sonosService.monitor()
                 } label: {
-                    Text("No System Found. Search")
+                    Text("Search")
+                        .bold()
                         .padding()
                         .background {
                             Capsule()
@@ -128,6 +119,24 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
                     .padding()
             }
+
+            if sonosService.isSearching {
+                Label("Searching", systemImage: "waveform.badge.magnifyingglass")
+                    .imageScale(.large)
+                    .symbolEffect(.variableColor)
+                    .padding()
+                    .background {
+                        Capsule()
+                            .foregroundStyle(.ultraThinMaterial)
+                    }
+                    .transition(.push(from: .bottom).combined(with: .scale))
+            }
+        }
+        .safeAreaInset(edge: .top) {
+            if alertService.alert.isShowing {
+                PillView(alert: alertService.alert)
+                    .animation(.spring, value: alertService.alert.isShowing)
+            }
         }
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemNotFound)
@@ -137,17 +146,6 @@ struct ContentView: View {
             UISlider.appearance().setThumbImage(thumbImage, for: .normal)
         }
         .animation(.smooth, value: sonosService.groups)
-    }
-
-    private var sorted: [GroupRoom] {
-        let sorted = sonosService.groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
-        guard superMember.isEnabled else {
-            if let first = sorted.first {
-                return [first]
-            }
-            return []
-        }
-        return sorted
     }
 }
 

@@ -14,7 +14,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List (sonosService.groups, selection: $selected) { group in
+            List (sonosService.sorted, selection: $selected) { group in
                 if group.tvMode {
                     TVModeView(group: group)
                 } else {

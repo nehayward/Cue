@@ -97,7 +97,7 @@ struct LargePlayerView: View {
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
 
-            let track = Track(name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
+            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
             track.artworkURL = await sonosService.getArtwork(from: track)
             group.rooms[0].track = track
             group.coordinatorRoom.track.duration = 2000

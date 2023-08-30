@@ -39,4 +39,28 @@ final class AppleMusicSearchAPI {
             return []
         }
     }
+
+    func lookupTrack(id: String) async -> ItunesResult? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "itunes.apple.com"
+        components.path = "/lookup"
+        components.queryItems = [
+            URLQueryItem(name: "id", value: id),
+        ]
+        guard let url = components.url else { return nil }
+
+        let request = URLRequest(url: url)
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let musicSearch = try decoder.decode(ItunesMusicSearch.self, from: data)
+            return musicSearch.results.first
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
 }

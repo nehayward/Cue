@@ -41,11 +41,21 @@ final class SonosKitTests: XCTestCase {
 //    }
 
     func testGetPositionParse() throws {
-        let track = Bundle.module.url(forResource: "GetPosition", withExtension: "xml")
+        let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
         print(trackXML)
         let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
         XCTAssertNotNil(positionInfo)
+        XCTAssert(positionInfo?.musicService == .apple)
+    }
+
+    func testGetPositionInfoSpotifyParse() throws {
+        let track = Bundle.module.url(forResource: "GetPositionInfoSpotify", withExtension: "xml")
+        let trackXML = try! String(contentsOf: track!)
+        print(trackXML)
+        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
+        XCTAssertNotNil(positionInfo)
+        XCTAssert(positionInfo?.musicService == .spotify)
     }
 
     func testPlaybackInfoParse() throws {

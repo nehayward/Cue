@@ -111,6 +111,10 @@ class XMLParserSonos {
 //    }
 
     func parsePositionInfo(xml: String) -> Track? {
+        var xml = xml
+        if xml.contains("&gt") {
+            xml = xml.unescaped
+        }
         let xmlParsed = XMLHash.parse(xml)
         guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
               let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text,
@@ -155,9 +159,27 @@ class XMLParserSonos {
             trackDuration = TimeInterval(totalMilliseconds)
         }
 
-        let musicService: MusicService = trackURI.contains("spotify") ? .spotify : .apple
-
-        return Track(name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
+        var musicService: MusicService = trackURI.contains("spotify") ? .spotify : .apple
+        if trackURI.contains("airplay") {
+            musicService = .airplay
+        }
+        
+        var trackID = ""
+        switch musicService {
+        case .apple:
+            let pattern = #/song:(\w*)/#
+            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                trackID = String(result.1)
+            }
+        case .spotify:
+            let pattern = #/track:(\w*)/#
+            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                trackID = String(result.1)
+            }
+        case .airplay: 
+            break
+        }
+        return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
@@ -234,7 +256,7 @@ class XMLParserSonos {
 
         for item in items {
             var parsedItem: [String: String] = [:]
-            parsedItem["id"] = item.element?.attribute(by: "id")?.text
+            let id = item.element?.attribute(by: "id")?.text
             parsedItem["parentID"] = item.element?.attribute(by: "parentID")?.text
             parsedItem["restricted"] = item.element?.attribute(by: "restricted")?.text
             parsedItem["title"] = item["dc:title"].element?.text
@@ -244,7 +266,7 @@ class XMLParserSonos {
             print(parsedItem)
 //
 
-            tracks.append(Track(name: parsedItem["title"] ?? "", artist: parsedItem["creator"] ?? "", album: parsedItem["album"] ?? "", musicService: .spotify, duration: .zero, playbackPosition: .zero))
+            tracks.append(Track(trackID: id ?? "", name: parsedItem["title"] ?? "", artist: parsedItem["creator"] ?? "", album: parsedItem["album"] ?? "", musicService: .spotify, duration: .zero, playbackPosition: .zero))
 //            var trackDuration = TimeInterval.zero
 //            let trackDurationComponents = trackDurationString.components(separatedBy: ":")
 //            if trackDurationComponents.count == 3,

@@ -83,6 +83,33 @@ final class SpotifySearchAPI {
         }
     }
 
+    func lookupTrack(id: String) async -> SpotifyTrackItems? {
+        if token == nil {
+            self.token = await getToken()?.accessToken
+        }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/tracks/\(id)"
+        guard let url = components.url, let token else { return nil }
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = ["Authorization": "Bearer \(token)"]
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let spotifyTrack = try decoder.decode(SpotifyTrackItems.self, from: data)
+            return spotifyTrack
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
     func getToken() async -> SpotifyTokenResponse? {
         guard let URL = URL(string: "https://accounts.spotify.com/api/token") else { return nil }
         var request = URLRequest(url: URL)

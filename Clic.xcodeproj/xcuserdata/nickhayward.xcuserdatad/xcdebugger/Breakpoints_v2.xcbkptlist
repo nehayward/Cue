@@ -1057,6 +1057,36 @@
                   endingLineNumber = "323"
                   offsetFromSymbolStart = "868">
                </Location>
+               <Location
+                  uuid = "3C777250-2524-43C5-A634-B9AB9E0BBA3A - 727ac2b994bb2b72"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.removeAllTrackFromQueue(IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "323"
+                  endingLineNumber = "323"
+                  offsetFromSymbolStart = "916">
+               </Location>
+               <Location
+                  uuid = "3C777250-2524-43C5-A634-B9AB9E0BBA3A - c68596043757c973"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.removeAllTrackFromQueue(IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "323"
+                  endingLineNumber = "323"
+                  offsetFromSymbolStart = "912">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -1903,6 +1933,21 @@
                   endingLineNumber = "303"
                   offsetFromSymbolStart = "644">
                </Location>
+               <Location
+                  uuid = "BA1B8022-ADF6-4833-B413-01C7884EE0C7 - 1ed6b4e7767731cd"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (SonosKit.ZoneGroupMember) -&gt; Swift.Optional&lt;SonosKit.Room&gt; in closure #1 (SonosKit.ZoneGroup) -&gt; Swift.Array&lt;SonosKit.Room&gt; in SonosKit.SonosAPI.getRoom(ipAddress: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Room&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "303"
+                  endingLineNumber = "303"
+                  offsetFromSymbolStart = "644">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -1916,10 +1961,42 @@
             filePath = "SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "55"
-            endingLineNumber = "55"
+            startingLineNumber = "65"
+            endingLineNumber = "65"
             landmarkName = "testPlaybackInfoParse()"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "3F029A80-DF03-4C86-9D64-205360763CBD - 47177c333a502c6b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKitTests.SonosKitTests.testPlaybackInfoParse() throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "55"
+                  endingLineNumber = "55"
+                  offsetFromSymbolStart = "872">
+               </Location>
+               <Location
+                  uuid = "3F029A80-DF03-4C86-9D64-205360763CBD - 47177c333a51d3a1"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKitTests.SonosKitTests.testPlaybackInfoParse() throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "65"
+                  endingLineNumber = "65"
+                  offsetFromSymbolStart = "872">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -5591,6 +5668,36 @@
                   endingLineNumber = "397"
                   offsetFromSymbolStart = "1176">
                </Location>
+               <Location
+                  uuid = "808FEC31-6DB1-4525-BAFF-FB1627199558 - 3440316547580eae"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.queueSpotifyPlaylist(ID: Swift.String, title: Swift.String, owner: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "397"
+                  endingLineNumber = "397"
+                  offsetFromSymbolStart = "1224">
+               </Location>
+               <Location
+                  uuid = "808FEC31-6DB1-4525-BAFF-FB1627199558 - 6de681a407d6b1af"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.queueSpotifyPlaylist(ID: Swift.String, title: Swift.String, owner: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "397"
+                  endingLineNumber = "397"
+                  offsetFromSymbolStart = "1220">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -5683,6 +5790,21 @@
                   startingLineNumber = "385"
                   endingLineNumber = "385"
                   offsetFromSymbolStart = "716">
+               </Location>
+               <Location
+                  uuid = "33739043-43BF-4E10-B185-8F43107E8238 - c71d56f8c07d4a18"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.queueSpotifyPlaylist(ID: Swift.String, title: Swift.String, owner: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "385"
+                  endingLineNumber = "385"
+                  offsetFromSymbolStart = "744">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -5777,6 +5899,21 @@
                   endingLineNumber = "388"
                   offsetFromSymbolStart = "1088">
                </Location>
+               <Location
+                  uuid = "7C37A7F8-A095-4973-ACAC-B66E49F0511D - c71d56f8c07d4bf7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.queueSpotifyPlaylist(ID: Swift.String, title: Swift.String, owner: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "388"
+                  endingLineNumber = "388"
+                  offsetFromSymbolStart = "1112">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -5790,41 +5927,11 @@
             filePath = "SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "62"
-            endingLineNumber = "62"
+            startingLineNumber = "72"
+            endingLineNumber = "72"
             landmarkName = "testGetZoneGroupAttributes()"
             landmarkType = "7">
             <Locations>
-               <Location
-                  uuid = "601B9CD8-A632-40D3-81B2-D94BC1BA05BA - 613c851fa30e48b5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKitTests.SonosKitTests.testGetZoneGroupAttributes() throws -&gt; ()"
-                  moduleName = "SonosKitTests"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "70"
-                  endingLineNumber = "70"
-                  offsetFromSymbolStart = "896">
-               </Location>
-               <Location
-                  uuid = "601B9CD8-A632-40D3-81B2-D94BC1BA05BA - 613c851fa30e48b5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKitTests.SonosKitTests.testGetZoneGroupAttributes() throws -&gt; ()"
-                  moduleName = "SonosKitTests"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "70"
-                  endingLineNumber = "70"
-                  offsetFromSymbolStart = "928">
-               </Location>
                <Location
                   uuid = "601B9CD8-A632-40D3-81B2-D94BC1BA05BA - 613c851fa30e49ad"
                   shouldBeEnabled = "Yes"
@@ -5840,6 +5947,21 @@
                   endingLineNumber = "62"
                   offsetFromSymbolStart = "928">
                </Location>
+               <Location
+                  uuid = "601B9CD8-A632-40D3-81B2-D94BC1BA05BA - 613c851fa30e48f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKitTests.SonosKitTests.testGetZoneGroupAttributes() throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "72"
+                  endingLineNumber = "72"
+                  offsetFromSymbolStart = "928">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -5853,10 +5975,42 @@
             filePath = "SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "65"
-            endingLineNumber = "65"
+            startingLineNumber = "75"
+            endingLineNumber = "75"
             landmarkName = "testGetZoneGroupAttributes()"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "D1154774-FCE2-4411-A4DF-66B8C27875FF - 613c851fa30e490e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKitTests.SonosKitTests.testGetZoneGroupAttributes() throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "65"
+                  endingLineNumber = "65"
+                  offsetFromSymbolStart = "1268">
+               </Location>
+               <Location
+                  uuid = "D1154774-FCE2-4411-A4DF-66B8C27875FF - 613c851fa30e4850"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKitTests.SonosKitTests.testGetZoneGroupAttributes() throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Tests/SonosKitTests/SonosKitTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "75"
+                  endingLineNumber = "75"
+                  offsetFromSymbolStart = "1268">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -5963,6 +6117,36 @@
                   startingLineNumber = "431"
                   endingLineNumber = "431"
                   offsetFromSymbolStart = "924">
+               </Location>
+               <Location
+                  uuid = "36923C0A-9CE0-47DB-BB84-4A2B56748B41 - 98c934f666e47f12"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.getQueue(IP: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "431"
+                  endingLineNumber = "431"
+                  offsetFromSymbolStart = "984">
+               </Location>
+               <Location
+                  uuid = "36923C0A-9CE0-47DB-BB84-4A2B56748B41 - d34a680037f0d913"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.getQueue(IP: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "431"
+                  endingLineNumber = "431"
+                  offsetFromSymbolStart = "968">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -6072,6 +6256,36 @@
                   endingLineNumber = "435"
                   offsetFromSymbolStart = "1280">
                </Location>
+               <Location
+                  uuid = "EEF458DB-08A6-4D9A-84AA-C86C3274FC7F - 98c934f666e47e9e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.getQueue(IP: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "435"
+                  endingLineNumber = "435"
+                  offsetFromSymbolStart = "1340">
+               </Location>
+               <Location
+                  uuid = "EEF458DB-08A6-4D9A-84AA-C86C3274FC7F - d34a680037f0d89f"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.getQueue(IP: Swift.String) async -&gt; Swift.Array&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "435"
+                  endingLineNumber = "435"
+                  offsetFromSymbolStart = "1324">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -6148,13 +6362,13 @@
             filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "307"
-            endingLineNumber = "307"
+            startingLineNumber = "329"
+            endingLineNumber = "329"
             landmarkName = "parseQueue(xml:)"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052970fab"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b10529710f0"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6164,147 +6378,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "4896">
+                  startingLineNumber = "325"
+                  endingLineNumber = "325"
+                  offsetFromSymbolStart = "5280">
                </Location>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341de9e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341de9e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "4808">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - eafcf806e5e6312f"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Widgets"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e206d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e206d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "300"
-                  endingLineNumber = "300"
-                  offsetFromSymbolStart = "7548">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341dfb5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "309"
-                  endingLineNumber = "309"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e2146"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "309"
-                  endingLineNumber = "309"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e2146"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "309"
-                  endingLineNumber = "309"
-                  offsetFromSymbolStart = "7548">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341dfb5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "309"
-                  endingLineNumber = "309"
-                  offsetFromSymbolStart = "4808">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052971117"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b10529710f0"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6314,12 +6393,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "320"
-                  endingLineNumber = "320"
-                  offsetFromSymbolStart = "4896">
+                  startingLineNumber = "325"
+                  endingLineNumber = "325"
+                  offsetFromSymbolStart = "5012">
                </Location>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052971174"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b105297138b"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6329,12 +6408,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "321"
-                  endingLineNumber = "321"
-                  offsetFromSymbolStart = "4896">
+                  startingLineNumber = "332"
+                  endingLineNumber = "332"
+                  offsetFromSymbolStart = "5012">
                </Location>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052971155"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b10529713e8"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6344,12 +6423,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "322"
-                  endingLineNumber = "322"
-                  offsetFromSymbolStart = "4896">
+                  startingLineNumber = "333"
+                  endingLineNumber = "333"
+                  offsetFromSymbolStart = "5012">
                </Location>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052970f88"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b10529710b2"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6359,12 +6438,27 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "301"
-                  endingLineNumber = "301"
-                  offsetFromSymbolStart = "4896">
+                  startingLineNumber = "323"
+                  endingLineNumber = "323"
+                  offsetFromSymbolStart = "5012">
                </Location>
                <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341de77"
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - 22b68b1052971093"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "324"
+                  endingLineNumber = "324"
+                  offsetFromSymbolStart = "5012">
+               </Location>
+               <Location
+                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341c187"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -6374,54 +6468,9 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "307"
-                  endingLineNumber = "307"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e2084"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "307"
-                  endingLineNumber = "307"
-                  offsetFromSymbolStart = "7548">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - fca6edc9b74e2084"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "307"
-                  endingLineNumber = "307"
-                  offsetFromSymbolStart = "4788">
-               </Location>
-               <Location
-                  uuid = "98729915-50AF-4B34-91C5-66F9061838AA - d18e4476c341de77"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseQueue(xml: Swift.String) -&gt; Swift.Array&lt;SonosKit.Track&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "307"
-                  endingLineNumber = "307"
-                  offsetFromSymbolStart = "4808">
+                  startingLineNumber = "323"
+                  endingLineNumber = "323"
+                  offsetFromSymbolStart = "4888">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -6486,6 +6535,21 @@
                   endingLineNumber = "506"
                   offsetFromSymbolStart = "748">
                </Location>
+               <Location
+                  uuid = "052F5D17-9336-489D-AA28-42089DA61125 - 58f8e935516249f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "506"
+                  endingLineNumber = "506"
+                  offsetFromSymbolStart = "776">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -6548,6 +6612,21 @@
                   startingLineNumber = "505"
                   endingLineNumber = "505"
                   offsetFromSymbolStart = "152">
+               </Location>
+               <Location
+                  uuid = "71A9854E-E37F-40E6-8E43-D63F0C3AC819 - 58f8e935516249d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "505"
+                  endingLineNumber = "505"
+                  offsetFromSymbolStart = "164">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -6739,6 +6818,66 @@
                   continueAfterRunningActions = "No"
                   symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
                   moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "501"
+                  endingLineNumber = "501"
+                  offsetFromSymbolStart = "36">
+               </Location>
+               <Location
+                  uuid = "C6657E3F-56E0-49BD-A66A-216DCEB9726F - 64f76b4b1b571650"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "501"
+                  endingLineNumber = "501"
+                  offsetFromSymbolStart = "112">
+               </Location>
+               <Location
+                  uuid = "C6657E3F-56E0-49BD-A66A-216DCEB9726F - 64f76b4b1b571650"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "501"
+                  endingLineNumber = "501"
+                  offsetFromSymbolStart = "180">
+               </Location>
+               <Location
+                  uuid = "C6657E3F-56E0-49BD-A66A-216DCEB9726F - 58f8e93551624a52"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "501"
+                  endingLineNumber = "501"
+                  offsetFromSymbolStart = "700">
+               </Location>
+               <Location
+                  uuid = "C6657E3F-56E0-49BD-A66A-216DCEB9726F - 56fc2e144c6b1853"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.pulse() async throws -&gt; ()"
+                  moduleName = "SonosKitTests"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
                   startingColumnNumber = "9223372036854775807"
@@ -7053,6 +7192,36 @@
                   endingLineNumber = "375"
                   offsetFromSymbolStart = "1028">
                </Location>
+               <Location
+                  uuid = "0F369C64-DD8E-43F5-B59F-76C96B723A3A - cb99c5acc9b6d3ac"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.queue(song: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "375"
+                  endingLineNumber = "375"
+                  offsetFromSymbolStart = "1076">
+               </Location>
+               <Location
+                  uuid = "0F369C64-DD8E-43F5-B59F-76C96B723A3A - dbc1ed9457437dad"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.queue(song: Swift.String, IP: Swift.String) async -&gt; ()"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "375"
+                  endingLineNumber = "375"
+                  offsetFromSymbolStart = "1072">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -7089,13 +7258,13 @@
             filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "194"
-            endingLineNumber = "194"
+            startingLineNumber = "216"
+            endingLineNumber = "216"
             landmarkName = "parseGetCurrentTransportActions(xml:)"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750584"
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750731"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7105,12 +7274,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "191"
-                  endingLineNumber = "191"
-                  offsetFromSymbolStart = "1176">
+                  startingLineNumber = "212"
+                  endingLineNumber = "212"
+                  offsetFromSymbolStart = "1036">
                </Location>
                <Location
-                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74753a29"
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750731"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7120,12 +7289,72 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "188"
-                  endingLineNumber = "188"
+                  startingLineNumber = "212"
+                  endingLineNumber = "212"
                   offsetFromSymbolStart = "876">
                </Location>
                <Location
-                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - e32fd1bae5a3d4d2"
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750628"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "219"
+                  endingLineNumber = "219"
+                  offsetFromSymbolStart = "876">
+               </Location>
+               <Location
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750649"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "220"
+                  endingLineNumber = "220"
+                  offsetFromSymbolStart = "876">
+               </Location>
+               <Location
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc747507f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "210"
+                  endingLineNumber = "210"
+                  offsetFromSymbolStart = "876">
+               </Location>
+               <Location
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750710"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "211"
+                  endingLineNumber = "211"
+                  offsetFromSymbolStart = "876">
+               </Location>
+               <Location
+                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - e32fd1bae5a3d6c2"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7135,38 +7364,8 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "194"
-                  endingLineNumber = "194"
-                  offsetFromSymbolStart = "848">
-               </Location>
-               <Location
-                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - ce07780591ac2a21"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "194"
-                  endingLineNumber = "194"
-                  offsetFromSymbolStart = "1424">
-               </Location>
-               <Location
-                  uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - ce07780591ac2a21"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "194"
-                  endingLineNumber = "194"
+                  startingLineNumber = "210"
+                  endingLineNumber = "210"
                   offsetFromSymbolStart = "848">
                </Location>
             </Locations>
@@ -7182,13 +7381,13 @@
             filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "193"
-            endingLineNumber = "193"
+            startingLineNumber = "215"
+            endingLineNumber = "215"
             landmarkName = "parseGetCurrentTransportActions(xml:)"
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc74753a4a"
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc74750710"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7198,27 +7397,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "189"
-                  endingLineNumber = "189"
-                  offsetFromSymbolStart = "896">
+                  startingLineNumber = "211"
+                  endingLineNumber = "211"
+                  offsetFromSymbolStart = "876">
                </Location>
                <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4965b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "SonosKitTests"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "189"
-                  endingLineNumber = "189"
-                  offsetFromSymbolStart = "68">
-               </Location>
-               <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc74753a08"
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc74750710"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7228,12 +7412,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "187"
-                  endingLineNumber = "187"
+                  startingLineNumber = "211"
+                  endingLineNumber = "211"
                   offsetFromSymbolStart = "712">
                </Location>
                <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe49619"
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4ab01"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7243,12 +7427,132 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "187"
-                  endingLineNumber = "187"
+                  startingLineNumber = "211"
+                  endingLineNumber = "211"
                   offsetFromSymbolStart = "68">
                </Location>
                <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - e32fd1bae5a3d4f3"
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc7475060f"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "218"
+                  endingLineNumber = "218"
+                  offsetFromSymbolStart = "712">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4aa1e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "218"
+                  endingLineNumber = "218"
+                  offsetFromSymbolStart = "68">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc74750628"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "219"
+                  endingLineNumber = "219"
+                  offsetFromSymbolStart = "712">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4aa39"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "219"
+                  endingLineNumber = "219"
+                  offsetFromSymbolStart = "68">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc747507d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "209"
+                  endingLineNumber = "209"
+                  offsetFromSymbolStart = "712">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4abc7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "209"
+                  endingLineNumber = "209"
+                  offsetFromSymbolStart = "68">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 10171edc747507f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "210"
+                  endingLineNumber = "210"
+                  offsetFromSymbolStart = "712">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - 22710ab0fe4abe6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "210"
+                  endingLineNumber = "210"
+                  offsetFromSymbolStart = "68">
+               </Location>
+               <Location
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - e32fd1bae5a3d6e3"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7258,12 +7562,12 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
+                  startingLineNumber = "209"
+                  endingLineNumber = "209"
                   offsetFromSymbolStart = "684">
                </Location>
                <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - f11fdfcd9e3278e2"
+                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - f11fdfcd9e327af2"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -7273,68 +7577,8 @@
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
-                  offsetFromSymbolStart = "52">
-               </Location>
-               <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - ce07780591ac2a00"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
-                  offsetFromSymbolStart = "1240">
-               </Location>
-               <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - dc377672ea3d8611"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
-                  offsetFromSymbolStart = "72">
-               </Location>
-               <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - ce07780591ac2a00"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
-                  offsetFromSymbolStart = "684">
-               </Location>
-               <Location
-                  uuid = "91071FE1-3BDE-4AE6-B31B-1C4BE5F83CEF - dc377672ea3d8611"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "implicit closure #1 (Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt; in SonosKit.XMLParserSonos.parseGetCurrentTransportActions(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.AvailableActions&gt;"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "193"
-                  endingLineNumber = "193"
+                  startingLineNumber = "209"
+                  endingLineNumber = "209"
                   offsetFromSymbolStart = "52">
                </Location>
             </Locations>
@@ -7370,6 +7614,118 @@
             endingLineNumber = "23"
             landmarkName = "body"
             landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "1242D058-3085-406D-8A4A-BEDC59904844"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "489"
+            endingLineNumber = "489"
+            landmarkName = "getArtwork(from:size:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "FE9993A1-6C09-4F52-9423-949EEE789154"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "MusicSearchKit/Tests/MusicSearchKitTests/IntegrationTests.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "testSpotifyTrackLookup()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "FE9993A1-6C09-4F52-9423-949EEE789154 - ebbd78b120c1d330"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for MusicSearchKitTests.IntegrationsTests.testSpotifyTrackLookup() async throws -&gt; ()"
+                  moduleName = "MusicSearchKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/MusicSearchKit/Tests/MusicSearchKitTests/IntegrationTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "14"
+                  endingLineNumber = "14"
+                  offsetFromSymbolStart = "372">
+               </Location>
+               <Location
+                  uuid = "FE9993A1-6C09-4F52-9423-949EEE789154 - ebbd78b120c1d330"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for MusicSearchKitTests.IntegrationsTests.testSpotifyTrackLookup() async throws -&gt; ()"
+                  moduleName = "MusicSearchKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/MusicSearchKit/Tests/MusicSearchKitTests/IntegrationTests.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "14"
+                  endingLineNumber = "14"
+                  offsetFromSymbolStart = "388">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "94E23300-E058-4B4C-9B3D-5AFD69DDCE64"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "170"
+            endingLineNumber = "170"
+            landmarkName = "parsePositionInfo(xml:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "94E23300-E058-4B4C-9B3D-5AFD69DDCE64 - 7f65971bcec7bc84"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parsePositionInfo(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.Track&gt;"
+                  moduleName = "SonosKitTests"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "166"
+                  endingLineNumber = "166"
+                  offsetFromSymbolStart = "6964">
+               </Location>
+               <Location
+                  uuid = "94E23300-E058-4B4C-9B3D-5AFD69DDCE64 - 8c5d587d5f116db1"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.XMLParserSonos.parsePositionInfo(xml: Swift.String) -&gt; Swift.Optional&lt;SonosKit.Track&gt;"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/XMLParser.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "166"
+                  endingLineNumber = "166"
+                  offsetFromSymbolStart = "6776">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

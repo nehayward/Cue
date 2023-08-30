@@ -12,6 +12,9 @@ public final class MusicSearchService {
         await appleMusicSearchAPI.search(for: "\(song) \(artist)")
     }
 
+    public func appleLookup(id: String) async -> ItunesResult? {
+        await appleMusicSearchAPI.lookupTrack(id: id)
+    }
 
     public func searchSpotify(song: String, artist: String) async -> SpotifyResult? {
         await spotifySearchAPI.search(for: "\(song) \(artist)")
@@ -19,6 +22,10 @@ public final class MusicSearchService {
 
     public func searchSpotifySong(song: String, artist: String) async -> SpotifyResult? {
         await spotifySearchAPI.searchSong(for: "\(song) \(artist)")
+    }
+
+    public func spotifyTrackLookup(id: String) async -> SpotifyTrackItems? {
+        await spotifySearchAPI.lookupTrack(id: id)
     }
 }
 

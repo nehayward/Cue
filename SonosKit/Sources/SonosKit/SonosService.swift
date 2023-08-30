@@ -29,6 +29,18 @@ public final class SonosService {
     }
 
     @MainActor
+    public var sorted: [GroupRoom] {
+        let sorted = groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
+//        guard superMember.isEnabled else {
+//            if let first = sorted.first {
+//                return [first]
+//            }
+//            return []
+//        }
+        return sorted
+    }
+
+    @MainActor
     public func monitor() {
         if isRunning { return }
         print("Monitoring!")
@@ -284,8 +296,8 @@ public final class SonosService {
 
     @MainActor
     func updateGroups(from groups: [GroupRoom]) async throws {
-        try await withThrowingTaskGroup(of: (Int, GroupRoom).self) { group in
-            for (index, roomGroup) in groups.enumerated() {
+        await withTaskGroup(of: (Void).self) { group in
+            for roomGroup in groups {
                 group.addTask{
                     async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
@@ -302,7 +314,8 @@ public final class SonosService {
 
                     roomGroup.groupVolume = await groupVolume
                     guard let track = await track else {
-                        return (index, roomGroup)
+                        roomGroup.coordinatorRoom.track = Track(trackID: "", name: "", artist: "", album: "", musicService: .apple, duration: 0, playbackPosition: 0)
+                        return
                     }
 
                     let previousArtwork = roomGroup.coordinatorRoom.track.artworkURL
@@ -312,17 +325,12 @@ public final class SonosService {
 
                     guard let artworkURL = await self.getArtwork(from: track) else {
                         roomGroup.coordinatorRoom.track = track
-                        return (index, roomGroup)
+                        return
                     }
 
                     roomGroup.coordinatorRoom.track = track
                     roomGroup.coordinatorRoom.track.artworkURL = artworkURL
-                    return (index, roomGroup)
                 }
-            }
-
-            for try await (index, group) in group {
-                self.groups[index] = group
             }
         }
     }
@@ -473,29 +481,25 @@ public final class SonosService {
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
         switch track.musicService  {
         case .apple:
+            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL else { return nil }
+            guard let url = URL(string: artworkString) else { return nil }
+            return url
+        case .spotify:
+            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
+            if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+                guard let url = URL(string: image.url) else { return nil }
+                return url
+            }
+
+            guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
+            return url
+        case .airplay:
             let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
             let found = searchResults.first { result in
                 result.artistName == track.artist &&
                 (result.trackName == track.name || result.trackCensoredName == track.name)
             }
             guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
-            return url
-        case .spotify:
-            guard let spotifySearchResults = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist) else { return nil }
-            guard let tracks = spotifySearchResults.tracks else { return nil }
-
-            let found = tracks.items.first { result in
-                result.name == track.name
-                //                (result.trackName == track.name || result == track.name)
-            }
-
-            guard let found else { return nil }
-            if size == 100, let image = found.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
-                guard let url = URL(string: image.url) else { return nil }
-                return url
-            }
-
-            guard let artworkString = found.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
         }
     }

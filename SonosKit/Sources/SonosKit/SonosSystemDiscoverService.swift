@@ -39,11 +39,12 @@ final class SonosSystemDiscoverService {
         defer {
             isSearching = false
         }
-        
-        isSearching = true
+
         if !lastKnownIP.isEmpty {
             return lastKnownIP
         }
+
+        isSearching = true
 
         let task = Task {
             search()
