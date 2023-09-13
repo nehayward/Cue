@@ -1,8 +1,8 @@
-public struct SpotifyPlaylists: Decodable {
+public struct SpotifyPlaylists: Decodable, Sendable {
     public let items: [SpotifyPlaylistItems]
 }
 
-public struct SpotifyPlaylistItems: Decodable, Identifiable {
+public struct SpotifyPlaylistItems: Decodable, Identifiable, Sendable {
     public let id: String
     let collaborative: Bool
     let description: String
@@ -19,17 +19,17 @@ public struct SpotifyPlaylistItems: Decodable, Identifiable {
     public let uri: String
 }
 
-public struct ExternalUrls: Decodable {
+public struct ExternalUrls: Decodable, Sendable {
     public let spotify: String
 }
 
-public struct Image: Decodable {
+public struct Image: Decodable, Sendable {
     public let height: Int?
     public let url: String
     public let width: Int?
 }
 
-public struct Owner: Decodable {
+public struct Owner: Decodable, Sendable {
     public let displayName: String
     let externalUrls: ExternalUrls
     public let href: String
@@ -38,7 +38,7 @@ public struct Owner: Decodable {
     public let uri: String
 }
 
-public struct Tracks: Decodable {
+public struct Tracks: Decodable, Sendable {
     let href: String
     let total: Int
 }

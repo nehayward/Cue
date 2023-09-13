@@ -3,7 +3,7 @@ import SonosKit
 
 struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    var group: GroupRoom
+    @Binding var group: GroupRoom
 
     @State var showGroupScreen: Bool = false
 
@@ -12,8 +12,10 @@ struct MediaControlsView: View {
             Button(action: {
                 Task {
                     if group.coordinatorRoom.isPlaying {
+                        group.coordinatorRoom.isPlaying = false
                         await sonosService.pause(ip: group.coordinatorRoom.ip)
                     } else {
+                        group.coordinatorRoom.isPlaying = true
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
                 }
@@ -44,7 +46,7 @@ struct MediaControlsView: View {
             Button(action: {
                 showGroupScreen = true
             }, label: {
-                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2" :  "hifispeaker")
+                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
                     .frame(width: 20)
                     .foregroundStyle(.tint, .thickMaterial)
             })
@@ -57,6 +59,6 @@ struct MediaControlsView: View {
 }
 
 #Preview {
-    MediaControlsView(group: GroupRoom(id: "", coordinatorID: "Kitchen", rooms: [Room(id: "Kitchen", ip: "192", name: "Kitchen")]))
+    MediaControlsView(group: .constant(.garage))
         .environment(SonosService())
 }

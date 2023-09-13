@@ -2,20 +2,30 @@ import SwiftUI
 import SonosKit
 
 struct SceneView: View {
-    //    @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var show: Bool
-    
+    @Environment(SonosService.self) var sonosService: SonosService
+    @State var show: Bool = false
+
+    var scenes: [SonosScene] = []
+
     var body: some View {
         ScrollView(.horizontal) {
             HStack {
-                ForEach(0..<10) {
-                    Text("Garage \($0)")
-                        .padding()
-                        .foregroundStyle(.primary)
-                        .background {
-                            Capsule()
-                                .foregroundStyle(.thinMaterial)
+                ForEach(0..<1) { _ in
+                    Button {
+                        Task {
+                            await sonosService.runScene(id: UUID())
                         }
+                    } label: {
+                        Text("Group All")
+                            .padding()
+                            .background{
+                                Capsule()
+                                    .foregroundStyle(.thinMaterial)
+                                    .shadow(radius: 2, x: 0, y: 1)
+                            }
+                            .padding(2)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .scrollTargetLayout()
@@ -24,27 +34,23 @@ struct SceneView: View {
         }
         .padding(.trailing, 40)
         .scrollTargetBehavior(.viewAligned)
-        .overlay(alignment: .trailing) {
+        .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
+        .safeAreaInset(edge: .trailing) {
             Button {
                 show = true
             } label: {
                 Image(systemName: "plus.circle.fill")
                     .font(.largeTitle)
             }
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: 24)
-                    .foregroundStyle(.thinMaterial)
-                    .blur(radius: 10)
-            }
+        }
+        .sheet(isPresented: $show) {
+            SceneBuilderScreen()
         }
     }
 }
 
 #Preview {
-    
-    SceneView(show: .constant(false))
-        .listRowBackground(Color.clear)
-    
-    
+    SceneView()
+        .environment(SonosService())
 }

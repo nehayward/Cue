@@ -1,8 +1,8 @@
-public struct SpotifyTracks: Decodable {
+public struct SpotifyTracks: Decodable, Sendable {
     public let items: [SpotifyTrackItems]
 }
 
-public struct SpotifyTrackItems: Decodable, Identifiable {
+public struct SpotifyTrackItems: Decodable, Identifiable, Sendable {
     public let id: String
     public let externalUrls: ExternalUrls
     public let href: String
@@ -13,12 +13,12 @@ public struct SpotifyTrackItems: Decodable, Identifiable {
     public let popularity: Int
 }
 
-public struct SpotifyImage: Decodable {
+public struct SpotifyImage: Decodable, Sendable {
     public let height: Int?
     public let url: String
     public let width: Int?
 }
 
-public struct SpotifyAlbum: Decodable {
+public struct SpotifyAlbum: Decodable, Sendable {
     public let images: [SpotifyImage]
 }

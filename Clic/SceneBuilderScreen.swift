@@ -61,9 +61,15 @@ struct SceneBuilderScreen: View {
         }
         .environment(\.editMode, .constant(EditMode.active))
         .task {
-            if sonosService.rooms.isEmpty {
+            if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load()
-                rooms = sonosService.rooms.map {
+                rooms = sonosService.sortedRooms.map {
+                    let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                    room.volume = $0.volume
+                    return room
+                }
+            } else {
+                rooms = sonosService.sortedRooms.map {
                     let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
                     room.volume = $0.volume
                     return room
@@ -73,7 +79,7 @@ struct SceneBuilderScreen: View {
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])
         .onChange(of: multiSelection) { oldValue, newValue in
-            let rooms = sonosService.rooms.filter { room in
+            let rooms = rooms.filter { room in
                 multiSelection.contains(room.id)
             }
 

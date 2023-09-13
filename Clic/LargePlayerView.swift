@@ -3,7 +3,8 @@ import SonosKit
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    var group: GroupRoom
+    @Binding var group: GroupRoom
+    @Binding var selected: String?
 
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
@@ -13,9 +14,14 @@ struct LargePlayerView: View {
 
     @State private var isExpanded: Bool = false
 
+    @State private var nextButtonTapped: Bool = false
+
+    private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+
     var body: some View {
         VStack(alignment: .center) {
-            ArtworkView(group: group)
+//            ArtworkView(group: $group))
+            ArtworkViewKing(group: $group)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
                 .shadow(radius: 10)
@@ -28,9 +34,12 @@ struct LargePlayerView: View {
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 80)
             VStack {
-                ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
-                    .tint(.primary)
-                    .progressViewStyle(.linear)
+                if !group.coordinatorRoom.track.duration.isZero {
+                    ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
+                        .tint(.primary)
+                        .progressViewStyle(.linear)
+
+                }
                 HStack {
                     Text(group.coordinatorRoom.track.timestamp)
                     Spacer()
@@ -48,7 +57,7 @@ struct LargePlayerView: View {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Image(systemName: "backward.fill")
+                    Image(systemName: "backward.end.fill")
                         .font(.body)
                 }
                 .buttonStyle(.plain)
@@ -67,40 +76,44 @@ struct LargePlayerView: View {
                         .font(.title)
                 }
                 .buttonStyle(.plain)
+                .sensoryFeedback(.selection, trigger: group.coordinatorRoom.isPlaying)
+                
                 Button {
+                    nextButtonTapped.toggle()
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Image(systemName: "forward.fill")
+                    Image(systemName: "forward.end.fill")
                         .font(.body)
                 }
                 .buttonStyle(.plain)
+                .sensoryFeedback(.selection, trigger: nextButtonTapped)
             }
             .padding(.bottom, 40)
 
 
-//            VolumeControlView(roomGroup: group)
-//                .padding(.bottom, 24)
-//            HStack {
-//                Button {
-//                    showGroup.toggle()
-//                } label: {
-//                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-//                        .font(.body)
-//                        .foregroundStyle(.ultraThickMaterial)
-//                }
-//            }
+            //            VolumeControlView(roomGroup: group)
+            //                .padding(.bottom, 24)
+            //            HStack {
+            //                Button {
+            //                    showGroup.toggle()
+            //                } label: {
+            //                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+            //                        .font(.body)
+            //                        .foregroundStyle(.ultraThickMaterial)
+            //                }
+            //            }
         }
         .padding()
         .frame(maxHeight: .infinity)
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
 
-            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
+            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero)
             track.artworkURL = await sonosService.getArtwork(from: track)
             group.rooms[0].track = track
-            group.coordinatorRoom.track.duration = 2000
+            group.coordinatorRoom.track.duration = 200000
             Task {
                 repeat {
                     try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
@@ -121,7 +134,7 @@ struct LargePlayerView: View {
                 .bold()
             }
             ToolbarItem(placement: .bottomBar) {
-                HStack(spacing: 24) {
+                HStack(spacing: 60) {
                     Button {
                         showGroup.toggle()
                     } label: {
@@ -131,10 +144,11 @@ struct LargePlayerView: View {
                     .fontDesign(.rounded)
                     .buttonStyle(.plain)
                     .font(.body)
+                    
                     Button {
                         showSearch.toggle()
                     } label: {
-                        Image(systemName: "magnifyingglass.circle.fill")
+                        Image(systemName: "waveform.and.magnifyingglass")
                             .font(.body)
                     }
                     .fontDesign(.rounded)
@@ -157,34 +171,44 @@ struct LargePlayerView: View {
             GroupScreen(group: group, viewModel: GroupScreenViewModel(group: group))
         }
         .sheet(isPresented: $showSearch) {
-            MusicSearchScreen(group: group)
+//            SearchScreen(group: group)
+
+            ImprovedSearch(group: group)
         }
         .sheet(isPresented: $showQueue) {
             QueueScreen(group: group)
                 .presentationDetents([.medium, .large])
         }
-//        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
-//        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)
+        .onChange(of: sonosService.selectedGroup) {
+            if group != sonosService.selectedGroup, let selectedGroup = sonosService.selectedGroup {
+                group = selectedGroup
+            }
+        }
+        //        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
+        //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)
         .background {
             ZStack {
-                AsyncImage(
-                    url: group.coordinatorRoom.track.artworkURL,
-                    transaction: Transaction(animation: .snappy)
-                ) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
+//                AsyncImage(
+//                    url: group.coordinatorRoom.track.artworkURL,
+//                    transaction: Transaction(animation: .snappy)
+//                ) { phase in
+//                    switch phase {
+//                    case .success(let image):
+//                        image
+//                            .resizable()
+//                            .aspectRatio(contentMode: .fill)
+//                            .scaleEffect(2)
+//                            .blur(radius: 50)
+//                    default:
+//                        RoundedRectangle(cornerRadius: 4)
+//                            .foregroundStyle(.thinMaterial)
+//                            .shadow(radius: 2)
+//                            .scaleEffect(3)
+//                    }
+                ArtworkViewKing(group: $group)
                             .aspectRatio(contentMode: .fill)
                             .scaleEffect(2)
                             .blur(radius: 50)
-                    default:
-                        RoundedRectangle(cornerRadius: 4)
-                            .foregroundStyle(.thinMaterial)
-                            .shadow(radius: 2)
-                            .scaleEffect(3)
-                    }
-                }
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
                     .ignoresSafeArea()
@@ -202,16 +226,16 @@ struct LargePlayerView: View {
                             isExpanded = false
                         }
                     }
-                GroupVolumeControlView(group: group, isExpanded: $isExpanded)
+                GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
             }
         }
     }
-    
+
 }
 
 #Preview {
     NavigationStack {
-        LargePlayerView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.50", name: "Garage")]))
+        LargePlayerView(group: .constant(.garage), selected: .constant(nil))
             .environment(SonosService())
     }
 }

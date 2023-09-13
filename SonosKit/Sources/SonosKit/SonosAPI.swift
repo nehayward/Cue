@@ -5,10 +5,11 @@ import Network
 final class SonosAPI {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     private lazy var session: URLSession = privateSession
+
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 3
+        configuration.timeoutIntervalForRequest = 5
         return URLSession(configuration: configuration)
     }()
 
@@ -53,20 +54,22 @@ final class SonosAPI {
             "DesiredVolume": volume
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
-            //            if let error = response. {
-            //                print("Error getting current track: \(error.localizedDescription)")
-            //                return
-            //            }
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+            if (response as? HTTPURLResponse)?.statusCode == 200 {
+                print("Success")
+            }
             //            guard let data = data else { return }
-            print(String(data: data, encoding: .utf8))
-            let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
-            print(xml)
+//            print(String(data: data, encoding: .utf8))
+//            let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
+//            print(xml)
         }
     }
 
 
-    func setRelativeVolume(ipAddress: String, volume: Int) async -> Int {
+    @discardableResult func setRelativeVolume(ipAddress: String, volume: Int) async -> Int {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Channel": "Master",
@@ -82,7 +85,7 @@ final class SonosAPI {
         return 0
     }
 
-    func setRelativeGroupVolume(ipAddress: String, volume: Int) async -> Int {
+    @discardableResult func setRelativeGroupVolume(ipAddress: String, volume: Int) async -> Int {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Adjustment": volume
@@ -105,16 +108,26 @@ final class SonosAPI {
             "Channel": "Master",
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
-            let volume = XMLParserSonos().parseVolume(xml: xmlString)
-            return Double(volume)
-        }
+        do {
+            if let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
+                guard let xmlString = String(data: data, encoding: .utf8) else {
+                    print("failed to parse")
+                    return 0
+                }
+                let volume = XMLParserSonos().parseVolume(xml: xmlString)
+                return Double(volume)
+            }
+        } catch {
+            print(error)
+            print("Timed out")
 
+            return 0
+        }
+        print("Timed out")
         return 0
     }
 
-    func getGroupVolume(ipAddress: String) async -> Double {
+    @discardableResult func getGroupVolume(ipAddress: String) async -> Double {
         let arguments: [String: Any] = [
             "InstanceID": 0
         ]
@@ -134,15 +147,15 @@ final class SonosAPI {
             "DesiredVolume": volume
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
-            //            if let error = response. {
-            //                print("Error getting current track: \(error.localizedDescription)")
-            //                return
-            //            }
-            //            guard let data = data else { return }
-            print(String(data: data, encoding: .utf8))
-            let xml = NSString(data: data, encoding: NSUTF8StringEncoding)
-            print(xml)
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+            if (response as? HTTPURLResponse)?.statusCode == 200 {
+                print("Success")
+            }
+//            let xml = String(decoding: data, as: UTF8.self)
+//            print(xml)
         }
     }
 
@@ -180,7 +193,13 @@ final class SonosAPI {
             "InstanceID": 0,
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "Pause", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Pause", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+            if (response as? HTTPURLResponse)?.statusCode == 200 {
+                print("Success")
+            }
         }
     }
 
@@ -190,7 +209,7 @@ final class SonosAPI {
             "Speed": 1
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "Play", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Play", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
                 print(response)
@@ -207,7 +226,7 @@ final class SonosAPI {
             "Speed": 1
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "Next", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Next", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
             }
@@ -223,7 +242,7 @@ final class SonosAPI {
             "InstanceID": 0
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
             }
@@ -263,14 +282,8 @@ final class SonosAPI {
 
 
     func getBatteryLevel(ipAddress: String) {
-        guard let url = URL(string: "http://\(ipAddress):1400/status/batterystatus") else { return }
-        var request = URLRequest(url: url)
-
-        let session = session
-        let task = session.dataTask(with: request) { data, response, error in
-            print(String(data: data!, encoding: .utf8))
-        }
-        task.resume()
+//        guard let url = URL(string: "http://\(ipAddress):1400/status/batterystatus") else { return }
+//        let request = URLRequest(url: url)
     }
 
     func getGroups(ipAddress: String) async throws -> [GroupRoom] {
@@ -280,12 +293,21 @@ final class SonosAPI {
                 let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
                 return zones.compactMap { $0.toGroup }
             }
-        } catch {
-            print(error)
+        } catch URLError.cancelled {
+            print("Cancelled")
+            throw SonosServiceError.cancelled
+        }
+        catch URLError.cannotConnectToHost {
+            print("Can't connect")
+            throw SonosServiceError.sonosSystemNotFound
+        }
+        catch {
+            print(#function, error.localizedDescription)
             // Clear IP and try again.
             throw SonosServiceError.sonosSystemNotFound
         }
-        throw SonosServiceError.sonosSystemNotFound
+        
+        return []
     }
 
     func getRoom(ipAddress: String) async -> [Room] {
@@ -399,7 +421,57 @@ final class SonosAPI {
         }
     }
 
-    func getCurrentTransportActions(IP: String) async -> AvailableActions {
+    func queueSpotifyTrack(ID: String, IP: String) async {
+//        let URIMetadata = """
+//        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
+//          xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">
+//          <item id="\(("spotify:track:" + ID).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)" restricted="true">
+//            <upnp:class>object.item.audioItem.musicTrack</upnp:class>
+//            <desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON2311_X_#Svc2311-0-Token</desc>
+//            <dc:title></dc:title>
+//        </item>
+//        </DIDL-Lite>
+//        """
+//
+//        let arguments: [String: Any] = [
+//            "InstanceID": 0,
+//            "EnqueuedURI": "x-sonos-spotify:" + "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!,
+//            "EnqueuedURIMetaData": URIMetadata.escaped,
+//            "DesiredFirstTrackNumberEnqueued": 0,
+//            "EnqueueAsNext": 0
+//        ]
+
+        let metaData = "track:\(ID)".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
+
+        let URIMetadata = """
+        &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="10032020spotify%3a\(metaData)" restricted="true"&gt;&lt;dc:title&gt;Dance&amp;#32;The&amp;#32;Night&amp;#32;-&amp;#32;From&amp;#32;Barbie&amp;#32;The&amp;#32;Album&amp;#32;-&amp;#32;song&amp;#32;and&amp;#32;lyrics&amp;#32;by&amp;#32;Dua&amp;#32;Lipa&amp;#32;|&amp;#32;Spotify&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON3079_X_#Svc3079-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+        """
+
+        let test = "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
+print(test)
+
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": "x-sonos-spotify:" + test,
+            "EnqueuedURIMetaData": URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 0,
+            "EnqueueAsNext": 0
+        ]
+
+        print(arguments["EnqueuedURI"])
+        print(URIMetadata.escaped)
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            } else {
+                print("Success", (response as? HTTPURLResponse)?.statusCode)
+            }
+        }
+    }
+
+
+    func getCurrentTransportActions(IP: String) async -> AvailableActions? {
         let arguments: [String: Any] = [
             "InstanceID": 0
         ]
@@ -407,7 +479,10 @@ final class SonosAPI {
         if let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetCurrentTransportActions", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 let xmlString = String(data: data, encoding: .utf8)!
-                let transportActions = XMLParserSonos().parseGetCurrentTransportActions(xml: xmlString)
+                guard let transportActions = XMLParserSonos().parseGetCurrentTransportActions(xml: xmlString) else {
+                    return nil
+                }
+                print(transportActions)
             }
             if (response as? HTTPURLResponse)?.statusCode == 200 {
                 print("Success")
@@ -421,8 +496,8 @@ final class SonosAPI {
             "ObjectID": "Q:0",
             "BrowseFlag": "BrowseDirectChildren",
             "Filter": "*",
-            "StartingIndex": 1,
-            "RequestedCount": 25,
+            "StartingIndex": 0,
+            "RequestedCount": 0,
             "SortCriteria": ""
         ]
 
@@ -437,6 +512,20 @@ final class SonosAPI {
             return XMLParserSonos().parseQueue(xml: xmlString)
         }
         return []
+    }
+    
+    func seek(trackNumber: Int, IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Unit": "TRACK_NR",
+            "Target": trackNumber,
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
     }
 
     func setAVTransport(IP: String, ID: String) async {

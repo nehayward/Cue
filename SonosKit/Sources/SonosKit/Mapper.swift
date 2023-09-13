@@ -6,10 +6,13 @@ extension ZoneGroup {
         if rooms.isEmpty {
             return nil
         }
-        
+
+        guard let coordinatorRoom = rooms.first(where: { $0.id == coordinator }) else { return nil }
+
         return GroupRoom(id: ID,
-                  coordinatorID: coordinator,
-                  rooms: rooms
+                         coordinatorID: coordinator,
+                         rooms: rooms,
+                         coordinatorRoom: coordinatorRoom
         )
     }
 }

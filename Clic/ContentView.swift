@@ -6,29 +6,33 @@ struct ContentView: View {
     @Environment(SubscriptionService.self) var superMember: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
 
+//    @Binding var current: GroupRoom?
     @Binding var selected: String?
     @State var isShowing: Bool = false
 
     var body: some View {
         @Bindable var alert = alertService.alert
+        @Bindable var sonosService = sonosService
 
         NavigationSplitView {
-            List (sonosService.sorted, selection: $selected) { group in
+            List ($sonosService.sorted, selection: $selected) { $group in
                 Section {
                     VStack {
                         HStack(alignment: .top) {
-                            ArtworkView(group: group)
+//                            ArtworkView(group: $group)
+//                                .frame(width: 72, height: 72)
+                            ArtworkViewKing(group: $group)
                                 .frame(width: 72, height: 72)
-                            ZoneView(group: group)
+                            ZoneView(group: $group)
                             Spacer()
-                            MediaControlsView(group: group)
+                            MediaControlsView(group: $group)
                         }
                         Divider()
-                        VolumeControlView(roomGroup: group)
+                        VolumeControlView(group: $group)
                     }
                 } header: {
                     HStack {
-                        Image(systemName: "hifispeaker")
+                        Image(systemName: "hifispeaker.fill")
                         Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
                     }
                     .fontDesign(.rounded)
@@ -37,6 +41,15 @@ struct ContentView: View {
                 .tag(group.coordinatorID)
                 .headerProminence(.increased)
             }
+            .safeAreaInset(edge: .bottom) {
+                if !sonosService.groups.isEmpty {
+                    SceneView()
+                        .padding()
+                        .background {
+                            Color.clear.allowsHitTesting(false)
+                        }
+                }
+            }
 //            VStack {
 //                SceneView(show: $isShowing)
 //                //                    .listRowBackground(Color.clear)
@@ -44,25 +57,26 @@ struct ContentView: View {
 //            }
 //            .backgroundStyle(.thinMaterial)
         } detail: {
-            if selected != nil, let group = sonosService.groups.first(where: { group in
-                group.coordinatorID == selected! }) {
-                LargePlayerView(group: group)
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                LargePlayerView(group: $sonosService.sorted[index], selected: $selected)
             }
         }
+//        .onChange(of: current) {
+//            guard let current else {
+//                sonosService.selectedGroup = nil
+//                return
+//            }
+//            sonosService.selectedGroup = current
+//        }
         .onChange(of: selected) {
-            guard let selected, superMember.isEnabled else { return }
-            let selectedGroup = sonosService.groups.first(where: { room in
-                room.coordinatorID == selected
-            })
-
-            guard let selectedGroup else { return }
-            sonosService.selectedGroup = selectedGroup
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                sonosService.selectedGroup = sonosService.sorted[index]
+            } else {
+                sonosService.selectedGroup = nil
+                selected = nil
+            }
         }
         .animation(.spring, value: sonosService.isSearching)
-        .task {
-            sonosService.monitor()
-            await superMember.setup()
-        }
         // MARK: Debug
 //        .overlay {
 //                VStack {
@@ -120,7 +134,7 @@ struct ContentView: View {
                     .padding()
             }
 
-            if sonosService.isSearching {
+            if sonosService.isSearching && sonosService.groups.isEmpty {
                 Label("Searching", systemImage: "waveform.badge.magnifyingglass")
                     .imageScale(.large)
                     .symbolEffect(.variableColor)
@@ -145,13 +159,21 @@ struct ContentView: View {
             let thumbImage = UIImage()
             UISlider.appearance().setThumbImage(thumbImage, for: .normal)
         }
-        .animation(.smooth, value: sonosService.groups)
+        .animation(.interactiveSpring, value: sonosService.groups)
+        .task {
+            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            sonosService.monitor()
+        }
+
     }
 }
+
 
 #Preview {
     ContentView(selected: .constant(nil))
         .environment(SonosService())
         .environment(SubscriptionService())
+        .environment(AlertService())
+
 }
 

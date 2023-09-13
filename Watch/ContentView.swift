@@ -1,32 +1,29 @@
 import SwiftUI
 import SonosKit
 
-@Observable
-class Popover {
-    var isShowing: Bool = false
-    var text: String = ""
-}
-
 struct ContentView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Popover.self) var popOver: Popover
     @Binding var selected: String?
 
     var body: some View {
+        @Bindable var sonosService = sonosService
+
         NavigationSplitView {
-            List (sonosService.sorted, selection: $selected) { group in
-                if group.tvMode {
-                    TVModeView(group: group)
-                } else {
-                    ExtractedView(group: group)
+            List ($sonosService.sorted, selection: $selected) { $group in
+                ZStack {
+                    if group.tvMode {
+                        TVModeView(group: $group)
+                    } else {
+                        ExtractedView(group: $group)
+                    }
                 }
+                .tag(group.coordinatorID)
             }
             .listStyle(.carousel)
         } detail: {
-            if let selected, let group = sonosService.groups.first(where: { group in
-                group.coordinatorID == selected
-            }) {
-                PlayerScreen(group: group)
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                PlayerScreen(group: $sonosService.sorted[index])
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -44,16 +41,11 @@ struct ContentView: View {
         }
         .animation(.spring, value: sonosService.isSearching)
         .onChange(of: selected) {
-            guard let selected else {
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                sonosService.selectedGroup = sonosService.sorted[index]
+            } else {
                 sonosService.selectedGroup = nil
-                return
             }
-            let selectedGroup = sonosService.groups.first(where: { room in
-                room.coordinatorID == selected
-            })
-
-            guard let selectedGroup else { return }
-            sonosService.selectedGroup = selectedGroup
         }
         .overlay {
             if popOver.isShowing {
@@ -80,31 +72,53 @@ struct ContentView: View {
 //            }
 //            .ignoresSafeArea()
 //        }
-        .overlay(alignment: .top) {
-            if sonosService.systemNotFound {
-                VStack {
-                    Text("Disconnected")
-                        .bold()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    Button {
-                        sonosService.monitorWatch()
-                    } label: {
-                        Text("Search for System")
-                            .bold()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .foregroundStyle(.thickMaterial)
-                    .padding()
-                }
-                .background {
-                    Rectangle()
-                        .foregroundStyle(.thinMaterial)
-                        .ignoresSafeArea()
-                }
-            }
-        }
-        .animation(.smooth, value: sonosService.systemNotFound)
-        .animation(.smooth, value: sonosService.groups)
+//        .overlay(alignment: .top) {
+//            if sonosService.systemNotFound {
+//                VStack {
+//                    Text("Disconnected \(sonosService.isRunning ? "Running" : "Failed"), \(sonosService.lastKnownIP)")
+//                        .bold()
+//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+//                    Button {
+//                        sonosService.monitorWatch()
+//                    } label: {
+//                        Text("Search for System")
+//                            .bold()
+//                    }
+//                    .buttonStyle(.borderedProminent)
+//                    .foregroundStyle(.thickMaterial)
+//                    .padding()
+//                }
+//                .background {
+//                    Rectangle()
+//                        .foregroundStyle(.thinMaterial)
+//                        .ignoresSafeArea()
+//                }
+//            }
+//
+//            if sonosService.groups.isEmpty {
+//                VStack {
+//                    Text("Empty \(sonosService.isRunning ? "Running" : "Failed")")
+//                        .bold()
+//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+//                    Button {
+//                        sonosService.monitorWatch()
+//                    } label: {
+//                        Text("Search for System")
+//                            .bold()
+//                    }
+//                    .buttonStyle(.borderedProminent)
+//                    .foregroundStyle(.thickMaterial)
+//                    .padding()
+//                }
+//                .background {
+//                    Rectangle()
+//                        .foregroundStyle(.thinMaterial)
+//                        .ignoresSafeArea()
+//                }
+//            }
+//        }
+//        .animation(.smooth, value: sonosService.systemNotFound)
+//        .animation(.smooth, value: sonosService.groups)
     }
 }
 
@@ -117,7 +131,7 @@ struct ContentView: View {
 
 struct ExtractedView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Bindable var group: GroupRoom
+    @Binding var group: GroupRoom
 
     var body: some View {
         HStack {

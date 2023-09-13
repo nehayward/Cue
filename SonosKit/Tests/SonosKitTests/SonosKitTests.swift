@@ -5,7 +5,6 @@ final class SonosKitTests: XCTestCase {
     func testXMLParse() throws {
         let zone = Bundle.module.url(forResource: "Zone", withExtension: "xml")
         let zoneXML = try! String(contentsOf: zone!)
-//        print(zoneXML)
         XMLParserSonos().parse(xml: zoneXML)
     }
 
@@ -31,15 +30,6 @@ final class SonosKitTests: XCTestCase {
         XCTAssertEqual(zones.count, 5)
     }
 
-
-//    func testTackParse() throws {
-//        let track = Bundle.module.url(forResource: "Track", withExtension: "xml")
-//        let trackXML = try! String(contentsOf: track!)
-////        print(zoneXML)
-//        let songTrack = XMLParserSonos().parseTrackInfo(xml: trackXML)
-//        print(songTrack)
-//    }
-
     func testGetPositionParse() throws {
         let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
@@ -61,7 +51,6 @@ final class SonosKitTests: XCTestCase {
     func testPlaybackInfoParse() throws {
         let transportInfoURL = Bundle.module.url(forResource: "GetTransportInfo", withExtension: "xml")
         let transportInfoXML = try! String(contentsOf: transportInfoURL!)
-//        print(zoneXML)
         let playbackState = XMLParserSonos().parsePlaybackInfo(xml: transportInfoXML)
         print(playbackState)
     }
@@ -78,10 +67,8 @@ final class SonosKitTests: XCTestCase {
     func testGetQueueParsing() throws {
         let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
         let getQueueXML = try! String(contentsOf: getQueueURL!)
-//        print(getQueueXML)
         let tracks = XMLParserSonos().parseQueue(xml: getQueueXML)
-
-//        print(householdID)
+        XCTAssertEqual(tracks.count, 25)
     }
 
     func testGetCurrentTransportActions() throws {

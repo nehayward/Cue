@@ -1,9 +1,9 @@
 import SwiftUI
 import SonosKit
 
-struct ArtworkView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var group: GroupRoom
+struct ArtworkDebugView: View {
+    var sonosService: SonosService
+    var group: GroupRoom
 
     var body: some View {
         AsyncImage(
@@ -39,27 +39,18 @@ struct ArtworkView: View {
                     }
             case .failure:
                 EmptyView()
-                    .overlay(alignment: .center) {
-                        VStack {
-                            Text(group.coordinatorRoom.track.artworkURL?.description ?? "FAILED")
-                            Text("Failed")
-                        }
-                    }
             default:
                 RoundedRectangle(cornerRadius: 4)
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.ultraThinMaterial)
                     .shadow(radius: 2)
-                    .overlay(alignment: .center) {
-                        Text(group.coordinatorRoom.track.artworkURL?.description ?? "Default")
-                    }
             }
         }
     }
 }
 
-//#Preview {
-//    ArtworkView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")], coordinatorRoom: .garage))
-//        .environment(SonosService())
-//}
+#Preview {
+    ArtworkDebugView(sonosService: SonosService(), group: GroupRoom(id: "", coordinatorID: "", rooms: [.garage], coordinatorRoom: .garage))
+        .environment(SonosService())
+}
 

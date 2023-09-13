@@ -2,10 +2,10 @@ import AppIntents
 import SonosKit
 
 struct SonosDeviceEntity: AppEntity, Identifiable, Codable {
-    var id: String
-    var name: String
-    var ip: String
-    var volume: Double
+    let id: String
+    let name: String
+    let ip: String
+    let volume: Double
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Sonos Device"
 

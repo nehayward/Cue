@@ -3,7 +3,7 @@ import SonosKit
 
 struct TVModeView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Bindable var group: GroupRoom
+    @Binding var group: GroupRoom
 
     var body: some View {
 
@@ -42,7 +42,7 @@ struct TVModeView: View {
 
 #Preview {
     List {
-        TVModeView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Theater")]))
+        TVModeView(group: .constant(.garage))
             .environment(SonosService())
     }
     .listStyle(.carousel)

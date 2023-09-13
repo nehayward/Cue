@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 import SonosKit
 import WidgetKit
@@ -8,40 +9,65 @@ struct ClicWatchApp: App {
     @State var selected: String?
 
     var sonosService = SonosService()
-    var popOver = Popover()
+    var popover = Popover()
 
     var body: some Scene {
         WindowGroup {
             ContentView(selected: $selected)
-                .environment(popOver)
+                .environment(popover)
                 .environment(sonosService)
+                .onChange(of: selected) {
+                    print("Update current")
+                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                        sonosService.selectedGroup = sonosService.sorted[index]
+                    }
+                }
+//                .overlay(alignment: .top) {
+//                    Text("State: \(sonosService.state)")
+//                        .fontDesign(.rounded)
+//                        .fontWidth(.compressed)
+//                        .font(.caption2)
+//                        .foregroundStyle(Color.accentColor.gradient)
+//                        .padding()
+//                        .background(.thickMaterial)
+//                        .clipShape(Capsule())
+//                }
+            
+//                .overlay(alignment: .top) {
+//                    Text(sonosService.lastKnownIP)
+//                        .padding()
+//                        .background {
+//                            Capsule()
+//                                .foregroundStyle(.thinMaterial)
+//                        }
+//                }
         }
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
-                Task {
-                    do {
-                        try await sonosService.updateGroupsCheckPlayback()
-                        print("Tock", Date.now)
-                    } catch {
-                        print(error)
-                        // Restart Search
-                        sonosService.monitorWatch()
-                    }
-                    if selected == nil {
-                        selected = sonosService.groups.first(where: { room in
-                            room.coordinatorRoom.isPlaying
-                        })?.coordinatorID
-                    }
-                    sonosService.monitorWatch()
-                }
+                sonosService.monitorWatch()
+
+                // MARK: Wait until systemservice fixed
+//                Task {
+//                    do {
+//                        try await sonosService.updateGroupsCheckPlayback()
+//                        print("Tock", Date.now)
+//                    } catch {
+//                        print(error)
+//                    }
+//                    if selected == nil {
+//                        selected = sonosService.groups.first(where: { room in
+//                            room.coordinatorRoom.isPlaying
+//                        })?.coordinatorID
+//                    }
+//                }
             case .inactive:
+                print("Inactive")
+            case .background:
                 sonosService.systemNotFound = false
                 Task {
                     sonosService.sonosPulse.cancel()
                 }
-            case .background:
-                sonosService.systemNotFound = false
                 break
             @unknown default:
                 break

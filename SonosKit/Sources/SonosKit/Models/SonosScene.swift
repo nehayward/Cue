@@ -1,8 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
-public class SonosScene {
+public struct SonosScene {
     public var name: String = ""
     public var rooms: [Room] = []
 

@@ -6,7 +6,11 @@ final class IntegrationsTests: XCTestCase {
     let sonosService = SonosService()
 
     func testQueue() async throws {
-        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", title: "Dua Lipa Discography", owner: "Dua Lipa", on: "192.168.4.49", group: GroupRoom(id: "", coordinatorID: "", rooms: []))
+        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", title: "Dua Lipa Discography", owner: "Dua Lipa", on: "192.168.4.49", group: GroupRoom(id: "", coordinatorID: "", rooms: [], coordinatorRoom: .garage))
+    }
+
+    func testSpotifyTrackQueue() async throws {
+        await sonosService.queueSpotifyTrack(id: "1vYXt7VSjH9JIM5oRRo7vA", group: .garage)
     }
 
     func testGetQueue() async throws {
@@ -15,8 +19,20 @@ final class IntegrationsTests: XCTestCase {
     }
 
     func testGetCurrentTransportActions() async throws {
-        let availableActions = await sonosService.getCurrentTransportActions(ip: garageSonosIP)
+        let availableActionsOptional = await sonosService.getCurrentTransportActions(ip: garageSonosIP)
+        let availableActions = try XCTUnwrap(availableActionsOptional)
         XCTAssert(availableActions.contains(.play))
         print(availableActions)
     }
+
+    func testGetGroup() async throws {
+        do {
+            let groups = try await sonosService.getGroups(with: "192")
+            print(groups)
+        }
+        catch {
+            print(error)
+        }
+    }
+    
 }

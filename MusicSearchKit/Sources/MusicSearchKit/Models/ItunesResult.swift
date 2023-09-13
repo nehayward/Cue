@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ItunesResult: Identifiable, Decodable {
+public struct ItunesResult: Identifiable, Decodable, Sendable {
     public var id: String { trackID.description }
     public let artistName: String
     public let trackName: String
@@ -13,7 +13,7 @@ public struct ItunesResult: Identifiable, Decodable {
     public let artworkUrl100: String
     public let durationInMiliSeconds: Int
     public var artworkURL: String {
-        artworkUrl100.replacingOccurrences(of: "100", with: "500")
+        artworkUrl100.replacingOccurrences(of: "100", with: "1000")
     }
     
     public func artworkURL(with size: String) -> String {

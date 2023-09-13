@@ -6,19 +6,19 @@ struct PlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Popover.self) var popOver: Popover
 
-    @Bindable var group: GroupRoom
+    @Binding var group: GroupRoom
     @State var isIdle: Bool = true
     @State var showGroup: Bool = false
     @State var volume: Double  = 0
+    
+    @State var artworkURL: URL?
 
     var body: some View {
         VStack {
-            KFImage(group.coordinatorRoom.track.artworkURL)
+            KFImage(artworkURL)
                 .cacheMemoryOnly()
-                .fade(duration: 0.25)
-                .onProgress { receivedSize, totalSize in  }
-                .onSuccess { result in  }
-                .onFailure { error in }
+                .fade(duration: 0.2)
+                .retry(DelayRetryStrategy(maxRetryCount: 2, retryInterval: .seconds(1)))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
 //            AsyncImage(
@@ -92,16 +92,24 @@ struct PlayerView: View {
 //            }
 //            .ignoresSafeArea()
 //            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        KFImage(group.coordinatorRoom.track.artworkURL)
+//            .overlay {
+//                Rectangle()
+//                    .foregroundStyle(.thinMaterial)
+//                    .ignoresSafeArea()
+//            }
+
+
+        KFImage(artworkURL)
             .cacheMemoryOnly()
-            .fade(duration: 0.25)
-            .onProgress { receivedSize, totalSize in  }
-            .onSuccess { result in  }
-            .onFailure { error in }
             .resizable()
             .blur(radius: 20)
             .ignoresSafeArea()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                Rectangle()
+                    .foregroundStyle(.thinMaterial)
+                    .ignoresSafeArea()
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -150,8 +158,8 @@ struct PlayerView: View {
                     .gaugeStyle(.accessoryCircularCapacity)
                     .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
                 })
-                .buttonStyle(.plain)
-                .scaleEffect(0.8)
+                .controlSize(.large)
+                .clipShape(Circle())
                 .transaction { transaction in
                     transaction.animation = nil
                 }
@@ -169,63 +177,59 @@ struct PlayerView: View {
             }
         }
         .sheet(isPresented: $showGroup) {
-            GroupScreen(roomGroup: group, viewModel: GroupScreenViewModel(group: group))
+            GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
         }
         .onChange(of: volume) {
             Task {
                 await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             }
         }
-        .onChange(of: group) {
-            print("Refreshed", group)
-            sonosService.selectedGroup = group
-            // MARK: Refresh
-            Task {
-                guard let track = await sonosService.getTrack(ip: group.coordinatorRoom.ip) else { return }
-                let previousArtwork = group.coordinatorRoom.track.artworkURL
-                group.coordinatorRoom.track = track
-                if previousArtwork != nil {
-                    group.coordinatorRoom.track.artworkURL = previousArtwork
-                }
-                guard let artworkURL = await sonosService.getArtwork(from: track, size: 100) else {
-                    return
-                }
-                if artworkURL != previousArtwork {
-                    group.coordinatorRoom.track.artworkURL = artworkURL
-                }
+        .onChange(of: sonosService.selectedGroup) {
+            if group != sonosService.selectedGroup, let selectedGroup = sonosService.selectedGroup {
+                group = selectedGroup
             }
         }
+//        .onChange(of: group) {
+//            print("Refreshed", group)
+//            sonosService.selectedGroup = group
+//            // MARK: Refresh
+//            Task {
+//                guard let track = await sonosService.getTrack(ip: group.coordinatorRoom.ip) else { return }
+//                let previousArtwork = group.coordinatorRoom.track.artworkURL
+//                group.coordinatorRoom.track = track
+//                if previousArtwork != nil {
+//                    group.coordinatorRoom.track.artworkURL = previousArtwork
+//                }
+//                guard let artworkURL = await sonosService.getArtwork(from: track, size: 100) else {
+//                    return
+//                }
+//                if artworkURL != previousArtwork {
+//                    group.coordinatorRoom.track.artworkURL = artworkURL
+//                }
+//            }
+//        }
         .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
         .task {
             print("Set Volume")
             volume = group.groupVolume
-
-            print("Fetching Track")
-            let previousArtwork = group.coordinatorRoom.track.artworkURL
-            if previousArtwork != nil {
-                group.coordinatorRoom.track.artworkURL = previousArtwork
-            }
-            guard let artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 100) else {
-                return
-            }
-            if artworkURL != previousArtwork {
-                group.coordinatorRoom.track.artworkURL = artworkURL
-            }
         }
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
                 sonosService.monitor()
-            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .apple, duration: 60, playbackPosition: .zero)
+            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero)
             track.artworkURL = await sonosService.getArtwork(from: track)
-            print(track.artworkURL)
             group.coordinatorRoom.track = track
+        }
+        .task(id: group.coordinatorRoom.track.name) {
+            print("Fetching Track")
+            artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
         }
     }
 }
 
 #Preview {
     NavigationStack {
-        PlayerView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.50", name: "Garage")]))
+        PlayerView(group: .constant(.garage))
             .environment(SonosService())
             .environment(Popover())
 

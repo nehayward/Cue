@@ -1,8 +1,8 @@
 import SwiftUI
 import SonosKit
 
-struct ZoneView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+struct DebugEmbedTest: View {
+    var sonosService: SonosService
     @Binding var group: GroupRoom
 
     var body: some View {
@@ -11,21 +11,9 @@ struct ZoneView: View {
             Text(group.coordinatorRoom.track.artist)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            Text("\(group.coordinatorRoom.isPlaying ? "True" : "False")")
         }
         .frame(alignment: .top)
         .fontDesign(.rounded)
     }
 }
-
-//#Preview {
-//    List {
-//        Section {
-//            ZoneView(group: .garage)
-//                .environment(SonosService())
-//        }
-//        Section {
-//            ZoneView(group: .garage)
-//                .environment(SonosService())
-//        }
-//    }
-//}

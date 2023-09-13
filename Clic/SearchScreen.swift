@@ -2,16 +2,15 @@ import SwiftUI
 import MusicSearchKit
 import SonosKit
 
-enum MusicSearchSelection: String, Equatable {
+enum SearchSelection: String, Equatable {
     case spotify
     case apple
 }
 
-struct MusicSearchScreen: View {
+struct SearchScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismissSearch) var dismissSearch
     @Environment(\.isSearching) var isSearching
-
 
 
     @State var musicSearchService = MusicSearchService()
@@ -19,7 +18,7 @@ struct MusicSearchScreen: View {
     @State var results: [ItunesResult] = []
     @State var spotifyResult: SpotifyResult?
     @State private var searchTask: Task<Void, Error>?
-    @State private var musicSearchSelection: MusicSearchSelection = .spotify
+    @State private var musicSearchSelection: SearchSelection = .spotify
     @State private var searchFieldIsPresented: Bool = true
     @FocusState private var focusedField: Bool
 
@@ -28,7 +27,7 @@ struct MusicSearchScreen: View {
 
 
 
-    @State private var scope: MusicSearchSelection = .spotify
+    @State private var scope: SearchSelection = .spotify
 
     var body: some View {
         NavigationStack {
@@ -125,7 +124,6 @@ struct MusicSearchScreen: View {
                 case .spotify:
                     searchTask = Task {
                         spotifyResult = await musicSearchService.searchSpotify(song: query, artist: "")
-                        print(spotifyResult)
                     }
                 case .apple:
                     searchTask = Task {
@@ -139,7 +137,6 @@ struct MusicSearchScreen: View {
                 case .spotify:
                     searchTask = Task {
                         spotifyResult = await musicSearchService.searchSpotify(song: query, artist: "")
-                        print(spotifyResult)
                     }
                 case .apple:
                     searchTask = Task {
@@ -191,8 +188,8 @@ struct MusicSearchScreen: View {
 //                focusedField = true
 //            }
             .searchScopes($musicSearchSelection, activation: .onSearchPresentation) {
-                Text("Spotify").tag(MusicSearchSelection.spotify)
-                Text("Apple").tag(MusicSearchSelection.apple)
+                Text("Spotify").tag(SearchSelection.spotify)
+                Text("Apple").tag(SearchSelection.apple)
 //
 //                Picker("", selection: $musicSearchSelection) {
 //                    Text("Spotify")
@@ -212,7 +209,7 @@ struct MusicSearchScreen: View {
 #Preview {
     Text("Searching...")
         .fullScreenCover(isPresented: .constant(true)) {
-            MusicSearchScreen(query: "Dua Lipa", group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.49", name: "Gym")]))
+            SearchScreen(query: "Dua Lipa", group: .garage)
                 .environment(SonosService())
         }
 

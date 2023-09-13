@@ -2,7 +2,7 @@ import SwiftUI
 import SonosKit
 
 struct PlayerView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    var sonosService: SonosService
     var group: GroupRoom
     @State var selection: PresentationDetent = .large
     @Namespace var namespace
@@ -15,7 +15,7 @@ struct PlayerView: View {
         if selection == .large {
             VStack {
                 HStack {
-                    ArtworkView(group: group)
+                    ArtworkDebugView(sonosService: sonosService, group: group)
                         .matchedGeometryEffect(id: "album", in: namespace)
                         .cornerRadius(12)
                         .frame(width: 300, height: 300)
@@ -25,7 +25,7 @@ struct PlayerView: View {
         VStack(alignment: .leading) {
             HStack(alignment: .center) {
                 if selection != .large {
-                    ArtworkView(group: group)
+                    ArtworkDebugView(sonosService: sonosService, group: group)
                         .matchedGeometryEffect(id: "album", in: namespace)
                         .cornerRadius(12)
                         .frame(width: 72, height: 72)
@@ -104,7 +104,7 @@ struct PlayerView: View {
                     }
                 }
             }
-           VolumeControlView(roomGroup: group)
+//           VolumeControlView(group: group)
         }
         .padding()
         .frame(maxWidth: .infinity)
@@ -135,6 +135,5 @@ struct PlayerView: View {
 }
 
 #Preview {
-    PlayerView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "192.168.4.50", name: "Garage")]))
-        .environment(SonosService())
+    PlayerView(sonosService: SonosService(), group: .garage)
 }

@@ -18,21 +18,19 @@ final class LiveActivityManager {
     func refresh() {
         let contentState = ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: false, trackName: "Testing", imageData: Data(), volume: 0)
         let activityContent = ActivityContent(state: contentState, staleDate: nil)
-        Task {
-           await activity?.update(activityContent)
+        Task { [weak self] in
+            guard let self else { return }
+            await activity?.update(activityContent)
         }
 
     }
-
+    
     func createActivity(with groups: [GroupRoom]) {
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
                 Task {
                     for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-                        await activity.end(
-                            using: .init(date: .now, isPlaying: false, trackName: "", imageData: nil, volume: 0),
-                            dismissalPolicy: .immediate
-                        )
+                        await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
                         self.activity = nil
                     }
                 }
@@ -48,7 +46,7 @@ final class LiveActivityManager {
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             do {
                 activity = try Activity.request(attributes: sonosAttribute, content: activityContent)
-                print("Started", activity?.id)
+                //                print("Started", activity?.id)
             } catch (let error) {
                 print("Error requesting pizza delivery Live Activity \(error.localizedDescription).")
             }

@@ -2,51 +2,34 @@ import Foundation
 import Network
 import os
 
-
-extension NWBrowser.State {
-    var debugDescription: String {
-        switch self {
-        case .cancelled:
-            return "Cancelled"
-        case .failed(let error):
-            return "Failed: \(error)"
-        case .ready:
-            return "Ready"
-        case .setup:
-            return "Setup"
-        case .waiting(let error):
-            return "Waiting: \(error)"
-        @unknown default:
-            return "Unknown"
-        }
-    }
-}
-
-
 @Observable
-final class SonosSystemDiscoverService {
+public final class SonosSearch {
     var isSearching: Bool = true
 
     private var browser: NWBrowser?
-    private let sonosBonjourServiceType = "_sonos._tcp"
+    private let sonosBonjourServiceType = "_http._tcp"
     private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
 
     private var permissionsDenied: Bool = false
 
-    var lastKnownIP: String {
-        get {
-            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
-        }
+    //    var lastKnownIP: String {
+    //        get {
+    //            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
+    //        }
+    //        set {
+    //            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
+    //        }
+    //    }
+
+    public var lastKnownIP: String = ""
+    public var lastKnownState: String = ""
+
+    public init() {
+        
     }
 
-//    var lastKnownIP: String = ""
-    var lastKnownState: String = ""
-
-    func startBrowsing() {
+    public func startBrowsing() {
         stopBrowsing()
         print("Search")
         let params = NWParameters()
@@ -55,8 +38,10 @@ final class SonosSystemDiscoverService {
         params.acceptLocalOnly = true
         params.allowFastOpen = true
 
-        let browser = NWBrowser(for: .bonjourWithTXTRecord(type: sonosBonjourServiceType, domain: nil), using: params)
+        
+        let browser = NWBrowser(for: .bonjour(type: sonosBonjourServiceType, domain: nil), using: params)
         self.browser = browser
+
         browser.browseResultsChangedHandler = { [weak self] results, changed in
             guard let self else { return }
             print("Browse results")
@@ -97,30 +82,58 @@ final class SonosSystemDiscoverService {
         browser?.cancel()
         browser = nil
     }
-    //
-    //    func search() {
-    //        print("Search")
-    //        let parameters = NWParameters()
-    //        parameters.includePeerToPeer = true
-    //        parameters.acceptLocalOnly = true
-    //        parameters.allowFastOpen = true
-    //
-    //        browser = nil
-    //        browser = NWBrowser(for: .bonjourWithTXTRecord(type: "_sonos._tcp", domain: nil), using: parameters)
-    //        browser?.browseResultsChangedHandler = { [weak self] results, _ in
-    //            self?.changeHandler(results)
-    //        }
-    //        browser?.stateUpdateHandler = { [weak self] in self?.stateHandler($0) }
-    //        browser?.start(queue: .main)
-    //    }
-    //
-    //    func stop() {
-    //        isSearching = false
-    //        browser?.cancel()
-    //        browser = nil
-    //    }
 
-    func getFirstIP() async throws -> String {
+    func search() {
+        print("Search")
+        let parameters = NWParameters()
+        parameters.includePeerToPeer = true
+        parameters.acceptLocalOnly = true
+        parameters.allowFastOpen = true
+
+        browser = nil
+        browser = NWBrowser(for: .bonjourWithTXTRecord(type: "_sonos._tcp", domain: nil), using: parameters)
+        browser?.browseResultsChangedHandler = { [weak self] results, _ in
+            self?.changeHandler(results)
+        }
+        browser?.stateUpdateHandler = { [weak self] in self?.stateHandler($0) }
+        browser?.start(queue: .main)
+    }
+
+    func stop() {
+        isSearching = false
+        browser?.cancel()
+        browser = nil
+    }
+
+    public func ssdp() {
+        guard let multicastGroup = try? NWMulticastGroup(for: [ .hostPort(host: "239.255.255.250", port: 1900) ]) else {
+            fatalError("Failed to create multicast group")
+        }
+        let connectionGroup = NWConnectionGroup(with: multicastGroup, using: .udp)
+        connectionGroup.setReceiveHandler(maximumMessageSize: 16384, rejectOversizedMessages: true) { message, content, isComplete in
+            print("Received message from \(String(describing: message.remoteEndpoint))")
+            if let content = content, let message = String(data: content, encoding: .utf8) {
+                print("Message: \(message)")
+            }
+        }
+        connectionGroup.stateUpdateHandler = { newState in
+            print("Group entered state \(String(describing: newState))")
+        }
+        connectionGroup.start(queue: .main)
+        let searchString = "M-SEARCH * HTTP/1.1\r\n" +
+            "HOST: 239.255.255.250:1900\r\n" +
+            "MAN: \"ssdp:discover\"\r\n" +
+            "ST: urn:schemas-upnp-org:device:ZonePlayer:1\r\n" +
+            "MX: 1\r\n\r\n"
+        let groupSendContent = Data(searchString.utf8)
+//        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
+            connectionGroup.send(content: groupSendContent) { error in
+                print("Send complete with error \(String(describing: error))")
+            }
+//        }
+    }
+
+    public func getFirstIP() async throws -> String {
         //        try? await Task.sleep(for: .seconds(4))
 //        lastKnownIP = ""
 
@@ -143,7 +156,7 @@ final class SonosSystemDiscoverService {
                     lastKnownIP = ""
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(10) {
+                if Date.now > date.addingTimeInterval(20) {
                     lastKnownIP = ""
                     break
                 }

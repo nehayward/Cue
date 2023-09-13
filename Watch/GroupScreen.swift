@@ -5,13 +5,13 @@ struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
 
-    @Bindable var roomGroup: GroupRoom
+    @Binding var group: GroupRoom
     @State var viewModel: GroupScreenViewModel
 
     var body: some View {
         List {
-            ForEach(sonosService.rooms) { room in
-                if room.id != roomGroup.coordinatorRoom.id {
+            ForEach(sonosService.sortedRooms) { room in
+                if room.id != group.coordinatorRoom.id {
                     Button {
                         viewModel.buttonAction(id: room.id)
                     } label: {
@@ -30,13 +30,18 @@ struct GroupScreen: View {
         .safeAreaInset(edge: .bottom) {
             if viewModel.groupingLabel != "Cancel" {
                 Button {
-                    let rooms = sonosService.rooms.filter { room in
+                    let rooms = sonosService.sortedRooms.filter { room in
                         viewModel.selections.contains(room.id)
                     }
                     Task {
                         dismiss()
-                        await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+                        await sonosService.smartGroup(rooms: rooms, to: group)
                     }
+//                    Task {
+//                        await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+//                        try await sonosService.fetch()
+//                        dismiss()
+//                    }
                 } label: {
                     Text(viewModel.groupingLabel)
                 }
@@ -65,7 +70,7 @@ struct GroupScreen: View {
 //            }
 //        }
         .task {
-            if sonosService.rooms.isEmpty {
+            if sonosService.sortedRooms.isEmpty {
                 do {
                     try await sonosService.load()
                 } catch {
@@ -73,16 +78,15 @@ struct GroupScreen: View {
                 }
             }
         }
-        .navigationTitle("\(roomGroup.coordinatorRoom.name)")
+        .navigationTitle("\(group.coordinatorRoom.name)")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #Preview {
     Text("HERE")
-        .sheet(isPresented: .constant(true), content: {
-            GroupScreen(roomGroup: GroupRoom(id: "", coordinatorID: "", rooms: [
-                Room(id: "", ip: "", name: "Kitchen")]), viewModel: GroupScreenViewModel(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")])))
-            .environment(SonosService())
-        })
+        .sheet(isPresented: .constant(true)) {
+            GroupScreen(group: .constant(.garage), viewModel: GroupScreenViewModel(group: .garage))
+                .environment(SonosService())
+        }
 }
