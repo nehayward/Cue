@@ -11,7 +11,7 @@ public final class Track: Identifiable, Sendable {
     public var artist: String = ""
     public var album: String = ""
     public var artworkURL: URL? = nil
-    public var musicService: MusicService = .apple
+    public var musicService: MusicService = .unknown
     public var duration: TimeInterval = .zero
     public var playbackPosition: TimeInterval = .zero
 
@@ -80,4 +80,14 @@ public extension Track {
             return String(format: "-%02d:%02d", minutes, seconds)
         }
     }
+
+    static var empty = Track(trackID: "",
+                             name: "Nothing to play",
+                             artist: "",
+                             album: "",
+                             artworkURL: nil,
+                             musicService: .unknown, 
+                             duration: .zero,
+                             playbackPosition: .zero
+    )
 }

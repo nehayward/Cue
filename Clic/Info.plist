@@ -12,7 +12,6 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_sonos._tcp</string>
-		<string>_ssdp._udp</string>
 	</array>
 </dict>
 </plist>

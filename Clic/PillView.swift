@@ -2,28 +2,31 @@ import SwiftUI
 import SonosKit
 
 struct PillView: View {
-    @Bindable var alert: Alert
+    @Environment(AlertService.self) var alertService: AlertService
 
     var body: some View {
-        if alert.isShowing {
-            Text(alert.text)
-                .padding()
-                .background {
-                    Capsule()
-                        .foregroundStyle(.ultraThinMaterial)
-                }
-                .transition(.push(from: .top).combined(with: .scale))
-                .task {
-                    try? await Task.sleep(for: .seconds(3))
-                    withAnimation {
-                        alert.isShowing = false
-                    }
-                }
-                .frame(alignment: .top)
-        }
+        Label(alertService.alert.text, systemImage: "hifispeaker.fill")
+            .padding()
+            .background {
+                Capsule()
+                    .foregroundStyle(.thickMaterial)
+            }
+            .task {
+                try? await Task.sleep(for: .seconds(3))
+                alertService.alert.isShowing = false
+            }
+            .frame(alignment: .top)
+            .fontDesign(.rounded)
+            .bold()
+            .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
+            .offset(y: alertService.alert.isShowing ? 0 : -300)
     }
 }
 
 #Preview {
-    PillView(alert: Alert())
+    Text("PillView")
+        .safeAreaInset(edge: .top) {
+            PillView()
+                .environment(AlertService())
+        }
 }

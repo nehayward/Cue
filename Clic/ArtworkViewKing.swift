@@ -8,7 +8,6 @@ struct ArtworkViewKing: View {
     @State var artworkURL: URL?
 
     var body: some View {
-
         KFImage(artworkURL)
             .cacheMemoryOnly()
             .fade(duration: 0.2)
@@ -23,17 +22,17 @@ struct ArtworkViewKing: View {
                     Image(systemName: "apple.logo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.thickMaterial)
+                        .foregroundStyle(.white.gradient)
                         .frame(width: 16, height: 16)
                         .padding([.trailing, .bottom], 4)
                 case .spotify:
                     Image(.spotifyLogo)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.thickMaterial)
+                        .foregroundStyle(.white.gradient)
                         .frame(width: 16, height: 16)
                         .padding([.trailing, .bottom], 4)
-                case .airplay:
+                case .airplay, .unknown:
                     EmptyView()
                 }
             }.task(id: group.coordinatorRoom.track.name) {
@@ -43,8 +42,8 @@ struct ArtworkViewKing: View {
     }
 }
 
-//#Preview {
-//    ArtworkView(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")], coordinatorRoom: .garage))
-//        .environment(SonosService())
-//}
+#Preview {
+    ArtworkViewKing(group: .constant(.garage))
+        .environment(SonosService())
+}
 

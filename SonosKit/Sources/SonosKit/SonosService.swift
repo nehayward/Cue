@@ -83,6 +83,7 @@ public final class SonosService {
                     }
 //                    print("Tock", Date.now)
 
+
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
                     permissionsDenied = true
@@ -319,7 +320,7 @@ public final class SonosService {
     @MainActor
     public func fetch() async throws {
         let newGroup = try await getGroups()
-        if !newGroup.isEmpty && newGroup.count != self.groups.count {
+        if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
@@ -439,7 +440,7 @@ public final class SonosService {
 
                     roomGroup.groupVolume = await groupVolume
                     guard let awaitedTrack = await track else {
-                        roomGroup.coordinatorRoom.track = Track(trackID: "", name: "", artist: "", album: "", musicService: .apple, duration: 0, playbackPosition: 0)
+                        roomGroup.coordinatorRoom.track = .empty
                         return
                     }
 
@@ -634,7 +635,7 @@ public final class SonosService {
 
             guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
-        case .airplay:
+        case .airplay, .unknown:
             let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
             let found = searchResults.first { result in
                 result.artistName == track.artist &&

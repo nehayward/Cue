@@ -50,8 +50,8 @@
 		E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
 		E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */; };
 		E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
-		E98527942A5E5C90009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
-		E98527952A5E5C99009016C2 /* Live.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* Live.swift */; };
+		E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
+		E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
 		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
@@ -68,13 +68,13 @@
 		E9B256532A9951FA0083869E /* TVModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeView.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
-		E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* ContentView.swift */; };
+		E9BDE57229E3396700D230A8 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
 		E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
 		E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
 		E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AF62A57668800FB9118 /* VolumeControlView.swift */; };
 		E9C03AFF2A586F5E00FB9118 /* ClicWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */; };
-		E9C03B012A586F5E00FB9118 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B002A586F5E00FB9118 /* ContentView.swift */; };
+		E9C03B012A586F5E00FB9118 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B002A586F5E00FB9118 /* DeviceListView.swift */; };
 		E9C03B032A586F6100FB9118 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9C03B022A586F6100FB9118 /* Assets.xcassets */; };
 		E9C03B062A586F6100FB9118 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9C03B052A586F6100FB9118 /* Preview Assets.xcassets */; };
 		E9C03B092A586F6100FB9118 /* Clic Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -194,7 +194,7 @@
 		E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidget.swift; sourceTree = "<group>"; };
 		E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
-		E98527932A5E5C90009016C2 /* Live.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Live.swift; sourceTree = "<group>"; };
+		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		E987959C2A9667EC002C684A /* PlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerScreen.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
@@ -210,13 +210,13 @@
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
-		E9BDE57129E3396700D230A8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E9BDE57129E3396700D230A8 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
 		E9BDE57329E3396800D230A8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9C03AF62A57668800FB9118 /* VolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeControlView.swift; sourceTree = "<group>"; };
 		E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicWatchApp.swift; sourceTree = "<group>"; };
-		E9C03B002A586F5E00FB9118 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E9C03B002A586F5E00FB9118 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
 		E9C03B022A586F6100FB9118 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9C03B052A586F6100FB9118 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9C03B102A58715700FB9118 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -285,6 +285,9 @@
 		E9331B512AAE2013002D3CFD /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				E95498A72AA52EF8007848A7 /* DebugView.swift */,
+				E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */,
+				E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */,
 				E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */,
 			);
 			path = Debug;
@@ -389,11 +392,7 @@
 			children = (
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
-				E95498A72AA52EF8007848A7 /* DebugView.swift */,
-				E9331B512AAE2013002D3CFD /* Debug */,
-				E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */,
-				E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */,
-				E9BDE57129E3396700D230A8 /* ContentView.swift */,
+				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeView.swift */,
 				E96396342A3B723B00518A17 /* ArtworkView.swift */,
 				E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */,
@@ -413,7 +412,8 @@
 				E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */,
 				E9D856262A9FB5AD0024B192 /* PillView.swift */,
 				E9D856282A9FBB020024B192 /* AlertService.swift */,
-				E98527932A5E5C90009016C2 /* Live.swift */,
+				E98527932A5E5C90009016C2 /* LiveActivityManager.swift */,
+				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
 			);
@@ -442,7 +442,7 @@
 			isa = PBXGroup;
 			children = (
 				E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */,
-				E9C03B002A586F5E00FB9118 /* ContentView.swift */,
+				E9C03B002A586F5E00FB9118 /* DeviceListView.swift */,
 				E9B256512A9951A00083869E /* TVModeView.swift */,
 				E92E2D472AA6D37300D27DBC /* Popover.swift */,
 				E987959C2A9667EC002C684A /* PlayerScreen.swift */,
@@ -703,7 +703,7 @@
 				E97C0D4E2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift in Sources */,
 				E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */,
-				E98527952A5E5C99009016C2 /* Live.swift in Sources */,
+				E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */,
 				E97C0D4C2A325CC5005AB0E0 /* RemoteWidget.swift in Sources */,
 				E97C0D5B2A326B15005AB0E0 /* PlayPauseIntent.swift in Sources */,
 				E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */,
@@ -747,14 +747,14 @@
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
 				E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */,
-				E98527942A5E5C90009016C2 /* Live.swift in Sources */,
+				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
-				E9BDE57229E3396700D230A8 /* ContentView.swift in Sources */,
+				E9BDE57229E3396700D230A8 /* DeviceListView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
 				E966A0D02A741FDA00FF17FC /* SubscriptionService.swift in Sources */,
@@ -780,7 +780,7 @@
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,
 				E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */,
-				E9C03B012A586F5E00FB9118 /* ContentView.swift in Sources */,
+				E9C03B012A586F5E00FB9118 /* DeviceListView.swift in Sources */,
 				E9C03AFF2A586F5E00FB9118 /* ClicWatchApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

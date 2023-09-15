@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKit
 
-struct ContentView: View {
+struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var superMember: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
@@ -11,7 +11,7 @@ struct ContentView: View {
     @State var isShowing: Bool = false
 
     var body: some View {
-        @Bindable var alert = alertService.alert
+        @Bindable var alertService = alertService
         @Bindable var sonosService = sonosService
 
         NavigationSplitView {
@@ -148,13 +148,14 @@ struct ContentView: View {
         }
         .safeAreaInset(edge: .top) {
             if alertService.alert.isShowing {
-                PillView(alert: alertService.alert)
-                    .animation(.spring, value: alertService.alert.isShowing)
+                PillView()
+                    .environment(alertService)
             }
         }
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemNotFound)
         .animation(.spring, value: sonosService.permissionsDenied)
+        .animation(.spring, value: alertService.alert.isShowing)
         .onAppear {
             let thumbImage = UIImage()
             UISlider.appearance().setThumbImage(thumbImage, for: .normal)
@@ -170,7 +171,7 @@ struct ContentView: View {
 
 
 #Preview {
-    ContentView(selected: .constant(nil))
+    DeviceListView(selected: .constant(nil))
         .environment(SonosService())
         .environment(SubscriptionService())
         .environment(AlertService())

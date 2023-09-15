@@ -33,7 +33,7 @@ struct ArtworkView: View {
                                 .foregroundStyle(.thickMaterial)
                                 .frame(width: 16, height: 16)
                                 .padding([.trailing, .bottom], 4)
-                        case .airplay:
+                        case .airplay, .unknown:
                             EmptyView()
                         }
                     }

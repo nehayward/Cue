@@ -13,10 +13,10 @@ struct LargePlayerView: View {
     @State private var showQueue = false
 
     @State private var isExpanded: Bool = false
-
     @State private var nextButtonTapped: Bool = false
 
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    let a = UISelectionFeedbackGenerator()
 
     var body: some View {
         VStack(alignment: .center) {
@@ -27,12 +27,16 @@ struct LargePlayerView: View {
                 .shadow(radius: 10)
 
             Text(group.coordinatorRoom.track.name)
+                .bold()
                 .multilineTextAlignment(.center)
                 .fontDesign(.rounded)
+
             Text(group.coordinatorRoom.track.artist)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 80)
+                .fontDesign(.rounded)
+
             VStack {
                 if !group.coordinatorRoom.track.duration.isZero {
                     ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
@@ -51,46 +55,54 @@ struct LargePlayerView: View {
             .fontDesign(.rounded)
             .padding(.bottom, 24)
 
-            HStack(spacing: 24) {
+            HStack(spacing: 32) {
                 Button {
+                    a.selectionChanged()
                     Task {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
                     Image(systemName: "backward.end.fill")
-                        .font(.body)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
 
                 Button{
                     Task {
                         if group.coordinatorRoom.isPlaying {
+                            a.selectionChanged()
                             await sonosService.pause(ip: group.coordinatorRoom.ip)
                         } else {
+                            a.selectionChanged()
                             await sonosService.play(ip: group.coordinatorRoom.ip)
                         }
                     }
                 } label: {
                     Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                        .resizable()
+                        .scaledToFit()
                         .contentTransition(.symbolEffect(.automatic))
-                        .font(.title)
+                        .frame(width: 32, height: 32)
+
                 }
                 .buttonStyle(.plain)
-                .sensoryFeedback(.selection, trigger: group.coordinatorRoom.isPlaying)
-                
+
                 Button {
-                    nextButtonTapped.toggle()
+                    a.selectionChanged()
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")
-                        .font(.body)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.plain)
-                .sensoryFeedback(.selection, trigger: nextButtonTapped)
             }
-            .padding(.bottom, 40)
+            .padding(.bottom, 60)
 
 
             //            VolumeControlView(roomGroup: group)
@@ -127,7 +139,7 @@ struct LargePlayerView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack {
-                    Image(systemName: "hifispeaker")
+                    Image(systemName: "hifispeaker.fill")
                     Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
                 }
                 .fontDesign(.rounded)

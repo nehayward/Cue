@@ -7544,10 +7544,10 @@
             filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "216"
-            endingLineNumber = "216"
-            landmarkName = "parseGetCurrentTransportActions(xml:)"
-            landmarkType = "7">
+            startingLineNumber = "224"
+            endingLineNumber = "224"
+            landmarkName = "XMLParserSonos"
+            landmarkType = "3">
             <Locations>
                <Location
                   uuid = "A2D5BAD8-6332-4A1D-BA83-F8FF286F7AB1 - 10171edc74750731"
@@ -7727,8 +7727,8 @@
             filePath = "SonosKit/Sources/SonosKit/XMLParser.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "215"
-            endingLineNumber = "215"
+            startingLineNumber = "223"
+            endingLineNumber = "223"
             landmarkName = "parseGetCurrentTransportActions(xml:)"
             landmarkType = "7">
             <Locations>
@@ -8124,8 +8124,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "103"
-            endingLineNumber = "103"
+            startingLineNumber = "104"
+            endingLineNumber = "104"
             landmarkName = "monitor(retry:)"
             landmarkType = "7">
             <Locations>
@@ -8202,8 +8202,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "95"
-            endingLineNumber = "95"
+            startingLineNumber = "96"
+            endingLineNumber = "96"
             landmarkName = "monitor(retry:)"
             landmarkType = "7">
             <Locations>
@@ -8355,8 +8355,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "90"
-            endingLineNumber = "90"
+            startingLineNumber = "91"
+            endingLineNumber = "91"
             landmarkName = "monitor(retry:)"
             landmarkType = "7">
             <Locations>
@@ -8508,8 +8508,8 @@
             filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "263"
-            endingLineNumber = "263"
+            startingLineNumber = "264"
+            endingLineNumber = "264"
             landmarkName = "load()"
             landmarkType = "7">
             <Locations>
@@ -8979,8 +8979,8 @@
             filePath = "Clic/ArtworkViewKing.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "40"
-            endingLineNumber = "40"
+            startingLineNumber = "39"
+            endingLineNumber = "39"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>

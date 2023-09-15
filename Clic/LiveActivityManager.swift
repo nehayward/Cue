@@ -2,7 +2,6 @@ import ActivityKit
 import Foundation
 import SonosKit
 
-@Observable
 final class LiveActivityManager {
     let sonosService: SonosService
     var activity: Activity<ClicNowPlayingWidgetAttributes>?

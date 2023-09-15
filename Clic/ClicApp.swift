@@ -6,115 +6,83 @@ import WidgetKit
 @main
 struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
-    @State var selected: String?
-    @State var showPaywall: Bool = false
+    @State private var selected: String?
+    @State private var showPaywall: Bool = false
+    @State private var liveActivityManager: LiveActivityManager? = nil
 
-    var sonosService = SonosService()
-    var alertService = AlertService()
-
-    @State var liveActivityManager: LiveActivityManager? = nil
-    var superMember = SubscriptionService()
+    private var sonosService = SonosService()
+    private var alertService = AlertService()
+    private var superMember = SubscriptionService()
 
     var body: some Scene {
         WindowGroup {
-//            TabView {
-                ContentView(selected: $selected)
-                    .environment(sonosService)
-                    .environment(superMember)
-                    .environment(alertService)
-                    .sheet(isPresented: $showPaywall) {
-                        PaywallScreen()
-                            .environment(superMember)
-                    }
-                    .safeAreaInset(edge: .bottom) {
-                        if !superMember.isEnabled {
-                            Button {
-                                showPaywall = true
-                            } label: {
-                                Text("Show all devices (\(sonosService.groups.count))")
-                                    .fontDesign(.rounded)
-                                    .fontWidth(.compressed)
-                                    .foregroundStyle(Color.accentColor.gradient)
-                                    .padding()
-                                    .background(.thickMaterial)
-                                    .clipShape(Capsule())
-                            }
+            DeviceListView(selected: $selected)
+                .environment(sonosService)
+                .environment(superMember)
+                .environment(alertService)
+                .sheet(isPresented: $showPaywall) {
+                    PaywallScreen()
+                        .environment(superMember)
+                }
+                .safeAreaInset(edge: .bottom) {
+                    if !superMember.isEnabled {
+                        Button {
+                            showPaywall = true
+                        } label: {
+                            Text("Show all devices (\(sonosService.groups.count))")
+                                .fontDesign(.rounded)
+                                .fontWidth(.compressed)
+                                .foregroundStyle(Color.accentColor.gradient)
+                                .padding()
+                                .background(.thickMaterial)
+                                .clipShape(Capsule())
                         }
                     }
-//                    .safeAreaInset(edge: .top) {
-//                        Text("State: \(sonosService.state)")
-//                            .fontDesign(.rounded)
-//                            .fontWidth(.compressed)
-//                            .foregroundStyle(Color.accentColor.gradient)
-//                            .padding()
-//                            .background(.thickMaterial)
-//                            .clipShape(Capsule())
-//                    }
-                    .onAppear {
-                        liveActivityManager = LiveActivityManager(sonosService: sonosService)
-                    }
-//                    .tabItem {
-//                        Text("Normal")
-//                    }
-//                DebugView(sonosService: sonosService)
-//                    .tabItem {
-//                        Text("Debug")
-//                    }
-//                DebugView()
-//                    .environment(sonosService)
-//                    .tabItem {
-//                        Text("Debug")
-//                    }
-//            }
+                }
+                .onAppear {
+                    liveActivityManager = LiveActivityManager(sonosService: sonosService)
+                }
         }
         .onChange(of: scenePhase) {
-            switch scenePhase {
-            case .active:
-
-                    sonosService.monitor()
-
-                    // MARK: Add back when monitoring is fixed
-//                    do {
-//                        try await sonosService.updateGroupsCheckPlayback()
-//                        print("Tock", Date.now)
-//                    } catch {
-//                        print(error)
-//                        // Restart Search
-//                    }
-//                    if selected == nil {
-//                        selected = sonosService.groups.first(where: { room in
-//                            room.coordinatorRoom.isPlaying
-//                        })?.coordinatorID
-//
-//                        alertService.showAlert(with: "Jumped to playing")
-//                    }
-                    //                    superMember.isEnabled = isEnabled
-
-            case .inactive:
-                print("Inactive")
-                WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
-
-            case .background:
-                print("Background")
-                sonosService.systemNotFound = false
-                Task {
-                    sonosService.sonosPulse.cancel()
-                }
-            @unknown default:
-                break
-            }
+            handleScenePhase(scenePhase)
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             liveActivityManager?.createActivity(with: sonosService.groups)
         }
         .onChange(of: superMember.isEnabled) {
-//            isEnabled = superMember.isEnabled
+            //            isEnabled = superMember.isEnabled
         }
+    }
 
+    @MainActor
+    private func handleScenePhase(_ scenePhase: ScenePhase) {
+        switch scenePhase {
+        case .active:
+            sonosService.monitor()
 
+            // MARK: Add back when monitoring is fixed
+            Task {
+                try? await sonosService.updateGroupsCheckPlayback()
 
-//        .backgroundTask(.appRefresh(UUID().uuidString)) { action in
-//            LiveActivityManager.shared.refresh()
-//        }
+                if selected == nil {
+                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
+                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
+                        try await Task.sleep(for: .milliseconds(200))
+                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
+                        selected = groupPlaying.coordinatorID
+                    }
+                }
+            }
+        case .inactive:
+            print("Inactive")
+            WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
+        case .background:
+            print("Background")
+            Task {
+                sonosService.sonosPulse.cancel()
+            }
+        @unknown default:
+            break
+        }
     }
 }

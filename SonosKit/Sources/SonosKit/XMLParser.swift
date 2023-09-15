@@ -164,19 +164,27 @@ class XMLParserSonos {
             musicService = .airplay
         }
 
+        if trackURI.contains("airplay") {
+            musicService = .airplay
+        }
+
         var trackID = ""
         switch musicService {
         case .apple:
             let pattern = #/song:(\w*)/#
             if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                 trackID = String(result.1)
+            } else {
+                musicService = .unknown
             }
         case .spotify:
             let pattern = #/track:(\w*)/#
             if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                 trackID = String(result.1)
+            } else {
+                musicService = .unknown
             }
-        case .airplay:
+        case .airplay, .unknown:
             break
         }
         return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
@@ -275,7 +283,7 @@ class XMLParserSonos {
                 if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                     trackID = String(result.1)
                 }
-            case .airplay:
+            case .airplay, .unknown:
                 break
             }
             var trackDuration = TimeInterval.zero

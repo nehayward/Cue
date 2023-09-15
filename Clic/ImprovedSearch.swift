@@ -268,12 +268,13 @@ struct ImprovedSearch: View {
         }
     }
 
+    @MainActor
     private func showKeyboard() {
         UIView.setAnimationsEnabled(false)
         focusedField = true
         Task {
             try await Task.sleep(for: .milliseconds(400))
-            await UIView.setAnimationsEnabled(true)
+            UIView.setAnimationsEnabled(true)
         }
     }
 }

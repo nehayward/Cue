@@ -1,7 +1,7 @@
 import SwiftUI
 import SonosKit
 
-struct ContentView: View {
+struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Popover.self) var popOver: Popover
     @Binding var selected: String?
@@ -123,7 +123,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(selected: .constant(nil))
+    DeviceListView(selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
 }

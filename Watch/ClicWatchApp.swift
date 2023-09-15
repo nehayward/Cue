@@ -13,7 +13,7 @@ struct ClicWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(selected: $selected)
+            DeviceListView(selected: $selected)
                 .environment(popover)
                 .environment(sonosService)
                 .onChange(of: selected) {
@@ -45,7 +45,8 @@ struct ClicWatchApp: App {
         .onChange(of: scenePhase) {
             switch scenePhase {
             case .active:
-                sonosService.monitorWatch()
+//                sonosService.monitorWatch()
+                sonosService.monitor()
 
                 // MARK: Wait until systemservice fixed
 //                Task {
