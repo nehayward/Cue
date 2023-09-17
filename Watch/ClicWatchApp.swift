@@ -2,11 +2,13 @@ import Observation
 import SwiftUI
 import SonosKit
 import WidgetKit
+import CloudStorage
 
 @main
 struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @State var selected: String?
+    @CloudStorage("sonos_ip") var ip: String?
 
     var sonosService = SonosService()
     var popover = Popover()
@@ -22,16 +24,16 @@ struct ClicWatchApp: App {
                         sonosService.selectedGroup = sonosService.sorted[index]
                     }
                 }
-//                .overlay(alignment: .top) {
-//                    Text("State: \(sonosService.state)")
-//                        .fontDesign(.rounded)
-//                        .fontWidth(.compressed)
-//                        .font(.caption2)
-//                        .foregroundStyle(Color.accentColor.gradient)
-//                        .padding()
-//                        .background(.thickMaterial)
-//                        .clipShape(Capsule())
-//                }
+                .overlay(alignment: .top) {
+                    Text("\(ip ?? "")")
+                        .fontDesign(.rounded)
+                        .fontWidth(.compressed)
+                        .font(.caption2)
+                        .foregroundStyle(Color.accentColor.gradient)
+                        .background(.thickMaterial)
+                        .clipShape(Capsule())
+                        .ignoresSafeArea(edges: .top)
+                }
             
 //                .overlay(alignment: .top) {
 //                    Text(sonosService.lastKnownIP)

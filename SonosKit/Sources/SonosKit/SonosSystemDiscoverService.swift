@@ -1,3 +1,4 @@
+import CloudStorage
 import Foundation
 import Network
 import os
@@ -22,11 +23,16 @@ extension NWBrowser.State {
     }
 }
 
+class SonosStorageIP: ObservableObject {
+    @CloudStorage("sonos_ip") var sonosIP = ""
+}
 
 @Observable
 final class SonosSystemDiscoverService {
     var isSearching: Bool = true
 
+    @ObservationIgnored
+    private var sonosStorageIP = SonosStorageIP()
     private var browser: NWBrowser?
     private let sonosBonjourServiceType = "_sonos._tcp"
     private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
@@ -96,6 +102,7 @@ final class SonosSystemDiscoverService {
     func stopBrowsing() {
         browser?.cancel()
         browser = nil
+        
     }
     //
     //    func search() {
@@ -120,6 +127,7 @@ final class SonosSystemDiscoverService {
     //        browser = nil
     //    }
 
+    @MainActor
     func getFirstIP() async throws -> String {
         //        try? await Task.sleep(for: .seconds(4))
 //        lastKnownIP = ""
@@ -153,6 +161,7 @@ final class SonosSystemDiscoverService {
             if lastKnownIP.isEmpty {
                 throw SonosServiceError.sonosSystemNotFound
             }
+            sonosStorageIP.sonosIP = lastKnownIP
             return lastKnownIP
         }
         let ip = try await task.value

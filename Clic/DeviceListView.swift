@@ -44,10 +44,11 @@ struct DeviceListView: View {
             .safeAreaInset(edge: .bottom) {
                 if !sonosService.groups.isEmpty {
                     SceneView()
-                        .padding()
-                        .background {
-                            Color.clear.allowsHitTesting(false)
-                        }
+                        .padding(12)
+//                        .background {
+//                            Color.clear.allowsHitTesting(false)
+//                        }
+//                        .ignoresSafeArea()
                 }
             }
 //            VStack {

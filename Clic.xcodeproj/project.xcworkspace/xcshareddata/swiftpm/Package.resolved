@@ -1,12 +1,21 @@
 {
   "pins" : [
     {
+      "identity" : "cloudstorage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nonstrict-hq/CloudStorage",
+      "state" : {
+        "revision" : "35700218d35579df091974b6e7765db94c83448b",
+        "version" : "0.4.0"
+      }
+    },
+    {
       "identity" : "kingfisher",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Kingfisher",
       "state" : {
-        "revision" : "c75584ac759cbb16b204d0a7de3ebf53ea6b304d",
-        "version" : "7.9.0"
+        "revision" : "b6f62758f21a8c03cd64f4009c037cfa580a256e",
+        "version" : "7.9.1"
       }
     },
     {
@@ -14,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "f2f5314fa92d3556fe23e857b34eeed13934c6fb",
-        "version" : "4.25.2"
+        "revision" : "eb63d2202f6431d77abc6ce78814bca18ee521f3",
+        "version" : "4.26.0"
       }
     },
     {
@@ -23,8 +32,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/drmohundro/SWXMLHash",
       "state" : {
-        "revision" : "4d0f62f561458cbe1f732171e625f03195151b60",
-        "version" : "7.0.1"
+        "revision" : "a853604c9e9a83ad9954c7e3d2a565273982471f",
+        "version" : "7.0.2"
       }
     }
   ],

@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -10,15 +11,19 @@ struct DeviceListView: View {
         @Bindable var sonosService = sonosService
 
         NavigationSplitView {
-            List ($sonosService.sorted, selection: $selected) { $group in
-                ZStack {
-                    if group.tvMode {
-                        TVModeView(group: $group)
-                    } else {
-                        ExtractedView(group: $group)
+            List (selection: $selected) {
+                SceneView()
+                    .listRowBackground(Color.clear)
+                ForEach($sonosService.sorted) { $group in
+                    ZStack {
+                        if group.tvMode {
+                            TVModeView(group: $group)
+                        } else {
+                            ExtractedView(group: $group)
+                        }
                     }
+                    .tag(group.coordinatorID)
                 }
-                .tag(group.coordinatorID)
             }
             .listStyle(.carousel)
         } detail: {

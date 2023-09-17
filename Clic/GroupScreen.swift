@@ -5,7 +5,7 @@ struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
 
-    @Bindable var group: GroupRoom
+    @Binding var group: GroupRoom
     @State var viewModel: GroupScreenViewModel
 
     var body: some View {
@@ -77,9 +77,8 @@ struct GroupScreen: View {
 
 #Preview {
     Text("HERE")
-        .sheet(isPresented: .constant(true), content: {
-            GroupScreen(group: GroupRoom(id: "", coordinatorID: "", rooms: [
-                Room(id: "", ip: "", name: "Kitchen")], coordinatorRoom: .garage), viewModel: GroupScreenViewModel(group: GroupRoom(id: "", coordinatorID: "", rooms: [Room(id: "", ip: "", name: "Kitchen")], coordinatorRoom: .garage)))
+        .sheet(isPresented: .constant(true)) {
+            GroupScreen(group: .constant(.garage), viewModel: GroupScreenViewModel(group: .garage))
             .environment(SonosService())
-        })
+        }
 }

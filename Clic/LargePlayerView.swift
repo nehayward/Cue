@@ -180,7 +180,7 @@ struct LargePlayerView: View {
             }
         }
         .sheet(isPresented: $showGroup) {
-            GroupScreen(group: group, viewModel: GroupScreenViewModel(group: group))
+            GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
         }
         .sheet(isPresented: $showSearch) {
 //            SearchScreen(group: group)

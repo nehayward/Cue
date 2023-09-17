@@ -717,10 +717,13 @@ public final class SonosService {
         print(rooms)
     }
 
-    public func runScene(id: UUID) async {
-        await group(rooms: sortedRooms, to: sortedRooms.first!.id)
-        for room in sortedRooms {
-            await setDeviceVolume(ip: room.ip, volume: 0)
+    public func runScene(_ scene: SonosScene) async {
+        let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
+
+        await group(rooms: rooms, to: scene.rooms.first!.id)
+
+        for room in scene.rooms {
+            await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }
     }
 

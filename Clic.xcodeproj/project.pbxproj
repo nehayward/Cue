@@ -24,6 +24,10 @@
 		E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
 		E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
 		E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */; };
+		E959B9182AB50684000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9172AB50684000D596E /* CloudStorage */; };
+		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
+		E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91E2AB65F3D000D596E /* VibesDS */; };
+		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
 		E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396342A3B723B00518A17 /* ArtworkView.swift */; };
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
 		E963963F2A3CD3AE00518A17 /* SearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E963963E2A3CD3AE00518A17 /* SearchScreen.swift */; };
@@ -174,6 +178,9 @@
 		E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugEmbedTest.swift; sourceTree = "<group>"; };
 		E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDebugView.swift; sourceTree = "<group>"; };
 		E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
+		E959B9192AB506A4000D596E /* Clic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clic.entitlements; sourceTree = "<group>"; };
+		E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Clic (Watch).entitlements"; sourceTree = "<group>"; };
+		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VibesDS; path = ../../../../../Downloads/VibesDS; sourceTree = "<group>"; };
 		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MusicSearchKit; sourceTree = "<group>"; };
 		E96396342A3B723B00518A17 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
@@ -266,7 +273,9 @@
 				E94A6A272AAACB62002E432C /* Kingfisher in Frameworks */,
 				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
 				E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */,
+				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
+				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,7 +284,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
+				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
+				E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,6 +375,7 @@
 		E9BDE56329E3396700D230A8 = {
 			isa = PBXGroup;
 			children = (
+				E959B91D2AB65EC3000D596E /* VibesDS */,
 				E96396332A3B700900518A17 /* MusicSearchKit */,
 				E9F3D44D2A02C2900042F208 /* SonosKit */,
 				E966A0CC2A741DBB00FF17FC /* Paywall */,
@@ -390,6 +402,7 @@
 		E9BDE56E29E3396700D230A8 /* Clic */ = {
 			isa = PBXGroup;
 			children = (
+				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
@@ -441,6 +454,7 @@
 		E9C03AFD2A586F5E00FB9118 /* Watch */ = {
 			isa = PBXGroup;
 			children = (
+				E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */,
 				E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */,
 				E9C03B002A586F5E00FB9118 /* DeviceListView.swift */,
 				E9B256512A9951A00083869E /* TVModeView.swift */,
@@ -574,6 +588,8 @@
 				E9BDE57F29E33B0700D230A8 /* SonosKit */,
 				E9736F752A7472AC00BE692C /* RevenueCat */,
 				E94A6A262AAACB62002E432C /* Kingfisher */,
+				E959B9172AB50684000D596E /* CloudStorage */,
+				E959B9202AB6B12D000D596E /* VibesDS */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -597,6 +613,8 @@
 			packageProductDependencies = (
 				E9C03B0E2A586F7E00FB9118 /* SonosKit */,
 				E98795A62A969078002C684A /* Kingfisher */,
+				E959B91B2AB506BF000D596E /* CloudStorage */,
+				E959B91E2AB65F3D000D596E /* VibesDS */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -638,6 +656,7 @@
 			packageReferences = (
 				E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -1082,6 +1101,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
@@ -1124,6 +1144,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
@@ -1167,6 +1188,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
@@ -1209,6 +1231,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
@@ -1294,6 +1317,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
 		E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
@@ -1317,6 +1348,24 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		E959B9172AB50684000D596E /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E959B91B2AB506BF000D596E /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E959B91E2AB65F3D000D596E /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E959B9202AB6B12D000D596E /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
 		};
 		E9736F752A7472AC00BE692C /* RevenueCat */ = {
 			isa = XCSwiftPackageProductDependency;

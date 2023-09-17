@@ -10,6 +10,7 @@ let package = Package(
             targets: ["SonosKit"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
         .package(url: "https://github.com/drmohundro/SWXMLHash", from: "7.0.0"),
         .package(path: "../MusicSearchKit")
     ],
@@ -17,6 +18,7 @@ let package = Package(
         .target(
             name: "SonosKit",
             dependencies: [
+                "CloudStorage",
                 "SWXMLHash",
                 "MusicSearchKit"
             ]),

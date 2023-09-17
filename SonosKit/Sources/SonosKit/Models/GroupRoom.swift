@@ -2,14 +2,31 @@ import Foundation
 import Observation
 
 @Observable
-public final class GroupRoom: Identifiable, @unchecked Sendable {
+public final class GroupRoom: Identifiable, Sendable {
+    private let queue = DispatchQueue(label: "GroupRoom\(UUID().uuidString)")
+
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var tvMode: Bool = false
     public var tvSettings: TVSettings? = nil
-    public var groupVolume: Double = 0
     public let coordinatorRoom: Room
+
+    @ObservationIgnored
+    private var privateGroupVolume: Double = 0
+
+    public var groupVolume: Double {
+        get {
+            return queue.sync {
+                return privateGroupVolume
+            }
+        }
+        set {
+            queue.sync {
+                privateGroupVolume = newValue
+            }
+        }
+    }
 
     public init(id: String, coordinatorID: String, rooms: [Room], coordinatorRoom: Room) {
         self.id = id

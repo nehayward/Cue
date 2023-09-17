@@ -1,3 +1,4 @@
+import CloudStorage
 import SwiftUI
 import SonosKit
 
@@ -9,7 +10,8 @@ struct SceneBuilderScreen: View {
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
 
-    var scenes: SonosScene?
+    @CloudStorage("com.clic.scenes")
+    var scenes: [SonosScene] = []
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -37,10 +39,11 @@ struct SceneBuilderScreen: View {
                     let rooms = rooms.filter { room in
                         multiSelection.contains(room.id)
                     }
-
-                    let newScene = SonosScene(name: sceneName, rooms: rooms)
-                    print(newScene.name)
-                    print(rooms)
+                    let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+                    let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+                    scenes.insert(newScene, at: 0)
+//                    print(newScene.name)
+//                    print(rooms)
                     //                Task {
                     //                    dismiss()
                     ////                    await sonosService.group(rooms: rooms, to: roomGroup.coordinatorID)

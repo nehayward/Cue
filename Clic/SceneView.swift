@@ -1,3 +1,4 @@
+import CloudStorage
 import SwiftUI
 import SonosKit
 
@@ -5,18 +6,19 @@ struct SceneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @State var show: Bool = false
 
+    @CloudStorage("com.clic.scenes")
     var scenes: [SonosScene] = []
 
     var body: some View {
         ScrollView(.horizontal) {
             HStack {
-                ForEach(0..<1) { _ in
+                ForEach(scenes) { scene in
                     Button {
                         Task {
-                            await sonosService.runScene(id: UUID())
+                            await sonosService.runScene(scene)
                         }
                     } label: {
-                        Text("Group All")
+                        Text(scene.name)
                             .padding()
                             .background{
                                 Capsule()
@@ -32,7 +34,6 @@ struct SceneView: View {
             .fontDesign(.rounded)
             .fontWeight(.bold)
         }
-        .padding(.trailing, 40)
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
@@ -51,6 +52,6 @@ struct SceneView: View {
 }
 
 #Preview {
-    SceneView()
+    SceneView(scenes: [SonosScene(id: UUID(), name: "Test", rooms: [])])
         .environment(SonosService())
 }

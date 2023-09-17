@@ -53,7 +53,7 @@ struct MediaControlsView: View {
             .sensoryFeedback(.selection, trigger: group.coordinatorRoom.isPlaying)
         }
         .sheet(isPresented: $showGroupScreen) {
-            GroupScreen(group: group, viewModel: GroupScreenViewModel(group: group))
+            GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
         }
     }
 }

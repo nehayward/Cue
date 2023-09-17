@@ -2,6 +2,7 @@ import SwiftUI
 import SonosKit
 import ActivityKit
 import WidgetKit
+import CloudStorage
 
 @main
 struct ClicApp: App {
@@ -10,6 +11,7 @@ struct ClicApp: App {
     @State private var showPaywall: Bool = false
     @State private var liveActivityManager: LiveActivityManager? = nil
 
+    @CloudStorage("sonos_ip") var ip: String?
     private var sonosService = SonosService()
     private var alertService = AlertService()
     private var superMember = SubscriptionService()
@@ -20,6 +22,16 @@ struct ClicApp: App {
                 .environment(sonosService)
                 .environment(superMember)
                 .environment(alertService)
+                .overlay(alignment: .top) {
+                    Text("\(ip ?? "")")
+                        .fontDesign(.rounded)
+                        .fontWidth(.compressed)
+                        .font(.caption2)
+                        .foregroundStyle(Color.accentColor.gradient)
+                        .padding()
+                        .background(.thickMaterial)
+                        .clipShape(Capsule())
+                }
                 .sheet(isPresented: $showPaywall) {
                     PaywallScreen()
                         .environment(superMember)
