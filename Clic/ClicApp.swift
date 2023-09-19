@@ -22,16 +22,16 @@ struct ClicApp: App {
                 .environment(sonosService)
                 .environment(superMember)
                 .environment(alertService)
-                .overlay(alignment: .top) {
-                    Text("\(ip ?? "")")
-                        .fontDesign(.rounded)
-                        .fontWidth(.compressed)
-                        .font(.caption2)
-                        .foregroundStyle(Color.accentColor.gradient)
-                        .padding()
-                        .background(.thickMaterial)
-                        .clipShape(Capsule())
-                }
+//                .overlay(alignment: .top) {
+//                    Text("\(ip ?? "")")
+//                        .fontDesign(.rounded)
+//                        .fontWidth(.compressed)
+//                        .font(.caption2)
+//                        .foregroundStyle(Color.accentColor.gradient)
+//                        .padding()
+//                        .background(.thickMaterial)
+//                        .clipShape(Capsule())
+//                }
                 .sheet(isPresented: $showPaywall) {
                     PaywallScreen()
                         .environment(superMember)

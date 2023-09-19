@@ -117,6 +117,8 @@ final class SonosAPI {
                 let volume = XMLParserSonos().parseVolume(xml: xmlString)
                 return Double(volume)
             }
+        } catch URLError.cancelled {
+            print("Cancelled")
         } catch {
             print(error)
             print("Timed out")

@@ -31,25 +31,24 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = true
 
-    @ObservationIgnored
-    private var sonosStorageIP = SonosStorageIP()
-    private var browser: NWBrowser?
-    private let sonosBonjourServiceType = "_sonos._tcp"
-    private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
+    @ObservationIgnored private var sonosStorageIP = SonosStorageIP()
+    @ObservationIgnored private var browser: NWBrowser?
+    @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
+    @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
 
     private var permissionsDenied: Bool = false
 
-    var lastKnownIP: String {
-        get {
-            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
-        }
-    }
+//    var lastKnownIP: String {
+//        get {
+//            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
+//        }
+//        set {
+//            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
+//        }
+//    }
 
-//    var lastKnownIP: String = ""
+    var lastKnownIP: String = ""
     var lastKnownState: String = ""
 
     func startBrowsing() {
@@ -128,31 +127,28 @@ final class SonosSystemDiscoverService {
     //    }
 
     @MainActor
-    func getFirstIP() async throws -> String {
+    func getFirstIP(useCache: Bool) async throws -> String {
         //        try? await Task.sleep(for: .seconds(4))
 //        lastKnownIP = ""
 
         defer {
             isSearching = false
         }
+        isSearching = true
 
-        if !lastKnownIP.isEmpty {
-            return lastKnownIP
+        if useCache && !sonosStorageIP.sonosIP.isEmpty {
+            return sonosStorageIP.sonosIP
         }
 
-        isSearching = true
+        lastKnownIP = ""
         startBrowsing()
-
         let task = Task {
             let date = Date.now
-
             while lastKnownIP.isEmpty {
                 if permissionsDenied {
-                    lastKnownIP = ""
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(10) {
-                    lastKnownIP = ""
+                if Date.now > date.addingTimeInterval(5) {
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(100))
@@ -161,11 +157,11 @@ final class SonosSystemDiscoverService {
             if lastKnownIP.isEmpty {
                 throw SonosServiceError.sonosSystemNotFound
             }
+
             sonosStorageIP.sonosIP = lastKnownIP
             return lastKnownIP
         }
         let ip = try await task.value
-
         return ip
     }
 

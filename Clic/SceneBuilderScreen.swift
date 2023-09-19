@@ -65,7 +65,7 @@ struct SceneBuilderScreen: View {
         .environment(\.editMode, .constant(EditMode.active))
         .task {
             if sonosService.sortedRooms.isEmpty {
-                try? await sonosService.load()
+                try? await sonosService.load(useCache: true)
                 rooms = sonosService.sortedRooms.map {
                     let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
                     room.volume = $0.volume

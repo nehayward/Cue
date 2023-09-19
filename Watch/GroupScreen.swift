@@ -72,7 +72,7 @@ struct GroupScreen: View {
         .task {
             if sonosService.sortedRooms.isEmpty {
                 do {
-                    try await sonosService.load()
+                    try await sonosService.load(useCache: true)
                 } catch {
                     print(error)
                 }

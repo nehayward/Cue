@@ -166,7 +166,7 @@ struct PlayerView: View {
                 Button {
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
-                        try? await sonosService.fetch()
+                        try? await sonosService.fetch(useCache: true)
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")

@@ -25,8 +25,6 @@ struct SearchScreen: View {
     var group: GroupRoom
     @Environment(\.dismiss) var dismiss
 
-
-
     @State private var scope: SearchSelection = .spotify
 
     var body: some View {

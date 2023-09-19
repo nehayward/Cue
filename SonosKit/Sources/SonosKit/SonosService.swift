@@ -63,7 +63,7 @@ public final class SonosService {
     }
 
     @MainActor
-    public func monitor(retry: Bool = true) {
+    public func monitor(retry: Bool = true, useCache: Bool = true) {
         if isRunning { return }
         print("Monitoring!")
 
@@ -73,7 +73,7 @@ public final class SonosService {
                 do {
                     systemNotFound = false
                     permissionsDenied = false
-                    try await load()
+                    try await load(useCache: useCache)
                     // MARK: Update room volumes
                     if selectedGroup != nil {
 //                        print("Selected Still")
@@ -87,22 +87,19 @@ public final class SonosService {
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
                     permissionsDenied = true
-                    sonosSystemDiscoverService.lastKnownIP = ""
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     print("System")
                     systemNotFound = true
-                    sonosSystemDiscoverService.lastKnownIP = ""
                     if retry {
-                        monitor(retry: false)
+                        monitor(retry: false, useCache: false)
                     }
                     sonosPulse.cancel()
                 }
                 catch {
                     print(error)
                     permissionsDenied = true
-                    sonosSystemDiscoverService.lastKnownIP = ""
                     sonosPulse.cancel()
                     print(#function, error)
                 }
@@ -145,7 +142,7 @@ public final class SonosService {
 
 
     @MainActor
-    public func monitorWatch(duration: Duration = .seconds(2)) {
+    public func monitorWatch(retry: Bool = true, duration: Duration = .seconds(2), useCache: Bool) {
         if isRunning { return }
         print("Monitoring!")
         self.sonosPulse = Task { [weak self] in
@@ -154,20 +151,21 @@ public final class SonosService {
                 do {
                     systemNotFound = false
                     permissionsDenied = false
-                    try await fetch()
+                    try await fetch(useCache: useCache)
                     try? await Task.sleep(for: duration) // exception thrown when cancelled by SwiftUI when this view disappears.
 //                    print("Tock", Date.now)
 
                 } catch SonosServiceError.permissionDenied {
                     print("Permision")
                     permissionsDenied = true
-                    sonosSystemDiscoverService.lastKnownIP = ""
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     print("System")
                     systemNotFound = true
-                    sonosSystemDiscoverService.lastKnownIP = ""
+                    if retry {
+                        monitor(retry: false, useCache: false)
+                    }
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.cancelled {
@@ -188,9 +186,10 @@ public final class SonosService {
     }
 
     @MainActor
-    public func load() async throws {
-        let newGroup = try await getGroups()
+    public func load(useCache: Bool) async throws {
+        let newGroup = try await getGroups(useCache: useCache)
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
+            print("Update")
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
@@ -318,8 +317,8 @@ public final class SonosService {
     }
 
     @MainActor
-    public func fetch() async throws {
-        let newGroup = try await getGroups()
+    public func fetch(useCache: Bool) async throws {
+        let newGroup = try await getGroups(useCache: useCache)
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
@@ -486,9 +485,10 @@ public final class SonosService {
         }
     }
 
+
     @MainActor
     public func updateGroupsCheckPlayback() async throws {
-        let newGroup = try await getGroups()
+        let newGroup = try await getGroups(useCache: true)
         if !newGroup.isEmpty && newGroup != groups {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
@@ -559,8 +559,8 @@ public final class SonosService {
     }
 
     @MainActor
-    public func getGroups() async throws -> [GroupRoom] {
-        let ip = try await sonosSystemDiscoverService.getFirstIP()
+    public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
+        let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let groups = try await sonosAPI.getGroups(ipAddress: ip)
         return groups
     }
@@ -754,7 +754,7 @@ public final class SonosService {
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
         do {
-            let groups = try await getGroups()
+            let groups = try await getGroups(useCache: true)
             let group = groups.first { group in
                 group.rooms.contains { room in
                     room.id == roomID

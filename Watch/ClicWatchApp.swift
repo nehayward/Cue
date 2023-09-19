@@ -24,16 +24,26 @@ struct ClicWatchApp: App {
                         sonosService.selectedGroup = sonosService.sorted[index]
                     }
                 }
-                .overlay(alignment: .top) {
-                    Text("\(ip ?? "")")
-                        .fontDesign(.rounded)
-                        .fontWidth(.compressed)
-                        .font(.caption2)
-                        .foregroundStyle(Color.accentColor.gradient)
-                        .background(.thickMaterial)
-                        .clipShape(Capsule())
-                        .ignoresSafeArea(edges: .top)
-                }
+//                .overlay(alignment: .top) {
+//                    VStack(spacing: 0) {
+//                        Text("\(ip ?? "")")
+//                            .fontDesign(.rounded)
+//                            .fontWidth(.compressed)
+//                            .font(.caption2)
+//                            .foregroundStyle(Color.accentColor.gradient)
+//                            .background(.thickMaterial)
+//                            .clipShape(Capsule())
+//                            .ignoresSafeArea(edges: .top)
+//                        Text("\(sonosService.lastKnownIP)")
+//                            .fontDesign(.rounded)
+//                            .fontWidth(.compressed)
+//                            .font(.caption2)
+//                            .foregroundStyle(Color.accentColor.gradient)
+//                            .background(.thickMaterial)
+//                            .clipShape(Capsule())
+//                            .ignoresSafeArea(edges: .top)
+//                    }
+//                }
             
 //                .overlay(alignment: .top) {
 //                    Text(sonosService.lastKnownIP)
@@ -45,36 +55,37 @@ struct ClicWatchApp: App {
 //                }
         }
         .onChange(of: scenePhase) {
-            switch scenePhase {
-            case .active:
-//                sonosService.monitorWatch()
-                sonosService.monitor()
+            handleScenePhase(scenePhase)
+        }
+    }
 
-                // MARK: Wait until systemservice fixed
-//                Task {
-//                    do {
-//                        try await sonosService.updateGroupsCheckPlayback()
-//                        print("Tock", Date.now)
-//                    } catch {
-//                        print(error)
-//                    }
-//                    if selected == nil {
-//                        selected = sonosService.groups.first(where: { room in
-//                            room.coordinatorRoom.isPlaying
-//                        })?.coordinatorID
-//                    }
-//                }
-            case .inactive:
-                print("Inactive")
-            case .background:
-                sonosService.systemNotFound = false
-                Task {
-                    sonosService.sonosPulse.cancel()
+    @MainActor
+    private func handleScenePhase(_ scenePhase: ScenePhase) {
+        switch scenePhase {
+        case .active:
+            sonosService.monitorWatch(useCache: true)
+
+            Task {
+                try? await sonosService.updateGroupsCheckPlayback()
+
+                if selected == nil {
+                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
+                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
+                        try await Task.sleep(for: .milliseconds(200))
+//                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
+                        selected = groupPlaying.coordinatorID
+                    }
                 }
-                break
-            @unknown default:
-                break
             }
+        case .inactive:
+            print("Inactive")
+        case .background:
+            print("Background")
+            Task {
+                sonosService.sonosPulse.cancel()
+            }
+        @unknown default:
+            break
         }
     }
 }

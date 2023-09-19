@@ -28,6 +28,13 @@ struct SceneView: View {
                             .padding(2)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Remove", role: .destructive) {
+                            scenes.removeAll { scene in
+                                scene.id == scene.id
+                            }
+                        }
+                    }
                 }
             }
             .scrollTargetLayout()
@@ -38,11 +45,22 @@ struct SceneView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .trailing) {
-            Button {
-                show = true
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.largeTitle)
+            if scenes.isEmpty {
+                Button {
+                    show = true
+                } label: {
+                    Label("Add Scene", systemImage: "plus.circle.fill")
+                        .padding(4)
+                }
+                .buttonBorderShape(.capsule)
+                .buttonStyle(.bordered)
+            } else {
+                Button {
+                    show = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.largeTitle)
+                }
             }
         }
         .sheet(isPresented: $show) {

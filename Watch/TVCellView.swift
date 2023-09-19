@@ -1,12 +1,11 @@
 import SwiftUI
 import SonosKit
 
-struct TVModeView: View {
+struct TVCellView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
 
     var body: some View {
-
         VStack(alignment: .leading) {
             HStack {
                 Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
@@ -42,7 +41,7 @@ struct TVModeView: View {
 
 #Preview {
     List {
-        TVModeView(group: .constant(.garage))
+        TVCellView(group: .constant(.garage))
             .environment(SonosService())
     }
     .listStyle(.carousel)

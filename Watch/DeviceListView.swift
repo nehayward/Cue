@@ -17,7 +17,7 @@ struct DeviceListView: View {
                 ForEach($sonosService.sorted) { $group in
                     ZStack {
                         if group.tvMode {
-                            TVModeView(group: $group)
+                            TVCellView(group: $group)
                         } else {
                             ExtractedView(group: $group)
                         }
@@ -32,7 +32,7 @@ struct DeviceListView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if sonosService.isSearching {
+            if sonosService.isSearching && sonosService.groups.isEmpty {
                 Label("Searching", systemImage: "waveform.badge.magnifyingglass")
                     .imageScale(.large)
                     .symbolEffect(.variableColor)
@@ -67,7 +67,7 @@ struct DeviceListView: View {
         .background(Color.clear)
         .onAppear {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
-            sonosService.monitorWatch()
+            sonosService.monitorWatch(useCache: true)
         }
 //        .overlay {
 //            VStack {

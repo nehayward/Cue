@@ -7,7 +7,7 @@ struct PlayerScreen: View {
     var body: some View {
         TabView {
             if group.tvMode {
-                TVModeView(group: $group)
+                TVView(group: $group)
             } else {
                 PlayerView(group: $group)
             }
