@@ -243,6 +243,14 @@ class XMLParserSonos {
 
     }
 
+    func parseGetGroupMute(xml: String) -> Bool {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let isMuted = xmlParsed["s:Envelope"]["s:Body"]["u:GetGroupMuteResponse"]["CurrentMute"].element?.text else {
+            return false
+        }
+        return isMuted == "1"
+    }
+
     func parseHouseID(xml: String) -> String {
         let xmlParsed = XMLHash.parse(xml)
         guard let householdID = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupAttributesResponse"]["CurrentMuseHouseholdId"].element?.text

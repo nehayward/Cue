@@ -9,6 +9,12 @@ struct ArtworkViewKing: View {
 
     var body: some View {
         KFImage(artworkURL)
+            .placeholder {
+                RoundedRectangle(cornerRadius: 4)
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.ultraThinMaterial)
+                    .shadow(radius: 2)
+            }
             .cacheMemoryOnly()
             .fade(duration: 0.2)
             .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(2)))
@@ -16,6 +22,7 @@ struct ArtworkViewKing: View {
             .aspectRatio(contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .shadow(radius: 2)
+        
             .overlay(alignment: .bottomTrailing) {
                 switch group.coordinatorRoom.track.musicService {
                 case .apple:

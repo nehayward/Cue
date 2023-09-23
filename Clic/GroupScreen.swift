@@ -19,8 +19,12 @@ struct GroupScreen: View {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(room.name)
-                                    Text("\(room.volume, specifier: "%0.f")%")
-                                        .foregroundStyle(.secondary)
+                                        .fontDesign(.rounded)
+                                    HStack {
+                                        Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
+                                            .padding(.trailing, 8)
+                                        Text("\(room.volume, specifier: "%0.f")%")
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
@@ -37,25 +41,38 @@ struct GroupScreen: View {
             .scrollContentBackground(.hidden)
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        let rooms = sonosService.sortedRooms.filter { room in
-                            viewModel.selections.contains(room.id)
+                    if viewModel.groupingLabel != "Cancel" {
+                        Button {
+                            let rooms = sonosService.sortedRooms.filter { room in
+                                viewModel.selections.contains(room.id)
+                            }
+                            Task {
+                                dismiss()
+                                await sonosService.smartGroup(rooms: rooms, to: group)
+                            }
+        //                    Task {
+        //                        await sonosService.smartGroup(rooms: rooms, to: roomGroup)
+        //                        try await sonosService.fetch()
+        //                        dismiss()
+        //                    }
+                        } label: {
+                            Text("Done")
+                                .fontDesign(.rounded)
+                                .bold()
+                                .frame(maxWidth: .infinity)
                         }
-                        Task {
-                            dismiss()
-                            await sonosService.smartGroup(rooms: rooms, to: group)
-                        }
-                    } label: {
-                        Text(viewModel.groupingLabel)
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .padding()
                     }
-                    .buttonStyle(.borderedProminent)
                 }
-                ToolbarItem(placement: .destructiveAction) {
-                    Button(role: .cancel) {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
+                ToolbarItem(placement: .navigation) {
+                    HStack {
+                        Image(systemName: "hifispeaker.fill")
+                        Text(group.coordinatorRoom.name + viewModel.numberInGroup)
                     }
+                    .fontDesign(.rounded)
+                    .bold()
                 }
             }
             .task {
@@ -67,8 +84,6 @@ struct GroupScreen: View {
                     }
                 }
             }
-            .navigationTitle("\(group.coordinatorRoom.name)")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])

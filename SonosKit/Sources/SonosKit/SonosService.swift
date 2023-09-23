@@ -20,7 +20,7 @@ public final class SonosService {
     public var permissionsDenied: Bool = false
     public var pulseIsRunning: Bool = false
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
-    public var lastKnownIP: String { sonosSystemDiscoverService.lastKnownIP }
+    public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
 
 
@@ -69,6 +69,7 @@ public final class SonosService {
 
         self.sonosPulse = Task { [weak self] in
             guard let self else { return }
+            var useCache = useCache
             repeat {
                 do {
                     systemNotFound = false
@@ -81,8 +82,8 @@ public final class SonosService {
                     } else {
                         try? await Task.sleep(for: .seconds(1))
                     }
+                    useCache = true
 //                    print("Tock", Date.now)
-
 
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
@@ -90,16 +91,18 @@ public final class SonosService {
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
-                    print("System")
+                    print("System not found")
                     systemNotFound = true
                     if retry {
+                        sonosPulse.cancel()
                         monitor(retry: false, useCache: false)
                     }
+                }
+                catch SonosServiceError.cancelled {
                     sonosPulse.cancel()
                 }
                 catch {
                     print(error)
-                    permissionsDenied = true
                     sonosPulse.cancel()
                     print(#function, error)
                 }
@@ -732,8 +735,9 @@ public final class SonosService {
         await sonosAPI.queue(song: song, IP: ip)
     }
 
-    public func seek(trackNumber: Int, on ip: String) async {
-        await sonosAPI.seek(trackNumber: trackNumber, IP: ip)
+    public func seek(trackNumber: Int, on group: GroupRoom) async {
+        await sonosAPI.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        await sonosAPI.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
     }
 
     public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {

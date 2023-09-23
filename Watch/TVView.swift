@@ -8,7 +8,9 @@ struct TVView: View {
     @State private var volumeTask: Task<Void, Error>?
 
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .center) {
+            Text("Multichannel PCM 5.1")
+            Text(group.groupVolume, format: .number)
             HStack {
                 Button {
 

@@ -82,7 +82,7 @@ public extension Track {
     }
 
     static var empty = Track(trackID: "",
-                             name: "Nothing to play",
+                             name: "Nothing playing",
                              artist: "",
                              album: "",
                              artworkURL: nil,

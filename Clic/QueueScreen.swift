@@ -4,7 +4,10 @@ import SonosKit
 
 struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(\.dismiss) var dismiss
+
     @State var tracks: [Track] = []
+
     var group: GroupRoom
 
     var body: some View {
@@ -55,9 +58,9 @@ struct QueueScreen: View {
                             }
                         }
                         Button {
-                            print(track.name)
+                            dismiss()
                             Task {
-                                await sonosService.seek(trackNumber: index + 1, on: group.coordinatorRoom.ip)
+                                await sonosService.seek(trackNumber: index + 1, on: group)
                                 await sonosService.play(ip: group.coordinatorRoom.ip)
                             }
                         } label: {
@@ -82,11 +85,18 @@ struct QueueScreen: View {
             }
             .scrollContentBackground(.hidden)
             .listStyle(.plain)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                        Text("Queue")
+                            .font(.title)
+                }
+            }
         }
         .task {
             self.tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
         }
         .presentationBackground(.thinMaterial)
+
     }
 }
 

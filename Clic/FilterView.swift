@@ -40,18 +40,18 @@ struct FilterView: View {
         ScrollView(.horizontal) {
             HStack {
                 ForEach(Filter.allCases, id: \.self) { filter in
-//                    Button {
-//
-//                    } label: {
-//                        Text(filter.title)
-//                            .padding(12)
-//                            .background{
-//                                Capsule()
-//                                    .foregroundStyle(.thinMaterial)
-//                            }
-//                            .padding(2)
-//                    }
-//                    .buttonStyle(.plain)
+                    Button {
+
+                    } label: {
+                        Text(filter.title)
+                            .padding(12)
+                            .background{
+                                Capsule()
+                                    .foregroundStyle(.thinMaterial)
+                            }
+                            .padding(2)
+                    }
+                    .buttonStyle(.plain)
                     Toggle(filter.title, isOn: $selected)
                         .toggleStyle(.button)
 
@@ -84,7 +84,7 @@ struct FilterView: View {
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .mask(alignment: .trailing) {
-            LinearGradient(stops: [.init(color: Color.black, location: 0.95), .init(color: Color.black.opacity(0), location: 1.05)], startPoint: .leading, endPoint: .trailing)
+            LinearGradient(stops: [.init(color: Color.black, location: 0.6), .init(color: Color.black.opacity(0), location: 1.05)], startPoint: .leading, endPoint: .trailing)
         }
     }
 }

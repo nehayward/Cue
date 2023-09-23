@@ -54,6 +54,9 @@ struct ClicApp: App {
                 .onAppear {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                 }
+                .task {
+                    sonosService.lastKnownIP
+                }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
@@ -93,8 +96,14 @@ struct ClicApp: App {
             Task {
                 sonosService.sonosPulse.cancel()
             }
+            SonosStorageIP().sonosIP = "192"
         @unknown default:
             break
         }
     }
+}
+
+
+class SonosStorageIP: ObservableObject {
+    @CloudStorage("sonos_ip") var sonosIP = ""
 }

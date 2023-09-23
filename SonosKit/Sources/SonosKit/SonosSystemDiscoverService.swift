@@ -31,7 +31,7 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = true
 
-    @ObservationIgnored private var sonosStorageIP = SonosStorageIP()
+    @ObservationIgnored var sonosStorageIP = SonosStorageIP()
     @ObservationIgnored private var browser: NWBrowser?
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
     @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
@@ -135,7 +135,6 @@ final class SonosSystemDiscoverService {
             isSearching = false
         }
         isSearching = true
-
         if useCache && !sonosStorageIP.sonosIP.isEmpty {
             return sonosStorageIP.sonosIP
         }

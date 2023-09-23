@@ -162,7 +162,7 @@ struct ImprovedSearch: View {
                 }
 
             }
-            .searchable(text: $query,  isPresented: $searchFieldIsPresented)
+            .searchable(text: $query, isPresented: $searchFieldIsPresented)
             .onChange(of: query, initial: true) {
                 searchTask?.cancel()
                 print("Searching... \(query)")

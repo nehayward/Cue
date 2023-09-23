@@ -1,9 +1,10 @@
 import XCTest
-import SonosKit
+@testable import SonosKit
 
 final class IntegrationsTests: XCTestCase {
     let garageSonosIP = "192.168.4.50"
     let sonosService = SonosService()
+    let sonosAPI = SonosAPI()
 
     func testQueue() async throws {
         await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", title: "Dua Lipa Discography", owner: "Dua Lipa", on: "192.168.4.49", group: GroupRoom(id: "", coordinatorID: "", rooms: [], coordinatorRoom: .garage))
@@ -34,5 +35,9 @@ final class IntegrationsTests: XCTestCase {
             print(error)
         }
     }
-    
+
+    func testGetGroupMute() async throws {
+        let isMuted = await sonosAPI.getGroupMute(ipAddress: garageSonosIP)
+        print(isMuted)
+    }
 }

@@ -6,7 +6,7 @@ struct SceneBuilderScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
 
-    @State var multiSelection = Set<String>()
+    @State var selections = Set<String>()
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
 
@@ -16,20 +16,49 @@ struct SceneBuilderScreen: View {
     var body: some View {
         @Bindable var sonosService = sonosService
 
-        List(selection: $multiSelection) {
-            ForEach($rooms) { $room in
-                VStack(alignment: .leading) {
-                    Text(room.name)
-                    HStack(alignment: .center) {
-                        Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
-                        Slider(value: $room.volume, in: 0...100, step: 2)
-                        Text(room.volume, format: .number)
+        NavigationStack {
+            List {
+                ForEach($rooms) { $room in
+                    Button {
+                        if selections.contains(room.id) {
+                            selections.remove(room.id)
+                        } else {
+                            selections.insert(room.id)
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text(room.name)
+                                    Spacer()
+                                    Text(room.volume, format: .number)
+                                        .frame(minWidth: 20, alignment: .leading)
+                                }
+                                HStack(alignment: .center) {
+                                    Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
+                                    Slider(value: $room.volume, in: 0...100, step: 2)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                .contentTransition(.symbolEffect(.automatic))
+                        }
                     }
+                    .listRowBackground(Color.clear)
                 }
-                .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+//            .toolbar {
+//                ToolbarItem(placement: .navigation) {
+//                    HStack {
+//                        Text("Scene")
+//                    }
+//                    .fontDesign(.rounded)
+//                    .bold()
+//                }
+//            }
         }
-        .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) {
             VStack {
                 TextField("", text: $sceneName)
@@ -37,24 +66,20 @@ struct SceneBuilderScreen: View {
                     .padding()
                 Button {
                     let rooms = rooms.filter { room in
-                        multiSelection.contains(room.id)
+                        selections.contains(room.id)
                     }
                     let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
                     let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
-                    scenes.insert(newScene, at: 0)
-//                    print(newScene.name)
-//                    print(rooms)
-                    //                Task {
-                    //                    dismiss()
-                    ////                    await sonosService.group(rooms: rooms, to: roomGroup.coordinatorID)
-                    //                }
+                    scenes.append(newScene)
+                    dismiss()
                 } label: {
                     Text("Create Scene")
+                        .frame(maxWidth: .infinity)
                         .fontWeight(.bold)
                 }
                 .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
             }
-            .padding()
             .background {
                 Rectangle()
                     .foregroundStyle(.ultraThinMaterial)
@@ -62,7 +87,6 @@ struct SceneBuilderScreen: View {
                     .shadow(radius: 2)
             }
         }
-        .environment(\.editMode, .constant(EditMode.active))
         .task {
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
@@ -81,9 +105,9 @@ struct SceneBuilderScreen: View {
         }
         .presentationBackground(.thinMaterial)
         .presentationDetents([.medium, .large])
-        .onChange(of: multiSelection) { oldValue, newValue in
+        .onChange(of: selections) { oldValue, newValue in
             let rooms = rooms.filter { room in
-                multiSelection.contains(room.id)
+                selections.contains(room.id)
             }
 
             sceneName = rooms.map(\.name).joined(separator: " + ")
@@ -92,7 +116,6 @@ struct SceneBuilderScreen: View {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
             sonosService.monitor()
         }
-
     }
 }
 

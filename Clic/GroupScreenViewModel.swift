@@ -31,6 +31,14 @@ final class GroupScreenViewModel {
         return "Group"
     }
 
+    var numberInGroup: String {
+        if selections == initialSelection, selections.count > 0 {
+            return " + \(initialSelection.count)"
+        }
+
+        return selections.count > 0 ? " + \(selections.count)" : ""
+    }
+
     func buttonAction(id: String) {
         if selections.contains(id) {
             selections.remove(id)
