@@ -29,7 +29,6 @@ struct MediaControlsView: View {
                     }
                 }
             } label: {
-
                 Gauge(
                     value: group.coordinatorRoom.track.playbackPosition,
                     in: 0...group.coordinatorRoom.track.duration,

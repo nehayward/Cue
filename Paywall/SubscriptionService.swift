@@ -4,22 +4,17 @@ import RevenueCat
 @Observable
 class SubscriptionService {
     var isEnabled: Bool = true
+    var isConfigured: Bool = false
 
     func setup() async {
-            Purchases.logLevel = .error
-            Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
-        // Using Swift Concurrency
-        do {
-            let offerings = try await Purchases.shared.offerings()
-            // Display current offering with offerings.current
-//            print(offerings)
-        } catch let error {
-            // handle error
-//            print(error)
-        }
+        guard !isConfigured else { return }
+        Purchases.logLevel = .error
+        Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
+        isConfigured = true
     }
 
     func getOfferings() async throws -> Offerings? {
+        await setup()
         do {
             let offerings = try await Purchases.shared.offerings()
             // Display current offering with offerings.current
@@ -42,11 +37,9 @@ class SubscriptionService {
         return true
     }
 
-    func checkStatus() async {
-//        let customerInfo = try await Purchases.shared.customerInfo()
-//        if customerInfo.entitlements.all[<your_entitlement_id>]?.isActive == true {
-//            // User is "premium"
-//        }
+    func checkStatus() async throws {
+        let customerInfo = try await Purchases.shared.customerInfo()
+        print(customerInfo)
     }
 }
 

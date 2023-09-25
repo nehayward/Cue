@@ -26,6 +26,7 @@ struct ImprovedSearch: View {
     var body: some View {
         NavigationStack {
             List {
+                Text(searchFieldIsPresented ? "Searching" : "Not")
 //                TextField(text: $query) {
 //                    Text("HERE")
 //                }
@@ -99,7 +100,7 @@ struct ImprovedSearch: View {
                                     Text(item.name)
                                 }
                                 .onTapGesture {
-//                                    dismiss()
+                                    dismiss()
                                     Task {
                                         await sonosService.queueSpotifyTrack(id: item.id, group: group)
                                     }
@@ -261,7 +262,7 @@ struct ImprovedSearch: View {
         .presentationBackgroundInteraction(.enabled)
         .presentationDragIndicator(.hidden)
         .presentationBackground(.thinMaterial)
-        .interactiveDismissDisabled(focusedField)
+        .interactiveDismissDisabled(searchFieldIsPresented)
         .listStyle(.inset)
         .onAppear {
             showKeyboard()
@@ -270,12 +271,12 @@ struct ImprovedSearch: View {
 
     @MainActor
     private func showKeyboard() {
-        UIView.setAnimationsEnabled(false)
+//        UIView.setAnimationsEnabled(false)
         focusedField = true
-        Task {
-            try await Task.sleep(for: .milliseconds(400))
-            UIView.setAnimationsEnabled(true)
-        }
+//        Task {
+//            try await Task.sleep(for: .milliseconds(400))
+//            UIView.setAnimationsEnabled(true)
+//        }
     }
 }
 

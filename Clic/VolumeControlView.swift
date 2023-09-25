@@ -10,15 +10,30 @@ struct VolumeControlView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            Image(systemName: "speaker.wave.3.fill", variableValue: group.groupVolume/100)
-                .fixedSize()
-                .padding(.trailing, 8)
+            Button {
+                Task {
+                    await sonosService.setGroupMute(group: group, mute: !group.isMuted)
+                }
+            } label: {
+                Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
+                    .padding(.trailing, 8)
+                    .foregroundStyle(.accent)
+            }
+            .frame(width: 24, alignment: .leading)
+            .buttonStyle(.plain)
+
             Slider(value: $group.groupVolume, in: 0...100, step: 2) { isEditing in
+                if group.isMuted {
+                    Task {
+                        await sonosService.setGroupMute(group: group, mute: false)
+                    }
+                }
                 self.isEditing = isEditing
                 if !isEditing {
                     updateVolume(volume: group.groupVolume)
                 }
             }
+
             .sensoryFeedback(.impact(flexibility: .solid), trigger: group.groupVolume) { oldValue, newValue in
                 isEditing
             }

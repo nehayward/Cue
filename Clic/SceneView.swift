@@ -38,7 +38,9 @@ struct SceneView: View {
                     }
                 }
                 .padding(.vertical)
+                .background(.clear)
             }
+            .background(.clear)
             .scrollTargetLayout()
             .fontDesign(.rounded)
             .fontWeight(.bold)
@@ -49,7 +51,7 @@ struct SceneView: View {
         .mask(alignment: .trailing) {
             LinearGradient(stops: [.init(color: Color.black.opacity(0), location: -0.1), .init(color: Color.black, location: 0.1), .init(color: Color.black, location: 0.85), .init(color: Color.black.opacity(0), location: 0.9)], startPoint: .leading, endPoint: .trailing)
         }
-        .overlay(alignment: .trailing) {
+        .safeAreaInset(edge: .trailing) {
             if scenes.isEmpty {
                 Button {
                     show = true

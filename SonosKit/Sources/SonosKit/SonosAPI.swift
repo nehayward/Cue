@@ -64,12 +64,12 @@ final class SonosAPI {
         }
     }
 
-    func getGroupMute(ipAddress: String) async -> Bool {
+    func getGroupMute(IP: String) async -> Bool {
         let arguments: [String: Any] = [
             "InstanceID": 0
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: ipAddress, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
             }
@@ -80,23 +80,18 @@ final class SonosAPI {
         return false
     }
 
-    func setGroupMute(IP: String, mute: Bool) async -> Bool {
+    func setGroupMute(IP: String, mute: Bool) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
-            "DesiredMute": 0
+            "DesiredMute": mute ? 1 : 0
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "SetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
+                // TODO: Throw error
             }
-            let xml = String(decoding: data, as: UTF8.self)
-            return XMLParserSonos().parseGetGroupMute(xml: xml)
         }
-
-        return false
     }
-
 
     @discardableResult func setRelativeVolume(ipAddress: String, volume: Int) async -> Int {
         let arguments: [String: Any] = [

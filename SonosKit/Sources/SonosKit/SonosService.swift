@@ -70,6 +70,7 @@ public final class SonosService {
         self.sonosPulse = Task { [weak self] in
             guard let self else { return }
             var useCache = useCache
+            var retry = retry
             repeat {
                 do {
                     systemNotFound = false
@@ -77,29 +78,29 @@ public final class SonosService {
                     try await load(useCache: useCache)
                     // MARK: Update room volumes
                     if selectedGroup != nil {
-//                        print("Selected Still")
                         try? await Task.sleep(for: .milliseconds(500))
                     } else {
                         try? await Task.sleep(for: .seconds(1))
                     }
                     useCache = true
-//                    print("Tock", Date.now)
-
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
                     permissionsDenied = true
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
-                    print("System not found")
-                    systemNotFound = true
-                    if retry {
+                    guard retry else {
+                        print("System not found")
+                        systemNotFound = true
                         sonosPulse.cancel()
-                        monitor(retry: false, useCache: false)
+                        return
                     }
+                    // MARK: Invalidate Cache
+                    useCache = false
+                    retry = false
                 }
                 catch SonosServiceError.cancelled {
-                    sonosPulse.cancel()
+
                 }
                 catch {
                     print(error)
@@ -150,6 +151,8 @@ public final class SonosService {
         print("Monitoring!")
         self.sonosPulse = Task { [weak self] in
             guard let self else { return }
+            var useCache = useCache
+
             repeat {
                 do {
                     systemNotFound = false
@@ -157,19 +160,17 @@ public final class SonosService {
                     try await fetch(useCache: useCache)
                     try? await Task.sleep(for: duration) // exception thrown when cancelled by SwiftUI when this view disappears.
 //                    print("Tock", Date.now)
-
+                    useCache = true
                 } catch SonosServiceError.permissionDenied {
                     print("Permision")
                     permissionsDenied = true
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
-                    print("System")
+                    print("System not found")
                     systemNotFound = true
-                    if retry {
-                        monitor(retry: false, useCache: false)
-                    }
-                    sonosPulse.cancel()
+                    // MARK: Invalidate Cache
+                    useCache = false
                 }
                 catch SonosServiceError.cancelled {
                     print("It's okay")
@@ -266,6 +267,7 @@ public final class SonosService {
         try await updateGroups(from: groups)
         await updateGroupRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
+        await updateGroupMuteState(for: groups)
 
 //        for group in groups.indices {
 //            let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
@@ -527,6 +529,17 @@ public final class SonosService {
     }
 
     @MainActor
+    public func updateGroupMuteState(for roomGroups: [GroupRoom]) async {
+        await withDiscardingTaskGroup { group in
+            for roomGroup in roomGroups {
+                group.addTask {
+                    roomGroup.isMuted = await self.isMuted(for: roomGroup)
+                }
+            }
+        }
+    }
+
+    @MainActor
     func updateGroupsWatch(from roomGroups: [GroupRoom]) async throws {
         try await withThrowingDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
@@ -606,6 +619,11 @@ public final class SonosService {
         await sonosAPI.setRelativeVolume(ipAddress: ip, volume: volume)
     }
 
+    @MainActor
+    public func setGroupMute(group: GroupRoom, mute: Bool) async {
+        group.isMuted = mute
+        await sonosAPI.setGroupMute(IP: group.coordinatorRoom.ip, mute: mute)
+    }
 
     public func setGroupVolume(ip: String, volume: Int) async {
         await sonosAPI.setGroupVolume(ipAddress: ip, volume: volume)
@@ -685,6 +703,10 @@ public final class SonosService {
         await sonosAPI.previous(ipAddress: ip)
     }
 
+    public func isMuted(for group: GroupRoom) async -> Bool {
+        await sonosAPI.getGroupMute(IP: group.coordinatorRoom.ip)
+    }
+    
     public func getVolume(ip: String) async -> Double {
         await sonosAPI.getVolume(ipAddress: ip)
     }
@@ -715,16 +737,19 @@ public final class SonosService {
         }
     }
 
+    // TODO: Create Scene
     public func createScene(rooms: [Room]) async {
-//        group(rooms: rooms, to: rooms.first.id)
-        print(rooms)
+//        let rooms = rooms.filter { room in
+//            selections.contains(room.id)
+//        }
+//        let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+//        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+//        scenes.append(newScene)
     }
 
     public func runScene(_ scene: SonosScene) async {
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
-
         await group(rooms: rooms, to: scene.rooms.first!.id)
-
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }

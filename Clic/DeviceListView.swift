@@ -9,6 +9,7 @@ struct DeviceListView: View {
 //    @Binding var current: GroupRoom?
     @Binding var selected: String?
     @State var isShowing: Bool = false
+    @State var showSettings: Bool = false
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -17,18 +18,24 @@ struct DeviceListView: View {
         NavigationSplitView {
             List ($sonosService.sorted, selection: $selected) { $group in
                 Section {
-                    VStack {
-                        HStack(alignment: .top) {
-//                            ArtworkView(group: $group)
-//                                .frame(width: 72, height: 72)
-                            ArtworkViewKing(group: $group)
-                                .frame(width: 72, height: 72)
-                            ZoneView(group: $group)
-                            Spacer()
-                            MediaControlsView(group: $group)
+                    ZStack {
+                        if group.tvMode {
+                            Text("TV")
+                        } else {
+                            VStack {
+                                HStack(alignment: .top) {
+                                    //                            ArtworkView(group: $group)
+                                    //                                .frame(width: 72, height: 72)
+                                    ArtworkViewKing(group: $group)
+                                        .frame(width: 72, height: 72)
+                                    ZoneView(group: $group)
+                                    Spacer()
+                                    MediaControlsView(group: $group)
+                                }
+                                Divider()
+                                VolumeControlView(group: $group)
+                            }
                         }
-                        Divider()
-                        VolumeControlView(group: $group)
                     }
                 } header: {
                     HStack {
@@ -49,6 +56,29 @@ struct DeviceListView: View {
 //                            Color.clear.allowsHitTesting(false)
 //                        }
 //                        .ignoresSafeArea()
+                }
+            }
+//            .overlay(alignment: .topTrailing) {
+//                Button {
+//                    showSettings = true
+//                } label: {
+//                    Image(systemName: "gear")
+//                        .resizable()
+//                        .frame(width: 24, height: 24)
+//                        .padding([.trailing, .top])
+//                }
+//                .padding()
+//                .frame(maxWidth: .infinity, alignment: .trailing)
+//                .background(.thinMaterial)
+//                .ignoresSafeArea()
+//            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gear")
+                    }
                 }
             }
 //            VStack {
@@ -165,8 +195,14 @@ struct DeviceListView: View {
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
             sonosService.monitor()
+//            showSettings = true
         }
-
+        .sheet(isPresented: $showSettings) {
+            PreferenceScreen()
+        }
+//        .sheet(isPresented: $showSettings) {
+//            PaywallScreen()
+//        }
     }
 }
 

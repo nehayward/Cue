@@ -11,9 +11,11 @@ public final class GroupRoom: Identifiable, Sendable {
     public var tvMode: Bool = false
     public var tvSettings: TVSettings? = nil
     public let coordinatorRoom: Room
+    public var isMuted: Bool = false
 
     @ObservationIgnored
     private var privateGroupVolume: Double = 0
+    
 
     public var groupVolume: Double {
         get {

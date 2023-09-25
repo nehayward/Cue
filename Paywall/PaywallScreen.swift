@@ -8,118 +8,113 @@ struct PaywallScreen: View {
     @State var offerings: Offerings?
 
     var body: some View {
-        VStack(alignment: .center) {
-            Text("Super!")
-                .font(.title)
-                .foregroundStyle(Color.accentColor.gradient)
-                .scaledToFit()
-            VStack {
-                HStack {
-                    Label("Unlimited Devices", systemImage: "hifispeaker.2.fill")
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
+        NavigationStack {
+            VStack(alignment: .center) {
+                VStack {
+                    HStack {
+                        Label("Unlimited Devices", systemImage: "hifispeaker.2.fill")
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
+                    HStack {
+                        Label("Widgets", systemImage: "square.filled.on.square")
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
+                    HStack {
+                        Label("Watch App", systemImage: "applewatch")
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+
+                VStack {
+                    //                Text("\(Text("Free").bold()) for a month, then")
+                    //                Text("$12.99 per year")
+                    Text(offerings?.current?.monthly?.storeProduct.localizedPriceString ?? "")
+
+                }
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .leading) {
+                    Image(systemName: "circle.fill")
+                        .font(.headline)
+                        .padding(.leading)
+                        .foregroundStyle(Color.accentColor.gradient)
+                }
                 .padding()
                 .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
-                HStack {
-                    Label("Widgets", systemImage: "square.filled.on.square")
-                    Spacer()
-                    Image(systemName: "checkmark.circle.fill")
+                .padding(.bottom)
+
+
+                Button {
+                    //                subscriptionService.isEnabled = true
+                    guard let offerings, let annual = offerings.current?.monthly else { return }
+                    Task {
+                        do {
+                            try await subscriptionService.pay(package: annual)
+                        } catch {
+                            print(error)
+                        }
+                    }
+
+                } label: {
+                    Text("Continue")
+                        .font(.callout)
+                        .bold()
+                        .foregroundStyle(.ultraThickMaterial)
+                        .frame(maxWidth: .infinity)
+                        .padding()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
+                .buttonStyle(.plain)
+                .fontDesign(.rounded)
+                .sensoryFeedback(.success, trigger: subscriptionService.isEnabled == true)
+                .background(Color.accentColor.gradient)
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+
                 HStack {
-                    Label("Watch App", systemImage: "applewatch")
+                    Button("Terms of Use") {
+
+                    }
                     Spacer()
-                    Image(systemName: "checkmark.circle.fill")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
-            }
-            .padding()
+                    Button("Restore Purchases") {
 
-            VStack {
-                Text("\(Text("Free").bold()) for a month, then")
-                Text("$12.99 per year")
-                Text(offerings?.current?.annual?.storeProduct.localizedPriceString ?? "")
-                Text(offerings?.current?.annual?.storeProduct.localizedDescription ?? "")
+                    }
+                    Spacer()
+                    Button("Privacy Policy") {
 
-            }
-            .frame(maxWidth: .infinity)
-            .overlay(alignment: .leading) {
-                Image(systemName: "circle.fill")
-                    .font(.headline)
-                    .padding(.leading)
-                    .foregroundStyle(Color.accentColor.gradient)
-            }
-            .padding()
-            .background(RoundedRectangle(cornerRadius: 24).foregroundStyle(.thinMaterial))
-            .padding(.bottom)
-
-
-            Button {
-//                subscriptionService.isEnabled = true
-                guard let offerings, let annual = offerings.current?.annual else { return }
-                Task {
-                    do {
-                        try await subscriptionService.pay(package: annual)
-                    } catch {
-                        print(error)
                     }
                 }
-
-            } label: {
-                Text("Continue")
-                    .font(.callout)
-                    .bold()
-                    .foregroundStyle(.ultraThickMaterial)
-                    .frame(maxWidth: .infinity)
-                    .padding()
+                .padding()
+                .font(.caption)
             }
-            .buttonStyle(.plain)
-            .fontDesign(.rounded)
-            .sensoryFeedback(.success, trigger: subscriptionService.isEnabled == true)
-            .background(Color.accentColor.gradient)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-
-            HStack {
-                Button("Terms of Use") {
-
-                }
-                Spacer()
-                Button("Restore Purchases") {
-
-                }
-                Spacer()
-                Button("Privacy Policy") {
-
-                }
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .padding()
-            .font(.caption)
+            .fontDesign(.rounded)
+            .task {
+                offerings = try? await subscriptionService.getOfferings()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Super!")
+                        .font(.title)
+                        .foregroundStyle(Color.accentColor.gradient)
+                        .scaledToFit()
+                }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .presentationDetents([.fraction(0.7)])
+        .presentationDetents([.medium])
         .presentationCornerRadius(24)
-        .padding()
-        .fontDesign(.rounded)
-        .task {
-            offerings = await try? subscriptionService.getOfferings()
-        }
-
-
-        //        SubscriptionStoreView(productIDs:  ["com.hackingwithswift.plus.subscription"])
-        //            .storeButton(.visible, for: .restorePurchases, .redeemCode, .policies)
-        //            .subscriptionStorePolicyDestination(for: .privacyPolicy) {
-        //                Text("Privacy policy here")
-        //            }
-        //            .subscriptionStorePolicyDestination(for: .termsOfService) {
-        //                Text("Terms of service here")
-        //            }
-        //            .subscriptionStoreControlStyle(.prominentPicker)
     }
 }
 

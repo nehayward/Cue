@@ -79,6 +79,7 @@ struct SceneBuilderScreen: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
+                .padding(.bottom)
             }
             .background {
                 Rectangle()

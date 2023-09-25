@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E90ACD822ABFDD77006A9FD3 /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E92CABEF2AB8FE70002A3D4D /* TVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CABED2AB8FE24002A3D4D /* TVView.swift */; };
@@ -164,6 +165,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E92CABED2AB8FE24002A3D4D /* TVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVView.swift; sourceTree = "<group>"; };
@@ -409,6 +411,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeView.swift */,
@@ -420,8 +423,8 @@
 				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E94F6B0D2A5093BF000240A6 /* PlayerView.swift */,
-				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
+				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E963963E2A3CD3AE00518A17 /* SearchScreen.swift */,
@@ -758,6 +761,7 @@
 				E966A0CE2A741DD000FF17FC /* PaywallScreen.swift in Sources */,
 				E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
+				E90ACD822ABFDD77006A9FD3 /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeView.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
