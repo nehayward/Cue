@@ -1,15 +1,17 @@
 import SwiftUI
 import SonosKit
+import RevenueCat
+import RevenueCatUI
 
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(SubscriptionService.self) var superMember: SubscriptionService
+    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
 
-//    @Binding var current: GroupRoom?
     @Binding var selected: String?
     @State var isShowing: Bool = false
     @State var showSettings: Bool = false
+    @State private var showPaywall: Bool = false
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -24,8 +26,6 @@ struct DeviceListView: View {
                         } else {
                             VStack {
                                 HStack(alignment: .top) {
-                                    //                            ArtworkView(group: $group)
-                                    //                                .frame(width: 72, height: 72)
                                     ArtworkViewKing(group: $group)
                                         .frame(width: 72, height: 72)
                                     ZoneView(group: $group)
@@ -47,15 +47,32 @@ struct DeviceListView: View {
                 }
                 .tag(group.coordinatorID)
                 .headerProminence(.increased)
+                .redacted(reason: enabled(group: group) ? [] : .placeholder)
+                .disabled(!enabled(group: group))
+                .selectionDisabled(!enabled(group: group))
             }
             .safeAreaInset(edge: .bottom) {
-                if !sonosService.groups.isEmpty {
+                if !subscriptionService.isEnabled {
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        Text("Show all devices (\(sonosService.groups.count))")
+                            .fontDesign(.rounded)
+                            .fontWidth(.compressed)
+                            .foregroundStyle(Color.accentColor.gradient)
+                            .padding()
+                            .background(.thickMaterial)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+            }
+            .safeAreaInset(edge: .bottom) {
+                if !sonosService.groups.isEmpty && subscriptionService.isEnabled {
                     SceneView()
                         .padding(12)
-//                        .background {
-//                            Color.clear.allowsHitTesting(false)
-//                        }
-//                        .ignoresSafeArea()
                 }
             }
 //            .overlay(alignment: .topTrailing) {
@@ -203,6 +220,12 @@ struct DeviceListView: View {
 //        .sheet(isPresented: $showSettings) {
 //            PaywallScreen()
 //        }
+    }
+
+    private func enabled(group: GroupRoom) -> Bool {
+        if subscriptionService.isEnabled { return true }
+        guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
+        return index < 1
     }
 }
 

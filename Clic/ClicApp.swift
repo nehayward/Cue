@@ -8,54 +8,24 @@ import CloudStorage
 struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
     @State private var selected: String?
-    @State private var showPaywall: Bool = false
     @State private var liveActivityManager: LiveActivityManager? = nil
 
     @CloudStorage("sonos_ip") var ip: String?
     private var sonosService = SonosService()
     private var alertService = AlertService()
-    private var superMember = SubscriptionService()
+    private var subscriptionService = SubscriptionService()
 
     var body: some Scene {
         WindowGroup {
             DeviceListView(selected: $selected)
                 .environment(sonosService)
-                .environment(superMember)
+                .environment(subscriptionService)
                 .environment(alertService)
-//                .overlay(alignment: .top) {
-//                    Text("\(ip ?? "")")
-//                        .fontDesign(.rounded)
-//                        .fontWidth(.compressed)
-//                        .font(.caption2)
-//                        .foregroundStyle(Color.accentColor.gradient)
-//                        .padding()
-//                        .background(.thickMaterial)
-//                        .clipShape(Capsule())
-//                }
-                .sheet(isPresented: $showPaywall) {
-                    PaywallScreen()
-                        .environment(superMember)
-                }
-                .safeAreaInset(edge: .bottom) {
-                    if !superMember.isEnabled {
-                        Button {
-                            showPaywall = true
-                        } label: {
-                            Text("Show all devices (\(sonosService.groups.count))")
-                                .fontDesign(.rounded)
-                                .fontWidth(.compressed)
-                                .foregroundStyle(Color.accentColor.gradient)
-                                .padding()
-                                .background(.thickMaterial)
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
                 .onAppear {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                 }
                 .task {
-                    await superMember.setup()
+                    await subscriptionService.setup()
                 }
         }
         .onChange(of: scenePhase) {
@@ -64,7 +34,7 @@ struct ClicApp: App {
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             liveActivityManager?.createActivity(with: sonosService.groups)
         }
-        .onChange(of: superMember.isEnabled) {
+        .onChange(of: subscriptionService.isEnabled) {
             //            isEnabled = superMember.isEnabled
         }
     }

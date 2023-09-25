@@ -9,10 +9,11 @@ struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @State var selected: String?
     @CloudStorage("sonos_ip") var ip: String?
-
+    //    @CloudStorage("membership") var activeMembership: Bool = false
+    
     var sonosService = SonosService()
     var popover = Popover()
-
+    
     var body: some Scene {
         WindowGroup {
             DeviceListView(selected: $selected)
@@ -24,55 +25,56 @@ struct ClicWatchApp: App {
                         sonosService.selectedGroup = sonosService.sorted[index]
                     }
                 }
-//                .overlay(alignment: .top) {
-//                    VStack(spacing: 0) {
-//                        Text("\(ip ?? "")")
-//                            .fontDesign(.rounded)
-//                            .fontWidth(.compressed)
-//                            .font(.caption2)
-//                            .foregroundStyle(Color.accentColor.gradient)
-//                            .background(.thickMaterial)
-//                            .clipShape(Capsule())
-//                            .ignoresSafeArea(edges: .top)
-//                        Text("\(sonosService.lastKnownIP)")
-//                            .fontDesign(.rounded)
-//                            .fontWidth(.compressed)
-//                            .font(.caption2)
-//                            .foregroundStyle(Color.accentColor.gradient)
-//                            .background(.thickMaterial)
-//                            .clipShape(Capsule())
-//                            .ignoresSafeArea(edges: .top)
-//                    }
-//                }
+            //                .overlay(alignment: .top) {
+            //                    VStack(spacing: 0) {
+            //                        Text("\(ip ?? "")")
+            //                            .fontDesign(.rounded)
+            //                            .fontWidth(.compressed)
+            //                            .font(.caption2)
+            //                            .foregroundStyle(Color.accentColor.gradient)
+            //                            .background(.thickMaterial)
+            //                            .clipShape(Capsule())
+            //                            .ignoresSafeArea(edges: .top)
+            //                        Text("\(sonosService.lastKnownIP)")
+            //                            .fontDesign(.rounded)
+            //                            .fontWidth(.compressed)
+            //                            .font(.caption2)
+            //                            .foregroundStyle(Color.accentColor.gradient)
+            //                            .background(.thickMaterial)
+            //                            .clipShape(Capsule())
+            //                            .ignoresSafeArea(edges: .top)
+            //                    }
+            //                }
             
-//                .overlay(alignment: .top) {
-//                    Text(sonosService.lastKnownIP)
-//                        .padding()
-//                        .background {
-//                            Capsule()
-//                                .foregroundStyle(.thinMaterial)
-//                        }
-//                }
+            //                .overlay(alignment: .top) {
+            //                    Text(sonosService.lastKnownIP)
+            //                        .padding()
+            //                        .background {
+            //                            Capsule()
+            //                                .foregroundStyle(.thinMaterial)
+            //                        }
+            //                }
+            
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
         }
     }
-
+    
     @MainActor
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
             sonosService.monitorWatch(useCache: true)
-
+            
             Task {
                 try? await sonosService.updateGroupsCheckPlayback()
-
+                
                 if selected == nil {
                     let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
                     if playingGroups.count == 1, let groupPlaying = playingGroups.first {
                         try await Task.sleep(for: .milliseconds(200))
-//                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
+                        //                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
                         selected = groupPlaying.coordinatorID
                     }
                 }

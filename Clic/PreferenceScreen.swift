@@ -1,5 +1,7 @@
 import SwiftUI
 import SonosKit
+import RevenueCat
+import RevenueCatUI
 
 struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -44,7 +46,7 @@ struct PreferenceScreen: View {
 
             }
             .sheet(isPresented: $showPaywall) {
-                PaywallScreen()
+                PaywallView()
             }
             .navigationTitle("Settings")
         }

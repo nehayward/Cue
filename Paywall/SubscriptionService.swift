@@ -1,9 +1,10 @@
+import UIKit
 import Observation
 import RevenueCat
 
 @Observable
 class SubscriptionService {
-    var isEnabled: Bool = true
+    var isEnabled: Bool = false
     var isConfigured: Bool = false
 
     func setup() async {
@@ -11,6 +12,10 @@ class SubscriptionService {
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
         isConfigured = true
+        try? await checkStatus()
+        if await UIApplication.shared.isRunningInTestFlightEnvironment() {
+            isEnabled = true
+        }
     }
 
     func getOfferings() async throws -> Offerings? {
@@ -40,6 +45,9 @@ class SubscriptionService {
     func checkStatus() async throws {
         let customerInfo = try await Purchases.shared.customerInfo()
         print(customerInfo)
+        if !customerInfo.entitlements.active.isEmpty {
+            isEnabled = true
+        }
     }
 }
 
