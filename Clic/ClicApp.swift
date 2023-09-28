@@ -2,6 +2,8 @@ import SwiftUI
 import SonosKit
 import ActivityKit
 import WidgetKit
+import RevenueCat
+import SubscriptionKit
 import CloudStorage
 
 @main
@@ -9,11 +11,11 @@ struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
     @State private var selected: String?
     @State private var liveActivityManager: LiveActivityManager? = nil
+    @State private var subscriptionService = SubscriptionService()
+    @State private var sonosService = SonosService()
+    @State private var alertService = AlertService()
 
-    @CloudStorage("sonos_ip") var ip: String?
-    private var sonosService = SonosService()
-    private var alertService = AlertService()
-    private var subscriptionService = SubscriptionService()
+//    @CloudStorage("sonos_ip") var ip: String?
 
     var body: some Scene {
         WindowGroup {
@@ -21,21 +23,17 @@ struct ClicApp: App {
                 .environment(sonosService)
                 .environment(subscriptionService)
                 .environment(alertService)
-                .onAppear {
-                    liveActivityManager = LiveActivityManager(sonosService: sonosService)
-                }
                 .task {
-                    await subscriptionService.setup()
+                    liveActivityManager = LiveActivityManager(sonosService: sonosService)
+                    subscriptionService.monitorChanges()
                 }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
+            guard subscriptionService.current.subscription.isActive else { return }
             liveActivityManager?.createActivity(with: sonosService.groups)
-        }
-        .onChange(of: subscriptionService.isEnabled) {
-            //            isEnabled = superMember.isEnabled
         }
     }
 
@@ -44,7 +42,9 @@ struct ClicApp: App {
         switch scenePhase {
         case .active:
             sonosService.monitor()
-
+            if !subscriptionService.current.subscription.isActive {
+                return
+            }
             // MARK: Add back when monitoring is fixed
             Task {
                 try? await sonosService.updateGroupsCheckPlayback()

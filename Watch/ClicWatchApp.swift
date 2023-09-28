@@ -3,28 +3,34 @@ import SwiftUI
 import SonosKit
 import WidgetKit
 import CloudStorage
+import SubscriptionKit
 
 @main
 struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
+
+    @State var subscriptionService = SubscriptionService()
+    @State var sonosService = SonosService()
+    @State var popover = Popover()
+
     @State var selected: String?
-    @CloudStorage("sonos_ip") var ip: String?
-    //    @CloudStorage("membership") var activeMembership: Bool = false
-    
-    var sonosService = SonosService()
-    var popover = Popover()
-    
+//    @CloudStorage("sonos_ip") var ip: String?
+
     var body: some Scene {
         WindowGroup {
-            DeviceListView(selected: $selected)
-                .environment(popover)
-                .environment(sonosService)
-                .onChange(of: selected) {
-                    print("Update current")
-                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                        sonosService.selectedGroup = sonosService.sorted[index]
+            if !subscriptionService.current.subscription.isActive {
+                Text("Subscribe in the App")
+            } else {
+                DeviceListView(selected: $selected)
+                    .environment(popover)
+                    .environment(sonosService)
+                    .onChange(of: selected) {
+                        print("Update current")
+                        if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                            sonosService.selectedGroup = sonosService.sorted[index]
+                        }
                     }
-                }
+            }
             //                .overlay(alignment: .top) {
             //                    VStack(spacing: 0) {
             //                        Text("\(ip ?? "")")

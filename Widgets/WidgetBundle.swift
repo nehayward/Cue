@@ -5,7 +5,6 @@ import SwiftUI
 struct SonosWidgetBundle: WidgetBundle {
     var body: some Widget {
         RemoteWidget()
-        NowPlayingWidget()
         LiveActivityNowPlayingWidget()
     }
 }

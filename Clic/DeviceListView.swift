@@ -1,5 +1,7 @@
 import SwiftUI
 import SonosKit
+import VibesDS
+import SubscriptionKit
 import RevenueCat
 import RevenueCatUI
 
@@ -37,6 +39,7 @@ struct DeviceListView: View {
                             }
                         }
                     }
+                    .tag(group.coordinatorID)
                 } header: {
                     HStack {
                         Image(systemName: "hifispeaker.fill")
@@ -52,15 +55,16 @@ struct DeviceListView: View {
                 .selectionDisabled(!enabled(group: group))
             }
             .safeAreaInset(edge: .bottom) {
-                if !subscriptionService.isEnabled {
+                if !subscriptionService.current.subscription.isActive {
                     Button {
                         showPaywall = true
                     } label: {
                         Text("Show all devices (\(sonosService.groups.count))")
                             .fontDesign(.rounded)
-                            .fontWidth(.compressed)
+                            .bold()
                             .foregroundStyle(Color.accentColor.gradient)
                             .padding()
+                            .frame(maxWidth: .infinity)
                             .background(.thickMaterial)
                             .clipShape(Capsule())
                     }
@@ -70,9 +74,12 @@ struct DeviceListView: View {
                 PaywallView()
             }
             .safeAreaInset(edge: .bottom) {
-                if !sonosService.groups.isEmpty && subscriptionService.isEnabled {
-                    SceneView()
-                        .padding(12)
+                if !sonosService.groups.isEmpty && subscriptionService.current.subscription.isActive {
+                    VStack{
+                        SceneView()
+                            .padding(12)
+                        VibesDS.SceneView()
+                    }
                 }
             }
 //            .overlay(alignment: .topTrailing) {
@@ -223,7 +230,7 @@ struct DeviceListView: View {
     }
 
     private func enabled(group: GroupRoom) -> Bool {
-        if subscriptionService.isEnabled { return true }
+        if subscriptionService.current.subscription.isActive { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
     }
@@ -233,8 +240,7 @@ struct DeviceListView: View {
 #Preview {
     DeviceListView(selected: .constant(nil))
         .environment(SonosService())
-        .environment(SubscriptionService())
+        .environment(SubscriptionKit.SubscriptionService())
         .environment(AlertService())
-
 }
 

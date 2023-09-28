@@ -48,7 +48,7 @@ struct RemoteWidget: Widget {
         }
         .supportedFamilies(families)
         .configurationDisplayName("Remote")
-        .description("Select a Sonos device to control. Must be on Wifi with Sonos system.") 
+        .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system.") 
         .contentMarginsDisabled()
     }
 }

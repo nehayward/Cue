@@ -6,8 +6,7 @@ struct SceneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @State var show: Bool = false
 
-    @CloudStorage("com.clic.scenes")
-    var scenes: [SonosScene] = []
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {

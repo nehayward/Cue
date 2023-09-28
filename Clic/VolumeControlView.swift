@@ -33,7 +33,6 @@ struct VolumeControlView: View {
                     updateVolume(volume: group.groupVolume)
                 }
             }
-
             .sensoryFeedback(.impact(flexibility: .solid), trigger: group.groupVolume) { oldValue, newValue in
                 isEditing
             }

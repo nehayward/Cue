@@ -26,55 +26,47 @@ struct ImprovedSearch: View {
     var body: some View {
         NavigationStack {
             List {
-                Text(searchFieldIsPresented ? "Searching" : "Not")
-//                TextField(text: $query) {
-//                    Text("HERE")
-//                }
-//                .focused($focusedField, equals: true)
-
                 switch musicSearchSelection {
                 case .spotify:
                     Section {
                         ForEach(spotifyResult?.playlists?.items ?? []) { item in
-                            HStack {
-                                AsyncImage( url: URL(string: item.images.first?.url ?? ""),
-                                            transaction: Transaction(animation: .snappy)
-                                ) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .frame(width: 60, height: 60)
-                                    default:
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .foregroundStyle(.thinMaterial)
-                                            .frame(width: 60, height: 60)
+                            Button {
+                                print(group.coordinatorRoom.ip)
+                                dismiss()
+                                print(item.id)
+                                print(item.name)
+                                print(item.owner.displayName)
+                                Task {
+                                    await sonosService.queueSpotifyPlaylist(
+                                        id: item.id,
+                                        title: item.name,
+                                        owner: item.owner.displayName,
+                                        on: group.coordinatorRoom.ip,
+                                        group: group
+                                    )
+                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                }
+                            } label: {
+                                HStack {
+                                    AsyncImage( url: URL(string: item.images.first?.url ?? ""),
+                                                transaction: Transaction(animation: .snappy)
+                                    ) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .frame(width: 60, height: 60)
+                                        default:
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .foregroundStyle(.thinMaterial)
+                                                .frame(width: 60, height: 60)
+                                        }
+                                    }
+                                    VStack(alignment: .leading) {
+                                        Text(item.name)
                                     }
                                 }
-                                VStack(alignment: .leading) {
-                                    Text(item.name)
-                                }
-                                .onTapGesture {
-                                    print(group.coordinatorRoom.ip)
-                                    dismiss()
-                                    print(item.id)
-                                    print(item.name)
-                                    print(item.owner.displayName)
-                                    Task {
-                                        await sonosService.queueSpotifyPlaylist(
-                                            id: item.id,
-                                            title: item.name,
-                                            owner: item.owner.displayName,
-                                            on: group.coordinatorRoom.ip,
-                                            group: group
-                                        )
-                                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                                    }
-
-                                }
-
-                            }
-                            .fontDesign(.rounded)
+                            }.fontDesign(.rounded)
                         }
                     } header: {
                         Text("Playlist")
@@ -129,6 +121,46 @@ struct ImprovedSearch: View {
                         }
                     } header: {
                         Text("Tracks")
+                    }
+
+                    if let albums = spotifyResult?.albums?.items {
+                        Section {
+                            ForEach(albums) { item in
+                                Text(item.name)
+//                                HStack {
+//                                    AsyncImage( url: URL(string: item.images.first?.url ?? ""),
+//                                                transaction: Transaction(animation: .snappy)
+//                                    ) { phase in
+//                                        switch phase {
+//                                        case .success(let image):
+//                                            image
+//                                                .resizable()
+//                                                .frame(width: 60, height: 60)
+//                                        default:
+//                                            RoundedRectangle(cornerRadius: 12)
+//                                                .foregroundStyle(.thinMaterial)
+//                                                .frame(width: 60, height: 60)
+//                                        }
+//                                    }
+//                                    VStack(alignment: .leading) {
+//                                        Text(item.name)
+//                                    }
+//                                    .onTapGesture {
+//                                        dismiss()
+//                                        Task {
+//                                            await sonosService.queueSpotifyTrack(id: item.id, group: group)
+//                                        }
+//                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+//                                    }
+//                                }
+//                                .fontDesign(.rounded)
+                            }
+                        } header: {
+                            Text("Albums")
+                        }
+                    }
+                    if let artists = spotifyResult?.artists?.items {
+                        ArtistRow(artists: artists)
                     }
                 case .apple:
                     ForEach(results) { result in
@@ -243,18 +275,6 @@ struct ImprovedSearch: View {
                 .textFieldStyle(.roundedBorder)
                 .background(.ultraThinMaterial)
             }
-//            .overlay(alignment: .bottomTrailing) {
-//                Button {
-//                    dismiss()
-//                } label: {
-//                    Text("Dismiss")
-//                }
-//
-//            }
-//            .onSubmit {
-//                print("HERE")
-//            }
-
         }
         .presentationBackground(.thinMaterial)
         .scrollDismissesKeyboard(.immediately)
@@ -278,6 +298,90 @@ struct ImprovedSearch: View {
 //            UIView.setAnimationsEnabled(true)
 //        }
     }
+
+    private func ArtistRow(artists: [SpotifyArtistsItems]) -> some View {
+        Section {
+            ScrollView(.horizontal) {
+                HStack {
+                    ForEach(artists) { item in
+                        VStack {
+                            AsyncImage( url: URL(string: item.images.first?.url ?? ""),
+                                        transaction: Transaction(animation: .snappy)
+                            ) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                default:
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .foregroundStyle(.thinMaterial)
+                                        .frame(width: 60, height: 60)
+                                }
+                            }
+                            VStack(alignment: .leading) {
+                                Text(item.name)
+                            }
+                        }
+                        .fontDesign(.rounded)
+                        .onTapGesture {
+                            dismiss()
+                            Task {
+                                await sonosService.queueSpotifyTrack(id: item.id, group: group)
+                                //                            await sonosService.play(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        } header: {
+            Text("Artist")
+        }
+    }
+
+    private func albumRow(albums: [SpotifyAlbumItems]) -> some View {
+        Section {
+            ScrollView(.horizontal) {
+                HStack {
+                    ForEach(albums) { item in
+                        VStack {
+                            AsyncImage( url: URL(string: item.images.first?.url ?? ""),
+                                        transaction: Transaction(animation: .snappy)
+                            ) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                default:
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .foregroundStyle(.thinMaterial)
+                                        .frame(width: 60, height: 60)
+                                }
+                            }
+                            VStack(alignment: .leading) {
+                                Text(item.name)
+                            }
+                        }
+                        .fontDesign(.rounded)
+                        .onTapGesture {
+                            dismiss()
+                            Task {
+                                await sonosService.queueSpotifyTrack(id: item.id, group: group)
+                                //                            await sonosService.play(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        } header: {
+            Text("Artist")
+        }
+    }
 }
 
 #Preview {
@@ -285,8 +389,6 @@ struct ImprovedSearch: View {
         .sheet(isPresented: .constant(true)) {
             ImprovedSearch(query: "Dua Lipa", group: .garage)
                 .environment(SonosService())
-            
         }
-
 }
 

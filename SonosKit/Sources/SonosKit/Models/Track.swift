@@ -3,7 +3,7 @@ import Observation
 
 @Observable
 public final class Track: Identifiable, Sendable {
-    private let queue = DispatchQueue(label: "Room\(UUID().uuidString)")
+    private let queue = DispatchQueue(label: "Track\(UUID().uuidString)")
 
     public var id: String { trackID }
     public var trackID: String = ""
@@ -13,7 +13,22 @@ public final class Track: Identifiable, Sendable {
     public var artworkURL: URL? = nil
     public var musicService: MusicService = .unknown
     public var duration: TimeInterval = .zero
-    public var playbackPosition: TimeInterval = .zero
+
+    @ObservationIgnored
+    public var privatePlaybackPosition: TimeInterval = .zero
+
+    public var playbackPosition: TimeInterval {
+        get {
+            return queue.sync {
+                return privatePlaybackPosition
+            }
+        }
+        set {
+            queue.sync {
+                privatePlaybackPosition = newValue
+            }
+        }
+    }
 
     public init(trackID: String, name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval) {
         self.trackID = trackID

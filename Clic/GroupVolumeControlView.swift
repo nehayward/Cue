@@ -66,7 +66,9 @@ struct GroupVolumeControlView: View {
                                     }
                                 }
                             }
-                            .sensoryFeedback(.impact(flexibility: .solid), trigger: room.volume)
+                            .sensoryFeedback(.impact(flexibility: .solid), trigger: room.volume) { _, _ in
+                                isEditingRoomVolume
+                            }
                             Text("\(room.volume, specifier: "%03.0f")%")
                                 .monospacedDigit()
                         }
@@ -85,7 +87,6 @@ struct GroupVolumeControlView: View {
                             }
                         }
                     }
-                    .sensoryFeedback(.impact(flexibility: .solid), trigger: room.volume)
                     .animation(.interactiveSpring, value: room.volume)
                 }
                 Button {

@@ -2,7 +2,7 @@ import SwiftUI
 import SonosKit
 import WidgetKit
 
-struct RemoteWidgetRectangularView : View {
+struct RemoteWidgetRectangularView: View {
     var entry: Provider.Entry
 
     var body: some View {
@@ -58,9 +58,6 @@ struct RemoteWidgetRectangularView : View {
                             .padding(.trailing)
                     }
                 }
-            }
-            .overlay(alignment: .bottomLeading) {
-
             }
             .fontDesign(.rounded)
             .buttonStyle(.borderless)
