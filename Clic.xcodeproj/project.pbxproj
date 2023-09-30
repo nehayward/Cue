@@ -1130,7 +1130,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1149,7 +1149,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = 2023.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1173,7 +1173,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1192,7 +1192,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = 2023.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1217,7 +1217,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1235,7 +1235,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = 2023.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
 				PRODUCT_NAME = "Clic Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1260,7 +1260,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1278,7 +1278,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = 2023.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
 				PRODUCT_NAME = "Clic Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
