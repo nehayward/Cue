@@ -70,10 +70,12 @@ struct RemoteWidgetEntryView : View {
                                     .font(.caption)
                                 ProgressView(value: Double(entry.volume), total: 100)
                                     .tint(.accentColor)
+                                    .invalidatableContent()
                                 Text("\(entry.volume, specifier: "%0.f")")
                                     .foregroundStyle(.thickMaterial)
                                     .font(.caption)
                                     .contentTransition(.numericText())
+                                    .invalidatableContent()
                             }
                             .padding([.leading,.trailing])
                         }

@@ -3,50 +3,48 @@ import SonosKit
 
 struct TVModeView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    var group: GroupRoom
+    @Binding var group: GroupRoom
 
     var body: some View {
         Section {
-            HStack {
-                Button {
+            HStack(alignment: .top) {
+                Text("--")
+                Spacer()
+                VStack {
+                    if let settings = Binding<TVSettings>($group.tvSettings) {
+                        Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
+                            .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
+                            .labelStyle(.iconOnly)
+                            .contentShape(.circle)
+                            .toggleStyle(.button)
+                            .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
+                                Task {
+                                    try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
+                                    group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                                }
+                            }
 
-                } label: {
-                    Image(systemName: "moon.zzz")
-//                        .symbolVariant(.fill)
+                        Toggle("Dialog Mode", systemImage: "person.wave.2", isOn: settings.dialogLevel)
+                            .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .contentShape(.circle)
+                            .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
+                                Task {
+                                    try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)
+                                    group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                                }
+                            }
+                    }
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                Button {
-
-                } label: {
-                    Image(systemName: "moon.zzz")
-                        .symbolVariant(.fill)
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.circle)
-                Button {
-
-                } label: {
-                    Image(systemName: "bubble.left.and.text.bubble.right")
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.circle)
             }
-
-            Button {
-
-            } label: {
-                Image(systemName: "bubble.left.and.text.bubble.right")
-            }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
         }
     }
 }
 
 #Preview {
     List {
-        TVModeView(group: .garage)
+        TVModeView(group: .constant(.theater))
             .environment(SonosService())
     }
 }

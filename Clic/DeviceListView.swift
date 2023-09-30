@@ -22,22 +22,20 @@ struct DeviceListView: View {
         NavigationSplitView {
             List ($sonosService.sorted, selection: $selected) { $group in
                 Section {
-                    ZStack {
+                    VStack {
                         if group.tvMode {
-                            Text("TV")
+                            TVModeView(group: $group)
                         } else {
-                            VStack {
-                                HStack(alignment: .top) {
-                                    ArtworkViewKing(group: $group)
-                                        .frame(width: 72, height: 72)
-                                    ZoneView(group: $group)
-                                    Spacer()
-                                    MediaControlsView(group: $group)
-                                }
-                                Divider()
-                                VolumeControlView(group: $group)
+                            HStack(alignment: .top) {
+                                ArtworkViewKing(group: $group)
+                                    .frame(width: 72, height: 72)
+                                ZoneView(group: $group)
+                                Spacer()
+                                MediaControlsView(group: $group)
                             }
                         }
+                        Divider()
+                        VolumeControlView(group: $group)
                     }
                     .tag(group.coordinatorID)
                 } header: {

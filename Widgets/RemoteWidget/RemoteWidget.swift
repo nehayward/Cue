@@ -15,8 +15,7 @@ struct Provider: AppIntentTimelineProvider {
     func timeline(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> Timeline<RemoteWidgetEntry> {
         if let room = configuration.room {
             let sonosService = SonosService()
-            if let coordinatorRoom = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id) {
-                let volume = await sonosService.getGroupVolume(ip: coordinatorRoom.ip)
+            if let coordinatorRoom = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id), let volume = try? await sonosService.getGroupVolume(ip: coordinatorRoom.ip) {
                 let track = await sonosService.getTrack(ip: coordinatorRoom.ip)
                 let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track)
                 return Timeline(entries: [entry], policy: .atEnd)

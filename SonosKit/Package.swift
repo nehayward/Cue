@@ -31,6 +31,7 @@ let package = Package(
                 .copy("Resources/Track.xml"),
                 .copy("Resources/GetPositionInfoApple.xml"),
                 .copy("Resources/GetPositionInfoSpotify.xml"),
+                .copy("Resources/GetPositionInfoSpotifyStream.xml"),
                 .copy("Resources/RendererControl.xml"),
                 .copy("Resources/AVTransport.xml"),
                 .copy("Resources/GetTransportInfo.xml"),

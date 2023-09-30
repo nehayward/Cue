@@ -14,19 +14,31 @@ final class LiveActivityManager {
         print(ActivityAuthorizationInfo().areActivitiesEnabled)
     }
 
-    func refresh() {
-        let contentState = ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: false, trackName: "Testing", imageData: Data(), volume: 0)
-        let activityContent = ActivityContent(state: contentState, staleDate: nil)
-        Task { [weak self] in
-            guard let self else { return }
-            await activity?.update(activityContent)
+    func refresh() async {
+        let groups = sonosService.groups
+//        guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
+        guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
+            for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+                await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
+                self.activity = nil
+            }
+
+            return
         }
 
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            print(group.groupVolume)
+            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume))
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: true, trackName: group.coordinatorRoom.track.name, imageData: Data(), volume: group.groupVolume)
+            let activityContent = ActivityContent(state: contentState, staleDate: nil)
+            await activity.update(activityContent)
+        }
     }
     
     func createActivity(with groups: [GroupRoom]) {
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
+//            guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
                 Task {
                     for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
                         await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
@@ -47,11 +59,11 @@ final class LiveActivityManager {
                 activity = try Activity.request(attributes: sonosAttribute, content: activityContent)
                 //                print("Started", activity?.id)
             } catch (let error) {
-                print("Error requesting pizza delivery Live Activity \(error.localizedDescription).")
+                print("Error requesting Live Activity \(error.localizedDescription).")
             }
             Task {
                 for await activity in Activity<ClicNowPlayingWidgetAttributes>.activityUpdates {
-                    print("Pizza delivery details: \(activity.attributes)")
+                    print("Created Live Activity for \(group.coordinatorRoom.name) \(activity.attributes)")
                 }
             }
         }

@@ -234,7 +234,7 @@ public final class SonosService {
                 break
             }
 
-            roomGroup.groupVolume = await groupVolume
+            roomGroup.groupVolume = try await groupVolume
             guard let track = await track else {
                 return
             }
@@ -365,7 +365,7 @@ public final class SonosService {
                 break
             }
 
-            roomGroup.groupVolume = await groupVolume
+            roomGroup.groupVolume = try await groupVolume
             guard let track = await track else {
                 return
             }
@@ -442,7 +442,10 @@ public final class SonosService {
                         break
                     }
 
-                    roomGroup.groupVolume = await groupVolume
+                    if let groupVolumeAwaited = try? await groupVolume {
+                        roomGroup.groupVolume = groupVolumeAwaited
+                    }
+
                     guard let awaitedTrack = await track else {
                         roomGroup.coordinatorRoom.track = .empty
                         return
@@ -481,9 +484,11 @@ public final class SonosService {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
                 for room in roomGroup.rooms {
-                    group.addTask {
-                        let volume = await self.getVolume(ip: room.ip)
-                        room.volume = volume
+                    group.addTask {  [weak self] in
+                        guard let self else { return }
+                        if let volume = try? await getVolume(ip: room.ip) {
+                            room.volume = volume
+                        }
                     }
                 }
             }
@@ -520,9 +525,14 @@ public final class SonosService {
     func updateGroupCheckTVMode(from roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
-                group.addTask {
+                group.addTask { [weak self] in
+                    guard let self else { return }
                     let isTVMode = await self.isTVMode(ip: roomGroup.coordinatorRoom.ip)
                     roomGroup.tvMode = isTVMode
+
+                    if isTVMode {
+                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
+                    }
                 }
             }
         }
@@ -557,8 +567,10 @@ public final class SonosService {
                         break
                     }
 
-                    roomGroup.groupVolume = await groupVolume
-
+                    if let groupVolumeAwaited = try? await groupVolume {
+                        roomGroup.groupVolume = groupVolumeAwaited
+                    }
+                    
                     guard let track = await track else {
                         return
                     }
@@ -707,12 +719,12 @@ public final class SonosService {
         await sonosAPI.getGroupMute(IP: group.coordinatorRoom.ip)
     }
     
-    public func getVolume(ip: String) async -> Double {
-        await sonosAPI.getVolume(ipAddress: ip)
+    public func getVolume(ip: String) async throws -> Double {
+       try await sonosAPI.getVolume(ipAddress: ip)
     }
 
-    public func getGroupVolume(ip: String) async -> Double {
-        await sonosAPI.getGroupVolume(ipAddress: ip)
+    public func getGroupVolume(ip: String) async throws -> Double {
+        try await sonosAPI.getGroupVolume(ipAddress: ip)
     }
 
     public func getPlaybackInfo(ip: String) async -> PlaybackStatus {
@@ -724,7 +736,21 @@ public final class SonosService {
     }
 
     public func isTVMode(ip: String) async -> Bool {
-        await sonosAPI.mediaInfo(ipAddress: ip)
+       await sonosAPI.mediaInfo(ipAddress: ip)
+    }
+
+    public func getTVSettings(ip: String) async throws -> TVSettings {
+        let dialogLevel = try await sonosAPI.getDialogLevel(IP: ip)
+        let nightMode = try await sonosAPI.getNightMode(IP: ip)
+        return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioFormat: "")
+    }
+
+    public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
+        try await sonosAPI.setDialogLevel(IP: IP, enabled: enabled)
+    }
+
+    public func setNightMode(_ IP: String, enabled: Bool) async throws {
+        try await sonosAPI.setNightMode(IP: IP, enabled: enabled)
     }
 
     public func playPauseDevice(ip: String) async {

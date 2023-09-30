@@ -78,6 +78,25 @@ struct LiveActivityNowPlayingWidget: Widget {
                     .buttonStyle(.borderless)
                     .fontDesign(.rounded)
                 }
+                
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack {
+                        Image(systemName: "speaker.wave.3.fill", variableValue: context.state.volume/100)
+                            .foregroundStyle(.thickMaterial)
+                            .contentTransition(.symbolEffect(.automatic))
+                            .font(.caption)
+                            .invalidatableContent()
+                        ProgressView(value: Double(context.state.volume), total: 100)
+                            .tint(.accentColor)
+                            .invalidatableContent()
+                        Text("\(context.state.volume, specifier: "%0.f")")
+                            .foregroundStyle(.thickMaterial)
+                            .font(.caption)
+                            .contentTransition(.numericText())
+                            .invalidatableContent()
+                    }
+                    .padding([.leading,.trailing])
+                }
             } compactLeading: {
                 Image(systemName: "hifispeaker.fill")
             } compactTrailing: {

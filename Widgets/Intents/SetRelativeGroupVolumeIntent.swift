@@ -3,6 +3,9 @@ import WidgetKit
 import SonosKit
 
 struct SetRelativeGroupVolumeIntent: AppIntent {
+    static var sonosService = SonosService()
+    static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
+
     static var title: LocalizedStringResource = "Set Sonos Device Volume"
 
     @Parameter(title: "Sonos Room")
@@ -21,9 +24,10 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let sonosService = SonosService()
-        guard let coordinatorRoom = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
-        await sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
+        try? await Self.sonosService.fetch(useCache: true)
+        guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
+        await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
+        await Self.liveActivityManager.refresh()
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
         return .result()
     }

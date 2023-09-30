@@ -93,7 +93,7 @@ final class SonosAPI {
         }
     }
 
-    @discardableResult func setRelativeVolume(ipAddress: String, volume: Int) async -> Int {
+    func setRelativeVolume(ipAddress: String, volume: Int) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Channel": "Master",
@@ -101,70 +101,45 @@ final class SonosAPI {
         ]
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
-            let volume = XMLParserSonos().parseRelativeVolume(xml: xmlString)
-            return volume
         }
-
-        return 0
     }
 
-    @discardableResult func setRelativeGroupVolume(ipAddress: String, volume: Int) async -> Int {
+    func setRelativeGroupVolume(ipAddress: String, volume: Int) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Adjustment": volume
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
-            let volume = XMLParserSonos().parseGroupRelativeVolume(xml: xmlString)
-            return volume
-        }
-
-        return 0
+        try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl")
     }
 
-
-
-    func getVolume(ipAddress: String) async -> Double {
+    func getVolume(ipAddress: String) async throws -> Double {
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Channel": "Master",
         ]
 
-        do {
-            if let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
-                guard let xmlString = String(data: data, encoding: .utf8) else {
-                    print("failed to parse")
-                    return 0
-                }
-                let volume = XMLParserSonos().parseVolume(xml: xmlString)
-                return Double(volume)
-            }
-        } catch URLError.cancelled {
-            print("Cancelled")
-        } catch {
-            print(error)
-            print("Timed out")
-
-            return 0
+        guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
+            throw SonosAPIError.requestBuild
         }
-        print("Timed out")
-        return 0
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let volume = try XMLParserSonos().parseVolume(xml: xml)
+        return Double(volume)
     }
 
-    @discardableResult func getGroupVolume(ipAddress: String) async -> Double {
+    @discardableResult func getGroupVolume(ipAddress: String) async throws -> Double {
         let arguments: [String: Any] = [
             "InstanceID": 0
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return 0 }
-            let volume = XMLParserSonos().parseGroupVolume(xml: xmlString)
-            return Double(volume)
+        guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else {
+            throw SonosAPIError.requestBuild
         }
-
-        return 0
+        
+        let xml = String(decoding: data, as: UTF8.self)
+        let volume = try XMLParserSonos().parseGroupVolume(xml: xml)
+        return Double(volume)
     }
 
     func setGroupVolume(ipAddress: String, volume: Int) async {

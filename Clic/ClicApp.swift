@@ -15,8 +15,6 @@ struct ClicApp: App {
     @State private var sonosService = SonosService()
     @State private var alertService = AlertService()
 
-//    @CloudStorage("sonos_ip") var ip: String?
-
     var body: some Scene {
         WindowGroup {
             DeviceListView(selected: $selected)
@@ -45,8 +43,13 @@ struct ClicApp: App {
             if !subscriptionService.current.subscription.isActive {
                 return
             }
-            // MARK: Add back when monitoring is fixed
+            
             Task {
+                await liveActivityManager?.refresh()
+            }
+
+            // MARK: Add back when monitoring is fixed
+            Task { @MainActor in
                 try? await sonosService.updateGroupsCheckPlayback()
 
                 if selected == nil {

@@ -13,6 +13,7 @@ struct LiveActivityNowPlayingView: View {
 //                    .clipShape(RoundedRectangle(cornerRadius: 12))
 //                    .padding(4)
 
+
                 VStack(alignment: .center) {
                     Label(context.attributes.room.name, systemImage: "hifispeaker.fill")
                         .blendMode(.hardLight)
@@ -47,7 +48,7 @@ struct LiveActivityNowPlayingView: View {
                             .buttonBorderShape(.circle)
                             .tint(.white)
                         }
-                        .padding(12)
+                        .padding(8)
                         .background(.secondary, in: Capsule())
                     }
 
@@ -59,7 +60,19 @@ struct LiveActivityNowPlayingView: View {
 //                        .blendMode(.hardLight)
 //                        .lineLimit(1)
 
-
+                    HStack {
+                        Image(systemName: "speaker.wave.3.fill", variableValue: context.state.volume/100)
+                            .foregroundStyle(.thickMaterial)
+                            .contentTransition(.symbolEffect(.automatic))
+                            .font(.caption)
+                        ProgressView(value: Double(context.state.volume), total: 100)
+                            .tint(.accentColor)
+                        Text("\(context.state.volume, specifier: "%0.f")")
+                            .foregroundStyle(.thickMaterial)
+                            .font(.caption)
+                            .contentTransition(.numericText())
+                    }
+//                    .padding([.leading,.trailing])
             }
             .padding()
             .fontDesign(.rounded)

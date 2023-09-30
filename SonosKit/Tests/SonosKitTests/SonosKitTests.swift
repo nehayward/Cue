@@ -10,8 +10,9 @@ final class SonosKitTests: XCTestCase {
 
     func testVolumeResponseParse() throws {
         let getVolumeResponseXMLURL = Bundle.module.url(forResource: "GetVolumeResponse", withExtension: "xml")
-        let volumeXML = try! String(contentsOf: getVolumeResponseXMLURL!)
-        XMLParserSonos().parseVolume(xml: volumeXML)
+        let volumeXML = try String(contentsOf: getVolumeResponseXMLURL!)
+        let volume = try XMLParserSonos().parseVolume(xml: volumeXML)
+        XCTAssert(volume == 80)
     }
 
     func testZoneEventXMLParse() throws {
@@ -41,6 +42,15 @@ final class SonosKitTests: XCTestCase {
 
     func testGetPositionInfoSpotifyParse() throws {
         let track = Bundle.module.url(forResource: "GetPositionInfoSpotify", withExtension: "xml")
+        let trackXML = try! String(contentsOf: track!)
+        print(trackXML)
+        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
+        XCTAssertNotNil(positionInfo)
+        XCTAssert(positionInfo?.musicService == .spotify)
+    }
+
+    func testGetPositionInfoSpotifyStreamParse() throws {
+        let track = Bundle.module.url(forResource: "GetPositionInfoSpotifyStream", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
         print(trackXML)
         let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)

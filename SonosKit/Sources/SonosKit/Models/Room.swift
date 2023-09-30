@@ -35,8 +35,7 @@ extension Room: Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(name)
-//        hasher.combine(volume)
-//        hasher.combine(isPlaying)
+        hasher.combine(ip)
     }
 }
 
@@ -50,4 +49,6 @@ extension Room: CustomStringConvertible {
 
 extension Room {
     public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage")
+    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater")
+
 }

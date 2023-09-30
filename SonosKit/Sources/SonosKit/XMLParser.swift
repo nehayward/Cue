@@ -1,7 +1,7 @@
 import Foundation
 import SWXMLHash
 
-class XMLParserSonos {
+final class XMLParserSonos {
 
     func unescape(xml: String) {
         let unescaped = xml.unescaped
@@ -52,28 +52,20 @@ class XMLParserSonos {
         }
     }
 
-    func parseVolume(xml: String) -> Int {
+    func parseVolume(xml: String) throws -> Int {
         let xml = XMLHash.parse(xml)
-        let volume = xml["s:Envelope"]["s:Body"]["u:GetVolumeResponse"]["CurrentVolume"].element?.text
-        return Int(volume ?? "0")!
+        guard let volume = xml["s:Envelope"]["s:Body"]["u:GetVolumeResponse"]["CurrentVolume"].element?.text, let volumeParsed = Int(volume) else {
+            throw XMLParserSonosError.parsing
+        }
+        return volumeParsed
     }
 
-    func parseGroupVolume(xml: String) -> Int {
+    func parseGroupVolume(xml: String) throws -> Int {
         let xml = XMLHash.parse(xml)
-        let volume = xml["s:Envelope"]["s:Body"]["u:GetGroupVolumeResponse"]["CurrentVolume"].element?.text
-        return Int(volume ?? "0")!
-    }
-
-    func parseRelativeVolume(xml: String) -> Int {
-        let xml = XMLHash.parse(xml)
-        let volume = xml["s:Envelope"]["s:Body"]["u:SetRelativeVolumeResponse"]["NewVolume"].element?.text
-        return Int(volume ?? "0")!
-    }
-
-    func parseGroupRelativeVolume(xml: String) -> Int {
-        let xml = XMLHash.parse(xml)
-        let volume = xml["s:Envelope"]["s:Body"]["u:SetRelativeGroupVolumeResponse"]["NewVolume"].element?.text
-        return Int(volume ?? "0")!
+        guard let volume = xml["s:Envelope"]["s:Body"]["u:GetGroupVolumeResponse"]["CurrentVolume"].element?.text, let volumeParsed = Int(volume) else {
+            throw XMLParserSonosError.parsing
+        }
+        return volumeParsed
     }
 
     func parseZones(xml: String) -> [ZoneGroup] {
@@ -164,10 +156,6 @@ class XMLParserSonos {
             musicService = .airplay
         }
 
-        if trackURI.contains("airplay") {
-            musicService = .airplay
-        }
-
         var trackID = ""
         switch musicService {
         case .apple:
@@ -178,12 +166,17 @@ class XMLParserSonos {
                 musicService = .unknown
             }
         case .spotify:
-            let pattern = #/track:(\w*)/#
-            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
-                trackID = String(result.1)
+            if let trackInfo = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["res"].element?.text.removingPercentEncoding {
+                let pattern = #/track:(\w*)/#
+                if let result = try? pattern.firstMatch(in: trackInfo) {
+                    trackID = String(result.1)
+                } else {
+                    musicService = .unknown
+                }
             } else {
                 musicService = .unknown
             }
+//
         case .airplay, .unknown:
             break
         }
@@ -365,6 +358,23 @@ class XMLParserSonos {
         //        return Track(name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
         
         return tracks
+    }
+
+    func parseForCurrentValue(xml: String) throws -> Bool {
+        // Parse out CurrentValue
+        let pattern = "<CurrentValue>(.*?)</CurrentValue>"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+
+            if let match = regex.firstMatch(in: xml, options: [], range: range) {
+                let valueRange = match.range(at: 1)
+                if let valueRange = Range(valueRange, in: xml) {
+                    let value = String(xml[valueRange])
+                    return value == "1"
+                }
+            }
+        }
+        throw XMLParserSonosError.parsing
     }
 }
 

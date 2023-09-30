@@ -30,11 +30,12 @@ public final class GroupRoom: Identifiable, Sendable {
         }
     }
 
-    public init(id: String, coordinatorID: String, rooms: [Room], coordinatorRoom: Room) {
+    public init(id: String, coordinatorID: String, rooms: [Room], coordinatorRoom: Room, tvSettings: TVSettings? = nil) {
         self.id = id
         self.coordinatorID = coordinatorID
         self.rooms = rooms
         self.coordinatorRoom = coordinatorRoom
+        self.tvSettings = tvSettings
     }
 }
 
@@ -58,4 +59,10 @@ extension GroupRoom {
                                          coordinatorID: Room.garage.id,
                                          rooms: [.garage],
                                          coordinatorRoom: .garage)
+
+    public static let theater = GroupRoom(id: "RINCON_48A6B80D8FB401400:2447655112",
+                                          coordinatorID: Room.theater.id,
+                                          rooms: [.theater],
+                                          coordinatorRoom: .theater,
+                                          tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioFormat: ""))
 }
