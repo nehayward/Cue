@@ -24,7 +24,7 @@ struct DeviceListView: View {
                 Section {
                     VStack {
                         if group.tvMode {
-                            TVModeView(group: $group)
+                            TVModeViewCell(group: $group)
                         } else {
                             HStack(alignment: .top) {
                                 ArtworkViewKing(group: $group)
@@ -64,7 +64,9 @@ struct DeviceListView: View {
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(.thickMaterial)
-                            .clipShape(Capsule())
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding()
+                            .shadow(radius: 16, x: 0, y: 2)
                     }
                 }
             }
@@ -76,7 +78,6 @@ struct DeviceListView: View {
                     VStack{
                         SceneView()
                             .padding(12)
-                        VibesDS.SceneView()
                     }
                 }
             }

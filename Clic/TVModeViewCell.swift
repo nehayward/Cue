@@ -1,14 +1,16 @@
 import SwiftUI
 import SonosKit
 
-struct TVModeView: View {
+struct TVModeViewCell: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
 
     var body: some View {
         Section {
             HStack(alignment: .top) {
-                Text("--")
+                if let settings = group.tvSettings {
+                    Text(settings.audioInputFormat.description)
+                }
                 Spacer()
                 VStack {
                     if let settings = Binding<TVSettings>($group.tvSettings) {
@@ -38,13 +40,14 @@ struct TVModeView: View {
                     }
                 }
             }
+            .fontDesign(.rounded)
         }
     }
 }
 
 #Preview {
     List {
-        TVModeView(group: .constant(.theater))
+        TVModeViewCell(group: .constant(.theater))
             .environment(SonosService())
     }
 }

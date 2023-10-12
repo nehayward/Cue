@@ -422,7 +422,7 @@ final class SonosAPI {
         }
     }
 
-    func queueSpotifyTrack(ID: String, IP: String) async {
+    func queueSpotifyTrack(ID: String, IP: String, position: QueuePosition = .front) async {
 //        let URIMetadata = """
 //        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
 //          xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">
@@ -449,15 +449,26 @@ final class SonosAPI {
         """
 
         let test = "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
-print(test)
 
+        // MARK: Front
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "EnqueuedURI": "x-sonos-spotify:" + test,
             "EnqueuedURIMetaData": URIMetadata,
-            "DesiredFirstTrackNumberEnqueued": 0,
-            "EnqueueAsNext": 0
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 1
         ]
+
+        // MARK: End
+
+        // MARK: Next
+//        let arguments: [String: Any] = [
+//            "InstanceID": 0,
+//            "EnqueuedURI": "x-sonos-spotify:" + test,
+//            "EnqueuedURIMetaData": URIMetadata,
+//            "DesiredFirstTrackNumberEnqueued": 2,
+//            "EnqueueAsNext": 1
+//        ]
 
         print(arguments["EnqueuedURI"])
         print(URIMetadata.escaped)
@@ -471,6 +482,25 @@ print(test)
         }
     }
 
+    func queueSpotifyAlbum(ID: String, title: String, owner: String, IP: String) async {
+        let URIMetadata = """
+        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="1006206cspotify%3aplaylist%3a\(ID)" restricted="true"><dc:title>\(title.xmlAllowedString)&#32;-&#32;playlist&#32;by&#32;\(owner.xmlAllowedString)&#32;|&#32;Spotify</dc:title><upnp:class>object.container.playlistContainer.#PlaylistView</upnp:class><desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON3079_X_#Svc3079-0-Token</desc></item></DIDL-Lite>
+        """
+
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(ID)?sid=12&amp;flags=44&amp;sn=3",
+            "EnqueuedURIMetaData": URIMetadata.escaped,
+            "DesiredFirstTrackNumberEnqueued": 0,
+            "EnqueueAsNext": 0
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
 
     func getCurrentTransportActions(IP: String) async -> AvailableActions? {
         let arguments: [String: Any] = [

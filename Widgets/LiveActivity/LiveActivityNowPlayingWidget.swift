@@ -6,14 +6,10 @@ import SonosKit
 
 struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var date: Date
-        var isPlaying: Bool
         var trackName: String
-        var imageData: Data?
+        var artist: String
         var volume: Double
     }
-
     var room: SonosDeviceEntity
 }
 
@@ -24,18 +20,14 @@ struct LiveActivityNowPlayingWidget: Widget {
         } dynamicIsland: { context in
             
             DynamicIsland {
-//                // Expanded UI goes here.  Compose the expanded UI through
-//                // various regions, like leading/trailing/center/bottom
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "hifispeaker.fill")
                 }
 //                DynamicIslandExpandedRegion(.trailing) {
-//                    Text("Trailing")
+//                    Text("\(context.state.volume, specifier: "%0.f")")
+//                        .font(.caption)
+//                        .contentTransition(.numericText())
 //                }
-//                DynamicIslandExpandedRegion(.center) {
-//
-//                }
-
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: 12) {
                         Text(context.attributes.room.name)
@@ -82,7 +74,6 @@ struct LiveActivityNowPlayingWidget: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         Image(systemName: "speaker.wave.3.fill", variableValue: context.state.volume/100)
-                            .foregroundStyle(.thickMaterial)
                             .contentTransition(.symbolEffect(.automatic))
                             .font(.caption)
                             .invalidatableContent()
@@ -90,7 +81,6 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .tint(.accentColor)
                             .invalidatableContent()
                         Text("\(context.state.volume, specifier: "%0.f")")
-                            .foregroundStyle(.thickMaterial)
                             .font(.caption)
                             .contentTransition(.numericText())
                             .invalidatableContent()
@@ -100,7 +90,9 @@ struct LiveActivityNowPlayingWidget: Widget {
             } compactLeading: {
                 Image(systemName: "hifispeaker.fill")
             } compactTrailing: {
-
+                Text("\(context.state.volume, specifier: "%0.f")")
+                    .font(.caption)
+                    .contentTransition(.numericText())
             } minimal: {
 
             }
@@ -116,7 +108,9 @@ extension ClicNowPlayingWidgetAttributes {
 
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: false, trackName: "Dance the Night (From The Barbie Album)", imageData: UIImage(named: "barbie")!.jpegData(compressionQuality: 0.8)!, volume: 39)
+        ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
+                                                    artist: "Dua Lipa",
+                                                    volume: 39)
      }
 }
 

@@ -1,9 +1,10 @@
 import Foundation
 import Observation
+import os
 
 @Observable
 public final class Room: Identifiable, @unchecked Sendable {
-    private let queue = DispatchQueue(label: "Room\(UUID().uuidString)")
+    private let lock = OSAllocatedUnfairLock()
 
     public let id: String
     public let ip: String
@@ -20,7 +21,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     }
 
     public func updateVolume(volume: Double) {
-        queue.sync {
+        lock.withLock {
             self.volume = volume
         }
     }

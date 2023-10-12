@@ -376,6 +376,25 @@ final class XMLParserSonos {
         }
         throw XMLParserSonosError.parsing
     }
+
+    func parseForHTAudioIn(xml: String) throws -> AudioInputFormat {
+        // Parse out CurrentValue
+        let pattern = "<HTAudioIn>(.*?)</HTAudioIn>"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+
+            if let match = regex.firstMatch(in: xml, options: [], range: range) {
+                let valueRange = match.range(at: 1)
+                if let valueRange = Range(valueRange, in: xml) {
+                    guard let value = Int(xml[valueRange]), let audioInputFormat = AudioInputFormat(rawValue: value) else {
+                        return .unknown
+                    }
+                    return audioInputFormat
+                }
+            }
+        }
+        throw XMLParserSonosError.parsing
+    }
 }
 
 

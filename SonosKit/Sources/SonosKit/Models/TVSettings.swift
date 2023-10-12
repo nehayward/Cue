@@ -5,11 +5,11 @@ import Observation
 public class TVSettings {
     public var nightMode: Bool
     public var dialogLevel: Bool
-    public var audioFormat: String
+    public var audioInputFormat: AudioInputFormat
 
-    init(nightMode: Bool, dialogLevel: Bool, audioFormat: String) {
+    init(nightMode: Bool, dialogLevel: Bool, audioInputFormat: AudioInputFormat) {
         self.nightMode = nightMode
         self.dialogLevel = dialogLevel
-        self.audioFormat = audioFormat
+        self.audioInputFormat = audioInputFormat
     }
 }

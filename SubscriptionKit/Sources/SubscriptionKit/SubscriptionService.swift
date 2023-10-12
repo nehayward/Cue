@@ -4,8 +4,12 @@ import Observation
 import RevenueCat
 import CloudStorage
 
+protocol SubscriptionServicing  {
+    func monitorChanges()
+}
+
 @Observable
-public final class SubscriptionService {
+public final class SubscriptionService: SubscriptionServicing {
     static let key = "com.clic.subscriptions"
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
@@ -14,12 +18,12 @@ public final class SubscriptionService {
     public init() {
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
-//        current.subscription = Subscription(isActive: true,
-//                                            expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now)
-//        )
         Task { @MainActor in
             setup()
         }
+//        #if DEBUG
+//        enable()
+//        #endif
     }
 
     @MainActor
@@ -49,10 +53,16 @@ public final class SubscriptionService {
             }
         }
     }
+
+    private func enable() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(4)) { [weak self] in
+            self?.current.subscription = Subscription(isActive: true, expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now))
+        }
+    }
 }
 
 extension SubscriptionService {
     public final class SubscriptionServiceStorage: ObservableObject {
-        @CloudStorage(SubscriptionService.key) public var subscription: Subscription = .notActive 
+        @CloudStorage(SubscriptionService.key) public var subscription: Subscription = .notActive
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Subscription: Codable {
+public class Subscription: Codable {
     public var isActive: Bool
     public var expiration: Date?
 

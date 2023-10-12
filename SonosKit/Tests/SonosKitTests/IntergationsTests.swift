@@ -69,10 +69,10 @@ final class IntegrationsTests: XCTestCase {
         XCTAssertTrue(dialogLevelGetEnabledTrue)
     }
 
-//    func testTVState() async throws {
-//        let dialogLevelEnable = await try sonosAPI.getDialogLevel(IP: garageSonosIP)
-//
-//    }
+    func testGetAudioInputFormat() async throws {
+        let getAudioInputFormat = try await sonosAPI.getAudioInputFormat(IP: theaterIP)
+        XCTAssertEqual(getAudioInputFormat, .multiChannelPCM)
+    }
 }
 
 func XCTAssertThrowsErrorAsync<T, R>(

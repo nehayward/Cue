@@ -16,20 +16,25 @@ struct LargePlayerView: View {
     @State private var nextButtonTapped: Bool = false
 
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
-    let a = UISelectionFeedbackGenerator()
+    private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
 
     var body: some View {
         VStack(alignment: .center) {
-//            ArtworkView(group: $group))
+            //            ArtworkView(group: $group))
             ArtworkViewKing(group: $group)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
                 .shadow(radius: 10)
 
-            Text(group.coordinatorRoom.track.name)
-                .bold()
-                .multilineTextAlignment(.center)
-                .fontDesign(.rounded)
+            if group.tvMode {
+                TVModeView()
+            }
+            else {
+                Text(group.coordinatorRoom.track.name)
+                    .bold()
+                    .multilineTextAlignment(.center)
+                    .fontDesign(.rounded)
+            }
 
             Text(group.coordinatorRoom.track.artist)
                 .multilineTextAlignment(.center)
@@ -37,85 +42,10 @@ struct LargePlayerView: View {
                 .padding(.bottom, 80)
                 .fontDesign(.rounded)
 
-            VStack {
-                if !group.coordinatorRoom.track.duration.isZero {
-                    ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
-                        .tint(.primary)
-                        .progressViewStyle(.linear)
-
-                }
-                HStack {
-                    Text(group.coordinatorRoom.track.timestamp)
-                    Spacer()
-                    Text(group.coordinatorRoom.track.remainingTimestamp)
-                }
-                .monospacedDigit()
-                .font(.caption)
+            if !group.tvMode {
+                playbackView()
+                mediaControlsView()
             }
-            .fontDesign(.rounded)
-            .padding(.bottom, 24)
-
-            HStack(spacing: 32) {
-                Button {
-                    a.selectionChanged()
-                    Task {
-                        await sonosService.previous(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    Image(systemName: "backward.end.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-
-                Button{
-                    Task {
-                        if group.coordinatorRoom.isPlaying {
-                            a.selectionChanged()
-                            await sonosService.pause(ip: group.coordinatorRoom.ip)
-                        } else {
-                            a.selectionChanged()
-                            await sonosService.play(ip: group.coordinatorRoom.ip)
-                        }
-                    }
-                } label: {
-                    Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .contentTransition(.symbolEffect(.automatic))
-                        .frame(width: 32, height: 32)
-
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    a.selectionChanged()
-                    Task {
-                        await sonosService.next(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    Image(systemName: "forward.end.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 24, height: 24)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.bottom, 60)
-
-
-            //            VolumeControlView(roomGroup: group)
-            //                .padding(.bottom, 24)
-            //            HStack {
-            //                Button {
-            //                    showGroup.toggle()
-            //                } label: {
-            //                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-            //                        .font(.body)
-            //                        .foregroundStyle(.ultraThickMaterial)
-            //                }
-            //            }
         }
         .padding()
         .frame(maxHeight: .infinity)
@@ -156,7 +86,7 @@ struct LargePlayerView: View {
                     .fontDesign(.rounded)
                     .buttonStyle(.plain)
                     .font(.body)
-                    
+
                     Button {
                         showSearch.toggle()
                     } label: {
@@ -183,7 +113,7 @@ struct LargePlayerView: View {
             GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
         }
         .sheet(isPresented: $showSearch) {
-//            SearchScreen(group: group)
+            //            SearchScreen(group: group)
 
             ImprovedSearch(group: group)
         }
@@ -200,27 +130,27 @@ struct LargePlayerView: View {
         //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)
         .background {
             ZStack {
-//                AsyncImage(
-//                    url: group.coordinatorRoom.track.artworkURL,
-//                    transaction: Transaction(animation: .snappy)
-//                ) { phase in
-//                    switch phase {
-//                    case .success(let image):
-//                        image
-//                            .resizable()
-//                            .aspectRatio(contentMode: .fill)
-//                            .scaleEffect(2)
-//                            .blur(radius: 50)
-//                    default:
-//                        RoundedRectangle(cornerRadius: 4)
-//                            .foregroundStyle(.thinMaterial)
-//                            .shadow(radius: 2)
-//                            .scaleEffect(3)
-//                    }
+                //                AsyncImage(
+                //                    url: group.coordinatorRoom.track.artworkURL,
+                //                    transaction: Transaction(animation: .snappy)
+                //                ) { phase in
+                //                    switch phase {
+                //                    case .success(let image):
+                //                        image
+                //                            .resizable()
+                //                            .aspectRatio(contentMode: .fill)
+                //                            .scaleEffect(2)
+                //                            .blur(radius: 50)
+                //                    default:
+                //                        RoundedRectangle(cornerRadius: 4)
+                //                            .foregroundStyle(.thinMaterial)
+                //                            .shadow(radius: 2)
+                //                            .scaleEffect(3)
+                //                    }
                 ArtworkViewKing(group: $group)
-                            .aspectRatio(contentMode: .fill)
-                            .scaleEffect(2)
-                            .blur(radius: 50)
+                    .aspectRatio(contentMode: .fill)
+                    .scaleEffect(2)
+                    .blur(radius: 50)
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
                     .ignoresSafeArea()
@@ -243,6 +173,112 @@ struct LargePlayerView: View {
         }
     }
 
+    private func playbackView() -> some View {
+        VStack {
+            if !group.coordinatorRoom.track.duration.isZero {
+                ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
+                    .tint(.primary)
+                    .progressViewStyle(.linear)
+
+            }
+            HStack {
+                Text(group.coordinatorRoom.track.timestamp)
+                Spacer()
+                Text(group.coordinatorRoom.track.remainingTimestamp)
+            }
+            .monospacedDigit()
+            .font(.caption)
+        }
+        .fontDesign(.rounded)
+        .padding(.bottom, 24)
+    }
+
+    private func mediaControlsView() -> some View {
+        HStack(spacing: 32) {
+            Button {
+                selectionFeedbackGenerator.selectionChanged()
+                Task {
+                    await sonosService.previous(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Image(systemName: "backward.end.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+
+            Button{
+                Task {
+                    if group.coordinatorRoom.isPlaying {
+                        await selectionFeedbackGenerator.selectionChanged()
+                        await sonosService.pause(ip: group.coordinatorRoom.ip)
+                    } else {
+                        await selectionFeedbackGenerator.selectionChanged()
+                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                    }
+                }
+            } label: {
+                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .contentTransition(.symbolEffect(.automatic))
+                    .frame(width: 32, height: 32)
+
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                selectionFeedbackGenerator.selectionChanged()
+                Task {
+                    await sonosService.next(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Image(systemName: "forward.end.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.bottom, 60)
+    }
+
+    private func TVModeView() -> some View {
+        VStack(alignment: .center) {
+            if let settings = group.tvSettings {
+                Text(settings.audioInputFormat.description)
+            }
+            HStack {
+                if let settings = Binding<TVSettings>($group.tvSettings) {
+                    Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
+                        .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
+                        .labelStyle(.iconOnly)
+                        .contentShape(.circle)
+                        .toggleStyle(.button)
+                        .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
+                            Task {
+                                try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
+                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+
+                    Toggle("Dialog Mode", systemImage: "person.wave.2", isOn: settings.dialogLevel)
+                        .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
+                        .labelStyle(.iconOnly)
+                        .toggleStyle(.button)
+                        .contentShape(.circle)
+                        .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
+                            Task {
+                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)
+                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                }
+            }
+        }
+        .fontDesign(.rounded)
+    }
 }
 
 #Preview {

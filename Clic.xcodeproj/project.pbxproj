@@ -20,9 +20,9 @@
 		E94A6A232AAA7BCC002E432C /* ImprovedSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */; };
 		E94A6A252AAACB49002E432C /* ArtworkViewKing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */; };
 		E94A6A272AAACB62002E432C /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E94A6A262AAACB62002E432C /* Kingfisher */; };
+		E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */; };
 		E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
 		E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */; };
-		E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0D2A5093BF000240A6 /* PlayerView.swift */; };
 		E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
 		E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A72AA52EF8007848A7 /* DebugView.swift */; };
 		E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
@@ -32,7 +32,6 @@
 		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
 		E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91E2AB65F3D000D596E /* VibesDS */; };
 		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
-		E960ED482AC493FC003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED472AC493FC003E3732 /* SubscriptionKit */; };
 		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
 		E960ED4C2AC4CCDC003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED4B2AC4CCDC003E3732 /* SubscriptionKit */; };
 		E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396342A3B723B00518A17 /* ArtworkView.swift */; };
@@ -64,6 +63,8 @@
 		E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
 		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
+		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
+		E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
@@ -103,8 +104,10 @@
 		E9DE849E2A6707E1004C3947 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */; };
 		E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
-		E9EE620D2A94102B00FC1826 /* TVModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeView.swift */; };
+		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
 		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
+		E9F99D672AD79476003DA9DD /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9F99D662AD79476003DA9DD /* SubscriptionKit */; };
+		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -179,9 +182,9 @@
 		E940E7152AAFBD17004303CD /* FilterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterView.swift; sourceTree = "<group>"; };
 		E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImprovedSearch.swift; sourceTree = "<group>"; };
 		E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkViewKing.swift; sourceTree = "<group>"; };
+		E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHistoryView.swift; sourceTree = "<group>"; };
 		E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlView.swift; sourceTree = "<group>"; };
 		E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlScreen.swift; sourceTree = "<group>"; };
-		E94F6B0D2A5093BF000240A6 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneBuilderScreen.swift; sourceTree = "<group>"; };
 		E95498A72AA52EF8007848A7 /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugEmbedTest.swift; sourceTree = "<group>"; };
@@ -213,6 +216,7 @@
 		E982AEA82ABA027500709FC0 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
 		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		E987959C2A9667EC002C684A /* PlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerScreen.swift; sourceTree = "<group>"; };
+		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
@@ -250,7 +254,7 @@
 		E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetRectangularView.swift; sourceTree = "<group>"; };
 		E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityNowPlayingView.swift; sourceTree = "<group>"; };
-		E9EE620C2A94102A00FC1826 /* TVModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeView.swift; sourceTree = "<group>"; };
+		E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
 		E9F3D44C2A02C2780042F208 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E9F3D44D2A02C2900042F208 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SonosKit; sourceTree = "<group>"; };
@@ -286,6 +290,7 @@
 				E93FE3F52AC1EB210061EADD /* RevenueCatUI in Frameworks */,
 				E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */,
 				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
+				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
@@ -296,7 +301,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E960ED482AC493FC003E3732 /* SubscriptionKit in Frameworks */,
+				E9F99D672AD79476003DA9DD /* SubscriptionKit in Frameworks */,
 				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
@@ -329,7 +334,9 @@
 		E960ED452AC38936003E3732 /* Search */ = {
 			isa = PBXGroup;
 			children = (
+				E963963E2A3CD3AE00518A17 /* SearchScreen.swift */,
 				E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */,
+				E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -367,6 +374,7 @@
 			children = (
 				E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */,
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
+				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
 			);
 			path = Intents;
@@ -422,7 +430,7 @@
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
-				E9EE620C2A94102A00FC1826 /* TVModeView.swift */,
+				E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */,
 				E96396342A3B723B00518A17 /* ArtworkView.swift */,
 				E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */,
 				E96396362A3B8F5200518A17 /* ZoneView.swift */,
@@ -430,12 +438,10 @@
 				E9C03AF62A57668800FB9118 /* VolumeControlView.swift */,
 				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
-				E94F6B0D2A5093BF000240A6 /* PlayerView.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
-				E963963E2A3CD3AE00518A17 /* SearchScreen.swift */,
 				E960ED452AC38936003E3732 /* Search */,
 				E940E7152AAFBD17004303CD /* FilterView.swift */,
 				E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */,
@@ -611,6 +617,7 @@
 				E959B9202AB6B12D000D596E /* VibesDS */,
 				E93FE3F42AC1EB210061EADD /* RevenueCatUI */,
 				E960ED492AC4969F003E3732 /* SubscriptionKit */,
+				E9FFC29A2ACDCC490001B26F /* OrderedCollections */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -636,7 +643,7 @@
 				E98795A62A969078002C684A /* Kingfisher */,
 				E959B91B2AB506BF000D596E /* CloudStorage */,
 				E959B91E2AB65F3D000D596E /* VibesDS */,
-				E960ED472AC493FC003E3732 /* SubscriptionKit */,
+				E9F99D662AD79476003DA9DD /* SubscriptionKit */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -679,6 +686,7 @@
 				E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
+				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -745,6 +753,7 @@
 				E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */,
 				E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */,
+				E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */,
 				E97C0D4C2A325CC5005AB0E0 /* RemoteWidget.swift in Sources */,
 				E97C0D5B2A326B15005AB0E0 /* PlayPauseIntent.swift in Sources */,
 				E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */,
@@ -775,19 +784,20 @@
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E90ACD822ABFDD77006A9FD3 /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
-				E9EE620D2A94102B00FC1826 /* TVModeView.swift in Sources */,
+				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */,
 				E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */,
 				E963963F2A3CD3AE00518A17 /* SearchScreen.swift in Sources */,
+				E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */,
 				E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */,
 				E94A6A232AAA7BCC002E432C /* ImprovedSearch.swift in Sources */,
 				E985278F2A5E5955009016C2 /* SonosDeviceQuery.swift in Sources */,
 				E985278D2A5E0848009016C2 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
-				E94F6B0E2A5093BF000240A6 /* PlayerView.swift in Sources */,
+				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
@@ -1130,7 +1140,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1173,7 +1183,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1217,7 +1227,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1260,7 +1270,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1356,7 +1366,7 @@
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 4.25.2;
+				minimumVersion = 4.28.0;
 			};
 		};
 		E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
@@ -1365,6 +1375,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 7.9.0;
+			};
+		};
+		E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -1398,10 +1416,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = VibesDS;
 		};
-		E960ED472AC493FC003E3732 /* SubscriptionKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SubscriptionKit;
-		};
 		E960ED492AC4969F003E3732 /* SubscriptionKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SubscriptionKit;
@@ -1431,6 +1445,15 @@
 		E9C03B0E2A586F7E00FB9118 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		E9F99D662AD79476003DA9DD /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		E9FFC29A2ACDCC490001B26F /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

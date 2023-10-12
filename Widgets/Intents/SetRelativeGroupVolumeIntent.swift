@@ -24,7 +24,6 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        try? await Self.sonosService.fetch(useCache: true)
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
         await Self.liveActivityManager.refresh()

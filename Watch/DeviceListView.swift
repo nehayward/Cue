@@ -1,9 +1,11 @@
 import SwiftUI
+import SubscriptionKit
 import SonosKit
 import VibesDS
 
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(Popover.self) var popOver: Popover
     @Binding var selected: String?
 
@@ -17,12 +19,15 @@ struct DeviceListView: View {
                 ForEach($sonosService.sorted) { $group in
                     ZStack {
                         if group.tvMode {
-                            TVCellView(group: $group)
+                            TVModeViewCell(group: $group)
                         } else {
                             ExtractedView(group: $group)
                         }
                     }
                     .tag(group.coordinatorID)
+                    .redacted(reason: enabled(group: group) ? [] : .placeholder)
+                    .disabled(!enabled(group: group))
+                    .selectionDisabled(!enabled(group: group))
                 }
             }
             .listStyle(.carousel)
@@ -125,12 +130,19 @@ struct DeviceListView: View {
 //        .animation(.smooth, value: sonosService.systemNotFound)
 //        .animation(.smooth, value: sonosService.groups)
     }
+
+    private func enabled(group: GroupRoom) -> Bool {
+        if subscriptionService.current.subscription.isActive { return true }
+        guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
+        return index < 1
+    }
 }
 
 #Preview {
     DeviceListView(selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
+        .environment(SubscriptionService())
 }
 
 

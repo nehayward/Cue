@@ -31,7 +31,9 @@ struct ClicApp: App {
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             guard subscriptionService.current.subscription.isActive else { return }
-            liveActivityManager?.createActivity(with: sonosService.groups)
+            Task {
+                await liveActivityManager?.createActivity(with: sonosService.groups)
+            }
         }
     }
 
@@ -48,19 +50,19 @@ struct ClicApp: App {
                 await liveActivityManager?.refresh()
             }
 
-            // MARK: Add back when monitoring is fixed
-            Task { @MainActor in
-                try? await sonosService.updateGroupsCheckPlayback()
-
-                if selected == nil {
-                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
-                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
-                        try await Task.sleep(for: .milliseconds(200))
-                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
-                        selected = groupPlaying.coordinatorID
-                    }
-                }
-            }
+//            // MARK: Add back when monitoring is fixed
+//            Task { @MainActor in
+//                try? await sonosService.updateGroupsCheckPlayback()
+//
+//                if selected == nil {
+//                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
+//                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
+//                        try await Task.sleep(for: .milliseconds(200))
+//                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
+//                        selected = groupPlaying.coordinatorID
+//                    }
+//                }
+//            }
         case .inactive:
             print("Inactive")
             WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")

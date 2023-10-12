@@ -425,7 +425,7 @@ public final class SonosService {
 
 
     @MainActor
-    func updateGroups(from groups: [GroupRoom]) async throws {
+    public func updateGroups(from groups: [GroupRoom]) async throws {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {
                 group.addTask{
@@ -742,7 +742,8 @@ public final class SonosService {
     public func getTVSettings(ip: String) async throws -> TVSettings {
         let dialogLevel = try await sonosAPI.getDialogLevel(IP: ip)
         let nightMode = try await sonosAPI.getNightMode(IP: ip)
-        return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioFormat: "")
+        let audioInputFormat = try await sonosAPI.getAudioInputFormat(IP: ip)
+        return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioInputFormat: audioInputFormat)
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
@@ -798,13 +799,22 @@ public final class SonosService {
     }
 
     public func queueSpotifyTrack(id: String, group: GroupRoom) async {
-        await sonosAPI.removeAllTrackFromQueue(IP: group.coordinatorRoom.ip)
         await sonosAPI.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip)
         await sonosAPI.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
     }
 
+    public func queueSpotifyAlbum(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
+//        await sonosAPI.removeAllTrackFromQueue(IP: ip)
+//        await sonosAPI.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
+//        await sonosAPI.setAVTransport(IP: ip, ID: group.coordinatorID)
+    }
+
     public func getQueue(ip: String) async -> [Track] {
         await sonosAPI.getQueue(IP: ip)
+    }
+
+    public func clearQueue(_ IP: String) async throws {
+        await sonosAPI.removeAllTrackFromQueue(IP: IP)
     }
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {

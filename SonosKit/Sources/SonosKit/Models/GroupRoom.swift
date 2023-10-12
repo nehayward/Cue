@@ -64,5 +64,5 @@ extension GroupRoom {
                                           coordinatorID: Room.theater.id,
                                           rooms: [.theater],
                                           coordinatorRoom: .theater,
-                                          tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioFormat: ""))
+                                          tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .unknown))
 }

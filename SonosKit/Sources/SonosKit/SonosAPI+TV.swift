@@ -30,7 +30,6 @@ extension SonosAPI {
         }
     }
 
-
     func getNightMode(IP: String) async throws -> Bool {
         let arguments: [String: Any] = [
             "InstanceID": 0,
@@ -58,5 +57,15 @@ extension SonosAPI {
             print("Failed with \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
         }
+    }
+
+    func getAudioInputFormat(IP: String) async throws -> AudioInputFormat {
+        guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetZoneInfo", arguments: [:], endpoint: "DeviceProperties") else { return .unknown }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+            throw SonosAPIError.failedLoading
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        return try XMLParserSonos().parseForHTAudioIn(xml: xml)
     }
 }

@@ -86,8 +86,13 @@ struct RemoteWidgetEntryView : View {
                     .environment(\.colorScheme, .light)
                 }
             } else {
-                Label("Select a room.", systemImage: "hifispeaker")
-                    .containerBackground(.thickMaterial, for: .widget)
+                VStack {
+                    Image(systemName: "hifispeaker")
+                        .imageScale(.large)
+                    Text("Select a Room")
+                        .fontDesign(.rounded)
+                }
+                .containerBackground(.thinMaterial, for: .widget)
             }
         }
         .disabled(!subscriptionService.current.subscription.isActive)

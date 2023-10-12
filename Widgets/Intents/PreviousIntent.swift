@@ -1,10 +1,10 @@
 import AppIntents
 import SonosKit
 
-struct PlayPauseIntent: AppIntent {
-    static var title: LocalizedStringResource = "Play/Pause Sonos Room"
+struct PreviousIntent: AppIntent {
+    static var title: LocalizedStringResource = "Previous media item."
 
-    @Parameter(title: "Sonos Room")
+    @Parameter(title: "Sonos Speaker")
     var room: SonosDeviceEntity
 
     init(room: SonosDeviceEntity) {
@@ -12,7 +12,7 @@ struct PlayPauseIntent: AppIntent {
     }
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Play or pause \(\.$room)")
+        Summary("Previous track \(\.$room)")
     }
 
     init() {
@@ -22,7 +22,7 @@ struct PlayPauseIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let sonosService = SonosService()
         guard let coordinatorRoom = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
-        await sonosService.playPauseDevice(ip: coordinatorRoom.ip)
+        await sonosService.previous(ip: coordinatorRoom.ip)
         return .result()
     }
 }

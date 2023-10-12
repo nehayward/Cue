@@ -90,6 +90,17 @@ struct QueueScreen: View {
                         Text("Queue")
                             .font(.title)
                 }
+
+                ToolbarItem(placement: .destructiveAction) {
+                    Button {
+                        Task {
+                            try await sonosService.clearQueue(group.coordinatorRoom.ip)
+                            tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                        }
+                    } label: {
+                        Text("Clear")
+                    }
+                }
             }
         }
         .task {

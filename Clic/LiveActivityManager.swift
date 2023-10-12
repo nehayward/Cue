@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import Kingfisher
 import SonosKit
 
 final class LiveActivityManager {
@@ -15,27 +16,29 @@ final class LiveActivityManager {
     }
 
     func refresh() async {
+        try? await sonosService.fetch(useCache: true)
         let groups = sonosService.groups
 //        guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
-        guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
-            for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-                await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
-                self.activity = nil
+        
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            guard let group = groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+                for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+                    await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
+                    self.activity = nil
+                }
+
+                return
             }
 
-            return
-        }
-
-        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            print(group.groupVolume)
-            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume))
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: true, trackName: group.coordinatorRoom.track.name, imageData: Data(), volume: group.groupVolume)
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                                                                           artist: group.coordinatorRoom.track.artist,
+                                                                           volume: group.groupVolume)
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             await activity.update(activityContent)
         }
     }
     
-    func createActivity(with groups: [GroupRoom]) {
+    func createActivity(with groups: [GroupRoom]) async {
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
 //            guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
@@ -52,8 +55,15 @@ final class LiveActivityManager {
                 return
             }
 
-            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume))
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(date: .now, isPlaying: true, trackName: group.coordinatorRoom.track.name, imageData: Data(), volume: group.groupVolume)
+            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
+                                                                                        name: group.coordinatorRoom.name,
+                                                                                        ip: group.coordinatorRoom.ip,
+                                                                                        volume: group.groupVolume))
+            
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                                                                           artist: group.coordinatorRoom.track.artist,
+                                                                           volume: group.groupVolume
+            )
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             do {
                 activity = try Activity.request(attributes: sonosAttribute, content: activityContent)

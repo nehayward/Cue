@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchConnectivity
 import SonosKit
 import RevenueCat
 import SubscriptionKit
@@ -30,7 +31,7 @@ struct PreferenceScreen: View {
                         }
                         .fontDesign(.rounded)
                         .background(Color.accentColor.gradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                     } else {
@@ -48,6 +49,10 @@ struct PreferenceScreen: View {
                         }
                     }
                 }
+                .onAppear {
+                    print(Purchases.shared.appUserID)
+
+                }
                 .manageSubscriptionsSheet(isPresented: $showSubscriptions)
 
 
@@ -57,11 +62,37 @@ struct PreferenceScreen: View {
                     Text("Sonos System")
                 }
 
+                Section {
+                    LabeledContent("ID", value: Purchases.shared.appUserID)
+                        .textSelection(.enabled)
+                        .scaledToFit()
+                    LabeledContent("Watch App Installed", value: "\(WCSession.default.isWatchAppInstalled)")
+                } header: {
+                    Text("Profile")
+                }
+
+                Button {
+                    let message = """
+mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundle.main.infoDictionary?["CFBundleShortVersionString"]))\nID:\(Purchases.shared.appUserID)
+"""
+                    let url =  URL(string: message)!
+                    UIApplication.shared.open(url) { (result) in
+                        if result {
+                           // The URL was delivered successfully!
+                        }
+                    }
+                } label: {
+                    Text("Support hi@clic.dance")
+                }
+
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
             .navigationTitle("Settings")
+            #if DEBUG
+            Text("DEBUG")
+            #endif
         }
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
