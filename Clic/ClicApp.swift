@@ -14,6 +14,7 @@ struct ClicApp: App {
     @State private var subscriptionService = SubscriptionService()
     @State private var sonosService = SonosService()
     @State private var alertService = AlertService()
+    @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
 
     var body: some Scene {
         WindowGroup {
@@ -34,6 +35,9 @@ struct ClicApp: App {
             Task {
                 await liveActivityManager?.createActivity(with: sonosService.groups)
             }
+        }
+        .onChange(of: subscriptionService.subscription) { oldValue, newValue in
+            activeSubscription =  newValue.isActive
         }
     }
 

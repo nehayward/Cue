@@ -4,24 +4,22 @@ import Observation
 import RevenueCat
 import CloudStorage
 
-protocol SubscriptionServicing  {
+protocol SubscriptionServicing {
+    var subscription: Subscription { get }
     func monitorChanges()
+}
+
+public final class SubscriptionServiceMock {
+    func monitorChanges() {
+
+    }
 }
 
 @Observable
 public final class SubscriptionService: SubscriptionServicing {
-    static let key = "com.clic.subscriptions"
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
     public var subscription: Subscription = .notActive
-    public var isActive: Bool {
-        get {
-            sync.bool(for: Self.key) ?? false
-        }
-        set {
-            sync.set(newValue, for: Self.key)
-        }
-    }
 
     public init() {
         Purchases.logLevel = .error
@@ -41,10 +39,8 @@ public final class SubscriptionService: SubscriptionServicing {
             if !customerInfo.activeSubscriptions.isEmpty {
                 let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
                 subscription = newSubscription
-                isActive = true
             } else {
                 subscription = .notActive
-                isActive = false
             }
             WidgetCenter.shared.reloadAllTimelines()
         }
@@ -57,10 +53,8 @@ public final class SubscriptionService: SubscriptionServicing {
             for try await customerInfo in Purchases.shared.customerInfoStream {
                 if !customerInfo.activeSubscriptions.isEmpty {
                     subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
-                    isActive = true
                 } else {
                     subscription = .notActive
-                    isActive = false
                 }
                 WidgetCenter.shared.reloadAllTimelines()
             }

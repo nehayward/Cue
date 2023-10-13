@@ -75,20 +75,6 @@ struct PreferenceScreen: View {
 
 
                     Picker("App Icon", selection: $selectedAppIcon) {
-                        HStack {
-
-                            Bundle.main.iconFileName
-                                .flatMap { UIImage(named: $0) }
-                                .map { Image(uiImage: $0)
-                                        .resizable()
-                                        .frame(width: 64, height: 64)
-                                        .cornerRadius(16)
-                                }
-                            Text("Default")
-                        }
-                        .id("Default")
-
-
                         ForEach( Bundle.main.iconFileNames, id: \.self) { name in
                             HStack {
                                 UIImage(named: name)
@@ -104,6 +90,10 @@ struct PreferenceScreen: View {
                     }
                     .pickerStyle(.navigationLink)
                     .onChange(of: selectedAppIcon) { oldValue, newValue in
+                        if newValue == "Default" {
+                            UIApplication.shared.setAlternateIconName(nil)
+                            return
+                        }
                         UIApplication.shared.setAlternateIconName(newValue) { (error) in
                             if let error = error {
                                 print("Failed request to update the app’s icon: \(error)")
