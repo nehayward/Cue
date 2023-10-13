@@ -1140,7 +1140,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1185,7 +1185,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1229,7 +1229,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1272,7 +1272,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
