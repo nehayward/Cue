@@ -3,13 +3,11 @@ import SwiftUI
 import SonosKit
 import WidgetKit
 import CloudStorage
-import SubscriptionKit
 
 @main
 struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
 
-    @State var subscriptionService = SubscriptionService()
     @State var sonosService = SonosService()
     @State var popover = Popover()
 
@@ -20,7 +18,6 @@ struct ClicWatchApp: App {
             DeviceListView(selected: $selected)
                 .environment(popover)
                 .environment(sonosService)
-                .environment(subscriptionService)
                 .onChange(of: selected) {
                     print("Update current")
                     if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {

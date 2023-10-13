@@ -7,14 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E90ACD822ABFDD77006A9FD3 /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E92CABEF2AB8FE70002A3D4D /* TVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CABED2AB8FE24002A3D4D /* TVView.swift */; };
 		E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E2D472AA6D37300D27DBC /* Popover.swift */; };
 		E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
-		E93FE3F52AC1EB210061EADD /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E93FE3F42AC1EB210061EADD /* RevenueCatUI */; };
 		E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */; };
 		E940E7162AAFBD17004303CD /* FilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E940E7152AAFBD17004303CD /* FilterView.swift */; };
 		E94A6A232AAA7BCC002E432C /* ImprovedSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */; };
@@ -34,11 +32,14 @@
 		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
 		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
 		E960ED4C2AC4CCDC003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED4B2AC4CCDC003E3732 /* SubscriptionKit */; };
+		E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
+		E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
+		E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E96385FB2AD8E346005411BF /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */; };
 		E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396342A3B723B00518A17 /* ArtworkView.swift */; };
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
 		E963963F2A3CD3AE00518A17 /* SearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E963963E2A3CD3AE00518A17 /* SearchScreen.swift */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
-		E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = E9736F752A7472AC00BE692C /* RevenueCat */; };
 		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
 		E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D472A325CC5005AB0E0 /* WidgetBundle.swift */; };
@@ -79,7 +80,6 @@
 		E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeViewCell.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
-		E9BDE57229E3396700D230A8 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
 		E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
 		E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
@@ -106,7 +106,6 @@
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
 		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
-		E9F99D672AD79476003DA9DD /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9F99D662AD79476003DA9DD /* SubscriptionKit */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
@@ -195,6 +194,7 @@
 		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VibesDS; path = ../../../../../Downloads/VibesDS; sourceTree = "<group>"; };
 		E960ED462AC46769003E3732 /* SubscriptionKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SubscriptionKit; sourceTree = "<group>"; };
 		E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
+		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
 		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MusicSearchKit; sourceTree = "<group>"; };
 		E96396342A3B723B00518A17 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
@@ -287,10 +287,9 @@
 			files = (
 				E94A6A272AAACB62002E432C /* Kingfisher in Frameworks */,
 				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
-				E93FE3F52AC1EB210061EADD /* RevenueCatUI in Frameworks */,
-				E9736F762A7472AC00BE692C /* RevenueCat in Frameworks */,
 				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
 				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
+				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
@@ -301,7 +300,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9F99D672AD79476003DA9DD /* SubscriptionKit in Frameworks */,
 				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
@@ -442,6 +440,7 @@
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
+				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
 				E960ED452AC38936003E3732 /* Search */,
 				E940E7152AAFBD17004303CD /* FilterView.swift */,
 				E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */,
@@ -611,13 +610,12 @@
 			name = Clic;
 			packageProductDependencies = (
 				E9BDE57F29E33B0700D230A8 /* SonosKit */,
-				E9736F752A7472AC00BE692C /* RevenueCat */,
 				E94A6A262AAACB62002E432C /* Kingfisher */,
 				E959B9172AB50684000D596E /* CloudStorage */,
 				E959B9202AB6B12D000D596E /* VibesDS */,
-				E93FE3F42AC1EB210061EADD /* RevenueCatUI */,
 				E960ED492AC4969F003E3732 /* SubscriptionKit */,
 				E9FFC29A2ACDCC490001B26F /* OrderedCollections */,
+				E96385FB2AD8E346005411BF /* RevenueCatUI */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -643,7 +641,6 @@
 				E98795A62A969078002C684A /* Kingfisher */,
 				E959B91B2AB506BF000D596E /* CloudStorage */,
 				E959B91E2AB65F3D000D596E /* VibesDS */,
-				E9F99D662AD79476003DA9DD /* SubscriptionKit */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -683,10 +680,10 @@
 			);
 			mainGroup = E9BDE56329E3396700D230A8;
 			packageReferences = (
-				E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
 				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
+				E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -782,7 +779,9 @@
 			files = (
 				E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
-				E90ACD822ABFDD77006A9FD3 /* PreferenceScreen.swift in Sources */,
+				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
+				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
+				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
@@ -806,7 +805,6 @@
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
-				E9BDE57229E3396700D230A8 /* DeviceListView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
 				E982AEA92ABA027500709FC0 /* DeviceNameView.swift in Sources */,
@@ -1135,8 +1133,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Default;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -1178,8 +1178,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Default;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -1361,7 +1363,7 @@
 				minimumVersion = 0.4.0;
 			};
 		};
-		E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+		E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
 			requirement = {
@@ -1388,11 +1390,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E93FE3F42AC1EB210061EADD /* RevenueCatUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */;
-			productName = RevenueCatUI;
-		};
 		E94A6A262AAACB62002E432C /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
@@ -1424,10 +1421,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SubscriptionKit;
 		};
-		E9736F752A7472AC00BE692C /* RevenueCat */ = {
+		E96385FB2AD8E346005411BF /* RevenueCatUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E9736F742A7472AC00BE692C /* XCRemoteSwiftPackageReference "purchases-ios" */;
-			productName = RevenueCat;
+			package = E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
 		};
 		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1445,10 +1442,6 @@
 		E9C03B0E2A586F7E00FB9118 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
-		};
-		E9F99D662AD79476003DA9DD /* SubscriptionKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SubscriptionKit;
 		};
 		E9FFC29A2ACDCC490001B26F /* OrderedCollections */ = {
 			isa = XCSwiftPackageProductDependency;

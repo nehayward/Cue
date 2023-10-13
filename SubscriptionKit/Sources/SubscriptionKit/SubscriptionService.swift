@@ -13,7 +13,15 @@ public final class SubscriptionService: SubscriptionServicing {
     static let key = "com.clic.subscriptions"
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
-    public var current = SubscriptionServiceStorage()
+    public var subscription: Subscription = .notActive
+    public var isActive: Bool {
+        get {
+            sync.bool(for: Self.key) ?? false
+        }
+        set {
+            sync.set(newValue, for: Self.key)
+        }
+    }
 
     public init() {
         Purchases.logLevel = .error
@@ -31,9 +39,12 @@ public final class SubscriptionService: SubscriptionServicing {
         Task {
             let customerInfo = try await Purchases.shared.customerInfo()
             if !customerInfo.activeSubscriptions.isEmpty {
-                current.subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                subscription = newSubscription
+                isActive = true
             } else {
-                current.subscription = .notActive
+                subscription = .notActive
+                isActive = false
             }
             WidgetCenter.shared.reloadAllTimelines()
         }
@@ -45,9 +56,11 @@ public final class SubscriptionService: SubscriptionServicing {
         subscriptionTask = Task {
             for try await customerInfo in Purchases.shared.customerInfoStream {
                 if !customerInfo.activeSubscriptions.isEmpty {
-                    current.subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                    subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                    isActive = true
                 } else {
-                    current.subscription = .notActive
+                    subscription = .notActive
+                    isActive = false
                 }
                 WidgetCenter.shared.reloadAllTimelines()
             }
@@ -56,13 +69,7 @@ public final class SubscriptionService: SubscriptionServicing {
 
     private func enable() {
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(4)) { [weak self] in
-            self?.current.subscription = Subscription(isActive: true, expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now))
+            self?.subscription = Subscription(isActive: true, expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now))
         }
-    }
-}
-
-extension SubscriptionService {
-    public final class SubscriptionServiceStorage: ObservableObject {
-        @CloudStorage(SubscriptionService.key) public var subscription: Subscription = .notActive
     }
 }

@@ -95,9 +95,9 @@ struct RemoteWidgetEntryView : View {
                 .containerBackground(.thinMaterial, for: .widget)
             }
         }
-        .disabled(!subscriptionService.current.subscription.isActive)
+        .disabled(!subscriptionService.subscription.isActive)
         .overlay {
-            if !subscriptionService.current.subscription.isActive {
+            if !subscriptionService.subscription.isActive {
                 Text("Upgrade Now")
                     .lineLimit(0)
                     .bold()

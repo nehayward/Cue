@@ -348,6 +348,36 @@ final class SonosAPI {
         }
     }
 
+    func removeTrackFromQueue(IP: String, index: Int) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "ObjectID": "Q:0/\(index + 1)",
+            "UpdateID": 0
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "RemoveTrackFromQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
+//    func reorderQueue(IP: String) async {
+//        let arguments: [String: Any] = [
+//            "InstanceID": 0,
+//            "StartingIndex": max(1,9),
+//            "NumberOfTracks": 1,
+//            "InsertBefore": max(1,1),
+//            "UpdateID": 0
+//        ]
+//
+//        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "ReorderTracksInQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+//            if (response as? HTTPURLResponse)?.statusCode != 200 {
+//                print("Failed")
+//            }
+//        }
+//    }
+
     func ungroup(IP: String) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,

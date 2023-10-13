@@ -70,6 +70,16 @@ struct QueueScreen: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    Task {
+                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
+                                        tracks.remove(at: index)
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                     .task {
@@ -90,7 +100,6 @@ struct QueueScreen: View {
                         Text("Queue")
                             .font(.title)
                 }
-
                 ToolbarItem(placement: .destructiveAction) {
                     Button {
                         Task {

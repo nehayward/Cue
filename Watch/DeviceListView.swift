@@ -1,12 +1,12 @@
+import CloudStorage
 import SwiftUI
-import SubscriptionKit
 import SonosKit
 import VibesDS
 
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(Popover.self) var popOver: Popover
+    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
     @Binding var selected: String?
 
     var body: some View {
@@ -132,7 +132,7 @@ struct DeviceListView: View {
     }
 
     private func enabled(group: GroupRoom) -> Bool {
-        if subscriptionService.current.subscription.isActive { return true }
+        if activeSubscription { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
     }
@@ -142,7 +142,6 @@ struct DeviceListView: View {
     DeviceListView(selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
-        .environment(SubscriptionService())
 }
 
 

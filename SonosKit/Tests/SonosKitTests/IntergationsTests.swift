@@ -20,6 +20,14 @@ final class IntegrationsTests: XCTestCase {
         print(tracks)
     }
 
+    func testRemoveTrackFromQueue() async throws {
+        await sonosAPI.removeTrackFromQueue(IP: garageSonosIP, index: 0)
+    }
+
+    func testReorderQueue() async throws {
+        await sonosAPI.reorderQueue(IP: garageSonosIP)
+    }
+
     func testGetCurrentTransportActions() async throws {
         let availableActionsOptional = await sonosService.getCurrentTransportActions(ip: garageSonosIP)
         let availableActions = try XCTUnwrap(availableActionsOptional)

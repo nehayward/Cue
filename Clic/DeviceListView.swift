@@ -5,7 +5,7 @@ import SubscriptionKit
 import RevenueCat
 import RevenueCatUI
 
-struct DeviceListView: View {
+struct DeviceListMainView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
@@ -53,7 +53,7 @@ struct DeviceListView: View {
                 .selectionDisabled(!enabled(group: group))
             }
             .safeAreaInset(edge: .bottom) {
-                if !subscriptionService.current.subscription.isActive {
+                if !subscriptionService.subscription.isActive {
                     Button {
                         showPaywall = true
                     } label: {
@@ -74,7 +74,7 @@ struct DeviceListView: View {
                 PaywallView()
             }
             .safeAreaInset(edge: .bottom) {
-                if !sonosService.groups.isEmpty && subscriptionService.current.subscription.isActive {
+                if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive {
                     VStack{
                         SceneView()
                             .padding(12)
@@ -229,7 +229,7 @@ struct DeviceListView: View {
     }
 
     private func enabled(group: GroupRoom) -> Bool {
-        if subscriptionService.current.subscription.isActive { return true }
+        if subscriptionService.subscription.isActive { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
     }
@@ -237,7 +237,7 @@ struct DeviceListView: View {
 
 
 #Preview {
-    DeviceListView(selected: .constant(nil))
+    DeviceListMainView(selected: .constant(nil))
         .environment(SonosService())
         .environment(SubscriptionKit.SubscriptionService())
         .environment(AlertService())

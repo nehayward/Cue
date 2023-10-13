@@ -11,6 +11,7 @@ struct PreferenceScreen: View {
 
     @State var showPaywall = false
     @State var showSubscriptions = false
+    @AppStorage("AppIcon") var selectedAppIcon = "Default"
 
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
@@ -18,7 +19,7 @@ struct PreferenceScreen: View {
         NavigationStack {
             Form {
                 Section {
-                    if !subscriptionService.current.subscription.isActive {
+                    if !subscriptionService.subscription.isActive {
                         Button {
                             impactFeedbackGenerator.impactOccurred()
                             showPaywall = true
@@ -41,7 +42,7 @@ struct PreferenceScreen: View {
                             } label: {
                                 Text("Manage Subscription")
                             }
-                            if let expiration = subscriptionService.current.subscription.expiration {
+                            if let expiration = subscriptionService.subscription.expiration {
                                 Text("Expiring \(Text(expiration, style: .date))")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
@@ -66,9 +67,51 @@ struct PreferenceScreen: View {
                     LabeledContent("ID", value: Purchases.shared.appUserID)
                         .textSelection(.enabled)
                         .scaledToFit()
-                    LabeledContent("Watch App Installed", value: "\(WCSession.default.isWatchAppInstalled)")
                 } header: {
                     Text("Profile")
+                }
+
+                Section {
+
+
+                    Picker("App Icon", selection: $selectedAppIcon) {
+                        HStack {
+
+                            Bundle.main.iconFileName
+                                .flatMap { UIImage(named: $0) }
+                                .map { Image(uiImage: $0)
+                                        .resizable()
+                                        .frame(width: 64, height: 64)
+                                        .cornerRadius(16)
+                                }
+                            Text("Default")
+                        }
+                        .id("Default")
+
+
+                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in
+                            HStack {
+                                UIImage(named: name)
+                                    .map {
+                                        Image(uiImage: $0)
+                                            .resizable()
+                                            .frame(width: 64, height: 64)
+                                            .cornerRadius(16)
+                                    }
+                                Text(name)
+                            }
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                    .onChange(of: selectedAppIcon) { oldValue, newValue in
+                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
+                            if let error = error {
+                                print("Failed request to update the app’s icon: \(error)")
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Customize")
                 }
 
                 Button {

@@ -817,6 +817,10 @@ public final class SonosService {
         await sonosAPI.removeAllTrackFromQueue(IP: IP)
     }
 
+    public func removeTrackFromQueue(_ IP: String, index: Int) async throws {
+        await sonosAPI.removeTrackFromQueue(IP: IP, index: index)
+    }
+
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
         do {
             let groups = try await getGroups(useCache: true)

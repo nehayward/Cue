@@ -17,7 +17,7 @@ struct ClicApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DeviceListView(selected: $selected)
+            DeviceListMainView(selected: $selected)
                 .environment(sonosService)
                 .environment(subscriptionService)
                 .environment(alertService)
@@ -30,7 +30,7 @@ struct ClicApp: App {
             handleScenePhase(scenePhase)
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
-            guard subscriptionService.current.subscription.isActive else { return }
+            guard subscriptionService.subscription.isActive else { return }
             Task {
                 await liveActivityManager?.createActivity(with: sonosService.groups)
             }
@@ -42,7 +42,7 @@ struct ClicApp: App {
         switch scenePhase {
         case .active:
             sonosService.monitor()
-            if !subscriptionService.current.subscription.isActive {
+            if !subscriptionService.subscription.isActive {
                 return
             }
             
