@@ -1,10 +1,10 @@
-import SwiftUI
-import SonosKit
 import ActivityKit
-import WidgetKit
-import RevenueCat
-import SubscriptionKit
 import CloudStorage
+import RevenueCat
+import SonosKit
+import SubscriptionKit
+import SwiftUI
+import WidgetKit
 
 @main
 struct ClicApp: App {
@@ -26,6 +26,13 @@ struct ClicApp: App {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                     subscriptionService.monitorChanges()
                 }
+                .onAppear {
+                    #if DEBUG
+                    if ProcessInfo.processInfo.environment["Super"] == "TRUE" {
+                        subscriptionService.subscription = Subscription(isActive: true)
+                    }
+                    #endif
+                }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
@@ -36,7 +43,7 @@ struct ClicApp: App {
                 await liveActivityManager?.createActivity(with: sonosService.groups)
             }
         }
-        .onChange(of: subscriptionService.subscription) { oldValue, newValue in
+        .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
             activeSubscription =  newValue.isActive
         }
     }

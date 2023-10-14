@@ -1,12 +1,12 @@
+import CloudStorage
 import SwiftUI
 import SonosKit
 import WidgetKit
-import SubscriptionKit
 
 struct RemoteWidgetEntryView : View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) var widgetFamily: WidgetFamily
-    @State var subscriptionService = SubscriptionService()
+    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
     @ViewBuilder
     var body: some View {
@@ -95,10 +95,11 @@ struct RemoteWidgetEntryView : View {
                 .containerBackground(.thinMaterial, for: .widget)
             }
         }
-        .disabled(!subscriptionService.subscription.isActive)
+        .disabled(!activeSubscription)
         .overlay {
-            if !subscriptionService.subscription.isActive {
+            if !activeSubscription {
                 Text("Upgrade Now")
+                    .scaledToFit()
                     .lineLimit(0)
                     .bold()
                     .padding()

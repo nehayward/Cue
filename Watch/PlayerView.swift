@@ -7,11 +7,10 @@ struct PlayerView: View {
     @Environment(Popover.self) var popOver: Popover
 
     @Binding var group: GroupRoom
-    @State var isIdle: Bool = true
-    @State var showGroup: Bool = false
-    @State var volume: Double  = 0
-    
-    @State var artworkURL: URL?
+    @State private var isIdle: Bool = true
+    @State private var showGroup: Bool = false
+    @State private var volumeTask: Task<Void, Error>?
+    @State private var artworkURL: URL?
 
     var body: some View {
         VStack {
@@ -51,7 +50,6 @@ struct PlayerView: View {
                 withAnimation {
                     popOver.isShowing = !isIdle
                 }
-                volume = group.groupVolume
                 popOver.text = String(format: "%.0f", group.groupVolume)
             }, onIdle: {
                 isIdle = true
@@ -179,9 +177,11 @@ struct PlayerView: View {
         .sheet(isPresented: $showGroup) {
             GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
         }
-        .onChange(of: volume) {
-            Task {
-                await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
+        .onChange(of: group.groupVolume) {
+            if isIdle { return }
+            volumeTask?.cancel()
+            volumeTask = Task {
+                await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(group.groupVolume))
             }
         }
         .onChange(of: sonosService.selectedGroup) {
@@ -209,10 +209,6 @@ struct PlayerView: View {
 //            }
 //        }
         .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
-        .task {
-            print("Set Volume")
-            volume = group.groupVolume
-        }
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
                 sonosService.monitor()

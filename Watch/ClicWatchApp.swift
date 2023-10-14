@@ -7,15 +7,14 @@ import CloudStorage
 @main
 struct ClicWatchApp: App {
     @Environment(\.scenePhase) var scenePhase
-
+    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
     @State var sonosService = SonosService()
     @State var popover = Popover()
-
     @State var selected: String?
 
     var body: some Scene {
         WindowGroup {
-            DeviceListView(selected: $selected)
+            DeviceListView(activeSubscription: $activeSubscription, selected: $selected)
                 .environment(popover)
                 .environment(sonosService)
                 .onChange(of: selected) {
@@ -23,6 +22,13 @@ struct ClicWatchApp: App {
                     if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
                         sonosService.selectedGroup = sonosService.sorted[index]
                     }
+                }
+                .onAppear {
+                    #if DEBUG
+                    if ProcessInfo.processInfo.environment["Super"]?.lowercased() == "true" {
+                        activeSubscription = true
+                    }
+                    #endif
                 }
 
             //                .overlay(alignment: .top) {

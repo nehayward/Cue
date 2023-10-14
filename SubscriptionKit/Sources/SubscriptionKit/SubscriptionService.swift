@@ -24,12 +24,15 @@ public final class SubscriptionService: SubscriptionServicing {
     public init() {
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
+#if DEBUG
+        if ProcessInfo.processInfo.environment["Super"]?.lowercased() == "true" {
+            subscription = Subscription(isActive: true)
+        }
+        return
+#endif
         Task { @MainActor in
             setup()
         }
-//        #if DEBUG
-//        enable()
-//        #endif
     }
 
     @MainActor
@@ -48,6 +51,11 @@ public final class SubscriptionService: SubscriptionServicing {
 
     @MainActor
     public func monitorChanges() {
+#if DEBUG
+        if ProcessInfo.processInfo.environment["Super"]?.lowercased() == "true" {
+            return
+        }
+#endif
         subscriptionTask?.cancel()
         subscriptionTask = Task {
             for try await customerInfo in Purchases.shared.customerInfoStream {

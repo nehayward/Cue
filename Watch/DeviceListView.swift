@@ -6,7 +6,7 @@ import VibesDS
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Popover.self) var popOver: Popover
-    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
+    @Binding var activeSubscription: Bool
     @Binding var selected: String?
 
     var body: some View {
@@ -139,7 +139,7 @@ struct DeviceListView: View {
 }
 
 #Preview {
-    DeviceListView(selected: .constant(nil))
+    DeviceListView(activeSubscription: .constant(false), selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
 }

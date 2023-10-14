@@ -7,12 +7,12 @@ struct TVModeViewCell: View {
 
     var body: some View {
         Section {
-            HStack(alignment: .top) {
+            VStack {
                 if let settings = group.tvSettings {
                     Text(settings.audioInputFormat.description)
                 }
                 Spacer()
-                VStack {
+                HStack {
                     if let settings = Binding<TVSettings>($group.tvSettings) {
                         Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
                             .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
