@@ -72,23 +72,23 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-
-
-                    Picker("App Icon", selection: $selectedAppIcon) {
+                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
                         ForEach( Bundle.main.iconFileNames, id: \.self) { name in
                             HStack {
-                                UIImage(named: name)
-                                    .map {
-                                        Image(uiImage: $0)
-                                            .resizable()
-                                            .frame(width: 64, height: 64)
-                                            .cornerRadius(16)
-                                    }
-                                Text(name)
+                                Image(uiImage: UIImage(named: name)!)
+                                    .resizable(resizingMode: .stretch)
+                                    .frame(width: 64, height: 64)
+                                    .cornerRadius(16)
+                                VStack(alignment: .leading) {
+                                    Text(name)
+                                    Link("SH Creative", destination: URL(string: "https://www.shcreative.io")!)
+                                }
+                                Spacer()
                             }
                         }
                     }
                     .pickerStyle(.navigationLink)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                     .onChange(of: selectedAppIcon) { oldValue, newValue in
                         if newValue == "Default" {
                             UIApplication.shared.setAlternateIconName(nil)
@@ -122,7 +122,7 @@ mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundl
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
-            .navigationTitle("Settings")
+            .navigationTitle("Preferences")
             #if DEBUG
             Text("DEBUG")
             #endif

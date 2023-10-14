@@ -73,18 +73,18 @@ struct ClicWatchApp: App {
         case .active:
             sonosService.monitorWatch(useCache: true)
             
-            Task {
-                try? await sonosService.updateGroupsCheckPlayback()
-                
-                if selected == nil {
-                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
-                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
-                        try await Task.sleep(for: .milliseconds(200))
-                        //                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
-                        selected = groupPlaying.coordinatorID
-                    }
-                }
-            }
+//            Task {
+//                try? await sonosService.updateGroupsCheckPlayback()
+//                
+//                if selected == nil {
+//                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
+//                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
+//                        try await Task.sleep(for: .milliseconds(200))
+//                        //                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
+//                        selected = groupPlaying.coordinatorID
+//                    }
+//                }
+//            }
         case .inactive:
             print("Inactive")
         case .background:

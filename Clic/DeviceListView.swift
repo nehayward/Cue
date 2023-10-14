@@ -33,6 +33,7 @@ struct DeviceListMainView: View {
                                 Spacer()
                                 MediaControlsView(group: $group)
                             }
+                            .padding(.bottom, 4)
                         }
                         Divider()
                         VolumeControlView(group: $group)
@@ -239,7 +240,7 @@ struct DeviceListMainView: View {
 #Preview {
     DeviceListMainView(selected: .constant(nil))
         .environment(SonosService())
-        .environment(SubscriptionKit.SubscriptionService())
+        .environment(SubscriptionService())
         .environment(AlertService())
 }
 

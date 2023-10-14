@@ -23,12 +23,12 @@ public final class SonosService {
     public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
 
+    @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
+    @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
 
-    public var monitorTask: Task<Void, Error> = Task { }
-    public var sonosPulse: Task<Void, Error> = Task { }
     public var isRunning: Bool { !sonosPulse.isCancelled }
 
-    public init () { 
+    public init () {
         sonosPulse.cancel()
     }
 
@@ -269,6 +269,7 @@ public final class SonosService {
         await updateGroupCheckTVMode(from: groups)
         await updateGroupMuteState(for: groups)
 
+
 //        for group in groups.indices {
 //            let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
 //            groups[group].groupVolume = groupVolume
@@ -432,6 +433,21 @@ public final class SonosService {
                     async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
+                    async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
+
+                    guard let awaitedTrack = await track else {
+                        roomGroup.coordinatorRoom.track = .empty
+                        return
+                    }
+
+                    guard let artworkURL = await self.getArtwork(from: awaitedTrack) else {
+                        if roomGroup.coordinatorRoom.track != awaitedTrack {
+                            roomGroup.coordinatorRoom.track = awaitedTrack
+                        } else {
+                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                        }
+                        return
+                    }
 
                     switch await playbackInfo {
                     case .playing:
@@ -446,20 +462,7 @@ public final class SonosService {
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
 
-                    guard let awaitedTrack = await track else {
-                        roomGroup.coordinatorRoom.track = .empty
-                        return
-                    }
-
-
-                    guard let artworkURL = await self.getArtwork(from: awaitedTrack) else {
-                        if roomGroup.coordinatorRoom.track != awaitedTrack {
-                            roomGroup.coordinatorRoom.track = awaitedTrack
-                        } else {
-                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        }
-                        return
-                    }
+                    roomGroup.playMode = await playMode
 
                     awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
                     if artworkURL != awaitedTrack.artworkURL {
@@ -735,6 +738,14 @@ public final class SonosService {
         await sonosAPI.getCurrentTransportActions(IP: ip)
     }
 
+    public func playMode(ip: String) async -> PlayMode {
+        await sonosAPI.playMode(ip)
+    }
+
+    public func setPlayMode(_ IP: String, mode: PlayMode) async {
+        await sonosAPI.setPlayMode(IP, playMode: mode)
+    }
+
     public func isTVMode(ip: String) async -> Bool {
        await sonosAPI.mediaInfo(ipAddress: ip)
     }
@@ -780,6 +791,9 @@ public final class SonosService {
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }
+        try? await Task.sleep(for: .milliseconds(300))
+        guard let groupIP = scene.rooms.first?.ip else { return }
+        await snapShotGroup(ip: groupIP)
     }
 
     public func queue(song: String, on ip: String) async {
@@ -833,21 +847,6 @@ public final class SonosService {
         } catch {
             print(error)
             return nil
-        }
-    }
-
-    public func pulse() async {
-        do {
-            print("Pulse")
-            try await sonosAPI.pulse()
-            print("Good IP Still")
-            permissionsDenied = false
-            pulseIsRunning = true
-        } catch is URLError {
-            permissionsDenied = true
-            pulseIsRunning = false
-        } catch {
-
         }
     }
 }

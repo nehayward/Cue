@@ -6,11 +6,42 @@ struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
 
-    @State var tracks: [Track] = []
-
-    var group: GroupRoom
+    @Binding var group: GroupRoom
+    @State private var tracks: [Track] = []
 
     var body: some View {
+        let isShuffle = Binding(
+            get: {
+                group.playMode.contains(.shuffle)
+            },
+            set: {
+                if $0 {
+                    group.playMode.insert(.shuffle)
+                } else {
+                    group.playMode.remove(.shuffle)
+                }
+                Task {
+                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
+                }
+            }
+        )
+
+        let isRepeat = Binding(
+            get: {
+                group.playMode.contains(.repeatOne)
+            },
+            set: {
+                if $0 {
+                    group.playMode.insert(.repeatOne)
+                } else {
+                    group.playMode.remove(.repeatOne)
+                }
+                Task {
+                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
+                }
+            }
+        )
+
         NavigationStack {
             List {
                 ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, track in
@@ -95,6 +126,7 @@ struct QueueScreen: View {
             }
             .scrollContentBackground(.hidden)
             .listStyle(.plain)
+            .toolbarBackground(.hidden, for: .bottomBar)
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                         Text("Queue")
@@ -110,20 +142,27 @@ struct QueueScreen: View {
                         Text("Clear")
                     }
                 }
+
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Spacer()
+                    Toggle("Shuffle", systemImage: "shuffle.circle", isOn: isShuffle)
+                        .contentShape(Circle())
+//                    Toggle("Repeat", systemImage: "repeat.circle", isOn: isRepeat)
+                }
             }
         }
         .task {
-            self.tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+            self.tracks = await sonosService.getQueue(ip: group.ip)
+            group.playMode = await sonosService.playMode(ip: group.ip)
         }
         .presentationBackground(.thinMaterial)
-
     }
 }
 
 #Preview {
     Text("Queue...")
         .sheet(isPresented: .constant(true)) {
-            QueueScreen(group: .garage)
+            QueueScreen(group: .constant(.garage))
                 .environment(SonosService())
                 .presentationDetents([.medium, .large])
         }

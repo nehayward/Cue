@@ -217,6 +217,14 @@ final class XMLParserSonos {
         return availableActions
     }
 
+    func parsePlaybackMode(_ xml: String) -> PlayMode? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let mode = xmlParsed["s:Envelope"]["s:Body"]["u:GetTransportSettingsResponse"]["PlayMode"].element?.text else {
+            return nil
+        }
+        return PlayMode(mode: mode)
+    }
+
     func parseAVTransport(xml: String) -> Double {
         let xmlParsed = XMLHash.parse(xml)
         guard let rendererControlXML = xmlParsed["e:propertyset"]["e:property"]["LastChange"].element?.text

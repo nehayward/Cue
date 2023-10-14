@@ -9,43 +9,9 @@ final class SonosAPI {
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 5
+        configuration.timeoutIntervalForRequest = 3
         return URLSession(configuration: configuration)
     }()
-
-    var lastKnownIP: String? {
-        get {
-            UserDefaults.standard.string(forKey: "sonos.ip")
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
-        }
-    }
-    //
-    //    private let pathMonitor: NWPathMonitor
-    //    private var path: NWPath?
-    //    private let backgroundQueue = DispatchQueue.global(qos: .background)
-    //    private var isOnWifi: Bool = false
-    //
-    //
-    //    lazy var pathUpdateHandler: ((NWPath) -> Void) = { path in
-    //        self.path = path
-    //        if path.status == NWPath.Status.satisfied {
-    //            print("Connected")
-    //        } else if path.status == NWPath.Status.unsatisfied {
-    //            print("unsatisfied")
-    //        } else if path.status == NWPath.Status.requiresConnection {
-    //            print("requiresConnection")
-    //        }
-    //        self.isOnWifi = !path.isExpensive
-    //    }
-
-    //    init(session: URLSession = .shared) {
-    //        self.session = session
-    //        pathMonitor = NWPathMonitor()
-    //        pathMonitor.pathUpdateHandler = self.pathUpdateHandler
-    //        pathMonitor.start(queue: backgroundQueue)
-    //    }
 
     func setVolume(ipAddress: String, volume: Int) async {
         let arguments: [String: Any] = [
@@ -100,7 +66,7 @@ final class SonosAPI {
             "Adjustment": volume
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
+        if let (_, _) = try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
         }
     }
 
@@ -266,6 +232,36 @@ final class SonosAPI {
 
         return .transitioning
     }
+
+    public func playMode(_ IP: String) async -> PlayMode {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+        ]
+
+        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetTransportSettings", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else  {
+            return .normal
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        return XMLParserSonos().parsePlaybackMode(xml) ?? .normal
+    }
+
+    public func setPlayMode(_ IP: String, playMode: PlayMode) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "NewPlayMode": playMode.sonosMode.uppercased()
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "SetPlayMode", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else  {
+            return
+        }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            print("Failed")
+            return
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        print(xml)
+    }
+
 
     func mediaInfo(ipAddress: String) async -> Bool {
         let arguments: [String: Any] = [
@@ -549,7 +545,7 @@ final class SonosAPI {
                 print("Success")
             }
         }
-        return AvailableActions(arrayLiteral: [.next,.play])
+        return AvailableActions(arrayLiteral: [.next, .play])
     }
 
     func getQueue(IP: String) async -> [Track] {
@@ -644,17 +640,6 @@ final class SonosAPI {
             return nil
         }
         return try await session.data(for: request)
-    }
-
-
-    func pulse() async throws {
-        guard let lastKnownIP, !lastKnownIP.isEmpty else { return }
-        guard let url = URL(string: "http://\(lastKnownIP):1400/xml/device_description.xml") else { return }
-        let request = URLRequest(url: url)
-        let (_, response) = try await session.data(for: request)
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            throw SonosAPIError.deviceNotFound
-        }
     }
 }
 

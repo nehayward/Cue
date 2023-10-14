@@ -4,18 +4,18 @@ import Observation
 @Observable
 public final class GroupRoom: Identifiable, Sendable {
     private let queue = DispatchQueue(label: "GroupRoom\(UUID().uuidString)")
-
+    public let coordinatorRoom: Room
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var tvMode: Bool = false
     public var tvSettings: TVSettings? = nil
-    public let coordinatorRoom: Room
+    public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
+    public var ip: String { coordinatorRoom.ip }
 
     @ObservationIgnored
     private var privateGroupVolume: Double = 0
-    
 
     public var groupVolume: Double {
         get {

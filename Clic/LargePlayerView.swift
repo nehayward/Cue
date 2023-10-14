@@ -118,7 +118,7 @@ struct LargePlayerView: View {
             ImprovedSearch(group: group)
         }
         .sheet(isPresented: $showQueue) {
-            QueueScreen(group: group)
+            QueueScreen(group: $group)
                 .presentationDetents([.medium, .large])
         }
         .onChange(of: sonosService.selectedGroup) {

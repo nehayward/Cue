@@ -22,7 +22,6 @@ struct ArtworkViewKing: View {
             .aspectRatio(contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .shadow(radius: 2)
-        
             .overlay(alignment: .bottomTrailing) {
                 switch group.coordinatorRoom.track.musicService {
                 case .apple:
@@ -41,6 +40,7 @@ struct ArtworkViewKing: View {
                         .padding([.trailing, .bottom], 4)
                 case .airplay, .unknown:
                     EmptyView()
+                        .padding([.trailing, .bottom], 4)
                 }
             }.task(id: group.coordinatorRoom.track.name) {
                 print("Fetching Track")
