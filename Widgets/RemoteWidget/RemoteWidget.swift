@@ -38,7 +38,7 @@ struct RemoteWidget: Widget {
     private let kind: String = "RemoteWidget"
 
     var families: [WidgetFamily] {
-        [.accessoryCircular, .accessoryRectangular, .systemSmall]
+        [.accessoryRectangular, .systemSmall]
     }
 
     var body: some WidgetConfiguration {

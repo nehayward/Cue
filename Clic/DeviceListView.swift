@@ -248,4 +248,3 @@ struct DeviceListMainView: View {
         .environment(SubscriptionService())
         .environment(AlertService())
 }
-

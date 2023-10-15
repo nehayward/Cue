@@ -148,11 +148,12 @@ struct PlayerView: View {
                         },
                         currentValueLabel: {
                             Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                .foregroundStyle(.tint, .thickMaterial)
+                                .renderingMode(.template)
+                                .foregroundColor(.primary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
                     )
-                    .tint(Color.primary.gradient)
+                    .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
                     .gaugeStyle(.accessoryCircularCapacity)
                     .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
                 })
@@ -231,4 +232,3 @@ struct PlayerView: View {
 
     }
 }
-

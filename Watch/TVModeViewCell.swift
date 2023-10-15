@@ -7,9 +7,15 @@ struct TVModeViewCell: View {
 
     var body: some View {
         Section {
-            VStack {
+            VStack(alignment: .leading) {
+                HStack {
+                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                    Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
+                }
+                .padding()
                 if let settings = group.tvSettings {
                     Text(settings.audioInputFormat.description)
+                        .padding(.leading)
                 }
                 Spacer()
                 HStack {
@@ -17,7 +23,6 @@ struct TVModeViewCell: View {
                         Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
                             .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
                             .labelStyle(.iconOnly)
-                            .contentShape(.circle)
                             .toggleStyle(.button)
                             .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
                                 Task {
@@ -30,7 +35,6 @@ struct TVModeViewCell: View {
                             .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .contentShape(.circle)
                             .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
                                 Task {
                                     try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)
@@ -39,6 +43,7 @@ struct TVModeViewCell: View {
                             }
                     }
                 }
+                .padding(.bottom)
             }
             .fontDesign(.rounded)
         }

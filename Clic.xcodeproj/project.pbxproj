@@ -61,6 +61,7 @@
 		E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
 		E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
 		E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
+		E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
 		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
 		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
@@ -214,6 +215,7 @@
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
 		E982AEA82ABA027500709FC0 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
 		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
+		E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCellView.swift; sourceTree = "<group>"; };
 		E987959C2A9667EC002C684A /* PlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerScreen.swift; sourceTree = "<group>"; };
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
@@ -477,6 +479,7 @@
 				E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */,
 				E9C03AFE2A586F5E00FB9118 /* ClicWatchApp.swift */,
 				E9C03B002A586F5E00FB9118 /* DeviceListView.swift */,
+				E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */,
 				E9B256512A9951A00083869E /* TVModeViewCell.swift */,
 				E92CABED2AB8FE24002A3D4D /* TVView.swift */,
 				E92E2D472AA6D37300D27DBC /* Popover.swift */,
@@ -825,6 +828,7 @@
 				E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */,
 				E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
+				E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,
 				E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */,

@@ -118,3 +118,21 @@ struct RemoteWidgetEntryView : View {
 } timeline: {
     RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", name: "Garage", ip: "", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
 }
+
+#Preview(as: .accessoryCircular) {
+    RemoteWidget()
+} timeline: {
+    RemoteWidgetEntry(
+        date: .now,
+        configuration: RemoteWidgetConfigurationIntent(
+            room: SonosDeviceEntity(
+                id: "",
+                name: "Garage",
+                ip: "",
+                volume: 20
+            )
+        ),
+        volume: 20,
+        track: .empty
+    )
+}

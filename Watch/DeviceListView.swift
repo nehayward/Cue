@@ -21,13 +21,14 @@ struct DeviceListView: View {
                         if group.tvMode {
                             TVModeViewCell(group: $group)
                         } else {
-                            ExtractedView(group: $group)
+                            DeviceCellView(group: $group)
                         }
                     }
                     .tag(group.coordinatorID)
                     .redacted(reason: enabled(group: group) ? [] : .placeholder)
                     .disabled(!enabled(group: group))
                     .selectionDisabled(!enabled(group: group))
+                    .padding(.vertical)
                 }
             }
             .listStyle(.carousel)
@@ -142,57 +143,4 @@ struct DeviceListView: View {
     DeviceListView(activeSubscription: .constant(false), selected: .constant(nil))
         .environment(SonosService())
         .environment(Popover())
-}
-
-
-struct ExtractedView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var group: GroupRoom
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                HStack {
-                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                    Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
-                }
-                Text(group.coordinatorRoom.track.name)
-                    .lineLimit(0)
-                    .redacted(reason: group.coordinatorRoom.track.name.isEmpty ? .placeholder : [])
-                
-                Text(group.coordinatorRoom.track.artist)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Button {
-                Task {
-                    if group.coordinatorRoom.isPlaying {
-                        await sonosService.pause(ip: group.coordinatorRoom.ip)
-                    } else {
-                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                    }
-                }
-            } label: {
-                Gauge(
-                    value: group.coordinatorRoom.track.playbackPosition,
-                    in: 0...group.coordinatorRoom.track.duration,
-                    label: {
-                        
-                    },
-                    currentValueLabel: {
-                        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                            .foregroundStyle(.tint, .thickMaterial)
-                            .contentTransition(.symbolEffect(.automatic))
-                    }
-                )
-                .tint(Color.primary.gradient)
-                .gaugeStyle(.accessoryCircularCapacity)
-                .scaleEffect(0.6)
-                .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.plain)
-        }
-        .tag(group.coordinatorID)
-        .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
-    }
 }
