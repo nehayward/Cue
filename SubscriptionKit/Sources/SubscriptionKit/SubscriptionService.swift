@@ -4,16 +4,7 @@ import Observation
 import RevenueCat
 import CloudStorage
 
-protocol SubscriptionServicing {
-    var subscription: Subscription { get }
-    func monitorChanges()
-}
 
-public final class SubscriptionServiceMock {
-    func monitorChanges() {
-
-    }
-}
 
 @Observable
 public final class SubscriptionService: SubscriptionServicing {

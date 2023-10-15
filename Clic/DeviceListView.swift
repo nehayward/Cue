@@ -178,17 +178,6 @@ struct DeviceListMainView: View {
                 .padding()
             }
 
-            if !sonosService.networkMonitorService.isConnected {
-                Text("Please connect to WiFi to find system")
-                    .padding()
-                    .background {
-                        Capsule()
-                            .foregroundStyle(.thinMaterial)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                    .padding()
-            }
-
             if sonosService.isSearching && sonosService.groups.isEmpty {
                 Label("Searching", systemImage: "waveform.badge.magnifyingglass")
                     .imageScale(.large)
@@ -205,6 +194,22 @@ struct DeviceListMainView: View {
             if alertService.alert.isShowing {
                 PillView()
                     .environment(alertService)
+            }
+            if !sonosService.networkMonitorService.isConnected {
+                Label {
+                    Text("Connect to WiFi to find system")
+                } icon: {
+                    Image(systemName: "wifi.slash")
+                }
+                .bold()
+                .padding()
+                .background {
+                    Capsule()
+                        .foregroundStyle(.thinMaterial)
+                }
+                .transition(.move(edge: .top).combined(with: .scale(0.8)))
+                .padding()
+                .offset(y: 50)
             }
         }
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)

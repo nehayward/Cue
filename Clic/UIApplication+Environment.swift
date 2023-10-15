@@ -36,7 +36,6 @@ extension UIApplication {
     }
     
     private func isAppStoreReceiptSandbox() -> Bool {
-        
         if isSimulator() {
             return false
         } else {
@@ -51,7 +50,6 @@ extension UIApplication {
     }
     
     private func isSimulator() -> Bool {
-        
         #if arch(i386) || arch(x86_64)
         return true
         #else
