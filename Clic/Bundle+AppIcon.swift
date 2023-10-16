@@ -6,6 +6,11 @@ extension Bundle {
               let alternateIcons = icons["CFBundleAlternateIcons"] as? [String: Any] else {
             return []
         }
-        return Array(alternateIcons.keys).sorted()
+        var alternates = Set(alternateIcons.keys).sorted()
+        alternates.removeAll { key in
+            key == "Default"
+        }
+        alternates.insert("Default", at: 0)
+        return Array(alternates)
     }
 }

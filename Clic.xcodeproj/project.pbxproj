@@ -69,6 +69,7 @@
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A953162ADCD5B600600516 /* HapticButton.swift */; };
 		E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */; };
 		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
@@ -221,6 +222,7 @@
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9A953162ADCD5B600600516 /* HapticButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticButton.swift; sourceTree = "<group>"; };
 		E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetEntryView.swift; sourceTree = "<group>"; };
 		E9B12B532A5F31790008868C /* Widgets Watch.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets Watch.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9B12B572A5F31790008868C /* WatchTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTimelineProvider.swift; sourceTree = "<group>"; };
@@ -448,6 +450,7 @@
 				E9D856282A9FBB020024B192 /* AlertService.swift */,
 				E98527932A5E5C90009016C2 /* LiveActivityManager.swift */,
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
+				E9A953162ADCD5B600600516 /* HapticButton.swift */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
@@ -780,6 +783,7 @@
 				E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
+				E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,

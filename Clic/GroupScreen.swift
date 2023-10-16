@@ -13,31 +13,33 @@ struct GroupScreen: View {
             List {
                 ForEach(sonosService.sortedRooms) { room in
                     if room.id != group.coordinatorRoom.id {
-                        Button {
-                            viewModel.buttonAction(id: room.id)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(room.name)
-                                        .fontDesign(.rounded)
-                                    HStack {
-                                        Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
-                                            .padding(.trailing, 8)
-                                        Text("\(room.volume, specifier: "%0.f")%")
+                        Section {
+                            Button {
+                                viewModel.buttonAction(id: room.id)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(room.name)
+                                            .fontDesign(.rounded)
+                                        HStack {
+                                            //                                        Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
+                                            //                                            .padding(.trailing, 8)
+                                            Text("\(room.volume, specifier: "%0.f")%")
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
-                                }
-                                Spacer()
-                                Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
-                                    .contentTransition(.symbolEffect(.automatic))
+                                    Spacer()
+                                    Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                        .contentTransition(.symbolEffect(.automatic))
 
+                                }
                             }
+                            .buttonStyle(.haptic)
                         }
                     }
                 }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             }
-            .listStyle(.plain)
+            .listSectionSpacing(10)
             .scrollContentBackground(.hidden)
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
@@ -50,29 +52,27 @@ struct GroupScreen: View {
                                 dismiss()
                                 await sonosService.smartGroup(rooms: rooms, to: group)
                             }
-        //                    Task {
-        //                        await sonosService.smartGroup(rooms: rooms, to: roomGroup)
-        //                        try await sonosService.fetch()
-        //                        dismiss()
-        //                    }
                         } label: {
                             Text("Done")
+                                .foregroundStyle(.ultraThickMaterial)
                                 .fontDesign(.rounded)
+                                .font(.title3)
                                 .bold()
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .padding()
+                        .buttonBorderShape(.roundedRectangle)
                     }
                 }
                 ToolbarItem(placement: .navigation) {
                     HStack {
                         Image(systemName: "hifispeaker.fill")
                         Text(group.coordinatorRoom.name + viewModel.numberInGroup)
+
                     }
                     .fontDesign(.rounded)
                     .bold()
+                    .padding([.vertical])
                 }
             }
             .task {
@@ -85,7 +85,7 @@ struct GroupScreen: View {
                 }
             }
         }
-        .presentationBackground(.thinMaterial)
+        .presentationBackground(.ultraThinMaterial)
         .presentationDetents([.medium, .large])
     }
 }

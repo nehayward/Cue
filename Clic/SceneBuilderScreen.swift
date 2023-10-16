@@ -1,4 +1,5 @@
 import CloudStorage
+import Combine
 import SwiftUI
 import SonosKit
 
@@ -19,75 +20,92 @@ struct SceneBuilderScreen: View {
         NavigationStack {
             List {
                 ForEach($rooms) { $room in
-                    Button {
-                        if selections.contains(room.id) {
-                            selections.remove(room.id)
-                        } else {
-                            selections.insert(room.id)
-                        }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
+                    Section {
+                        Button {
+                            if selections.contains(room.id) {
+                                selections.remove(room.id)
+                            } else {
+                                selections.insert(room.id)
+                            }
+                        } label: {
+                            VStack {
                                 HStack {
-                                    Text(room.name)
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text(room.name)
+                                            Spacer()
+                                            Text(room.volume, format: .number)
+                                                .frame(minWidth: 20, alignment: .leading)
+                                        }
+                                    }
                                     Spacer()
-                                    Text(room.volume, format: .number)
-                                        .frame(minWidth: 20, alignment: .leading)
+                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                        .contentTransition(.symbolEffect(.automatic))
                                 }
+                                Divider()
                                 HStack(alignment: .center) {
                                     Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
                                     Slider(value: $room.volume, in: 0...100, step: 2)
                                 }
                             }
-                            Spacer()
-                            Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
-                                .contentTransition(.symbolEffect(.automatic))
                         }
+                        .buttonStyle(.haptic)
                     }
-                    .listRowBackground(Color.clear)
                 }
             }
-            .listStyle(.plain)
             .scrollContentBackground(.hidden)
-//            .toolbar {
-//                ToolbarItem(placement: .navigation) {
-//                    HStack {
-//                        Text("Scene")
-//                    }
-//                    .fontDesign(.rounded)
-//                    .bold()
-//                }
-//            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            VStack {
-                TextField("", text: $sceneName)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
-                Button {
-                    let rooms = rooms.filter { room in
-                        selections.contains(room.id)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    VStack(alignment: .leading) {
+                        Text("Scene")
+                        Text("Group and set volume")
+                            .foregroundStyle(.secondary)
                     }
-                    let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-                    let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
-                    scenes.append(newScene)
-                    dismiss()
-                } label: {
-                    Text("Create Scene")
-                        .frame(maxWidth: .infinity)
-                        .fontWeight(.bold)
+                    .fontDesign(.rounded)
+                    .bold()
                 }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-                .padding(.bottom)
             }
-            .background {
-                Rectangle()
-                    .foregroundStyle(.ultraThinMaterial)
-                    .edgesIgnoringSafeArea(.bottom)
-                    .shadow(radius: 2)
+//  MARK: Add Volume Only
+//            .safeAreaInset(edge: .bottom) {
+//                Toggle(isOn: .constant(true)) {
+//                    Text("Set Volume Only")
+//                }
+//                .toggleStyle(.button)
+//                .frame(maxWidth: .infinity, alignment: .trailing)
+//                .padding()
+//            }
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    TextField("Scene Name", text: $sceneName)
+                        .textFieldStyle(.roundedBorder)
+                        .padding()
+                    Button {
+                        let rooms = rooms.filter { room in
+                            selections.contains(room.id)
+                        }
+                        let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+                        scenes.append(newScene)
+                        dismiss()
+                    } label: {
+                        Text("Create Scene")
+                            .foregroundStyle(.ultraThickMaterial)
+                            .frame(maxWidth: .infinity)
+                            .fontWeight(.bold)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                }
+                .background {
+                    RoundedRectangle(cornerRadius: 20)
+                        .foregroundStyle(.ultraThinMaterial)
+                        .edgesIgnoringSafeArea(.bottom)
+                        .shadow(radius: 2)
+                }
             }
         }
+        .listSectionSpacing(10)
         .task {
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
@@ -104,7 +122,7 @@ struct SceneBuilderScreen: View {
                 }
             }
         }
-        .presentationBackground(.thinMaterial)
+        .presentationBackground(.ultraThinMaterial)
         .presentationDetents([.medium, .large])
         .onChange(of: selections) { oldValue, newValue in
             let rooms = rooms.filter { room in

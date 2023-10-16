@@ -30,7 +30,9 @@ struct ClicApp: App {
                     #if DEBUG
                     if ProcessInfo.processInfo.environment["Super"] == "TRUE" {
                         subscriptionService.subscription = Subscription(isActive: true)
+//                        subscriptionService.subscription = .notActive
                     }
+//                    sonosService.systemNotFound = true
                     #endif
                 }
         }

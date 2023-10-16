@@ -81,7 +81,7 @@ struct PreferenceScreen: View {
                                     .cornerRadius(16)
                                 VStack(alignment: .leading) {
                                     Text(name)
-                                    Link("SH Creative", destination: URL(string: "https://www.shcreative.io")!)
+                                    Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
                                 }
                                 Spacer()
                             }

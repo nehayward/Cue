@@ -25,7 +25,7 @@ struct SceneView: View {
                                     .shadow(radius: 2, x: 0, y: 1)
                             }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.haptic)
                     .buttonBorderShape(.capsule)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
@@ -58,6 +58,7 @@ struct SceneView: View {
                     Label("Add Scene", systemImage: "plus.circle.fill")
                         .padding(4)
                 }
+                .buttonStyle(.haptic)
                 .bold()
                 .buttonBorderShape(.capsule)
                 .buttonStyle(.borderedProminent)
@@ -68,6 +69,7 @@ struct SceneView: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.largeTitle)
                 }
+                .buttonStyle(.haptic)
             }
         }
         .sheet(isPresented: $show) {

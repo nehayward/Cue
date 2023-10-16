@@ -53,49 +53,9 @@ struct DeviceListMainView: View {
                 .disabled(!enabled(group: group))
                 .selectionDisabled(!enabled(group: group))
             }
-            .safeAreaInset(edge: .bottom) {
-                if !subscriptionService.subscription.isActive {
-                    Button {
-                        showPaywall = true
-                    } label: {
-                        Text("Show all devices (\(sonosService.groups.count))")
-                            .fontDesign(.rounded)
-                            .bold()
-                            .foregroundStyle(Color.accentColor.gradient)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(.thickMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .padding()
-                            .shadow(radius: 16, x: 0, y: 2)
-                    }
-                }
-            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
-            .safeAreaInset(edge: .bottom) {
-                if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive {
-                    VStack{
-                        SceneView()
-                            .padding(12)
-                    }
-                }
-            }
-//            .overlay(alignment: .topTrailing) {
-//                Button {
-//                    showSettings = true
-//                } label: {
-//                    Image(systemName: "gear")
-//                        .resizable()
-//                        .frame(width: 24, height: 24)
-//                        .padding([.trailing, .top])
-//                }
-//                .padding()
-//                .frame(maxWidth: .infinity, alignment: .trailing)
-//                .background(.thinMaterial)
-//                .ignoresSafeArea()
-//            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -105,24 +65,71 @@ struct DeviceListMainView: View {
                     }
                 }
             }
-//            VStack {
-//                SceneView(show: $isShowing)
-//                //                    .listRowBackground(Color.clear)
-//                Slider(value: .constant(0))
-//            }
-//            .backgroundStyle(.thinMaterial)
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    if sonosService.permissionsDenied {
+                        Button {
+                            // MARK: Settings Action
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            Text("Local Network Permission Needed")
+                                .padding()
+                                .background {
+                                    Capsule()
+                                        .foregroundStyle(.thinMaterial)
+                                }
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
+                        .padding()
+                    }
+
+                    if sonosService.systemNotFound {
+                        Button {
+                            sonosService.monitor()
+                        } label: {
+                            Text("Search")
+                                .bold()
+                                .padding()
+                                .background {
+                                    Capsule()
+                                        .foregroundStyle(.thinMaterial)
+                                }
+                        }
+                        .transition(.scale)
+                    }
+
+                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive {
+                        VStack{
+                            SceneView()
+                                .padding(12)
+                        }
+                    }
+
+                    if !subscriptionService.subscription.isActive {
+                        Button {
+                            showPaywall = true
+                        } label: {
+                            Text("Show all devices (\(sonosService.groups.count))")
+                                .fontDesign(.rounded)
+                                .bold()
+                                .foregroundStyle(Color.accentColor.gradient)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.thickMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .padding()
+                                .shadow(radius: 16, x: 0, y: 2)
+                        }
+                    }
+                }
+            }
         } detail: {
             if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
                 LargePlayerView(group: $sonosService.sorted[index], selected: $selected)
             }
         }
-//        .onChange(of: current) {
-//            guard let current else {
-//                sonosService.selectedGroup = nil
-//                return
-//            }
-//            sonosService.selectedGroup = current
-//        }
         .onChange(of: selected) {
             if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
                 sonosService.selectedGroup = sonosService.sorted[index]
@@ -143,73 +150,40 @@ struct DeviceListMainView: View {
 //                .ignoresSafeArea()
 //                .padding(.top, 30)
 //        }
-        .safeAreaInset(edge: .bottom) {
-            if sonosService.permissionsDenied {
-                Button {
-                    // MARK: Settings Action
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+        .safeAreaInset(edge: .top) {
+            VStack {
+                if alertService.alert.isShowing {
+                    PillView()
+                        .environment(alertService)
+                }
+                if !sonosService.networkMonitorService.isConnected {
+                    Label {
+                        Text("Connect to WiFi to find system")
+                    } icon: {
+                        Image(systemName: "wifi.slash")
                     }
-                } label: {
-                    Text("Local Network Permission Needed")
-                        .padding()
-                        .background {
-                            Capsule()
-                                .foregroundStyle(.thinMaterial)
-                        }
-                }
-                .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                .padding()
-            }
-
-            if sonosService.systemNotFound {
-                Button {
-                    sonosService.monitor()
-                } label: {
-                    Text("Search")
-                        .bold()
-                        .padding()
-                        .background {
-                            Capsule()
-                                .foregroundStyle(.thinMaterial)
-                        }
-                }
-                .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                .padding()
-            }
-
-            if sonosService.isSearching && sonosService.groups.isEmpty {
-                Label("Searching", systemImage: "waveform.badge.magnifyingglass")
-                    .imageScale(.large)
-                    .symbolEffect(.variableColor)
+                    .bold()
                     .padding()
                     .background {
                         Capsule()
-                            .foregroundStyle(.ultraThinMaterial)
+                            .foregroundStyle(.thinMaterial)
                     }
-                    .transition(.push(from: .bottom).combined(with: .scale))
-            }
-        }
-        .safeAreaInset(edge: .top) {
-            if alertService.alert.isShowing {
-                PillView()
-                    .environment(alertService)
-            }
-            if !sonosService.networkMonitorService.isConnected {
-                Label {
-                    Text("Connect to WiFi to find system")
-                } icon: {
-                    Image(systemName: "wifi.slash")
+                    .transition(.move(edge: .top).combined(with: .scale(0.8)))
+                    .padding()
+                    .offset(y: 50)
                 }
-                .bold()
-                .padding()
-                .background {
-                    Capsule()
-                        .foregroundStyle(.thinMaterial)
+                
+                if sonosService.isSearching && sonosService.groups.isEmpty {
+                    Label("Searching", systemImage: "waveform.badge.magnifyingglass")
+                        .imageScale(.large)
+                        .symbolEffect(.variableColor)
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                        .transition(.push(from: .bottom).combined(with: .scale))
                 }
-                .transition(.move(edge: .top).combined(with: .scale(0.8)))
-                .padding()
-                .offset(y: 50)
             }
         }
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
