@@ -4,8 +4,6 @@ import Observation
 import RevenueCat
 import CloudStorage
 
-
-
 @Observable
 public final class SubscriptionService: SubscriptionServicing {
     private var subscriptionTask: Task<Void, Error>?
@@ -22,6 +20,15 @@ public final class SubscriptionService: SubscriptionServicing {
         }
         return
 #endif
+
+        if UIApplication.shared.isRunningInTestFlightEnvironment() {
+            Purchases.logLevel = .error
+            Purchases.configure(withAPIKey: "TESTFLIGHT")
+            subscription = Subscription(isActive: true)
+            sync.set(true, for: "com.clic.subscriptions")
+            return
+        }
+
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
         Task { @MainActor in
@@ -50,6 +57,10 @@ public final class SubscriptionService: SubscriptionServicing {
             return
         }
 #endif
+        if UIApplication.shared.isRunningInTestFlightEnvironment() {
+            return
+        }
+
         subscriptionTask?.cancel()
         subscriptionTask = Task {
             for try await customerInfo in Purchases.shared.customerInfoStream {
@@ -77,5 +88,64 @@ public final class SubscriptionService: SubscriptionServicing {
         DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(4)) { [weak self] in
             self?.subscription = Subscription(isActive: true, expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now))
         }
+    }
+}
+
+
+extension UIApplication {
+
+    // MARK: Public
+    func isRunningInTestFlightEnvironment() -> Bool {
+        if isSimulator() {
+            return false
+        } else {
+            if isAppStoreReceiptSandbox() {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+
+    func isRunningInAppStoreEnvironment() -> Bool {
+        if isSimulator(){
+            return false
+        } else {
+            if isAppStoreReceiptSandbox() || hasEmbeddedMobileProvision() {
+                return false
+            } else {
+                return true
+            }
+        }
+    }
+
+    // MARK: Private
+    private func hasEmbeddedMobileProvision() -> Bool {
+        guard Bundle.main.path(forResource: "embedded", ofType: "mobileprovision") == nil else {
+            return true
+        }
+        return false
+    }
+
+    private func isAppStoreReceiptSandbox() -> Bool {
+        if isSimulator() {
+            return false
+        } else {
+            guard let url = Bundle.main.appStoreReceiptURL else {
+                return false
+            }
+            guard url.lastPathComponent == "sandboxReceipt" else {
+                return false
+            }
+            return true
+        }
+    }
+
+    private func isSimulator() -> Bool {
+        #if arch(i386) || arch(x86_64)
+        return true
+        #else
+        return false
+        #endif
     }
 }
