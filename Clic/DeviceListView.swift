@@ -39,6 +39,7 @@ struct DeviceListMainView: View {
                         VolumeControlView(group: $group)
                     }
                     .tag(group.coordinatorID)
+                    .accentColor(group.coordinatorID == selected ? .primary : .accent)
                 } header: {
                     HStack {
                         Image(systemName: "hifispeaker.fill")
@@ -131,6 +132,7 @@ struct DeviceListMainView: View {
             }
         }
         .onChange(of: selected) {
+            guard !OSEnvironment.pad else { return }
             if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
                 sonosService.selectedGroup = sonosService.sorted[index]
             } else {
@@ -217,7 +219,7 @@ struct DeviceListMainView: View {
 
 
 #Preview {
-    DeviceListMainView(selected: .constant(nil))
+    DeviceListMainView(selected: .constant(GroupRoom.garage.coordinatorID))
         .environment(SonosService())
         .environment(SubscriptionService())
         .environment(AlertService())

@@ -22,8 +22,10 @@ public final class Room: Identifiable, @unchecked Sendable {
 
     @MainActor
     public func updateVolume(volume: Double) {
-        lock.withLock {
-            self.volume = volume
+        lock.withLock { 
+            DispatchQueue.main.async {
+                self.volume = volume
+            }
         }
     }
 }

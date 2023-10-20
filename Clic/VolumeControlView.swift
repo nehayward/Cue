@@ -16,8 +16,9 @@ struct VolumeControlView: View {
                 }
             } label: {
                 Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
+                    .renderingMode(.template)
+                    .foregroundColor(.accentColor)
                     .padding(.trailing, 8)
-                    .foregroundStyle(.accent)
             }
             .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)

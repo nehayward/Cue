@@ -64,14 +64,6 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    LabeledContent("ID", value: Purchases.shared.appUserID)
-                        .textSelection(.enabled)
-                        .scaledToFit()
-                } header: {
-                    Text("Profile")
-                }
-
-                Section {
                     Picker(selection: $selectedAppIcon, label: EmptyView()) {
                         ForEach( Bundle.main.iconFileNames, id: \.self) { name in
                             HStack {
@@ -104,18 +96,27 @@ struct PreferenceScreen: View {
                     Text("Customize")
                 }
 
-                Button {
-                    let message = """
+                Section {
+                    Button {
+                        let message = """
 mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundle.main.infoDictionary?["CFBundleShortVersionString"]))\nID:\(Purchases.shared.appUserID)
 """
-                    let url =  URL(string: message)!
-                    UIApplication.shared.open(url) { (result) in
-                        if result {
-                           // The URL was delivered successfully!
+                        let url =  URL(string: message)!
+                        UIApplication.shared.open(url) { (result) in
+                            if result {
+                                // The URL was delivered successfully!
+                            }
                         }
+                    } label: {
+                        Text("Support hi@clic.dance")
                     }
-                } label: {
-                    Text("Support hi@clic.dance")
+                } footer: {
+                    VStack(alignment: .center) {
+                        Text(OSEnvironment.versionInfo)
+                        Text(Purchases.shared.appUserID)
+                            .textSelection(.enabled)
+                            .scaledToFit()
+                    }
                 }
 
             }
@@ -123,9 +124,6 @@ mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundl
                 PaywallView()
             }
             .navigationTitle("Preferences")
-            #if DEBUG
-            Text("DEBUG")
-            #endif
         }
         .task {
             try? await subscriptionService.checkSubscription()

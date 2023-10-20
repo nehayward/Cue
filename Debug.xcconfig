@@ -1,0 +1,5 @@
+VERSION_NUMBER = 2023.2
+BUILD_NUMBER = 0
+BUNDLE_ID = com.nick.clic.debug
+MAC_ENABLED = NO
+NAME = Clic [Debug]
