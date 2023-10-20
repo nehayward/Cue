@@ -63,37 +63,56 @@ struct PreferenceScreen: View {
                     Text("Sonos System")
                 }
 
+//                Section {
+//                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
+//                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in
+//                            HStack {
+//                                Image(uiImage: UIImage(named: name)!)
+//                                    .resizable(resizingMode: .stretch)
+//                                    .frame(width: 64, height: 64)
+//                                    .cornerRadius(16)
+//                                VStack(alignment: .leading) {
+//                                    Text(name)
+//                                    Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
+//                                }
+//                                Spacer()
+//                            }
+//                        }
+//                    }
+//                    .pickerStyle(.navigationLink)
+//                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+//                    .onChange(of: selectedAppIcon) { oldValue, newValue in
+//                        if newValue == "Default" {
+//                            UIApplication.shared.setAlternateIconName(nil)
+//                            return
+//                        }
+//                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
+//                            if let error = error {
+//                                print("Failed request to update the app’s icon: \(error)")
+//                            }
+//                        }
+//                    }
+//                } header: {
+//                    Text("Customize")
+//                }
+
                 Section {
-                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
-                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in
-                            HStack {
-                                Image(uiImage: UIImage(named: name)!)
-                                    .resizable(resizingMode: .stretch)
-                                    .frame(width: 64, height: 64)
-                                    .cornerRadius(16)
-                                VStack(alignment: .leading) {
-                                    Text(name)
-                                    Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
-                                }
-                                Spacer()
+                    if let name = Bundle.main.iconFileNames.first {
+                        HStack {
+                            Image(uiImage: UIImage(named: name)!)
+                                .resizable(resizingMode: .stretch)
+                                .frame(width: 64, height: 64)
+                                .cornerRadius(16)
+                            VStack(alignment: .leading) {
+                                Text(name)
+                                Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
                             }
+                            Spacer()
                         }
-                    }
-                    .pickerStyle(.navigationLink)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-                    .onChange(of: selectedAppIcon) { oldValue, newValue in
-                        if newValue == "Default" {
-                            UIApplication.shared.setAlternateIconName(nil)
-                            return
-                        }
-                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
-                            if let error = error {
-                                print("Failed request to update the app’s icon: \(error)")
-                            }
-                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                     }
                 } header: {
-                    Text("Customize")
+                    Text("Personalize")
                 }
 
                 Section {

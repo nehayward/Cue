@@ -1,9 +1,10 @@
 import Foundation
 import Observation
+import os
 
 @Observable
-public final class GroupRoom: Identifiable,  @unchecked Sendable {
-    private let queue = DispatchQueue(label: "GroupRoom\(UUID().uuidString)")
+public final class GroupRoom: Identifiable, @unchecked Sendable {
+    private let lock = OSAllocatedUnfairLock()
     public let coordinatorRoom: Room
     public let id: String
     public let coordinatorID: String
@@ -13,19 +14,22 @@ public final class GroupRoom: Identifiable,  @unchecked Sendable {
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
+    public var isEditingVolume: Bool = false
 
     @ObservationIgnored
     private var privateGroupVolume: Double = 0
 
     public var groupVolume: Double {
         get {
-            return queue.sync {
+            return lock.withLock {
                 return privateGroupVolume
             }
         }
         set {
-            queue.sync {
-                privateGroupVolume = newValue
+            lock.withLock {
+                DispatchQueue.main.async { [weak self] in
+                    self?.privateGroupVolume = newValue
+                }
             }
         }
     }

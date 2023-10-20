@@ -13,6 +13,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var volume: Double = 0
     public var isPlaying: Bool = false
     public var track: Track = .empty
+    public var isEditingVolume: Bool = false
 
     public init(id: String, ip: String, name: String) {
         self.id = id
@@ -23,8 +24,8 @@ public final class Room: Identifiable, @unchecked Sendable {
     @MainActor
     public func updateVolume(volume: Double) {
         lock.withLock { 
-            DispatchQueue.main.async {
-                self.volume = volume
+            DispatchQueue.main.async { [weak self] in
+                self?.volume = volume
             }
         }
     }

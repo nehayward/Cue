@@ -24,6 +24,7 @@ struct GroupVolumeControlScreen: View {
                         volumeTask = Task {
                             print("Changing \(group.coordinatorRoom.name)")
                             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: volumeChange)
+                            try? await sonosService.updateGroupsRooms(from: [group])
                         }
                     },
                     onDecrement: {
@@ -43,45 +44,45 @@ struct GroupVolumeControlScreen: View {
                         //                    .monospacedDigit()
                     })
             }
-//            .onChange(of: group.groupVolume, initial: true) {
-//                groupVolume = group.groupVolume
-//            }
-//            .onChange(of: groupVolume, initial: false) {
-//                volumeTask?.cancel()
-//                volumeTask = Task {
-//                    print("Changing \(group.coordinatorRoom.name)")
-//                    try await Task.sleep(for: .milliseconds(200))
-//                    await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(groupVolume))
-//                }
-//            }
+            //            .onChange(of: group.groupVolume, initial: true) {
+            //                groupVolume = group.groupVolume
+            //            }
+            //            .onChange(of: groupVolume, initial: false) {
+            //                volumeTask?.cancel()
+            //                volumeTask = Task {
+            //                    print("Changing \(group.coordinatorRoom.name)")
+            //                    try await Task.sleep(for: .milliseconds(200))
+            //                    await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(groupVolume))
+            //                }
+            //            }
             Divider()
                 .padding(.bottom)
 
-//            HStack {
-//                Text("Group")
-//                    .fontDesign(.rounded)
-//                Spacer()
-//                Text("\(group.groupVolume, specifier: "%03.0f")%")
-//                    .monospacedDigit()
-//            }
-//            HStack {
-//                Slider(value: $groupVolume, in: 0...100, step: 2) { isEditing in
-//                    print("Edit")
-//                    self.isEditingGroupVolume = isEditing
-//                }
-//                .sensoryFeedback(.impact(flexibility: .solid), trigger: group.groupVolume, condition: { oldValue, newValue in
-//                    return !isEditingGroupVolume
-//                })
-//                .animation(.snappy, value: group.groupVolume)
-//                .onChange(of: group.groupVolume) {
-//                    print("HERE")
-//                    if isEditingGroupVolume {
-//                        Task {
-//                            await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(group.groupVolume))
-//                        }
-//                    }
-//                }
-//            }
+            //            HStack {
+            //                Text("Group")
+            //                    .fontDesign(.rounded)
+            //                Spacer()
+            //                Text("\(group.groupVolume, specifier: "%03.0f")%")
+            //                    .monospacedDigit()
+            //            }
+            //            HStack {
+            //                Slider(value: $groupVolume, in: 0...100, step: 2) { isEditing in
+            //                    print("Edit")
+            //                    self.isEditingGroupVolume = isEditing
+            //                }
+            //                .sensoryFeedback(.impact(flexibility: .solid), trigger: group.groupVolume, condition: { oldValue, newValue in
+            //                    return !isEditingGroupVolume
+            //                })
+            //                .animation(.snappy, value: group.groupVolume)
+            //                .onChange(of: group.groupVolume) {
+            //                    print("HERE")
+            //                    if isEditingGroupVolume {
+            //                        Task {
+            //                            await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(group.groupVolume))
+            //                        }
+            //                    }
+            //                }
+            //            }
 
 
             ForEach(group.rooms) { room in
@@ -97,6 +98,11 @@ struct GroupVolumeControlScreen: View {
                             volumeTask = Task {
                                 print("Changing \(room.name)")
                                 await sonosService.setDeviceVolume(ip: room.ip, volume: volumeChange)
+                                try await Task.sleep(for: .milliseconds(200))
+                                await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
+                                if let volume = try? await sonosService.getGroupVolume(ip: group.ip) {
+                                    group.groupVolume = volume
+                                }
                             }
                         },
                         onDecrement: {
@@ -106,6 +112,11 @@ struct GroupVolumeControlScreen: View {
                             volumeTask = Task {
                                 print("Changing \(room.name)")
                                 await sonosService.setDeviceVolume(ip: room.ip, volume: volumeChange)
+                                try await Task.sleep(for: .milliseconds(200))
+                                await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
+                                if let volume = try? await sonosService.getGroupVolume(ip: group.ip) {
+                                    group.groupVolume = volume
+                                }
                             }
                         },
                         onEditingChanged: { changed in
@@ -178,6 +189,7 @@ struct GroupVolumeControlScreen: View {
             Button {
                 for room in group.rooms {
                     Task {
+                        room.volume = group.groupVolume
                         await sonosService.setDeviceVolume(ip: room.ip, volume: Int(group.groupVolume))
                     }
                 }
@@ -194,10 +206,10 @@ struct GroupVolumeControlScreen: View {
             .padding(.top, 20)
 
         }
-//        .navigationTitle("Volume Control")
+        //        .navigationTitle("Volume Control")
         .padding([.leading, .trailing])
-//        .toolbar(.hidden, for: .navigationBar)
-//        .toolbarTitleDisplayMode(.inline)
+        //        .toolbar(.hidden, for: .navigationBar)
+        //        .toolbarTitleDisplayMode(.inline)
         .containerBackground(.accent.gradient, for: .navigation)
     }
 }

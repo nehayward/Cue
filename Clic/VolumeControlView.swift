@@ -30,6 +30,7 @@ struct VolumeControlView: View {
                     }
                 }
                 self.isEditing = isEditing
+                group.isEditingVolume = isEditing
                 if !isEditing {
                     updateVolume(volume: group.groupVolume)
                 }

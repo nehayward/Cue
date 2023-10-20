@@ -48,6 +48,7 @@ struct GroupVolumeControlView: View {
                                 .padding(.trailing, 8)
                             Slider(value: $room.volume, in: 0...100, step: 2) { isEditing in
                                 self.isEditingRoomVolume = isEditing
+                                room.isEditingVolume = isEditing
                                 let endingVolume = room.volume
                                 if !isEditing {
                                     print(room.volume)

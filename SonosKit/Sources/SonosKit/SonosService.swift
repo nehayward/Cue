@@ -222,7 +222,7 @@ public final class SonosService {
             async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
-            await updateGroupRooms(from: [roomGroup])
+            await updateGroupsRooms(from: [roomGroup])
             await updateGroupCheckTVMode(from: [roomGroup])
 
             switch await playbackInfo {
@@ -265,7 +265,7 @@ public final class SonosService {
         }
 
         try await updateGroups(from: groups)
-        await updateGroupRooms(from: groups)
+        await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
         await updateGroupMuteState(for: groups)
 
@@ -366,7 +366,11 @@ public final class SonosService {
                 break
             }
 
-            roomGroup.groupVolume = try await groupVolume
+            let updateGroupVolume = try await groupVolume
+            if !roomGroup.isEditingVolume {
+                print("Updating \(updateGroupVolume)")
+                roomGroup.groupVolume = updateGroupVolume
+            }
             guard let track = await track else {
                 return
             }
@@ -374,7 +378,7 @@ public final class SonosService {
 
 
             await updateGroupCheckTVMode(from: [groups[groupIndex]])
-            await updateGroupRooms(from: [groups[groupIndex]])
+            await updateGroupsRooms(from: [groups[groupIndex]])
 
 
 //            let previousArtwork = roomGroup.coordinatorRoom.track.artworkURL
@@ -392,7 +396,7 @@ public final class SonosService {
         }
 
         try await updateGroupsWatch(from: groups)
-        await updateGroupRooms(from: groups)
+        await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
 
 //        for groupIndex in groups.indices {
@@ -458,7 +462,8 @@ public final class SonosService {
                         break
                     }
 
-                    if let groupVolumeAwaited = try? await groupVolume {
+                    if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
+                        print("Updating \(groupVolumeAwaited)")
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
 
@@ -483,13 +488,13 @@ public final class SonosService {
     }
 
     @MainActor
-    func updateGroupRooms(from roomGroups: [GroupRoom]) async {
+    public func updateGroupsRooms(from roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
                 for room in roomGroup.rooms {
                     group.addTask {  [weak self] in
                         guard let self else { return }
-                        if let volume = try? await getVolume(ip: room.ip) {
+                        if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume {
                             room.volume = volume
                         }
                     }
@@ -570,7 +575,8 @@ public final class SonosService {
                         break
                     }
 
-                    if let groupVolumeAwaited = try? await groupVolume {
+                    if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
+                        print("Not Updating")
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
                     
