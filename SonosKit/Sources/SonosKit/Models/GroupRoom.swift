@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-public final class GroupRoom: Identifiable, Sendable {
+public final class GroupRoom: Identifiable,  @unchecked Sendable {
     private let queue = DispatchQueue(label: "GroupRoom\(UUID().uuidString)")
     public let coordinatorRoom: Room
     public let id: String

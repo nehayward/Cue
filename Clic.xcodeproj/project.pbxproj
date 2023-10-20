@@ -105,8 +105,11 @@
 		E9DE849E2A6707E1004C3947 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */; };
 		E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
+		E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
+		E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
 		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
+		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
@@ -223,6 +226,8 @@
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9A953162ADCD5B600600516 /* HapticButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticButton.swift; sourceTree = "<group>"; };
+		E9A953192ADDA06D00600516 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
+		E9A9531A2ADDA06D00600516 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetEntryView.swift; sourceTree = "<group>"; };
 		E9B12B532A5F31790008868C /* Widgets Watch.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Widgets Watch.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9B12B572A5F31790008868C /* WatchTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTimelineProvider.swift; sourceTree = "<group>"; };
@@ -257,10 +262,12 @@
 		E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetRectangularView.swift; sourceTree = "<group>"; };
 		E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityNowPlayingView.swift; sourceTree = "<group>"; };
+		E9EE31832ADF82B000F71303 /* IntentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentError.swift; sourceTree = "<group>"; };
 		E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
 		E9F3D44C2A02C2780042F208 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E9F3D44D2A02C2900042F208 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SonosKit; sourceTree = "<group>"; };
+		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -376,6 +383,7 @@
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
 				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
+				E9EE31832ADF82B000F71303 /* IntentError.swift */,
 			);
 			path = Intents;
 			sourceTree = "<group>";
@@ -397,6 +405,8 @@
 		E9BDE56329E3396700D230A8 = {
 			isa = PBXGroup;
 			children = (
+				E9A9531A2ADDA06D00600516 /* Release.xcconfig */,
+				E9A953192ADDA06D00600516 /* Staging.xcconfig */,
 				E960ED462AC46769003E3732 /* SubscriptionKit */,
 				E959B91D2AB65EC3000D596E /* VibesDS */,
 				E96396332A3B700900518A17 /* MusicSearchKit */,
@@ -451,6 +461,7 @@
 				E98527932A5E5C90009016C2 /* LiveActivityManager.swift */,
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E9A953162ADCD5B600600516 /* HapticButton.swift */,
+				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
@@ -693,8 +704,8 @@
 			projectRoot = "";
 			targets = (
 				E9BDE56B29E3396700D230A8 /* Clic */,
-				E97C0D402A325CC5005AB0E0 /* Widgets */,
 				E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */,
+				E97C0D402A325CC5005AB0E0 /* Widgets */,
 				E9B12B522A5F31790008868C /* Widgets (Watch) */,
 			);
 		};
@@ -743,6 +754,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */,
 				E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */,
 				E9DAE49E2A5FACD400B03199 /* NowPlayingWidgetProvider.swift in Sources */,
 				E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */,
@@ -804,10 +816,12 @@
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
+				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
+				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
@@ -864,6 +878,7 @@
 /* Begin XCBuildConfiguration section */
 		E97C0D562A325CC6005AB0E0 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Staging.xcconfig */;
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -872,7 +887,7 @@
 				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -888,7 +903,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -905,6 +920,7 @@
 		};
 		E97C0D572A325CC6005AB0E0 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -913,7 +929,7 @@
 				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -929,7 +945,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -945,13 +961,14 @@
 		};
 		E9B12B622A5F317B0008868C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Staging.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2023.1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -966,7 +983,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch.Widgets;
 				PRODUCT_NAME = "Widgets Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -982,13 +999,14 @@
 		};
 		E9B12B632A5F317B0008868C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2023.1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -1003,7 +1021,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.1;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch.Widgets;
 				PRODUCT_NAME = "Widgets Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1018,6 +1036,7 @@
 		};
 		E9BDE57829E3396800D230A8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Staging.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -1080,6 +1099,7 @@
 		};
 		E9BDE57929E3396800D230A8 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -1136,6 +1156,7 @@
 		};
 		E9BDE57B29E3396800D230A8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Staging.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
@@ -1145,7 +1166,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1164,7 +1185,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 2023.2;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1181,6 +1202,7 @@
 		};
 		E9BDE57C29E3396800D230A8 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
@@ -1190,7 +1212,7 @@
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1209,7 +1231,7 @@
 					"@executable_path/Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.4;
-				MARKETING_VERSION = 2023.2;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1226,6 +1248,7 @@
 		};
 		E9C03B0B2A586F6100FB9118 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Staging.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -1234,7 +1257,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1252,7 +1275,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.2;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
 				PRODUCT_NAME = "Clic Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1269,6 +1292,7 @@
 		};
 		E9C03B0C2A586F6100FB9118 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -1277,7 +1301,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Watch/Clic (Watch).entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_ASSET_PATHS = "\"Watch/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_PREVIEWS = YES;
@@ -1295,7 +1319,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2023.2;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.Clic.watch;
 				PRODUCT_NAME = "Clic Watch";
 				PROVISIONING_PROFILE_SPECIFIER = "";

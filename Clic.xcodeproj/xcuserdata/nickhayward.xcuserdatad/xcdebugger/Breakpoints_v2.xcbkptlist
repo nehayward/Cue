@@ -7726,8 +7726,8 @@
             filePath = "SonosKit/Sources/SonosKit/Models/Room.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "32"
-            endingLineNumber = "32"
+            startingLineNumber = "33"
+            endingLineNumber = "33"
             landmarkName = "==(lhs:rhs:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -8510,6 +8510,36 @@
                   endingLineNumber = "356"
                   offsetFromSymbolStart = "944">
                </Location>
+               <Location
+                  uuid = "98B1AEC3-1CED-497D-8094-95227F77C6D0 - a38007f4185e35d7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.removeTrackFromQueue(IP: Swift.String, index: Swift.Int) async -&gt; ()"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "356"
+                  endingLineNumber = "356"
+                  offsetFromSymbolStart = "952">
+               </Location>
+               <Location
+                  uuid = "98B1AEC3-1CED-497D-8094-95227F77C6D0 - 221b6a660d4a97d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.removeTrackFromQueue(IP: Swift.String, index: Swift.Int) async -&gt; ()"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "356"
+                  endingLineNumber = "356"
+                  offsetFromSymbolStart = "944">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -8604,6 +8634,21 @@
                   endingLineNumber = "44"
                   offsetFromSymbolStart = "704">
                </Location>
+               <Location
+                  uuid = "A756FBB4-DE19-4061-A3D0-299F7F040982 - e6ae42e4bca1f74e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.PlayMode.sonosMode.getter : Swift.String"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/PlaybackMode.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "44"
+                  endingLineNumber = "44"
+                  offsetFromSymbolStart = "704">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -8682,6 +8727,36 @@
                   endingLineNumber = "262"
                   offsetFromSymbolStart = "1124">
                </Location>
+               <Location
+                  uuid = "6C155576-C3AC-454B-9630-ECE601A48F13 - f3439207a6553d87"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosAPI.setPlayMode(_: Swift.String, playMode: SonosKit.PlayMode) async -&gt; ()"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "262"
+                  endingLineNumber = "262"
+                  offsetFromSymbolStart = "1144">
+               </Location>
+               <Location
+                  uuid = "6C155576-C3AC-454B-9630-ECE601A48F13 - ee91a0f1cb419f86"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for SonosKit.SonosAPI.setPlayMode(_: Swift.String, playMode: SonosKit.PlayMode) async -&gt; ()"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "262"
+                  endingLineNumber = "262"
+                  offsetFromSymbolStart = "1124">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -8722,6 +8797,21 @@
                   continueAfterRunningActions = "No"
                   symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.setPlayMode(_: Swift.String, playMode: SonosKit.PlayMode) async -&gt; ()"
                   moduleName = "Clic Watch"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "251"
+                  endingLineNumber = "251"
+                  offsetFromSymbolStart = "216">
+               </Location>
+               <Location
+                  uuid = "1787BA8C-8FB0-44FD-B2C0-BA1AB647F251 - aee7282b4c0c7aee"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosAPI.setPlayMode(_: Swift.String, playMode: SonosKit.PlayMode) async -&gt; ()"
+                  moduleName = "Widgets"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosAPI.swift"
                   startingColumnNumber = "9223372036854775807"
@@ -8793,7 +8883,131 @@
                   endingLineNumber = "48"
                   offsetFromSymbolStart = "924">
                </Location>
+               <Location
+                  uuid = "E0D6AF45-68D1-4362-AADF-5458DB4C69AA - e6ae42e4bca1f6d2"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "SonosKit.PlayMode.sonosMode.getter : Swift.String"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/PlaybackMode.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "48"
+                  endingLineNumber = "48"
+                  offsetFromSymbolStart = "924">
+               </Location>
             </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Widgets/Intents/PlayPauseIntent.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "27"
+            endingLineNumber = "27"
+            landmarkName = "perform()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39 - 3adca20746c0d25d"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Widgets.PlayPauseIntent.perform() async throws -&gt; some"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/Intents/PlayPauseIntent.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "29"
+                  endingLineNumber = "29"
+                  offsetFromSymbolStart = "240">
+               </Location>
+               <Location
+                  uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39 - 3adca20746c0d39b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Widgets.PlayPauseIntent.perform() async throws -&gt; some"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/Intents/PlayPauseIntent.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "27"
+                  endingLineNumber = "27"
+                  offsetFromSymbolStart = "444">
+               </Location>
+               <Location
+                  uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39 - 3adca20746c0d39b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Widgets.PlayPauseIntent.perform() async throws -&gt; some"
+                  moduleName = "Widgets"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/Intents/PlayPauseIntent.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "27"
+                  endingLineNumber = "27"
+                  offsetFromSymbolStart = "536">
+               </Location>
+               <Location
+                  uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39 - 877b8a6b9983a9cb"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Clic.PlayPauseIntent.perform() async throws -&gt; some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/Intents/PlayPauseIntent.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "27"
+                  endingLineNumber = "27"
+                  offsetFromSymbolStart = "444">
+               </Location>
+               <Location
+                  uuid = "8C8CB668-0130-4DAC-9BBB-94AEB20D9B39 - 877b8a6b9983a9cb"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Clic.PlayPauseIntent.perform() async throws -&gt; some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/Intents/PlayPauseIntent.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "27"
+                  endingLineNumber = "27"
+                  offsetFromSymbolStart = "536">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8448358A-C164-480B-AF12-7859E3DE0223"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "../../../../../Downloads/VibesDS/Sources/VibesDS/SceneView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "32"
+            endingLineNumber = "32"
+            landmarkName = "body"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

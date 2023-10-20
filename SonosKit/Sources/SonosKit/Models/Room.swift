@@ -20,6 +20,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.name = name
     }
 
+    @MainActor
     public func updateVolume(volume: Double) {
         lock.withLock {
             self.volume = volume

@@ -144,3 +144,9 @@ struct DeviceListView: View {
         .environment(SonosService())
         .environment(Popover())
 }
+
+#Preview("Active Subscription") {
+    DeviceListView(activeSubscription: .constant(true), selected: .constant(nil))
+        .environment(SonosService())
+        .environment(Popover())
+}

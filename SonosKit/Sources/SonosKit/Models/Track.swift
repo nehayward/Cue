@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 @Observable
-public final class Track: Identifiable, Sendable {
+public final class Track: Identifiable, @unchecked Sendable {
     private let queue = DispatchQueue(label: "Track\(UUID().uuidString)")
 
     public var id: String { trackID }

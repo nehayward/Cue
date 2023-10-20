@@ -3,13 +3,15 @@ import MusicSearchKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
+import Kingfisher
 
-struct ImprovedSearch: View {
+struct ImprovedSearch: View, KeyboardReadable {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismissSearch) var dismissSearch
     @Environment(\.isSearching) var isSearching
     @Environment(\.dismiss) var dismiss
 
+    @State private var isKeyboardVisible = false
     @State var selection: PresentationDetent = .large
 
     @State var musicSearchService = MusicSearchService()
@@ -26,6 +28,7 @@ struct ImprovedSearch: View {
     var group: GroupRoom
 
     var body: some View {
+//        let _ = Self._printChanges()
         NavigationStack {
             List {
                 switch musicSearchSelection {
@@ -35,7 +38,7 @@ struct ImprovedSearch: View {
                             ForEach(playlists) { item in
                                 Button {
                                     print(group.coordinatorRoom.ip)
-                                    dismiss()
+                                    //                                    dismiss()
                                     print(item.id)
                                     print(item.name)
                                     print(item.owner.displayName)
@@ -113,29 +116,29 @@ struct ImprovedSearch: View {
                     }
 
                     // TODO: Add back when you can queue
-//                    if let albums = spotifyResult?.albums?.items {
-//                        albumRow(albums: albums)
-//                    }
-//                    if let artists = spotifyResult?.artists?.items {
-//                        ArtistRow(artists: artists)
-//                    }
+                    //                    if let albums = spotifyResult?.albums?.items {
+                    //                        albumRow(albums: albums)
+                    //                    }
+                    //                    if let artists = spotifyResult?.artists?.items {
+                    //                        ArtistRow(artists: artists)
+                    //                    }
                 case .apple:
                     ForEach(results) { result in
                         HStack {
                             AsyncImage( url: URL(string: result.artworkURL),
                                         transaction: Transaction(animation: .snappy)
-                                    ) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .frame(width: 60, height: 60)
-                                        default:
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .foregroundStyle(.thinMaterial)
-                                                .frame(width: 60, height: 60)
-                                        }
-                                    }
+                            ) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .frame(width: 60, height: 60)
+                                default:
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .foregroundStyle(.thinMaterial)
+                                        .frame(width: 60, height: 60)
+                                }
+                            }
                             VStack(alignment: .leading) {
                                 Text(result.trackName)
                                 Text(result.artistName)
@@ -150,7 +153,6 @@ struct ImprovedSearch: View {
                         .fontDesign(.rounded)
                     }
                 }
-
             }
             .searchable(text: $query, isPresented: $searchFieldIsPresented, prompt: "Searching \(musicSearchSelection.title)")
             .searchSuggestions {
@@ -168,12 +170,16 @@ struct ImprovedSearch: View {
                     }
                 }
             }
+            .onReceive(keyboardPublisher) { newIsKeyboardVisible in
+                print("Is keyboard visible? ", newIsKeyboardVisible)
+                isKeyboardVisible = newIsKeyboardVisible
+            }
             .onChange(of: query, initial: true) {
                 searchTask?.cancel()
                 print("Searching... \(query)")
                 switch musicSearchSelection {
                 case .spotify:
-                    searchTask = Task {
+                    searchTask = Task { @MainActor in
                         try await Task.sleep(for: .milliseconds(200))
                         spotifyResult = await musicSearchService.searchSpotify(query: query)
                     }
@@ -188,7 +194,7 @@ struct ImprovedSearch: View {
                 searchTask?.cancel()
                 switch musicSearchSelection {
                 case .spotify:
-                    searchTask = Task {
+                    searchTask = Task { @MainActor in
                         spotifyResult = await musicSearchService.searchSpotify(query: query)
                     }
                 case .apple:
@@ -256,31 +262,32 @@ struct ImprovedSearch: View {
                     .frame(alignment: .trailing)
                     .padding()
                 }
-//                    FilterView()
-//                    TextField(
-//                        "New message",
-//                        text: $query
-//                    )
-//                    .focused($focusedField)
-//                    .padding()
-//
-//                    .onSubmit {
-//                        // append message
-//                    }
-//
-//
-//                .textFieldStyle(.roundedBorder)
-//                .background(.ultraThinMaterial)
+                //                    FilterView()
+                //                    TextField(
+                //                        "New message",
+                //                        text: $query
+                //                    )
+                //                    .focused($focusedField)
+                //                    .padding()
+                //
+                //                    .onSubmit {
+                //                        // append message
+                //                    }
+                //
+                //
+                //                .textFieldStyle(.roundedBorder)
+                //                .background(.ultraThinMaterial)
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .keyboardType(.alphabet)
+        .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
         .scrollDismissesKeyboard(.immediately)
         .presentationDetents([.large], selection: $selection)
         .presentationBackgroundInteraction(.enabled)
         .presentationDragIndicator(.hidden)
-        .presentationBackground(.thinMaterial)
-        .interactiveDismissDisabled(searchFieldIsPresented)
+        .scrollContentBackground(.hidden)
+        .interactiveDismissDisabled(isKeyboardVisible)
         .listStyle(.inset)
         .onAppear {
             showKeyboard()
@@ -294,12 +301,12 @@ struct ImprovedSearch: View {
 
     @MainActor
     private func showKeyboard() {
-//        UIView.setAnimationsEnabled(false)
+        UIView.setAnimationsEnabled(false)
         focusedField = true
-//        Task {
-//            try await Task.sleep(for: .milliseconds(400))
-//            UIView.setAnimationsEnabled(true)
-//        }
+        Task {
+            try await Task.sleep(for: .milliseconds(400))
+            UIView.setAnimationsEnabled(true)
+        }
     }
 
     private func ArtistRow(artists: [SpotifyArtistsItems]) -> some View {
@@ -366,7 +373,7 @@ struct ImprovedSearch: View {
                         Text(album.name)
                     }
                     .onTapGesture {
-                        dismiss()
+                        //                        dismiss()
                         Task {
                             await sonosService.queueSpotifyTrack(id: album.id, group: group)
                         }
@@ -391,6 +398,14 @@ struct ImprovedSearch: View {
 #Preview("Empty Queue") {
     Text("Searching Empty...")
         .sheet(isPresented: .constant(true)) {
+            ImprovedSearch(query: "", group: .garage)
+                .environment(SonosService())
+        }
+}
+
+#Preview("Full Screen") {
+    Text("Searching Empty...")
+        .fullScreenCover(isPresented: .constant(true)) {
             ImprovedSearch(query: "", group: .garage)
                 .environment(SonosService())
         }

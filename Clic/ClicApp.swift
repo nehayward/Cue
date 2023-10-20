@@ -26,15 +26,6 @@ struct ClicApp: App {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                     subscriptionService.monitorChanges()
                 }
-                .onAppear {
-                    #if DEBUG
-                    if ProcessInfo.processInfo.environment["Super"] == "TRUE" {
-                        subscriptionService.subscription = Subscription(isActive: true)
-//                        subscriptionService.subscription = .notActive
-                    }
-//                    sonosService.systemNotFound = true
-                    #endif
-                }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
@@ -63,6 +54,9 @@ struct ClicApp: App {
                 await liveActivityManager?.refresh()
             }
 
+            Task {
+                try? await subscriptionService.checkSubscription()
+            }
 //            // MARK: Add back when monitoring is fixed
 //            Task { @MainActor in
 //                try? await sonosService.updateGroupsCheckPlayback()

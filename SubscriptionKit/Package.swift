@@ -21,7 +21,8 @@ let package = Package(
             dependencies: [
                 "CloudStorage",
                 .product(name: "RevenueCat", package: "purchases-ios")
-            ]),
+            ]
+        ),
         .testTarget(
             name: "SubscriptionKitTests",
             dependencies: [

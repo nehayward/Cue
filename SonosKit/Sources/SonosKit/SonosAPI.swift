@@ -635,7 +635,7 @@ final class SonosAPI {
         return request
     }
 
-    func sendSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) async throws -> (Data, URLResponse)? {
+    @discardableResult func sendSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) async throws -> (Data, URLResponse)? {
         guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: endpoint) else {
             return nil
         }

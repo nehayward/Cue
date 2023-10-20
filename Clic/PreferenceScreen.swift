@@ -128,6 +128,7 @@ mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundl
             #endif
         }
         .task {
+            try? await subscriptionService.checkSubscription()
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
             sonosService.monitor()
             impactFeedbackGenerator.prepare()

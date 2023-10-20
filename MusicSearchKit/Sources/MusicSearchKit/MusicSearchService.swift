@@ -28,6 +28,7 @@ public final class MusicSearchService {
         await spotifySearchAPI.lookupTrack(id: id)
     }
 
+    @MainActor
     public func searchSpotify(query: String) async -> SpotifyResult? {
         await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
     }

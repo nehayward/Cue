@@ -1,14 +1,16 @@
 import AppIntents
+import CloudStorage
 import WidgetKit
 import SonosKit
 
 struct SetRelativeGroupVolumeIntent: AppIntent {
+    static var title: LocalizedStringResource = "Set Sonos Device Volume"
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+
     static var sonosService = SonosService()
     static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
-
-    static var title: LocalizedStringResource = "Set Sonos Device Volume"
-
-    @Parameter(title: "Sonos Room")
+    
+    @Parameter(title: "Sonos Device")
     var room: SonosDeviceEntity
 
     @Parameter(title: "Desired Volume")
@@ -24,6 +26,10 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
+        guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
+            throw IntentError.message("Subscribe to Super in App")
+        }
+        
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result() }
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
         await Self.liveActivityManager.refresh()
