@@ -20,10 +20,9 @@ public final class SubscriptionService: SubscriptionServicing {
         }
         return
 #endif
-
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             Purchases.logLevel = .error
-            Purchases.configure(withAPIKey: "TESTFLIGHT")
+            Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "TESTFLIGHT")
             subscription = Subscription(isActive: true)
             sync.set(true, for: "com.clic.subscriptions")
             return

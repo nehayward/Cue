@@ -771,7 +771,7 @@ public final class SonosService {
         try await sonosAPI.setNightMode(IP: IP, enabled: enabled)
     }
 
-    public func playPauseDevice(ip: String) async {
+    public func togglePlayback(ip: String) async {
         let playback =  await sonosAPI.isPlaying(ipAddress: ip)
         switch playback {
         case .playing:

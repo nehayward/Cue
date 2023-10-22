@@ -83,7 +83,7 @@ struct NowPlayingWidgetViewMedium: View {
             }
             .overlay(alignment: .bottomTrailing) {
                 HStack {
-                    Button(intent: PlayPauseIntent(room: room)) {
+                    Button(intent: TogglePlaybackIntent(room: room)) {
                         Image(systemName: "playpause.fill")
                             .padding(2)
                     }

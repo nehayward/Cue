@@ -3,35 +3,35 @@ import CloudStorage
 import SonosKit
 
 struct NextIntent: AppIntent {
-    static var title: LocalizedStringResource = "Next media item."
+    static var title: LocalizedStringResource = "Next"
+    static var description: IntentDescription = "Go to the next song in queue if available."
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     static var sonosService = SonosService()
     static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
 
-    @Parameter(title: "Sonos Device")
-    var room: SonosDeviceEntity
+    @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
     init(room: SonosDeviceEntity) {
         self.room = room
     }
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Next track \(\.$room)")
+        Summary("Next item in queue on \(\.$room)")
     }
 
-    init() {
+    init() { }
 
-    }
-
-    func perform() async throws -> some ReturnsValue<Int> {
+    func perform() async throws -> some IntentResult {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in App")
         }
         
-        guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else { return .result(value: 0) }
+        guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
+            throw IntentError.message("Failed to lookup Room")
+        }
         await Self.sonosService.next(ip: coordinatorRoom.ip)
         await Self.liveActivityManager.refresh()
-        return .result(value: 1)
+        return .result()
     }
 }

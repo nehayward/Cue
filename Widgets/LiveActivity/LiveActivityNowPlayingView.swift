@@ -22,7 +22,7 @@ struct LiveActivityNowPlayingView: View {
                             Image(systemName: "backward.fill")
                         }
 
-                        Button(intent: PlayPauseIntent(room: context.attributes.room)) {
+                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
                             Image(systemName: "playpause.fill")
                                 .imageScale(.large)
                         }

@@ -2,13 +2,13 @@ import AppIntents
 import CloudStorage
 import SonosKit
 
-struct PreviousIntent: AppIntent {
-    static var title: LocalizedStringResource = "Previous"
-    static var description: IntentDescription = "Go to the previous song in queue if available."
+struct TogglePlaybackIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Toggle Playback"
+    static var description: IntentDescription = "This will toggle the playback of Sonos speaker"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    static var sonosService = SonosService()
-    static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
+    static private var sonosService = SonosService()
+    static private var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
@@ -16,22 +16,23 @@ struct PreviousIntent: AppIntent {
         self.room = room
     }
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Previous item in queue on \(\.$room)")
-    }
-
     init() { }
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Toggle playback of \(\.$room)")
+    }
 
     func perform() async throws -> some IntentResult {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
-            throw IntentError.message("Subscribe to Super in App")
+            throw IntentError.message("Subscribe to Super in Clic")
         }
 
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
-
-        await Self.sonosService.previous(ip: coordinatorRoom.ip)
+        
+        await Self.sonosService.togglePlayback(ip: coordinatorRoom.ip)
+        await Self.liveActivityManager.refresh()
         return .result()
     }
 }

@@ -47,7 +47,7 @@
 		E97C0D4E2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D4D2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift */; };
 		E97C0D502A325CC6005AB0E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E97C0D4F2A325CC6005AB0E0 /* Assets.xcassets */; };
 		E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E97C0D5B2A326B15005AB0E0 /* PlayPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */; };
+		E97C0D5B2A326B15005AB0E0 /* TogglePlaybackIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */; };
 		E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97C0D5C2A326D25005AB0E0 /* SonosKit */; };
 		E97C0D672A33D787005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */; };
 		E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */; };
@@ -57,7 +57,7 @@
 		E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E985278F2A5E5955009016C2 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
 		E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
-		E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */; };
+		E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */; };
 		E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
 		E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
 		E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
@@ -214,7 +214,7 @@
 		E97C0D4D2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D4F2A325CC6005AB0E0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E97C0D512A325CC6005AB0E0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayPauseIntent.swift; sourceTree = "<group>"; };
+		E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogglePlaybackIntent.swift; sourceTree = "<group>"; };
 		E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidget.swift; sourceTree = "<group>"; };
 		E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
@@ -382,7 +382,7 @@
 		E97C0D712A390186005AB0E0 /* Intents */ = {
 			isa = PBXGroup;
 			children = (
-				E97C0D592A32687D005AB0E0 /* PlayPauseIntent.swift */,
+				E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */,
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
 				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
@@ -772,7 +772,7 @@
 				E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */,
 				E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */,
 				E97C0D4C2A325CC5005AB0E0 /* RemoteWidget.swift in Sources */,
-				E97C0D5B2A326B15005AB0E0 /* PlayPauseIntent.swift in Sources */,
+				E97C0D5B2A326B15005AB0E0 /* TogglePlaybackIntent.swift in Sources */,
 				E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */,
 				E97C0D4A2A325CC5005AB0E0 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97C0D6B2A38FBDD005AB0E0 /* SetRelativeGroupVolumeIntent.swift in Sources */,
@@ -829,7 +829,7 @@
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
-				E98527912A5E59B0009016C2 /* PlayPauseIntent.swift in Sources */,
+				E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */,
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
 				E982AEA92ABA027500709FC0 /* DeviceNameView.swift in Sources */,
 				E940E7162AAFBD17004303CD /* FilterView.swift in Sources */,

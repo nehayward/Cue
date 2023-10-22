@@ -32,7 +32,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                     VStack(spacing: 12) {
                         Text(context.attributes.room.name)
                         HStack(spacing: 24) {
-                            Button(intent: PlayPauseIntent(room: context.attributes.room)) {
+                            Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
                                 Image(systemName: "playpause.circle.fill")
                                     .resizable()
                                     .tint(.secondary)

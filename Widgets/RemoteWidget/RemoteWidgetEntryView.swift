@@ -16,7 +16,7 @@ struct RemoteWidgetEntryView : View {
                 case .accessoryRectangular:
                     RemoteWidgetRectangularView(entry: entry)
                 case .accessoryCircular:
-                    Button(intent: PlayPauseIntent()) {
+                    Button(intent: TogglePlaybackIntent()) {
                         Image(systemName: "playpause.circle.fill")
                     }
                     .containerBackground(.black, for: .widget)
@@ -28,7 +28,7 @@ struct RemoteWidgetEntryView : View {
                                 .padding(.bottom, 8)
                             HStack(spacing: 18) {
                                 VStack(spacing: 12) {
-                                    Button(intent: PlayPauseIntent(room: speakerIP)) {
+                                    Button(intent: TogglePlaybackIntent(room: speakerIP)) {
                                         Image(systemName: "playpause.fill")
                                             .padding(2)
                                     }

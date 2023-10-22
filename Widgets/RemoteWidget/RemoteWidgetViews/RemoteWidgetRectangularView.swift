@@ -13,7 +13,7 @@ struct RemoteWidgetRectangularView: View {
                         .padding(.leading)
 
                     HStack(spacing: 0) {
-                        Button(intent: PlayPauseIntent(room: room)) {
+                        Button(intent: TogglePlaybackIntent(room: room)) {
                             Image(systemName: "playpause.fill")
                                 .padding(2)
                         }

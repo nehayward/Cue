@@ -9031,8 +9031,8 @@
             filePath = "Widgets/Intents/PlayPauseIntent.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "27"
-            endingLineNumber = "27"
+            startingLineNumber = "26"
+            endingLineNumber = "26"
             landmarkName = "perform()"
             landmarkType = "7">
             <Locations>
@@ -9258,69 +9258,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "E437B19A-1846-4A8C-9771-319F86007546"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "134"
-            endingLineNumber = "134"
-            landmarkName = "isAppStoreReceiptSandbox()"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "E437B19A-1846-4A8C-9771-319F86007546 - 7f762c323b6e796"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "__C.UIApplication.isAppStoreReceiptSandbox() -&gt; Swift.Bool"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "135"
-                  endingLineNumber = "135"
-                  offsetFromSymbolStart = "700">
-               </Location>
-               <Location
-                  uuid = "E437B19A-1846-4A8C-9771-319F86007546 - 7f762c323b6e796"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "__C.UIApplication.isAppStoreReceiptSandbox() -&gt; Swift.Bool"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "135"
-                  endingLineNumber = "135"
-                  offsetFromSymbolStart = "192">
-               </Location>
-               <Location
-                  uuid = "E437B19A-1846-4A8C-9771-319F86007546 - 7f762c323b6e7b9"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "__C.UIApplication.isAppStoreReceiptSandbox() -&gt; Swift.Bool"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "134"
-                  endingLineNumber = "134"
-                  offsetFromSymbolStart = "192">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "D0E5994C-0354-4470-91A6-0EBEA1F3F08D"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
@@ -9328,8 +9265,8 @@
             filePath = "SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "124"
-            endingLineNumber = "124"
+            startingLineNumber = "123"
+            endingLineNumber = "123"
             landmarkName = "hasEmbeddedMobileProvision()"
             landmarkType = "7">
             <Locations>

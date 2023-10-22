@@ -38,7 +38,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                             ForEach(playlists) { item in
                                 Button {
                                     print(group.coordinatorRoom.ip)
-                                    //                                    dismiss()
+                                    dismiss()
                                     print(item.id)
                                     print(item.name)
                                     print(item.owner.displayName)
@@ -373,7 +373,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                         Text(album.name)
                     }
                     .onTapGesture {
-                        //                        dismiss()
+                        dismiss()
                         Task {
                             await sonosService.queueSpotifyTrack(id: album.id, group: group)
                         }
