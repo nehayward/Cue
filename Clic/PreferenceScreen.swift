@@ -136,8 +136,8 @@ mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundl
                             .textSelection(.enabled)
                             .scaledToFit()
                     }
+                    .frame(maxWidth: .infinity)
                 }
-
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView()

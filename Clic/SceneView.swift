@@ -56,12 +56,18 @@ struct SceneView: View {
                     show = true
                 } label: {
                     Label("Add Scene", systemImage: "plus.circle.fill")
-                        .padding(4)
+                        .padding(12)
+                        .background{
+                            Capsule()
+                                .foregroundStyle(.thinMaterial)
+                                .shadow(radius: 2, x: 0, y: 1)
+                        }
                 }
                 .buttonStyle(.haptic)
                 .bold()
                 .buttonBorderShape(.capsule)
                 .buttonStyle(.borderedProminent)
+                
             } else {
                 Button {
                     show = true
@@ -80,5 +86,10 @@ struct SceneView: View {
 
 #Preview {
     SceneView(scenes: [SonosScene(id: UUID(), name: "Test", rooms: [])])
+        .environment(SonosService())
+}
+
+#Preview("Empty") {
+    SceneView(scenes: [])
         .environment(SonosService())
 }

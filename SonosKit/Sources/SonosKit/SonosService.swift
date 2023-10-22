@@ -6,15 +6,15 @@ import SwiftUI
 
 @Observable
 public final class SonosService {
+    public var ID: String? = nil
     public var groups: [GroupRoom] = []
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
+    public var networkMonitorService = NetworkMonitorService()
 
     private var sonosSystemDiscoverService = SonosSystemDiscoverService()
-    
-    private var sonosAPI = SonosAPI()
+    private var api = SonosAPI()
     private var musicSearch = MusicSearchService()
-    public var networkMonitorService = NetworkMonitorService()
 
     public var systemNotFound: Bool = false
     public var permissionsDenied: Bool = false
@@ -368,7 +368,6 @@ public final class SonosService {
 
             let updateGroupVolume = try await groupVolume
             if !roomGroup.isEditingVolume {
-                print("Updating \(updateGroupVolume)")
                 roomGroup.groupVolume = updateGroupVolume
             }
             guard let track = await track else {
@@ -463,7 +462,6 @@ public final class SonosService {
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
-                        print("Updating \(groupVolumeAwaited)")
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
 
@@ -598,12 +596,12 @@ public final class SonosService {
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
-        let groups = try await sonosAPI.getGroups(ipAddress: ip)
+        let groups = try await api.getGroups(ipAddress: ip)
         return groups
     }
 
     public func getGroups(with ip: String) async throws -> [GroupRoom] {
-        let groups = try await sonosAPI.getGroups(ipAddress: ip)
+        let groups = try await api.getGroups(ipAddress: ip)
         return groups
     }
 
@@ -611,7 +609,7 @@ public final class SonosService {
         // MARK: Only group new rooms
         let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorID }
         for room in nonCoordinatorRooms {
-            await sonosAPI.group(IP: room.ip, to: coordinatorID)
+            await api.group(IP: room.ip, to: coordinatorID)
         }
     }
 
@@ -624,44 +622,45 @@ public final class SonosService {
             switch change {
             case let .insert(_, element, _):
                 print(element)
-                await sonosAPI.group(IP: element.ip, to: group.coordinatorID)
+                await api.group(IP: element.ip, to: group.coordinatorID)
             case let .remove(_, element, _):
                 print(element)
-                await sonosAPI.ungroup(IP: element.ip)
+                await api.ungroup(IP: element.ip)
             }
         }
     }
 
     public func setDeviceVolume(ip: String, volume: Int) async {
-        await sonosAPI.setVolume(ipAddress: ip, volume: volume)
+        await api.setVolume(ipAddress: ip, volume: volume)
     }
 
     public func setRelativeVolume(ip: String, volume: Int) async {
-        await sonosAPI.setRelativeVolume(ipAddress: ip, volume: volume)
+        await api.setRelativeVolume(ipAddress: ip, volume: volume)
     }
 
     @MainActor
     public func setGroupMute(group: GroupRoom, mute: Bool) async {
         group.isMuted = mute
-        await sonosAPI.setGroupMute(IP: group.coordinatorRoom.ip, mute: mute)
+        await api.setGroupMute(IP: group.coordinatorRoom.ip, mute: mute)
     }
 
     public func setGroupVolume(ip: String, volume: Int) async {
-        await sonosAPI.setGroupVolume(ipAddress: ip, volume: volume)
+        await api.setGroupVolume(ipAddress: ip, volume: volume)
     }
 
     public func setRelativeGroupVolume(ip: String, volume: Int) async {
-        await sonosAPI.setRelativeGroupVolume(ipAddress: ip, volume: volume)
+        await api.setRelativeGroupVolume(ipAddress: ip, volume: volume)
     }
 
     public func snapShotGroup(ip: String) async {
-        await sonosAPI.snapshotGroupVolume(ipAddress: ip)
+        await api.snapshotGroupVolume(ipAddress: ip)
     }
 
     public func getTrack(ip: String) async -> Track? {
-        await sonosAPI.getCurrentTrack(ipAddress: ip)
+        await api.getCurrentTrack(ipAddress: ip)
     }
 
+    @MainActor
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
         switch track.musicService  {
         case .apple:
@@ -700,7 +699,7 @@ public final class SonosService {
             }
         }
 
-        await sonosAPI.pause(ipAddress: ip)
+        await api.pause(ipAddress: ip)
     }
 
     public func play(ip: String) async {
@@ -713,71 +712,71 @@ public final class SonosService {
                 groups[groupIndex].rooms[index].isPlaying = true
             }
         }
-        await sonosAPI.play(ipAddress: ip)
+        await api.play(ipAddress: ip)
     }
 
     public func next(ip: String) async {
-        await sonosAPI.next(ipAddress: ip)
+        await api.next(ipAddress: ip)
     }
 
     public func previous(ip: String) async {
-        await sonosAPI.previous(ipAddress: ip)
+        await api.previous(ipAddress: ip)
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool {
-        await sonosAPI.getGroupMute(IP: group.coordinatorRoom.ip)
+        await api.getGroupMute(IP: group.coordinatorRoom.ip)
     }
     
     public func getVolume(ip: String) async throws -> Double {
-       try await sonosAPI.getVolume(ipAddress: ip)
+       try await api.getVolume(ipAddress: ip)
     }
 
     public func getGroupVolume(ip: String) async throws -> Double {
-        try await sonosAPI.getGroupVolume(ipAddress: ip)
+        try await api.getGroupVolume(ipAddress: ip)
     }
 
     public func getPlaybackInfo(ip: String) async -> PlaybackStatus {
-        await sonosAPI.isPlaying(ipAddress: ip)
+        await api.isPlaying(ipAddress: ip)
     }
 
     public func getCurrentTransportActions(ip: String) async -> AvailableActions? {
-        await sonosAPI.getCurrentTransportActions(IP: ip)
+        await api.getCurrentTransportActions(IP: ip)
     }
 
     public func playMode(ip: String) async -> PlayMode {
-        await sonosAPI.playMode(ip)
+        await api.playMode(ip)
     }
 
     public func setPlayMode(_ IP: String, mode: PlayMode) async {
-        await sonosAPI.setPlayMode(IP, playMode: mode)
+        await api.setPlayMode(IP, playMode: mode)
     }
 
     public func isTVMode(ip: String) async -> Bool {
-       await sonosAPI.mediaInfo(ipAddress: ip)
+       await api.mediaInfo(ipAddress: ip)
     }
 
     public func getTVSettings(ip: String) async throws -> TVSettings {
-        let dialogLevel = try await sonosAPI.getDialogLevel(IP: ip)
-        let nightMode = try await sonosAPI.getNightMode(IP: ip)
-        let audioInputFormat = try await sonosAPI.getAudioInputFormat(IP: ip)
+        let dialogLevel = try await api.getDialogLevel(IP: ip)
+        let nightMode = try await api.getNightMode(IP: ip)
+        let audioInputFormat = try await api.getAudioInputFormat(IP: ip)
         return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioInputFormat: audioInputFormat)
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
-        try await sonosAPI.setDialogLevel(IP: IP, enabled: enabled)
+        try await api.setDialogLevel(IP: IP, enabled: enabled)
     }
 
     public func setNightMode(_ IP: String, enabled: Bool) async throws {
-        try await sonosAPI.setNightMode(IP: IP, enabled: enabled)
+        try await api.setNightMode(IP: IP, enabled: enabled)
     }
 
     public func togglePlayback(ip: String) async {
-        let playback =  await sonosAPI.isPlaying(ipAddress: ip)
+        let playback =  await api.isPlaying(ipAddress: ip)
         switch playback {
         case .playing:
-            await sonosAPI.pause(ipAddress: ip)
+            await api.pause(ipAddress: ip)
         case .paused, .transitioning:
-            await sonosAPI.play(ipAddress: ip)
+            await api.play(ipAddress: ip)
         }
     }
 
@@ -803,24 +802,24 @@ public final class SonosService {
     }
 
     public func queue(song: String, on ip: String) async {
-        await sonosAPI.removeAllTrackFromQueue(IP: ip)
-        await sonosAPI.queue(song: song, IP: ip)
+        await api.removeAllTrackFromQueue(IP: ip)
+        await api.queue(song: song, IP: ip)
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
-        await sonosAPI.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        await sonosAPI.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
+        await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
     }
 
     public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
-        await sonosAPI.removeAllTrackFromQueue(IP: ip)
-        await sonosAPI.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
-        await sonosAPI.setAVTransport(IP: ip, ID: group.coordinatorID)
+        await api.removeAllTrackFromQueue(IP: ip)
+        await api.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
+        await api.setAVTransport(IP: ip, ID: group.coordinatorID)
     }
 
     public func queueSpotifyTrack(id: String, group: GroupRoom) async {
-        await sonosAPI.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip)
-        await sonosAPI.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip)
+        await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
     }
 
     public func queueSpotifyAlbum(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
@@ -830,15 +829,15 @@ public final class SonosService {
     }
 
     public func getQueue(ip: String) async -> [Track] {
-        await sonosAPI.getQueue(IP: ip)
+        await api.getQueue(IP: ip)
     }
 
     public func clearQueue(_ IP: String) async throws {
-        await sonosAPI.removeAllTrackFromQueue(IP: IP)
+        await api.removeAllTrackFromQueue(IP: IP)
     }
 
     public func removeTrackFromQueue(_ IP: String, index: Int) async throws {
-        await sonosAPI.removeTrackFromQueue(IP: IP, index: index)
+        await api.removeTrackFromQueue(IP: IP, index: index)
     }
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
@@ -854,6 +853,11 @@ public final class SonosService {
             print(error)
             return nil
         }
+    }
+
+    public func getHouseID() async -> String {
+        guard let ip = groups.first?.ip else { return "" }
+        return await api.getHouseHoldID(for: ip)
     }
 }
 

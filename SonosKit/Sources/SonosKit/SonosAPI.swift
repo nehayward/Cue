@@ -599,8 +599,8 @@ final class SonosAPI {
         }
     }
 
-    func getHouseHoldID(for ip: String) async -> String {
-        if let (data, _) = try? await sendSoapRequest(ip: ip, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {
+    func getHouseHoldID(for IP: String) async -> String {
+        if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
             let houseID = XMLParserSonos().parseHouseID(xml: xmlString)
             return houseID

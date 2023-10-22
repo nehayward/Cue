@@ -11,9 +11,9 @@ struct SceneBuilderScreen: View {
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
     @State var groupVolume = 0.0
+    @State var id: String?
 
-    @CloudStorage("com.clic.scenes")
-    var scenes: [SonosScene] = []
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -159,15 +159,22 @@ struct SceneBuilderScreen: View {
             guard OSEnvironment.isPreviews else { return }
             sonosService.monitor()
         }
+        .task {
+            try? await Task.sleep(for: .milliseconds(500))
+            let id = await sonosService.getHouseID()
+            print(id)
+            self.id = id
+        }
+
     }
 }
 
 #Preview {
 //    @State var sonosService = SonosService()
-    Text("HERE")
+    SceneView()
         .sheet(isPresented: .constant(true)) {
             SceneBuilderScreen()
-                .environment(SonosService())
-
         }
+        .environment(SonosService())
+
 }
