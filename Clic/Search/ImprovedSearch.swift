@@ -214,44 +214,31 @@ struct ImprovedSearch: View, KeyboardReadable {
                     .bold()
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Spacer()
-                    Menu {
-                        Button {
-                            musicSearchSelection = .spotify
-                        } label: {
-                            HStack {
-                                Text("Spotify")
-                                Image(.spotifyLogo)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .tag(SearchSelection.spotify)
-                                    .frame(width: 24, height: 24)
-                            }
-                        }
-
-                        Button {
-                            musicSearchSelection = .apple
-                        } label: {
-                            HStack {
-                                Text("Apple Music")
-                                Image(systemName: "apple.logo")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .tag(SearchSelection.spotify)
-                                    .frame(width: 24, height: 24)
-                            }
-                        }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Menu {
+                    Button {
+                        musicSearchSelection = .spotify
                     } label: {
-                        switch musicSearchSelection {
-                        case .spotify:
+                        HStack {
+                            Text("Spotify")
                             Image(.spotifyLogo)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .tag(musicSearchSelection)
+                                .tag(SearchSelection.spotify)
                                 .frame(width: 24, height: 24)
-                        case .apple:
+                        }
+                    }
+                    .id(SearchSelection.spotify)
+
+                    Button {
+                        musicSearchSelection = .apple
+                    } label: {
+                        HStack {
+                            Text("Apple Music")
                             Image(systemName: "apple.logo")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -259,26 +246,41 @@ struct ImprovedSearch: View, KeyboardReadable {
                                 .frame(width: 24, height: 24)
                         }
                     }
-                    .frame(alignment: .trailing)
-                    .padding()
+                    .id(SearchSelection.apple)
+                } label: {
+                    switch musicSearchSelection {
+                    case .spotify:
+                        Image(.spotifyLogo)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .tag(musicSearchSelection)
+                            .frame(width: 24, height: 24)
+                    case .apple:
+                        Image(systemName: "apple.logo")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .tag(SearchSelection.spotify)
+                            .frame(width: 24, height: 24)
+                    }
                 }
-                //                    FilterView()
-                //                    TextField(
-                //                        "New message",
-                //                        text: $query
-                //                    )
-                //                    .focused($focusedField)
-                //                    .padding()
-                //
-                //                    .onSubmit {
-                //                        // append message
-                //                    }
-                //
-                //
-                //                .textFieldStyle(.roundedBorder)
-                //                .background(.ultraThinMaterial)
+                .frame(alignment: .trailing)
+                .padding()
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
+            //                    FilterView()
+            //                    TextField(
+            //                        "New message",
+            //                        text: $query
+            //                    )
+            //                    .focused($focusedField)
+            //                    .padding()
+            //
+            //                    .onSubmit {
+            //                        // append message
+            //                    }
+            //
+            //
+            //                .textFieldStyle(.roundedBorder)
+            //                .background(.ultraThinMaterial)
         }
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
