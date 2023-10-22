@@ -10,6 +10,7 @@ struct SceneBuilderScreen: View {
     @State var selections = Set<String>()
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
+    @State var groupVolume = 0.0
 
     @CloudStorage("com.clic.scenes")
     var scenes: [SonosScene] = []
@@ -34,8 +35,6 @@ struct SceneBuilderScreen: View {
                                         HStack {
                                             Text(room.name)
                                             Spacer()
-                                            Text(room.volume, format: .number)
-                                                .frame(minWidth: 20, alignment: .leading)
                                         }
                                     }
                                     Spacer()
@@ -46,10 +45,30 @@ struct SceneBuilderScreen: View {
                                 HStack(alignment: .center) {
                                     Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
                                     Slider(value: $room.volume, in: 0...100, step: 2)
+                                    Text(room.volume, format: .number)
+                                        .frame(minWidth: 20, alignment: .leading)
                                 }
                             }
                         }
                         .buttonStyle(.haptic)
+                    }
+                }
+                VStack {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text("Adjust All")
+                                    .bold()
+                            }
+                        }
+                        Spacer()
+                    }
+                    Divider()
+                    HStack(alignment: .center) {
+                        Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
+                        Slider(value: $groupVolume, in: 0...100, step: 2)
+                        Text(groupVolume, format: .number)
+                            .frame(minWidth: 20, alignment: .leading)
                     }
                 }
             }
@@ -63,6 +82,11 @@ struct SceneBuilderScreen: View {
                     }
                     .fontDesign(.rounded)
                     .bold()
+                }
+            }
+            .onChange(of: groupVolume, initial: false) { _, newValue in
+                for room in rooms {
+                    room.volume = groupVolume
                 }
             }
 //  MARK: Add Volume Only
@@ -132,7 +156,7 @@ struct SceneBuilderScreen: View {
             sceneName = rooms.map(\.name).joined(separator: " + ")
         }
         .task {
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            guard OSEnvironment.isPreviews else { return }
             sonosService.monitor()
         }
     }
