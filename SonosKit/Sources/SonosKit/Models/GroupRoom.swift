@@ -69,4 +69,9 @@ extension GroupRoom {
                                           rooms: [.theater],
                                           coordinatorRoom: .theater,
                                           tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .unknown))
+
+    public static let garage_kitchen_display = GroupRoom(id: "RINCON_B8E937525BB001400:931790658",
+                                         coordinatorID: Room.garage_kitchen_display.id,
+                                         rooms: [.garage_kitchen_display],
+                                         coordinatorRoom: .garage_kitchen_display)
 }

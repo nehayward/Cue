@@ -224,3 +224,13 @@ struct DeviceListMainView: View {
         .environment(SubscriptionService())
         .environment(AlertService())
 }
+
+
+#Preview("Appstore Screens") {
+    DeviceListMainView(selected: .constant(nil))
+        .screenshot(name: "Appstore")
+        .colorScheme(.dark)
+        .environment(SonosService())
+        .environment(SubscriptionService())
+        .environment(AlertService())
+}

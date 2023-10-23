@@ -31,6 +31,7 @@ struct ClicApp: App {
         }
         .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             guard subscriptionService.subscription.isActive else { return }
+            guard selected != nil else { return }
             Task {
                 await liveActivityManager?.createActivity(with: sonosService.groups)
             }

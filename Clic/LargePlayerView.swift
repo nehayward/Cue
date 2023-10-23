@@ -285,5 +285,23 @@ struct LargePlayerView: View {
     NavigationStack {
         LargePlayerView(group: .constant(.garage), selected: .constant(nil))
             .environment(SonosService())
+            .onAppear {
+                let thumbImage = UIImage()
+                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+            }
     }
 }
+
+#Preview("Appstore Screens") {
+    NavigationStack {
+        LargePlayerView(group: .constant(.garage), selected: .constant(nil))
+            .screenshot(name: "Player Screen")
+            .colorScheme(.dark)
+            .environment(SonosService())
+            .onAppear {
+                let thumbImage = UIImage()
+                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+            }
+    }
+}
+

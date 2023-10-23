@@ -539,6 +539,13 @@ public final class SonosService {
                     if isTVMode {
                         roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
                     }
+//
+//                    // MARK: Make Screenshot Mock Mode
+//                    if roomGroup.coordinatorRoom.name == "Theater" {
+//                        roomGroup.tvMode = true
+//                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
+//                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
+//                    }
                 }
             }
         }

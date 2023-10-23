@@ -94,6 +94,7 @@
 		E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B112A58721F00FB9118 /* PlayerView.swift */; };
 		E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
+		E9CB9E602AE6DD1F00107408 /* PreviewScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CB9E5F2AE6DD1F00107408 /* PreviewScreenshot.swift */; };
 		E9D856272A9FB5AD0024B192 /* PillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856262A9FB5AD0024B192 /* PillView.swift */; };
 		E9D856292A9FBB020024B192 /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856282A9FBB020024B192 /* AlertService.swift */; };
 		E9DAE4922A5F59A600B03199 /* WatchWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DAE4902A5F599700B03199 /* WatchWidgetView.swift */; };
@@ -196,7 +197,7 @@
 		E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E959B9192AB506A4000D596E /* Clic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clic.entitlements; sourceTree = "<group>"; };
 		E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Clic (Watch).entitlements"; sourceTree = "<group>"; };
-		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VibesDS; path = ../../../../../Downloads/VibesDS; sourceTree = "<group>"; };
+		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = VibesDS; sourceTree = "<group>"; };
 		E960ED462AC46769003E3732 /* SubscriptionKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SubscriptionKit; sourceTree = "<group>"; };
 		E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
 		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
@@ -253,6 +254,7 @@
 		E9C03B112A58721F00FB9118 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceEntity.swift; sourceTree = "<group>"; };
 		E9C03B172A5A196200FB9118 /* NextIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextIntent.swift; sourceTree = "<group>"; };
+		E9CB9E5F2AE6DD1F00107408 /* PreviewScreenshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewScreenshot.swift; sourceTree = "<group>"; };
 		E9D856262A9FB5AD0024B192 /* PillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillView.swift; sourceTree = "<group>"; };
 		E9D856282A9FBB020024B192 /* AlertService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertService.swift; sourceTree = "<group>"; };
 		E9DAE4902A5F599700B03199 /* WatchWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWidgetView.swift; sourceTree = "<group>"; };
@@ -470,6 +472,7 @@
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
+				E9CB9E5F2AE6DD1F00107408 /* PreviewScreenshot.swift */,
 			);
 			path = Clic;
 			sourceTree = "<group>";
@@ -827,6 +830,7 @@
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
+				E9CB9E602AE6DD1F00107408 /* PreviewScreenshot.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */,
