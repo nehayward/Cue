@@ -20,23 +20,19 @@ final class GroupScreenViewModel {
         if selections == initialSelection {
             return "Cancel"
         }
-        if selections.count > initialSelection.count {
-            return "Grouping \(selections.count)"
+        if selections.count >= initialSelection.count {
+            return "Grouping"
+        } else {
+            return "Separating"
         }
-
-        if selections.count < initialSelection.count {
-            return "Ungroup"
-        }
-
-        return "Group"
     }
 
     var numberInGroup: String {
         if selections == initialSelection, selections.count > 0 {
-            return " + \(initialSelection.count)"
+            return "\(initialSelection.count)"
         }
 
-        return selections.count > 0 ? " + \(selections.count)" : ""
+        return selections.count > 0 ? "\(selections.count)" : ""
     }
 
     func buttonAction(id: String) {

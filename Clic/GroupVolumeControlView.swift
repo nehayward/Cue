@@ -42,53 +42,21 @@ struct GroupVolumeControlView: View {
                     VStack(alignment: .leading) {
                         Text(room.name)
                             .fontDesign(.rounded)
-                        HStack(spacing: 0) {
-                            Image(systemName: "speaker.wave.3.fill", variableValue: group.groupVolume/100)
-                                .fixedSize()
-                                .padding(.trailing, 8)
-                            Slider(value: $room.volume, in: 0...100, step: 2) { isEditing in
-                                self.isEditingRoomVolume = isEditing
-                                room.isEditingVolume = isEditing
-                                let endingVolume = room.volume
-                                if !isEditing {
-                                    print(room.volume)
-                                    print("Cancelled")
-                                    volumeTask?.cancel()
-                                    volumeTask = Task {
-                                        try? await Task.sleep(for: .milliseconds(100))
-                                        try Task.checkCancellation()
-                                        print("Runnning")
-                                        print(room.name)
-                                        print(room.volume)
-                                        print("Ending", endingVolume)
-                                        await sonosService.setDeviceVolume(ip: room.ip, volume: Int(endingVolume))
-                                        try await Task.sleep(for: .milliseconds(300))
-                                        await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
-                                    }
-                                }
-                            }
-                            .sensoryFeedback(.impact(flexibility: .solid), trigger: room.volume) { _, _ in
-                                isEditingRoomVolume
-                            }
-                            Text("\(room.volume, specifier: "%03.0f")%")
-                                .monospacedDigit()
-                        }
-                    }
-                    .onChange(of: room.volume, initial: false) {
-                        if isEditingRoomVolume {
-                            let endingVolume = room.volume
+                        RoomVolumeView(room: $room, updatedVolume: {
                             volumeTask?.cancel()
                             volumeTask = Task {
-                                try? await Task.sleep(for: .milliseconds(100))
-                                try Task.checkCancellation()
-                                print(room.name)
-                                await sonosService.setDeviceVolume(ip: room.ip, volume: Int(endingVolume))
                                 try await Task.sleep(for: .milliseconds(300))
+                                try Task.checkCancellation()
                                 await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
                             }
-                        }
+                        })
                     }
                     .animation(.interactiveSpring, value: room.volume)
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 20)
+                            .foregroundStyle(.thinMaterial)
+                    }
                 }
                 Button {
                     for room in group.rooms {
@@ -102,9 +70,10 @@ struct GroupVolumeControlView: View {
                     }
                 } label: {
                     Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                        .frame(maxWidth: .infinity)
                         .bold()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle)
             }
             .opacity(isExpanded ? 1 : 0)

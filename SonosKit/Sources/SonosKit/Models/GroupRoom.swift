@@ -74,4 +74,9 @@ extension GroupRoom {
                                          coordinatorID: Room.garage_kitchen_display.id,
                                          rooms: [.garage_kitchen_display],
                                          coordinatorRoom: .garage_kitchen_display)
+
+    public static let garagePlusTheater = GroupRoom(id: "RINCON_B8E937525BB001400:931790658",
+                                         coordinatorID: Room.garage.id,
+                                                    rooms: [.garage, .theater],
+                                         coordinatorRoom: .garage)
 }

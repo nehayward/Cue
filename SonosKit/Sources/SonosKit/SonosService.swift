@@ -581,7 +581,6 @@ public final class SonosService {
                     }
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
-                        print("Not Updating")
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
                     
@@ -797,7 +796,7 @@ public final class SonosService {
 //        scenes.append(newScene)
     }
 
-    public func runScene(_ scene: SonosScene) async {
+    public func runScene(_ scene: SonosScene) async throws {
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
         await group(rooms: rooms, to: scene.rooms.first!.id)
         for room in scene.rooms {

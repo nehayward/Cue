@@ -5,22 +5,21 @@ import Foundation
 public final class AlertService: @unchecked Sendable {
     var alert = Alert()
     private let queue = DispatchQueue(label: "AlertService\(UUID().uuidString)")
+    private var alertTask: Task<Void, Error>?
 
     @MainActor
     func showAlert(with text: String) {
+        alertTask?.cancel()
+        alert.isShowing = false
         alert.text = text
         alert.isShowing = true
-//        queue.sync {
-//            alert.text = text
-//            alert.isShowing = true
-//        }
-        Task { [weak self] in
+
+        alertTask = Task { [weak self] in
             guard let self else { return }
+            try Task.checkCancellation()
             try await Task.sleep(for: .seconds(3))
-//            queue.sync { [weak self] in
-//                guard let self else { return }
-                alert.isShowing = false
-//            }
+            try Task.checkCancellation()
+            alert.isShowing = false
             try await Task.sleep(for: .milliseconds(800))
             alert.text = ""
         }

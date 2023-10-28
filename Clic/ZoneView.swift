@@ -17,15 +17,14 @@ struct ZoneView: View {
     }
 }
 
-//#Preview {
-//    List {
-//        Section {
-//            ZoneView(group: .garage)
-//                .environment(SonosService())
-//        }
-//        Section {
-//            ZoneView(group: .garage)
-//                .environment(SonosService())
-//        }
-//    }
-//}
+#Preview {
+    List {
+        Section {
+            ZoneView(group: .constant(.garage))
+        }
+        Section {
+            ZoneView(group: .constant(.theater))
+        }
+    }
+    .environment(SonosService())
+}

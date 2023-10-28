@@ -119,7 +119,7 @@ struct PlayerView: View {
                         .foregroundStyle(.foreground)
                 }
             }
-            ToolbarItemGroup (placement: .bottomBar) {
+            ToolbarItemGroup (placement: .primaryAction) {
                 Button {
                     Task {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
@@ -127,10 +127,6 @@ struct PlayerView: View {
                 } label: {
                     Image(systemName: "backward.end.fill")
                 }
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
-
                 Button(action: {
                     Task {
                         if group.coordinatorRoom.isPlaying {
@@ -159,9 +155,6 @@ struct PlayerView: View {
                 })
                 .controlSize(.large)
                 .clipShape(Circle())
-                .transaction { transaction in
-                    transaction.animation = nil
-                }
                 Button {
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
@@ -169,9 +162,6 @@ struct PlayerView: View {
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")
-                }
-                .transaction { transaction in
-                    transaction.animation = nil
                 }
             }
         }

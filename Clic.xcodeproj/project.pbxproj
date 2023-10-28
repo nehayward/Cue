@@ -79,6 +79,7 @@
 		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeViewCell.swift */; };
+		E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
 		E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
@@ -106,6 +107,7 @@
 		E9DE849E2A6707E1004C3947 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */; };
 		E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
+		E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */; };
 		E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
@@ -238,6 +240,7 @@
 		E9B12B5D2A5F317B0008868C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
 		E9B256512A9951A00083869E /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
+		E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneButton.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
@@ -265,6 +268,7 @@
 		E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetRectangularView.swift; sourceTree = "<group>"; };
 		E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityNowPlayingView.swift; sourceTree = "<group>"; };
+		E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomVolumeView.swift; sourceTree = "<group>"; };
 		E9EE31832ADF82B000F71303 /* IntentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentError.swift; sourceTree = "<group>"; };
 		E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
@@ -453,11 +457,13 @@
 				E96396362A3B8F5200518A17 /* ZoneView.swift */,
 				E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */,
 				E9C03AF62A57668800FB9118 /* VolumeControlView.swift */,
+				E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */,
 				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
-				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
+				E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
+				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
 				E960ED452AC38936003E3732 /* Search */,
@@ -469,6 +475,7 @@
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E9A953162ADCD5B600600516 /* HapticButton.swift */,
 				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
+				E9EAA59E2AEC22DC00481945 /* Components */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
@@ -569,6 +576,13 @@
 				E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		E9EAA59E2AEC22DC00481945 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -821,6 +835,7 @@
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
+				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
@@ -831,6 +846,7 @@
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E9CB9E602AE6DD1F00107408 /* PreviewScreenshot.swift in Sources */,
+				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */,

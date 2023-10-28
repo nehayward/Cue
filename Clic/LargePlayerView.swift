@@ -5,6 +5,7 @@ struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
     @Binding var selected: String?
+    @State var isExpanded: Bool = false
 
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
@@ -12,7 +13,6 @@ struct LargePlayerView: View {
     @State private var showSearch = false
     @State private var showQueue = false
 
-    @State private var isExpanded: Bool = false
     @State private var nextButtonTapped: Bool = false
 
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
@@ -75,42 +75,9 @@ struct LargePlayerView: View {
                 .fontDesign(.rounded)
                 .bold()
             }
-            ToolbarItem(placement: .bottomBar) {
-                HStack(spacing: 60) {
-                    Button {
-                        showGroup.toggle()
-                    } label: {
-                        Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                            .font(.body)
-                    }
-                    .fontDesign(.rounded)
-                    .buttonStyle(.plain)
-                    .font(.body)
-
-                    Button {
-                        showSearch.toggle()
-                    } label: {
-                        Image(systemName: "waveform.and.magnifyingglass")
-                            .font(.body)
-                    }
-                    .fontDesign(.rounded)
-                    .buttonStyle(.plain)
-                    .font(.body)
-
-                    Button {
-                        showQueue.toggle()
-                    } label: {
-                        Image(systemName: "music.note.list")
-                            .font(.body)
-                    }
-                    .fontDesign(.rounded)
-                    .buttonStyle(.plain)
-                    .font(.body)
-                }
-            }
         }
         .sheet(isPresented: $showGroup) {
-            GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
+            GroupScreen(showGroupScreen: $showGroup, viewModel: GroupScreenViewModel(group: group))
         }
         .sheet(isPresented: $showSearch) {
             //            SearchScreen(group: group)
@@ -168,7 +135,41 @@ struct LargePlayerView: View {
                             isExpanded = false
                         }
                     }
-                GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
+                VStack {
+                    GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
+                    HStack(spacing: 60) {
+                        Button {
+                            showGroup.toggle()
+                        } label: {
+                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+
+                        Button {
+                            showSearch.toggle()
+                        } label: {
+                            Image(systemName: "waveform.and.magnifyingglass")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+
+                        Button {
+                            showQueue.toggle()
+                        } label: {
+                            Image(systemName: "music.note.list")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+                    }
+                    .opacity(isExpanded ? 0 : 1)
+                }
             }
         }
     }
@@ -292,6 +293,19 @@ struct LargePlayerView: View {
     }
 }
 
+#Preview("Group") {
+    NavigationStack {
+        LargePlayerView(group: .constant(.garagePlusTheater), selected: .constant(nil), isExpanded: true)
+            .screenshot(name: "Player Screen")
+            .environment(SonosService())
+            .onAppear {
+                let thumbImage = UIImage()
+                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+            }
+    }
+    .colorScheme(.dark)
+}
+
 #Preview("Appstore Screens") {
     NavigationStack {
         LargePlayerView(group: .constant(.garage), selected: .constant(nil))
@@ -304,4 +318,6 @@ struct LargePlayerView: View {
             }
     }
 }
+
+
 

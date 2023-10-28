@@ -3,7 +3,7 @@ import SwiftUI
 import SonosKit
 
 struct VolumeControlView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosService.self) private var sonosService: SonosService
     @Binding var group: GroupRoom
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
@@ -35,22 +35,19 @@ struct VolumeControlView: View {
                     updateVolume(volume: group.groupVolume)
                 }
             }
-            .sensoryFeedback(.impact(flexibility: .solid), trigger: group.groupVolume) { oldValue, newValue in
+            .sensoryFeedback(.selection, trigger: group.groupVolume) { _, _ in
                 isEditing
             }
-            Text("\(group.groupVolume, specifier: "%02.0f")%")
+            Text("\(group.groupVolume, specifier: "%03.0f")%")
+                .contentTransition(.numericText())
                 .monospacedDigit()
-                .animation(nil, value: group.groupVolume)
+                .animation(.spring.speed(2), value: group.groupVolume)
                 .frame(width: 38, alignment: .trailing)
+                .fontDesign(.rounded)
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .onChange(of: group.groupVolume) {
-            if isEditing {
-                updateVolume(volume: group.groupVolume)
-            }
-        }
-        .animation(.snappy, value: group.groupVolume)
+        .animation(.interactiveSpring, value: group.groupVolume)
     }
 
     private func updateVolume(volume: Double) {
@@ -58,7 +55,6 @@ struct VolumeControlView: View {
         volumeTask = Task {
             try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
-            group.groupVolume = volume
             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             if volume.isZero {
                 try? await Task.sleep(for: .milliseconds(200))
@@ -69,6 +65,10 @@ struct VolumeControlView: View {
 }
 
 #Preview {
-    return VolumeControlView(group: .constant(.garage))
+    VolumeControlView(group: .constant(.garage))
         .environment(SonosService())
+        .onAppear {
+            let thumbImage = UIImage()
+            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+        }
 }

@@ -13,7 +13,26 @@ struct ClicApp: App {
     @State private var subscriptionService = SubscriptionService()
     @State private var sonosService = SonosService()
     @State private var alertService = AlertService()
+
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+//
+//    // register initial UserDefaults values every launch
+//    init() {
+//        // Migrate Sonos Scenes
+//        if OSEnvironment.versionInfo == "2023.3" {
+//            guard !scenes.isEmpty else {
+//                // no migration needed
+//                return
+//            }
+//            let updatedScenes: [SonosScene] = scenes.map { scene in
+//                return SonosScene(name: scene.name, rooms: scene.rooms, isActive: false)
+//            }
+//            scenes = updatedScenes
+//            NSUbiquitousKeyValueStore.default.synchronize()
+//            print("Migrated")
+//        }
+//    }
 
     var body: some Scene {
         WindowGroup {
@@ -29,7 +48,7 @@ struct ClicApp: App {
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
         }
-        .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
+        .onChange(of: selected) {
             guard subscriptionService.subscription.isActive else { return }
             guard selected != nil else { return }
             Task {

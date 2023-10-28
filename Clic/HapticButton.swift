@@ -22,7 +22,6 @@ struct HapticButtonStyle: ButtonStyle {
         configuration
             .label
             .sensoryFeedback(.selection, trigger: configuration.isPressed == true)
-            .contentShape(Rectangle())
     }
 }
 

@@ -7381,8 +7381,8 @@
             filePath = "Watch/PlayerView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "184"
-            endingLineNumber = "184"
+            startingLineNumber = "174"
+            endingLineNumber = "174"
             landmarkName = "body"
             landmarkType = "24">
             <Locations>
@@ -7561,132 +7561,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "1CD38C2A-E622-475E-B6B7-9C9516C4EB41"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Clic/GroupVolumeControlView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "87"
-            endingLineNumber = "87"
-            landmarkName = "body"
-            landmarkType = "24">
-            <Locations>
-               <Location
-                  uuid = "1CD38C2A-E622-475E-B6B7-9C9516C4EB41 - e0a3cd3cf3899ab1"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(7) suspend resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "84"
-                  endingLineNumber = "84"
-                  offsetFromSymbolStart = "104">
-               </Location>
-               <Location
-                  uuid = "1CD38C2A-E622-475E-B6B7-9C9516C4EB41 - 119c72aa27926607"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(8) await resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "84"
-                  endingLineNumber = "84"
-                  offsetFromSymbolStart = "40">
-               </Location>
-               <Location
-                  uuid = "1CD38C2A-E622-475E-B6B7-9C9516C4EB41 - 5afd64214da2d6b3"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(9) suspend resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #2 () -&gt; () in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "84"
-                  endingLineNumber = "84"
-                  offsetFromSymbolStart = "84">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "C91F4BBA-9D37-48B2-8EAE-7C90F8D1C262"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "Clic/GroupVolumeControlView.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "66"
-            endingLineNumber = "66"
-            landmarkName = "body"
-            landmarkType = "24">
-            <Locations>
-               <Location
-                  uuid = "C91F4BBA-9D37-48B2-8EAE-7C90F8D1C262 - 1d064812177fcf6"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(7) suspend resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #1 (Swift.Bool) -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Text, SwiftUI.HStack&lt;SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt;&gt;)&gt; in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "65"
-                  endingLineNumber = "65"
-                  offsetFromSymbolStart = "104">
-               </Location>
-               <Location
-                  uuid = "C91F4BBA-9D37-48B2-8EAE-7C90F8D1C262 - dece39eae3fd4a90"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(8) await resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #1 (Swift.Bool) -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Text, SwiftUI.HStack&lt;SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt;&gt;)&gt; in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "65"
-                  endingLineNumber = "65"
-                  offsetFromSymbolStart = "40">
-               </Location>
-               <Location
-                  uuid = "C91F4BBA-9D37-48B2-8EAE-7C90F8D1C262 - b1ba7f94d28eb0f0"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(9) suspend resume partial function for closure #1 @Sendable () async throws -&gt; () in closure #1 (Swift.Bool) -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.Text, SwiftUI.HStack&lt;SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.sensoryFeedback&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: SwiftUI.SensoryFeedback, trigger: &#x3c4;_1_0) -&gt; some&gt;&gt;.0, SwiftUI.Text)&gt;&gt;)&gt; in closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in implicit closure #1 (SwiftUI.Binding&lt;SonosKit.Room&gt;) -&gt; &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in closure #2 () -&gt; SwiftUI.TupleView&lt;(SwiftUI.ForEach&lt;SwiftUI.Binding&lt;Swift.Array&lt;SonosKit.Room&gt;&gt;, Swift.String, &lt;&lt;opaque return type of SwiftUI.View.animation&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Equatable&gt;(_: Swift.Optional&lt;SwiftUI.Animation&gt;, value: &#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, &lt;&lt;opaque return type of SwiftUI.View.buttonBorderShape(SwiftUI.ButtonBorderShape) -&gt; some&gt;&gt;.0)&gt; in closure #1 () -&gt; SwiftUI.TupleView&lt;(&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0, &lt;&lt;opaque return type of SwiftUI.View.scaleEffect(x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat, anchor: SwiftUI.UnitPoint) -&gt; some&gt;&gt;.0)&gt; in Clic.GroupVolumeControlView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/GroupVolumeControlView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "65"
-                  endingLineNumber = "65"
-                  offsetFromSymbolStart = "84">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "5E458386-0497-4620-8E57-9C3B45D0D1F9"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -7748,19 +7622,19 @@
             landmarkType = "9">
             <Locations>
                <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 4583a02cd8e4fa20"
+                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 68ab0993aceb04d3"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
                   symbolName = "syncSet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;(&#x3c4;_0_0) -&gt; ()"
-                  moduleName = "Clic Watch"
+                  moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "25"
                   endingLineNumber = "25"
-                  offsetFromSymbolStart = "580">
+                  offsetFromSymbolStart = "416">
                </Location>
                <Location
                   uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 68ab0993aceb04d3"
@@ -7778,36 +7652,6 @@
                   offsetFromSymbolStart = "432">
                </Location>
                <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 68ab0993aceb04d3"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncSet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;(&#x3c4;_0_0) -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "25"
-                  endingLineNumber = "25"
-                  offsetFromSymbolStart = "416">
-               </Location>
-               <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 9b93c6f53d3dd5e6"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncSet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;(&#x3c4;_0_0) -&gt; ()"
-                  moduleName = "SonosKitTests"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "25"
-                  endingLineNumber = "25"
-                  offsetFromSymbolStart = "460">
-               </Location>
-               <Location
                   uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 4583a02cd8e4fa20"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
@@ -7821,51 +7665,6 @@
                   startingLineNumber = "25"
                   endingLineNumber = "25"
                   offsetFromSymbolStart = "416">
-               </Location>
-               <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 53d9b5e38a4ceb62"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncSet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;(&#x3c4;_0_0) -&gt; ()"
-                  moduleName = "Widgets"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "25"
-                  endingLineNumber = "25"
-                  offsetFromSymbolStart = "416">
-               </Location>
-               <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 68ab0993aceb0511"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncSet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;(&#x3c4;_0_0) -&gt; ()"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "27"
-                  endingLineNumber = "27"
-                  offsetFromSymbolStart = "324">
-               </Location>
-               <Location
-                  uuid = "D8A3824D-B0CB-4DF7-B9E8-85DD514C1DD8 - 76be70fadb27d280"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "CloudStorage.CloudStorage&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;.init(wrappedValue: &#x3c4;_0_0, _: Swift.String) -&gt; CloudStorage.CloudStorage&lt;&#x3c4;_0_0&gt;"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "28"
-                  endingLineNumber = "28"
-                  offsetFromSymbolStart = "80">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -7886,36 +7685,6 @@
             landmarkType = "9">
             <Locations>
                <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - 27d0fedcba1d92dd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "Clic Watch"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15"
-                  offsetFromSymbolStart = "812">
-               </Location>
-               <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - af85763ce126c2e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15"
-                  offsetFromSymbolStart = "652">
-               </Location>
-               <Location
                   uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - af85763ce126c2e"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
@@ -7931,19 +7700,19 @@
                   offsetFromSymbolStart = "604">
                </Location>
                <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - f9c098055fc4bd1b"
+                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - af85763ce126c2e"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
                   symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "SonosKitTests"
+                  moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "15"
                   endingLineNumber = "15"
-                  offsetFromSymbolStart = "676">
+                  offsetFromSymbolStart = "652">
                </Location>
                <Location
                   uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - 27d0fedcba1d92dd"
@@ -7959,51 +7728,6 @@
                   startingLineNumber = "15"
                   endingLineNumber = "15"
                   offsetFromSymbolStart = "604">
-               </Location>
-               <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - 318aeb13e8b5839f"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "Widgets"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15"
-                  offsetFromSymbolStart = "604">
-               </Location>
-               <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - af85763ce126c2e"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15"
-                  offsetFromSymbolStart = "676">
-               </Location>
-               <Location
-                  uuid = "AAE31DB5-43F4-4DD2-9102-DFD91977C170 - af85763ce126b8b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "syncGet&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable, &#x3c4;_0_0: Swift.Encodable&gt;() -&gt; &#x3c4;_0_0"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/Models/CloudStorage+Codable.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "18"
-                  endingLineNumber = "18"
-                  offsetFromSymbolStart = "304">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -9265,41 +8989,89 @@
             filePath = "Clic/DeviceListView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "72"
-            endingLineNumber = "72"
+            startingLineNumber = "75"
+            endingLineNumber = "75"
             landmarkName = "body"
             landmarkType = "24">
             <Locations>
                <Location
-                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - fa43a85763c95085"
+                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - 7ffeb522f066b66"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.VStack&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.VStack&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
+                  symbolName = "closure #1 () -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
                   moduleName = "Clic"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "72"
-                  endingLineNumber = "72"
-                  offsetFromSymbolStart = "1084">
-               </Location>
-               <Location
-                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - d52879f457ea0bba"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.VStack&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.VStack&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
-                  moduleName = "Clic"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "74"
-                  endingLineNumber = "74"
+                  startingLineNumber = "76"
+                  endingLineNumber = "76"
                   offsetFromSymbolStart = "176">
                </Location>
+<<<<<<< Updated upstream
+=======
+               <Location
+                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - fe5bfc0986811026"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "75"
+                  endingLineNumber = "75"
+                  offsetFromSymbolStart = "1120">
+               </Location>
+               <Location
+                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - 7ffeb522f066b01"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "77"
+                  endingLineNumber = "77"
+                  offsetFromSymbolStart = "176">
+               </Location>
+               <Location
+                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - fe5bfc0986811026"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "75"
+                  endingLineNumber = "75"
+                  offsetFromSymbolStart = "1580">
+               </Location>
+               <Location
+                  uuid = "8FAC4B52-B40E-4732-AD9C-1B1A028C25CF - 7ffeb522f066b01"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 () -&gt; () in closure #1 () -&gt; SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt; in closure #4 () -&gt; SwiftUI.VStack&lt;SwiftUI.TupleView&lt;(Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.padding(SwiftUI.Edge.Set, Swift.Optional&lt;CoreGraphics.CGFloat&gt;) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;&lt;&lt;opaque return type of SwiftUI.View.transition&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.Transition&gt;(&#x3c4;_1_0) -&gt; some&gt;&gt;.0&gt;, Swift.Optional&lt;SwiftUI.Button&lt;&lt;&lt;opaque return type of SwiftUI.View.shadow(color: SwiftUI.Color, radius: CoreGraphics.CGFloat, x: CoreGraphics.CGFloat, y: CoreGraphics.CGFloat) -&gt; some&gt;&gt;.0&gt;&gt;)&gt;&gt; in closure #1 () -&gt; &lt;&lt;opaque return type of SwiftUI.View.safeAreaInset&lt;&#x3c4;_0_0 where &#x3c4;_1_0: SwiftUI.View&gt;(edge: SwiftUI.VerticalEdge, alignment: SwiftUI.HorizontalAlignment, spacing: Swift.Optional&lt;CoreGraphics.CGFloat&gt;, content: () -&gt; &#x3c4;_1_0) -&gt; some&gt;&gt;.0 in Clic.DeviceListMainView.body.getter : some"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Clic/DeviceListView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "77"
+                  endingLineNumber = "77"
+                  offsetFromSymbolStart = "236">
+               </Location>
+>>>>>>> Stashed changes
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>

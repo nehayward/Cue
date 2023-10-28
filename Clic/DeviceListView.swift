@@ -1,6 +1,6 @@
+import CloudStorage
 import SwiftUI
 import SonosKit
-import VibesDS
 import SubscriptionKit
 import RevenueCat
 import RevenueCatUI
@@ -9,11 +9,14 @@ struct DeviceListMainView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @Binding var selected: String?
     @State var isShowing: Bool = false
     @State var showSettings: Bool = false
     @State private var showPaywall: Bool = false
+    @State private var selectedGroup: GroupRoom? = nil
+    @State var showGroupScreen: Bool = false
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -31,7 +34,7 @@ struct DeviceListMainView: View {
                                     .frame(width: 72, height: 72)
                                 ZoneView(group: $group)
                                 Spacer()
-                                MediaControlsView(group: $group)
+                                MediaControlsView(group: $group, selectedGroup: $selectedGroup)
                             }
                             .padding(.bottom, 4)
                         }
@@ -101,11 +104,9 @@ struct DeviceListMainView: View {
                         .transition(.scale)
                     }
 
-                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive {
-                        VStack{
-                            SceneView()
-                                .padding(12)
-                        }
+                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive && !scenes.isEmpty {
+                        SceneView()
+                            .transition(.offset(y: 100))
                     }
 
                     if !subscriptionService.subscription.isActive {
@@ -156,7 +157,6 @@ struct DeviceListMainView: View {
             VStack {
                 if alertService.alert.isShowing {
                     PillView()
-                        .environment(alertService)
                 }
                 if !sonosService.networkMonitorService.isConnected {
                     Label {
@@ -205,6 +205,14 @@ struct DeviceListMainView: View {
         .sheet(isPresented: $showSettings) {
             PreferenceScreen()
         }
+        .sheet(item: $selectedGroup) { group in
+            GroupScreen(showGroupScreen: $showGroupScreen, viewModel: GroupScreenViewModel(group: group))
+                .onChange(of: showGroupScreen) { _, newValue in
+                    if !newValue {
+                        selectedGroup = nil
+                    }
+                }
+        }
 //        .sheet(isPresented: $showSettings) {
 //            PaywallScreen()
 //        }
@@ -220,6 +228,13 @@ struct DeviceListMainView: View {
 
 #Preview {
     DeviceListMainView(selected: .constant(GroupRoom.garage.coordinatorID))
+        .environment(SonosService())
+        .environment(SubscriptionService())
+        .environment(AlertService())
+}
+
+#Preview {
+    DeviceListMainView(selected: .constant(nil))
         .environment(SonosService())
         .environment(SubscriptionService())
         .environment(AlertService())
