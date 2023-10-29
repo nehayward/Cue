@@ -113,7 +113,7 @@ struct SearchScreen: View {
                             }.onTapGesture {
                                 dismiss()
                                 Task {
-                                    await sonosService.queue(song: "\(result.trackID)", on: group.coordinatorRoom.ip)
+                                    await sonosService.queue(song: "\(result.trackID)", on: group)
                                 }
                             }
 

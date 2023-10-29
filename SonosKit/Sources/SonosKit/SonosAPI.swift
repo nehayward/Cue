@@ -407,17 +407,41 @@ final class SonosAPI {
     }
 
 
-    func queue(song: String, IP: String) async {
+    func queue(song: String, IP: String, position: QueuePosition = .next) async {
         let enqueuedURIMetadata = """
         &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="10032020song%3a\(song)" restricted="true"&gt;&lt;dc:title&gt;Apple Music&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
-        let arguments: [String: Any] = [
-            "InstanceID": 0,
-            "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
-            "EnqueuedURIMetaData": enqueuedURIMetadata,
-            "DesiredFirstTrackNumberEnqueued": 0,
-            "EnqueueAsNext": 0
-        ]
+        var arguments: [String: Any] = [:]
+        switch position {
+        case .front:
+            // MARK: Front
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
+                "EnqueuedURIMetaData": enqueuedURIMetadata,
+                "DesiredFirstTrackNumberEnqueued": 1,
+                "EnqueueAsNext": 1
+            ]
+        case .end:
+            // MARK: End
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
+                "EnqueuedURIMetaData": enqueuedURIMetadata,
+                "DesiredFirstTrackNumberEnqueued": 0,
+                "EnqueueAsNext": 1
+            ]
+        case .next:
+            // MARK: Next
+            guard let track = await getCurrentTrack(ipAddress: IP) else { return }
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
+                "EnqueuedURIMetaData": enqueuedURIMetadata,
+                "DesiredFirstTrackNumberEnqueued": track.position + 1,
+                "EnqueueAsNext": 1
+            ]
+        }
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
@@ -448,26 +472,7 @@ final class SonosAPI {
         }
     }
 
-    func queueSpotifyTrack(ID: String, IP: String, position: QueuePosition = .front) async {
-//        let URIMetadata = """
-//        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"
-//          xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">
-//          <item id="\(("spotify:track:" + ID).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!)" restricted="true">
-//            <upnp:class>object.item.audioItem.musicTrack</upnp:class>
-//            <desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON2311_X_#Svc2311-0-Token</desc>
-//            <dc:title></dc:title>
-//        </item>
-//        </DIDL-Lite>
-//        """
-//
-//        let arguments: [String: Any] = [
-//            "InstanceID": 0,
-//            "EnqueuedURI": "x-sonos-spotify:" + "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!,
-//            "EnqueuedURIMetaData": URIMetadata.escaped,
-//            "DesiredFirstTrackNumberEnqueued": 0,
-//            "EnqueueAsNext": 0
-//        ]
-
+    func queueSpotifyTrack(ID: String, IP: String, position: QueuePosition = .next) async {
         let metaData = "track:\(ID)".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
 
         let URIMetadata = """
@@ -476,28 +481,37 @@ final class SonosAPI {
 
         let test = "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
 
-        // MARK: Front
-        let arguments: [String: Any] = [
-            "InstanceID": 0,
-            "EnqueuedURI": "x-sonos-spotify:" + test,
-            "EnqueuedURIMetaData": URIMetadata,
-            "DesiredFirstTrackNumberEnqueued": 1,
-            "EnqueueAsNext": 1
-        ]
-
-        // MARK: End
-
-        // MARK: Next
-//        let arguments: [String: Any] = [
-//            "InstanceID": 0,
-//            "EnqueuedURI": "x-sonos-spotify:" + test,
-//            "EnqueuedURIMetaData": URIMetadata,
-//            "DesiredFirstTrackNumberEnqueued": 2,
-//            "EnqueueAsNext": 1
-//        ]
-
-        print(arguments["EnqueuedURI"])
-        print(URIMetadata.escaped)
+        var arguments: [String: Any] = [:]
+        switch position {
+        case .front:
+            // MARK: Front
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-spotify:" + test,
+                "EnqueuedURIMetaData": URIMetadata,
+                "DesiredFirstTrackNumberEnqueued": 1,
+                "EnqueueAsNext": 1
+            ]
+        case .end:
+            // MARK: End
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-spotify:" + test,
+                "EnqueuedURIMetaData": URIMetadata,
+                "DesiredFirstTrackNumberEnqueued": 0,
+                "EnqueueAsNext": 1
+            ]
+        case .next:
+            // MARK: Next
+            guard let track = await getCurrentTrack(ipAddress: IP) else { return }
+            arguments = [
+                "InstanceID": 0,
+                "EnqueuedURI": "x-sonos-spotify:" + test,
+                "EnqueuedURIMetaData": URIMetadata,
+                "DesiredFirstTrackNumberEnqueued": track.position + 1,
+                "EnqueueAsNext": 1
+            ]
+        }
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {

@@ -65,7 +65,7 @@ struct SceneView: View {
             .fontWeight(.bold)
         }
         .scrollTargetBehavior(.viewAligned)
-        .contentMargins(.horizontal, 20, for: .scrollContent)
+        .contentMargins(.leading, 12, for: .scrollContent)
         .scrollContentBackground(.hidden)
         .background(.bar)
         .sheet(isPresented: $show) {
@@ -87,8 +87,7 @@ struct SceneView: View {
                 ip: "",
                 name: "Garage",
                 volume: 10
-            )],
-            isActive: false
+            )]
         )]
     )
     .environment(SonosService())

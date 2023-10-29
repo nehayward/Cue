@@ -807,9 +807,17 @@ public final class SonosService {
         await snapShotGroup(ip: groupIP)
     }
 
-    public func queue(song: String, on ip: String) async {
-        await api.removeAllTrackFromQueue(IP: ip)
-        await api.queue(song: song, IP: ip)
+    public func queue(song: String, on group: GroupRoom, position: QueuePosition = .next) async {
+        await api.queue(song: song, IP: group.ip)
+
+        switch position {
+        case .front:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .end:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .next:
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        }
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
@@ -823,9 +831,17 @@ public final class SonosService {
         await api.setAVTransport(IP: ip, ID: group.coordinatorID)
     }
 
-    public func queueSpotifyTrack(id: String, group: GroupRoom) async {
+    public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .next) async {
         await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip)
-        await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+
+        switch position {
+        case .front:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .end:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .next:
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        }
     }
 
     public func queueSpotifyAlbum(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {

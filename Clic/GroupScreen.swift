@@ -16,45 +16,44 @@ struct GroupScreen: View {
             @Bindable var sonosService = sonosService
             List {
                 ForEach($sonosService.sortedRooms) { $room in
-                    if room.id != viewModel.group.coordinatorRoom.id {
-                        Section {
-                            VStack {
-                                Button {
-                                    if viewModel.selections.contains(room.id) {
-                                        viewModel.selections.remove(room.id)
-                                    } else {
-                                        viewModel.selections.insert(room.id)
-                                    }
-                                } label: {
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            HStack {
-                                                Text(room.name)
-                                                Spacer()
-                                            }
-                                        }
-                                        Spacer()
-                                        Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
-                                            .symbolEffect(.bounce, options: .speed(5), value: viewModel.selections.contains(room.id))
 
-                                    }
-                                    .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
-                                    .fontDesign(.rounded)
-                                    .bold()
+                    Section {
+                        VStack {
+                            Button {
+                                if viewModel.selections.contains(room.id) {
+                                    viewModel.selections.remove(room.id)
+                                } else {
+                                    viewModel.selections.insert(room.id)
                                 }
-                                Divider()
-                                RoomVolumeView(room: $room)
-                                    .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
-                                    .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
-                                //                                VolumeControlView(group: )
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text(room.name)
+                                            Spacer()
+                                        }
+                                    }
+                                    Spacer()
+                                    Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                        .symbolEffect(.bounce, options: .speed(5), value: viewModel.selections.contains(room.id))
+
+                                }
+                                .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
+                                .fontDesign(.rounded)
+                                .bold()
                             }
-                            .listRowBackground(
-                                viewModel.selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                                    .foregroundStyle( Color.accentColor.gradient.opacity(0.8) )
-                                : nil
-                            )
-                            .sensoryFeedback(.selection, trigger: viewModel.selections.contains(room.id))
+                            Divider()
+                            RoomVolumeView(room: $room)
+                                .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
+                                .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
+                            //                                VolumeControlView(group: )
                         }
+                        .listRowBackground(
+                            viewModel.selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
+                                .foregroundStyle( Color.accentColor.gradient.opacity(0.8) )
+                            : nil
+                        )
+                        .sensoryFeedback(.selection, trigger: viewModel.selections.contains(room.id))
                     }
                 }
             }
@@ -156,7 +155,6 @@ struct GroupScreen: View {
             showGroupScreen = true
         }
     }
-
 }
 
 #Preview {

@@ -40,6 +40,6 @@ public struct SceneView: View {
         .environment(SonosService())
         .onAppear {
             @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-            scenes.append(SonosScene(id: UUID(), name: "Main", rooms: [SceneRoom(id: "", ip: "", name: "", volume: 0)], isActive: false))
+            scenes.append(SonosScene(id: UUID(), name: "Main", rooms: [SceneRoom(id: "", ip: "", name: "", volume: 0)]))
         }
 }

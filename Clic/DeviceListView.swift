@@ -198,7 +198,7 @@ struct DeviceListMainView: View {
         }
         .animation(.interactiveSpring, value: sonosService.groups)
         .task {
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            guard OSEnvironment.isPreviews else { return }
             sonosService.monitor()
 //            showSettings = true
         }
@@ -241,6 +241,7 @@ struct DeviceListMainView: View {
 }
 
 
+#if DEBUG
 #Preview("Appstore Screens") {
     DeviceListMainView(selected: .constant(nil))
         .screenshot(name: "Appstore")
@@ -249,3 +250,4 @@ struct DeviceListMainView: View {
         .environment(SubscriptionService())
         .environment(AlertService())
 }
+#endif

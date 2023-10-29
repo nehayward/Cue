@@ -86,6 +86,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                                     dismiss()
                                     Task {
                                         await sonosService.queueSpotifyTrack(id: item.id, group: group)
+                                        await sonosService.play(ip: group.coordinatorRoom.ip)
                                     }
                                 } label: {
                                     HStack {
@@ -124,33 +125,35 @@ struct ImprovedSearch: View, KeyboardReadable {
                     //                    }
                 case .apple:
                     ForEach(results) { result in
-                        HStack {
-                            AsyncImage( url: URL(string: result.artworkURL),
-                                        transaction: Transaction(animation: .snappy)
-                            ) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .frame(width: 60, height: 60)
-                                default:
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .foregroundStyle(.thinMaterial)
-                                        .frame(width: 60, height: 60)
+                        Button {
+                            dismiss()
+                            Task {
+                                await sonosService.queue(song: "\(result.trackID)", on: group)
+                                await sonosService.play(ip: group.coordinatorRoom.ip)
+                            }
+                        } label: {
+                            HStack {
+                                AsyncImage( url: URL(string: result.artworkURL),
+                                            transaction: Transaction(animation: .snappy)
+                                ) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .frame(width: 60, height: 60)
+                                    default:
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .foregroundStyle(.thinMaterial)
+                                            .frame(width: 60, height: 60)
+                                    }
+                                }
+                                VStack(alignment: .leading) {
+                                    Text(result.trackName)
+                                    Text(result.artistName)
                                 }
                             }
-                            VStack(alignment: .leading) {
-                                Text(result.trackName)
-                                Text(result.artistName)
-                            }.onTapGesture {
-                                dismiss()
-                                Task {
-                                    await sonosService.queue(song: "\(result.trackID)", on: group.coordinatorRoom.ip)
-                                }
-                            }
-
+                            .fontDesign(.rounded)
                         }
-                        .fontDesign(.rounded)
                     }
                 }
             }
@@ -296,6 +299,7 @@ struct ImprovedSearch: View, KeyboardReadable {
         }
         .onDisappear {
             if !query.isEmpty {
+                searchHistory.remove(query)
                 searchHistory.insert(query, at: 0)
             }
         }
@@ -341,7 +345,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                             dismiss()
                             Task {
                                 await sonosService.queueSpotifyTrack(id: item.id, group: group)
-                                //                            await sonosService.play(ip: group.coordinatorRoom.ip)
+                                await sonosService.play(ip: group.coordinatorRoom.ip)
                             }
                         }
                     }

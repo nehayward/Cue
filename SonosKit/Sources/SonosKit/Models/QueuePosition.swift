@@ -1,4 +1,4 @@
-enum QueuePosition {
+public enum QueuePosition {
     case front
     case end
     case next

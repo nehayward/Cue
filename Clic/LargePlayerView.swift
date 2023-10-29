@@ -50,7 +50,7 @@ struct LargePlayerView: View {
         .padding()
         .frame(maxHeight: .infinity)
         .task {
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
+            guard OSEnvironment.isPreviews else { return }
 
             let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero)
             track.artworkURL = await sonosService.getArtwork(from: track)
@@ -293,6 +293,7 @@ struct LargePlayerView: View {
     }
 }
 
+#if DEBUG
 #Preview("Group") {
     NavigationStack {
         LargePlayerView(group: .constant(.garagePlusTheater), selected: .constant(nil), isExpanded: true)
@@ -318,6 +319,4 @@ struct LargePlayerView: View {
             }
     }
 }
-
-
-
+#endif

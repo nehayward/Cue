@@ -90,8 +90,7 @@ public struct SceneButton: View {
                 SonosScene(
                     id: UUID(),
                     name: "Main",
-                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)],
-                    isActive: false
+                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)]
                 )
             )
         ) {
@@ -102,8 +101,7 @@ public struct SceneButton: View {
                 SonosScene(
                     id: UUID(),
                     name: "Main",
-                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)],
-                    isActive: true
+                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)]
                 )
             )
         ) {

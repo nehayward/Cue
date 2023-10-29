@@ -119,7 +119,7 @@ struct PlayerView: View {
                         .foregroundStyle(.foreground)
                 }
             }
-            ToolbarItemGroup (placement: .primaryAction) {
+            ToolbarItemGroup (placement: .bottomBar) {
                 Button {
                     Task {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
@@ -151,7 +151,7 @@ struct PlayerView: View {
                     )
                     .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
                     .gaugeStyle(.accessoryCircularCapacity)
-                    .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
+                    .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
                 })
                 .controlSize(.large)
                 .clipShape(Circle())
@@ -208,7 +208,6 @@ struct PlayerView: View {
             group.coordinatorRoom.track = track
         }
         .task(id: group.coordinatorRoom.track.name) {
-            print("Fetching Track")
             artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
         }
     }

@@ -123,7 +123,7 @@ struct SceneBuilderScreen: View {
                         selections.contains(room.id)
                     }
                     let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-                    let newScene = SonosScene(name: sceneName, rooms: sceneRooms, isActive: false)
+                    let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
                     scenes.append(newScene)
                     dismiss()
                     showGroupScreen = false
