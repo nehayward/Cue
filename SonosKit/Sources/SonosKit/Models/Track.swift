@@ -54,7 +54,8 @@ public final class Track: Identifiable, @unchecked Sendable {
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
         lhs.trackID == rhs.trackID &&
-        lhs.name == rhs.name
+        lhs.name == rhs.name &&
+        lhs.position == rhs.position
 //        lhs.artist == rhs.artist &&
 //        lhs.album == rhs.album //&&
 //        lhs.musicService == rhs.musicService
@@ -66,6 +67,7 @@ extension Track: Hashable {
         hasher.combine(artist)
         hasher.combine(album)
         hasher.combine(artworkURL)
+        hasher.combine(position)
 //        hasher.combine(musicService)
     }
 }

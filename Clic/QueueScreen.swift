@@ -9,7 +9,8 @@ struct QueueScreen: View {
 
     @Binding var group: GroupRoom
     @State private var tracks: [Track] = []
-    
+    @State private var position: Int?
+
     var body: some View {
         let isShuffle = Binding(
             get: {
@@ -28,25 +29,25 @@ struct QueueScreen: View {
             }
         )
 
-        let isRepeat = Binding(
-            get: {
-                group.playMode.contains(.repeatOne)
-            },
-            set: {
-                if $0 {
-                    group.playMode.insert(.repeatOne)
-                } else {
-                    group.playMode.remove(.repeatOne)
-                }
-                Task {
-                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
-                }
-            }
-        )
+//        let isRepeat = Binding(
+//            get: {
+//                group.playMode.contains(.repeatOne)
+//            },
+//            set: {
+//                if $0 {
+//                    group.playMode.insert(.repeatOne)
+//                } else {
+//                    group.playMode.remove(.repeatOne)
+//                }
+//                Task {
+//                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
+//                }
+//            }
+//        )
 
         NavigationStack {
             List {
-                ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, track in
+                ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
                     HStack {
                         Text("\(index + 1)")
                         KFImage(track.artworkURL)
@@ -118,7 +119,7 @@ struct QueueScreen: View {
                             }
                         }
                     }
-                    .listRowBackground(group.coordinatorRoom.track.trackID == track.trackID ? nil : Color.clear)
+                    .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
                 }
                 .fontDesign(.rounded)
             }
@@ -154,6 +155,7 @@ struct QueueScreen: View {
         .task {
             self.tracks = await sonosService.getQueue(ip: group.ip)
             group.playMode = await sonosService.playMode(ip: group.ip)
+            position = group.coordinatorRoom.track.position
         }
         .animation(.spring, value: tracks)
         .presentationBackground(.thinMaterial)
