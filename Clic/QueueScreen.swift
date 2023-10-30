@@ -9,7 +9,6 @@ struct QueueScreen: View {
 
     @Binding var group: GroupRoom
     @State private var tracks: [Track] = []
-    @State private var position: Int?
 
     var body: some View {
         let isShuffle = Binding(
@@ -29,135 +28,139 @@ struct QueueScreen: View {
             }
         )
 
-//        let isRepeat = Binding(
-//            get: {
-//                group.playMode.contains(.repeatOne)
-//            },
-//            set: {
-//                if $0 {
-//                    group.playMode.insert(.repeatOne)
-//                } else {
-//                    group.playMode.remove(.repeatOne)
-//                }
-//                Task {
-//                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
-//                }
-//            }
-//        )
+        //        let isRepeat = Binding(
+        //            get: {
+        //                group.playMode.contains(.repeatOne)
+        //            },
+        //            set: {
+        //                if $0 {
+        //                    group.playMode.insert(.repeatOne)
+        //                } else {
+        //                    group.playMode.remove(.repeatOne)
+        //                }
+        //                Task {
+        //                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
+        //                }
+        //            }
+        //        )
 
         NavigationStack {
-            List {
-                ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
-                    HStack {
-                        Text("\(index + 1)")
-                        KFImage(track.artworkURL)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .aspectRatio(contentMode: .fit)
-                                    .foregroundStyle(.ultraThinMaterial)
-                                    .shadow(radius: 2)
-                            }
-                            .cacheMemoryOnly()
-                            .fade(duration: 0.2)
-                            .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(1)))
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .shadow(radius: 2)
-                            .frame(width: 60, height: 60)
-                            .overlay(alignment: .bottomTrailing) {
-                                switch track.musicService {
-                                case .apple:
-                                    Image(systemName: "apple.logo")
-                                        .resizable()
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
+                        HStack {
+                            Text("\(index + 1)")
+                            KFImage(track.artworkURL)
+                                .placeholder {
+                                    RoundedRectangle(cornerRadius: 4)
                                         .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .spotify:
-                                    Image(.spotifyLogo)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .airplay, .unknown:
-                                    EmptyView()
-                                        .padding([.trailing, .bottom], 4)
+                                        .foregroundStyle(.ultraThinMaterial)
+                                        .shadow(radius: 2)
                                 }
-                            }
-                            .task(id: track.name) {
-                                guard let artworkURL = await sonosService.getArtwork(from: track) else {
-                                    return
+                                .cacheMemoryOnly()
+                                .fade(duration: 0.2)
+                                .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(1)))
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .shadow(radius: 2)
+                                .frame(width: 60, height: 60)
+                                .overlay(alignment: .bottomTrailing) {
+                                    switch track.musicService {
+                                    case .apple:
+                                        Image(systemName: "apple.logo")
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.white.gradient)
+                                            .frame(width: 16, height: 16)
+                                            .padding([.trailing, .bottom], 4)
+                                    case .spotify:
+                                        Image(.spotifyLogo)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.white.gradient)
+                                            .frame(width: 16, height: 16)
+                                            .padding([.trailing, .bottom], 4)
+                                    case .airplay, .unknown:
+                                        EmptyView()
+                                            .padding([.trailing, .bottom], 4)
+                                    }
+                                }
+                                .task(id: track.name) {
+                                    guard let artworkURL = await sonosService.getArtwork(from: track) else {
+                                        return
+                                    }
+
+                                    track.artworkURL = artworkURL
                                 }
 
-                                track.artworkURL = artworkURL
+                            Button {
+                                dismiss()
+                                Task {
+                                    await sonosService.seek(trackNumber: index + 1, on: group)
+                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                }
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text(track.name)
+                                    Text(track.artist)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .swipeActions {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
+                                            tracks.remove(at: index)
+                                        }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
-
+                        }
+                        .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
+                    }
+                    .fontDesign(.rounded)
+                }
+                .scrollContentBackground(.hidden)
+                .listStyle(.plain)
+                .toolbar {
+                    ToolbarItem(placement: .navigation) {
+                        Text("Queue")
+                            .font(.title)
+                    }
+                    ToolbarItem(placement: .destructiveAction) {
                         Button {
-                            dismiss()
                             Task {
-                                await sonosService.seek(trackNumber: index + 1, on: group)
-                                await sonosService.play(ip: group.coordinatorRoom.ip)
+                                try await sonosService.clearQueue(group.coordinatorRoom.ip)
+                                tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
                             }
                         } label: {
-                            VStack(alignment: .leading) {
-                                Text(track.name)
-                                Text(track.artist)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    Task {
-                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
-                                        tracks.remove(at: index)
-                                    }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+                            Text("Clear")
                         }
                     }
-                    .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
                 }
-                .fontDesign(.rounded)
-            }
-            .scrollContentBackground(.hidden)
-            .listStyle(.plain)
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Text("Queue")
-                        .font(.title)
+                .safeAreaInset(edge: .bottom) {
+                    HStack {
+                        Toggle("Shuffle", systemImage: "shuffle.circle", isOn: isShuffle)
+                            .contentShape(Circle())
+                            .toggleStyle(.button)
+                            .padding()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .background(.thinMaterial)
                 }
-                ToolbarItem(placement: .destructiveAction) {
-                    Button {
-                        Task {
-                            try await sonosService.clearQueue(group.coordinatorRoom.ip)
-                            tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
-                        }
-                    } label: {
-                        Text("Clear")
+                .task {
+                    self.tracks = await sonosService.getQueue(ip: group.ip)
+                    group.playMode = await sonosService.playMode(ip: group.ip)
+                    withAnimation {
+                        proxy.scrollTo(group.coordinatorRoom.track.position)
                     }
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Toggle("Shuffle", systemImage: "shuffle.circle", isOn: isShuffle)
-                        .contentShape(Circle())
-                        .toggleStyle(.button)
-                        .padding()
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .background(.thinMaterial)
+                .animation(.spring, value: tracks)
             }
         }
-        .task {
-            self.tracks = await sonosService.getQueue(ip: group.ip)
-            group.playMode = await sonosService.playMode(ip: group.ip)
-            position = group.coordinatorRoom.track.position
-        }
-        .animation(.spring, value: tracks)
         .presentationBackground(.thinMaterial)
     }
 }
