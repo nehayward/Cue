@@ -118,7 +118,7 @@ struct PreferenceScreen: View {
                 Section {
                     Button {
                         let message = """
-mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(String(describing: Bundle.main.infoDictionary?["CFBundleShortVersionString"]))\nID:\(Purchases.shared.appUserID)
+mailto:hi@clic.dance?subject=Support&body=\n\nVersion:\(OSEnvironment.versionInfo))\nID:\(Purchases.shared.appUserID)
 """
                         let url =  URL(string: message)!
                         UIApplication.shared.open(url) { (result) in
