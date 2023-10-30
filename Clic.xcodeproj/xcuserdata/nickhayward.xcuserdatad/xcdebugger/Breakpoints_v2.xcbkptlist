@@ -18,5 +18,98 @@
             endingLineNumber = "354">
          </BreakpointContent>
       </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "107"
+            endingLineNumber = "107"
+            landmarkName = "login()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F - 6f96fef8adb59ace"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for closure #1 @Sendable () async -&gt; () in SubscriptionKit.SubscriptionService.login() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "104"
+                  endingLineNumber = "104"
+                  offsetFromSymbolStart = "624">
+               </Location>
+               <Location
+                  uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F - 6f96fef8adb59aef"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for closure #1 @Sendable () async -&gt; () in SubscriptionKit.SubscriptionService.login() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "103"
+                  endingLineNumber = "103"
+                  offsetFromSymbolStart = "644">
+               </Location>
+               <Location
+                  uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F - f04f9cae34af0ec4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(8) await resume partial function for closure #1 @Sendable () async -&gt; () in SubscriptionKit.SubscriptionService.login() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "103"
+                  endingLineNumber = "103"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F - 8ef2ee4a35108af7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(9) suspend resume partial function for closure #1 @Sendable () async -&gt; () in SubscriptionKit.SubscriptionService.login() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "103"
+                  endingLineNumber = "103"
+                  offsetFromSymbolStart = "48">
+               </Location>
+               <Location
+                  uuid = "8D15E97E-E379-4E1E-BE0C-0DD77ED32A5F - 7527d4a1e5c9b4a6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(11) suspend resume partial function for closure #1 @Sendable () async -&gt; () in SubscriptionKit.SubscriptionService.login() -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SubscriptionKit/Sources/SubscriptionKit/SubscriptionService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "103"
+                  endingLineNumber = "103"
+                  offsetFromSymbolStart = "48">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
    </Breakpoints>
 </Bucket>

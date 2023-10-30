@@ -1,35 +1,39 @@
+import CloudStorage
+import CloudKit
 import UIKit
 import WidgetKit
 import Observation
 import RevenueCat
-import CloudStorage
 
 @Observable
 public final class SubscriptionService: SubscriptionServicing {
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
     public var subscription: Subscription = .notActive
+    private let identifierKey = "com.clic.identifier"
 
     public init() {
 #if DEBUG
         Purchases.logLevel = .debug
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
-        if ProcessInfo.processInfo.environment["Super"]?.lowercased() == "true" {
-            subscription = Subscription(isActive: true)
-            sync.set(true, for: "com.clic.subscriptions")
-        }
+        subscription = Subscription(isActive: true)
+        sync.set(true, for: "com.clic.subscriptions")
+        Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
         return
 #endif
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             Purchases.logLevel = .error
-            Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "TESTFLIGHT")
+            Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
             subscription = Subscription(isActive: true)
             sync.set(true, for: "com.clic.subscriptions")
+            Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "TESTFLIGHT"])
+            login()
             return
         }
 
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
+        Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "PRODUCTION"])
         Task { @MainActor in
             setup()
         }
@@ -52,9 +56,7 @@ public final class SubscriptionService: SubscriptionServicing {
     @MainActor
     public func monitorChanges() {
 #if DEBUG
-        if ProcessInfo.processInfo.environment["Super"]?.lowercased() == "true" {
-            return
-        }
+        return
 #endif
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             return
@@ -74,6 +76,14 @@ public final class SubscriptionService: SubscriptionServicing {
     }
 
     public func checkSubscription() async throws {
+#if DEBUG
+        return
+#endif
+        if await UIApplication.shared.isRunningInTestFlightEnvironment() {
+            return
+        }
+
+
         let customerInfo = try await Purchases.shared.customerInfo()
         if !customerInfo.activeSubscriptions.isEmpty {
             let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
@@ -83,9 +93,22 @@ public final class SubscriptionService: SubscriptionServicing {
         }
     }
 
-    private func enable() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(4)) { [weak self] in
-            self?.subscription = Subscription(isActive: true, expiration: Calendar.current.date(byAdding: .month, value: 1, to: .now))
+    func login() {
+        Task {
+            if let id = sync.string(for: identifierKey) {
+                guard let (_, created) = try? await Purchases.shared.logIn(id) else { return }
+                print(created)
+                return
+            }
+            guard let id = await UIDevice.current.identifierForVendor?.uuidString else {
+                print("No ID")
+                return
+            }
+            guard let (_, created) = try? await Purchases.shared.logIn(id) else { return }
+            if created {
+                sync.set(id, for: identifierKey)
+                NSUbiquitousKeyValueStore.default.synchronize()
+            }
         }
     }
 }
@@ -141,10 +164,10 @@ extension UIApplication {
     }
 
     private func isSimulator() -> Bool {
-        #if arch(i386) || arch(x86_64)
+#if arch(i386) || arch(x86_64)
         return true
-        #else
+#else
         return false
-        #endif
+#endif
     }
 }
