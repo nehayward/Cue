@@ -9,6 +9,7 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
         var trackName: String
         var artist: String
         var volume: Double
+        var update: UpdateType = .refresh
     }
     var room: SonosDeviceEntity
 }
@@ -18,84 +19,101 @@ struct LiveActivityNowPlayingWidget: Widget {
         ActivityConfiguration(for: ClicNowPlayingWidgetAttributes.self) { context in
             LiveActivityNowPlayingView(context: context)
         } dynamicIsland: { context in
-            
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: "hifispeaker.fill")
-                }
-//                DynamicIslandExpandedRegion(.trailing) {
-//                    Text("\(context.state.volume, specifier: "%0.f")")
-//                        .font(.caption)
-//                        .contentTransition(.numericText())
-//                }
-                DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 12) {
+                    VStack {
+                        Image(systemName: "hifispeaker.fill")
                         Text(context.attributes.room.name)
-                        HStack(spacing: 24) {
-                            Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                                Image(systemName: "playpause.circle.fill")
-                                    .resizable()
-                                    .tint(.secondary)
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 36)
-                            }
-
-                            Button(intent: NextIntent(room: context.attributes.room)) {
-                                Image(systemName: "forward.circle.fill")
-                                    .resizable()
-                                    .tint(.secondary)
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 36)
-                            }
-                            HStack(spacing: 32) {
-                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-                                    Image(systemName: "minus")
-                                        .bold()
-                                }
-                                .buttonStyle(.borderless)
-                                .buttonBorderShape(.circle)
-                                .tint(.black)
-                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-                                    Image(systemName: "plus")
-                                        .bold()
-                                }
-                                .buttonStyle(.borderless)
-                                .buttonBorderShape(.circle)
-                                .tint(.black)
-                            }
-                            .padding(12)
-                            .background(.secondary, in: Capsule())
-                        }
+                            .font(.caption2)
+                            .scaledToFit()
                     }
-                    .buttonStyle(.borderless)
-                    .fontDesign(.rounded)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text("\(context.state.volume, specifier: "%0.f")%")
+                        .bold()
+                        .contentTransition(.numericText())
+                        .frame(width: 40)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    VStack {
+                        Text(context.state.trackName)
+                            .lineLimit(0)
+                            .bold()
+                            .invalidatableContent()
+                            .id(context.state.trackName)
+                            .transition(updateTransition(context: context))
+                        Text(context.state.artist)
+                            .lineLimit(0)
+                            .invalidatableContent()
+                            .id(context.state.artist)
+                            .transition(updateTransition(context: context))
+                        HStack {
+                            Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
+                                Image(systemName: "minus")
+                                    .bold()
+                            }
+                            .buttonStyle(.plain)
+                            .buttonBorderShape(.circle)
+                            .tint(.primary)
+
+                            ProgressView(value: Double(context.state.volume), total: 100)
+                                .tint(.teal)
+                                .invalidatableContent()
+                            Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
+                                Image(systemName: "plus")
+                                    .bold()
+                            }
+                            .buttonStyle(.plain)
+                            .tint(.primary)
+                            .buttonBorderShape(.circle)
+                        }
+                        .padding([.bottom], 4)
+                    }
                 }
                 
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        Image(systemName: "speaker.wave.3.fill", variableValue: context.state.volume/100)
-                            .contentTransition(.symbolEffect(.automatic))
-                            .font(.caption)
-                            .invalidatableContent()
-                        ProgressView(value: Double(context.state.volume), total: 100)
-                            .tint(.accentColor)
-                            .invalidatableContent()
-                        Text("\(context.state.volume, specifier: "%0.f")")
-                            .font(.caption)
-                            .contentTransition(.numericText())
-                            .invalidatableContent()
+                    HStack(spacing: 24) {
+                        Button(intent: PreviousIntent(room: context.attributes.room)) {
+                            Image(systemName: "backward.end.fill")
+                        }
+                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                            Image(systemName: "playpause.fill")
+                                .imageScale(.large)
+                        }
+                        Button(intent: NextIntent(room: context.attributes.room)) {
+                            Image(systemName: "forward.end.fill")
+                        }
                     }
-                    .padding([.leading,.trailing])
+                    .frame(maxWidth: .infinity)
+                    .tint(.primary)
+                    .buttonStyle(.borderless)
+                    .overlay(alignment: .trailing) {
+                        Link(destination: URL(string: "clic://search?room=\(context.attributes.room.name)")!) {
+                            Image(systemName: "magnifyingglass.circle.fill")
+                                .imageScale(.large)
+                                .bold()
+                        }
+                    }
                 }
             } compactLeading: {
                 Image(systemName: "hifispeaker.fill")
             } compactTrailing: {
-                Text("\(context.state.volume, specifier: "%0.f")")
-                    .font(.caption)
+                Text("\(context.state.volume, specifier: "%0.f")%")
                     .contentTransition(.numericText())
             } minimal: {
-
+                Image(systemName: "hifispeaker.fill")
             }
+        }
+    }
+
+    private func updateTransition(context: ActivityViewContext<ClicNowPlayingWidgetAttributes>) -> AnyTransition {
+        switch context.state.update {
+        case .next:
+            return .push(from: .trailing)
+        case .previous:
+            return .push(from: .leading)
+        case .refresh:
+            return .opacity
         }
     }
 }

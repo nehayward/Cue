@@ -52,6 +52,10 @@
 		E97C0D672A33D787005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */; };
 		E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */; };
 		E97C0D6B2A38FBDD005AB0E0 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
+		E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
+		E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
+		E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
+		E98248CE2AF04EDE008927EF /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
 		E982AEA92ABA027500709FC0 /* DeviceNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E982AEA82ABA027500709FC0 /* DeviceNameView.swift */; };
 		E985278D2A5E0848009016C2 /* LiveActivityNowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D492A325CC5005AB0E0 /* LiveActivityNowPlayingWidget.swift */; };
 		E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
@@ -221,6 +225,8 @@
 		E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidget.swift; sourceTree = "<group>"; };
 		E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
+		E98248C92AF03FB4008927EF /* RefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshIntent.swift; sourceTree = "<group>"; };
+		E98248CC2AF04ED8008927EF /* UpdateType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateType.swift; sourceTree = "<group>"; };
 		E982AEA82ABA027500709FC0 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
 		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCellView.swift; sourceTree = "<group>"; };
@@ -389,10 +395,12 @@
 			isa = PBXGroup;
 			children = (
 				E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */,
+				E98248C92AF03FB4008927EF /* RefreshIntent.swift */,
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
 				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
 				E9EE31832ADF82B000F71303 /* IntentError.swift */,
+				E98248CC2AF04ED8008927EF /* UpdateType.swift */,
 			);
 			path = Intents;
 			sourceTree = "<group>";
@@ -779,7 +787,9 @@
 				E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */,
 				E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */,
 				E9DAE49E2A5FACD400B03199 /* NowPlayingWidgetProvider.swift in Sources */,
+				E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */,
 				E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */,
+				E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */,
 				E9DE849A2A66F87C004C3947 /* RemoteWidgetRectangularView.swift in Sources */,
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
 				E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */,
@@ -845,6 +855,7 @@
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
+				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
 				E9CB9E602AE6DD1F00107408 /* PreviewScreenshot.swift in Sources */,
 				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
@@ -853,6 +864,7 @@
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
 				E982AEA92ABA027500709FC0 /* DeviceNameView.swift in Sources */,
 				E940E7162AAFBD17004303CD /* FilterView.swift in Sources */,
+				E98248CE2AF04EDE008927EF /* UpdateType.swift in Sources */,
 				E9D856272A9FB5AD0024B192 /* PillView.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */,
@@ -1204,7 +1216,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Clic;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -1253,7 +1265,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Clic;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -1454,7 +1466,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = Clic;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

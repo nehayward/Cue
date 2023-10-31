@@ -6,20 +6,49 @@ import SwiftUI
 struct LiveActivityNowPlayingView: View {
     @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
 
+    private var updateTransition: AnyTransition {
+        switch context.state.update {
+        case .next:
+            return .push(from: .trailing)
+        case .previous:
+            return .push(from: .leading)
+        case .refresh:
+            return .opacity
+        }
+    }
+
     var body: some View {
         VStack {
             HStack {
                 Label(context.attributes.room.name,
                       systemImage: "hifispeaker.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text("Search")
-                Text("Refresh")
+                Link(destination: URL(string: "clic://search?room=\(context.attributes.room.name)")!) {
+                    Image(systemName: "magnifyingglass.circle.fill")
+                        .imageScale(.large)
+                        .bold()
+                }
+                Button(intent: RefreshIntent()) {
+                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                        .imageScale(.large)
+                        .bold()
+                }
+                .buttonStyle(.plain)
+                .buttonBorderShape(.circle)
+                .tint(.primary)
             }
+            .padding(.bottom, 8)
             Text(context.state.trackName)
                 .lineLimit(0)
                 .bold()
+                .invalidatableContent()
+                .id(context.state.trackName)
+                .transition(updateTransition)
             Text(context.state.artist)
                 .lineLimit(0)
+                .invalidatableContent()
+                .id(context.state.artist)
+                .transition(updateTransition)
             HStack {
                 Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
                     Image(systemName: "minus")
@@ -28,7 +57,6 @@ struct LiveActivityNowPlayingView: View {
                 .buttonStyle(.plain)
                 .buttonBorderShape(.circle)
                 .tint(.primary)
-//                .frame(width: 42, height: 42)
 
                 ProgressView(value: Double(context.state.volume), total: 100)
                     .tint(.teal)
@@ -40,12 +68,9 @@ struct LiveActivityNowPlayingView: View {
                 .buttonStyle(.plain)
                 .tint(.primary)
                 .buttonBorderShape(.circle)
-//                .frame(width: 42, height: 42)
-
             }
-            .padding([.bottom])
-            .invalidatableContent()
-            HStack(spacing: 16) {
+            .padding([.bottom], 4)
+            HStack(spacing: 24) {
                 Button(intent: PreviousIntent(room: context.attributes.room)) {
                     Image(systemName: "backward.end.fill")
                 }
@@ -61,6 +86,7 @@ struct LiveActivityNowPlayingView: View {
             .buttonStyle(.borderless)
         }
         .padding()
+        .activityBackgroundTint(.black.opacity(0.8))
     }
 }
 

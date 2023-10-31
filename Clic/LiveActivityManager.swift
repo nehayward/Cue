@@ -5,7 +5,6 @@ import SonosKit
 
 final class LiveActivityManager {
     let sonosService: SonosService
-    var activity: Activity<ClicNowPlayingWidgetAttributes>?
     var activitySequence: Task<Void,Error>?
 
     init(sonosService: SonosService) {
@@ -13,16 +12,14 @@ final class LiveActivityManager {
         monitorActivities()
     }
 
-    func refresh() async {
+    func refresh(updateType: UpdateType = .refresh) async {
         try? await sonosService.fetch(useCache: true)
         let groups = sonosService.groups
-        //        guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
 
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
             guard let group = groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
                     await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
-                    self.activity = nil
                 }
 
                 return
@@ -30,7 +27,8 @@ final class LiveActivityManager {
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
                                                                            artist: group.coordinatorRoom.track.artist,
-                                                                           volume: group.groupVolume)
+                                                                           volume: group.groupVolume,
+                                                                           update: updateType)
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             await activity.update(activityContent)
         }
@@ -39,40 +37,31 @@ final class LiveActivityManager {
     func createActivity(with groups: [GroupRoom]) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
-        guard let group = groups.first(where: \.coordinatorRoom.isPlaying) else {
-//        guard let group = groups.filter ({ $0.coordinatorRoom.name == "Garage" }).first else {
-            Task {
-                for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-                    await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
-                    self.activity = nil
-                }
+        let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
+
+        for group in groups.filter(\.coordinatorRoom.isPlaying) {
+            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
+                                                                                        name: group.coordinatorRoom.name,
+                                                                                        ip: group.coordinatorRoom.ip,
+                                                                                        volume: group.groupVolume))
+
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                                                                           artist: group.coordinatorRoom.track.artist,
+                                                                           volume: group.groupVolume)
+
+            let activityContent = ActivityContent(state: contentState, staleDate: nil)
+            guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else { return }
+
+            do {
+                try Activity.request(attributes: sonosAttribute, content: activityContent)
+            } catch (let error) {
+                print("Error requesting Live Activity \(error.localizedDescription).")
             }
-            return
-        }
-
-        if activity != nil {
-            return
-        }
-
-        let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
-                                                                                    name: group.coordinatorRoom.name,
-                                                                                    ip: group.coordinatorRoom.ip,
-                                                                                    volume: group.groupVolume))
-
-        let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
-                                                                       artist: group.coordinatorRoom.track.artist,
-                                                                       volume: group.groupVolume
-        )
-        let activityContent = ActivityContent(state: contentState, staleDate: nil)
-        do {
-            activity = try Activity.request(attributes: sonosAttribute, content: activityContent)
-            //                print("Started", activity?.id)
-        } catch (let error) {
-            print("Error requesting Live Activity \(error.localizedDescription).")
         }
     }
 
     private func monitorActivities() {
+        activitySequence?.cancel()
         activitySequence = Task {
             for await activity in Activity<ClicNowPlayingWidgetAttributes>.activityUpdates {
                 print("Created Live Activity for \(activity.content) \(activity.attributes)")

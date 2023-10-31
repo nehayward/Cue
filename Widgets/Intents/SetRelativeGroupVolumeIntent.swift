@@ -35,6 +35,7 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
             throw IntentError.message("Failed to lookup Room")
         }       
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
+        try? await Task.sleep(for: .milliseconds(300))
         await Self.liveActivityManager.refresh()
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
         return .result()

@@ -31,7 +31,8 @@ struct NextIntent: AppIntent {
             throw IntentError.message("Failed to lookup Room")
         }
         await Self.sonosService.next(ip: coordinatorRoom.ip)
-        await Self.liveActivityManager.refresh()
+        try? await Task.sleep(for: .milliseconds(300))
+        await Self.liveActivityManager.refresh(updateType: .next)
         return .result()
     }
 }

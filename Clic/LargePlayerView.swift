@@ -7,10 +7,11 @@ struct LargePlayerView: View {
     @Binding var selected: String?
     @State var isExpanded: Bool = false
 
+    @State var showSearch = false
+    
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var showGroup = false
-    @State private var showSearch = false
     @State private var showQueue = false
 
     @State private var nextButtonTapped: Bool = false
@@ -180,7 +181,7 @@ struct LargePlayerView: View {
                 ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
                     .tint(.primary)
                     .progressViewStyle(.linear)
-
+                    .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
             }
             HStack {
                 Text(group.coordinatorRoom.track.timestamp)

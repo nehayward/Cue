@@ -155,7 +155,7 @@ struct QueueScreen: View {
                     self.tracks = await sonosService.getQueue(ip: group.ip)
                     group.playMode = await sonosService.playMode(ip: group.ip)
                     withAnimation {
-                        proxy.scrollTo(group.coordinatorRoom.track.position)
+                        proxy.scrollTo(group.coordinatorRoom.track.position - 1)
                     }
                 }
                 .animation(.spring, value: tracks)

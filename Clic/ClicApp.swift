@@ -44,13 +44,17 @@ struct ClicApp: App {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                     subscriptionService.monitorChanges()
                 }
+                .onOpenURL { url in
+                    // TODO: Add Scene Search Handler
+//                    selected = "RINCON_B8E937525BB001400"
+                }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
         }
-        .onChange(of: selected) {
+        .onChange(of: sonosService.groups.map(\.coordinatorRoom.isPlaying)) {
             guard subscriptionService.subscription.isActive else { return }
-            guard selected != nil else { return }
+
             Task {
                 await liveActivityManager?.createActivity(with: sonosService.groups)
             }
@@ -92,6 +96,9 @@ struct ClicApp: App {
         case .inactive:
             print("Inactive")
             WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
+            Task {
+                await liveActivityManager?.refresh()
+            }
         case .background:
             print("Background")
             Task {
