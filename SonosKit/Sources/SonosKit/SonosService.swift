@@ -798,10 +798,10 @@ public final class SonosService {
 
     public func runScene(_ scene: SonosScene) async throws {
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
-        await group(rooms: rooms, to: scene.rooms.first!.id)
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }
+        await group(rooms: rooms, to: scene.rooms.first!.id)
         try? await Task.sleep(for: .milliseconds(300))
         guard let groupIP = scene.rooms.first?.ip else { return }
         await snapShotGroup(ip: groupIP)
