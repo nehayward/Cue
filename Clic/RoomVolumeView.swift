@@ -41,6 +41,7 @@ struct RoomVolumeView: View {
     private func updateVolume(volume: Double) {
         volumeTask?.cancel()
         volumeTask = Task {
+            room.volume = volume
             try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
             room.volume = volume
