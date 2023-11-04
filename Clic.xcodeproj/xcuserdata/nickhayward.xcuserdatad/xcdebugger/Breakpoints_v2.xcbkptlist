@@ -216,6 +216,21 @@
                   endingLineNumber = "10"
                   offsetFromSymbolStart = "180">
                </Location>
+               <Location
+                  uuid = "8937F73D-3746-4898-A1FF-4AFAECEFFC30 - 4a824495f9d1c2f4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Clic.LiveActivityNowPlayingView.updateTransition.getter : SwiftUI.AnyTransition"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/LiveActivity/LiveActivityNowPlayingView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "10"
+                  endingLineNumber = "10"
+                  offsetFromSymbolStart = "240">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
