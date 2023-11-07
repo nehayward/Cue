@@ -13,28 +13,13 @@ struct PlayerView: View {
     @State private var artworkURL: URL?
 
     var body: some View {
-        VStack {
+        VStack(spacing: 4) {
             KFImage(artworkURL)
                 .cacheMemoryOnly()
                 .fade(duration: 0.2)
                 .retry(DelayRetryStrategy(maxRetryCount: 2, retryInterval: .seconds(1)))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-//            AsyncImage(
-//                url: group.coordinatorRoom.track.artworkURL,
-//                transaction: Transaction(animation: .snappy)
-//            ) { phase in
-//                switch phase {
-//                case .success(let image):
-//                    image
-//                        .resizable()
-//                        .aspectRatio(contentMode: .fit)
-//                default:
-//                    RoundedRectangle(cornerRadius: 12)
-//                        .aspectRatio(contentMode: .fit)
-//                        .foregroundStyle(.thinMaterial)
-//                }
-//            }
             .cornerRadius(12)
             .shadow(radius: 10)
             .focusable()
@@ -47,9 +32,7 @@ struct PlayerView: View {
                                   isHapticFeedbackEnabled: true,
                                   onChange: { crownEvent in
                 isIdle = false
-                withAnimation {
-                    popOver.isShowing = !isIdle
-                }
+                popOver.isShowing = !isIdle
                 popOver.text = String(format: "%.0f", group.groupVolume)
             }, onIdle: {
                 isIdle = true
@@ -63,9 +46,61 @@ struct PlayerView: View {
             Text(group.coordinatorRoom.track.artist)
                 .foregroundColor(.secondary)
                 .lineLimit(1)
-                .padding(.bottom)
+            HStack {
+                Button {
+                    Task {
+                        await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    }
+                } label: {
+                    Image(systemName: "backward.end.fill")
+                }
+                .controlSize(.mini)
+                .clipShape(Circle())
+                Button(action: {
+                    Task {
+                        if group.coordinatorRoom.isPlaying {
+                            await sonosService.pause(ip: group.coordinatorRoom.ip)
+                        } else {
+                            await sonosService.play(ip: group.coordinatorRoom.ip)
+                        }
+                    }
+                }, label: {
+                    ZStack {
+                        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                            .renderingMode(.template)
+                            .foregroundColor(.primary)
+                            .contentTransition(.symbolEffect(.automatic))
+                        Gauge(
+                            value: group.coordinatorRoom.track.playbackPosition,
+                            in: 0...group.coordinatorRoom.track.duration,
+                            label: {
+
+                            },
+                            currentValueLabel: {
+                                EmptyView()
+                            }
+                        )
+                        .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
+                        .gaugeStyle(.accessoryCircularCapacity)
+                        .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
+                        .frame(width: 24, height: 24)
+                    }
+                })
+                .clipShape(Circle())
+                Button {
+                    Task {
+                        await sonosService.next(ip: group.coordinatorRoom.ip)
+                        try? await sonosService.fetch(useCache: true)
+                    }
+                } label: {
+                    Image(systemName: "forward.end.fill")
+                }
+                .controlSize(.mini)
+                .clipShape(Circle())
+            }
         }
         .frame(maxWidth: .infinity)
+        .ignoresSafeArea(edges: .bottom)
         .overlay(alignment: .center) {
             if group.coordinatorRoom.track.name.isEmpty {
                 Text("Nothing to play")
@@ -75,28 +110,6 @@ struct PlayerView: View {
             }
         }
         .background {
-//            AsyncImage(
-//                url: group.coordinatorRoom.track.artworkURL
-//            ) { phase in
-//                switch phase {
-//                case .success(let image):
-//                    image
-//                        .resizable()
-//                        .blur(radius: 20)
-//                default:
-//                    RoundedRectangle(cornerRadius: 12)
-//                        .foregroundStyle(.thinMaterial)
-//                }
-//            }
-//            .ignoresSafeArea()
-//            .frame(maxWidth: .infinity, maxHeight: .infinity)
-//            .overlay {
-//                Rectangle()
-//                    .foregroundStyle(.thinMaterial)
-//                    .ignoresSafeArea()
-//            }
-
-
         KFImage(artworkURL)
             .cacheMemoryOnly()
             .resizable()
@@ -117,51 +130,6 @@ struct PlayerView: View {
                 } label: {
                     Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                         .foregroundStyle(.foreground)
-                }
-            }
-            ToolbarItemGroup (placement: .bottomBar) {
-                Button {
-                    Task {
-                        await sonosService.previous(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    Image(systemName: "backward.end.fill")
-                }
-                Button(action: {
-                    Task {
-                        if group.coordinatorRoom.isPlaying {
-                            await sonosService.pause(ip: group.coordinatorRoom.ip)
-                        } else {
-                            await sonosService.play(ip: group.coordinatorRoom.ip)
-                        }
-                    }
-                }, label: {
-                    Gauge(
-                        value: group.coordinatorRoom.track.playbackPosition,
-                        in: 0...group.coordinatorRoom.track.duration,
-                        label: {
-
-                        },
-                        currentValueLabel: {
-                            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                .renderingMode(.template)
-                                .foregroundColor(.primary)
-                                .contentTransition(.symbolEffect(.automatic))
-                        }
-                    )
-                    .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
-                    .gaugeStyle(.accessoryCircularCapacity)
-                    .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
-                })
-                .controlSize(.large)
-                .clipShape(Circle())
-                Button {
-                    Task {
-                        await sonosService.next(ip: group.coordinatorRoom.ip)
-                        try? await sonosService.fetch(useCache: true)
-                    }
-                } label: {
-                    Image(systemName: "forward.end.fill")
                 }
             }
         }
@@ -210,6 +178,7 @@ struct PlayerView: View {
         .task(id: group.coordinatorRoom.track.name) {
             artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
         }
+        .animation(.spring, value: popOver.isShowing)
     }
 }
 

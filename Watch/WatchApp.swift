@@ -5,7 +5,7 @@ import WidgetKit
 import CloudStorage
 
 @main
-struct ClicWatchApp: App {
+struct WatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
     @State var sonosService = SonosService()
