@@ -244,7 +244,7 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.track.artworkURL = previousArtwork
             }
 
-            guard let artworkURL = await self.getArtwork(from: track) else {
+            guard let artworkURL = await self.getArtwork(from: track, size: 200) else {
                 if roomGroup.coordinatorRoom.track != track {
                     roomGroup.coordinatorRoom.track = track
                 } else {
@@ -357,6 +357,8 @@ public final class SonosService {
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
 
+            let fetchedTrack = await track
+
             switch await playbackInfo {
             case .playing:
                 roomGroup.coordinatorRoom.isPlaying = true
@@ -370,11 +372,10 @@ public final class SonosService {
             if !roomGroup.isEditingVolume {
                 roomGroup.groupVolume = updateGroupVolume
             }
-            guard let track = await track else {
+            guard let fetchedTrack else {
                 return
             }
-            roomGroup.coordinatorRoom.track = track
-
+            roomGroup.coordinatorRoom.track = fetchedTrack
 
             await updateGroupCheckTVMode(from: [groups[groupIndex]])
             await updateGroupsRooms(from: [groups[groupIndex]])
@@ -621,16 +622,15 @@ public final class SonosService {
 
     public func smartGroup(rooms: [Room], to group: GroupRoom) async {
         // MARK: Only group new rooms
+        let rooms = rooms.filter { $0.id != group.coordinatorID }
         let nonCoordinatorRooms = group.rooms.filter{ $0.id != group.coordinatorID }
         let changes = rooms.difference(from: nonCoordinatorRooms)
 
         for change in changes {
             switch change {
             case let .insert(_, element, _):
-                print(element)
                 await api.group(IP: element.ip, to: group.coordinatorID)
             case let .remove(_, element, _):
-                print(element)
                 await api.ungroup(IP: element.ip)
             }
         }
@@ -676,6 +676,12 @@ public final class SonosService {
         case .spotify:
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
             if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+                guard let url = URL(string: image.url) else { return nil }
+                return url
+            }
+
+            if size == 200, spotifyTrack.album.images.count > 2 {
+                let image = spotifyTrack.album.images[1]
                 guard let url = URL(string: image.url) else { return nil }
                 return url
             }

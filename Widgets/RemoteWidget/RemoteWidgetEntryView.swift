@@ -100,7 +100,6 @@ struct RemoteWidgetEntryView : View {
             if !activeSubscription {
                 Text("Upgrade Now")
                     .scaledToFit()
-                    .lineLimit(0)
                     .bold()
                     .padding()
                     .background {

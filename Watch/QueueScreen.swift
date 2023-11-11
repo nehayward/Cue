@@ -5,45 +5,12 @@ import Kingfisher
 
 struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(\.dismiss) var dismiss
 
     @Binding var group: GroupRoom
     @State private var tracks: [Track] = []
+    @State private var isLoading = true
 
     var body: some View {
-        let isShuffle = Binding(
-            get: {
-                group.playMode.contains(.shuffle)
-            },
-            set: {
-                if $0 {
-                    group.playMode.insert(.shuffle)
-                } else {
-                    group.playMode.remove(.shuffle)
-                }
-                Task {
-                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
-                    self.tracks = await sonosService.getQueue(ip: group.ip)
-                }
-            }
-        )
-
-        //        let isRepeat = Binding(
-        //            get: {
-        //                group.playMode.contains(.repeatOne)
-        //            },
-        //            set: {
-        //                if $0 {
-        //                    group.playMode.insert(.repeatOne)
-        //                } else {
-        //                    group.playMode.remove(.repeatOne)
-        //                }
-        //                Task {
-        //                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
-        //                }
-        //            }
-        //        )
-
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
@@ -64,7 +31,7 @@ struct QueueScreen: View {
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .shadow(radius: 2)
-                                .frame(width: 60, height: 60)
+                                .frame(width: 40, height: 40)
                                 .overlay(alignment: .bottomTrailing) {
                                     switch track.musicService {
                                     case .apple:
@@ -87,7 +54,7 @@ struct QueueScreen: View {
                                     }
                                 }
                                 .task(id: track.name) {
-                                    guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
+                                    guard let artworkURL = await sonosService.getArtwork(from: track, size: 100) else {
                                         return
                                     }
 
@@ -95,7 +62,6 @@ struct QueueScreen: View {
                                 }
 
                             Button {
-                                dismiss()
                                 Task {
                                     await sonosService.seek(trackNumber: index + 1, on: group)
                                     await sonosService.play(ip: group.coordinatorRoom.ip)
@@ -125,60 +91,59 @@ struct QueueScreen: View {
                 }
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
+                .navigationTitle("Queue")
                 .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Text("Queue")
-                            .font(.title)
-                    }
                     ToolbarItem(placement: .destructiveAction) {
                         Button {
                             Task {
                                 try await sonosService.clearQueue(group.coordinatorRoom.ip)
-                                tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                                await getQueue()
                             }
                         } label: {
                             Text("Clear")
                         }
                     }
                 }
-                .safeAreaInset(edge: .bottom) {
-                    HStack {
-                        Toggle("Shuffle", systemImage: "shuffle.circle", isOn: isShuffle)
-                            .contentShape(Circle())
-                            .toggleStyle(.button)
-                            .padding()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .background(.thinMaterial)
-                }
                 .task {
-                    self.tracks = await sonosService.getQueue(ip: group.ip)
-                    group.playMode = await sonosService.playMode(ip: group.ip)
+                    await getQueue()
                     withAnimation {
                         proxy.scrollTo(group.coordinatorRoom.track.position - 1)
                     }
                 }
                 .animation(.spring, value: tracks)
+                .overlay {
+                    if isLoading, !tracks.isEmpty {
+                        ProgressView()
+                    }
+                    if tracks.isEmpty, !isLoading {
+                        ContentUnavailableView("Empty", systemImage: "music.note.list")
+                            .transition(.opacity)
+                    }
+                }
             }
+            .animation(Animation.default.delay(tracks.isEmpty ? 0 : 2), value: tracks)
         }
         .presentationBackground(.thinMaterial)
+    }
+
+    private func getQueue() async {
+        isLoading = true
+        defer { isLoading = false }
+        self.tracks = await sonosService.getQueue(ip: group.ip)
     }
 }
 
 fileprivate struct ContainerView: View {
     @State var group: GroupRoom = .garage
-
     var body: some View {
         QueueScreen(group: $group)
             .environment(SonosService())
-            .presentationDetents([.medium, .large])
     }
 }
 
 #Preview {
-    Text("Queue...")
-        .sheet(isPresented: .constant(true)) {
-            ContainerView()
-        }
+    TabView {
+        ContainerView()
+    }
 }
 

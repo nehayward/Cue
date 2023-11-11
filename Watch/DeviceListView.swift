@@ -33,8 +33,10 @@ struct DeviceListView: View {
             }
             .listStyle(.carousel)
         } detail: {
-            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                PlayerScreen(group: $sonosService.sorted[index])
+            TabView {
+                if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                    PlayerScreen(group: $sonosService.sorted[index])
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {

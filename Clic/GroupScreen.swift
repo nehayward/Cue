@@ -15,8 +15,7 @@ struct GroupScreen: View {
         NavigationStack(path: $path) {
             @Bindable var sonosService = sonosService
             List {
-                ForEach($sonosService.sortedRooms) { $room in
-
+                ForEach($sonosService.sortedRooms.filter { $0.id != viewModel.group.coordinatorID }) { $room in
                     Section {
                         VStack {
                             Button {
@@ -68,7 +67,7 @@ struct GroupScreen: View {
                             .animation(nil, value: UUID())
                         Text(viewModel.group.coordinatorRoom.name)
                             .animation(nil, value: UUID())
-                        Text(viewModel.numberInGroup.isEmpty ? "" : "+")
+                        Text(viewModel.grouping)
                             .animation(nil, value: UUID())
                         Text(viewModel.numberInGroup)
                             .contentTransition(.numericText())

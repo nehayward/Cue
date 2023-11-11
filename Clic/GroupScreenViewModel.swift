@@ -9,7 +9,7 @@ final class GroupScreenViewModel {
 
     init(group: GroupRoom) {
         self.group = group
-        let ids = Set(group.rooms.map { $0.id })
+        let ids = Set(group.rooms.filter { $0.id != group.coordinatorID }.map { $0.id })
         self.selections = ids
         self.initialSelection = ids
     }
@@ -26,11 +26,19 @@ final class GroupScreenViewModel {
     }
 
     var numberInGroup: String {
-        if selections == initialSelection, selections.count > 0 {
-            return "\(initialSelection.count)"
+        if selections.count >= initialSelection.count {
+            return selections.count > 0 ? "\(selections.count)" : ""
+        } else {
+            return "\(initialSelection.symmetricDifference(selections).count)"
         }
+    }
 
-        return selections.count > 0 ? "\(selections.count)" : ""
+    var grouping: String {
+        if selections.count >= initialSelection.count {
+            return selections.count > 0 ? "+" : ""
+        } else {
+            return "-"
+        }
     }
 
     func buttonAction(id: String) {

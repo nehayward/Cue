@@ -248,6 +248,101 @@
             endingLineNumber = "13"
             landmarkName = "updateTransition"
             landmarkType = "24">
+            <Locations>
+               <Location
+                  uuid = "FFF1604A-7F99-491C-B558-C091DD9E1988 - 4a824495f9d1c270"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Clic.LiveActivityNowPlayingView.updateTransition.getter : SwiftUI.AnyTransition"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/LiveActivity/LiveActivityNowPlayingView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "14"
+                  endingLineNumber = "14"
+                  offsetFromSymbolStart = "376">
+               </Location>
+               <Location
+                  uuid = "FFF1604A-7F99-491C-B558-C091DD9E1988 - 4a824495f9d1c270"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Clic.LiveActivityNowPlayingView.updateTransition.getter : SwiftUI.AnyTransition"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/Widgets/LiveActivity/LiveActivityNowPlayingView.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "14"
+                  endingLineNumber = "14"
+                  offsetFromSymbolStart = "436">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "53FCB1C1-7676-4301-A003-3B91EF2BFE3C"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "SonosKit/Sources/SonosKit/SonosService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "817"
+            endingLineNumber = "817"
+            landmarkName = "queue(song:on:position:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "53FCB1C1-7676-4301-A003-3B91EF2BFE3C - f83005076c2094e3"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for SonosKit.SonosService.queue(song: Swift.String, on: SonosKit.GroupRoom, position: SonosKit.QueuePosition) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "817"
+                  endingLineNumber = "817"
+                  offsetFromSymbolStart = "60">
+               </Location>
+               <Location
+                  uuid = "53FCB1C1-7676-4301-A003-3B91EF2BFE3C - 85c5eb421684e91b"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(2) await resume partial function for SonosKit.SonosService.queue(song: Swift.String, on: SonosKit.GroupRoom, position: SonosKit.QueuePosition) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "817"
+                  endingLineNumber = "817"
+                  offsetFromSymbolStart = "40">
+               </Location>
+               <Location
+                  uuid = "53FCB1C1-7676-4301-A003-3B91EF2BFE3C - 6482f9e3d20958e1"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for SonosKit.SonosService.queue(song: Swift.String, on: SonosKit.GroupRoom, position: SonosKit.QueuePosition) async -&gt; ()"
+                  moduleName = "Clic"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/nickhayward/Library/Mobile%20Documents/com~apple~CloudDocs/Active/Clic/SonosKit/Sources/SonosKit/SonosService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "817"
+                  endingLineNumber = "817"
+                  offsetFromSymbolStart = "80">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

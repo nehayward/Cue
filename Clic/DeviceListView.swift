@@ -57,6 +57,7 @@ struct DeviceListMainView: View {
                 .disabled(!enabled(group: group))
                 .selectionDisabled(!enabled(group: group))
             }
+            .navigationBarTitle("", displayMode: .inline)
             .sheet(isPresented: $showPaywall) {
                 PaywallView()
             }
@@ -128,8 +129,16 @@ struct DeviceListMainView: View {
                 }
             }
         } detail: {
-            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                LargePlayerView(group: $sonosService.sorted[index], selected: $selected)
+            NavigationStack {
+                ZStack {
+                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                        let group = $sonosService.sorted[index]
+                        let groupName = sonosService.sorted[index].coordinatorRoom.name + (group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")
+                        LargePlayerView(group: group, selected: $selected)
+                            .navigationTitle(Text(groupName))
+                    }
+                }
+                .navigationBarTitleDisplayMode(.inline)
             }
         }
         .onChange(of: selected) {
@@ -213,6 +222,7 @@ struct DeviceListMainView: View {
                     }
                 }
         }
+        .navigationSplitViewStyle(.balanced)
 //        .sheet(isPresented: $showSettings) {
 //            PaywallScreen()
 //        }

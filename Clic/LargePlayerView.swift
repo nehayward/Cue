@@ -66,17 +66,6 @@ struct LargePlayerView: View {
             }
 
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                HStack {
-                    Image(systemName: "hifispeaker.fill")
-                    Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
-                }
-                .fontDesign(.rounded)
-                .bold()
-            }
-        }
         .sheet(isPresented: $showGroup) {
             GroupScreen(showGroupScreen: $showGroup, viewModel: GroupScreenViewModel(group: group))
         }
@@ -121,6 +110,7 @@ struct LargePlayerView: View {
                     .blur(radius: 50)
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
             }
         }
@@ -182,17 +172,20 @@ struct LargePlayerView: View {
                     .tint(.primary)
                     .progressViewStyle(.linear)
                     .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
+                    .frame(maxWidth: 500)
             }
             HStack {
                 Text(group.coordinatorRoom.track.timestamp)
                 Spacer()
                 Text(group.coordinatorRoom.track.remainingTimestamp)
             }
+            .frame(maxWidth: 500)
             .monospacedDigit()
             .font(.caption)
         }
         .fontDesign(.rounded)
         .padding(.bottom, 24)
+        .frame(maxWidth: .infinity)
     }
 
     private func mediaControlsView() -> some View {

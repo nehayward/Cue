@@ -68,11 +68,13 @@
 		E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
 		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
+		E98D63852AFEEEF700D18FAC /* ButtonHapticWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98D63832AFEEEEE00D18FAC /* ButtonHapticWatch.swift */; };
 		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
 		E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A953162ADCD5B600600516 /* HapticButton.swift */; };
 		E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */; };
 		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
@@ -231,10 +233,12 @@
 		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCellView.swift; sourceTree = "<group>"; };
 		E987959C2A9667EC002C684A /* PlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerScreen.swift; sourceTree = "<group>"; };
+		E98D63832AFEEEEE00D18FAC /* ButtonHapticWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonHapticWatch.swift; sourceTree = "<group>"; };
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
 		E9A953162ADCD5B600600516 /* HapticButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticButton.swift; sourceTree = "<group>"; };
 		E9A953192ADDA06D00600516 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		E9A9531A2ADDA06D00600516 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -523,8 +527,10 @@
 				E987959C2A9667EC002C684A /* PlayerScreen.swift */,
 				E9C03B112A58721F00FB9118 /* PlayerView.swift */,
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
+				E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */,
 				E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */,
 				E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */,
+				E98D63832AFEEEEE00D18FAC /* ButtonHapticWatch.swift */,
 				E9331B542AAE20AB002D3CFD /* Debug */,
 				E9C03B022A586F6100FB9118 /* Assets.xcassets */,
 				E9C03B042A586F6100FB9118 /* Preview Content */,
@@ -879,10 +885,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */,
+				E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */,
 				E92CABEF2AB8FE70002A3D4D /* TVView.swift in Sources */,
 				E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */,
 				E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */,
 				E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */,
+				E98D63852AFEEEF700D18FAC /* ButtonHapticWatch.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,

@@ -71,8 +71,13 @@ struct WatchApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
+            if sonosService.selectedGroup != nil {
+                Task {
+                    try? await sonosService.fetch(useCache: true)
+                }
+            }
             sonosService.monitorWatch(useCache: true)
-            
+
 //            Task {
 //                try? await sonosService.updateGroupsCheckPlayback()
 //                

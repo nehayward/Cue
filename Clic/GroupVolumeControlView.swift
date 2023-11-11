@@ -36,6 +36,7 @@ struct GroupVolumeControlView: View {
             }
             .frame(height: 20)
             .padding(.bottom)
+            .frame(maxWidth: 500)
 
             VStack {
                 ForEach($group.rooms) { $room in
@@ -57,6 +58,7 @@ struct GroupVolumeControlView: View {
                         RoundedRectangle(cornerRadius: 20)
                             .foregroundStyle(.thinMaterial)
                     }
+                    .frame(maxWidth: 500)
                 }
                 Button {
                     for room in group.rooms {
@@ -75,6 +77,7 @@ struct GroupVolumeControlView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle)
+                .frame(maxWidth: 500)
             }
             .opacity(isExpanded ? 1 : 0)
             .scaleEffect(x: isExpanded ? 1 : 0.9)

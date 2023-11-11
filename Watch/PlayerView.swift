@@ -11,6 +11,7 @@ struct PlayerView: View {
     @State private var showGroup: Bool = false
     @State private var volumeTask: Task<Void, Error>?
     @State private var artworkURL: URL?
+    @State private var artworkURLSmall: URL?
 
     var body: some View {
         VStack(spacing: 4) {
@@ -56,7 +57,10 @@ struct PlayerView: View {
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())
+//                .sensoryFeedback(.decrease, trigger: group.coordinatorRoom.track)
                 Button(action: {
+//                    let isPlaying = group.coordinatorRoom.isPlaying
+//                    group.coordinatorRoom.isPlaying.toggle()
                     Task {
                         if group.coordinatorRoom.isPlaying {
                             await sonosService.pause(ip: group.coordinatorRoom.ip)
@@ -87,6 +91,14 @@ struct PlayerView: View {
                     }
                 })
                 .clipShape(Circle())
+                .frame(width: 48, height: 48)
+//                .sensoryFeedback(trigger: group.coordinatorRoom.isPlaying) { old, new in
+//                    if new {
+//                        return .start
+//                    } else {
+//                        return .stop
+//                    }
+//                }
                 Button {
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
@@ -97,9 +109,11 @@ struct PlayerView: View {
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())
+//                .sensoryFeedback(.increase, trigger: group.coordinatorRoom.track)
             }
         }
         .frame(maxWidth: .infinity)
+        .padding(.bottom, 8)
         .ignoresSafeArea(edges: .bottom)
         .overlay(alignment: .center) {
             if group.coordinatorRoom.track.name.isEmpty {
@@ -110,17 +124,18 @@ struct PlayerView: View {
             }
         }
         .background {
-        KFImage(artworkURL)
-            .cacheMemoryOnly()
-            .resizable()
-            .blur(radius: 20)
-            .ignoresSafeArea()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay {
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-                    .ignoresSafeArea()
-            }
+            KFImage(artworkURLSmall)
+                .cacheMemoryOnly()
+                .fade(duration: 0.2)
+                .resizable()
+                .blur(radius: 20)
+                .ignoresSafeArea()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay {
+                    Rectangle()
+                        .foregroundStyle(.thinMaterial)
+                        .ignoresSafeArea()
+                }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -176,6 +191,7 @@ struct PlayerView: View {
             group.coordinatorRoom.track = track
         }
         .task(id: group.coordinatorRoom.track.name) {
+            artworkURLSmall = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 100)
             artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
         }
         .animation(.spring, value: popOver.isShowing)

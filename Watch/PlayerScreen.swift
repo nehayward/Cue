@@ -5,15 +5,14 @@ struct PlayerScreen: View {
     @Binding var group: GroupRoom
 
     var body: some View {
-        TabView {
-            if group.tvMode {
-                TVView(group: $group)
-            } else {
-                PlayerView(group: $group)
-            }
-            if group.rooms.count > 1 {
-                GroupVolumeControlScreen(group: $group)
-            }
+        if group.tvMode {
+            TVView(group: $group)
+        } else {
+            PlayerView(group: $group)
+        }
+        QueueScreen(group: $group)
+        if group.rooms.count > 1 {
+            GroupVolumeControlScreen(group: $group)
         }
     }
 }

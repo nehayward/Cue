@@ -49,13 +49,13 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
-                }
-                .onAppear {
-                    print(Purchases.shared.appUserID)
-
+                    Button {
+                        Purchases.shared.presentCodeRedemptionSheet()
+                    } label: {
+                        Text("Promo Code")
+                    }
                 }
                 .manageSubscriptionsSheet(isPresented: $showSubscriptions)
-
 
                 Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
@@ -116,22 +116,11 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    Button {
-                        let message = """
-mailto:hi@clic.dance?subject=Support&body=\n\nVersion:%20\(OSEnvironment.versionInfo)\nID:%20\(Purchases.shared.appUserID)
-"""
-                        let url =  URL(string: message)!
-                        UIApplication.shared.open(url) { (result) in
-                            if result {
-                                // The URL was delivered successfully!
-                            }
-                        }
-                    } label: {
-                        Text("Support hi@clic.dance")
-                    }
+                    let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
+                    Link("Support hi@clic.dance", destination: URL(string: message)!)
                 } footer: {
                     VStack(alignment: .center) {
-                        Text(OSEnvironment.versionInfo)
+                        Text("Version **\(OSEnvironment.versionInfo)**")
                         Text(Purchases.shared.appUserID)
                             .textSelection(.enabled)
                             .scaledToFit()

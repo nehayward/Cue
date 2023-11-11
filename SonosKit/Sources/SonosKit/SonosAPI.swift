@@ -392,7 +392,6 @@ final class SonosAPI {
     func group(IP: String, to coordinatorID: String) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
-            "Channel": "Master",
             "CurrentURI": "x-rincon:\(coordinatorID)",
             "CurrentURIMetaData": ""
         ]
