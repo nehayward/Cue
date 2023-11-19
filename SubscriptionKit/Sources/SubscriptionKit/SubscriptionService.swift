@@ -36,6 +36,7 @@ public final class SubscriptionService: SubscriptionServicing {
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "PRODUCTION"])
         Task { @MainActor in
             setup()
+            login()
         }
     }
 
