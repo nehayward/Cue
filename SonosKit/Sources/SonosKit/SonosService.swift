@@ -850,10 +850,18 @@ public final class SonosService {
         }
     }
 
-    public func queueSpotifyAlbum(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
-//        await sonosAPI.removeAllTrackFromQueue(IP: ip)
-//        await sonosAPI.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
-//        await sonosAPI.setAVTransport(IP: ip, ID: group.coordinatorID)
+    public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .next) async {
+        let queueCount = await api.getQueue(IP: group.ip)
+        await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
+        switch position {
+        case .front:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .end:
+            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        case .next:
+            let position = queueCount.isEmpty ? 1 : group.coordinatorRoom.track.position + 1
+            await seek(trackNumber: position, on: group)
+        }
     }
 
     public func getQueue(ip: String) async -> [Track] {

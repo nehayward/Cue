@@ -8,6 +8,7 @@ public struct SpotifyTrackItems: Decodable, Identifiable, Sendable {
     public let href: String
     public let name: String
     public let album: SpotifyAlbum
+    public let artists: [SpotifyArtistsInfo]
     public let type: String
     public let uri: String
     public let popularity: Int
@@ -22,3 +23,8 @@ public struct SpotifyImage: Decodable, Sendable {
 public struct SpotifyAlbum: Decodable, Sendable {
     public let images: [SpotifyImage]
 }
+
+public struct SpotifyArtistsInfo: Decodable, Sendable {
+    public let name: String
+}
+

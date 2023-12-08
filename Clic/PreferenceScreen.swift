@@ -9,8 +9,8 @@ struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
 
-    @State var showPaywall = false
-    @State var showSubscriptions = false
+    @State private var showPaywall = false
+    @State private var showSubscriptions = false
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
 
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
@@ -61,6 +61,16 @@ struct PreferenceScreen: View {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
                 } header: {
                     Text("Sonos System")
+                }
+
+                Section {
+                    NavigationLink {
+                        ManageSceneScreen()
+                    } label: {
+                        Text("Scenes")
+                    }
+                } footer: {
+                    Text("Manage scenes")
                 }
 
 //                Section {

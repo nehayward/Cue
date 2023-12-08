@@ -21,9 +21,13 @@ struct SceneBuilderScreen: View {
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     var body: some View {
-        List {
-            ForEach($rooms) { $room in
-                Section {
+        ZStack {
+            Rectangle()
+                .opacity(0.5)
+                .foregroundStyle(.ultraThinMaterial)
+                .ignoresSafeArea()
+            List {
+                ForEach($rooms) { $room in
                     VStack {
                         Button {
                             if selections.contains(room.id) {
@@ -47,140 +51,132 @@ struct SceneBuilderScreen: View {
                         RoomVolumeView(room: $room)
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .tint(selections.contains(room.id) ? .black : .accentColor)
-//                                VolumeControlView(group: )
                     }
                     .listRowBackground(
                         selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                            .foregroundStyle( Color.accentColor.gradient.opacity(0.8) )
+                            .foregroundStyle(Color.accentColor.gradient.opacity(0.8))
                         : nil
                     )
-                }
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 12)
-                        .foregroundStyle(Color.accentColor.gradient)
-                )
-                .task {
-                    guard let group = group else { return }
-                    selections.insert(group.wrappedValue.coordinatorRoom.id)
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack {
-                    Text("Scene")
-                    Text("Group and set volume")
-                        .foregroundStyle(.secondary)
-                }
-                .fontDesign(.rounded)
-                .bold()
-                .padding(.vertical)
-            }
-        }
-
-        //  MARK: Add Volume Only
-        //            .safeAreaInset(edge: .bottom) {
-        //                Toggle(isOn: .constant(true)) {
-        //                    Text("Set Volume Only")
-        //                }
-        //                .toggleStyle(.button)
-        //                .frame(maxWidth: .infinity, alignment: .trailing)
-        //                .padding()
-        //            }
-        .safeAreaInset(edge: .bottom) {
-            VStack {
-                TextField("Scene Name", text: $sceneName)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
-                VStack {
-                    Text("All")
-                        .bold()
-                    HStack(alignment: .center) {
-                        Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
-                        Slider(value: $groupVolume, in: 0...100, step: 2)
-                            .sensoryFeedback(.selection, trigger: groupVolume)
-                        Text("\(groupVolume, specifier: "%03.0f")%")
-                            .contentTransition(.numericText())
-                            .monospacedDigit()
-                            .animation(.spring.speed(5), value: groupVolume)
-                            .frame(width: 50, alignment: .trailing)
-                            .fontDesign(.rounded)
+                    .task {
+                        guard let group = group else { return }
+                        selections.insert(group.wrappedValue.coordinatorRoom.id)
                     }
-                    .onChange(of: groupVolume, initial: false) { _, newValue in
-                        groupVolumeTask?.cancel()
-                        groupVolumeTask = Task {
-                            for room in rooms {
-                                room.volume = groupVolume
-                                await sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack {
+                        Text("Scene")
+                        Text("Group and set volume")
+                            .foregroundStyle(.secondary)
+                    }
+                    .fontDesign(.rounded)
+                    .bold()
+                    .padding(.vertical)
+                }
+            }
+            //  MARK: Add Volume Only
+            //            .safeAreaInset(edge: .bottom) {
+            //                Toggle(isOn: .constant(true)) {
+            //                    Text("Set Volume Only")
+            //                }
+            //                .toggleStyle(.button)
+            //                .frame(maxWidth: .infinity, alignment: .trailing)
+            //                .padding()
+            //            }
+            .safeAreaInset(edge: .bottom) {
+                VStack {
+                    TextField("Scene Name", text: $sceneName)
+                        .textFieldStyle(.roundedBorder)
+                        .padding()
+                    VStack {
+                        Text("All")
+                            .bold()
+                        HStack(alignment: .center) {
+                            Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
+                            Slider(value: $groupVolume, in: 0...100, step: 2)
+                                .sensoryFeedback(.selection, trigger: groupVolume)
+                            Text("\(groupVolume, specifier: "%03.0f")%")
+                                .contentTransition(.numericText())
+                                .monospacedDigit()
+                                .animation(.spring.speed(5), value: groupVolume)
+                                .frame(width: 50, alignment: .trailing)
+                                .fontDesign(.rounded)
+                        }
+                        .onChange(of: groupVolume, initial: false) { _, newValue in
+                            groupVolumeTask?.cancel()
+                            groupVolumeTask = Task {
+                                for room in rooms {
+                                    room.volume = groupVolume
+                                    await sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                                }
                             }
                         }
                     }
-                }
-                .padding([.horizontal, .bottom])
-                Button {
-                    let rooms = rooms.filter { room in
-                        selections.contains(room.id)
+                    .padding([.horizontal, .bottom])
+                    Button {
+                        let rooms = rooms.filter { room in
+                            selections.contains(room.id)
+                        }
+                        let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+                        scenes.append(newScene)
+                        dismiss()
+                        showGroupScreen = false
+                    } label: {
+                        Text("Create Scene")
+                            .foregroundStyle(.ultraThickMaterial)
+                            .frame(maxWidth: .infinity)
+                            .fontWeight(.bold)
                     }
-                    let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-                    let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
-                    scenes.append(newScene)
-                    dismiss()
-                    showGroupScreen = false
-                } label: {
-                    Text("Create Scene")
-                        .foregroundStyle(.ultraThickMaterial)
-                        .frame(maxWidth: .infinity)
-                        .fontWeight(.bold)
+                    .buttonStyle(.borderedProminent)
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                    .disabled(selections.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-                .padding(.bottom)
-                .disabled(selections.isEmpty)
-            }
-            .background {
-                RoundedRectangle(cornerRadius: 20)
-                    .foregroundStyle(.ultraThinMaterial)
-                    .edgesIgnoringSafeArea(.bottom)
-                    .shadow(radius: 2)
-            }
-        }
-        .listSectionSpacing(10)
-        .task {
-            if sonosService.sortedRooms.isEmpty {
-                try? await sonosService.load(useCache: true)
-                rooms = sonosService.sortedRooms.map {
-                    let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
-                    room.volume = $0.volume
-                    return room
-                }
-            } else {
-                rooms = sonosService.sortedRooms.map {
-                    let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
-                    room.volume = $0.volume
-                    return room
+                .background {
+                    RoundedRectangle(cornerRadius: 20)
+                        .foregroundStyle(.ultraThinMaterial)
+                        .edgesIgnoringSafeArea(.bottom)
+                        .shadow(radius: 2)
                 }
             }
-        }
-        .presentationDetents([.medium, .large])
-        .onChange(of: selections, initial: true) { oldValue, newValue in
-            let rooms = rooms.filter { room in
-                selections.contains(room.id)
+            .listRowSpacing(10)
+            .task {
+                if sonosService.sortedRooms.isEmpty {
+                    try? await sonosService.load(useCache: true)
+                    rooms = sonosService.sortedRooms.map {
+                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                        room.volume = $0.volume
+                        return room
+                    }
+                } else {
+                    rooms = sonosService.sortedRooms.map {
+                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                        room.volume = $0.volume
+                        return room
+                    }
+                }
             }
+            .onChange(of: selections, initial: true) { oldValue, newValue in
+                let rooms = rooms.filter { room in
+                    selections.contains(room.id)
+                }
 
-            sceneName = rooms.map(\.name).joined(separator: " + ")
+                sceneName = rooms.map(\.name).joined(separator: " + ")
+            }
+            .task {
+                guard OSEnvironment.isPreviews else { return }
+                sonosService.monitor()
+            }
+            .task {
+                try? await Task.sleep(for: .milliseconds(500))
+                let id = await sonosService.getHouseID()
+                print(id)
+                self.id = id
+            }
         }
-        .task {
-            guard OSEnvironment.isPreviews else { return }
-            sonosService.monitor()
-        }
-        .task {
-            try? await Task.sleep(for: .milliseconds(500))
-            let id = await sonosService.getHouseID()
-            print(id)
-            self.id = id
-        }
-        .presentationDragIndicator(.hidden)
     }
 }
 
@@ -197,6 +193,4 @@ struct SceneBuilderScreen: View {
             }
             .environment(AlertService())
             .environment(SonosService())
-        
-
 }

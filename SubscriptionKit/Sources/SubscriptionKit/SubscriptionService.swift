@@ -27,7 +27,6 @@ public final class SubscriptionService: SubscriptionServicing {
             subscription = Subscription(isActive: true)
             sync.set(true, for: "com.clic.subscriptions")
             Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "TESTFLIGHT"])
-            login()
             return
         }
 
@@ -36,7 +35,6 @@ public final class SubscriptionService: SubscriptionServicing {
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "PRODUCTION"])
         Task { @MainActor in
             setup()
-            login()
         }
     }
 

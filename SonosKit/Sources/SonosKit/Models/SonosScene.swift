@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-public struct SonosScene: Identifiable, Codable {
+public struct SonosScene: Identifiable, Codable, Hashable {
     public let id: UUID
     public var name: String = ""
     public var rooms: [SceneRoom] = []
@@ -11,9 +11,13 @@ public struct SonosScene: Identifiable, Codable {
         self.name = name
         self.rooms = rooms
     }
+
+    public static func == (lhs: SonosScene, rhs: SonosScene) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
-public struct SceneRoom: Codable {
+public struct SceneRoom: Codable, Hashable {
     public let id: String
     public let ip: String
     public let name: String
@@ -24,5 +28,9 @@ public struct SceneRoom: Codable {
         self.ip = ip
         self.name = name
         self.volume = volume
+    }
+
+    public static func == (lhs: SceneRoom, rhs: SceneRoom) -> Bool {
+        lhs.id == rhs.id
     }
 }

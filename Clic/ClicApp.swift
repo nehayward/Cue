@@ -2,12 +2,15 @@ import CloudStorage
 import RevenueCat
 import SonosKit
 import SubscriptionKit
+import StoreKit
 import SwiftUI
 import WidgetKit
 
 @main
 struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
+    @Environment(\.requestReview) var requestReview
+
     @State private var selected: String?
     @State private var liveActivityManager: LiveActivityManager? = nil
     @State private var subscriptionService = SubscriptionService()
@@ -47,6 +50,10 @@ struct ClicApp: App {
                 .onOpenURL { url in
                     // TODO: Add Scene Search Handler
 //                    selected = "RINCON_B8E937525BB001400"
+                }
+                .onAppear {
+                    guard ReviewService().askForRequest() else { return }
+                    requestReview()
                 }
         }
         .onChange(of: scenePhase) {

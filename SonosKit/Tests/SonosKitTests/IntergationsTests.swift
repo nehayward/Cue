@@ -15,6 +15,10 @@ final class IntegrationsTests: XCTestCase {
         await sonosService.queueSpotifyTrack(id: "1vYXt7VSjH9JIM5oRRo7vA", group: .garage)
     }
 
+    func testSpotifyAlbumQueue() async throws {
+        await sonosService.queueSpotifyAlbum(id: "01sfgrNbnnPUEyz6GZYlt9", group: .garage)
+    }
+
     func testGetQueue() async throws {
         let tracks = await sonosService.getQueue(ip: garageSonosIP)
         print(tracks)

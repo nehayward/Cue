@@ -35,7 +35,6 @@ struct GroupScreen: View {
                                     Spacer()
                                     Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
                                         .symbolEffect(.bounce, options: .speed(5), value: viewModel.selections.contains(room.id))
-
                                 }
                                 .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
                                 .fontDesign(.rounded)
@@ -45,7 +44,6 @@ struct GroupScreen: View {
                             RoomVolumeView(room: $room)
                                 .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
                                 .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
-                            //                                VolumeControlView(group: )
                         }
                         .listRowBackground(
                             viewModel.selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
@@ -58,6 +56,7 @@ struct GroupScreen: View {
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 SceneBuilderScreen(showGroupScreen: $showGroupScreen, group: $viewModel.group, selections: ids)
+                    .background(.ultraThinMaterial)
             }
             .listSectionSpacing(10)
             .toolbar {
@@ -139,14 +138,16 @@ struct GroupScreen: View {
                 }
                 .padding()
                 .background {
-                    Rectangle()
-                        .foregroundStyle(.thinMaterial)
-                        .ignoresSafeArea()
+                    RoundedRectangle(cornerRadius: 20)
+                        .foregroundStyle(.ultraThinMaterial)
+                        .edgesIgnoringSafeArea(.bottom)
+                        .shadow(radius: 2)
                 }
             }
+            .toolbarTitleDisplayMode(.inline)
         }
-        .presentationBackground(.ultraThinMaterial)
-        .presentationDetents([.medium, .large])
+        .presentationBackground(.thinMaterial)
+        .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .scrollContentBackground(.hidden)
         .animation(.interactiveSpring, value: viewModel.groupingLabel)

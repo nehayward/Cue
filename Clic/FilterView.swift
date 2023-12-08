@@ -12,84 +12,89 @@ enum Filter: String, CaseIterable {
     }
 }
 
-struct FilterSelection {
+@Observable
+class FilterSelection: Hashable, Identifiable {
     let filter: Filter
-    let isOn: Bool
+    var isFiltered: Bool
+    var notFiltered: Bool { !isFiltered }
+
+    init(filter: Filter, isFiltered: Bool) {
+        self.filter = filter
+        self.isFiltered = isFiltered
+    }
+
+    nonisolated static func == (lhs:
+                                FilterSelection, rhs: FilterSelection) -> Bool {
+        lhs === rhs
+    }
+
+    nonisolated func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
+    }
 }
 
 struct FilterView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @State var show: Bool = false
-    @State var selected: Bool = false
-
-    var scenes: [SonosScene] = []
-    struct Alarm: Hashable, Identifiable {
-        var id = UUID()
-        var isOn = false
-        var name = ""
-    }
-
-
-    @State private var alarms = [
-        Alarm(isOn: true, name: "Morning"),
-        Alarm(isOn: false, name: "Evening")
-    ]
-
+    @Binding var filters: [FilterSelection]
 
     var body: some View {
         ScrollView(.horizontal) {
             HStack {
-                ForEach(Filter.allCases, id: \.self) { filter in
-                    Button {
-
-                    } label: {
-                        Text(filter.title)
-                            .padding(12)
-                            .background{
-                                Capsule()
-                                    .foregroundStyle(.thinMaterial)
-                            }
-                            .padding(2)
-                    }
-                    .buttonStyle(.plain)
-                    Toggle(filter.title, isOn: $selected)
+                ForEach($filters) { $filter in
+                    Toggle(filter.filter.title, isOn: $filter.isFiltered)
+                        .sensoryFeedback(.selection, trigger: filter.isFiltered)
                         .toggleStyle(.button)
-
+                        .clipShape(Capsule())
+                        .background {
+                            if filter.isFiltered {
+                                Capsule()
+                                    .foregroundStyle(.accent.gradient)
+                            } else {
+                                Capsule()
+                                    .foregroundStyle(.background)
+                            }
+                        }
+                        .foregroundStyle(filter.isFiltered ? Color.black.gradient : Color.accentColor.gradient)
                 }
             }
             .scrollTargetLayout()
             .fontDesign(.rounded)
             .fontWeight(.bold)
-            ForEach($alarms, id: \.self) { $filter in
-//                    Button {
-//
-//                    } label: {
-//                        Text(filter.title)
-//                            .padding(12)
-//                            .background{
-//                                Capsule()
-//                                    .foregroundStyle(.thinMaterial)
-//                            }
-//                            .padding(2)
-//                    }
-//                    .buttonStyle(.plain)
-                Toggle(filter.name, isOn: $filter.isOn)
-                    .toggleStyle(.button)
-                    .clipShape(Capsule())
-
-            }
-            Toggle("Enable all alarms", sources: $alarms, isOn: \.isOn)
         }
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
+        .contentMargins(.leading, 12, for: .scrollContent)
         .mask(alignment: .trailing) {
-            LinearGradient(stops: [.init(color: Color.black, location: 0.6), .init(color: Color.black.opacity(0), location: 1.05)], startPoint: .leading, endPoint: .trailing)
+            LinearGradient(stops: [.init(color: Color.black, location: 0.9), .init(color: Color.black.opacity(0), location: 1.05)], startPoint: .leading, endPoint: .trailing)
         }
     }
 }
 
 #Preview {
-    FilterView()
-        .environment(SonosService())
+    FilterView(
+        filters: .constant(
+            [
+                FilterSelection(
+                    filter: .albums,
+                    isFiltered: false
+                ),
+                FilterSelection(
+                    filter: .artist,
+                    isFiltered: false
+                ),
+                FilterSelection(
+                    filter: .tracks,
+                    isFiltered: false
+                ),
+                FilterSelection(
+                    filter: .playlists,
+                    isFiltered: false
+                ),
+            ]
+        )
+    )
+    .environment(
+        SonosService()
+    )
 }
