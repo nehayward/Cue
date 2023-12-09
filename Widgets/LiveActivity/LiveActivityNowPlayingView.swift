@@ -23,7 +23,7 @@ struct LiveActivityNowPlayingView: View {
                 Label(context.attributes.room.name,
                       systemImage: "hifispeaker.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Link(destination: URL(string: "clic://search?room=\(context.attributes.room.name)")!) {
+                Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
                         .imageScale(.large)
                         .bold()
@@ -87,12 +87,13 @@ struct LiveActivityNowPlayingView: View {
         }
         .padding()
         .activityBackgroundTint(.black.opacity(0.8))
+        .environment(\.colorScheme, .dark)
     }
 }
 
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", name: "Kitchen", ip: "1298212", volume: 10))
+        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen", volume: 10))
     }
 }
 

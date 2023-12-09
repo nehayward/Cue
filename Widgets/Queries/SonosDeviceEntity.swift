@@ -3,14 +3,15 @@ import SonosKit
 
 struct SonosDeviceEntity: AppEntity, Identifiable, Codable {
     let id: String
-    let name: String
     let ip: String
+    let name: String
     let volume: Double
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Sonos Device"
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(stringLiteral: name)
+//        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name), subtitle: LocalizedStringResource("\(volume)%"), image: DisplayRepresentation.Image(systemName: "hifispeaker"))
+        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name), image: DisplayRepresentation.Image(systemName: "hifispeaker"))
     }
 
     static var defaultQuery = SonosDeviceQuery()

@@ -27,13 +27,13 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
         }
 
         guard let artworkURL = await sonosService.getArtwork(from: track) else {
-            let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
+            let entity = SonosDeviceEntity(id: group.coordinatorID, ip: group.coordinatorRoom.ip, name: group.coordinatorRoom.name, volume: group.groupVolume)
             let info = NowPlayingEntry.Info(room: entity, data: nil, track: track.name, artist: track.artist)
             return NowPlayingEntry(date: Date(), configuration: configuration, info: info)
         }
 
         let data = try? await URLSession.shared.data(from: artworkURL)
-        let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
+        let entity = SonosDeviceEntity(id: group.coordinatorID, ip: group.coordinatorRoom.ip, name: group.coordinatorRoom.name, volume: group.groupVolume)
         let info = NowPlayingEntry.Info(room: entity, data: data?.0, track: track.name, artist: track.artist)
         let entry = NowPlayingEntry(date: .now, configuration: configuration, info: info)
         return entry
@@ -62,14 +62,14 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
         }
 
         guard let artworkURL = await sonosService.getArtwork(from: track) else {
-            let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
+            let entity = SonosDeviceEntity(id: group.coordinatorID, ip: group.coordinatorRoom.ip, name: group.coordinatorRoom.name, volume: group.groupVolume)
             let info = NowPlayingEntry.Info(room: entity, data: nil, track: track.name, artist: track.artist)
             let entry = NowPlayingEntry(date: .now, configuration: configuration, info: info)
             return Timeline(entries: [entry], policy: .atEnd)
         }
 
         let data = try? await URLSession.shared.data(from: artworkURL)
-        let entity = SonosDeviceEntity(id: group.coordinatorID, name: group.coordinatorRoom.name, ip: group.coordinatorRoom.ip, volume: group.groupVolume)
+        let entity = SonosDeviceEntity(id: group.coordinatorID, ip: group.coordinatorRoom.ip, name: group.coordinatorRoom.name, volume: group.groupVolume)
         let info = NowPlayingEntry.Info(room: entity, data: data?.0, track: track.name, artist: track.artist)
         let entry = NowPlayingEntry(date: Date(), configuration: configuration, info: info)
         return Timeline(entries: [entry], policy: .atEnd)

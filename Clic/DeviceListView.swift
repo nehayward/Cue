@@ -11,7 +11,7 @@ struct DeviceListMainView: View {
     @Environment(AlertService.self) var alertService: AlertService
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
-    @Binding var selected: String?
+    @Binding var selected: Route?
     @State var isShowing: Bool = false
     @State var showSettings: Bool = false
     @State private var showPaywall: Bool = false
@@ -41,8 +41,8 @@ struct DeviceListMainView: View {
                         Divider()
                         VolumeControlView(group: $group)
                     }
-                    .tag(group.coordinatorID)
-                    .accentColor(group.coordinatorID == selected ? .primary : .accent)
+                    .tag(Route(id: group.coordinatorID, search: false))
+                    .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
                 } header: {
                     HStack {
                         Image(systemName: "hifispeaker.fill")
@@ -131,7 +131,7 @@ struct DeviceListMainView: View {
         } detail: {
             NavigationStack {
                 ZStack {
-                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
                         let group = $sonosService.sorted[index]
                         let groupName = sonosService.sorted[index].coordinatorRoom.name + (group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")
                         LargePlayerView(group: group, selected: $selected)
@@ -143,7 +143,7 @@ struct DeviceListMainView: View {
         }
         .onChange(of: selected) {
             guard !OSEnvironment.pad else { return }
-            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
                 sonosService.selectedGroup = sonosService.sorted[index]
             } else {
                 sonosService.selectedGroup = nil
@@ -236,12 +236,12 @@ struct DeviceListMainView: View {
 }
 
 
-#Preview {
-    DeviceListMainView(selected: .constant(GroupRoom.garage.coordinatorID))
-        .environment(SonosService())
-        .environment(SubscriptionService())
-        .environment(AlertService())
-}
+//#Preview {
+//    DeviceListMainView(selected: .constant(Route(id: GroupRoom.garage.coordinatorID, search: false)))
+//        .environment(SonosService())
+//        .environment(SubscriptionService())
+//        .environment(AlertService())
+//}
 
 #Preview {
     DeviceListMainView(selected: .constant(nil))

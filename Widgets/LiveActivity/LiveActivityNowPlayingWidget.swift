@@ -88,7 +88,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                     .tint(.primary)
                     .buttonStyle(.borderless)
                     .overlay(alignment: .trailing) {
-                        Link(destination: URL(string: "clic://search?room=\(context.attributes.room.name)")!) {
+                        Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                             Image(systemName: "magnifyingglass.circle.fill")
                                 .imageScale(.large)
                                 .bold()
@@ -120,7 +120,7 @@ struct LiveActivityNowPlayingWidget: Widget {
 
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", name: "Kitchen", ip: "1298212", volume: 10))
+        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen", volume: 10))
     }
 }
 

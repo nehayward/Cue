@@ -124,6 +124,7 @@
 		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
+		E9FDDC302B238216005D281E /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
@@ -295,6 +296,7 @@
 		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
 		E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSEnvironment.swift; sourceTree = "<group>"; };
 		E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
+		E9FDDC2F2B238216005D281E /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -469,6 +471,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E9FDDC2F2B238216005D281E /* Router.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
@@ -854,6 +857,7 @@
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */,
+				E9FDDC302B238216005D281E /* Router.swift in Sources */,
 				E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */,
 				E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */,
 				E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */,

@@ -876,7 +876,7 @@ public final class SonosService {
         await api.removeTrackFromQueue(IP: IP, index: index)
     }
 
-    public func getGroupCoordinatorWithRoom(roomID: String) async -> Room? {
+    public func getGroupCoordinatorWithRoom(roomID: String) async -> GroupRoom? {
         do {
             let groups = try await getGroups(useCache: true)
             let group = groups.first { group in
@@ -884,7 +884,7 @@ public final class SonosService {
                     room.id == roomID
                 }
             }
-            return group?.coordinatorRoom
+            return group
         } catch {
             print(error)
             return nil

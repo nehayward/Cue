@@ -1,5 +1,6 @@
 import CloudStorage
 import RevenueCat
+import RevenueCatUI
 import SonosKit
 import SubscriptionKit
 import StoreKit
@@ -11,31 +12,15 @@ struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.requestReview) var requestReview
 
-    @State private var selected: String?
+    @State private var selected: Route?
     @State private var liveActivityManager: LiveActivityManager? = nil
     @State private var subscriptionService = SubscriptionService()
     @State private var sonosService = SonosService()
     @State private var alertService = AlertService()
+    @State private var showPaywall = false
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-//
-//    // register initial UserDefaults values every launch
-//    init() {
-//        // Migrate Sonos Scenes
-//        if OSEnvironment.versionInfo == "2023.3" {
-//            guard !scenes.isEmpty else {
-//                // no migration needed
-//                return
-//            }
-//            let updatedScenes: [SonosScene] = scenes.map { scene in
-//                return SonosScene(name: scene.name, rooms: scene.rooms, isActive: false)
-//            }
-//            scenes = updatedScenes
-//            NSUbiquitousKeyValueStore.default.synchronize()
-//            print("Migrated")
-//        }
-//    }
 
     var body: some Scene {
         WindowGroup {
@@ -47,13 +32,13 @@ struct ClicApp: App {
                     liveActivityManager = LiveActivityManager(sonosService: sonosService)
                     subscriptionService.monitorChanges()
                 }
-                .onOpenURL { url in
-                    // TODO: Add Scene Search Handler
-//                    selected = "RINCON_B8E937525BB001400"
-                }
+                .onOpenURL(perform: handle)
                 .onAppear {
                     guard ReviewService().askForRequest() else { return }
                     requestReview()
+                }
+                .sheet(isPresented: $showPaywall) {
+                    PaywallView()
                 }
         }
         .onChange(of: scenePhase) {
@@ -63,7 +48,7 @@ struct ClicApp: App {
             guard subscriptionService.subscription.isActive else { return }
 
             Task {
-                await liveActivityManager?.createActivity(with: sonosService.groups)
+                await liveActivityManager?.createActivity()
             }
         }
         .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
@@ -113,6 +98,40 @@ struct ClicApp: App {
             }
         @unknown default:
             break
+        }
+    }
+
+    private func handle(_ url: URL) {
+        guard let url = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+        if url.host?.lowercased() == "subscribe" {
+            showPaywall = true
+            return
+        }
+
+        if url.host?.lowercased() == "search", let id = url.queryItems?.first(where: { $0.name == "id" })?.value {
+            if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
+                selected = Route(id: id, search: true)
+                return
+            }
+            Task {
+                try await sonosService.fetch(useCache: true)
+                if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
+                    selected = Route(id: id, search: true)
+                }
+            }
+        }
+
+        if url.host?.lowercased() == "device", let id = url.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
+            if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
+                selected = Route(id: id, search: false)
+                return
+            }
+            Task {
+                try await sonosService.fetch(useCache: true)
+                if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
+                    selected = Route(id: id, search: false)
+                }
+            }
         }
     }
 }

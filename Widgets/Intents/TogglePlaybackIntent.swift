@@ -27,12 +27,12 @@ struct TogglePlaybackIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in Clic")
         }
 
-        guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
+        guard let coordinatorGroup = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
         
-        await Self.sonosService.togglePlayback(ip: coordinatorRoom.ip)
-        try? await Task.sleep(for: .milliseconds(300))
+        await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
+        await Self.liveActivityManager.createActivity()
         await Self.liveActivityManager.refresh()
         return .result()
     }

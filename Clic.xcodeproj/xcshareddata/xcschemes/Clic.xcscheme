@@ -56,11 +56,6 @@
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "Super"
-            value = "TRUE"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
             key = "IDELogRedirectionPolicy"
             value = "oslogToStdio"
             isEnabled = "YES">

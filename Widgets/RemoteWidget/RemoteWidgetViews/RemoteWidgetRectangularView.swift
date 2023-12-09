@@ -62,6 +62,7 @@ struct RemoteWidgetRectangularView: View {
             .fontDesign(.rounded)
             .buttonStyle(.borderless)
             .containerBackground(.secondary, for: .widget)
+            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)
@@ -74,5 +75,5 @@ struct RemoteWidgetRectangularView: View {
 #Preview(as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", name: "Garage", ip: "", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
 }

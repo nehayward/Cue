@@ -34,15 +34,14 @@ final class LiveActivityManager {
         }
     }
 
-    func createActivity(with groups: [GroupRoom]) async {
+    func createActivity() async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
-
-        for group in groups.filter(\.coordinatorRoom.isPlaying) {
+        try? await sonosService.fetch(useCache: true)
+        for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
             let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
+                                                                                        ip: group.coordinatorRoom.ip, 
                                                                                         name: group.coordinatorRoom.name,
-                                                                                        ip: group.coordinatorRoom.ip,
                                                                                         volume: group.groupVolume))
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,

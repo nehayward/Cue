@@ -4,9 +4,8 @@ import SonosKit
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
-    @Binding var selected: String?
+    @Binding var selected: Route?
     @State var isExpanded: Bool = false
-
     @State var showSearch = false
     
     @State private var isEditing: Bool = false
@@ -69,9 +68,9 @@ struct LargePlayerView: View {
         .sheet(isPresented: $showGroup) {
             GroupScreen(showGroupScreen: $showGroup, viewModel: GroupScreenViewModel(group: group))
         }
-        .sheet(isPresented: $showSearch) {
-            //            SearchScreen(group: group)
-
+        .sheet(isPresented: $showSearch, onDismiss: {
+            selected?.search = false
+        }) {
             ImprovedSearch(group: group)
         }
         .sheet(isPresented: $showQueue) {
@@ -83,6 +82,12 @@ struct LargePlayerView: View {
                 group = selectedGroup
             }
         }
+        .onChange(of: selected, initial: true) {
+            if let search = selected?.search {
+                showSearch = search
+            }
+        }
+
         //        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
         //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)
         .background {

@@ -43,7 +43,6 @@ struct RemoteWidgetEntryView : View {
                                     .buttonStyle(.borderedProminent)
                                     .buttonBorderShape(.circle)
                                     .tint(.secondary)
-
                                 }
                                 VStack(spacing: 12) {
                                     Button(intent: SetRelativeGroupVolumeIntent(room: speakerIP, volume: 3)) {
@@ -84,6 +83,7 @@ struct RemoteWidgetEntryView : View {
                     .fontDesign(.rounded)
                     .containerBackground(.black, for: .widget)
                     .environment(\.colorScheme, .light)
+                    .widgetURL(URL(string: "clic://device?id=\(speakerIP.id)"))
                 }
             } else {
                 VStack {
@@ -95,27 +95,27 @@ struct RemoteWidgetEntryView : View {
                 .containerBackground(.thinMaterial, for: .widget)
             }
         }
-        .disabled(!activeSubscription)
-        .overlay {
-            if !activeSubscription {
-                Text("Upgrade Now")
-                    .scaledToFit()
-                    .bold()
-                    .padding()
-                    .background {
-                        Capsule()
-                            .foregroundStyle(.thinMaterial)
-                    }
-                    .fontDesign(.rounded)
-            }
-        }
+//        .disabled(!activeSubscription)
+//        .overlay {
+//            if !activeSubscription {
+//                Text("Unlock")
+//                    .bold()
+//                    .padding()
+//                    .background {
+//                        Capsule()
+//                            .foregroundStyle(.thinMaterial)
+//                    }
+//                    .fontDesign(.rounded)
+//                    .widgetURL(URL(string: "clic://subscribe"))
+//            }
+//        }
     }
 }
 
 #Preview(as: .systemSmall) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", name: "Garage", ip: "", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
 }
 
 #Preview(as: .accessoryCircular) {
@@ -126,8 +126,8 @@ struct RemoteWidgetEntryView : View {
         configuration: RemoteWidgetConfigurationIntent(
             room: SonosDeviceEntity(
                 id: "",
+                ip: "", 
                 name: "Garage",
-                ip: "",
                 volume: 20
             )
         ),
