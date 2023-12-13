@@ -627,7 +627,9 @@ public final class SonosService {
         let changes = rooms.difference(from: nonCoordinatorRooms)
 
         if rooms.isEmpty {
-            await api.ungroup(IP: group.ip)
+            for room in nonCoordinatorRooms {
+                await api.ungroup(IP: room.ip)
+            }
             return
         }
 
