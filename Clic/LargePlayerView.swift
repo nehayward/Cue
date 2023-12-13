@@ -8,15 +8,21 @@ struct LargePlayerView: View {
     @State var isExpanded: Bool = false
     @State var showSearch = false
     
+    @Binding var sheetDestination: SheetDestination?
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
-    @State private var showGroup = false
     @State private var showQueue = false
 
     @State private var nextButtonTapped: Bool = false
 
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
     private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
+
+    init(group: Binding<GroupRoom>, selected: Binding<Route?>, sheetDestination: Binding<SheetDestination?> = .constant(.none)) {
+        self._group = group
+        self._selected = selected
+        self._sheetDestination = sheetDestination
+    }
 
     var body: some View {
         VStack(alignment: .center) {
@@ -64,9 +70,6 @@ struct LargePlayerView: View {
                 } while (!Task.isCancelled)
             }
 
-        }
-        .sheet(isPresented: $showGroup) {
-            GroupScreen(showGroupScreen: $showGroup, viewModel: GroupScreenViewModel(group: group))
         }
         .sheet(isPresented: $showSearch, onDismiss: {
             selected?.search = false
@@ -135,7 +138,7 @@ struct LargePlayerView: View {
                     GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
                     HStack(spacing: 60) {
                         Button {
-                            showGroup.toggle()
+                            sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
                         } label: {
                             Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                                 .font(.body)
@@ -295,7 +298,7 @@ struct LargePlayerView: View {
 #if DEBUG
 #Preview("Group") {
     NavigationStack {
-        LargePlayerView(group: .constant(.garagePlusTheater), selected: .constant(nil), isExpanded: true)
+        LargePlayerView(group: .constant(.garagePlusTheater), selected: .constant(nil))
             .screenshot(name: "Player Screen")
             .environment(SonosService())
             .onAppear {

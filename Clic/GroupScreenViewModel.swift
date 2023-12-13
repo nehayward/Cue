@@ -5,40 +5,24 @@ import Observation
 final class GroupScreenViewModel {
     var group: GroupRoom
     var selections: Set<String>
-    private let initialSelection: Set<String>
+    @ObservationIgnored var sonosService: SonosService
 
-    init(group: GroupRoom) {
-        self.group = group
-        let ids = Set(group.rooms.filter { $0.id != group.coordinatorID }.map { $0.id })
-        self.selections = ids
-        self.initialSelection = ids
-    }
-
-    var groupingLabel: String {
-        if selections == initialSelection {
-            return "Cancel"
+    init(groupCoordinatorID: String, sonosService: SonosService) {
+        self.sonosService = sonosService
+        self.group = sonosService.sorted.first(where: { $0.coordinatorID == groupCoordinatorID })!
+        guard let group = sonosService.sorted.first(where: { $0.coordinatorID == groupCoordinatorID }) else {
+            selections = []
+            return
         }
-        if selections.count >= initialSelection.count {
-            return "Grouping"
-        } else {
-            return "Separating"
-        }
+        self.selections = Set(group.rooms.filter { $0.id != group.coordinatorID }.map { $0.id })
     }
 
     var numberInGroup: String {
-        if selections.count >= initialSelection.count {
-            return selections.count > 0 ? "\(selections.count)" : ""
-        } else {
-            return "\(initialSelection.symmetricDifference(selections).count)"
-        }
+        selections.count > 0 ? "\(selections.count)" : ""
     }
 
     var grouping: String {
-        if selections.count >= initialSelection.count {
-            return selections.count > 0 ? "+" : ""
-        } else {
-            return "-"
-        }
+        selections.count > 0 ? "+" : ""
     }
 
     func buttonAction(id: String) {
@@ -47,5 +31,16 @@ final class GroupScreenViewModel {
         } else {
             selections.insert(id)
         }
+
+        let rooms = sonosService.sortedRooms.filter { room in
+            selections.contains(room.id)
+        }
+
+        guard let group = sonosService.sorted.first(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+
+        Task {
+            await sonosService.smartGroup(rooms: rooms, to: group)
+        }
+
     }
 }

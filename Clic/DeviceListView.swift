@@ -12,11 +12,12 @@ struct DeviceListMainView: View {
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @Binding var selected: Route?
-    @State var isShowing: Bool = false
-    @State var showSettings: Bool = false
-    @State private var showPaywall: Bool = false
-    @State private var selectedGroup: GroupRoom? = nil
-    @State var showGroupScreen: Bool = false
+    @State var sheetDestination: SheetDestination?
+//    @State var showSettings: Bool = false
+//    @State private var showPaywall: Bool = false
+//    @State var showGroupScreen: Bool = false
+
+
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -34,7 +35,7 @@ struct DeviceListMainView: View {
                                     .frame(width: 72, height: 72)
                                 ZoneView(group: $group)
                                 Spacer()
-                                MediaControlsView(group: $group, selectedGroup: $selectedGroup)
+                                MediaControlsView(group: $group, sheetDestination: $sheetDestination)
                             }
                             .padding(.bottom, 4)
                         }
@@ -58,13 +59,11 @@ struct DeviceListMainView: View {
                 .selectionDisabled(!enabled(group: group))
             }
             .navigationBarTitle("", displayMode: .inline)
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-            }
+            .withSheetDestinations(sheetDestinations: $sheetDestination)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showSettings = true
+                        sheetDestination = .settings
                     } label: {
                         Image(systemName: "gear")
                     }
@@ -112,7 +111,7 @@ struct DeviceListMainView: View {
 
                     if !subscriptionService.subscription.isActive {
                         Button {
-                            showPaywall = true
+                            sheetDestination = .paywall
                         } label: {
                             Text("Show all devices (\(sonosService.groups.count))")
                                 .fontDesign(.rounded)
@@ -134,7 +133,7 @@ struct DeviceListMainView: View {
                     if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
                         let group = $sonosService.sorted[index]
                         let groupName = sonosService.sorted[index].coordinatorRoom.name + (group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")
-                        LargePlayerView(group: group, selected: $selected)
+                        LargePlayerView(group: group, selected: $selected, sheetDestination: $sheetDestination)
                             .navigationTitle(Text(groupName))
                     }
                 }
@@ -151,17 +150,6 @@ struct DeviceListMainView: View {
             }
         }
         .animation(.spring, value: sonosService.isSearching)
-        // MARK: Debug
-//        .overlay {
-//                VStack {
-//                    Text(sonosService.networkMonitorService.isConnected ? "Connected" : "Disconnect")
-//                    Text(!sonosService.monitorTask.isCancelled ? "Running" : "Cancelled")
-//                        .bold()
-//                    Spacer()
-//                }
-//                .ignoresSafeArea()
-//                .padding(.top, 30)
-//        }
         .safeAreaInset(edge: .top) {
             VStack {
                 if alertService.alert.isShowing {
@@ -209,23 +197,8 @@ struct DeviceListMainView: View {
         .task {
             guard OSEnvironment.isPreviews else { return }
             sonosService.monitor()
-//            showSettings = true
-        }
-        .sheet(isPresented: $showSettings) {
-            PreferenceScreen()
-        }
-        .sheet(item: $selectedGroup) { group in
-            GroupScreen(showGroupScreen: $showGroupScreen, viewModel: GroupScreenViewModel(group: group))
-                .onChange(of: showGroupScreen) { _, newValue in
-                    if !newValue {
-                        selectedGroup = nil
-                    }
-                }
         }
         .navigationSplitViewStyle(.balanced)
-//        .sheet(isPresented: $showSettings) {
-//            PaywallScreen()
-//        }
     }
 
     private func enabled(group: GroupRoom) -> Bool {
@@ -234,14 +207,6 @@ struct DeviceListMainView: View {
         return index < 1
     }
 }
-
-
-//#Preview {
-//    DeviceListMainView(selected: .constant(Route(id: GroupRoom.garage.coordinatorID, search: false)))
-//        .environment(SonosService())
-//        .environment(SubscriptionService())
-//        .environment(AlertService())
-//}
 
 #Preview {
     DeviceListMainView(selected: .constant(nil))

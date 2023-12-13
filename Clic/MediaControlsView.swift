@@ -4,12 +4,12 @@ import SonosKit
 struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
-    @Binding var selectedGroup: GroupRoom?
+    @Binding var sheetDestination: SheetDestination?
 
     var body: some View {
         VStack(alignment: .center, spacing: 12) {
             Button {
-                selectedGroup = group
+                sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
             } label: {
                 Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
                     .frame(width: 20)
@@ -54,6 +54,6 @@ struct MediaControlsView: View {
 }
 
 #Preview {
-    MediaControlsView(group: .constant(.garage), selectedGroup: .constant(nil))
+    MediaControlsView(group: .constant(.garage), sheetDestination: .constant(nil))
         .environment(SonosService())
 }

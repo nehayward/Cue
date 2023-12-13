@@ -149,7 +149,7 @@ struct PlayerView: View {
             }
         }
         .sheet(isPresented: $showGroup) {
-            GroupScreen(group: $group, viewModel: GroupScreenViewModel(group: group))
+            GroupScreen(group: $group, viewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService))
         }
         .onChange(of: group.groupVolume) {
             if isIdle { return }

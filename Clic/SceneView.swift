@@ -70,7 +70,7 @@ struct SceneView: View {
         .background(.bar)
         .sheet(isPresented: $show) {
             NavigationStack {
-                SceneBuilderScreen(showGroupScreen: $show)
+                SceneBuilderScreen(sheetDestination: .constant(nil))
             }
         }
 

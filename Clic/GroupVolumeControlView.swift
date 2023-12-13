@@ -71,7 +71,8 @@ struct GroupVolumeControlView: View {
                         await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Sync Volume", systemImage: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(.ultraThickMaterial)
                         .frame(maxWidth: .infinity)
                         .bold()
                 }

@@ -5,31 +5,24 @@ import Observation
 final class GroupScreenViewModel {
     var group: GroupRoom
     var selections: Set<String>
-    private let initialSelection: Set<String>
+    @ObservationIgnored var sonosService: SonosService
 
-
-    init(group: GroupRoom) {
-        self.group = group
-        
-        var ids = Set(group.rooms.map { $0.id })
-        ids.remove(group.coordinatorRoom.id)
-        self.selections = ids
-        self.initialSelection = ids
+    init(groupCoordinatorID: String, sonosService: SonosService) {
+        self.sonosService = sonosService
+        self.group = sonosService.sorted.first(where: { $0.coordinatorID == groupCoordinatorID })!
+        guard let group = sonosService.sorted.first(where: { $0.coordinatorID == groupCoordinatorID }) else {
+            selections = []
+            return
+        }
+        self.selections = Set(group.rooms.filter { $0.id != group.coordinatorID }.map { $0.id })
     }
 
-    var groupingLabel: String {
-        if selections == initialSelection {
-            return "Cancel"
-        }
-        if selections.count > initialSelection.count {
-            return "Grouping \(selections.count)"
-        }
+    var numberInGroup: String {
+        selections.count > 0 ? "\(selections.count)" : ""
+    }
 
-        if selections.count < initialSelection.count {
-            return "Ungroup"
-        }
-
-        return "Group"
+    var grouping: String {
+        selections.count > 0 ? "+" : ""
     }
 
     func buttonAction(id: String) {
@@ -38,5 +31,16 @@ final class GroupScreenViewModel {
         } else {
             selections.insert(id)
         }
+
+        let rooms = sonosService.sortedRooms.filter { room in
+            selections.contains(room.id)
+        }
+
+        guard let group = sonosService.sorted.first(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+
+        Task {
+            await sonosService.smartGroup(rooms: rooms, to: group)
+        }
+
     }
 }

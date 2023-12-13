@@ -125,6 +125,8 @@
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
 		E9FDDC302B238216005D281E /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
+		E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
+		E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
@@ -297,6 +299,8 @@
 		E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSEnvironment.swift; sourceTree = "<group>"; };
 		E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
 		E9FDDC2F2B238216005D281E /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		E9FDDC312B27BD20005D281E /* SheetDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetDestination.swift; sourceTree = "<group>"; };
+		E9FDDC332B27BED4005D281E /* AppRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRegistry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -471,7 +475,9 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
 				E9FDDC2F2B238216005D281E /* Router.swift */,
+				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
@@ -849,6 +855,7 @@
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */,
+				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
@@ -874,6 +881,7 @@
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
+				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,

@@ -623,8 +623,13 @@ public final class SonosService {
     public func smartGroup(rooms: [Room], to group: GroupRoom) async {
         // MARK: Only group new rooms
         let rooms = rooms.filter { $0.id != group.coordinatorID }
-        let nonCoordinatorRooms = group.rooms.filter{ $0.id != group.coordinatorID }
+        let nonCoordinatorRooms = group.rooms.filter { $0.id != group.coordinatorID }
         let changes = rooms.difference(from: nonCoordinatorRooms)
+
+        if rooms.isEmpty {
+            await api.ungroup(IP: group.ip)
+            return
+        }
 
         for change in changes {
             switch change {
@@ -634,6 +639,12 @@ public final class SonosService {
                 await api.ungroup(IP: element.ip)
             }
         }
+    }
+
+    /// Ungroup all rooms
+    /// - Parameter group:
+    public func ungroup(group: GroupRoom) async {
+        await api.ungroup(IP: group.ip)
     }
 
     public func setDeviceVolume(ip: String, volume: Int) async {
@@ -807,6 +818,12 @@ public final class SonosService {
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }
+        
+        if rooms.isEmpty {
+            await api.ungroup(IP: scene.rooms.first!.ip)
+            return
+        }
+
         await group(rooms: rooms, to: scene.rooms.first!.id)
         try? await Task.sleep(for: .milliseconds(300))
         guard let groupIP = scene.rooms.first?.ip else { return }

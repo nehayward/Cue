@@ -6,10 +6,9 @@ import SonosKit
 struct SceneBuilderScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
-
-    @Binding var showGroupScreen: Bool
     
     var group: Binding<GroupRoom>? = nil
+    @Binding var sheetDestination: SheetDestination?
     @State var selections = Set<String>()
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
@@ -122,8 +121,8 @@ struct SceneBuilderScreen: View {
                         let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
                         let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
                         scenes.append(newScene)
+                        sheetDestination = nil
                         dismiss()
-                        showGroupScreen = false
                     } label: {
                         Text("Create Scene")
                             .foregroundStyle(.ultraThickMaterial)
@@ -184,7 +183,7 @@ struct SceneBuilderScreen: View {
         Text("SceneBuilder")
             .sheet(isPresented: .constant(true)) {
                 NavigationStack {
-                    SceneBuilderScreen(showGroupScreen: .constant(true), group: .constant(.garage))
+                    SceneBuilderScreen(group: .constant(.garage), sheetDestination: .constant(nil))
                         .onAppear {
                             let thumbImage = UIImage()
                             UISlider.appearance().setThumbImage(thumbImage, for: .normal)
