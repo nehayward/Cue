@@ -11,17 +11,20 @@ final class ReviewService {
 
     func askForRequest() -> Bool {
         if askAfterDate < Date.now {
-            askAfterDate = Calendar.current.date(byAdding: .month, value: 2, to: .now)!
+            askAfterDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: .now)!
             return true
         }
         return false
     }
 
     fileprivate var defaultAskDate: Date {
+        let defaultDate =
         Calendar.current.date(
             byAdding: .day,
             value: 3,
             to: .now
         )!
+        askAfterDate = defaultDate
+        return defaultDate
     }
 }

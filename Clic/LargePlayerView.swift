@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -174,13 +175,22 @@ struct LargePlayerView: View {
     }
 
     private func playbackView() -> some View {
-        VStack {
+        VStack(spacing: 0) {
             if !group.coordinatorRoom.track.duration.isZero {
-                ProgressView(value: group.coordinatorRoom.track.playbackPosition, total: group.coordinatorRoom.track.duration)
-                    .tint(.primary)
-                    .progressViewStyle(.linear)
-                    .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
-                    .frame(maxWidth: 500)
+                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration) { isEditing in
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
+                        sonosService.isEditing = isEditing
+                    }
+
+                    if !isEditing {
+                        Task {
+                            await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
+                        }
+                    }
+                }
+                .frame(maxWidth: 500, minHeight: 32)
+                .foregroundStyle(.primary)
             }
             HStack {
                 Text(group.coordinatorRoom.track.timestamp)

@@ -59,6 +59,11 @@ struct PreferenceScreen: View {
 
                 Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
+                    #if DEBUG
+                    NavigationLink("Logs") {
+                        LogScreen()
+                    }
+                    #endif
                 } header: {
                     Text("Sonos System")
                 }

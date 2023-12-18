@@ -26,7 +26,7 @@ struct DeviceListMainView: View {
         NavigationSplitView {
             List ($sonosService.sorted, selection: $selected) { $group in
                 Section {
-                    VStack {
+                    VStack(spacing: 12) {
                         if group.tvMode {
                             TVModeViewCell(group: $group)
                         } else {
@@ -39,8 +39,8 @@ struct DeviceListMainView: View {
                             }
                             .padding(.bottom, 4)
                         }
-                        Divider()
                         VolumeControlView(group: $group)
+                            .frame(height: 32)
                     }
                     .tag(Route(id: group.coordinatorID, search: false))
                     .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)

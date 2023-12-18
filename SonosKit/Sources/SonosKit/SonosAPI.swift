@@ -126,8 +126,6 @@ final class SonosAPI {
         }
     }
 
-
-
     func snapshotGroupVolume(ipAddress: String) async {
         let arguments: [String: Any] = [
             "InstanceID": 0,
@@ -149,6 +147,7 @@ final class SonosAPI {
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
             let trackInfo = XMLParserSonos().parsePositionInfo(xml: xmlString.unescaped)
+            SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xmlString.unescaped)
             return trackInfo
         }
 
@@ -287,6 +286,7 @@ final class SonosAPI {
         do {
             if let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") {
                 guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
+                SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
                 let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
                 return zones.compactMap { $0.toGroup }
             }
@@ -430,7 +430,7 @@ final class SonosAPI {
                 "DesiredFirstTrackNumberEnqueued": 0,
                 "EnqueueAsNext": 1
             ]
-        case .next:
+        case .next, .now:
             // MARK: Next
             let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
             arguments = [
@@ -500,7 +500,7 @@ final class SonosAPI {
                 "DesiredFirstTrackNumberEnqueued": 0,
                 "EnqueueAsNext": 1
             ]
-        case .next:
+        case .next, .now:
             // MARK: Next
             let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
             arguments = [
@@ -548,7 +548,7 @@ final class SonosAPI {
                 "DesiredFirstTrackNumberEnqueued": 0,
                 "EnqueueAsNext": 1
             ]
-        case .next:
+        case .next, .now:
             // MARK: Next
             let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
             arguments = [
@@ -618,6 +618,44 @@ final class SonosAPI {
             "InstanceID": 0,
             "Unit": "TRACK_NR",
             "Target": trackNumber,
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
+
+    /// Seek
+    /// - Parameters:
+    ///   - delta: Time in Seconds
+    ///   - IP: IP of Sonos
+    func seek(to delta: Int, IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Unit": "TIME_DELTA",
+            "Target": "\(delta < 0 ? "-": "")00:00:\(abs(delta))",
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
+
+    /// Seek to time in milliseconds
+    /// - Parameters:
+    ///   - time: Time in milliseconds
+    ///   - IP: Group IP
+    func seek(to time: TimeInterval, IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Unit": "REL_TIME",
+            "Target": "00:00:\(Int(time / 1000))",
         ]
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {

@@ -1,6 +1,7 @@
 import UIKit
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct VolumeControlView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -23,21 +24,24 @@ struct VolumeControlView: View {
             .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)
 
-            Slider(value: $group.groupVolume, in: 0...100, step: 2) { isEditing in
+            VibeSlider(value: $group.groupVolume) { isEditing in
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)
                     }
                 }
                 self.isEditing = isEditing
-                group.isEditingVolume = isEditing
-                if !isEditing {
-                    updateVolume(volume: group.groupVolume)
+                updateVolume(volume: group.groupVolume)
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    print(isEditing)
+                    group.isEditingVolume = isEditing
                 }
             }
-            .sensoryFeedback(.selection, trigger: group.groupVolume) { _, _ in
-                isEditing
-            }
+            .foregroundStyle(.accent)
+//            .sensoryFeedback(.selection, trigger: group.groupVolume) { _, _ in
+//                isEditing
+//            }
             Text("\(group.groupVolume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())
                 .monospacedDigit()

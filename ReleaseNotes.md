@@ -1,4 +1,14 @@
-# 2023.4
+# 2023.6
+
+- Added scrubbing to playback progress.
+- Added swipe to queue song next on spotify track and apple music track
+- Updated volume slider, you can now swipe anywhere on track
+- Added swipe to delete track from queue
+- Fix volume slider jumping
+
+## Internal
+- Fix reviews not being requested
+- Update grouping background color
 
 # 2023.3
 

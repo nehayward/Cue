@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -36,14 +37,13 @@ struct GroupScreen: View {
                             .fontDesign(.rounded)
                             .bold()
                         }
-                        Divider()
                         RoomVolumeView(room: $room)
                             .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
                             .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
                     }
                     .listRowBackground(
                         viewModel.selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                            .foregroundStyle( Color.accentColor.gradient.opacity(0.8) )
+                            .foregroundStyle(Color.accentColor.gradient.opacity(0.8) )
                         : nil
                     )
                     .sensoryFeedback(.selection, trigger: viewModel.selections.contains(room.id))
@@ -51,7 +51,6 @@ struct GroupScreen: View {
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 SceneBuilderScreen(group: $viewModel.group, sheetDestination: $sheetDestination, selections: ids)
-                    .background(.ultraThinMaterial)
             }
             .listRowSpacing(10)
             .toolbar {
@@ -81,8 +80,7 @@ struct GroupScreen: View {
                         .bold()
                     HStack(alignment: .center) {
                         Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
-                        Slider(value: $groupVolume, in: 0...100, step: 2)
-                            .sensoryFeedback(.selection, trigger: groupVolume)
+                        VibeSlider(value: $groupVolume, in: 0...100)
                         Text("\(groupVolume, specifier: "%03.0f")%")
                             .contentTransition(.numericText())
                             .monospacedDigit()
@@ -132,10 +130,8 @@ struct GroupScreen: View {
             }
             .toolbarTitleDisplayMode(.inline)
         }
-        .presentationBackground(.thinMaterial)
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
-        .scrollContentBackground(.hidden)
     }
 }
 

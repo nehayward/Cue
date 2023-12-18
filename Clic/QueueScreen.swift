@@ -107,15 +107,15 @@ struct QueueScreen: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                .swipeActions {
-                                    Button(role: .destructive) {
-                                        Task {
-                                            try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
-                                            tracks.remove(at: index)
-                                        }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                            }
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    tracks.remove(at: index)
+                                    Task {
+                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
                                     }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                         }

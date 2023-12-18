@@ -67,6 +67,8 @@
 		E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
 		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
+		E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */; };
+		E98CE00A2B2FF3FB002E5A96 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0092B2FF3FB002E5A96 /* LogView.swift */; };
 		E98D63852AFEEEF700D18FAC /* ButtonHapticWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98D63832AFEEEEE00D18FAC /* ButtonHapticWatch.swift */; };
 		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
@@ -239,6 +241,8 @@
 		E98527932A5E5C90009016C2 /* LiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityManager.swift; sourceTree = "<group>"; };
 		E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCellView.swift; sourceTree = "<group>"; };
 		E987959C2A9667EC002C684A /* PlayerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerScreen.swift; sourceTree = "<group>"; };
+		E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogScreen.swift; sourceTree = "<group>"; };
+		E98CE0092B2FF3FB002E5A96 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		E98D63832AFEEEEE00D18FAC /* ButtonHapticWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonHapticWatch.swift; sourceTree = "<group>"; };
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
@@ -355,6 +359,8 @@
 		E9331B512AAE2013002D3CFD /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */,
+				E98CE0092B2FF3FB002E5A96 /* LogView.swift */,
 				E95498A72AA52EF8007848A7 /* DebugView.swift */,
 				E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */,
 				E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */,
@@ -508,7 +514,6 @@
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E9A953162ADCD5B600600516 /* HapticButton.swift */,
 				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
-				E9EAA59E2AEC22DC00481945 /* Components */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
@@ -611,13 +616,6 @@
 				E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
-			sourceTree = "<group>";
-		};
-		E9EAA59E2AEC22DC00481945 /* Components */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Components;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -856,6 +854,7 @@
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */,
 				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
+				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
@@ -880,6 +879,7 @@
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
+				E98CE00A2B2FF3FB002E5A96 /* LogView.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,

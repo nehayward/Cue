@@ -27,6 +27,7 @@ public final class SonosService {
     @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
+    @ObservationIgnored public var isEditing: Bool = false
 
     public init () {
         sonosPulse.cancel()
@@ -75,13 +76,18 @@ public final class SonosService {
                 do {
                     systemNotFound = false
                     permissionsDenied = false
-                    try await load(useCache: useCache)
+                    if isEditing {
+                        try? await Task.sleep(for: .milliseconds(500))
+                        continue
+                    }
                     // MARK: Update room volumes
                     if selectedGroup != nil {
                         try? await Task.sleep(for: .milliseconds(500))
                     } else {
                         try? await Task.sleep(for: .seconds(1))
                     }
+                    print("HERE")
+                    try await load(useCache: useCache)
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
@@ -110,40 +116,6 @@ public final class SonosService {
             } while (!sonosPulse.isCancelled)
         }
     }
-
-//    @MainActor
-//    public func monitor() {
-//        monitorTask = Task { [weak self] in
-//            guard let self else { return }
-//            systemNotFound = false
-//            permissionsDenied = false
-//            do {
-//                try await load()
-//                try? await Task.sleep(for: .seconds(1), clock: .suspending)
-//                print("Tock", Date.now)
-//                monitor()
-//            } catch SonosServiceError.permissionDenied {
-//                permissionsDenied = true
-//                pulseIsRunning = false
-//                sonosSystemDiscoverService.lastKnownIP = ""
-//                //                    monitorTask.cancel()
-//            }
-//            catch SonosServiceError.sonosSystemNotFound {
-//                systemNotFound = true
-//                sonosSystemDiscoverService.lastKnownIP = ""
-//                //                    monitorTask.cancel()
-//            }
-//            catch {
-//                permissionsDenied = true
-//                pulseIsRunning = false
-//                sonosSystemDiscoverService.lastKnownIP = ""
-//
-//                //                    monitorTask.cancel()
-//                print(#function, error)
-//            }
-//        }
-//    }
-
 
     @MainActor
     public func monitorWatch(retry: Bool = true, duration: Duration = .seconds(2), useCache: Bool) {
@@ -198,8 +170,6 @@ public final class SonosService {
             self.rooms = newGroup.flatMap(\.rooms)
         }
         if let selectedGroup {
-//            print("Selected Group")
-
             guard let groupIndex = groups.firstIndex(where: { group in
                 group.coordinatorID == selectedGroup.coordinatorID
             }) else {
@@ -225,6 +195,8 @@ public final class SonosService {
             await updateGroupsRooms(from: [roomGroup])
             await updateGroupCheckTVMode(from: [roomGroup])
 
+            guard !isEditing else { return }
+
             switch await playbackInfo {
             case .playing:
                 roomGroup.coordinatorRoom.isPlaying = true
@@ -234,7 +206,10 @@ public final class SonosService {
                 break
             }
 
-            roomGroup.groupVolume = try await groupVolume
+            let updateGroupVolume = try await groupVolume
+            if !roomGroup.isEditingVolume {
+                roomGroup.groupVolume = updateGroupVolume
+            }
             guard let track = await track else {
                 return
             }
@@ -832,15 +807,13 @@ public final class SonosService {
         await snapShotGroup(ip: groupIP)
     }
 
-    public func queue(song: String, on group: GroupRoom, position: QueuePosition = .next) async {
-        await api.queue(song: song, IP: group.ip)
+    public func queue(song: String, on group: GroupRoom, position: QueuePosition = .now) async {
+        await api.queue(song: song, IP: group.ip, position: position)
 
         switch position {
-        case .front:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .end:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .next:
+        case .front, .next, .end:
+            break
+        case .now:
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
         }
     }
@@ -850,36 +823,37 @@ public final class SonosService {
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
     }
 
+    public func seek(to time: TimeInterval, on group: GroupRoom) async {
+        await api.seek(to: time, IP: group.coordinatorRoom.ip)
+    }
+
     public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
         await api.removeAllTrackFromQueue(IP: ip)
         await api.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
         await api.setAVTransport(IP: ip, ID: group.coordinatorID)
     }
 
-    public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .next) async {
-        await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip)
+    public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
+        await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
 
         switch position {
-        case .front:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .end:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .next:
+        case .now:
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        default:
+            break
         }
     }
 
-    public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .next) async {
+    public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         let queueCount = await api.getQueue(IP: group.ip)
         await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
+
         switch position {
-        case .front:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .end:
-            await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
-        case .next:
+        case .now:
             let position = queueCount.isEmpty ? 1 : group.coordinatorRoom.track.position + 1
             await seek(trackNumber: position, on: group)
+        default:
+            break
         }
     }
 

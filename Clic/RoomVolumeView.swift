@@ -1,6 +1,7 @@
 import UIKit
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct RoomVolumeView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -15,16 +16,13 @@ struct RoomVolumeView: View {
             Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
                 .renderingMode(.template)
                 .padding(.trailing, 8)
-            Slider(value: $room.volume, in: 0...100, step: 2) { isEditing in
+            VibeSlider(value: $room.volume, in: 0...100) { isEditing in
                 self.isEditingRoomVolume = isEditing
                 room.isEditingVolume = isEditing
                 if !isEditing {
                     let volume = room.volume
                     updateVolume(volume: volume)
                 }
-            }
-            .sensoryFeedback(.selection, trigger: room.volume) { _, _ in
-                isEditingRoomVolume
             }
             Text("\(room.volume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())

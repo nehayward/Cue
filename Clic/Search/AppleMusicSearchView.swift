@@ -45,6 +45,16 @@ struct AppleMusicSearchView: View {
                     }
                     .fontDesign(.rounded)
                 }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button {
+                        dismiss()
+                        Task {
+                            await sonosService.queue(song: result.trackID.description, on: group, position: .next)
+                        }
+                    } label: {
+                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
+                    }
+                }
             }
 //        } else {
 //            ForEach(filters.filter(\.isFiltered)) { filter in

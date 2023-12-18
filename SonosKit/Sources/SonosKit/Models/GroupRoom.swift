@@ -5,7 +5,7 @@ import os
 @Observable
 public final class GroupRoom: Identifiable, @unchecked Sendable {
     private let lock = OSAllocatedUnfairLock()
-    public let coordinatorRoom: Room
+    public var coordinatorRoom: Room
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []

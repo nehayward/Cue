@@ -33,10 +33,6 @@ struct ClicApp: App {
                     subscriptionService.monitorChanges()
                 }
                 .onOpenURL(perform: handle)
-                .onAppear {
-                    guard ReviewService().askForRequest() else { return }
-                    requestReview()
-                }
                 .sheet(isPresented: $showPaywall) {
                     PaywallView()
                 }
@@ -72,6 +68,10 @@ struct ClicApp: App {
             Task {
                 try? await subscriptionService.checkSubscription()
             }
+
+            guard ReviewService().askForRequest() else { return }
+            requestReview()
+
 //            // MARK: Add back when monitoring is fixed
 //            Task { @MainActor in
 //                try? await sonosService.updateGroupsCheckPlayback()

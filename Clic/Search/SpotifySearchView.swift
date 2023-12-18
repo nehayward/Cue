@@ -85,6 +85,16 @@ struct SpotifySearchView: View, KeyboardReadable {
                         }
                     }
                 }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button {
+                        dismiss()
+                        Task {
+                            await sonosService.queueSpotifyTrack(id: item.id, group: group, position: .next)
+                        }
+                    } label: {
+                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
+                    }
+                }
             }
         } header: {
             Text("Tracks")
