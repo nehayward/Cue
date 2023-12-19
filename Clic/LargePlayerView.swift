@@ -8,7 +8,7 @@ struct LargePlayerView: View {
     @Binding var selected: Route?
     @State var isExpanded: Bool = false
     @State var showSearch = false
-    
+
     @Binding var sheetDestination: SheetDestination?
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
@@ -27,11 +27,11 @@ struct LargePlayerView: View {
 
     var body: some View {
         VStack(alignment: .center) {
-            //            ArtworkView(group: $group))
             ArtworkViewKing(group: $group)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
                 .shadow(radius: 10)
+                .frame(maxWidth: 500)
 
             if group.tvMode {
                 TVModeView()
@@ -46,16 +46,67 @@ struct LargePlayerView: View {
             Text(group.coordinatorRoom.track.artist)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .padding(.bottom, 80)
+                .padding(.bottom, isExpanded ? 20 : 40)
                 .fontDesign(.rounded)
 
             if !group.tvMode {
                 playbackView()
+                Spacer()
                 mediaControlsView()
+                Spacer(minLength: 40)
+                VStack {
+                    GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
+                        .padding(.bottom, 12)
+                    HStack(spacing: 0) {
+                        Button {
+                            sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                        } label: {
+                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+                        Spacer()
+                        Button {
+                            showSearch.toggle()
+                        } label: {
+                            Image(systemName: "waveform.and.magnifyingglass")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+                        if group.rooms.count > 1 {
+                            Spacer()
+                            Button {
+                                withAnimation(.bouncy(duration: 0.3)) {
+                                    isExpanded.toggle()
+                                }
+                            } label: {
+                                Image(systemName: "speaker.square.fill")
+                                    .font(.body)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                        Button {
+                            showQueue.toggle()
+                        } label: {
+                            Image(systemName: "music.note.list")
+                                .font(.body)
+                        }
+                        .fontDesign(.rounded)
+                        .buttonStyle(.plain)
+                        .font(.body)
+                    }
+                    .frame(maxWidth: 300)
+                    .padding(.horizontal, 80)
+                }
             }
         }
-        .padding()
         .frame(maxHeight: .infinity)
+        .padding()
         .task {
             guard OSEnvironment.isPreviews else { return }
 
@@ -91,28 +142,8 @@ struct LargePlayerView: View {
                 showSearch = search
             }
         }
-
-        //        .toolbar(isExpanded ? .hidden : .automatic, for: .bottomBar)
-        //        .toolbar(isExpanded ? .hidden : .automatic, for: .navigationBar)
         .background {
             ZStack {
-                //                AsyncImage(
-                //                    url: group.coordinatorRoom.track.artworkURL,
-                //                    transaction: Transaction(animation: .snappy)
-                //                ) { phase in
-                //                    switch phase {
-                //                    case .success(let image):
-                //                        image
-                //                            .resizable()
-                //                            .aspectRatio(contentMode: .fill)
-                //                            .scaleEffect(2)
-                //                            .blur(radius: 50)
-                //                    default:
-                //                        RoundedRectangle(cornerRadius: 4)
-                //                            .foregroundStyle(.thinMaterial)
-                //                            .shadow(radius: 2)
-                //                            .scaleEffect(3)
-                //                    }
                 ArtworkViewKing(group: $group)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(2)
@@ -121,55 +152,6 @@ struct LargePlayerView: View {
                     .foregroundStyle(.thinMaterial)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .ignoresSafeArea()
-            }
-        }
-        .overlay(alignment: .bottom) {
-            ZStack(alignment: .bottom) {
-                Rectangle()
-                    .foregroundStyle(.ultraThinMaterial)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .ignoresSafeArea()
-                    .opacity(isExpanded ? 1 : 0)
-                    .onTapGesture {
-                        withAnimation(.bouncy(duration: 0.3)) {
-                            isExpanded = false
-                        }
-                    }
-                VStack {
-                    GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
-                    HStack(spacing: 60) {
-                        Button {
-                            sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
-                        } label: {
-                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
-
-                        Button {
-                            showSearch.toggle()
-                        } label: {
-                            Image(systemName: "waveform.and.magnifyingglass")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
-
-                        Button {
-                            showQueue.toggle()
-                        } label: {
-                            Image(systemName: "music.note.list")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
-                    }
-                    .opacity(isExpanded ? 0 : 1)
-                }
             }
         }
     }
@@ -202,12 +184,11 @@ struct LargePlayerView: View {
             .font(.caption)
         }
         .fontDesign(.rounded)
-        .padding(.bottom, 24)
         .frame(maxWidth: .infinity)
     }
 
     private func mediaControlsView() -> some View {
-        HStack(spacing: 32) {
+        HStack {
             Button {
                 selectionFeedbackGenerator.selectionChanged()
                 Task {
@@ -220,7 +201,7 @@ struct LargePlayerView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-
+            Spacer()
             Button{
                 Task {
                     if group.coordinatorRoom.isPlaying {
@@ -240,7 +221,7 @@ struct LargePlayerView: View {
 
             }
             .buttonStyle(.plain)
-
+            Spacer()
             Button {
                 selectionFeedbackGenerator.selectionChanged()
                 Task {
@@ -254,7 +235,8 @@ struct LargePlayerView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.bottom, 60)
+        .frame(maxWidth: 300)
+        .padding(.horizontal, 80)
     }
 
     private func TVModeView() -> some View {

@@ -8,7 +8,7 @@ struct GroupVolumeControlView: View {
 
     @State var isEditingGroupVolume = false
     @State var isEditingRoomVolume = false
-    @State var subviewHeight : CGFloat = 0
+    @State var subviewHeight: CGFloat = 0
 
     @Binding var isExpanded: Bool
     @State private var volumeTask: Task<Void, Error>?
@@ -17,48 +17,25 @@ struct GroupVolumeControlView: View {
         VStack {
             HStack {
                 VolumeControlView(group: $group)
-                if group.rooms.count > 1 {
-                    Button {
-                        withAnimation(.bouncy(duration: 0.3)) {
-                            isExpanded.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "hifispeaker.2.fill")
-                            .overlay(alignment: .topTrailing) {
-                                Image(systemName: "speaker.wave.2.circle.fill")
-                                    .resizable()
-                                    .frame(width: 10, height: 10)
-                                    .padding([.top, .trailing], -3)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .frame(height: 20)
-            .padding(.bottom)
-            .frame(maxWidth: 500)
 
             VStack {
                 ForEach($group.rooms) { $room in
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(room.name)
                             .fontDesign(.rounded)
-                        RoomVolumeView(room: $room, updatedVolume: {
+                            .bold()
+                        RoomVolumeView(room: $room) {
                             volumeTask?.cancel()
                             volumeTask = Task {
                                 try await Task.sleep(for: .milliseconds(300))
                                 try Task.checkCancellation()
                                 await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
                             }
-                        })
+                        }
+                        .frame(height: 32)
                     }
-                    .animation(.interactiveSpring, value: room.volume)
-                    .padding()
-                    .background {
-                        RoundedRectangle(cornerRadius: 20)
-                            .foregroundStyle(.thinMaterial)
-                    }
-                    .frame(maxWidth: 500)
                 }
                 Button {
                     for room in group.rooms {
@@ -71,13 +48,9 @@ struct GroupVolumeControlView: View {
                         await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Label("Sync Volume", systemImage: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(.ultraThickMaterial)
-                        .frame(maxWidth: .infinity)
+                    Text("Sync Volume")
                         .bold()
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle)
                 .frame(maxWidth: 500)
             }
             .opacity(isExpanded ? 1 : 0)
@@ -89,9 +62,8 @@ struct GroupVolumeControlView: View {
         })
         .onPreferenceChange(ViewHeightKey.self) { subviewHeight = $0 }
         .frame(height: isExpanded ? subviewHeight : 30, alignment: .top)
-        .padding()
         .clipped()
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: 500)
     }
 
     struct ViewHeightKey: PreferenceKey {
@@ -103,7 +75,13 @@ struct GroupVolumeControlView: View {
 }
 
 #Preview {
-    GroupVolumeControlView(group: .constant(.garage), isExpanded: .constant(true))
+    GroupVolumeControlView(group: .constant(.garagePlusTheater), isExpanded: .constant(true))
+        .environment(SonosService())
+
+}
+
+#Preview {
+    GroupVolumeControlView(group: .constant(.garagePlusTheater), isExpanded: .constant(false))
         .environment(SonosService())
 
 }

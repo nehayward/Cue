@@ -6,6 +6,7 @@ public struct VibeSlider: View {
     @State private var isDragging: Bool = false
     @State private var previousDragPercentage: Double?
 
+    private let touchDelay: TimeInterval
     private var onEditingChanged: (Bool) -> Void
     private var cornerRadius: Double { isDragging ? 50 : 12 }
     private var range: ClosedRange<Double>
@@ -13,9 +14,11 @@ public struct VibeSlider: View {
     public init(
         value: Binding<Double>,
         in range: ClosedRange<Double> = 0...100,
+        touchDelay: TimeInterval = 0,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
             self.range = range
+            self.touchDelay = touchDelay
             self.onEditingChanged = onEditingChanged
         }
 
@@ -25,6 +28,7 @@ public struct VibeSlider: View {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .foregroundStyle(.quaternary)
+                        .delaysTouches(for: touchDelay) { }
                         .gesture(holdAndDragGesture)
                     Rectangle()
                         .frame(width: geometry.size.width * CGFloat(self.value / range.upperBound))
@@ -89,3 +93,56 @@ fileprivate struct Container: View {
         .foregroundStyle(Color.red)
 }
 
+
+extension View {
+    func delaysTouches(for duration: TimeInterval = 0.25, onTap action: @escaping () -> Void = {}) -> some View {
+        modifier(DelaysTouches(duration: duration, action: action))
+    }
+}
+
+fileprivate struct DelaysTouches: ViewModifier {
+    @State private var disabled = false
+    @State private var touchDownDate: Date? = nil
+
+    var duration: TimeInterval
+    var action: () -> Void
+
+    func body(content: Content) -> some View {
+        Button(action: action) {
+            content
+        }
+        .buttonStyle(DelaysTouchesButtonStyle(disabled: $disabled, duration: duration, touchDownDate: $touchDownDate))
+        .disabled(disabled)
+    }
+}
+
+fileprivate struct DelaysTouchesButtonStyle: ButtonStyle {
+    @Binding var disabled: Bool
+    var duration: TimeInterval
+    @Binding var touchDownDate: Date?
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed, handleIsPressed)
+    }
+
+    private func handleIsPressed(_ old: Bool, _ new: Bool) {
+        if new {
+            let date = Date()
+            touchDownDate = date
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(duration, 0)) {
+                if date == touchDownDate {
+                    disabled = true
+
+                    DispatchQueue.main.async {
+                        disabled = false
+                    }
+                }
+            }
+        } else {
+            touchDownDate = nil
+            disabled = false
+        }
+    }
+}

@@ -37,7 +37,7 @@ struct GroupScreen: View {
                             .fontDesign(.rounded)
                             .bold()
                         }
-                        RoomVolumeView(room: $room)
+                        RoomVolumeView(room: $room, touchDelay: 0.15)
                             .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
                             .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
                     }

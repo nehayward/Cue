@@ -8,6 +8,12 @@ struct VolumeControlView: View {
     @Binding var group: GroupRoom
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
+    private let touchDelay: TimeInterval
+
+    init(group: Binding<GroupRoom>, touchDelay: TimeInterval = 0) {
+        self._group = group
+        self.touchDelay = touchDelay
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
@@ -24,7 +30,7 @@ struct VolumeControlView: View {
             .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)
 
-            VibeSlider(value: $group.groupVolume) { isEditing in
+            VibeSlider(value: $group.groupVolume, touchDelay: touchDelay) { isEditing in
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)

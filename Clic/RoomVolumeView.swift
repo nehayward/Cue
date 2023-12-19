@@ -11,12 +11,20 @@ struct RoomVolumeView: View {
     @State private var isEditingRoomVolume = false
     var updatedVolume: (() -> Void)? = nil
 
+    private let touchDelay: TimeInterval
+
+    init(room: Binding<Room>, touchDelay: TimeInterval = 0, updatedVolume: (() -> Void)? = nil) {
+        self._room = room
+        self.touchDelay = touchDelay
+        self.updatedVolume = updatedVolume
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
                 .renderingMode(.template)
                 .padding(.trailing, 8)
-            VibeSlider(value: $room.volume, in: 0...100) { isEditing in
+            VibeSlider(value: $room.volume, in: 0...100, touchDelay: touchDelay) { isEditing in
                 self.isEditingRoomVolume = isEditing
                 room.isEditingVolume = isEditing
                 if !isEditing {
@@ -24,6 +32,7 @@ struct RoomVolumeView: View {
                     updateVolume(volume: volume)
                 }
             }
+            .frame(height: 32)
             Text("\(room.volume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())
                 .monospacedDigit()
