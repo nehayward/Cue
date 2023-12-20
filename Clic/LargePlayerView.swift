@@ -53,56 +53,56 @@ struct LargePlayerView: View {
                 playbackView()
                 Spacer()
                 mediaControlsView()
-                Spacer(minLength: 40)
-                VStack {
-                    GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
-                        .padding(.bottom, 12)
-                    HStack(spacing: 0) {
-                        Button {
-                            sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
-                        } label: {
-                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
-                        Spacer()
-                        Button {
-                            showSearch.toggle()
-                        } label: {
-                            Image(systemName: "waveform.and.magnifyingglass")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
-                        if group.rooms.count > 1 {
-                            Spacer()
-                            Button {
-                                withAnimation(.bouncy(duration: 0.3)) {
-                                    isExpanded.toggle()
-                                }
-                            } label: {
-                                Image(systemName: "speaker.square.fill")
-                                    .font(.body)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Spacer()
-                        Button {
-                            showQueue.toggle()
-                        } label: {
-                            Image(systemName: "music.note.list")
-                                .font(.body)
-                        }
-                        .fontDesign(.rounded)
-                        .buttonStyle(.plain)
-                        .font(.body)
+            }
+            Spacer(minLength: 40)
+            VStack {
+                GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
+                    .padding(.bottom, 12)
+                HStack(spacing: 0) {
+                    Button {
+                        sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                    } label: {
+                        Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                            .font(.body)
                     }
-                    .frame(maxWidth: 300)
-                    .padding(.horizontal, 80)
+                    .fontDesign(.rounded)
+                    .buttonStyle(.plain)
+                    .font(.body)
+                    Spacer()
+                    Button {
+                        showSearch.toggle()
+                    } label: {
+                        Image(systemName: "waveform.and.magnifyingglass")
+                            .font(.body)
+                    }
+                    .fontDesign(.rounded)
+                    .buttonStyle(.plain)
+                    .font(.body)
+                    if group.rooms.count > 1 {
+                        Spacer()
+                        Button {
+                            withAnimation(.bouncy(duration: 0.3)) {
+                                isExpanded.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "speaker.square.fill")
+                                .font(.body)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                    Button {
+                        showQueue.toggle()
+                    } label: {
+                        Image(systemName: "music.note.list")
+                            .font(.body)
+                    }
+                    .fontDesign(.rounded)
+                    .buttonStyle(.plain)
+                    .font(.body)
                 }
+                .frame(maxWidth: 300)
+                .padding(.horizontal, 80)
             }
         }
         .frame(maxHeight: .infinity)

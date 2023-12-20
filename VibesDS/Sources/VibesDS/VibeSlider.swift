@@ -43,7 +43,7 @@ public struct VibeSlider: View {
                 }
             }
         }
-        .frame(height: isDragging ? 16 : 8)
+        .frame(height: isDragging ? 20 : 10)
         .animation(.interactiveSpring, value: value)
         .animation(.interactiveSpring, value: isDragging)
         .fixedSize(horizontal: false, vertical: true)
@@ -52,6 +52,7 @@ public struct VibeSlider: View {
     var holdAndDragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { gesture in
+                isDragging = true
                 onEditingChanged(true)
                 // Update add to existing location
                 var change = 0.0
@@ -62,7 +63,7 @@ public struct VibeSlider: View {
                     change = previousDragPercentage.distance(to: percent)
                 }
 
-                let newValue = min(max(range.lowerBound, Double(value + change * range.upperBound)), range.upperBound).rounded(.toNearestOrAwayFromZero)
+                let newValue = min(max(range.lowerBound, Double(value + change * range.upperBound)), range.upperBound)
                 self.value = newValue
                 isDragging = true
                 previousDragPercentage = percent

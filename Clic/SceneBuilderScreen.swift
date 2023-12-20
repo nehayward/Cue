@@ -48,7 +48,7 @@ struct SceneBuilderScreen: View {
                         }
                         .sensoryFeedback(.selection, trigger: selections.contains(room.id))
                         Divider()
-                        RoomVolumeView(room: $room, touchDelay: 0.15)
+                        RoomVolumeView(room: $room, touchDelay: 0.05)
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .tint(selections.contains(room.id) ? .black : .accentColor)
                     }

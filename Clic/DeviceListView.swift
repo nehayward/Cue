@@ -39,7 +39,7 @@ struct DeviceListMainView: View {
                             }
                             .padding(.bottom, 4)
                         }
-                        VolumeControlView(group: $group, touchDelay: 0.15)
+                        VolumeControlView(group: $group, touchDelay: 0.05)
                             .frame(height: 32)
                     }
                     .tag(Route(id: group.coordinatorID, search: false))
