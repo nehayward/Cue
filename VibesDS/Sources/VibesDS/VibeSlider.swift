@@ -28,12 +28,11 @@ public struct VibeSlider: View {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .foregroundStyle(.quaternary)
-                        .delaysTouches(for: touchDelay) { }
-                        .gesture(holdAndDragGesture)
                     Rectangle()
                         .frame(width: geometry.size.width * CGFloat(self.value / range.upperBound))
-                        .allowsHitTesting(false)
                 }
+                .delaysTouches(for: touchDelay) { }
+                .gesture(holdAndDragGesture)
                 .cornerRadius(cornerRadius)
                 .onChange(of: geometry.size.width, initial: true) {
                     width = geometry.size.width

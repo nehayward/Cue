@@ -1,14 +1,16 @@
-# 2023.6
+# 2023.7
 
-- Added scrubbing to playback progress.
-- Added swipe to queue song next on spotify track and apple music track
-- Updated volume slider, you can now swipe anywhere on track
-- Added swipe to delete track from queue
-- Fix volume slider jumping
+- Added scrubbing functionality for playback progress.
+- Implemented a feature to queue a song next on Spotify and Apple Music tracks through swipe gestures.
+- Updated the volume slider for enhanced usability; it now supports swiping anywhere on the track.
+- Introduced a swipe gesture to delete tracks from the queue.
+- Fixed an issue where the volume slider would jump unexpectedly.
+- Updated room volume controls on the player screen for better integration.
 
 ## Internal
 - Fix reviews not being requested
 - Update grouping background color
+- Add VibeSlider
 
 # 2023.3
 
