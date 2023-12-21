@@ -9,8 +9,12 @@
 /* Begin PBXBuildFile section */
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
+		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92CABEF2AB8FE70002A3D4D /* TVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CABED2AB8FE24002A3D4D /* TVView.swift */; };
 		E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E2D472AA6D37300D27DBC /* Popover.swift */; };
+		E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */; };
+		E92E47132B33F42C00DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
+		E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
 		E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
 		E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */; };
@@ -196,8 +200,11 @@
 		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
+		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
 		E92CABED2AB8FE24002A3D4D /* TVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVView.swift; sourceTree = "<group>"; };
 		E92E2D472AA6D37300D27DBC /* Popover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Popover.swift; sourceTree = "<group>"; };
+		E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetAccessoryCircularView.swift; sourceTree = "<group>"; };
+		E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLiveActivityIntent.swift; sourceTree = "<group>"; };
 		E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E9331B522AAE20A7002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIApplication+Environment.swift"; sourceTree = "<group>"; };
@@ -422,6 +429,7 @@
 			children = (
 				E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */,
 				E98248C92AF03FB4008927EF /* RefreshIntent.swift */,
+				E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */,
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
 				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
@@ -481,6 +489,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E9294B5A2B33A531009E1F45 /* Environments.swift */,
 				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
 				E9FDDC2F2B238216005D281E /* Router.swift */,
 				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
@@ -597,6 +606,7 @@
 			isa = PBXGroup;
 			children = (
 				E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */,
+				E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */,
 			);
 			path = RemoteWidgetViews;
 			sourceTree = "<group>";
@@ -818,6 +828,7 @@
 				E9DE849A2A66F87C004C3947 /* RemoteWidgetRectangularView.swift in Sources */,
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
 				E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */,
+				E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */,
 				E97C0D4E2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift in Sources */,
 				E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */,
@@ -829,6 +840,7 @@
 				E97C0D4A2A325CC5005AB0E0 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97C0D6B2A38FBDD005AB0E0 /* SetRelativeGroupVolumeIntent.swift in Sources */,
 				E9DAE49C2A5FABBF00B03199 /* NowPlayingView.swift in Sources */,
+				E92E47132B33F42C00DE6647 /* CreateLiveActivityIntent.swift in Sources */,
 				E97C0D672A33D787005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -855,6 +867,7 @@
 				E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */,
 				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
 				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
+				E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
@@ -883,6 +896,7 @@
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
+				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,

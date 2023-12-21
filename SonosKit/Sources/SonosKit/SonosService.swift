@@ -4,8 +4,9 @@ import MusicSearchKit
 import Observation
 import SwiftUI
 
-@Observable
-public final class SonosService {
+@Observable public final class SonosService {
+    public static var shared = SonosService()
+
     public var ID: String? = nil
     public var groups: [GroupRoom] = []
     public var rooms: [Room] = []
@@ -36,12 +37,6 @@ public final class SonosService {
     public var sorted: [GroupRoom] {
         get {
             let sorted = groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
-            //        guard superMember.isEnabled else {
-            //            if let first = sorted.first {
-            //                return [first]
-            //            }
-            //            return []
-            //        }
             return sorted
         } set {
             groups = newValue
@@ -51,15 +46,17 @@ public final class SonosService {
     public var sortedRooms: [Room] {
         get {
             let sorted = rooms.sorted { $0.name < $1.name }
-            //        guard superMember.isEnabled else {
-            //            if let first = sorted.first {
-            //                return [first]
-            //            }
-            //            return []
-            //        }
             return sorted
         } set {
             rooms = newValue
+        }
+    }
+
+    public func updateGroups() async throws {
+        let newGroup = try await getGroups(useCache: true)
+        if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
+            self.groups = newGroup
+            self.rooms = newGroup.flatMap(\.rooms)
         }
     }
 
@@ -243,58 +240,6 @@ public final class SonosService {
         await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
         await updateGroupMuteState(for: groups)
-
-
-//        for group in groups.indices {
-//            let groupVolume = await getGroupVolume(ip: groups[group].coordinatorRoom.ip)
-//            groups[group].groupVolume = groupVolume
-//
-//            for room in groups[group].rooms.indices {
-//                let playbackInfo = await getPlaybackInfo(ip: groups[group].rooms[room].ip)
-//
-//                switch playbackInfo {
-//                case .playing:
-//                    groups[group].rooms[room].isPlaying = true
-//                case .paused:
-//                    groups[group].rooms[room].isPlaying = false
-//                default: break
-//                }
-//            }
-//
-//            for room in groups[group].rooms.indices {
-//                let volume = await getVolume(ip: groups[group].rooms[room].ip)
-//                groups[group].rooms[room].volume = volume
-//
-////                if await isTVMode(ip: groups[group].rooms[room].ip) {
-////                    groups[group].tvMode = true
-////                    groups[group].coordinatorRoom.track = .init(name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
-////                    continue
-////                }
-////                groups[group].tvMode = false
-//
-//                guard let track = await getTrack(ip: groups[group].rooms[room].ip) else {
-//                    groups[group].rooms[room].track = .init(name: "", artist: "", album: "", artworkURL: nil, musicService: .apple, duration: .zero, playbackPosition: .zero)
-//                    continue
-//                }
-//
-//                let previousArtwork = groups[group].rooms[room].track.artworkURL
-//
-//                groups[group].rooms[room].track = track
-//
-//                if previousArtwork != nil {
-//                    groups[group].rooms[room].track.artworkURL = previousArtwork
-//                }
-//
-//                guard let artworkURL = await getArtwork(from: track) else {
-//                    continue
-//                }
-//
-//                if artworkURL != previousArtwork {
-//                    groups[group].rooms[room].track.artworkURL = artworkURL
-//                }
-//            }
-//        }
-//        return
     }
 
     @MainActor
@@ -403,8 +348,6 @@ public final class SonosService {
         return
     }
 
-
-    @MainActor
     public func updateGroups(from groups: [GroupRoom]) async throws {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {

@@ -28,6 +28,7 @@ final class LiveActivityManager {
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
                                                                            artist: group.coordinatorRoom.track.artist,
                                                                            volume: group.groupVolume,
+                                                                           name: group.nameWithCount,
                                                                            update: updateType)
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             await activity.update(activityContent)
@@ -40,22 +41,58 @@ final class LiveActivityManager {
         try? await sonosService.fetch(useCache: true)
         for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
             let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
-                                                                                        ip: group.coordinatorRoom.ip, 
+                                                                                        ip: group.coordinatorRoom.ip,
                                                                                         name: group.coordinatorRoom.name,
                                                                                         volume: group.groupVolume))
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
                                                                            artist: group.coordinatorRoom.track.artist,
-                                                                           volume: group.groupVolume)
+                                                                           volume: group.groupVolume, 
+                                                                           name: group.nameWithCount)
 
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
-            guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else { return }
+            guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
+                print("HERE")
+                return
+            }
 
             do {
                 try Activity.request(attributes: sonosAttribute, content: activityContent)
             } catch (let error) {
                 print("Error requesting Live Activity \(error.localizedDescription).")
             }
+        }
+    }
+
+    func createActivity(id: String) async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
+        try? await sonosService.updateGroups()
+
+        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
+            return
+        }
+
+        let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
+                                                                                    ip: group.coordinatorRoom.ip,
+                                                                                    name: group.nameWithCount,
+                                                                                    volume: group.groupVolume))
+
+        let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                                                                       artist: group.coordinatorRoom.track.artist,
+                                                                       volume: group.groupVolume,
+                                                                       name: group.nameWithCount)
+
+        let activityContent = ActivityContent(state: contentState, staleDate: nil)
+        guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
+            print("Failed")
+            return
+        }
+
+        do {
+            try Activity.request(attributes: sonosAttribute, content: activityContent)
+        } catch (let error) {
+            print("Error requesting Live Activity \(error.localizedDescription).")
         }
     }
 

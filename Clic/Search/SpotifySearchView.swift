@@ -5,7 +5,7 @@ import SwiftUI
 import SonosKit
 import Kingfisher
 
-struct SpotifySearchView: View, KeyboardReadable {
+struct SpotifySearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
     @Binding var spotifyResult: SpotifyResult?
@@ -50,6 +50,7 @@ struct SpotifySearchView: View, KeyboardReadable {
                 }
             }
             .animation(.bouncy, value: filters)
+            .fontDesign(.rounded)
         }
     }
 
@@ -208,7 +209,9 @@ struct SpotifySearchView: View, KeyboardReadable {
                             case .success(let image):
                                 image
                                     .resizable()
+                                    .aspectRatio(contentMode: .fill)
                                     .frame(width: 60, height: 60)
+                                    .clipped()
                             default:
                                 RoundedRectangle(cornerRadius: 12)
                                     .foregroundStyle(.thinMaterial)

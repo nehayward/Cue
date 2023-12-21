@@ -11,24 +11,21 @@ struct RemoteWidgetEntryView : View {
     @ViewBuilder
     var body: some View {
         ZStack {
-            if let speakerIP = entry.configuration.room {
+            if let room = entry.configuration.room {
                 switch widgetFamily {
                 case .accessoryRectangular:
                     RemoteWidgetRectangularView(entry: entry)
                 case .accessoryCircular:
-                    Button(intent: TogglePlaybackIntent()) {
-                        Image(systemName: "playpause.circle.fill")
-                    }
-                    .containerBackground(.black, for: .widget)
+                    RemoteWidgetAccessoryCircularView(entry: entry)
                 default:
                     HStack {
                         VStack(spacing: 0) {
-                            Label(speakerIP.name, systemImage: "hifispeaker.fill")
+                            Label(room.name, systemImage: "hifispeaker.fill")
                                 .foregroundStyle(.thickMaterial)
                                 .padding(.bottom, 8)
                             HStack(spacing: 18) {
                                 VStack(spacing: 12) {
-                                    Button(intent: TogglePlaybackIntent(room: speakerIP)) {
+                                    Button(intent: TogglePlaybackIntent(room: room)) {
                                         Image(systemName: "playpause.fill")
                                             .padding(2)
                                     }
@@ -36,7 +33,7 @@ struct RemoteWidgetEntryView : View {
                                     .buttonBorderShape(.circle)
                                     .tint(.secondary)
 
-                                    Button(intent: NextIntent(room: speakerIP)) {
+                                    Button(intent: NextIntent(room: room)) {
                                         Image(systemName: "forward.fill")
                                             .padding(2)
                                     }
@@ -45,13 +42,13 @@ struct RemoteWidgetEntryView : View {
                                     .tint(.secondary)
                                 }
                                 VStack(spacing: 12) {
-                                    Button(intent: SetRelativeGroupVolumeIntent(room: speakerIP, volume: 3)) {
+                                    Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: 3)) {
                                         Image(systemName: "plus")
                                             .bold()
                                             .foregroundStyle(.thickMaterial)
                                             .frame(width: 40, height: 40)
                                     }
-                                    Button(intent: SetRelativeGroupVolumeIntent(room: speakerIP, volume: -3)) {
+                                    Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: -3)) {
                                         Image(systemName: "minus")
                                             .bold()
                                             .foregroundStyle(.thickMaterial)
@@ -83,7 +80,7 @@ struct RemoteWidgetEntryView : View {
                     .fontDesign(.rounded)
                     .containerBackground(.black, for: .widget)
                     .environment(\.colorScheme, .light)
-                    .widgetURL(URL(string: "clic://device?id=\(speakerIP.id)"))
+                    .widgetURL(URL(string: "clic://device?id=\(room.id)"))
                 }
             } else {
                 VStack {

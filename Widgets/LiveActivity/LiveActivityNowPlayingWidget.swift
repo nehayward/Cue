@@ -9,6 +9,7 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
         var trackName: String
         var artist: String
         var volume: Double
+        var name: String
         var update: UpdateType = .refresh
     }
     var room: SonosDeviceEntity
@@ -23,7 +24,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack {
                         Image(systemName: "hifispeaker.fill")
-                        Text(context.attributes.room.name)
+                        Text(context.state.name)
                             .font(.caption2)
                             .scaledToFit()
                     }
@@ -128,7 +129,8 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
                                                     artist: "Dua Lipa",
-                                                    volume: 39)
+                                                    volume: 39,
+                                                    name: "Kitchen + 1")
      }
 }
 

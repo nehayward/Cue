@@ -1,3 +1,15 @@
+# 2024.1
+
+- Add tiny widget (accessory circle) to create live activity for selected room.
+
+## Internal 
+
+- Increase search to 15 per item on spotify
+- Add group count name to group room model
+- Add update group function to SonosService
+- Fix font and image clipping on spotify search
+- Add name to live activity
+
 # 2023.7
 
 - Added scrubbing functionality for playback progress.

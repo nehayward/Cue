@@ -12,7 +12,7 @@ final actor SpotifySearchAPI {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
 
-    func search(for query: String, limit: Int = 5, types: Set<SpotifyType>) async -> SpotifyResult? {
+    func search(for query: String, limit: Int = 15, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"

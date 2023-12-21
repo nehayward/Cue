@@ -20,7 +20,7 @@ struct LiveActivityNowPlayingView: View {
     var body: some View {
         VStack {
             HStack {
-                Label(context.attributes.room.name,
+                Label(context.state.name,
                       systemImage: "hifispeaker.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
@@ -88,6 +88,7 @@ struct LiveActivityNowPlayingView: View {
         .padding()
         .activityBackgroundTint(.black.opacity(0.8))
         .environment(\.colorScheme, .dark)
+        .widgetURL(URL(string: "clic://device?id=\(context.attributes.room.id)"))
     }
 }
 
@@ -101,7 +102,8 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
                                                     artist: "Dua Lipa",
-                                                    volume: 39)
+                                                    volume: 39,
+                                                    name: "Kitchen + 1")
     }
 }
 
