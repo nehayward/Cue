@@ -182,6 +182,7 @@ struct DeviceListMainView: View {
                                 .foregroundStyle(.ultraThinMaterial)
                         }
                         .transition(.push(from: .bottom).combined(with: .scale))
+                        .offset(y: 50)
                 }
             }
         }

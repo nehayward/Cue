@@ -1,6 +1,7 @@
 # 2024.1
 
 - Add tiny widget (accessory circle) to create live activity for selected room.
+- Fix searching overlay pill
 
 ## Internal 
 

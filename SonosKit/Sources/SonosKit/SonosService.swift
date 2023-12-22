@@ -83,7 +83,6 @@ import SwiftUI
                     } else {
                         try? await Task.sleep(for: .seconds(1))
                     }
-                    print("HERE")
                     try await load(useCache: useCache)
                     useCache = true
                 } catch SonosServiceError.permissionDenied {

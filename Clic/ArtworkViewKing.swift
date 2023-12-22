@@ -43,7 +43,7 @@ struct ArtworkViewKing: View {
                         .padding([.trailing, .bottom], 4)
                 }
             }.task(id: group.coordinatorRoom.track.name) {
-                print("Fetching Track")
+                print("Fetching Track for \(group.nameWithCount)")
                 artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
             }
     }
