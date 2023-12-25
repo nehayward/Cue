@@ -15,6 +15,10 @@
 		E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */; };
 		E92E47132B33F42C00DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
 		E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
+		E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
+		E92E47492B360C5C00DE6647 /* ActionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47482B360C5C00DE6647 /* ActionViewController.swift */; };
+		E92E47502B360C5C00DE6647 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E92E47562B3647E200DE6647 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92E47552B3647E200DE6647 /* SonosKit */; };
 		E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
 		E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */; };
@@ -137,6 +141,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		E92E474E2B360C5C00DE6647 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E92E47422B360C5C00DE6647;
+			remoteInfo = MusicQueue;
+		};
 		E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -167,6 +178,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				E92E47502B360C5C00DE6647 /* QueueAction.appex in Embed Foundation Extensions */,
 				E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -205,6 +217,11 @@
 		E92E2D472AA6D37300D27DBC /* Popover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Popover.swift; sourceTree = "<group>"; };
 		E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetAccessoryCircularView.swift; sourceTree = "<group>"; };
 		E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLiveActivityIntent.swift; sourceTree = "<group>"; };
+		E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		E92E47432B360C5C00DE6647 /* QueueAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QueueAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E92E47482B360C5C00DE6647 /* ActionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionViewController.swift; sourceTree = "<group>"; };
+		E92E474D2B360C5C00DE6647 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E92E47572B36530000DE6647 /* QueueAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QueueAction.entitlements; sourceTree = "<group>"; };
 		E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E9331B522AAE20A7002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIApplication+Environment.swift"; sourceTree = "<group>"; };
@@ -315,6 +332,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E92E47402B360C5C00DE6647 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92E47562B3647E200DE6647 /* SonosKit in Frameworks */,
+				E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E97C0D3E2A325CC5005AB0E0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -363,6 +389,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		E92E47452B360C5C00DE6647 /* QueueAction */ = {
+			isa = PBXGroup;
+			children = (
+				E92E47572B36530000DE6647 /* QueueAction.entitlements */,
+				E92E47482B360C5C00DE6647 /* ActionViewController.swift */,
+				E92E474D2B360C5C00DE6647 /* Info.plist */,
+			);
+			path = QueueAction;
+			sourceTree = "<group>";
+		};
 		E9331B512AAE2013002D3CFD /* Debug */ = {
 			isa = PBXGroup;
 			children = (
@@ -467,6 +503,7 @@
 				E9C03AFD2A586F5E00FB9118 /* Watch */,
 				E97C0D462A325CC5005AB0E0 /* Widgets */,
 				E9B12B562A5F31790008868C /* WatchWidgets */,
+				E92E47452B360C5C00DE6647 /* QueueAction */,
 				E9BDE56D29E3396700D230A8 /* Products */,
 				E9BDE57E29E33B0700D230A8 /* Frameworks */,
 			);
@@ -479,6 +516,7 @@
 				E97C0D412A325CC5005AB0E0 /* Widgets.appex */,
 				E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */,
 				E9B12B532A5F31790008868C /* Widgets Watch.appex */,
+				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -545,6 +583,7 @@
 				E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */,
 				E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */,
 				E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */,
+				E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -631,6 +670,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E92E47422B360C5C00DE6647 /* QueueAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */;
+			buildPhases = (
+				E92E473F2B360C5C00DE6647 /* Sources */,
+				E92E47402B360C5C00DE6647 /* Frameworks */,
+				E92E47412B360C5C00DE6647 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = QueueAction;
+			packageProductDependencies = (
+				E92E47552B3647E200DE6647 /* SonosKit */,
+			);
+			productName = MusicQueue;
+			productReference = E92E47432B360C5C00DE6647 /* QueueAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E97C0D402A325CC5005AB0E0 /* Widgets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E97C0D552A325CC6005AB0E0 /* Build configuration list for PBXNativeTarget "Widgets" */;
@@ -685,6 +744,7 @@
 			dependencies = (
 				E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */,
 				E9C03B082A586F6100FB9118 /* PBXTargetDependency */,
+				E92E474F2B360C5C00DE6647 /* PBXTargetDependency */,
 			);
 			name = Clic;
 			packageProductDependencies = (
@@ -732,9 +792,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1500;
+				LastSwiftUpdateCheck = 1510;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
+					E92E47422B360C5C00DE6647 = {
+						CreatedOnToolsVersion = 15.1;
+					};
 					E97C0D402A325CC5005AB0E0 = {
 						CreatedOnToolsVersion = 15.0;
 					};
@@ -772,11 +835,19 @@
 				E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */,
 				E97C0D402A325CC5005AB0E0 /* Widgets */,
 				E9B12B522A5F31790008868C /* Widgets (Watch) */,
+				E92E47422B360C5C00DE6647 /* QueueAction */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E92E47412B360C5C00DE6647 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E97C0D3F2A325CC5005AB0E0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -815,6 +886,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E92E473F2B360C5C00DE6647 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92E47492B360C5C00DE6647 /* ActionViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E97C0D3D2A325CC5005AB0E0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -946,6 +1025,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		E92E474F2B360C5C00DE6647 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+			targetProxy = E92E474E2B360C5C00DE6647 /* PBXContainerItemProxy */;
+		};
 		E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			platformFilter = ios;
@@ -966,6 +1050,103 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		E92E47522B360C5C00DE6647 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Debug.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QueueAction/QueueAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QueueAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E92E47532B360C5C00DE6647 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QueueAction/QueueAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QueueAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+		E92E47542B360C5C00DE6647 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QueueAction/QueueAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = QueueAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E97C0D562A325CC6005AB0E0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E9A953192ADDA06D00600516 /* Debug.xcconfig */;
@@ -1686,6 +1867,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E92E47522B360C5C00DE6647 /* Debug */,
+				E92E47532B360C5C00DE6647 /* Beta */,
+				E92E47542B360C5C00DE6647 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E97C0D552A325CC6005AB0E0 /* Build configuration list for PBXNativeTarget "Widgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1774,6 +1965,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E92E47552B3647E200DE6647 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
 		E94A6A262AAACB62002E432C /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
