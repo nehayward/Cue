@@ -84,6 +84,8 @@
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */; };
+		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
 		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
 		E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A953162ADCD5B600600516 /* HapticButton.swift */; };
 		E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */; };
@@ -273,6 +275,7 @@
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
 		E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
 		E9A953162ADCD5B600600516 /* HapticButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticButton.swift; sourceTree = "<group>"; };
 		E9A953192ADDA06D00600516 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -336,6 +339,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */,
 				E92E47562B3647E200DE6647 /* SonosKit in Frameworks */,
 				E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
@@ -394,6 +398,7 @@
 			children = (
 				E92E47572B36530000DE6647 /* QueueAction.entitlements */,
 				E92E47482B360C5C00DE6647 /* ActionViewController.swift */,
+				E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */,
 				E92E474D2B360C5C00DE6647 /* Info.plist */,
 			);
 			path = QueueAction;
@@ -685,6 +690,7 @@
 			name = QueueAction;
 			packageProductDependencies = (
 				E92E47552B3647E200DE6647 /* SonosKit */,
+				E9A6AAB72B3CCC9A00C24B98 /* VibesDS */,
 			);
 			productName = MusicQueue;
 			productReference = E92E47432B360C5C00DE6647 /* QueueAction.appex */;
@@ -890,6 +896,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */,
 				E92E47492B360C5C00DE6647 /* ActionViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2009,6 +2016,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		E9A6AAB72B3CCC9A00C24B98 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
 		};
 		E9BDE57F29E33B0700D230A8 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;

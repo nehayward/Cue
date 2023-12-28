@@ -358,21 +358,21 @@ final class SonosAPI {
         }
     }
 
-//    func reorderQueue(IP: String) async {
-//        let arguments: [String: Any] = [
-//            "InstanceID": 0,
-//            "StartingIndex": max(1,9),
-//            "NumberOfTracks": 1,
-//            "InsertBefore": max(1,1),
-//            "UpdateID": 0
-//        ]
-//
-//        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "ReorderTracksInQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-//            if (response as? HTTPURLResponse)?.statusCode != 200 {
-//                print("Failed")
-//            }
-//        }
-//    }
+    func reorderQueue(group: GroupRoom, from: Int, to: Int) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "StartingIndex": from,
+            "NumberOfTracks": 1,
+            "InsertBefore": to,
+            "UpdateID": 0
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: group.ip, action: "ReorderTracksInQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
 
     func ungroup(IP: String) async {
         let arguments: [String: Any] = [
@@ -410,38 +410,27 @@ final class SonosAPI {
         let enqueuedURIMetadata = """
         &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="10032020song%3a\(song)" restricted="true"&gt;&lt;dc:title&gt;Apple Music&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
-        var arguments: [String: Any] = [:]
-        switch position {
-        case .front:
-            // MARK: Front
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
-                "EnqueuedURIMetaData": enqueuedURIMetadata,
-                "DesiredFirstTrackNumberEnqueued": 1,
-                "EnqueueAsNext": 1
-            ]
-        case .end:
-            // MARK: End
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
-                "EnqueuedURIMetaData": enqueuedURIMetadata,
-                "DesiredFirstTrackNumberEnqueued": 0,
-                "EnqueueAsNext": 1
-            ]
-        case .next, .now:
-            // MARK: Next
-            let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
-                "EnqueuedURIMetaData": enqueuedURIMetadata,
-                "DesiredFirstTrackNumberEnqueued": position + 1,
-                "EnqueueAsNext": 1
-            ]
-        }
+        var arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": "x-sonos-http:song%3a\(song).mp4?sid=204&amp;flags=8224&amp;sn=5",
+            "EnqueuedURIMetaData": enqueuedURIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 0
+        ]
 
+        switch position {
+        case .front: break
+        case .end:
+            arguments["DesiredFirstTrackNumberEnqueued"] = 0
+        case .now:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index
+            arguments["EnqueueAsNext"] = 0
+        case .next:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
+            arguments["EnqueueAsNext"] = 1
+        }
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
@@ -478,38 +467,24 @@ final class SonosAPI {
         &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="10032020spotify%3a\(metaData)" restricted="true"&gt;&lt;dc:title&gt;Dance&amp;#32;The&amp;#32;Night&amp;#32;-&amp;#32;From&amp;#32;Barbie&amp;#32;The&amp;#32;Album&amp;#32;-&amp;#32;song&amp;#32;and&amp;#32;lyrics&amp;#32;by&amp;#32;Dua&amp;#32;Lipa&amp;#32;|&amp;#32;Spotify&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON3079_X_#Svc3079-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
 
-        let test = "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
+        let URI = "x-sonos-spotify:" + "spotify:track:\(ID)?sid=9&flags=8224&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
 
-        var arguments: [String: Any] = [:]
+        var arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": URI,
+            "EnqueuedURIMetaData": URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 0
+        ]
+
         switch position {
-        case .front:
-            // MARK: Front
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-spotify:" + test,
-                "EnqueuedURIMetaData": URIMetadata,
-                "DesiredFirstTrackNumberEnqueued": 1,
-                "EnqueueAsNext": 1
-            ]
+        case .front: break
         case .end:
-            // MARK: End
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-spotify:" + test,
-                "EnqueuedURIMetaData": URIMetadata,
-                "DesiredFirstTrackNumberEnqueued": 0,
-                "EnqueueAsNext": 1
-            ]
-        case .next, .now:
-            // MARK: Next
-            let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-spotify:" + test,
-                "EnqueuedURIMetaData": URIMetadata,
-                "DesiredFirstTrackNumberEnqueued": position + 1,
-                "EnqueueAsNext": 1
-            ]
+            arguments["DesiredFirstTrackNumberEnqueued"] = 0
+        case .now, .next:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
+            arguments["EnqueueAsNext"] = 1
         }
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
@@ -526,38 +501,28 @@ final class SonosAPI {
         &lt;DIDL-Lite&#32;xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;&#32;xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&#32;xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&#32;xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item&#32;id=&quot;1004206cspotify%3aalbum%3a7fJJK56U9fHixgO0HQkhtI&quot;&#32;restricted=&quot;true&quot;&gt;&lt;dc:title&gt;Future&amp;#32;Nostalgia&amp;#32;-&amp;#32;Album&amp;#32;by&amp;#32;Dua&amp;#32;Lipa&amp;#32;|&amp;#32;Spotify&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc&#32;id=&quot;cdudn&quot;&#32;nameSpace=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&gt;SA_RINCON3079_X_#Svc3079-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
 
-        let trackURI = "x-rincon-cpcontainer:1004206cspotify:album:\(ID)?sid=9&flags=8300&sn=7".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped
+        let albumURI = "x-rincon-cpcontainer:1004206cspotify%3aalbum%3a\(ID)?sid=12&amp;flags=8300&amp;sn=3"
 
-        var arguments: [String: Any] = [:]
+        var arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": albumURI,
+            "EnqueuedURIMetaData": URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 1
+        ]
+
         switch position {
-        case .front:
-            // MARK: Front
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-spotify:" + trackURI,
-                "EnqueuedURIMetaData": URIMetadata.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped,
-                "DesiredFirstTrackNumberEnqueued": 1,
-                "EnqueueAsNext": 1
-            ]
+        case .front: break
         case .end:
-            // MARK: End
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-sonos-spotify:" + trackURI,
-                "EnqueuedURIMetaData": URIMetadata.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)!.escaped,
-                "DesiredFirstTrackNumberEnqueued": 0,
-                "EnqueueAsNext": 1
-            ]
-        case .next, .now:
-            // MARK: Next
-            let position = await getCurrentTrack(ipAddress: IP)?.position ?? -1
-            arguments = [
-                "InstanceID": 0,
-                "EnqueuedURI": "x-rincon-cpcontainer:1004206cspotify%3aalbum%3a\(ID)?sid=12&amp;flags=8300&amp;sn=3",
-                "EnqueuedURIMetaData": URIMetadata,
-                "DesiredFirstTrackNumberEnqueued": position + 1,
-                "EnqueueAsNext": 1
-            ]
+            arguments["DesiredFirstTrackNumberEnqueued"] = 0
+        case .now:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index
+            arguments["EnqueueAsNext"] = 0
+        case .next:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
+            arguments["EnqueueAsNext"] = 1
         }
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
@@ -567,7 +532,6 @@ final class SonosAPI {
                 print("Success", (response as? HTTPURLResponse)?.statusCode)
             }
         }
-
     }
 
     func getCurrentTransportActions(IP: String) async -> AvailableActions? {

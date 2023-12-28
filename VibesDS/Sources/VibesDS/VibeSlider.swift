@@ -14,6 +14,7 @@ public struct VibeSlider: View {
     public init(
         value: Binding<Double>,
         in range: ClosedRange<Double> = 0...100,
+        step: Double.Stride = 1,
         touchDelay: TimeInterval = 0,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
@@ -32,7 +33,7 @@ public struct VibeSlider: View {
                         .frame(width: geometry.size.width * CGFloat(self.value / range.upperBound))
                 }
                 .delaysTouches(for: touchDelay) { }
-                .gesture(holdAndDragGesture)
+                .gesture(dragGesture)
                 .cornerRadius(cornerRadius)
                 .onChange(of: geometry.size.width, initial: true) {
                     width = geometry.size.width
@@ -49,7 +50,7 @@ public struct VibeSlider: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    var holdAndDragGesture: some Gesture {
+    private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { gesture in
                 isDragging = true
@@ -65,7 +66,6 @@ public struct VibeSlider: View {
 
                 let newValue = min(max(range.lowerBound, Double(value + change * range.upperBound)), range.upperBound)
                 self.value = newValue
-                isDragging = true
                 previousDragPercentage = percent
             }
             .onEnded { value in
@@ -79,8 +79,12 @@ public struct VibeSlider: View {
 fileprivate struct Container: View {
     @State var volume = 0.0
     var body: some View {
-        VibeSlider(value: $volume)
-            .padding()
+        VStack {
+            Text(volume, format: .number)
+            Slider(value: $volume, in: 0...100, step: 1)
+            VibeSlider(value: $volume)
+                .padding()
+        }
     }
 }
 

@@ -202,10 +202,10 @@ import SwiftUI
                 break
             }
 
-            let updateGroupVolume = try await groupVolume
-            if !roomGroup.isEditingVolume {
+            if let updateGroupVolume = try? await groupVolume, !roomGroup.isEditingVolume {
                 roomGroup.groupVolume = updateGroupVolume
             }
+
             guard let track = await track else {
                 return
             }
@@ -629,6 +629,42 @@ import SwiftUI
         }
     }
 
+    public func getArtwork(from content: MediaContent, size: Int = 500) async -> URL? {
+        guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+        
+        if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+            guard let url = URL(string: image.url) else { return nil }
+            return url
+        }
+
+        if size == 200, spotifyTrack.album.images.count > 2 {
+            let image = spotifyTrack.album.images[1]
+            guard let url = URL(string: image.url) else { return nil }
+            return url
+        }
+
+        guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
+        return url
+    }
+
+    public func getContent(from url: URL) async -> PlayableContent? {
+        guard let content = api.parse(url: url) else { return nil }
+        switch content.type {
+        case .playlist:
+            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
+            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
+        case .track:
+            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
+        case .album:
+            guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
+            return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: content)
+        default:
+            break
+        }
+        return nil
+    }
+
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { room in
@@ -749,17 +785,6 @@ import SwiftUI
         await snapShotGroup(ip: groupIP)
     }
 
-    public func queue(song: String, on group: GroupRoom, position: QueuePosition = .now) async {
-        await api.queue(song: song, IP: group.ip, position: position)
-
-        switch position {
-        case .front, .next, .end:
-            break
-        case .now:
-            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
-        }
-    }
-
     public func seek(trackNumber: Int, on group: GroupRoom) async {
         await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
@@ -767,6 +792,14 @@ import SwiftUI
 
     public func seek(to time: TimeInterval, on group: GroupRoom) async {
         await api.seek(to: time, IP: group.coordinatorRoom.ip)
+    }
+
+    public func queue(song: String, on group: GroupRoom, position: QueuePosition = .now) async {
+        await api.queue(song: song, IP: group.ip, position: position)
+
+        if position == .now {
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        }
     }
 
     public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
@@ -778,24 +811,42 @@ import SwiftUI
     public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
 
-        switch position {
-        case .now:
+        if position == .now {
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
-        default:
-            break
         }
     }
 
     public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        let queueCount = await api.getQueue(IP: group.ip)
         await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
 
-        switch position {
-        case .now:
-            let position = queueCount.isEmpty ? 1 : group.coordinatorRoom.track.position + 1
-            await seek(trackNumber: position, on: group)
-        default:
+        if position == .now {
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        }
+    }
+
+    // MARK: TODO add queueing for Apple Music
+    public func queue(url: URL, group: GroupRoom, position: QueuePosition = .now) async {
+        guard let content = api.parse(url: url) else {
+            // Throw
+            return
+        }
+        switch content.type {
+        case .album:
+            if content.service == .spotify {
+                await queueSpotifyAlbum(id: content.id, group: group, position: position)
+            }
+        case .playlist:
+            await api.removeAllTrackFromQueue(IP: group.ip)
+            await api.queueSpotifyPlaylist(ID: content.id, title: "", owner: "", IP: group.ip)
+        case .artist:
             break
+        case .track:
+            if content.service == .spotify {
+                await api.queueSpotifyTrack(ID: content.id, IP: group.ip, position: position)
+            }
+            if content.service == .apple {
+                await api.queue(song: "", IP: group.ip, position: position)
+            }
         }
     }
 
@@ -809,6 +860,10 @@ import SwiftUI
 
     public func removeTrackFromQueue(_ IP: String, index: Int) async throws {
         await api.removeTrackFromQueue(IP: IP, index: index)
+    }
+
+    public func reorderQueue(_ group: GroupRoom, from: Int, to: Int) async throws {
+        await api.reorderQueue(group: group, from: from, to: to)
     }
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> GroupRoom? {

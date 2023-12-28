@@ -13,11 +13,6 @@ struct DeviceListMainView: View {
 
     @Binding var selected: Route?
     @State var sheetDestination: SheetDestination?
-//    @State var showSettings: Bool = false
-//    @State private var showPaywall: Bool = false
-//    @State var showGroupScreen: Bool = false
-
-
 
     var body: some View {
         @Bindable var alertService = alertService

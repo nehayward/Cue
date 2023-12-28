@@ -9,6 +9,7 @@ struct QueueScreen: View {
 
     @Binding var group: GroupRoom
     @State private var tracks: [Track] = []
+    @State private var isLoading: Bool = true
 
     var body: some View {
         let isShuffle = Binding(
@@ -121,14 +122,18 @@ struct QueueScreen: View {
                         }
                         .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
                     }
-                    .fontDesign(.rounded)
+                    .onMove(perform: move)
                 }
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
                 .toolbar {
                     ToolbarItem(placement: .navigation) {
-                        Text("Queue")
-                            .font(.title)
+                        VStack(alignment: .leading) {
+                            Text("Queue")
+                                .bold()
+                            Text(tracks.count, format: .number)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     ToolbarItem(placement: .destructiveAction) {
                         Button {
@@ -150,10 +155,13 @@ struct QueueScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .background(.thinMaterial)
+                    .padding(.bottom)
                 }
                 .task {
+                    isLoading = true
                     self.tracks = await sonosService.getQueue(ip: group.ip)
                     group.playMode = await sonosService.playMode(ip: group.ip)
+                    isLoading = false
                     withAnimation {
                         proxy.scrollTo(group.coordinatorRoom.track.position - 1)
                     }
@@ -162,6 +170,20 @@ struct QueueScreen: View {
             }
         }
         .presentationBackground(.thinMaterial)
+        .background {
+            if isLoading {
+                ProgressView()
+            }
+        }
+        .fontDesign(.rounded)
+    }
+
+    func move(from source: IndexSet, to destination: Int) {
+        tracks.move(fromOffsets: source, toOffset: destination)
+        Task {
+            guard let sourceIndex = source.first else { return }
+            try await sonosService.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
+        }
     }
 }
 
@@ -182,3 +204,9 @@ fileprivate struct ContainerView: View {
         }
 }
 
+#Preview {
+    Text("Queue...")
+        .sheet(isPresented: .constant(true)) {
+            ContainerView()
+        }
+}

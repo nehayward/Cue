@@ -40,6 +40,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                     AppleMusicSearchView(results: $results, filters: $filters, group: group)
                 }
             }
+            .padding(.bottom, 60)
             .searchable(text: $query, isPresented: $searchFieldIsPresented, prompt: "Searching \(musicSearchSelection.title)")
             .searchSuggestions {
                 if query.isEmpty {

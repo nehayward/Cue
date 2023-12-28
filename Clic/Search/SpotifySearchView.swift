@@ -150,10 +150,8 @@ struct SpotifySearchView: View {
                 Button {
                     dismiss()
                     Task {
-                        Task {
-                            await sonosService.queueSpotifyAlbum(id: album.id, group: group)
-                            await sonosService.play(ip: group.coordinatorRoom.ip)
-                        }
+                        await sonosService.queueSpotifyAlbum(id: album.id, group: group, position: .now)
+                        await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
                     HStack {

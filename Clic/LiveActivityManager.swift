@@ -4,12 +4,11 @@ import Kingfisher
 import SonosKit
 
 final class LiveActivityManager {
-    let sonosService: SonosService
-    var activitySequence: Task<Void,Error>?
+    private let sonosService: SonosService
+    private var createTask: Task<Void,Error>? = nil
 
     init(sonosService: SonosService) {
         self.sonosService = sonosService
-        monitorActivities()
     }
 
     func refresh(updateType: UpdateType = .refresh) async {
@@ -19,7 +18,7 @@ final class LiveActivityManager {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
             guard let group = groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-                    await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
+                    await activity.end(activity.content, dismissalPolicy: .immediate)
                 }
 
                 return
@@ -35,31 +34,37 @@ final class LiveActivityManager {
         }
     }
 
-    func createActivity() async {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
-        try? await sonosService.fetch(useCache: true)
-        for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
-            let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
-                                                                                        ip: group.coordinatorRoom.ip,
-                                                                                        name: group.coordinatorRoom.name,
-                                                                                        volume: group.groupVolume))
+    func createActivity() {
+        createTask?.cancel()
+        createTask = Task {
+            if Task.isCancelled { return }
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
+            try? await sonosService.fetch(useCache: true)
+            for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
+                let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
+                                                                                            ip: group.coordinatorRoom.ip,
+                                                                                            name: group.coordinatorRoom.name,
+                                                                                            volume: group.groupVolume))
 
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
-                                                                           artist: group.coordinatorRoom.track.artist,
-                                                                           volume: group.groupVolume, 
-                                                                           name: group.nameWithCount)
+                let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                                                                               artist: group.coordinatorRoom.track.artist,
+                                                                               volume: group.groupVolume,
+                                                                               name: group.nameWithCount)
 
-            let activityContent = ActivityContent(state: contentState, staleDate: nil)
-            guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
-                print("HERE")
-                return
-            }
+                let activityContent = ActivityContent(state: contentState, staleDate: nil, relevanceScore: Double(activities.count))
+                guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
+                    print("HERE")
+                    return
+                }
 
-            do {
-                try Activity.request(attributes: sonosAttribute, content: activityContent)
-            } catch (let error) {
-                print("Error requesting Live Activity \(error.localizedDescription).")
+                do {
+                    if Task.isCancelled { return }
+                    let activity = try Activity.request(attributes: sonosAttribute, content: activityContent)
+                    print("Created Live Activity for \(activity.content) \(activity.attributes)")
+                } catch (let error) {
+                    print("Error requesting Live Activity \(error.localizedDescription).")
+                }
             }
         }
     }
@@ -83,24 +88,25 @@ final class LiveActivityManager {
                                                                        volume: group.groupVolume,
                                                                        name: group.nameWithCount)
 
-        let activityContent = ActivityContent(state: contentState, staleDate: nil)
+        let activityContent = ActivityContent(state: contentState, staleDate: nil, relevanceScore: activities.isEmpty ? 0 : 1)
         guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
             print("Failed")
             return
         }
+        print(activities)
 
         do {
-            try Activity.request(attributes: sonosAttribute, content: activityContent)
+            let activity = try Activity.request(attributes: sonosAttribute, content: activityContent)
+            print("Created Live Activity from ID: \(activity.content) \(activity.attributes)")
         } catch (let error) {
             print("Error requesting Live Activity \(error.localizedDescription).")
         }
     }
 
-    private func monitorActivities() {
-        activitySequence?.cancel()
-        activitySequence = Task {
-            for await activity in Activity<ClicNowPlayingWidgetAttributes>.activityUpdates {
-                print("Created Live Activity for \(activity.content) \(activity.attributes)")
+    func reset() {
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            Task {
+                await activity.end(activity.content, dismissalPolicy: .immediate)
             }
         }
     }

@@ -1,0 +1,35 @@
+import Foundation
+
+extension SonosAPI {
+    func parse(url: URL) -> MediaContent? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+
+        let content: MediaContent? = switch components.host {
+        case let .some(host) where host.contains("spotify"):
+            handleSpotify(url: url, path: components.path)
+        case let .some(host) where host.contains("music"):
+            handleMusic(url: url, path: components.path, query: components.query)
+        default:
+            nil
+        }
+
+        return content
+    }
+
+    private func handleMusic(url: URL, path: String, query: String?) -> MediaContent? {
+        let paths = path.split(separator: "/").map(String.init)
+        guard paths.count > 3, let type = ContentType(paths[1]), let id = paths.last else { return nil }
+
+        if let querySplit = query?.split(separator: "=").map(String.init), querySplit.count > 1 {
+            let songID = querySplit[1]
+            return MediaContent(service: .apple, id: songID, type: .track, location: url)
+        }
+        return MediaContent(service: .apple, id: id, type: type, location: url)
+    }
+
+    private func handleSpotify(url: URL, path: String) -> MediaContent? {
+        let paths = path.split(separator: "/").map(String.init)
+        guard let typeString = paths.first, let type = ContentType(typeString), let id = paths.last else { return nil }
+        return MediaContent(service: .spotify, id: id, type: type, location: url)
+    }
+}

@@ -72,6 +72,38 @@ final actor SpotifySearchAPI {
         }
     }
 
+    func playlist(id: String) async -> SpotifyPlaylistItems? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(id)"
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifyPlaylist: SpotifyPlaylistItems = try await loadAuthorized(url)
+            return spotifyPlaylist
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func album(id: String) async -> SpotifyAlbumItems? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/albums/\(id)"
+        guard let url = components.url else { return nil }
+
+        do {
+            let album: SpotifyAlbumItems = try await loadAuthorized(url)
+            return album
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
     func getToken() async -> SpotifyTokenResponse? {
         guard let URL = URL(string: "https://accounts.spotify.com/api/token") else { return nil }
         var request = URLRequest(url: URL)

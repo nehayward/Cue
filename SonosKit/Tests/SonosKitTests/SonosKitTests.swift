@@ -2,6 +2,9 @@ import XCTest
 @testable import SonosKit
 
 final class SonosKitTests: XCTestCase {
+    let sonosService = SonosService()
+    let sonosAPI = SonosAPI()
+
     func testXMLParse() throws {
         let zone = Bundle.module.url(forResource: "Zone", withExtension: "xml")
         let zoneXML = try! String(contentsOf: zone!)
@@ -86,5 +89,33 @@ final class SonosKitTests: XCTestCase {
         let xml = try String(contentsOf: xmlURL!)
         let availableActions = try XCTUnwrap(XMLParserSonos().parseGetCurrentTransportActions(xml: xml))
         XCTAssert(availableActions.contains([.next,.pause]))
+    }
+
+    func testParseSpotifyURL() {
+        let spotifyPlaylistURL = URL(string: "https://open.spotify.com/playlist/6zKUeBJeJQODG5o2PzxRsZ")!
+        XCTAssertEqual(sonosAPI.parse(url: spotifyPlaylistURL), MediaContent(service: .spotify, id: "6zKUeBJeJQODG5o2PzxRsZ", type: .playlist, location: spotifyPlaylistURL))
+
+        let spotifyAlbumURL = URL(string: "https://open.spotify.com/album/7fJJK56U9fHixgO0HQkhtI")!
+        XCTAssertEqual(sonosAPI.parse(url: spotifyAlbumURL), MediaContent(service: .spotify, id: "7fJJK56U9fHixgO0HQkhtI", type: .album, location: spotifyAlbumURL))
+
+        let spotifyArtistURL = URL(string: "https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we")!
+        XCTAssertEqual(sonosAPI.parse(url: spotifyArtistURL), MediaContent(service: .spotify, id: "6M2wZ9GZgrQXHCFfjv46we", type: .artist, location: spotifyArtistURL))
+
+        let spotifyTrackURL = URL(string: "https://open.spotify.com/track/5bGNsC7FTQ3WZzz0XYOmvZ")!
+        XCTAssertEqual(sonosAPI.parse(url: spotifyTrackURL), MediaContent(service: .spotify, id: "5bGNsC7FTQ3WZzz0XYOmvZ", type: .track, location: spotifyTrackURL))
+    }
+
+    func testParseAppleMusicURL() {
+        let appleMusicPlaylistURL = URL(string: "https://music.apple.com/us/playlist/todays-hits/pl.f4d106fed2bd41149aaacabb233eb5eb")!
+        XCTAssertEqual(sonosAPI.parse(url: appleMusicPlaylistURL), MediaContent(service: .apple, id: "pl.f4d106fed2bd41149aaacabb233eb5eb", type: .playlist, location: appleMusicPlaylistURL))
+
+        let appleMusicAlbumURL = URL(string: "https://music.apple.com/us/album/guts/1694386825")!
+        XCTAssertEqual(sonosAPI.parse(url: appleMusicAlbumURL), MediaContent(service: .apple, id: "1694386825", type: .album, location: appleMusicAlbumURL))
+
+        let appleMusicArtistURL = URL(string: "https://music.apple.com/us/artist/olivia-rodrigo/979458609")!
+        XCTAssertEqual(sonosAPI.parse(url: appleMusicArtistURL), MediaContent(service: .apple, id: "979458609", type: .artist, location: appleMusicArtistURL))
+
+        let appleMusicSongURL = URL(string: "https://music.apple.com/us/album/vampire/1694386825?i=1694386830")!
+        XCTAssertEqual(sonosAPI.parse(url: appleMusicSongURL), MediaContent(service: .apple, id: "1694386830", type: .track, location: appleMusicSongURL))
     }
 }
