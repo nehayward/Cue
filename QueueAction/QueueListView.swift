@@ -109,6 +109,12 @@ struct QueueListView: View {
                     .padding()
                     .multilineTextAlignment(.center)
             }
+            if playableContent != nil, sonosService.groups.isEmpty {
+                Text("No system available")
+                    .font(.title)
+                    .padding()
+                    .multilineTextAlignment(.center)
+            }
             if viewModel.isLoading {
                 ProgressView()
             }

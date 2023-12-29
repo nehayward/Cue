@@ -21,20 +21,6 @@ struct LiveActivityNowPlayingWidget: Widget {
             LiveActivityNowPlayingView(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    VStack {
-                        Image(systemName: "hifispeaker.fill")
-                        Text(context.state.name)
-                            .font(.caption2)
-                            .scaledToFit()
-                    }
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text("\(context.state.volume, specifier: "%0.f")%")
-                        .bold()
-                        .contentTransition(.numericText())
-                        .frame(width: 40)
-                }
                 DynamicIslandExpandedRegion(.center) {
                     VStack {
                         Text(context.state.trackName)
@@ -97,7 +83,10 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: "hifispeaker.fill")
+                Text(context.state.name)
+                    .font(.caption)
+                    .fontDesign(.rounded)
+                    .fontWidth(.condensed)
             } compactTrailing: {
                 Text("\(context.state.volume, specifier: "%0.f")%")
                     .contentTransition(.numericText())

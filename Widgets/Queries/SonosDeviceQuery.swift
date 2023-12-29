@@ -17,8 +17,8 @@ struct SonosDeviceQuery: EntityQuery {
             return SonosDeviceEntity(id: room.id, ip: room.ip, name: room.name, volume: room.volume)
         }
     }
-//
-//    func defaultResult() async -> SonosDeviceEntity? {
-//        try? await suggestedEntities().first
-//    }
+
+    func defaultResult() async -> SonosDeviceEntity? {
+        try? await suggestedEntities().first
+    }
 }

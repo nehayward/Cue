@@ -25,6 +25,7 @@ final class ActionViewController: UIViewController {
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil, completionHandler: { (URL, error) in
                         OperationQueue.main.addOperation { [weak self] in
                             guard let URL = URL as? URL else {
+                                self?.viewModel.isLoading = false
                                 return
                             }
                             self?.viewModel.url = URL

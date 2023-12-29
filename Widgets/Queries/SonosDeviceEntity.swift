@@ -10,7 +10,6 @@ struct SonosDeviceEntity: AppEntity, Identifiable, Codable {
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Sonos Device"
 
     var displayRepresentation: DisplayRepresentation {
-//        DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name), subtitle: LocalizedStringResource("\(volume)%"), image: DisplayRepresentation.Image(systemName: "hifispeaker"))
         DisplayRepresentation(title: LocalizedStringResource(stringLiteral: name), image: DisplayRepresentation.Image(systemName: "hifispeaker"))
     }
 

@@ -87,25 +87,12 @@ struct RemoteWidgetEntryView : View {
                     Image(systemName: "hifispeaker")
                         .imageScale(.large)
                     Text("Select a Room")
+                        .font(.caption)
                         .fontDesign(.rounded)
                 }
                 .containerBackground(.thinMaterial, for: .widget)
             }
         }
-//        .disabled(!activeSubscription)
-//        .overlay {
-//            if !activeSubscription {
-//                Text("Unlock")
-//                    .bold()
-//                    .padding()
-//                    .background {
-//                        Capsule()
-//                            .foregroundStyle(.thinMaterial)
-//                    }
-//                    .fontDesign(.rounded)
-//                    .widgetURL(URL(string: "clic://subscribe"))
-//            }
-//        }
     }
 }
 
@@ -115,7 +102,7 @@ struct RemoteWidgetEntryView : View {
     RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
 }
 
-#Preview(as: .accessoryCircular) {
+#Preview("Circle", as: .accessoryCircular) {
     RemoteWidget()
 } timeline: {
     RemoteWidgetEntry(
@@ -124,6 +111,42 @@ struct RemoteWidgetEntryView : View {
             room: SonosDeviceEntity(
                 id: "",
                 ip: "", 
+                name: "Garage",
+                volume: 20
+            )
+        ),
+        volume: 20,
+        track: .empty
+    )
+}
+
+#Preview("Rectangle", as: .accessoryRectangular) {
+    RemoteWidget()
+} timeline: {
+    RemoteWidgetEntry(
+        date: .now,
+        configuration: RemoteWidgetConfigurationIntent(
+            room: SonosDeviceEntity(
+                id: "",
+                ip: "",
+                name: "Garage",
+                volume: 20
+            )
+        ),
+        volume: 20,
+        track: .empty
+    )
+}
+
+#Preview("Unlocked Rectangle", as: .accessoryRectangular) {
+    RemoteWidget()
+} timeline: {
+    RemoteWidgetEntry(
+        date: .now,
+        configuration: RemoteWidgetConfigurationIntent(
+            room: SonosDeviceEntity(
+                id: "",
+                ip: "",
                 name: "Garage",
                 volume: 20
             )
