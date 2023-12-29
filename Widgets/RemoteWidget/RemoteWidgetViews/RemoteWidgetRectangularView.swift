@@ -9,7 +9,7 @@ struct RemoteWidgetRectangularView: View {
         if let room = entry.configuration.room {
             Button(intent: CreateLiveActivityIntent(room: room)) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Label(room.name, systemImage: "hifispeaker.fill")
+                    Label(entry.name ?? room.name, systemImage: "hifispeaker.fill")
                         .font(.caption)
                     if let track = entry.track {
                         Text(track.name)
@@ -27,8 +27,6 @@ struct RemoteWidgetRectangularView: View {
                 }
                 .fontDesign(.rounded)
                 .bold()
-                .containerBackground(.red, for: .widget)
-                .widgetURL(URL(string: "clic://device?id=\(room.id)"))
             }
             .buttonStyle(.plain)
         } else {

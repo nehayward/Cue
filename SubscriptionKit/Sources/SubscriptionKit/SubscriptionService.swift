@@ -18,6 +18,7 @@ public final class SubscriptionService: SubscriptionServicing {
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
         subscription = Subscription(isActive: true)
         sync.set(true, for: "com.clic.subscriptions")
+        NSUbiquitousKeyValueStore.default.synchronize()
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
         return
 #endif

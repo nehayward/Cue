@@ -9,16 +9,17 @@ struct RemoteWidgetAccessoryCircularView: View {
         if let room = entry.configuration.room {
             Button(intent: CreateLiveActivityIntent(room: room)) {
                 Gauge(value: entry.volume, in: 0...100) {
-                    Text(entry.volume, format: .number)
+                    Text("\(entry.volume, specifier: "%0.f")%")
+                        .contentTransition(.numericText())
                 } currentValueLabel: {
-                    Text(room.name)
+                    Text(entry.name ?? room.name)
+                        .font(.caption)
+                        .fontDesign(.rounded)
                 }
                 .gaugeStyle(.accessoryCircular)
             }
             .buttonStyle(.plain)
             .containerBackground(.bar, for: .widget)
-
-//            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

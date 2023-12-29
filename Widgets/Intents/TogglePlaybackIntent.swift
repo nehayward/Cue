@@ -32,7 +32,7 @@ struct TogglePlaybackIntent: LiveActivityIntent {
         }
         
         await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
-        await Self.liveActivityManager.createActivity()
+        await Self.liveActivityManager.createActivity(id: room.id)
         await Self.liveActivityManager.refresh()
         return .result()
     }

@@ -17,7 +17,7 @@ struct Provider: AppIntentTimelineProvider {
         if let room = configuration.room {
             if let coordinatorRoom = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id), let volume = try? await SonosService.shared.getGroupVolume(ip: coordinatorRoom.ip) {
                 let track = await SonosService.shared.getTrack(ip: coordinatorRoom.ip)
-                let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track)
+                let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track, name: coordinatorRoom.nameWithCount)
                 return Timeline(entries: [entry], policy: .atEnd)
             }
         }
@@ -32,6 +32,7 @@ struct RemoteWidgetEntry: TimelineEntry {
     let configuration: RemoteWidgetConfigurationIntent
     let volume: Double
     let track: Track?
+    var name: String? = nil
 }
 
 struct RemoteWidget: Widget {
@@ -46,6 +47,7 @@ struct RemoteWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: RemoteWidgetConfigurationIntent.self, provider: Provider()) { entry in
            RemoteWidgetEntryView(entry: entry)
+            #if !DEBUG
                 .disabled(!activeSubscription)
                 .overlay {
                     if !activeSubscription {
@@ -59,6 +61,7 @@ struct RemoteWidget: Widget {
                             .widgetURL(URL(string: "clic://subscribe"))
                     }
                 }
+            #endif
         }
         .supportedFamilies(families)
         .configurationDisplayName("Remote")

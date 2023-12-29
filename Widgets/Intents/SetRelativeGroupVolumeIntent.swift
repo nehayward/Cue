@@ -30,12 +30,13 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in App")
         }
-
+        
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
-        }       
+        }
+
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
-        try? await Task.sleep(for: .milliseconds(300))
+        try? await Task.sleep(for: .milliseconds(250))
         await Self.liveActivityManager.refresh()
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
         return .result()

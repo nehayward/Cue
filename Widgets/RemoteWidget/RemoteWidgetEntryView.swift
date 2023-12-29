@@ -20,7 +20,7 @@ struct RemoteWidgetEntryView : View {
                 default:
                     HStack {
                         VStack(spacing: 0) {
-                            Label(room.name, systemImage: "hifispeaker.fill")
+                            Label(entry.name ?? room.name, systemImage: "hifispeaker.fill")
                                 .foregroundStyle(.thickMaterial)
                                 .padding(.bottom, 8)
                             HStack(spacing: 18) {
@@ -86,7 +86,7 @@ struct RemoteWidgetEntryView : View {
                 VStack {
                     Image(systemName: "hifispeaker")
                         .imageScale(.large)
-                    Text("Select a Room")
+                    Text("Choose Room")
                         .font(.caption)
                         .fontDesign(.rounded)
                 }
