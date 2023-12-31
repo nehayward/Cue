@@ -102,7 +102,7 @@ final class XMLParserSonos {
     //        return Track(name: trackInfo, artist: artist, album: album)
     //    }
 
-    func parsePositionInfo(xml: String) -> Track? {
+    func parsePositionInfo(xml: String, IP: String) -> Track? {
         var xml = xml
         if xml.contains("&gt") {
             xml = xml.unescaped
@@ -112,6 +112,7 @@ final class XMLParserSonos {
               let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text,
               let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text,
               let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
+              let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].element?.text,
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
               let trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
         else {
@@ -180,7 +181,13 @@ final class XMLParserSonos {
         case .airplay, .unknown:
             break
         }
-        return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0)
+
+        var sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")
+        if sonosAlbumArtURL == nil {
+            sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
+        }
+
+        return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL)
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {

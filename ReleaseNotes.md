@@ -1,12 +1,13 @@
 # 2024.1
 
-- Fixed duplicate live activities
-- Added action extension in share sheet to play any public playlist, album, or track from Spotify
-- Added action extension in share sheet to play any song from Apple Music
-- Add tiny widget (accessory circle) to create live activity for selected room.
-- Fix searching overlay pill
-- You can now reorder the queue, simple drag item to location.
-- Improved queueing
+- Fixed duplicate live activities.
+- Added an action extension in the share sheet to play any public playlist, album, or track from Spotify.
+- Added an action extension in the share sheet to play any song from Apple Music.
+- Added a tiny widget (accessory circle) to create a live activity for the selected room.
+- Fixed the searching overlay pill.
+- You can now reorder the queue; simply drag an item to the desired location.
+- Improved queueing.
+- Added haptics to watchOS.
 
 ## Internal 
 

@@ -10,10 +10,10 @@ struct PlayerScreen: View {
         } else {
             PlayerView(group: $group)
         }
-        QueueScreen(group: $group)
         if group.rooms.count > 1 {
             GroupVolumeControlScreen(group: $group)
         }
+        QueueScreen(group: $group)
     }
 }
 

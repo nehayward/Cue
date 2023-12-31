@@ -61,6 +61,9 @@ struct SceneBuilderScreen: View {
                         selections.insert(group.wrappedValue.coordinatorRoom.id)
                     }
                 }
+//                NavigationLink("Add Playlist") {
+//                    MusicSearchScreen()
+//                }
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -117,7 +120,7 @@ struct SceneBuilderScreen: View {
                             selections.contains(room.id)
                         }
                         let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: PlayableContent(title: "", subtitle: "", artwork: nil, content: MediaContent(service: .spotify, id: "37i9dQZEVXcTv12cCWsQJf", type: .playlist, location: nil)))
                         scenes.append(newScene)
                         sheetDestination = nil
                         dismiss()

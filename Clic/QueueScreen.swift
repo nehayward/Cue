@@ -121,6 +121,7 @@ struct QueueScreen: View {
                             }
                         }
                         .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
+                        .padding(.bottom, 20)
                     }
                     .onMove(perform: move)
                 }
@@ -155,7 +156,6 @@ struct QueueScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .background(.thinMaterial)
-                    .padding(.bottom)
                 }
                 .task {
                     isLoading = true

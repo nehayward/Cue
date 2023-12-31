@@ -1,5 +1,5 @@
 
-public enum MusicService: Sendable {
+public enum MusicService: Sendable, Codable {
     case apple
     case spotify
     case airplay

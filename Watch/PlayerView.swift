@@ -1,5 +1,6 @@
 import Kingfisher
 import SwiftUI
+import WatchKit
 import SonosKit
 
 struct PlayerView: View {
@@ -49,6 +50,7 @@ struct PlayerView: View {
                 .lineLimit(1)
             HStack {
                 Button {
+                    WKInterfaceDevice.current().play(.click)
                     Task {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
                     }
@@ -57,10 +59,7 @@ struct PlayerView: View {
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())
-//                .sensoryFeedback(.decrease, trigger: group.coordinatorRoom.track)
                 Button(action: {
-//                    let isPlaying = group.coordinatorRoom.isPlaying
-//                    group.coordinatorRoom.isPlaying.toggle()
                     Task {
                         if group.coordinatorRoom.isPlaying {
                             await sonosService.pause(ip: group.coordinatorRoom.ip)
@@ -92,14 +91,11 @@ struct PlayerView: View {
                 })
                 .clipShape(Circle())
                 .frame(width: 48, height: 48)
-//                .sensoryFeedback(trigger: group.coordinatorRoom.isPlaying) { old, new in
-//                    if new {
-//                        return .start
-//                    } else {
-//                        return .stop
-//                    }
-//                }
+                .sensoryFeedback(trigger: group.coordinatorRoom.isPlaying) { old, new in
+                    new ? .start : .stop
+                }
                 Button {
+                    WKInterfaceDevice.current().play(.click)
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
                         try? await sonosService.fetch(useCache: true)
@@ -109,7 +105,6 @@ struct PlayerView: View {
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())
-//                .sensoryFeedback(.increase, trigger: group.coordinatorRoom.track)
             }
         }
         .frame(maxWidth: .infinity)
@@ -182,7 +177,7 @@ struct PlayerView: View {
 //                }
 //            }
 //        }
-        .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
+        .navigationTitle(group.nameWithCount)
         .task {
             guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
                 sonosService.monitor()

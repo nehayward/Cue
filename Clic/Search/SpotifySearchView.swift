@@ -11,7 +11,7 @@ struct SpotifySearchView: View {
     @Binding var spotifyResult: SpotifyResult?
     @Binding var filters: [FilterSelection]
 
-    var group: GroupRoom
+    var group: GroupRoom?
 
     var body: some View {
         if filters.filter(\.isFiltered).isEmpty {
@@ -60,6 +60,7 @@ struct SpotifySearchView: View {
                 Button {
                     dismiss()
                     Task {
+                        guard let group = group else { return }
                         await sonosService.queueSpotifyTrack(id: item.id, group: group)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
@@ -90,6 +91,7 @@ struct SpotifySearchView: View {
                     Button {
                         dismiss()
                         Task {
+                            guard let group = group else { return }
                             await sonosService.queueSpotifyTrack(id: item.id, group: group, position: .next)
                         }
                     } label: {
@@ -131,6 +133,7 @@ struct SpotifySearchView: View {
                         .onTapGesture {
                             dismiss()
                             Task {
+                                guard let group = group else { return }
                                 await sonosService.queueSpotifyTrack(id: item.id, group: group)
                                 await sonosService.play(ip: group.coordinatorRoom.ip)
                             }
@@ -150,6 +153,7 @@ struct SpotifySearchView: View {
                 Button {
                     dismiss()
                     Task {
+                        guard let group = group else { return }
                         await sonosService.queueSpotifyAlbum(id: album.id, group: group, position: .now)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
@@ -189,11 +193,9 @@ struct SpotifySearchView: View {
                 Button {
                     dismiss()
                     Task {
+                        guard let group = group else { return }
                         await sonosService.queueSpotifyPlaylist(
                             id: item.id,
-                            title: item.name,
-                            owner: item.owner.displayName,
-                            on: group.coordinatorRoom.ip,
                             group: group
                         )
                         await sonosService.play(ip: group.coordinatorRoom.ip)

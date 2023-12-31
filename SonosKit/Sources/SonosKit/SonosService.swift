@@ -598,9 +598,13 @@ import SwiftUI
 
     @MainActor
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
+        // MARK: Might need to change back
+        #if os(watchOS)
+        return track.sonosAlbumArtURL
+        #endif
         switch track.musicService  {
         case .apple:
-            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)") else { return nil }
+            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)") else { return track.sonosAlbumArtURL }
             guard let url = URL(string: artworkString) else { return nil }
             return url
         case .spotify:
@@ -616,7 +620,7 @@ import SwiftUI
                 return url
             }
 
-            guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
+            guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
             return url
         case .airplay, .unknown:
             let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
@@ -624,7 +628,7 @@ import SwiftUI
                 result.artistName == track.artist &&
                 (result.trackName == track.name || result.trackCensoredName == track.name)
             }
-            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
+            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
             return url
         }
     }
@@ -769,6 +773,14 @@ import SwiftUI
     }
 
     public func runScene(_ scene: SonosScene) async throws {
+        let playlistAction = { [weak self] in
+            guard let self else { return }
+            guard let roomID = scene.rooms.first?.id, let playableContentID = scene.playableContent?.content.id else { return }
+            guard let group = await getGroupCoordinatorWithRoom(roomID: roomID) else { return }
+            //    https://open.spotify.com/playlist/37i9dQZEVXcTv12cCWsQJf
+            await queueSpotifyPlaylist(id: playableContentID, group: group)
+        }
+
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
@@ -776,6 +788,7 @@ import SwiftUI
         
         if rooms.isEmpty {
             await api.ungroup(IP: scene.rooms.first!.ip)
+            await playlistAction()
             return
         }
 
@@ -783,6 +796,7 @@ import SwiftUI
         try? await Task.sleep(for: .milliseconds(300))
         guard let groupIP = scene.rooms.first?.ip else { return }
         await snapShotGroup(ip: groupIP)
+        await playlistAction()
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
@@ -802,10 +816,10 @@ import SwiftUI
         }
     }
 
-    public func queueSpotifyPlaylist(id: String, title: String, owner: String, on ip: String, group: GroupRoom) async {
-        await api.removeAllTrackFromQueue(IP: ip)
-        await api.queueSpotifyPlaylist(ID: id, title: title, owner: owner, IP: ip)
-        await api.setAVTransport(IP: ip, ID: group.coordinatorID)
+    public func queueSpotifyPlaylist(id: String, group: GroupRoom) async {
+        await api.removeAllTrackFromQueue(IP: group.ip)
+        await api.queueSpotifyPlaylist(ID: id, IP: group.ip)
+        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
     }
 
     public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
@@ -837,7 +851,7 @@ import SwiftUI
             }
         case .playlist:
             await api.removeAllTrackFromQueue(IP: group.ip)
-            await api.queueSpotifyPlaylist(ID: content.id, title: "", owner: "", IP: group.ip)
+            await api.queueSpotifyPlaylist(ID: content.id, IP: group.ip)
         case .artist:
             break
         case .track:
@@ -849,6 +863,28 @@ import SwiftUI
             }
         }
     }
+
+    public func queue(playableContent: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
+        switch playableContent.content.type {
+        case .album:
+            if playableContent.content.service == .spotify {
+                await queueSpotifyAlbum(id: playableContent.content.id, group: group, position: position)
+            }
+        case .playlist:
+            await api.removeAllTrackFromQueue(IP: group.ip)
+            await api.queueSpotifyPlaylist(ID: playableContent.content.id, IP: group.ip)
+        case .artist:
+            break
+        case .track:
+            if playableContent.content.service == .spotify {
+                await api.queueSpotifyTrack(ID: playableContent.content.id, IP: group.ip, position: position)
+            }
+            if playableContent.content.service == .apple {
+                await api.queue(song: "", IP: group.ip, position: position)
+            }
+        }
+    }
+
 
     public func getQueue(ip: String) async -> [Track] {
         await api.getQueue(IP: ip)

@@ -146,7 +146,7 @@ final class SonosAPI {
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
-            let trackInfo = XMLParserSonos().parsePositionInfo(xml: xmlString.unescaped)
+            let trackInfo = XMLParserSonos().parsePositionInfo(xml: xmlString.unescaped, IP: ipAddress)
             SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xmlString.unescaped)
             return trackInfo
         }
@@ -439,9 +439,9 @@ final class SonosAPI {
         }
     }
 
-    func queueSpotifyPlaylist(ID: String, title: String, owner: String, IP: String) async {
+    func queueSpotifyPlaylist(ID: String, IP: String) async {
         let URIMetadata = """
-        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="1006206cspotify%3aplaylist%3a\(ID)" restricted="true"><dc:title>\(title.xmlAllowedString)&#32;-&#32;playlist&#32;by&#32;\(owner.xmlAllowedString)&#32;|&#32;Spotify</dc:title><upnp:class>object.container.playlistContainer.#PlaylistView</upnp:class><desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON3079_X_#Svc3079-0-Token</desc></item></DIDL-Lite>
+        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="1006206cspotify%3aplaylist%3a\(ID)" restricted="true"><dc:title>Clic&#32;-&#32;playlist&#32;by&#32;Clic&#32;|&#32;Spotify</dc:title><upnp:class>object.container.playlistContainer.#PlaylistView</upnp:class><desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON3079_X_#Svc3079-0-Token</desc></item></DIDL-Lite>
         """
         let arguments: [String: Any] = [
             "InstanceID": 0,
@@ -451,12 +451,9 @@ final class SonosAPI {
             "EnqueueAsNext": 0
         ]
 
-        print(URIMetadata.escaped)
-
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-            }
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+            print("Failed:", response)
         }
     }
 

@@ -47,6 +47,9 @@ struct DeviceCellView: View {
                 .scaleEffect(0.6)
                 .frame(width: 24, height: 24)
             }
+            .sensoryFeedback(trigger: group.coordinatorRoom.isPlaying) { old, new in
+                new ? .start : .stop
+            }
             .buttonStyle(.plain)
         }
         .tag(group.coordinatorID)

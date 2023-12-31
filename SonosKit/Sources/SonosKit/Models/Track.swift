@@ -11,6 +11,7 @@ public final class Track: Identifiable, @unchecked Sendable {
     public var artist: String = ""
     public var album: String = ""
     public var artworkURL: URL? = nil
+    public var sonosAlbumArtURL: URL? = nil
     public var musicService: MusicService = .unknown
     public var duration: TimeInterval = .zero
     public var position: Int = 0
@@ -31,7 +32,7 @@ public final class Track: Identifiable, @unchecked Sendable {
         }
     }
 
-    public init(trackID: String, name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval, position: Int = 0) {
+    public init(trackID: String, name: String, artist: String, album: String, artworkURL: URL? = nil, musicService: MusicService, duration: TimeInterval, playbackPosition: TimeInterval, position: Int = 0, sonosAlbumArtURL: URL? = nil) {
         self.trackID = trackID
         self.name = name
         self.artist = artist
@@ -41,6 +42,7 @@ public final class Track: Identifiable, @unchecked Sendable {
         self.duration = duration
         self.playbackPosition = playbackPosition
         self.position = position
+        self.sonosAlbumArtURL = sonosAlbumArtURL
     }
 
     public func updateTrack(track: Track) {

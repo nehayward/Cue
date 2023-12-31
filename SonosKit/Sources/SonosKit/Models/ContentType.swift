@@ -1,5 +1,5 @@
 
-public enum ContentType: Equatable {
+public enum ContentType: Equatable, Codable {
     case playlist
     case artist
     case album

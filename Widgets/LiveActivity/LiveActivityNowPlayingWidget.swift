@@ -42,7 +42,6 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .buttonStyle(.plain)
                             .buttonBorderShape(.circle)
                             .tint(.primary)
-
                             ProgressView(value: Double(context.state.volume), total: 100)
                                 .tint(.teal)
                                 .invalidatableContent()
@@ -53,8 +52,10 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .buttonStyle(.plain)
                             .tint(.primary)
                             .buttonBorderShape(.circle)
+                            .contentShape(Circle())
                         }
                         .padding([.bottom], 4)
+                        .frame(maxWidth: 240)
                     }
                 }
                 

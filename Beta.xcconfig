@@ -3,3 +3,4 @@ BUILD_NUMBER = 0
 BUNDLE_ID = com.nick.clic.beta
 MAC_ENABLED = YES
 NAME = Clic (Beta)
+ICON = AppIcon

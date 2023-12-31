@@ -46,7 +46,8 @@ struct QueueListView: View {
                                 isQueueing = true
                                 impactFeedbackGenerator.impactOccurred()
                                 Task {
-                                    await sonosService.queue(url: playableContent.content.location, group: group)
+                                    guard let url = playableContent.content.location else { return }
+                                    await sonosService.queue(url: url, group: group)
                                     await sonosService.play(ip: group.ip)
                                     self.context?.completeRequest(returningItems: [])
                                 }
@@ -66,7 +67,8 @@ struct QueueListView: View {
                             Button {
                                 dismiss()
                                 Task {
-                                    await sonosService.queue(url: playableContent.content.location, group: group, position: .next)
+                                    guard let url = playableContent.content.location else { return }
+                                    await sonosService.queue(url: url, group: group, position: .next)
                                     self.context?.completeRequest(returningItems: [])
                                 }
                             } label: {
