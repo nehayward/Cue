@@ -100,6 +100,19 @@ struct LargePlayerView: View {
                     .fontDesign(.rounded)
                     .buttonStyle(.plain)
                     .font(.body)
+
+//                    if let musicServiceOpenURL = group.coordinatorRoom.track.safeURL {
+                        // TODO: Add when flickering fixed
+//                        Spacer()
+//                        Menu {
+//                            Link(destination: musicServiceOpenURL) {
+//                                Label("Open in Spotify", image: .spotifyLogo)
+//                            }
+//                        } label: {
+//                            Image(systemName: "ellipsis.circle.fill")
+//                        }
+//                        .tint(.primary)
+//                    }
                 }
                 .frame(maxWidth: 300)
                 .padding(.horizontal, 80)

@@ -1,16 +1,25 @@
 import SwiftUI
 
+/// A custom slider view that provides a visual and interactive representation of a value within a range.
 public struct VibeSlider: View {
     @Binding private var value: Double
     @State private var width = 0.0
     @State private var isDragging: Bool = false
-    @State private var previousDragPercentage: Double?
+    @State private var startingValue: Double?
 
     private let touchDelay: TimeInterval
     private var onEditingChanged: (Bool) -> Void
     private var cornerRadius: Double { isDragging ? 50 : 12 }
     private var range: ClosedRange<Double>
+    private let step: Double.Stride
 
+    /// Initializes a new instance of `VibeSlider`.
+    /// - Parameters:
+    ///   - value: A binding to the value represented by the slider.
+    ///   - range: The range of values the slider can represent.
+    ///   - step: The smallest discrete value change allowed.
+    ///   - touchDelay: The delay before recognizing a touch as a drag gesture.
+    ///   - onEditingChanged: A closure called when editing begins and ends.
     public init(
         value: Binding<Double>,
         in range: ClosedRange<Double> = 0...100,
@@ -19,6 +28,7 @@ public struct VibeSlider: View {
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
             self.range = range
+            self.step = step
             self.touchDelay = touchDelay
             self.onEditingChanged = onEditingChanged
         }
@@ -52,27 +62,29 @@ public struct VibeSlider: View {
 
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0)
-            .onChanged { gesture in
-                isDragging = true
-                onEditingChanged(true)
-                // Update add to existing location
-                var change = 0.0
-                let diff = max(min(gesture.translation.width, width), -width)
-                let percent = (diff + width) / width
-                
-                if let previousDragPercentage {
-                    change = previousDragPercentage.distance(to: percent)
-                }
+            .onChanged(handleDragChanged)
+            .onEnded(handleDragEnded)
+    }
 
-                let newValue = min(max(range.lowerBound, Double(value + change * range.upperBound)), range.upperBound)
-                self.value = newValue
-                previousDragPercentage = percent
-            }
-            .onEnded { value in
-                isDragging = false
-                onEditingChanged(false)
-                previousDragPercentage = nil
-            }
+    private func handleDragChanged(_ gesture: DragGesture.Value) {
+        isDragging = true
+        onEditingChanged(true)
+        calculateNewValue(from: gesture)
+    }
+
+    private func handleDragEnded(_ gesture: DragGesture.Value) {
+        isDragging = false
+        onEditingChanged(false)
+        startingValue = nil
+    }
+
+    private func calculateNewValue(from gesture: DragGesture.Value) {
+        let diff = max(min(gesture.translation.width, width), -width) / width * range.upperBound
+        let stepValue = (diff / step).rounded() * step
+        if startingValue == nil {
+            startingValue = value
+        }
+        self.value = min(max(range.lowerBound, (startingValue ?? value) + stepValue), range.upperBound)
     }
 }
 
@@ -81,7 +93,7 @@ fileprivate struct Container: View {
     var body: some View {
         VStack {
             Text(volume, format: .number)
-            Slider(value: $volume, in: 0...100, step: 1)
+            Slider(value: $volume, in: 0...100, step: 2)
             VibeSlider(value: $volume)
                 .padding()
         }
@@ -99,6 +111,10 @@ fileprivate struct Container: View {
 
 
 extension View {
+    /// Delays touches for a specified duration before recognizing a gesture or tap.
+    /// - Parameters:
+    ///   - duration: The time to delay before recognizing the gesture or tap.
+    ///   - action: A closure to execute when the tap is recognized.
     func delaysTouches(for duration: TimeInterval = 0.25, onTap action: @escaping () -> Void = {}) -> some View {
         modifier(DelaysTouches(duration: duration, action: action))
     }
@@ -127,18 +143,19 @@ fileprivate struct DelaysTouchesButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .onChange(of: configuration.isPressed, handleIsPressed)
+            .onChange(of: configuration.isPressed) { old, new in
+                handleIsPressed(new)
+            }
     }
 
-    private func handleIsPressed(_ old: Bool, _ new: Bool) {
-        if new {
+    private func handleIsPressed(_ isPressed: Bool) {
+        if isPressed {
             let date = Date()
             touchDownDate = date
 
             DispatchQueue.main.asyncAfter(deadline: .now() + max(duration, 0)) {
                 if date == touchDownDate {
                     disabled = true
-
                     DispatchQueue.main.async {
                         disabled = false
                     }

@@ -64,6 +64,23 @@ struct PreferenceScreen: View {
                         LogScreen()
                     }
                     #endif
+                    if UIApplication.shared.isRunningInTestFlightEnvironment() {
+                        NavigationLink("Logs") {
+                            LogScreen()
+                        }
+                        Text("Vanished")
+                        if let vanishes = sonosService.system?.vanished {
+                            ForEach(vanishes) { vanish in
+                                VStack(alignment: .leading) {
+                                    Text(vanish.id)
+                                    Text(vanish.name ?? "")
+                                    if let lastSeen = vanish.lastSeen {
+                                        Text(lastSeen, format: .dateTime)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } header: {
                     Text("Sonos System")
                 }

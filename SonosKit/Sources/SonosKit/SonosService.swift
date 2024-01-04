@@ -34,6 +34,8 @@ import SwiftUI
         sonosPulse.cancel()
     }
 
+    public var system: System?
+
     public var sorted: [GroupRoom] {
         get {
             let sorted = groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
@@ -54,6 +56,7 @@ import SwiftUI
 
     public func updateGroups() async throws {
         let newGroup = try await getGroups(useCache: true)
+        system = try await findSystem(useCache: true)
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
@@ -524,6 +527,13 @@ import SwiftUI
         return groups
     }
 
+    @MainActor
+    public func findSystem(useCache: Bool) async throws -> System? {
+        let IP = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
+        let system = try await api.system(for: IP)
+        return system
+    }
+
     public func getGroups(with ip: String) async throws -> [GroupRoom] {
         let groups = try await api.getGroups(ipAddress: ip)
         return groups
@@ -598,14 +608,9 @@ import SwiftUI
 
     @MainActor
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
-        // MARK: Might need to change back
-        #if os(watchOS)
-        return track.sonosAlbumArtURL
-        #endif
         switch track.musicService  {
         case .apple:
-            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)") else { return track.sonosAlbumArtURL }
-            guard let url = URL(string: artworkString) else { return nil }
+            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
             return url
         case .spotify:
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }

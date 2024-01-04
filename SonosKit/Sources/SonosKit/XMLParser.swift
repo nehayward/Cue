@@ -75,6 +75,26 @@ final class XMLParserSonos {
         return zonesParsed
     }
 
+    func parseVanishedDevices(xml: String) -> [VanishedDevice] {
+        let xmlParsed = XMLHash.parse(xml)
+        let vanishedDevices = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["VanishedDevices"]
+        print(vanishedDevices)
+        let items = vanishedDevices.children
+        print(items)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+
+        return items.compactMap { item in
+            guard let id = item.element?.attribute(by: "UUID")?.text else { return nil }
+            let name = item.element?.attribute(by: "ZoneName")?.text
+            let lastKnownIP = item.element?.attribute(by: "LastKnownIP")?.text
+            let date = dateFormatter.date(from: item.element?.attribute(by: "LastSeenUTC")?.text ?? "")
+            let reason = item.element?.attribute(by: "Reason")?.text
+
+            return VanishedDevice(id: id, name: name, reason: reason, IP: lastKnownIP, lastSeen: date)
+        }
+    }
+
     func parseZonesEvent(xml: String) -> [ZoneGroup] {
         let xmlParsed = XMLHash.parse(xml)
         let zones = xmlParsed["e:propertyset"]["e:property"][0]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
@@ -268,7 +288,7 @@ final class XMLParserSonos {
         return householdID
     }
 
-    func parseQueue(xml: String) -> [Track] {
+    func parseQueue(IP: String, xml: String) -> [Track] {
         let xmlParsed = XMLHash.parse(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
         let resultsParsed = XMLHash.parse(resultXML)
@@ -280,7 +300,46 @@ final class XMLParserSonos {
                   let artist = item["dc:creator"].element?.text,
                   let album = item["upnp:album"].element?.text,
                   let trackDurationString = item["res"].element?.attribute(by: "duration")?.text,
-                  let trackURI = item["res"].element?.text.removingPercentEncoding else { continue }
+                  let trackURI = item["res"].element?.text.removingPercentEncoding,
+                  let albumArtURI = item["upnp:albumArtURI"].element?.text,
+                  let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
+            else {
+                continue
+            }
+
+            var playbackPosition = TimeInterval.zero
+            // MARK: Parse out RelTime
+            let pattern = "<RelTime>(.*?)</RelTime>"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+
+                if let match = regex.firstMatch(in: xml, options: [], range: range) {
+                    let valueRange = match.range(at: 1)
+                    if let valueRange = Range(valueRange, in: xml) {
+                        let timeStamp = String(xml[valueRange])
+                        let components = timeStamp.components(separatedBy: ":")
+                        if components.count == 3,
+                           let hours = Int(components[0]),
+                           let minutes = Int(components[1]),
+                           let seconds = Int(components[2])
+                        {
+                            let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
+                            playbackPosition = TimeInterval(totalMilliseconds)
+                        }
+                    }
+                }
+            }
+
+            var trackDuration = TimeInterval.zero
+            let trackDurationComponents = trackDurationString.components(separatedBy: ":")
+            if trackDurationComponents.count == 3,
+               let hours = Int(trackDurationComponents[0]),
+               let minutes = Int(trackDurationComponents[1]),
+               let seconds = Int(trackDurationComponents[2])
+            {
+                let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
+                trackDuration = TimeInterval(totalMilliseconds)
+            }
 
             var musicService: MusicService = trackURI.contains("spotify") ? .spotify : .apple
             if trackURI.contains("airplay") {
@@ -293,85 +352,43 @@ final class XMLParserSonos {
                 let pattern = #/song:(\w*)/#
                 if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                     trackID = String(result.1)
+                } else {
+                    musicService = .unknown
                 }
             case .spotify:
-                let pattern = #/track:(\w*)/#
-                if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
-                    trackID = String(result.1)
+                if let trackInfo = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["res"].element?.text.removingPercentEncoding {
+                    let pattern = #/track:(\w*)/#
+                    if let result = try? pattern.firstMatch(in: trackInfo) {
+                        trackID = String(result.1)
+                    } else {
+                        musicService = .unknown
+                    }
+                } else {
+                    musicService = .unknown
                 }
             case .airplay, .unknown:
                 break
             }
-            var trackDuration = TimeInterval.zero
-            let trackDurationComponents = trackDurationString.components(separatedBy: ":")
-            if trackDurationComponents.count == 3,
-               let hours = Int(trackDurationComponents[0]),
-               let minutes = Int(trackDurationComponents[1]),
-               let seconds = Int(trackDurationComponents[2])
-            {
-                let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-                trackDuration = TimeInterval(totalMilliseconds)
+
+            var sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")
+            if sonosAlbumArtURL == nil {
+                sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
             }
 
-            let track = Track(trackID: trackID,
-                              name: title,
-                              artist: artist,
-                              album: album,
-                              musicService: musicService,
-                              duration: trackDuration,
-                              playbackPosition: .zero)
-            print(track.name, track.id)
+            let track = Track(
+                trackID: trackID,
+                name: title,
+                artist: artist,
+                album: album,
+                musicService: musicService,
+                duration: trackDuration,
+                playbackPosition: playbackPosition,
+                position: trackNumber,
+                sonosAlbumArtURL: sonosAlbumArtURL
+            )
 
             tracks.append(track)
         }
-
-        //        guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
-        //              let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text,
-        //              let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text,
-        //              let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
-        //              let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text
-        //        else {
-        //            return nil
-        //        }
-        //
-        //        var playbackPosition = TimeInterval.zero
-        //        // MARK: Parse out RelTime
-        //        let pattern = "<RelTime>(.*?)</RelTime>"
-        //        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-        //            let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
-        //
-        //            if let match = regex.firstMatch(in: xml, options: [], range: range) {
-        //                let valueRange = match.range(at: 1)
-        //                if let valueRange = Range(valueRange, in: xml) {
-        //                    let timeStamp = String(xml[valueRange])
-        //                    let components = timeStamp.components(separatedBy: ":")
-        //                    if components.count == 3,
-        //                       let hours = Int(components[0]),
-        //                       let minutes = Int(components[1]),
-        //                       let seconds = Int(components[2])
-        //                    {
-        //                        let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-        //                        playbackPosition = TimeInterval(totalMilliseconds)
-        //                    }
-        //                }
-        //            }
-        //        }
-        //
-        //        var trackDuration = TimeInterval.zero
-        //        let trackDurationComponents = trackDurationString.components(separatedBy: ":")
-        //        if trackDurationComponents.count == 3,
-        //           let hours = Int(trackDurationComponents[0]),
-        //           let minutes = Int(trackDurationComponents[1]),
-        //           let seconds = Int(trackDurationComponents[2])
-        //        {
-        //            let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-        //            trackDuration = TimeInterval(totalMilliseconds)
-        //        }
-        //
-        //        let musicService: MusicService = trackURI.contains("spotify") ? .spotify : .apple
-        //
-        //        return Track(name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition)
-        
         return tracks
     }
 

@@ -1,3 +1,14 @@
+# 2024.2
+
+- Improve new volume slider
+- Update Queue, fallback to Sonos Album Art
+- Fix playlist not queuing sometimes
+
+## Internal
+
+- Add vanished devices
+- Add Open in Spotify
+
 # 2024.1
 
 - Fixed duplicate live activities.

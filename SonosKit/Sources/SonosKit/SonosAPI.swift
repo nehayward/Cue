@@ -307,6 +307,38 @@ final class SonosAPI {
         return []
     }
 
+    func system(for IP: String) async throws -> System {
+        do {
+            guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") else  {
+                throw SonosAPIError.deviceNotFound
+
+            }
+            guard let xmlString = String(data: data, encoding: .utf8) else { throw SonosAPIError.deviceNotFound }
+
+            SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
+            let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
+            let mappedZones =  zones.compactMap { $0.toGroup }
+            let vanishedDevices = XMLParserSonos().parseVanishedDevices(xml: xmlString.unescaped)
+
+            return System(zones: mappedZones, vanished: vanishedDevices, id: "")
+
+        } catch URLError.cancelled {
+            print("Cancelled")
+            throw SonosServiceError.cancelled
+        }
+        catch URLError.cannotConnectToHost {
+            print("Can't connect")
+            throw SonosServiceError.sonosSystemNotFound
+        }
+        catch {
+            print(#function, error.localizedDescription)
+            // Clear IP and try again.
+            throw SonosServiceError.sonosSystemNotFound
+        }
+
+        throw SonosAPIError.deviceNotFound
+    }
+
     func getRoom(ipAddress: String) async -> [Room] {
         let arguments: [String: Any] = [:]
 
@@ -567,9 +599,7 @@ final class SonosAPI {
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-            print(xmlString)
-
-            return XMLParserSonos().parseQueue(xml: xmlString)
+            return XMLParserSonos().parseQueue(IP: IP, xml: xmlString)
         }
         return []
     }

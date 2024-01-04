@@ -34,11 +34,19 @@ final class SonosKitTests: XCTestCase {
         XCTAssertEqual(zones.count, 5)
     }
 
+    func testZoneWithVanishedXMLParse() throws {
+        let zone = Bundle.module.url(forResource: "ZonesVanished", withExtension: "xml")
+        let vanishedDevicesXML = try! String(contentsOf: zone!)
+        let vanishedDevices = XMLParserSonos().parseVanishedDevices(xml: vanishedDevicesXML)
+        print(vanishedDevices)
+        XCTAssertEqual(vanishedDevices.count, 2)
+    }
+
     func testGetPositionParse() throws {
         let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
         print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
+        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
         XCTAssertNotNil(positionInfo)
         XCTAssert(positionInfo?.musicService == .apple)
     }
@@ -47,7 +55,7 @@ final class SonosKitTests: XCTestCase {
         let track = Bundle.module.url(forResource: "GetPositionInfoSpotify", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
         print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
+        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
         XCTAssertNotNil(positionInfo)
         XCTAssert(positionInfo?.musicService == .spotify)
     }
@@ -56,7 +64,7 @@ final class SonosKitTests: XCTestCase {
         let track = Bundle.module.url(forResource: "GetPositionInfoSpotifyStream", withExtension: "xml")
         let trackXML = try! String(contentsOf: track!)
         print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML)
+        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
         XCTAssertNotNil(positionInfo)
         XCTAssert(positionInfo?.musicService == .spotify)
     }
@@ -80,7 +88,7 @@ final class SonosKitTests: XCTestCase {
     func testGetQueueParsing() throws {
         let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
         let getQueueXML = try! String(contentsOf: getQueueURL!)
-        let tracks = XMLParserSonos().parseQueue(xml: getQueueXML)
+        let tracks = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
         XCTAssertEqual(tracks.count, 25)
     }
 

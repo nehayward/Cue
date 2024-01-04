@@ -8,7 +8,7 @@ final class IntegrationsTests: XCTestCase {
     let api = SonosAPI()
 
     func testQueue() async throws {
-        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", title: "Dua Lipa Discography", owner: "Dua Lipa", on: "192.168.4.49", group: GroupRoom(id: "", coordinatorID: "", rooms: [], coordinatorRoom: .garage))
+        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", group: .garage)
     }
 
     func testSpotifyTrackQueue() async throws {
@@ -21,7 +21,6 @@ final class IntegrationsTests: XCTestCase {
 
     func testGetQueue() async throws {
         let tracks = await sonosService.getQueue(ip: garageSonosIP)
-        print(tracks)
     }
 
 
