@@ -6,8 +6,9 @@
 
 ## Internal
 
+- Add Sonos System
 - Add vanished devices
-- Add Open in Spotify
+- Add Open in Spotify foundation
 
 # 2024.1
 
