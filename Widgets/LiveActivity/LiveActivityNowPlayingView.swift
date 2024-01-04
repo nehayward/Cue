@@ -6,6 +6,7 @@ import SwiftUI
 struct LiveActivityNowPlayingView: View {
     @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var updateTransition: AnyTransition {
         switch context.state.update {
@@ -86,6 +87,7 @@ struct LiveActivityNowPlayingView: View {
             .tint(.primary)
             .buttonStyle(.borderless)
         }
+        .font(dynamicTypeSize < .medium ? .caption : .body)
         .padding()
         .activityBackgroundTint(.clear)
         .background(.background.opacity(0.4))
