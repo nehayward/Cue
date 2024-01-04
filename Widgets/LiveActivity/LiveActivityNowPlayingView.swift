@@ -5,6 +5,7 @@ import SwiftUI
 
 struct LiveActivityNowPlayingView: View {
     @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     private var updateTransition: AnyTransition {
         switch context.state.update {
@@ -20,9 +21,8 @@ struct LiveActivityNowPlayingView: View {
     var body: some View {
         VStack {
             HStack {
-                Label(context.state.name,
-                      systemImage: "hifispeaker.fill")
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Label(context.state.name, systemImage: "hifispeaker.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
                         .imageScale(.large)
@@ -45,6 +45,7 @@ struct LiveActivityNowPlayingView: View {
                 .id(context.state.trackName)
                 .transition(updateTransition)
             Text(context.state.artist)
+                .foregroundStyle(.secondary)
                 .lineLimit(0)
                 .invalidatableContent()
                 .id(context.state.artist)
@@ -59,7 +60,7 @@ struct LiveActivityNowPlayingView: View {
                 .tint(.primary)
 
                 ProgressView(value: Double(context.state.volume), total: 100)
-                    .tint(.teal)
+                    .tint(.accentColor)
                     .invalidatableContent()
                 Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                     Image(systemName: "plus")
@@ -86,8 +87,8 @@ struct LiveActivityNowPlayingView: View {
             .buttonStyle(.borderless)
         }
         .padding()
-        .activityBackgroundTint(.black.opacity(0.8))
-        .environment(\.colorScheme, .dark)
+        .activityBackgroundTint(.clear)
+        .background(.background.opacity(0.4))
         .widgetURL(URL(string: "clic://device?id=\(context.attributes.room.id)"))
     }
 }
@@ -107,7 +108,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     }
 }
 
-#Preview("Content View", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+#Preview("Lock Screen", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
     ClicNowPlayingWidgetAttributes.ContentState.testing

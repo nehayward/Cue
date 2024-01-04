@@ -84,10 +84,8 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Text(context.state.name)
+                Image(systemName: "hifispeaker.fill")
                     .font(.caption)
-                    .fontDesign(.rounded)
-                    .fontWidth(.condensed)
             } compactTrailing: {
                 Text("\(context.state.volume, specifier: "%0.f")%")
                     .contentTransition(.numericText())

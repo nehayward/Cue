@@ -2,6 +2,8 @@ import Foundation
 import OSLog
 import Network
 
+/// `SonosAPI` provides a set of functionalities to interact with Sonos devices over the network.
+/// It handles tasks like setting volume, getting track info, and other control actions.
 final class SonosAPI {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     private lazy var session: URLSession = privateSession

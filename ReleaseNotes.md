@@ -3,6 +3,7 @@
 - Improve new volume slider
 - Update Queue, fallback to Sonos Album Art
 - Fix playlist not queuing sometimes
+- Live Activities Lock Screen now matches System Color. Thanks Guillaume!
 
 ## Internal
 
