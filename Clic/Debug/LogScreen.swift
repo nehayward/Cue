@@ -12,6 +12,7 @@ struct LogScreen: View {
                 NavigationLink("Group") {
                     ScrollView {
                         Text(groupXML)
+                            .textSelection(.enabled)
                     }
                 }
 

@@ -7,7 +7,6 @@ class SonosLogInformation {
 
     func log(name: String, _ message: String) {
 #if DEBUG
-        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .long)
         let logMessage = "\(message)"
 
         guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
