@@ -3,7 +3,8 @@
 - Improve new volume slider
 - Update Queue, fallback to Sonos Album Art
 - Fix playlist not queuing sometimes
-- Live Activities Lock Screen now matches System Color. Thanks Guillaume!
+- Live Activities Lock Screen now matches system color scheme (i.e light/dark mode). Thanks Guillaume!
+- Widget now matches system color scheme (i.e light/dark mode)
 
 ## Internal
 
