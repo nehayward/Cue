@@ -5,7 +5,8 @@ import WidgetKit
 
 struct RemoteWidgetEntryView : View {
     var entry: Provider.Entry
-    @Environment(\.widgetFamily) var widgetFamily: WidgetFamily
+    @Environment(\.widgetFamily) private var widgetFamily: WidgetFamily
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
     @ViewBuilder
@@ -26,6 +27,7 @@ struct RemoteWidgetEntryView : View {
                             VStack(spacing: 12) {
                                 Button(intent: TogglePlaybackIntent(room: room)) {
                                     Image(systemName: "playpause.fill")
+                                        .font(.caption)
                                         .foregroundStyle(.thickMaterial)
                                         .frame(width: 40, height: 40)
                                 }
@@ -35,6 +37,7 @@ struct RemoteWidgetEntryView : View {
 
                                 Button(intent: NextIntent(room: room)) {
                                     Image(systemName: "forward.fill")
+                                        .font(.caption)
                                         .foregroundStyle(.thickMaterial)
                                         .frame(width: 40, height: 40)
                                 }
