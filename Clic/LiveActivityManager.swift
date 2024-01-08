@@ -2,9 +2,13 @@ import ActivityKit
 import Foundation
 import Kingfisher
 import SonosKit
+import MusicSearchKit
+import UIKit
 
 final class LiveActivityManager {
     private let sonosService: SonosService
+    private let artworkManager: ArtworkManager = ArtworkManager()
+
     private var createTask: Task<Void,Error>? = nil
 
     init(sonosService: SonosService) {
@@ -12,16 +16,20 @@ final class LiveActivityManager {
     }
 
     func refresh(updateType: UpdateType = .refresh) async {
-        try? await sonosService.fetch(useCache: true)
-        let groups = sonosService.groups
+        try? await sonosService.load(useCache: true)
 
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard let group = groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+            guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
                     await activity.end(activity.content, dismissalPolicy: .immediate)
                 }
-
                 return
+            }
+            
+            if group.coordinatorRoom.track == .empty {
+                artworkManager.removeArtwork(coordinatorRoom: group.nameWithCount)
+            } else {
+                await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
             }
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
@@ -29,7 +37,7 @@ final class LiveActivityManager {
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
                                                                            update: updateType)
-            let activityContent = ActivityContent(state: contentState, staleDate: nil)
+            let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
             await activity.update(activityContent)
         }
     }
@@ -40,11 +48,14 @@ final class LiveActivityManager {
             if Task.isCancelled { return }
             guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
-            try? await sonosService.fetch(useCache: true)
+            try? await sonosService.load(useCache: true)
+
             for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
+                await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
+
                 let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
                                                                                             ip: group.coordinatorRoom.ip,
-                                                                                            name: group.coordinatorRoom.name,
+                                                                                            name: group.nameWithCount,
                                                                                             volume: group.groupVolume))
 
                 let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
@@ -52,10 +63,9 @@ final class LiveActivityManager {
                                                                                volume: group.groupVolume,
                                                                                name: group.nameWithCount)
 
-                let activityContent = ActivityContent(state: contentState, staleDate: nil, relevanceScore: Double(activities.count))
+                let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
                 guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
-                    print("HERE")
-                    return
+                    continue
                 }
 
                 do {
@@ -88,12 +98,11 @@ final class LiveActivityManager {
                                                                        volume: group.groupVolume,
                                                                        name: group.nameWithCount)
 
-        let activityContent = ActivityContent(state: contentState, staleDate: nil, relevanceScore: activities.isEmpty ? 0 : 1)
+        let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: activities.isEmpty ? 0 : 1)
         guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
             print("Failed")
             return
         }
-        print(activities)
 
         do {
             let activity = try Activity.request(attributes: sonosAttribute, content: activityContent)

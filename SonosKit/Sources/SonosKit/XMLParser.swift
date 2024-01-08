@@ -356,18 +356,14 @@ final class XMLParserSonos {
                     musicService = .unknown
                 }
             case .spotify:
-                if let trackInfo = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["res"].element?.text.removingPercentEncoding {
-                    let pattern = #/track:(\w*)/#
-                    if let result = try? pattern.firstMatch(in: trackInfo) {
-                        trackID = String(result.1)
-                    } else {
-                        musicService = .unknown
-                    }
+                let pattern = #/track:(\w*)/#
+                if let result = try? pattern.firstMatch(in: trackURI) {
+                    trackID = String(result.1)
                 } else {
                     musicService = .unknown
                 }
             case .airplay, .unknown:
-                break
+                musicService = .unknown
             }
 
             var sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")

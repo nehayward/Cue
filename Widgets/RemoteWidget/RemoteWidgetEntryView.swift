@@ -18,6 +18,18 @@ struct RemoteWidgetEntryView : View {
                     RemoteWidgetRectangularView(entry: entry)
                 case .accessoryCircular:
                     RemoteWidgetAccessoryCircularView(entry: entry)
+                    // MARK: TODO
+//                case .systemMedium:
+//                    if let documentsDirectory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic") {
+//                        let fileURL = documentsDirectory.appendingPathComponent("test.png")
+//                        Text(fileURL.absoluteString)
+//                        if let data = try? Data(contentsOf: fileURL) {
+//                            Text("\(data.count)")
+//                            if let image =  UIImage(data: data) {
+//                                Image(uiImage: image)
+//                            }
+//                        }
+//                    }
                 default:
                     VStack(spacing: 0) {
                         Label(entry.name ?? room.name, systemImage: "hifispeaker.fill")
@@ -87,6 +99,7 @@ struct RemoteWidgetEntryView : View {
                     Image(systemName: "hifispeaker")
                         .imageScale(.large)
                     Text("Choose Room")
+                        .multilineTextAlignment(.center)
                         .font(.caption)
                         .fontDesign(.rounded)
                 }

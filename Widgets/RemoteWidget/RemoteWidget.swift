@@ -41,7 +41,7 @@ struct RemoteWidget: Widget {
     @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
     var families: [WidgetFamily] {
-        [.systemSmall, .accessoryRectangular, .accessoryCircular]
+        [.accessoryRectangular, .accessoryCircular, .systemSmall]
     }
 
     var body: some WidgetConfiguration {

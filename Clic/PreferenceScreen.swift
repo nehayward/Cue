@@ -12,6 +12,7 @@ struct PreferenceScreen: View {
     @State private var showPaywall = false
     @State private var showSubscriptions = false
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
+    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
 
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
@@ -95,6 +96,16 @@ struct PreferenceScreen: View {
                     Text("Manage scenes")
                 }
 
+                // TODO: Add next release
+                Section {
+                    Toggle(isOn: $isCompact) {
+                        Text("Compact")
+                    }
+                    .tint(.accent)
+                } header: {
+                    Text("Live Activities")
+                }
+                
 //                Section {
 //                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
 //                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in

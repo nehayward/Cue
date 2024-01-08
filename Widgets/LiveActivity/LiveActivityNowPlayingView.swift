@@ -8,6 +8,8 @@ struct LiveActivityNowPlayingView: View {
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
+
     private var updateTransition: AnyTransition {
         switch context.state.update {
         case .next:
@@ -20,7 +22,7 @@ struct LiveActivityNowPlayingView: View {
     }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 4){
             HStack {
                 Label(context.state.name, systemImage: "hifispeaker.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -38,54 +40,72 @@ struct LiveActivityNowPlayingView: View {
                 .buttonBorderShape(.circle)
                 .tint(.primary)
             }
-            .padding(.bottom, 8)
-            Text(context.state.trackName)
-                .lineLimit(0)
-                .bold()
-                .invalidatableContent()
-                .id(context.state.trackName)
-                .transition(updateTransition)
-            Text(context.state.artist)
-                .foregroundStyle(.secondary)
-                .lineLimit(0)
-                .invalidatableContent()
-                .id(context.state.artist)
-                .transition(updateTransition)
-            HStack {
-                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-                    Image(systemName: "minus")
-                        .bold()
-                }
-                .buttonStyle(.plain)
-                .buttonBorderShape(.circle)
-                .tint(.primary)
+            VStack(alignment: .leading) {
+                HStack {
+                    if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
 
-                ProgressView(value: Double(context.state.volume), total: 100)
-                    .tint(.accentColor)
-                    .invalidatableContent()
-                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-                    Image(systemName: "plus")
-                        .bold()
+                    }
+
+                    VStack(alignment: .leading) {
+                        Text(context.state.trackName)
+                            .lineLimit(0)
+                            .bold()
+                            .invalidatableContent()
+                            .id(context.state.trackName)
+                            .transition(updateTransition)
+                        Text(context.state.artist)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(0)
+                            .invalidatableContent()
+                            .id(context.state.artist)
+                            .transition(updateTransition)
+                    }
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+            }
+            .frame(maxHeight: 50)
+            
+            if !isCompact {
+                HStack {
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
+                        Image(systemName: "minus")
+                            .bold()
+                    }
+                    .buttonStyle(.plain)
+                    .buttonBorderShape(.circle)
+                    .tint(.primary)
+
+                    ProgressView(value: Double(context.state.volume), total: 100)
+                        .tint(.accent)
+                        .invalidatableContent()
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
+                        Image(systemName: "plus")
+                            .bold()
+                    }
+                    .buttonStyle(.plain)
+                    .tint(.primary)
+                    .buttonBorderShape(.circle)
+                }
+                .padding([.bottom], 4)
+                HStack(spacing: 24) {
+                    Button(intent: PreviousIntent(room: context.attributes.room)) {
+                        Image(systemName: "backward.end.fill")
+                    }
+                    Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                        Image(systemName: "playpause.fill")
+                            .imageScale(.large)
+                    }
+                    Button(intent: NextIntent(room: context.attributes.room)) {
+                        Image(systemName: "forward.end.fill")
+                    }
+                }
                 .tint(.primary)
-                .buttonBorderShape(.circle)
+                .buttonStyle(.borderless)
             }
-            .padding([.bottom], 4)
-            HStack(spacing: 24) {
-                Button(intent: PreviousIntent(room: context.attributes.room)) {
-                    Image(systemName: "backward.end.fill")
-                }
-                Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                    Image(systemName: "playpause.fill")
-                        .imageScale(.large)
-                }
-                Button(intent: NextIntent(room: context.attributes.room)) {
-                    Image(systemName: "forward.end.fill")
-                }
-            }
-            .tint(.primary)
-            .buttonStyle(.borderless)
         }
         .font(dynamicTypeSize < .medium ? .caption : .body)
         .padding()
@@ -97,7 +117,7 @@ struct LiveActivityNowPlayingView: View {
 
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen", volume: 10))
+        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym", volume: 10))
     }
 }
 
@@ -108,10 +128,29 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
                                                     volume: 39,
                                                     name: "Kitchen + 1")
     }
+
+    fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
+        ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night",
+                                                    artist: "Dua Lipa",
+                                                    volume: 50,
+                                                    name: "Kitchen + 1")
+    }
 }
 
 #Preview("Lock Screen", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
     LiveActivityNowPlayingWidget()
 } contentStates: {
     ClicNowPlayingWidgetAttributes.ContentState.testing
+}
+
+#Preview("Lock Screen 2", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+    LiveActivityNowPlayingWidget()
+} contentStates: {
+    ClicNowPlayingWidgetAttributes.ContentState.testing2
+}
+
+#Preview("Lock Screen Compact", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
+    LiveActivityNowPlayingWidget()
+} contentStates: {
+    ClicNowPlayingWidgetAttributes.ContentState.testing2
 }

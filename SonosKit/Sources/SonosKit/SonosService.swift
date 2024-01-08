@@ -210,6 +210,8 @@ import SwiftUI
             }
 
             guard let track = await track else {
+                ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
+                roomGroup.coordinatorRoom.track = .empty
                 return
             }
 
@@ -295,6 +297,8 @@ import SwiftUI
                 roomGroup.groupVolume = updateGroupVolume
             }
             guard let fetchedTrack else {
+                roomGroup.coordinatorRoom.track = .empty
+                ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                 return
             }
             roomGroup.coordinatorRoom.track = fetchedTrack
@@ -628,13 +632,15 @@ import SwiftUI
             guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
             return url
         case .airplay, .unknown:
-            let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
-            let found = searchResults.first { result in
-                result.artistName == track.artist &&
-                (result.trackName == track.name || result.trackCensoredName == track.name)
-            }
-            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
-            return url
+            return track.sonosAlbumArtURL
+            // MARK: Delete
+//            let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
+//            let found = searchResults.first { result in
+//                result.artistName == track.artist &&
+//                (result.trackName == track.name || result.trackCensoredName == track.name)
+//            }
+//            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
+//            return url
         }
     }
 

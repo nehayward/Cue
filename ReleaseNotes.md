@@ -5,9 +5,14 @@
 - Fix playlist not queuing sometimes
 - Live Activities Lock Screen now matches system color scheme (i.e light/dark mode). Thanks Guillaume!
 - Widget now matches system color scheme (i.e light/dark mode)
+- Add Scene URL Scheme
+- Add Artwork to Live Activities
+- Add compact mode to Live Activities
 
 ## Internal
 
+- Fix Queue not parsing Spotify
+- Add Artwork Manager
 - Add Sonos System
 - Add vanished devices
 - Add Open in Spotify foundation

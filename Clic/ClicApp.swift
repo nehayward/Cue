@@ -12,6 +12,8 @@ struct ClicApp: App {
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.requestReview) var requestReview
 
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @State private var selected: Route?
     @State private var liveActivityManager: LiveActivityManager? = nil
     @State private var subscriptionService = SubscriptionService()
@@ -130,5 +132,17 @@ struct ClicApp: App {
                 }
             }
         }
+
+        if url.host?.lowercased() == "scene", let name = url.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
+            guard let scene = scenes.first(where: { $0.name == name }) else { return }
+            Task {
+                alertService.showAlert(with: "Running \(scene.name)")
+                try await sonosService.runScene(scene)
+            }
+        }
     }
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+
 }

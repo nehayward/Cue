@@ -23,17 +23,19 @@ struct LiveActivityNowPlayingWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
                     VStack {
-                        Text(context.state.trackName)
-                            .lineLimit(0)
-                            .bold()
-                            .invalidatableContent()
-                            .id(context.state.trackName)
-                            .transition(updateTransition(context: context))
-                        Text(context.state.artist)
-                            .lineLimit(0)
-                            .invalidatableContent()
-                            .id(context.state.artist)
-                            .transition(updateTransition(context: context))
+                        Link(destination: URL(string: "clic://device?id=\(context.attributes.room.id)")!) {
+                            Text(context.state.trackName)
+                                .lineLimit(0)
+                                .bold()
+                                .invalidatableContent()
+                                .id(context.state.trackName)
+                                .transition(updateTransition(context: context))
+                            Text(context.state.artist)
+                                .lineLimit(0)
+                                .invalidatableContent()
+                                .id(context.state.artist)
+                                .transition(updateTransition(context: context))
+                        }
                         HStack {
                             Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
                                 Image(systemName: "minus")
@@ -58,7 +60,6 @@ struct LiveActivityNowPlayingWidget: Widget {
                         .frame(maxWidth: 240)
                     }
                 }
-                
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 24) {
                         Button(intent: PreviousIntent(room: context.attributes.room)) {
