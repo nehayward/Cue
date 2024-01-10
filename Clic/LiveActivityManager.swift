@@ -1,21 +1,23 @@
+#if canImport(ActivityKit)
 import ActivityKit
 import Foundation
 import Kingfisher
 import SonosKit
 import MusicSearchKit
 import UIKit
+import SwiftUI
 
-final class LiveActivityManager {
+final class LiveActivityManager: LiveActivityManageable {    
     private let sonosService: SonosService
     private let artworkManager: ArtworkManager = ArtworkManager()
 
     private var createTask: Task<Void,Error>? = nil
 
-    init(sonosService: SonosService) {
+    init(sonosService: SonosService = .shared) {
         self.sonosService = sonosService
     }
 
-    func refresh(updateType: UpdateType = .refresh) async {
+    func refresh(type: UpdateType = .refresh) async {
         try? await sonosService.load(useCache: true)
 
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
@@ -36,7 +38,7 @@ final class LiveActivityManager {
                                                                            artist: group.coordinatorRoom.track.artist,
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
-                                                                           update: updateType)
+                                                                           update: type)
             let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
             await activity.update(activityContent)
         }
@@ -120,3 +122,5 @@ final class LiveActivityManager {
         }
     }
 }
+
+#endif

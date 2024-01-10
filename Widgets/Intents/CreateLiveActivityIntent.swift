@@ -7,7 +7,7 @@ struct CreateLiveActivityIntent: LiveActivityIntent {
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
     static var isDiscoverable: Bool = false
 
-    static private var liveActivityManager = LiveActivityManager(sonosService: SonosService.shared)
+    static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
@@ -23,7 +23,7 @@ struct CreateLiveActivityIntent: LiveActivityIntent {
         }
 
         await Self.liveActivityManager.createActivity(id: room.id)
-        await Self.liveActivityManager.refresh(updateType: .refresh)
+        await Self.liveActivityManager.refresh(type: .refresh)
         return .result()
     }
 }

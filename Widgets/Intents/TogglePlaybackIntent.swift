@@ -8,7 +8,7 @@ struct TogglePlaybackIntent: LiveActivityIntent {
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     static private var sonosService = SonosService()
-    static private var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
+    static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
@@ -33,7 +33,7 @@ struct TogglePlaybackIntent: LiveActivityIntent {
         
         await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
         await Self.liveActivityManager.createActivity(id: room.id)
-        await Self.liveActivityManager.refresh()
+        await Self.liveActivityManager.refresh(type: .refresh)
         return .result()
     }
 }

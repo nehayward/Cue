@@ -8,7 +8,7 @@ struct NextIntent: AppIntent {
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     static var sonosService = SonosService()
-    static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
+    static var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
@@ -32,7 +32,7 @@ struct NextIntent: AppIntent {
         }
         await Self.sonosService.next(ip: coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(updateType: .next)
+        await Self.liveActivityManager.refresh(type: .refresh)
         return .result()
     }
 }

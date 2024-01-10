@@ -32,7 +32,7 @@ struct RemoteWidgetEntryView : View {
 //                    }
                 default:
                     VStack(spacing: 0) {
-                        Label(entry.name ?? room.name, systemImage: "hifispeaker.fill")
+                        Text(entry.name ?? room.name)
                             .font(.subheadline)
                             .padding(.bottom, 8)
                         HStack(spacing: 18) {

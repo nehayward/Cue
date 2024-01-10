@@ -9,8 +9,8 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     static var sonosService = SonosService()
-    static var liveActivityManager = LiveActivityManager(sonosService: Self.sonosService)
-    
+    static private var liveActivityManager = LiveActivityManagerFactory.shared
+
     @Parameter(title: "Sonos Speaker")
     var room: SonosDeviceEntity
 
@@ -37,7 +37,7 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
 
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
         try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh()
+        await Self.liveActivityManager.refresh(type: .refresh)
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
         return .result()
     }

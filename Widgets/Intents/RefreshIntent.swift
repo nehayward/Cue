@@ -2,13 +2,14 @@ import AppIntents
 import CloudStorage
 import SonosKit
 import WidgetKit
+import SwiftUI
 
 struct RefreshIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Refresh"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
     static var isDiscoverable: Bool = false
 
-    static private var liveActivityManager = LiveActivityManager(sonosService: SonosService.shared)
+    static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     init() { }
 
@@ -17,7 +18,7 @@ struct RefreshIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in Clic")
         }
 
-        await Self.liveActivityManager.refresh(updateType: .refresh)
+        await Self.liveActivityManager.refresh(type: .refresh)
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }

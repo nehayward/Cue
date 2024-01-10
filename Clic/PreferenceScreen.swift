@@ -50,11 +50,6 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
-                    Button {
-                        Purchases.shared.presentCodeRedemptionSheet()
-                    } label: {
-                        Text("Promo Code")
-                    }
                 }
                 .manageSubscriptionsSheet(isPresented: $showSubscriptions)
 

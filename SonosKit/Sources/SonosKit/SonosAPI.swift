@@ -451,20 +451,17 @@ final class SonosAPI {
             "DesiredFirstTrackNumberEnqueued": 1,
             "EnqueueAsNext": 0
         ]
-
+        
         switch position {
         case .front: break
         case .end:
             arguments["DesiredFirstTrackNumberEnqueued"] = 0
-        case .now:
-            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
-            arguments["DesiredFirstTrackNumberEnqueued"] = index
-            arguments["EnqueueAsNext"] = 0
-        case .next:
+        case .now, .next:
             let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
             arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
             arguments["EnqueueAsNext"] = 1
         }
+
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")

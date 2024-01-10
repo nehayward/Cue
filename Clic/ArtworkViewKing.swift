@@ -20,7 +20,7 @@ struct ArtworkViewKing: View {
             .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(2)))
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
                 switch group.coordinatorRoom.track.musicService {

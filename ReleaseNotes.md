@@ -1,3 +1,21 @@
+# 2024.3
+
+## External 
+
+- Fix queueing with Apple Music
+- Update group list
+
+## Internal
+
+- Changed group naming to include room name if less then 3 rooms.
+- Prep for macOS Support move live activity to manager with protocol.
+- Setup play component for integration with NFC.
+- Remove Promo Code Button
+- Refresh all devices if group changes, even when selected
+- Improve slider for playback.
+- Create WidgetManager
+- Setup PlaygroupScreen for Search and Queueing
+
 # 2024.2
 
 - Improve new volume slider
@@ -16,6 +34,16 @@
 - Add Sonos System
 - Add vanished devices
 - Add Open in Spotify foundation
+
+## Released
+- Enhanced Volume Slider: The volume slider has been redesigned for better accuracy and smoother user experience.
+- Queue Update with Album Art Fallback: Improved the Queue functionality. Now, if specific artwork is unavailable, the system will automatically use Sonos Album Art as a fallback.
+- Playlist Queueing Issue Fixed: Resolved an intermittent issue where playlists were not queuing as expected.
+- Live Activities Lock Screen - System Color Scheme Integration: The Live Activities Lock Screen now automatically adapts to the system's color scheme (i.e., light or dark mode). Special thanks to Guillaume for this suggestion!
+- Widget System Color Scheme Compatibility: Widgets have been updated to match the system's light or dark color schemes, enhancing visual consistency.
+- New Scene URL Scheme Added: Introduced a Scene URL Scheme feature for advanced user customization and integration.
+- Artwork Integration in Live Activities: Live Activities now include artwork, offering a more visually engaging experience.
+Compact Mode for Live Activities: Added a new compact mode to Live Activities, allowing for a more streamlined and space-efficient display.
 
 # 2024.1
 

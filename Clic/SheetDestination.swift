@@ -5,6 +5,7 @@ enum SheetDestination: Identifiable {
     case settings
     case paywall
     case groupScreen(groupScreenViewModel: GroupScreenViewModel, group: GroupRoom)
+    case search(group: GroupRoom)
 
     var id: String {
         switch self {
@@ -12,8 +13,10 @@ enum SheetDestination: Identifiable {
             "settings"
         case .paywall:
             "paywall"
-        case let .groupScreen(groupScreenViewModel, group):
+        case .groupScreen:
             "groupScreen"
+        case .search:
+            "search"
         }
     }
 }

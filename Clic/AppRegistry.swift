@@ -14,8 +14,23 @@ extension View {
                     PaywallView()
                 case .settings:
                     PreferenceScreen()
+                case .search(group: let group):
+                    ImprovedSearch(group: group)
                 }
             }
         }
+    }
+
+    func withAppRouter() -> some View {
+        navigationDestination(for: RouterDestination.self) { destination in
+            switch destination {
+            case let .player(group: group):
+                EmptyView()
+            }
+        }
+    }
+
+    func withEnvironments() -> some View {
+      environment(SonosService.shared)
     }
 }

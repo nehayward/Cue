@@ -32,27 +32,25 @@ struct DeviceListMainView: View {
                                 Spacer()
                                 MediaControlsView(group: $group, sheetDestination: $sheetDestination)
                             }
-                            .padding(.bottom, 4)
                         }
                         VolumeControlView(group: $group, touchDelay: 0.05)
-                            .frame(height: 32)
+                            .frame(height: 24)
                     }
                     .tag(Route(id: group.coordinatorID, search: false))
                     .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                 } header: {
-                    HStack {
-                        Image(systemName: "hifispeaker.fill")
-                        Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
-                    }
-                    .fontDesign(.rounded)
-                    .font(.body)
+                    Text(group.nameWithCount)
+                        .fontDesign(.rounded)
+                        .headerProminence(.increased)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 }
                 .tag(group.coordinatorID)
-                .headerProminence(.increased)
                 .redacted(reason: enabled(group: group) ? [] : .placeholder)
                 .disabled(!enabled(group: group))
                 .selectionDisabled(!enabled(group: group))
             }
+
             .navigationBarTitle("", displayMode: .inline)
             .withSheetDestinations(sheetDestinations: $sheetDestination)
             .toolbar {
@@ -127,9 +125,9 @@ struct DeviceListMainView: View {
                 ZStack {
                     if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
                         let group = $sonosService.sorted[index]
-                        let groupName = sonosService.sorted[index].coordinatorRoom.name + (group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")
+                        let name = sonosService.sorted[index].nameWithCount
                         LargePlayerView(group: group, selected: $selected, sheetDestination: $sheetDestination)
-                            .navigationTitle(Text(groupName))
+                            .navigationTitle(name)
                     }
                 }
                 .navigationBarTitleDisplayMode(.inline)

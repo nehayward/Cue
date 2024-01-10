@@ -172,7 +172,7 @@ struct LargePlayerView: View {
     private func playbackView() -> some View {
         VStack(spacing: 0) {
             if !group.coordinatorRoom.track.duration.isZero {
-                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration) { isEditing in
+                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000) { isEditing in
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                         sonosService.isEditing = isEditing

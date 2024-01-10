@@ -9,7 +9,7 @@ struct RemoteWidgetRectangularView: View {
         if let room = entry.configuration.room {
             Button(intent: CreateLiveActivityIntent(room: room)) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Label(entry.name ?? room.name, systemImage: "hifispeaker.fill")
+                    Text(entry.name ?? room.name)
                         .font(.caption)
                     if let track = entry.track {
                         Text(track.name)

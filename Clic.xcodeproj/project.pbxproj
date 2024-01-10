@@ -18,7 +18,7 @@
 		E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
 		E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
 		E92E47492B360C5C00DE6647 /* ActionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47482B360C5C00DE6647 /* ActionViewController.swift */; };
-		E92E47502B360C5C00DE6647 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E92E47502B360C5C00DE6647 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E92E47562B3647E200DE6647 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92E47552B3647E200DE6647 /* SonosKit */; };
 		E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
@@ -85,6 +85,7 @@
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
 		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
+		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */; };
 		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
@@ -136,9 +137,13 @@
 		E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
 		E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
+		E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */; };
+		E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */; };
+		E9F600BA2B4DC4830039AAA6 /* LiveActivity+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */; };
+		E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
-		E9FDDC302B238216005D281E /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
+		E9FDDC302B238216005D281E /* RouterPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* RouterPath.swift */; };
 		E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
 		E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
@@ -278,6 +283,7 @@
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
+		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
 		E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
@@ -330,10 +336,13 @@
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
 		E9F3D44C2A02C2780042F208 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E9F3D44D2A02C2900042F208 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SonosKit; sourceTree = "<group>"; };
+		E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterDestination.swift; sourceTree = "<group>"; };
+		E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiveActivity+Environment.swift"; sourceTree = "<group>"; };
+		E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetManager.swift; sourceTree = "<group>"; };
 		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
 		E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSEnvironment.swift; sourceTree = "<group>"; };
 		E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
-		E9FDDC2F2B238216005D281E /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		E9FDDC2F2B238216005D281E /* RouterPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterPath.swift; sourceTree = "<group>"; };
 		E9FDDC312B27BD20005D281E /* SheetDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetDestination.swift; sourceTree = "<group>"; };
 		E9FDDC332B27BED4005D281E /* AppRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRegistry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -448,6 +457,7 @@
 				E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */,
 				E97C0D472A325CC5005AB0E0 /* WidgetBundle.swift */,
 				E9DE849B2A6703F0004C3947 /* LiveActivity */,
+				E9F600BF2B4E54730039AAA6 /* SceneWidget */,
 				E9DAE49A2A5FABA600B03199 /* RemoteWidget */,
 				E97C0D642A33D640005AB0E0 /* NowPlayingWidget */,
 				E9C03B132A5A191B00FB9118 /* Queries */,
@@ -537,11 +547,12 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
+				E9FDDC2F2B238216005D281E /* RouterPath.swift */,
+				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
+				E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */,
 				E92D6EEE2B46634800E49AC8 /* Track+.swift */,
 				E9294B5A2B33A531009E1F45 /* Environments.swift */,
-				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
-				E9FDDC2F2B238216005D281E /* Router.swift */,
-				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
@@ -569,8 +580,11 @@
 				E9D856262A9FB5AD0024B192 /* PillView.swift */,
 				E9D856282A9FBB020024B192 /* AlertService.swift */,
 				E98527932A5E5C90009016C2 /* LiveActivityManager.swift */,
+				E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */,
+				E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */,
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E9A953162ADCD5B600600516 /* HapticButton.swift */,
+				E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */,
 				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
@@ -676,6 +690,13 @@
 				E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		E9F600BF2B4E54730039AAA6 /* SceneWidget */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = SceneWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -921,6 +942,7 @@
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
 				E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */,
 				E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */,
+				E9F600BA2B4DC4830039AAA6 /* LiveActivity+Environment.swift in Sources */,
 				E97C0D4E2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift in Sources */,
 				E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */,
@@ -957,6 +979,7 @@
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9A953172ADCD5B600600516 /* HapticButton.swift in Sources */,
+				E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */,
 				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
 				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
 				E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */,
@@ -965,10 +988,11 @@
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
+				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */,
-				E9FDDC302B238216005D281E /* Router.swift in Sources */,
+				E9FDDC302B238216005D281E /* RouterPath.swift in Sources */,
 				E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */,
 				E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */,
 				E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */,
@@ -982,6 +1006,7 @@
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
+				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9678B2B2B3FC6970011B905 /* MusicSearchScreen.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
@@ -992,6 +1017,7 @@
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
+				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
 				E9CB9E602AE6DD1F00107408 /* PreviewScreenshot.swift in Sources */,
@@ -1042,6 +1068,7 @@
 /* Begin PBXTargetDependency section */
 		E92E474F2B360C5C00DE6647 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = ios;
 			target = E92E47422B360C5C00DE6647 /* QueueAction */;
 			targetProxy = E92E474E2B360C5C00DE6647 /* PBXContainerItemProxy */;
 		};
@@ -1091,6 +1118,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1124,6 +1154,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1156,6 +1189,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1198,6 +1234,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1241,6 +1278,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,4";
@@ -1837,6 +1875,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

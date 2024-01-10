@@ -163,12 +163,16 @@ import SwiftUI
     @MainActor
     public func load(useCache: Bool) async throws {
         let newGroup = try await getGroups(useCache: useCache)
+        var refreshGroup: Bool = false
+
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             print("Update")
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
+            refreshGroup = true
         }
-        if let selectedGroup {
+
+        if let selectedGroup, !refreshGroup {
             guard let groupIndex = groups.firstIndex(where: { group in
                 group.coordinatorID == selectedGroup.coordinatorID
             }) else {
@@ -239,7 +243,7 @@ import SwiftUI
             roomGroup.coordinatorRoom.track.artworkURL = artworkURL
             return
         }
-
+        print("All")
         try await updateGroups(from: groups)
         await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)

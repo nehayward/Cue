@@ -1,3 +1,4 @@
+#if canImport(ActivityKit)
 import ActivityKit
 import AppIntents
 import WidgetKit
@@ -128,3 +129,4 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
 } contentStates: {
     ClicNowPlayingWidgetAttributes.ContentState.testing
 }
+#endif

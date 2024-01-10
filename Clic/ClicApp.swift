@@ -9,17 +9,17 @@ import WidgetKit
 
 @main
 struct ClicApp: App {
-    @Environment(\.scenePhase) var scenePhase
-    @Environment(\.requestReview) var requestReview
-
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @Environment(\.scenePhase) var scenePhase
+    @Environment(\.requestReview) var requestReview
+    @Environment(\.liveActivityManager) var liveActivityManager
+
+    @State private var router: RouterPath = RouterPath.shared
     @State private var selected: Route?
-    @State private var liveActivityManager: LiveActivityManager? = nil
     @State private var subscriptionService = SubscriptionService()
-    @State private var sonosService = SonosService()
+    @State private var sonosService = SonosService.shared
     @State private var alertService = AlertService()
-    @State private var showPaywall = false
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
@@ -30,13 +30,10 @@ struct ClicApp: App {
                 .environment(sonosService)
                 .environment(subscriptionService)
                 .environment(alertService)
-                .task {
-                    liveActivityManager = LiveActivityManager(sonosService: sonosService)
-                    subscriptionService.monitorChanges()
-                }
                 .onOpenURL(perform: handle)
-                .sheet(isPresented: $showPaywall) {
-                    PaywallView()
+                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+                .task {
+                    subscriptionService.monitorChanges()
                 }
         }
         .onChange(of: scenePhase) {
@@ -44,7 +41,7 @@ struct ClicApp: App {
         }
         .onChange(of: sonosService.sorted.map(\.coordinatorRoom.isPlaying), initial: false) {
             guard subscriptionService.subscription.isActive else { return }
-            liveActivityManager?.createActivity()
+            liveActivityManager.createActivity()
         }
         .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
             activeSubscription =  newValue.isActive
@@ -61,7 +58,7 @@ struct ClicApp: App {
             }
             
             Task {
-                await liveActivityManager?.refresh()
+                await liveActivityManager.refresh(type: .refresh)
             }
 
             Task {
@@ -88,7 +85,7 @@ struct ClicApp: App {
             print("Inactive")
             WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
             Task {
-                await liveActivityManager?.refresh()
+                await liveActivityManager.refresh(type: .refresh)
             }
         case .background:
             print("Background")
@@ -101,13 +98,13 @@ struct ClicApp: App {
     }
 
     private func handle(_ url: URL) {
-        guard let url = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-        if url.host?.lowercased() == "subscribe" {
-            showPaywall = true
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+        if components.host?.lowercased() == "subscribe" {
+            RouterPath.shared.presentedSheet = .paywall
             return
         }
 
-        if url.host?.lowercased() == "search", let id = url.queryItems?.first(where: { $0.name == "id" })?.value {
+        if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
             if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
                 selected = Route(id: id, search: true)
                 return
@@ -120,7 +117,7 @@ struct ClicApp: App {
             }
         }
 
-        if url.host?.lowercased() == "device", let id = url.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
+        if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
             if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
                 selected = Route(id: id, search: false)
                 return
@@ -133,12 +130,36 @@ struct ClicApp: App {
             }
         }
 
-        if url.host?.lowercased() == "scene", let name = url.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
+        if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
             guard let scene = scenes.first(where: { $0.name == name }) else { return }
             Task {
                 alertService.showAlert(with: "Running \(scene.name)")
                 try await sonosService.runScene(scene)
             }
+        }
+
+        if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init).dropFirst(2) {
+
+
+//            await sonosService.que
+//            guard let typeString = paths.first, let type = ContentType(typeString), let id = paths.last else { return nil }
+//            return MediaContent(service: .spotify, id: id, type: type, location: url)
+
+//            let spotifyPlaylistURL = URL(string: "https://open.spotify.com/playlist/6zKUeBJeJQODG5o2PzxRsZ")!
+//            XCTAssertEqual(sonosAPI.parse(url: spotifyPlaylistURL), MediaContent(service: .spotify, id: "6zKUeBJeJQODG5o2PzxRsZ", type: .playlist, location: spotifyPlaylistURL))
+//
+//            let spotifyAlbumURL = URL(string: "https://open.spotify.com/album/7fJJK56U9fHixgO0HQkhtI")!
+//            XCTAssertEqual(sonosAPI.parse(url: spotifyAlbumURL), MediaContent(service: .spotify, id: "7fJJK56U9fHixgO0HQkhtI", type: .album, location: spotifyAlbumURL))
+//
+//            let spotifyArtistURL = URL(string: "https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we")!
+//            XCTAssertEqual(sonosAPI.parse(url: spotifyArtistURL), MediaContent(service: .spotify, id: "6M2wZ9GZgrQXHCFfjv46we", type: .artist, location: spotifyArtistURL))
+//
+//            let spotifyTrackURL = URL(string: "https://open.spotify.com/track/5bGNsC7FTQ3WZzz0XYOmvZ")!
+//            XCTAssertEqual(sonosAPI.parse(url: s
+//            Task {
+//                alertService.showAlert(with: "Running \(scene.name)")
+//                try await sonosService.runScene(scene)
+//            }
         }
     }
 }

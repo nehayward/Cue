@@ -1,3 +1,4 @@
+#if canImport(ActivityKit)
 import AppIntents
 import WidgetKit
 import SonosKit
@@ -24,7 +25,9 @@ struct LiveActivityNowPlayingView: View {
     var body: some View {
         VStack(spacing: 4){
             HStack {
-                Label(context.state.name, systemImage: "hifispeaker.fill")
+                Text(context.state.name)
+                    .font(.headline)
+                    .fontDesign(.rounded)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
@@ -47,33 +50,32 @@ struct LiveActivityNowPlayingView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 4))
-
+                            .frame(width: 48, height: 48)
                     }
 
                     VStack(alignment: .leading) {
                         Text(context.state.trackName)
-                            .lineLimit(0)
                             .bold()
                             .invalidatableContent()
                             .id(context.state.trackName)
                             .transition(updateTransition)
                         Text(context.state.artist)
                             .foregroundStyle(.secondary)
-                            .lineLimit(0)
                             .invalidatableContent()
                             .id(context.state.artist)
                             .transition(updateTransition)
                     }
+                    .lineLimit(0, reservesSpace: true)
                     Spacer()
                 }
             }
             .frame(maxHeight: 50)
-            
             if !isCompact {
                 HStack {
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
                         Image(systemName: "minus")
                             .bold()
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
                     .buttonBorderShape(.circle)
@@ -85,13 +87,14 @@ struct LiveActivityNowPlayingView: View {
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                         Image(systemName: "plus")
                             .bold()
+                            .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
                     .tint(.primary)
                     .buttonBorderShape(.circle)
                 }
                 .padding([.bottom], 4)
-                HStack(spacing: 24) {
+                HStack(spacing: 32) {
                     Button(intent: PreviousIntent(room: context.attributes.room)) {
                         Image(systemName: "backward.end.fill")
                     }
@@ -126,7 +129,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
                                                     artist: "Dua Lipa",
                                                     volume: 39,
-                                                    name: "Kitchen + 1")
+                                                    name: "Kitchen + Gym")
     }
 
     fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
@@ -154,3 +157,4 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
 } contentStates: {
     ClicNowPlayingWidgetAttributes.ContentState.testing2
 }
+#endif
