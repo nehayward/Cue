@@ -70,7 +70,7 @@ struct GroupScreen: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink("Create Scene", value: viewModel.selections)
+                    NavigationLink("Add Scene", value: viewModel.selections)
                         .animation(.spring, value: viewModel.selections.isEmpty)
                 }
             }

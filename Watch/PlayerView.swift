@@ -1,4 +1,4 @@
-import Kingfisher
+import NukeUI
 import SwiftUI
 import WatchKit
 import SonosKit
@@ -16,12 +16,17 @@ struct PlayerView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            KFImage(artworkURL)
-                .cacheMemoryOnly()
-                .fade(duration: 0.2)
-                .retry(DelayRetryStrategy(maxRetryCount: 2, retryInterval: .seconds(1)))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            LazyImage(url: artworkURL) { state in
+                if let image = state.image {
+                    image.resizable().aspectRatio(contentMode: .fit)
+                } else {
+                    RoundedRectangle(cornerRadius: 4)
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.ultraThinMaterial)
+                        .shadow(radius: 2)
+                }
+            }
+//            .processors([.resize(width: 200)])
             .cornerRadius(12)
             .shadow(radius: 10)
             .focusable()
@@ -83,7 +88,7 @@ struct PlayerView: View {
                                 EmptyView()
                             }
                         )
-                        .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
+                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
                         .gaugeStyle(.accessoryCircularCapacity)
                         .animation(.spring, value: group.coordinatorRoom.track.playbackPosition)
                         .frame(width: 24, height: 24)
@@ -119,18 +124,19 @@ struct PlayerView: View {
             }
         }
         .background {
-            KFImage(artworkURLSmall)
-                .cacheMemoryOnly()
-                .fade(duration: 0.2)
-                .resizable()
-                .blur(radius: 20)
-                .ignoresSafeArea()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay {
-                    Rectangle()
-                        .foregroundStyle(.thinMaterial)
-                        .ignoresSafeArea()
+            LazyImage(url: artworkURL) { state in
+                if let image = state.image {
+                    image.resizable().aspectRatio(contentMode: .fit)
                 }
+            }
+            .blur(radius: 20)
+            .ignoresSafeArea()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                Rectangle()
+                    .foregroundStyle(.thinMaterial)
+                    .ignoresSafeArea()
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

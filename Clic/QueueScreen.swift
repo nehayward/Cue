@@ -1,7 +1,7 @@
-import SwiftUI
 import MusicSearchKit
+import NukeUI
 import SonosKit
-import Kingfisher
+import SwiftUI
 
 struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -51,49 +51,48 @@ struct QueueScreen: View {
                     ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
                         HStack {
                             Text("\(index + 1)")
-                            KFImage(track.artworkURL)
-                                .placeholder {
+                            LazyImage(url: track.artworkURL) { state in
+                                if let image = state.image {
+                                    image.resizable().aspectRatio(contentMode: .fit)
+                                } else {
                                     RoundedRectangle(cornerRadius: 4)
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.ultraThinMaterial)
                                         .shadow(radius: 2)
                                 }
-                                .cacheMemoryOnly()
-                                .fade(duration: 0.2)
-                                .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(1)))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .shadow(radius: 2)
-                                .frame(width: 60, height: 60)
-                                .overlay(alignment: .bottomTrailing) {
-                                    switch track.musicService {
-                                    case .apple:
-                                        Image(systemName: "apple.logo")
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .foregroundStyle(.white.gradient)
-                                            .frame(width: 16, height: 16)
-                                            .padding([.trailing, .bottom], 4)
-                                    case .spotify:
-                                        Image(.spotifyLogo)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .foregroundStyle(.white.gradient)
-                                            .frame(width: 16, height: 16)
-                                            .padding([.trailing, .bottom], 4)
-                                    case .airplay, .unknown:
-                                        EmptyView()
-                                            .padding([.trailing, .bottom], 4)
-                                    }
+                            }
+                            .processors([.resize(width: 60)])
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .shadow(radius: 2)
+                            .frame(width: 60, height: 60)
+                            .overlay(alignment: .bottomTrailing) {
+                                switch track.musicService {
+                                case .apple:
+                                    Image(systemName: "apple.logo")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white.gradient)
+                                        .frame(width: 16, height: 16)
+                                        .padding([.trailing, .bottom], 4)
+                                case .spotify:
+                                    Image(.spotifyLogo)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white.gradient)
+                                        .frame(width: 16, height: 16)
+                                        .padding([.trailing, .bottom], 4)
+                                case .airplay, .unknown:
+                                    EmptyView()
+                                        .padding([.trailing, .bottom], 4)
                                 }
-                                .task(id: track.name) {
-                                    guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
-                                        return
-                                    }
+                            }
+                            .task(id: track.name) {
+                                guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
+                                    return
+                                }
 
-                                    track.artworkURL = artworkURL
-                                }
+                                track.artworkURL = artworkURL
+                            }
 
                             Button {
                                 dismiss()
@@ -121,7 +120,6 @@ struct QueueScreen: View {
                             }
                         }
                         .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
-                        .padding(.bottom, 20)
                     }
                     .onMove(perform: move)
                 }

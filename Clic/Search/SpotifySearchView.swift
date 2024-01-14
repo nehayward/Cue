@@ -8,6 +8,8 @@ import Kingfisher
 struct SpotifySearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
+    @Environment(RouterPath.self) var router: RouterPath
+
     @Binding var spotifyResult: SpotifyResult?
     @Binding var filters: [FilterSelection]
 
@@ -58,9 +60,13 @@ struct SpotifySearchView: View {
         Section {
             ForEach(tracks) { item in
                 Button {
-                    dismiss()
                     Task {
-                        guard let group = group else { return }
+                        guard let group = group else {
+                            let content = PlayableContent(title: item.name, subtitle: item.artists.first?.name ?? "", artwork: URL(string: item.album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil))
+                            await router.navigate(to: .groupDestination(content: content))
+                            return
+                        }
+                        router.dismiss = true
                         await sonosService.queueSpotifyTrack(id: item.id, group: group)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
@@ -89,11 +95,11 @@ struct SpotifySearchView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button {
-                        dismiss()
                         Task {
                             guard let group = group else { return }
                             await sonosService.queueSpotifyTrack(id: item.id, group: group, position: .next)
                         }
+                        router.dismiss = true
                     } label: {
                         Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
                     }
@@ -151,9 +157,13 @@ struct SpotifySearchView: View {
         Section {
             ForEach(albums) { album in
                 Button {
-                    dismiss()
                     Task {
-                        guard let group = group else { return }
+                        guard let group = group else {
+                            let content = PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: album.id, type: .album, location: nil))
+                            await router.navigate(to: .groupDestination(content: content))
+                            return
+                        }
+                        router.dismiss = true
                         await sonosService.queueSpotifyAlbum(id: album.id, group: group, position: .now)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
@@ -191,9 +201,13 @@ struct SpotifySearchView: View {
         Section {
             ForEach(playlists) { item in
                 Button {
-                    dismiss()
                     Task {
-                        guard let group = group else { return }
+                        guard let group = group else {
+                            let content = PlayableContent(title: item.name, subtitle: item.owner.displayName, artwork: URL(string: item.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .playlist, location: nil))
+                            await router.navigate(to: .groupDestination(content: content))
+                            return
+                        }
+                        router.dismiss = true
                         await sonosService.queueSpotifyPlaylist(
                             id: item.id,
                             group: group
@@ -232,27 +246,27 @@ struct SpotifySearchView: View {
     }
 }
 
-#Preview {
-    Text("Searching...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "Dua Lipa", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Empty Queue") {
-    Text("Searching Empty...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Full Screen") {
-    Text("Searching Empty...")
-        .fullScreenCover(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
+//#Preview {
+//    Text("Searching...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "Dua Lipa", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Empty Queue") {
+//    Text("Searching Empty...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Full Screen") {
+//    Text("Searching Empty...")
+//        .fullScreenCover(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
 

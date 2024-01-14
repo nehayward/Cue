@@ -7,6 +7,8 @@ import RevenueCat
 
 @Observable
 public final class SubscriptionService: SubscriptionServicing {
+    public static var shared = SubscriptionService()
+
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
     public var subscription: Subscription = .notActive
@@ -76,6 +78,9 @@ public final class SubscriptionService: SubscriptionServicing {
 
     public func checkSubscription() async throws {
 #if DEBUG
+        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
+            subscription.isActive = false
+        }
         return
 #endif
         if await UIApplication.shared.isRunningInTestFlightEnvironment() {

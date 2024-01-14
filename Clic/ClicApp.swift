@@ -15,26 +15,32 @@ struct ClicApp: App {
     @Environment(\.requestReview) var requestReview
     @Environment(\.liveActivityManager) var liveActivityManager
 
-    @State private var router: RouterPath = RouterPath.shared
-    @State private var selected: Route?
-    @State private var subscriptionService = SubscriptionService()
+    @State private var router: RouterPath = RouterPath()
+    @State private var subscriptionService = SubscriptionService.shared
     @State private var sonosService = SonosService.shared
-    @State private var alertService = AlertService()
+    @State private var alertService = AlertService.shared
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     var body: some Scene {
         WindowGroup {
-            DeviceListMainView(selected: $selected)
-                .environment(sonosService)
-                .environment(subscriptionService)
-                .environment(alertService)
-                .onOpenURL(perform: handle)
-                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-                .task {
-                    subscriptionService.monitorChanges()
+            Group {
+                if OSEnvironment.pad {
+                    GroupListLargeScreen()
+                } else {
+                    DeviceListMainView()
                 }
+            }
+            .environment(router)
+            .environment(sonosService)
+            .environment(subscriptionService)
+            .environment(alertService)
+            .onOpenURL(perform: handle)
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+            .task {
+                subscriptionService.monitorChanges()
+            }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
@@ -52,7 +58,9 @@ struct ClicApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
+            ReviewService.shared.numberOfOpens += 1
             sonosService.monitor()
+            
             if !subscriptionService.subscription.isActive {
                 return
             }
@@ -65,7 +73,7 @@ struct ClicApp: App {
                 try? await subscriptionService.checkSubscription()
             }
 
-            guard ReviewService().askForRequest() else { return }
+            guard ReviewService.shared.askForRequest() else { return }
             requestReview()
 
 //            // MARK: Add back when monitoring is fixed
@@ -100,32 +108,60 @@ struct ClicApp: App {
     private func handle(_ url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         if components.host?.lowercased() == "subscribe" {
-            RouterPath.shared.presentedSheet = .paywall
+            router.presentedSheet = .paywall
             return
         }
 
         if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
-            if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
-                selected = Route(id: id, search: true)
+            router.presentedSheet = nil
+
+            if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                    router.path.removeAll()
+                    router.navigate(to: .player(groupID: group.coordinatorID))
+                } else if router.path.isEmpty {
+                    router.navigate(to: .player(groupID: group.coordinatorID))
+                }
+                router.presentedSheet = .search(group: group)
                 return
             }
             Task {
                 try await sonosService.fetch(useCache: true)
-                if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
-                    selected = Route(id: id, search: true)
+                if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                        router.path.removeAll()
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    } else if router.path.isEmpty {
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    }
+                    router.presentedSheet = .search(group: group)
+                    return
                 }
             }
         }
 
         if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
-            if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
-                selected = Route(id: id, search: false)
+            router.presentedSheet = nil
+
+            if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                    router.path.removeAll()
+                    router.navigate(to: .player(groupID: group.coordinatorID))
+                } else if router.path.isEmpty {
+                    router.navigate(to: .player(groupID: group.coordinatorID))
+                }
                 return
             }
             Task {
                 try await sonosService.fetch(useCache: true)
-                if sonosService.groups.contains(where:  { $0.coordinatorRoom.id == id} ) {
-                    selected = Route(id: id, search: false)
+                if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                        router.path.removeAll()
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    } else if router.path.isEmpty {
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    }
+                    return
                 }
             }
         }
@@ -138,28 +174,18 @@ struct ClicApp: App {
             }
         }
 
-        if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init).dropFirst(2) {
+        if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init) {
+            if paths.count < 3 {
+                return
+            }
+            guard let service = MusicService(service: paths[2]),
+                  let type = ContentType(paths[3])
+            else { return }
 
+            let id = paths[4]
 
-//            await sonosService.que
-//            guard let typeString = paths.first, let type = ContentType(typeString), let id = paths.last else { return nil }
-//            return MediaContent(service: .spotify, id: id, type: type, location: url)
-
-//            let spotifyPlaylistURL = URL(string: "https://open.spotify.com/playlist/6zKUeBJeJQODG5o2PzxRsZ")!
-//            XCTAssertEqual(sonosAPI.parse(url: spotifyPlaylistURL), MediaContent(service: .spotify, id: "6zKUeBJeJQODG5o2PzxRsZ", type: .playlist, location: spotifyPlaylistURL))
-//
-//            let spotifyAlbumURL = URL(string: "https://open.spotify.com/album/7fJJK56U9fHixgO0HQkhtI")!
-//            XCTAssertEqual(sonosAPI.parse(url: spotifyAlbumURL), MediaContent(service: .spotify, id: "7fJJK56U9fHixgO0HQkhtI", type: .album, location: spotifyAlbumURL))
-//
-//            let spotifyArtistURL = URL(string: "https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we")!
-//            XCTAssertEqual(sonosAPI.parse(url: spotifyArtistURL), MediaContent(service: .spotify, id: "6M2wZ9GZgrQXHCFfjv46we", type: .artist, location: spotifyArtistURL))
-//
-//            let spotifyTrackURL = URL(string: "https://open.spotify.com/track/5bGNsC7FTQ3WZzz0XYOmvZ")!
-//            XCTAssertEqual(sonosAPI.parse(url: s
-//            Task {
-//                alertService.showAlert(with: "Running \(scene.name)")
-//                try await sonosService.runScene(scene)
-//            }
+            let media = MediaContent(service: service, id: id, type: type, location: nil)
+            router.presentedSheet = .playMedia(content: media)
         }
     }
 }

@@ -47,7 +47,6 @@ struct RemoteWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: RemoteWidgetConfigurationIntent.self, provider: Provider()) { entry in
            RemoteWidgetEntryView(entry: entry)
-            #if !DEBUG
                 .disabled(!activeSubscription)
                 .overlay {
                     if !activeSubscription {
@@ -55,13 +54,12 @@ struct RemoteWidget: Widget {
                             .frame(maxWidth: 64, maxHeight: 64)
                             .foregroundStyle(.thinMaterial)
                             .overlay {
-                                Image(systemName: "lock.open.fill")
+                                Image(systemName: "lock.fill")
                                     .font(widgetFamily == .accessoryRectangular ? .body : .title)
                             }
                             .widgetURL(URL(string: "clic://subscribe"))
                     }
                 }
-            #endif
         }
         .supportedFamilies(families)
         .configurationDisplayName("Remote")

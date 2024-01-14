@@ -4,6 +4,9 @@
 
 - Fix queueing with Apple Music
 - Update group list
+- Visual tweaks
+- Add TV Settings to LockScreen Widget
+- Add search to main screen.
 
 ## Internal
 
@@ -15,6 +18,13 @@
 - Improve slider for playback.
 - Create WidgetManager
 - Setup PlaygroupScreen for Search and Queueing
+- Add queueing option for media content
+- Add play url scheme "clic://play/spotify/album/5pTaRVLwZOFObIbRBubmeb"
+- Fix routing options
+- Switch to NavigationStack
+- Create separate view for iPad
+- Move to Nuke
+- Update review service, use number of opens.
 
 # 2024.2
 

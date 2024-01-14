@@ -5,7 +5,7 @@ public enum ContentType: Equatable, Codable {
     case album
     case track
 
-    init?(_ type: String) {
+    public init?(_ type: String) {
         switch type.lowercased() {
         case "playlist":
             self =  .playlist

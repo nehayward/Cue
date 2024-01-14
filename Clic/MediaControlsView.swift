@@ -3,13 +3,14 @@ import SonosKit
 
 struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(RouterPath.self) var router: RouterPath
+
     @Binding var group: GroupRoom
-    @Binding var sheetDestination: SheetDestination?
 
     var body: some View {
         VStack(alignment: .center, spacing: 12) {
             Button {
-                sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
             } label: {
                 Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
                     .frame(width: 20)
@@ -41,7 +42,7 @@ struct MediaControlsView: View {
                             .contentTransition(.symbolEffect(.automatic))
                     }
                 )
-                .tint(group.coordinatorRoom.track.playbackPosition.isZero ? .clear : .accentColor)
+                .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
                 .gaugeStyle(.accessoryCircularCapacity)
                 .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
                 .scaleEffect(0.5)
@@ -54,6 +55,7 @@ struct MediaControlsView: View {
 }
 
 #Preview {
-    MediaControlsView(group: .constant(.garage), sheetDestination: .constant(nil))
+    MediaControlsView(group: .constant(.garage))
         .environment(SonosService())
+        .environment(RouterPath())
 }

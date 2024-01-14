@@ -5,7 +5,10 @@ enum SheetDestination: Identifiable {
     case settings
     case paywall
     case groupScreen(groupScreenViewModel: GroupScreenViewModel, group: GroupRoom)
-    case search(group: GroupRoom)
+    case search(group: GroupRoom? = nil)
+    case queue(group: Binding<GroupRoom>)
+    case playContent(content: PlayableContent)
+    case playMedia(content: MediaContent)
 
     var id: String {
         switch self {
@@ -17,6 +20,12 @@ enum SheetDestination: Identifiable {
             "groupScreen"
         case .search:
             "search"
+        case .queue:
+            "queue"
+        case .playContent:
+            "playContent"
+        case .playMedia:
+            "mediaContent"
         }
     }
 }

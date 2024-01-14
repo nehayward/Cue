@@ -3,5 +3,6 @@ import SonosKit
 import SwiftUI
 
 public enum RouterDestination: Hashable {
-    case player(group: GroupRoom)
+    case player(groupID: String)
+    case groupDestination(content: PlayableContent)
 }

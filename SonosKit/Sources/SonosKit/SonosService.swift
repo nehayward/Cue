@@ -1,21 +1,25 @@
 import Foundation
 import Combine
+import OrderedCollections
 import MusicSearchKit
 import Observation
 import SwiftUI
 
-@Observable public final class SonosService {
+@Observable
+public final class SonosService {
     public static var shared = SonosService()
 
     public var ID: String? = nil
     public var groups: [GroupRoom] = []
+    public var zones: OrderedDictionary<String, GroupRoom> = [:]
+
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
-    public var networkMonitorService = NetworkMonitorService()
+    @ObservationIgnored public var networkMonitorService = NetworkMonitorService()
 
-    private var sonosSystemDiscoverService = SonosSystemDiscoverService()
-    private var api = SonosAPI()
-    private var musicSearch = MusicSearchService()
+    @ObservationIgnored private var sonosSystemDiscoverService = SonosSystemDiscoverService()
+    @ObservationIgnored private var api = SonosAPI()
+    @ObservationIgnored private var musicSearch = MusicSearchService()
 
     public var systemNotFound: Bool = false
     public var permissionsDenied: Bool = false
@@ -60,7 +64,12 @@ import SwiftUI
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
+            self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
+    }
+
+    public func group(with id: String) -> GroupRoom? {
+        sorted.first(where: { $0.coordinatorID == id})
     }
 
     @MainActor
@@ -166,7 +175,7 @@ import SwiftUI
         var refreshGroup: Bool = false
 
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
-            print("Update")
+            await updateGroupsRooms(from: newGroup)
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
             refreshGroup = true
@@ -243,7 +252,6 @@ import SwiftUI
             roomGroup.coordinatorRoom.track.artworkURL = artworkURL
             return
         }
-        print("All")
         try await updateGroups(from: groups)
         await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
@@ -253,11 +261,15 @@ import SwiftUI
     @MainActor
     public func fetch(useCache: Bool) async throws {
         let newGroup = try await getGroups(useCache: useCache)
+        var refreshGroup: Bool = false
+
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
+            await updateGroupsRooms(from: newGroup)
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
+            refreshGroup = true
         }
-        if let selectedGroup {
+        if let selectedGroup, !refreshGroup {
 //            print("Selected Group")
 //            print(selectedGroup.coordinatorRoom.id)
 
@@ -368,7 +380,12 @@ import SwiftUI
                     async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
 
                     guard let awaitedTrack = await track else {
-                        roomGroup.coordinatorRoom.track = .empty
+                        if roomGroup.coordinatorRoom.track != .empty {
+                            roomGroup.coordinatorRoom.track = .empty
+                        }
+                        if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
+                            roomGroup.groupVolume = groupVolumeAwaited
+                        }
                         return
                     }
 
@@ -408,7 +425,6 @@ import SwiftUI
                         roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                     }
 
-//                    print("Update \(roomGroup.coordinatorRoom.name)")
                 }
             }
         }
@@ -684,6 +700,23 @@ import SwiftUI
         return nil
     }
 
+    public func getContent(from content: MediaContent) async -> PlayableContent? {
+        switch content.type {
+        case .playlist:
+            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
+            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
+        case .track:
+            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
+        case .album:
+            guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
+            return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: content)
+        default:
+            break
+        }
+        return nil
+    }
+
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { room in
@@ -874,29 +907,37 @@ import SwiftUI
                 await api.queueSpotifyTrack(ID: content.id, IP: group.ip, position: position)
             }
             if content.service == .apple {
-                await api.queue(song: "", IP: group.ip, position: position)
+                await api.queue(song: content.id, IP: group.ip, position: position)
             }
+        }
+
+        if position == .now {
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
         }
     }
 
-    public func queue(playableContent: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
-        switch playableContent.content.type {
+    public func queue(content: MediaContent, group: GroupRoom, position: QueuePosition = .now) async {
+        switch content.type {
         case .album:
-            if playableContent.content.service == .spotify {
-                await queueSpotifyAlbum(id: playableContent.content.id, group: group, position: position)
+            if content.service == .spotify {
+                await queueSpotifyAlbum(id: content.id, group: group, position: position)
             }
         case .playlist:
             await api.removeAllTrackFromQueue(IP: group.ip)
-            await api.queueSpotifyPlaylist(ID: playableContent.content.id, IP: group.ip)
+            await api.queueSpotifyPlaylist(ID: content.id, IP: group.ip)
         case .artist:
             break
         case .track:
-            if playableContent.content.service == .spotify {
-                await api.queueSpotifyTrack(ID: playableContent.content.id, IP: group.ip, position: position)
+            if content.service == .spotify {
+                await api.queueSpotifyTrack(ID: content.id, IP: group.ip, position: position)
             }
-            if playableContent.content.service == .apple {
-                await api.queue(song: "", IP: group.ip, position: position)
+            if content.service == .apple {
+                await api.queue(song: content.id, IP: group.ip, position: position)
             }
+        }
+
+        if position == .now {
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
         }
     }
 

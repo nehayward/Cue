@@ -34,7 +34,12 @@ final class LiveActivityManager: LiveActivityManageable {
                 await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
             }
 
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+            var title = group.coordinatorRoom.track.name
+            if let settings = group.tvSettings {
+                title = settings.audioInputFormat.description
+            }
+
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                            artist: group.coordinatorRoom.track.artist,
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
@@ -60,7 +65,12 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                             name: group.nameWithCount,
                                                                                             volume: group.groupVolume))
 
-                let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+                var title = group.coordinatorRoom.track.name
+                if let settings = group.tvSettings {
+                    title = settings.audioInputFormat.description
+                }
+
+                let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                                artist: group.coordinatorRoom.track.artist,
                                                                                volume: group.groupVolume,
                                                                                name: group.nameWithCount)
@@ -84,7 +94,7 @@ final class LiveActivityManager: LiveActivityManageable {
     func createActivity(id: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
-        try? await sonosService.updateGroups()
+        try? await sonosService.load(useCache: true)
 
         guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
             return
@@ -95,7 +105,13 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                     name: group.nameWithCount,
                                                                                     volume: group.groupVolume))
 
-        let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: group.coordinatorRoom.track.name,
+        // MARK: Rework have it be title and subtitle
+        var title = group.coordinatorRoom.track.name
+        if let settings = group.tvSettings {
+            title = settings.audioInputFormat.description
+        }
+
+        let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                        artist: group.coordinatorRoom.track.artist,
                                                                        volume: group.groupVolume,
                                                                        name: group.nameWithCount)

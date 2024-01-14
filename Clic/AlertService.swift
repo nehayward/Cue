@@ -3,6 +3,8 @@ import Foundation
 
 @Observable
 public final class AlertService: @unchecked Sendable {
+    public static var shared = AlertService()
+    
     var alert = Alert()
     private let queue = DispatchQueue(label: "AlertService\(UUID().uuidString)")
     private var alertTask: Task<Void, Error>?

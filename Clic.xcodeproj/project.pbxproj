@@ -44,7 +44,6 @@
 		E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E96385FB2AD8E346005411BF /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
 		E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */; };
-		E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396342A3B723B00518A17 /* ArtworkView.swift */; };
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
 		E9678B2B2B3FC6970011B905 /* MusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9678B2A2B3FC6970011B905 /* MusicSearchScreen.swift */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
@@ -141,6 +140,11 @@
 		E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */; };
 		E9F600BA2B4DC4830039AAA6 /* LiveActivity+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */; };
 		E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */; };
+		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
+		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
+		E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C52B4E62040039AAA6 /* NukeUI */; };
+		E9F600C82B50DDF10039AAA6 /* GroupListLargeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */; };
+		E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
 		E9FDDC302B238216005D281E /* RouterPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* RouterPath.swift */; };
@@ -253,7 +257,6 @@
 		E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
 		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
 		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MusicSearchKit; sourceTree = "<group>"; };
-		E96396342A3B723B00518A17 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
 		E9678B2A2B3FC6970011B905 /* MusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicSearchScreen.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
@@ -339,6 +342,8 @@
 		E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterDestination.swift; sourceTree = "<group>"; };
 		E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiveActivity+Environment.swift"; sourceTree = "<group>"; };
 		E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetManager.swift; sourceTree = "<group>"; };
+		E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupListLargeScreen.swift; sourceTree = "<group>"; };
+		E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSelectionView.swift; sourceTree = "<group>"; };
 		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
 		E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSEnvironment.swift; sourceTree = "<group>"; };
 		E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
@@ -381,10 +386,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */,
 				E94A6A272AAACB62002E432C /* Kingfisher in Frameworks */,
 				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
 				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
 				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
+				E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */,
 				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
@@ -396,6 +403,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */,
 				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
@@ -557,9 +565,9 @@
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
+				E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */,
-				E96396342A3B723B00518A17 /* ArtworkView.swift */,
 				E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */,
 				E96396362A3B8F5200518A17 /* ZoneView.swift */,
 				E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */,
@@ -576,6 +584,7 @@
 				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
 				E960ED452AC38936003E3732 /* Search */,
 				E940E7152AAFBD17004303CD /* FilterView.swift */,
+				E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */,
 				E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */,
 				E9D856262A9FB5AD0024B192 /* PillView.swift */,
 				E9D856282A9FBB020024B192 /* AlertService.swift */,
@@ -788,6 +797,8 @@
 				E960ED492AC4969F003E3732 /* SubscriptionKit */,
 				E9FFC29A2ACDCC490001B26F /* OrderedCollections */,
 				E96385FB2AD8E346005411BF /* RevenueCatUI */,
+				E9F600C12B4E5E470039AAA6 /* Nuke */,
+				E9F600C32B4E5E470039AAA6 /* NukeUI */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -813,6 +824,7 @@
 				E98795A62A969078002C684A /* Kingfisher */,
 				E959B91B2AB506BF000D596E /* CloudStorage */,
 				E959B91E2AB65F3D000D596E /* VibesDS */,
+				E9F600C52B4E62040039AAA6 /* NukeUI */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -859,6 +871,7 @@
 				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
 				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
 				E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -1001,6 +1014,7 @@
 				E985278D2A5E0848009016C2 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
+				E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
 				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
@@ -1015,8 +1029,8 @@
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
-				E96396352A3B723B00518A17 /* ArtworkView.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
+				E9F600C82B50DDF10039AAA6 /* GroupListLargeScreen.swift in Sources */,
 				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
@@ -1515,7 +1529,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1557,15 +1571,16 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic*";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1762,15 +1777,16 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic*";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2012,6 +2028,14 @@
 				minimumVersion = 7.9.0;
 			};
 		};
+		E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.3.0;
+			};
+		};
 		E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-collections/";
@@ -2079,6 +2103,21 @@
 		E9C03B0E2A586F7E00FB9118 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		E9F600C12B4E5E470039AAA6 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		E9F600C32B4E5E470039AAA6 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E9F600C52B4E62040039AAA6 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
 		};
 		E9FFC29A2ACDCC490001B26F /* OrderedCollections */ = {
 			isa = XCSwiftPackageProductDependency;

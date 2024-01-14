@@ -5,7 +5,7 @@ import SubscriptionKit
 import RevenueCat
 import RevenueCatUI
 
-struct DeviceListMainView: View {
+struct GroupListLargeScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
@@ -18,10 +18,11 @@ struct DeviceListMainView: View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
 
-        NavigationStack(path: $router.path) {
+        NavigationSplitView {
             List ($sonosService.sorted) { $group in
                 Section {
                     Button {
+                        router.path.removeAll()
                         router.navigate(to: .player(groupID: group.coordinatorID))
                     } label: {
                         VStack(spacing: 12) {
@@ -40,7 +41,9 @@ struct DeviceListMainView: View {
                                 .frame(height: 24)
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.tvMode ? 12 : 10, trailing: 12))
+                    .tint(.primary)
+                    //                    .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                 } header: {
                     Text(group.nameWithCount)
                         .fontDesign(.rounded)
@@ -86,7 +89,7 @@ struct DeviceListMainView: View {
                         Button {
                             sonosService.monitor()
                         } label: {
-                            Text("Discover")
+                            Text("Search")
                                 .bold()
                                 .padding()
                                 .background {
@@ -95,6 +98,11 @@ struct DeviceListMainView: View {
                                 }
                         }
                         .transition(.scale)
+                    }
+
+                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive && !scenes.isEmpty {
+                        SceneView()
+                            .transition(.offset(y: 100))
                     }
 
                     if !subscriptionService.subscription.isActive {
@@ -112,91 +120,28 @@ struct DeviceListMainView: View {
                                 .padding()
                                 .shadow(radius: 16, x: 0, y: 2)
                         }
-                        .buttonStyle(.haptic)
                     }
-
-                    HStack {
-                        Spacer()
-                        Menu {
-                            ForEach(scenes) { scene in
-                                Button {
-                                    Task {
-                                        try? await sonosService.runScene(scene)
-                                    }
-                                } label: {
-                                    Text(scene.name)
-                                        .tint(.red)
+                }
+            }
+        } detail: {
+            NavigationStack {
+                if let destination = router.path.first {
+                    switch destination {
+                    case let .player(groupID):
+                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
+                            LargePlayerView(group: $sonosService.sorted[group])
+                        } else {
+                            Text("Group No Longer Available")
+                                .onTapGesture {
+                                    router.path.removeAll()
                                 }
-                            }
-                        } label: {
-                            Image(systemName: "bolt.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.accent)
                         }
-                        .buttonStyle(.haptic)
-
-                        Button {
-                            router.presentedSheet = .search()
-                        } label: {
-                            Image(systemName: "magnifyingglass.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.accent)
-                        }
-                        .padding()
-                        .buttonStyle(.haptic)
+                    case .groupDestination:
+                        EmptyView()
                     }
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity)
-                    .background(.bar)
-
-//                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive && !scenes.isEmpty {
-//                        SceneView()
-//                            .transition(.offset(y: 100))
-//                    }
-//                    HStack {
-//                        Spacer()
-//                        Button {
-////                            show = true
-//                        } label: {
-//                            Text("Search")
-//                                .bold()
-//                                .padding()
-//                                .background {
-//                                    Capsule()
-//                                        .foregroundStyle(.thinMaterial)
-//                                }
-//                        }
-//                        .buttonStyle(.haptic)
-//                        .bold()
-//                        .buttonStyle(.borderedProminent)
-//                    }
-//                    .background(.clear)
-//                    .scrollTargetLayout()
-//                    .fontDesign(.rounded)
-//                    .fontWeight(.bold)
                 }
             }
         }
-
-//        .onChange(of: sonosService.sorted.count) {
-//            if let currentPath = router.path.last {
-//                switch currentPath {
-//                case .player(let group):
-//                    let group = sonos
-//                }
-//                router.path.removeAll()
-//                router.navigate(to: .player(group: group))
-//            }
-
-//            guard !OSEnvironment.pad else { return }
-//            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
-//                sonosService.selectedGroup = sonosService.sorted[index]
-//            } else {
-//                sonosService.selectedGroup = nil
-//                selected = nil
-//            }
-            
-//        }
         .animation(.spring, value: sonosService.isSearching)
         .safeAreaInset(edge: .top) {
             VStack {
@@ -238,11 +183,16 @@ struct DeviceListMainView: View {
         .animation(.spring, value: sonosService.systemNotFound)
         .animation(.spring, value: sonosService.permissionsDenied)
         .animation(.spring, value: alertService.alert.isShowing)
+        .onAppear {
+            let thumbImage = UIImage()
+            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
+        }
         .animation(.interactiveSpring, value: sonosService.groups)
         .task {
             guard OSEnvironment.isPreviews else { return }
             sonosService.monitor()
         }
+        .navigationSplitViewStyle(.balanced)
     }
 
     private func enabled(group: GroupRoom) -> Bool {
@@ -252,23 +202,3 @@ struct DeviceListMainView: View {
     }
 }
 
-#Preview {
-    DeviceListMainView()
-        .environment(SonosService.shared)
-        .environment(SubscriptionService.shared)
-        .environment(AlertService.shared)
-        .environment(RouterPath())
-}
-
-
-#if DEBUG
-#Preview("Appstore Screens") {
-    DeviceListMainView()
-        .screenshot(name: "Appstore")
-        .colorScheme(.dark)
-        .environment(SonosService.shared)
-        .environment(SubscriptionService.shared)
-        .environment(AlertService.shared)
-        .environment(RouterPath())
-}
-#endif

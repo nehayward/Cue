@@ -206,28 +206,28 @@ struct MusicSearchScreen: View {
         }
     }
 }
-
-#Preview {
-    Text("Searching...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "Dua Lipa", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Empty Queue") {
-    Text("Searching Empty...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Full Screen") {
-    Text("Searching Empty...")
-        .fullScreenCover(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
+//
+//#Preview {
+//    Text("Searching...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "Dua Lipa", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Empty Queue") {
+//    Text("Searching Empty...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Full Screen") {
+//    Text("Searching Empty...")
+//        .fullScreenCover(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
 

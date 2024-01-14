@@ -1,31 +1,24 @@
+import NukeUI
 import SwiftUI
 import SonosKit
 import VibesDS
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var group: GroupRoom
-    @Binding var selected: Route?
-    @State var isExpanded: Bool = false
-    @State var showSearch = false
+    @Environment(RouterPath.self) var router: RouterPath
 
-    @Binding var sheetDestination: SheetDestination?
+    @Binding var group: GroupRoom
+
+    @State var isExpanded: Bool = false
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
-    @State private var showQueue = false
-
-    @State private var nextButtonTapped: Bool = false
 
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
     private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
 
-    init(group: Binding<GroupRoom>, selected: Binding<Route?>, sheetDestination: Binding<SheetDestination?> = .constant(.none)) {
-        self._group = group
-        self._selected = selected
-        self._sheetDestination = sheetDestination
-    }
-
     var body: some View {
+        @Bindable var sonosService = sonosService
+
         VStack(alignment: .center) {
             ArtworkViewKing(group: $group)
                 .cornerRadius(12)
@@ -60,7 +53,7 @@ struct LargePlayerView: View {
                     .padding(.bottom, 12)
                 HStack(spacing: 0) {
                     Button {
-                        sheetDestination = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                        router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
                     } label: {
                         Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                             .font(.body)
@@ -70,7 +63,7 @@ struct LargePlayerView: View {
                     .font(.body)
                     Spacer()
                     Button {
-                        showSearch.toggle()
+                        router.presentedSheet = .search(group: group)
                     } label: {
                         Image(systemName: "waveform.and.magnifyingglass")
                             .font(.body)
@@ -92,7 +85,7 @@ struct LargePlayerView: View {
                     }
                     Spacer()
                     Button {
-                        showQueue.toggle()
+                        router.presentedSheet = .queue(group: $group)
                     } label: {
                         Image(systemName: "music.note.list")
                             .font(.body)
@@ -136,23 +129,17 @@ struct LargePlayerView: View {
             }
 
         }
-        .sheet(isPresented: $showSearch, onDismiss: {
-            selected?.search = false
-        }) {
-            ImprovedSearch(group: group)
+        .onAppear {
+            guard !OSEnvironment.pad else { return }
+            sonosService.selectedGroup = group
         }
-        .sheet(isPresented: $showQueue) {
-            QueueScreen(group: $group)
-                .presentationDetents([.medium, .large])
+        .onDisappear {
+            guard !OSEnvironment.pad else { return }
+            sonosService.selectedGroup = nil
         }
         .onChange(of: sonosService.selectedGroup) {
             if group != sonosService.selectedGroup, let selectedGroup = sonosService.selectedGroup {
                 group = selectedGroup
-            }
-        }
-        .onChange(of: selected, initial: true) {
-            if let search = selected?.search {
-                showSearch = search
             }
         }
         .background {
@@ -167,6 +154,8 @@ struct LargePlayerView: View {
                     .ignoresSafeArea()
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(group.nameWithCount)
     }
 
     private func playbackView() -> some View {
@@ -291,32 +280,24 @@ struct LargePlayerView: View {
 
 #Preview {
     NavigationStack {
-        LargePlayerView(group: .constant(.garage), selected: .constant(nil))
+        LargePlayerView(group: .constant(.garage))
             .environment(SonosService())
-            .onAppear {
-                let thumbImage = UIImage()
-                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-            }
     }
 }
 
 #if DEBUG
 #Preview("Group") {
     NavigationStack {
-        LargePlayerView(group: .constant(.garagePlusTheater), selected: .constant(nil))
+        LargePlayerView(group: .constant(.garagePlusTheater))
             .screenshot(name: "Player Screen")
             .environment(SonosService())
-            .onAppear {
-                let thumbImage = UIImage()
-                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-            }
     }
     .colorScheme(.dark)
 }
 
 #Preview("Appstore Screens") {
     NavigationStack {
-        LargePlayerView(group: .constant(.garage), selected: .constant(nil))
+        LargePlayerView(group: .constant(.garage))
             .screenshot(name: "Player Screen")
             .colorScheme(.dark)
             .environment(SonosService())

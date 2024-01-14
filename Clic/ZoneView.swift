@@ -8,9 +8,10 @@ struct ZoneView: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text(group.coordinatorRoom.track.name)
+                .tint(.primary)
             Text(group.coordinatorRoom.track.artist)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .tint(.secondary)
         }
         .frame(alignment: .top)
         .fontDesign(.rounded)

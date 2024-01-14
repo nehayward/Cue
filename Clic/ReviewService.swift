@@ -1,30 +1,17 @@
 import Foundation
 
 final class ReviewService {
-    private var askAfterDate: Date { 
+    static var shared = ReviewService()
+
+    var numberOfOpens: Int {
         get {
-            UserDefaults.standard.object(forKey: "com.clic.installDate") as? Date ?? defaultAskDate
+            UserDefaults.standard.integer(forKey: "com.clic.numberOfOpens")
         } set {
-            UserDefaults.standard.set(newValue, forKey: "com.clic.installDate")
+            UserDefaults.standard.set(newValue, forKey: "com.clic.numberOfOpens")
         }
     }
 
     func askForRequest() -> Bool {
-        if askAfterDate < Date.now {
-            askAfterDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: .now)!
-            return true
-        }
-        return false
-    }
-
-    fileprivate var defaultAskDate: Date {
-        let defaultDate =
-        Calendar.current.date(
-            byAdding: .day,
-            value: 3,
-            to: .now
-        )!
-        askAfterDate = defaultDate
-        return defaultDate
+        numberOfOpens > 3
     }
 }

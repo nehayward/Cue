@@ -1,0 +1,106 @@
+import SwiftUI
+import SonosKit
+import NukeUI
+import VibesDS
+
+struct PlayerSelectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(SonosService.self) private var sonosService
+    @Environment(RouterPath.self) private var router: RouterPath?
+
+    @State var playableContent: PlayableContent?
+    @State var mediaContent: MediaContent?
+
+    private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
+
+    var body: some View {
+        @Bindable var sonosService = sonosService
+
+        VStack {
+            HStack(alignment: .top) {
+                if let playableContent {
+                    LazyImage(url: playableContent.artwork) { state in
+                        if let image = state.image {
+                            image
+                                .resizable()
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        } else {
+                            ProgressView()
+                                .padding()
+                        }
+                    }
+                    .transition(.scale)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 100)
+                    VStack(alignment: .leading) {
+                        Text(playableContent.title)
+                        Text(playableContent.subtitle)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fontDesign(.rounded)
+                    .padding(.horizontal)
+                } else {
+                    ProgressView()
+                }
+            }
+            .padding(.horizontal)
+
+            List ($sonosService.sorted) { $group in
+                VStack(alignment: .leading) {
+                    Button {
+                        impactFeedbackGenerator.impactOccurred()
+                        router?.dismiss = true
+                        dismiss()
+                        Task {
+                            if let playableContent {
+                                await sonosService.queue(content: playableContent.content, group: group)
+                            }
+                            if let mediaContent {
+                                await sonosService.queue(content: mediaContent, group: group)
+                            }
+                            await sonosService.play(ip: group.ip)
+                        }
+                    } label: {
+                        Text(group.nameWithCount)
+                            .fontDesign(.rounded)
+                            .bold()
+                    }
+                    VolumeControlView(group: $group, touchDelay: 0.05)
+                        .frame(height: 24)
+                }
+                .foregroundStyle(.primary)
+                .swipeActions {
+                    Button {
+                        router?.dismiss = true
+                        dismiss()
+                        Task {
+                            if let playableContent {
+                                await sonosService.queue(content: playableContent.content, group: group, position: .next)
+                            }
+                            if let mediaContent {
+                                await sonosService.queue(content: mediaContent, group: group, position: .next)
+                            }
+                            await sonosService.play(ip: group.ip)
+                        }
+                    } label: {
+                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
+                            .font(.caption)
+                    }
+                }
+            }
+            .listRowSpacing(10)
+        }
+        .task {
+            if let mediaContent {
+                playableContent = await sonosService.getContent(from: mediaContent)
+            }
+            try? await sonosService.updateGroups()
+            try? await sonosService.load(useCache: true)
+            impactFeedbackGenerator.prepare()
+        }
+        .listStyle(.insetGrouped)
+    }
+}
+
+

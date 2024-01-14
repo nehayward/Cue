@@ -17,18 +17,12 @@ struct DeviceListView: View {
                 SceneView()
                     .listRowBackground(Color.clear)
                 ForEach($sonosService.sorted) { $group in
-                    ZStack {
-                        if group.tvMode {
-                            TVModeViewCell(group: $group)
-                        } else {
-                            DeviceCellView(group: $group)
-                        }
-                    }
-                    .tag(group.coordinatorID)
-                    .redacted(reason: enabled(group: group) ? [] : .placeholder)
-                    .disabled(!enabled(group: group))
-                    .selectionDisabled(!enabled(group: group))
-                    .padding(.vertical)
+                    DeviceCellView(group: $group)
+                        .tag(group.coordinatorID)
+                        .redacted(reason: enabled(group: group) ? [] : .placeholder)
+                        .disabled(!enabled(group: group))
+                        .selectionDisabled(!enabled(group: group))
+                        .padding(.vertical)
                 }
             }
             .listStyle(.carousel)

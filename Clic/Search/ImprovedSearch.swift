@@ -11,6 +11,7 @@ struct ImprovedSearch: View, KeyboardReadable {
 
     let musicSearchService = MusicSearchService()
 
+    @State private var router: RouterPath = RouterPath()
     @State private var isKeyboardVisible = false
     @State var query: String = ""
     @State var results: [ItunesResult] = []
@@ -28,10 +29,10 @@ struct ImprovedSearch: View, KeyboardReadable {
     @AppStorage("com.clic.searchSelection") private var musicSearchSelection: SearchSelection = .spotify
     @CloudStorage("com.clic.searchHistory") var searchHistory: OrderedSet<String> = []
 
-    var group: GroupRoom
+    var group: GroupRoom?
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $router.path) {
             List {
                 switch musicSearchSelection {
                 case .spotify:
@@ -40,7 +41,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                     AppleMusicSearchView(results: $results, filters: $filters, group: group)
                 }
             }
-            .padding(.bottom, 60)
+            .withAppRouter(router: router)
             .searchable(text: $query, isPresented: $searchFieldIsPresented, prompt: "Searching \(musicSearchSelection.title)")
             .searchSuggestions {
                 if query.isEmpty {
@@ -103,44 +104,49 @@ struct ImprovedSearch: View, KeyboardReadable {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack {
-                        Image(systemName: "hifispeaker.fill")
-                        Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    if musicSearchSelection == .spotify {
+                        FilterView(filters: $filters)
                     }
-                    .fontDesign(.rounded)
-                    .bold()
-                }
-            }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                if musicSearchSelection == .spotify {
-                    FilterView(filters: $filters)
-                }
-                Spacer()
-                Menu {
-                    Button {
-                        musicSearchSelection = .spotify
+                    Spacer()
+                    Menu {
+                        Button {
+                            musicSearchSelection = .spotify
+                        } label: {
+                            HStack {
+                                Text("Spotify")
+                                Image(.spotifyLogo)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .tag(SearchSelection.spotify)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
+                        .id(SearchSelection.spotify)
+
+                        Button {
+                            musicSearchSelection = .apple
+                        } label: {
+                            HStack {
+                                Text("Apple Music")
+                                Image(systemName: "apple.logo")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .tag(SearchSelection.spotify)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
+                        .id(SearchSelection.apple)
                     } label: {
-                        HStack {
-                            Text("Spotify")
+                        switch musicSearchSelection {
+                        case .spotify:
                             Image(.spotifyLogo)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .tag(SearchSelection.spotify)
+                                .tag(musicSearchSelection)
                                 .frame(width: 24, height: 24)
-                        }
-                    }
-                    .id(SearchSelection.spotify)
-
-                    Button {
-                        musicSearchSelection = .apple
-                    } label: {
-                        HStack {
-                            Text("Apple Music")
+                        case .apple:
                             Image(systemName: "apple.logo")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -148,27 +154,11 @@ struct ImprovedSearch: View, KeyboardReadable {
                                 .frame(width: 24, height: 24)
                         }
                     }
-                    .id(SearchSelection.apple)
-                } label: {
-                    switch musicSearchSelection {
-                    case .spotify:
-                        Image(.spotifyLogo)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .tag(musicSearchSelection)
-                            .frame(width: 24, height: 24)
-                    case .apple:
-                        Image(systemName: "apple.logo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .tag(SearchSelection.spotify)
-                            .frame(width: 24, height: 24)
-                    }
+                    .frame(alignment: .trailing)
+                    .padding()
                 }
-                .frame(alignment: .trailing)
-                .padding()
+                .background(.bar)
             }
-            .background(.bar)
         }
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
@@ -188,6 +178,10 @@ struct ImprovedSearch: View, KeyboardReadable {
                 searchHistory.insert(query, at: 0)
             }
         }
+        .environment(router)
+        .onChange(of: router.dismiss) {
+            dismiss()
+        }
     }
 
     @MainActor
@@ -201,27 +195,27 @@ struct ImprovedSearch: View, KeyboardReadable {
     }
 }
 
-#Preview {
-    Text("Searching...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "Dua Lipa", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Empty Queue") {
-    Text("Searching Empty...")
-        .sheet(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
-
-#Preview("Full Screen") {
-    Text("Searching Empty...")
-        .fullScreenCover(isPresented: .constant(true)) {
-            ImprovedSearch(query: "", group: .garage)
-                .environment(SonosService())
-        }
-}
-
+//#Preview {
+//    Text("Searching...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "Dua Lipa", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Empty Queue") {
+//    Text("Searching Empty...")
+//        .sheet(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//
+//#Preview("Full Screen") {
+//    Text("Searching Empty...")
+//        .fullScreenCover(isPresented: .constant(true)) {
+//            ImprovedSearch(query: "", group: .garage)
+//                .environment(SonosService())
+//        }
+//}
+//

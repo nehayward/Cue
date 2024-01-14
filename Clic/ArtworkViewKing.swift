@@ -1,4 +1,5 @@
 import Kingfisher
+import NukeUI
 import SwiftUI
 import SonosKit
 
@@ -8,44 +9,43 @@ struct ArtworkViewKing: View {
     @State var artworkURL: URL?
 
     var body: some View {
-        KFImage(artworkURL)
-            .placeholder {
+        LazyImage(url: artworkURL) { state in
+            if let image = state.image {
+                image.resizable().aspectRatio(contentMode: .fit)
+            } else {
                 RoundedRectangle(cornerRadius: 4)
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.ultraThinMaterial)
                     .shadow(radius: 2)
             }
-            .cacheMemoryOnly()
-            .fade(duration: 0.2)
-            .retry(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(2)))
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(radius: 2)
-            .overlay(alignment: .bottomTrailing) {
-                switch group.coordinatorRoom.track.musicService {
-                case .apple:
-                    Image(systemName: "apple.logo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 16, height: 16)
-                        .padding([.trailing, .bottom], 4)
-                case .spotify:
-                    Image(.spotifyLogo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 16, height: 16)
-                        .padding([.trailing, .bottom], 4)
-                case .airplay, .unknown:
-                    EmptyView()
-                        .padding([.trailing, .bottom], 4)
-                }
-            }.task(id: group.coordinatorRoom.track.name) {
-                print("Fetching Track for \(group.nameWithCount)")
-                artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(radius: 2)
+        .overlay(alignment: .bottomTrailing) {
+            switch group.coordinatorRoom.track.musicService {
+            case .apple:
+                Image(systemName: "apple.logo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: 16, height: 16)
+                    .padding([.trailing, .bottom], 4)
+            case .spotify:
+                Image(.spotifyLogo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: 16, height: 16)
+                    .padding([.trailing, .bottom], 4)
+            case .airplay, .unknown:
+                EmptyView()
+                    .padding([.trailing, .bottom], 4)
             }
+        }
+        .task(id: group.coordinatorRoom.track.name) {
+            print("Fetching Track for \(group.nameWithCount)")
+            artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
+        }
     }
 }
 
