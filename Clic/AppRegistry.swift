@@ -50,6 +50,8 @@ extension View {
                 }
             case let .groupDestination(content):
                 PlayerSelectionView(playableContent: content)
+            case .manageScenes:
+                ManageSceneScreen()
             }
         }
     }

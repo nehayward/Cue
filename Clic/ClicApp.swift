@@ -31,6 +31,12 @@ struct ClicApp: App {
                 } else {
                     DeviceListMainView()
                 }
+                Button {
+                    requestReview()
+                } label: {
+                    Text("Request")
+                }
+
             }
             .environment(router)
             .environment(sonosService)
@@ -74,7 +80,11 @@ struct ClicApp: App {
             }
 
             guard ReviewService.shared.askForRequest() else { return }
-            requestReview()
+
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                requestReview()
+            }
 
 //            // MARK: Add back when monitoring is fixed
 //            Task { @MainActor in
@@ -105,6 +115,7 @@ struct ClicApp: App {
         }
     }
 
+    @MainActor
     private func handle(_ url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
         if components.host?.lowercased() == "subscribe" {

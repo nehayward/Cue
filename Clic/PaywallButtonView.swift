@@ -1,0 +1,81 @@
+import Kingfisher
+import NukeUI
+import SwiftUI
+import SonosKit
+
+struct PaywallButtonView: View {
+    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(RouterPath.self) var router: RouterPath?
+
+    private var features = [
+        ("Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
+        ("Live Activities + Dynamic Island", "Instantly adjust playback and volume from the lock screen."),
+        ("Interactive Widgets", "Convenient home screen widgets for immediate playback control."),
+        ("Apple Watch", "Control your Sonos system with ease from your wrist."),
+        ("Scenes", "Group rooms and set ideal volume with a single tap."),
+        ("Apple Shortcuts", "Rapidly manage playback using the Shortcuts app.")
+    ]
+
+    @State private var title = ""
+    @State private var current: Int? = 0
+    @State private var count = 0
+
+    @State private var timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+    private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
+
+    var body: some View {
+        Button {
+            impactFeedbackGenerator.impactOccurred()
+            router?.presentedSheet = .paywall
+        } label: {
+            ScrollView(.horizontal) {
+                HStack {
+                    ForEach(Array(features.enumerated()), id: \.offset) { index, element in
+                        VStack {
+                            Text(element.0)
+                                .font(.title3)
+                                .foregroundStyle(.thickMaterial)
+                            Text(element.1)
+                                .lineLimit(2, reservesSpace: true)
+                                .foregroundStyle(.thinMaterial)
+                        }
+                        .multilineTextAlignment(.center)
+                        .containerRelativeFrame([.horizontal])
+                        .id(index)
+                        .scrollTransition(.animated, axis: .horizontal) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1.0 : 0.8)
+                                .scaleEffect(phase.isIdentity ? 1.0 : 0.8)
+                                .blur(radius: phase.isIdentity ? 0 : 8)
+                        }
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollDisabled(true)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $current)
+            .lineLimit(1, reservesSpace: true)
+            .fontDesign(.rounded)
+            .bold()
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.accent.gradient)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(radius: 8, x: 0, y: 1)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .onReceive(timer) { _ in
+            count += 1
+            withAnimation {
+                current = count % features.count
+            }
+        }
+    }
+}
+
+#Preview {
+    PaywallButtonView()
+        .environment(SonosService())
+}
+

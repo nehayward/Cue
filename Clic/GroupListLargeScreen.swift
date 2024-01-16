@@ -136,7 +136,7 @@ struct GroupListLargeScreen: View {
                                     router.path.removeAll()
                                 }
                         }
-                    case .groupDestination:
+                    default:
                         EmptyView()
                     }
                 }

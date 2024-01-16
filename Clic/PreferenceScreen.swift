@@ -9,8 +9,9 @@ struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
 
-    @State private var showPaywall = false
+    @State private var router = RouterPath()
     @State private var showSubscriptions = false
+    
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
 
@@ -22,18 +23,11 @@ struct PreferenceScreen: View {
                 Section {
                     if !subscriptionService.subscription.isActive {
                         Button {
-                            impactFeedbackGenerator.impactOccurred()
-                            showPaywall = true
+
                         } label: {
-                            Text("Subscribe")
-                                .frame(maxWidth: .infinity)
-                                .bold()
-                                .foregroundStyle(.ultraThickMaterial)
-                                .padding()
+                            PaywallButtonView()
                         }
-                        .fontDesign(.rounded)
-                        .background(Color.accentColor.gradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .environment(router)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                     } else {
@@ -51,8 +45,6 @@ struct PreferenceScreen: View {
                         }
                     }
                 }
-                .manageSubscriptionsSheet(isPresented: $showSubscriptions)
-
                 Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
                     #if DEBUG
@@ -82,9 +74,7 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        ManageSceneScreen()
-                    } label: {
+                    NavigationLink(value: RouterDestination.manageScenes) {
                         Text("Scenes")
                     }
                 } footer: {
@@ -166,10 +156,10 @@ struct PreferenceScreen: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
-            }
             .navigationTitle("Preferences")
+            .manageSubscriptionsSheet(isPresented: $showSubscriptions)
+            .withAppRouter(router: router)
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         }
         .task {
             try? await subscriptionService.checkSubscription()

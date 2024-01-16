@@ -98,42 +98,32 @@ struct DeviceListMainView: View {
                     }
 
                     if !subscriptionService.subscription.isActive {
-                        Button {
-                            router.presentedSheet = .paywall
-                        } label: {
-                            Text("Show all devices (\(sonosService.groups.count))")
-                                .fontDesign(.rounded)
-                                .bold()
-                                .foregroundStyle(Color.accentColor.gradient)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(.thickMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .padding()
-                                .shadow(radius: 16, x: 0, y: 2)
-                        }
-                        .buttonStyle(.haptic)
+                        PaywallButtonView()
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
                     }
 
                     HStack {
                         Spacer()
-                        Menu {
-                            ForEach(scenes) { scene in
-                                Button {
-                                    Task {
-                                        try? await sonosService.runScene(scene)
+                        if subscriptionService.subscription.isActive {
+                            Menu {
+                                ForEach(scenes) { scene in
+                                    Button {
+                                        Task {
+                                            try? await sonosService.runScene(scene)
+                                        }
+                                    } label: {
+                                        Text(scene.name)
+                                            .tint(.red)
                                     }
-                                } label: {
-                                    Text(scene.name)
-                                        .tint(.red)
                                 }
+                            } label: {
+                                Image(systemName: "bolt.circle.fill")
+                                    .font(.title)
+                                    .foregroundStyle(.accent)
                             }
-                        } label: {
-                            Image(systemName: "bolt.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.accent)
+                            .buttonStyle(.haptic)
                         }
-                        .buttonStyle(.haptic)
 
                         Button {
                             router.presentedSheet = .search()
@@ -142,7 +132,8 @@ struct DeviceListMainView: View {
                                 .font(.title)
                                 .foregroundStyle(.accent)
                         }
-                        .padding()
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                         .buttonStyle(.haptic)
                     }
                     .ignoresSafeArea()

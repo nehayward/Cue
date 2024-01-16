@@ -1,9 +1,11 @@
 import SwiftUI
 import SonosKit
+import SubscriptionKit
 import VibesDS
 
 struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
     let id: String
@@ -70,8 +72,16 @@ struct GroupScreen: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink("Add Scene", value: viewModel.selections)
-                        .animation(.spring, value: viewModel.selections.isEmpty)
+                    if subscriptionService.subscription.isActive {
+                        NavigationLink("Add Scene", value: viewModel.selections)
+                            .animation(.spring, value: viewModel.selections.isEmpty)
+                    } else {
+                        Button {
+                            sheetDestination = .paywall
+                        } label: {
+                            Text("Add Scene")
+                        }
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
