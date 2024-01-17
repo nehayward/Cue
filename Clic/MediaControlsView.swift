@@ -3,7 +3,7 @@ import SonosKit
 
 struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
     @Binding var group: GroupRoom
 
@@ -57,5 +57,5 @@ struct MediaControlsView: View {
 #Preview {
     MediaControlsView(group: .constant(.garage))
         .environment(SonosService())
-        .environment(RouterPath())
+        .environment(Router())
 }

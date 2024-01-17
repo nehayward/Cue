@@ -3,9 +3,10 @@ import SwiftUI
 import Observation
 import SonosKit
 
-@Observable public class RouterPath {
+
+@Observable public final class Router {
     var path: [RouterDestination] = []
-    var presentedSheet: SheetDestination?
+    @MainActor var presentedSheet: SheetDestination?
     var dismiss: Bool = false
 
     private let sonosService: SonosService
@@ -15,7 +16,7 @@ import SonosKit
     }
 
     @MainActor
-    public func navigate(to: RouterDestination) {
+    func navigate(to: RouterDestination) {
         path.append(to)
     }
 

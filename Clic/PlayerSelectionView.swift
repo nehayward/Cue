@@ -6,7 +6,7 @@ import VibesDS
 struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
-    @Environment(RouterPath.self) private var router: RouterPath?
+    @Environment(Router.self) private var router: Router?
 
     @State var playableContent: PlayableContent?
     @State var mediaContent: MediaContent?

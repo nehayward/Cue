@@ -1,6 +1,7 @@
 import RevenueCatUI
 import RevenueCat
 import SwiftUI
+import SubscriptionKit
 
 struct PaywallView_Previews: PreviewProvider {
     private static let product = TestStoreProduct(

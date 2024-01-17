@@ -151,7 +151,7 @@
 		E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
-		E9FDDC302B238216005D281E /* RouterPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* RouterPath.swift */; };
+		E9FDDC302B238216005D281E /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
 		E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
 		E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
@@ -355,7 +355,7 @@
 		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
 		E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSEnvironment.swift; sourceTree = "<group>"; };
 		E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Beta.xcconfig; sourceTree = "<group>"; };
-		E9FDDC2F2B238216005D281E /* RouterPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterPath.swift; sourceTree = "<group>"; };
+		E9FDDC2F2B238216005D281E /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
 		E9FDDC312B27BD20005D281E /* SheetDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetDestination.swift; sourceTree = "<group>"; };
 		E9FDDC332B27BED4005D281E /* AppRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRegistry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -565,7 +565,7 @@
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
 				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
 				E9F600CB2B539FF30039AAA6 /* Onboard */,
-				E9FDDC2F2B238216005D281E /* RouterPath.swift */,
+				E9FDDC2F2B238216005D281E /* Router.swift */,
 				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
 				E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */,
 				E92D6EEE2B46634800E49AC8 /* Track+.swift */,
@@ -1025,7 +1025,7 @@
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */,
-				E9FDDC302B238216005D281E /* RouterPath.swift in Sources */,
+				E9FDDC302B238216005D281E /* Router.swift in Sources */,
 				E9CF44F42B54797300D66181 /* Paywall.swift in Sources */,
 				E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */,
 				E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */,

@@ -9,7 +9,7 @@ struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
 
-    @State private var router = RouterPath()
+    @State private var router = Router()
     @State private var showSubscriptions = false
     
     @AppStorage("AppIcon") var selectedAppIcon = "Default"

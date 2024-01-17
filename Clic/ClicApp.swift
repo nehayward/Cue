@@ -15,7 +15,7 @@ struct ClicApp: App {
     @Environment(\.requestReview) var requestReview
     @Environment(\.liveActivityManager) var liveActivityManager
 
-    @State private var router: RouterPath = RouterPath()
+    @State private var router: Router = Router()
     @State private var subscriptionService = SubscriptionService.shared
     @State private var sonosService = SonosService.shared
     @State private var alertService = AlertService.shared
@@ -31,12 +31,6 @@ struct ClicApp: App {
                 } else {
                     DeviceListMainView()
                 }
-                Button {
-                    requestReview()
-                } label: {
-                    Text("Request")
-                }
-
             }
             .environment(router)
             .environment(sonosService)
@@ -46,6 +40,16 @@ struct ClicApp: App {
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .task {
                 subscriptionService.monitorChanges()
+            }
+            .onAppear {
+                // MARK: Remove when update is complete
+                let updatedScenes = scenes.map { scene in
+                    var updatedScene = scene
+                    updatedScene.playableContent = nil
+                    return updatedScene
+                }
+
+                scenes = updatedScenes
             }
         }
         .onChange(of: scenePhase) {
@@ -64,7 +68,6 @@ struct ClicApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
-            ReviewService.shared.numberOfOpens += 1
             sonosService.monitor()
             
             if !subscriptionService.subscription.isActive {
@@ -79,11 +82,9 @@ struct ClicApp: App {
                 try? await subscriptionService.checkSubscription()
             }
 
-            guard ReviewService.shared.askForRequest() else { return }
-
             Task {
                 try? await Task.sleep(for: .seconds(1))
-                requestReview()
+                ReviewService.shared.askForRatingIfNeeded()
             }
 
 //            // MARK: Add back when monitoring is fixed
@@ -115,29 +116,17 @@ struct ClicApp: App {
         }
     }
 
-    @MainActor
     private func handle(_ url: URL) {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-        if components.host?.lowercased() == "subscribe" {
-            router.presentedSheet = .paywall
-            return
-        }
-
-        if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
-            router.presentedSheet = nil
-
-            if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                    router.path.removeAll()
-                    router.navigate(to: .player(groupID: group.coordinatorID))
-                } else if router.path.isEmpty {
-                    router.navigate(to: .player(groupID: group.coordinatorID))
-                }
-                router.presentedSheet = .search(group: group)
+        Task { @MainActor in
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+            if components.host?.lowercased() == "subscribe" {
+                router.presentedSheet = .paywall
                 return
             }
-            Task {
-                try await sonosService.fetch(useCache: true)
+
+            if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
+                router.presentedSheet = nil
+
                 if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                     if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
                         router.path.removeAll()
@@ -148,23 +137,24 @@ struct ClicApp: App {
                     router.presentedSheet = .search(group: group)
                     return
                 }
-            }
-        }
-
-        if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
-            router.presentedSheet = nil
-
-            if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                    router.path.removeAll()
-                    router.navigate(to: .player(groupID: group.coordinatorID))
-                } else if router.path.isEmpty {
-                    router.navigate(to: .player(groupID: group.coordinatorID))
+                Task {
+                    try await sonosService.fetch(useCache: true)
+                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        router.presentedSheet = .search(group: group)
+                        return
+                    }
                 }
-                return
             }
-            Task {
-                try await sonosService.fetch(useCache: true)
+
+            if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
+                router.presentedSheet = nil
+
                 if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                     if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
                         router.path.removeAll()
@@ -174,29 +164,41 @@ struct ClicApp: App {
                     }
                     return
                 }
+                Task {
+                    try await sonosService.fetch(useCache: true)
+                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        return
+                    }
+                }
             }
-        }
 
-        if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
-            guard let scene = scenes.first(where: { $0.name == name }) else { return }
-            Task {
-                alertService.showAlert(with: "Running \(scene.name)")
-                try await sonosService.runScene(scene)
+            if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
+                guard let scene = scenes.first(where: { $0.name == name }) else { return }
+                Task {
+                    alertService.showAlert(with: "Running \(scene.name)")
+                    try await sonosService.runScene(scene)
+                }
             }
-        }
 
-        if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init) {
-            if paths.count < 3 {
-                return
+            if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init) {
+                if paths.count < 3 {
+                    return
+                }
+                guard let service = MusicService(service: paths[2]),
+                      let type = ContentType(paths[3])
+                else { return }
+
+                let id = paths[4]
+
+                let media = MediaContent(service: service, id: id, type: type, location: nil)
+                router.presentedSheet = .playMedia(content: media)
             }
-            guard let service = MusicService(service: paths[2]),
-                  let type = ContentType(paths[3])
-            else { return }
-
-            let id = paths[4]
-
-            let media = MediaContent(service: service, id: id, type: type, location: nil)
-            router.presentedSheet = .playMedia(content: media)
         }
     }
 }

@@ -11,7 +11,10 @@ struct ImprovedSearch: View, KeyboardReadable {
 
     let musicSearchService = MusicSearchService()
 
-    @State private var router: RouterPath = RouterPath()
+    @Binding var adding: PlayableContent?
+    var isAdding: Bool = false
+    
+    @State private var router: Router = Router()
     @State private var isKeyboardVisible = false
     @State var query: String = ""
     @State var results: [ItunesResult] = []
@@ -36,7 +39,7 @@ struct ImprovedSearch: View, KeyboardReadable {
             List {
                 switch musicSearchSelection {
                 case .spotify:
-                    SpotifySearchView(spotifyResult: $spotifyResult, filters: $filters, group: group)
+                    SpotifySearchView(isAdding: isAdding, addingContent: $adding, spotifyResult: $spotifyResult, filters: $filters, group: group)
                 case .apple:
                     AppleMusicSearchView(results: $results, filters: $filters, group: group)
                 }

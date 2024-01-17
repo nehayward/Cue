@@ -3,7 +3,7 @@ import SonosKit
 
 struct TVModeViewCell: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(RouterPath.self) var routePath: RouterPath
+    @Environment(Router.self) var routePath: Router
     @Binding var group: GroupRoom
 
     var body: some View {

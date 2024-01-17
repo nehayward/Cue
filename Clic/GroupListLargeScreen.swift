@@ -9,7 +9,7 @@ struct GroupListLargeScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 

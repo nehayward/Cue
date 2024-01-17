@@ -5,6 +5,7 @@ import SwiftUI
 
 @MainActor
 extension View {
+
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>) -> some View {
         sheet(item: sheetDestinations) { destination in
             Group {
@@ -16,7 +17,9 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
-                    ImprovedSearch(group: group)
+                    ImprovedSearch(adding: .constant(nil), group: group)
+                case let .add(mediaContent):
+                    ImprovedSearch(adding: mediaContent, isAdding: true)
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -34,7 +37,7 @@ extension View {
         }
     }
 
-    func withAppRouter(router: RouterPath) -> some View {
+    func withAppRouter(router: Router) -> some View {
         @Bindable var sonosService = SonosService.shared
 
         return navigationDestination(for: RouterDestination.self) { destination in

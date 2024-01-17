@@ -7,7 +7,7 @@ import NukeUI
 
 struct AppleMusicSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
     @Binding var results: [ItunesResult]
     @Binding var filters: [FilterSelection]

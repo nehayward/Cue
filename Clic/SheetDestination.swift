@@ -6,6 +6,7 @@ enum SheetDestination: Identifiable {
     case paywall
     case groupScreen(groupScreenViewModel: GroupScreenViewModel, group: GroupRoom)
     case search(group: GroupRoom? = nil)
+    case add(mediaContent: Binding<PlayableContent?>)
     case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
@@ -20,6 +21,8 @@ enum SheetDestination: Identifiable {
             "groupScreen"
         case .search:
             "search"
+        case .add:
+            "media"
         case .queue:
             "queue"
         case .playContent:

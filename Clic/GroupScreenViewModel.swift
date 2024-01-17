@@ -2,7 +2,7 @@ import SonosKit
 import Observation
 
 @Observable
-final class GroupScreenViewModel {
+public final class GroupScreenViewModel {
     var group: GroupRoom
     var selections: Set<String>
     @ObservationIgnored var sonosService: SonosService

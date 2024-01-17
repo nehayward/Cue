@@ -9,7 +9,7 @@ struct DeviceListMainView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
@@ -109,6 +109,7 @@ struct DeviceListMainView: View {
                             Menu {
                                 ForEach(scenes) { scene in
                                     Button {
+                                        alertService.showAlert(with: "Running \(scene.name)")
                                         Task {
                                             try? await sonosService.runScene(scene)
                                         }
@@ -248,7 +249,7 @@ struct DeviceListMainView: View {
         .environment(SonosService.shared)
         .environment(SubscriptionService.shared)
         .environment(AlertService.shared)
-        .environment(RouterPath())
+        .environment(Router())
 }
 
 
@@ -260,6 +261,6 @@ struct DeviceListMainView: View {
         .environment(SonosService.shared)
         .environment(SubscriptionService.shared)
         .environment(AlertService.shared)
-        .environment(RouterPath())
+        .environment(Router())
 }
 #endif

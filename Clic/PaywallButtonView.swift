@@ -5,7 +5,7 @@ import SonosKit
 
 struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(RouterPath.self) var router: RouterPath?
+    @Environment(Router.self) var router: Router?
 
     private var features = [
         ("Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
@@ -20,7 +20,7 @@ struct PaywallButtonView: View {
     @State private var current: Int? = 0
     @State private var count = 0
 
-    @State private var timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+    @State private var timer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
     var body: some View {

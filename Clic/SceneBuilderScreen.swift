@@ -14,6 +14,9 @@ struct SceneBuilderScreen: View {
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
     @State var id: String?
+    @State var router = Router()
+
+    @State var playableContent: PlayableContent?
 
     @State var groupVolume = 0.0
     @State var groupVolumeTask: Task<Void,Error>?
@@ -61,8 +64,17 @@ struct SceneBuilderScreen: View {
                         selections.insert(group.wrappedValue.coordinatorRoom.id)
                     }
                 }
-//                NavigationLink("Add Playlist") {
-//                    MusicSearchScreen()
+//                Text("+")
+//                    .listRowBackground(Color.clear)
+//
+//                if let playableContent {
+//                    Text(playableContent.title)
+//                } else {
+//                    Button {
+//                        router.presentedSheet = .add(mediaContent: $playableContent)
+//                    } label: {
+//                        Text("Add Playlist")
+//                    }
 //                }
             }
             .toolbar {
@@ -120,7 +132,9 @@ struct SceneBuilderScreen: View {
                             selections.contains(room.id)
                         }
                         let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: PlayableContent(title: "", subtitle: "", artwork: nil, content: MediaContent(service: .spotify, id: "37i9dQZEVXcTv12cCWsQJf", type: .playlist, location: nil)))
+//                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: PlayableContent(title: "", subtitle: "", artwork: nil, content: MediaContent(service: .spotify, id: "37i9dQZEVXcTv12cCWsQJf", type: .playlist, location: nil)))
+                        
+                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: nil)
                         scenes.append(newScene)
                         sheetDestination = nil
                         dismiss()
@@ -142,6 +156,7 @@ struct SceneBuilderScreen: View {
                         .shadow(radius: 2)
                 }
             }
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .listRowSpacing(10)
             .task {
                 if sonosService.sortedRooms.isEmpty {

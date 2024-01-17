@@ -5,7 +5,7 @@ import VibesDS
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
     @Binding var group: GroupRoom
 

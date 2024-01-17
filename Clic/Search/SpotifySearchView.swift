@@ -8,8 +8,10 @@ import Kingfisher
 struct SpotifySearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
-    @Environment(RouterPath.self) var router: RouterPath
+    @Environment(Router.self) var router: Router
 
+    var isAdding: Bool = false
+    @Binding var addingContent: PlayableContent?
     @Binding var spotifyResult: SpotifyResult?
     @Binding var filters: [FilterSelection]
 
@@ -61,6 +63,13 @@ struct SpotifySearchView: View {
             ForEach(tracks) { item in
                 Button {
                     Task {
+                        if isAdding {
+                            let content = PlayableContent(title: item.name, subtitle: item.artists.first?.name ?? "", artwork: URL(string: item.album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil))
+                            addingContent = content
+                            router.dismiss = true
+                            return
+                        }
+
                         guard let group = group else {
                             let content = PlayableContent(title: item.name, subtitle: item.artists.first?.name ?? "", artwork: URL(string: item.album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil))
                             await router.navigate(to: .groupDestination(content: content))
