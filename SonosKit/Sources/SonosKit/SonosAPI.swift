@@ -286,12 +286,11 @@ final class SonosAPI {
 
     func getGroups(ipAddress: String) async throws -> [GroupRoom] {
         do {
-            if let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") {
-                guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-                SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
-                let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
-                return zones.compactMap { $0.toGroup }
-            }
+            guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") else { return [] }
+            guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
+            SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
+            let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
+            return zones.compactMap { $0.toGroup }
         } catch URLError.cancelled {
             print("Cancelled")
             throw SonosServiceError.cancelled
@@ -305,15 +304,12 @@ final class SonosAPI {
             // Clear IP and try again.
             throw SonosServiceError.sonosSystemNotFound
         }
-        
-        return []
     }
 
     func system(for IP: String) async throws -> System {
         do {
             guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") else  {
                 throw SonosAPIError.deviceNotFound
-
             }
             guard let xmlString = String(data: data, encoding: .utf8) else { throw SonosAPIError.deviceNotFound }
 
@@ -337,8 +333,6 @@ final class SonosAPI {
             // Clear IP and try again.
             throw SonosServiceError.sonosSystemNotFound
         }
-
-        throw SonosAPIError.deviceNotFound
     }
 
     func getRoom(ipAddress: String) async -> [Room] {

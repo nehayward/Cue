@@ -50,7 +50,6 @@ struct QueueScreen: View {
                 List {
                     ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
                         HStack {
-                            Text("\(index + 1)")
                             LazyImage(url: track.artworkURL) { state in
                                 if let image = state.image {
                                     image.resizable().aspectRatio(contentMode: .fit)
@@ -168,9 +167,13 @@ struct QueueScreen: View {
             }
         }
         .presentationBackground(.thinMaterial)
-        .background {
-            if isLoading {
+        .overlay {
+            if isLoading, !tracks.isEmpty {
                 ProgressView()
+            }
+            if tracks.isEmpty, !isLoading {
+                ContentUnavailableView("Empty", systemImage: "music.note.list")
+                    .transition(.opacity)
             }
         }
         .fontDesign(.rounded)

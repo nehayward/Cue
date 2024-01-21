@@ -5,13 +5,17 @@ import VibesDS
 
 struct DeviceListView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Popover.self) var popOver: Popover
+    @Environment(Router.self) var router: Router
+    @Environment(Popover.self) var popover: Popover
     @Binding var activeSubscription: Bool
     @Binding var selected: String?
 
     var body: some View {
         @Bindable var sonosService = sonosService
-
+        @Bindable var router = router
+        
+        // MARK: Add Back for Debugging
+        let _ = Self._printChanges()
         NavigationSplitView {
             List (selection: $selected) {
                 SceneView()
@@ -26,6 +30,16 @@ struct DeviceListView: View {
                 }
             }
             .listStyle(.carousel)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.sheet(to: .preferences)
+                    } label: {
+                        Image(systemName: "slider.vertical.3")
+                    }
+                }
+            }
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         } detail: {
             TabView {
                 if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
@@ -55,22 +69,18 @@ struct DeviceListView: View {
             }
         }
         .overlay {
-            if popOver.isShowing {
+            if popover.isShowing {
                 Rectangle()
                     .ignoresSafeArea()
                     .foregroundStyle(.ultraThinMaterial)
                     .overlay {
-                        Text(popOver.text)
+                        Text(popover.text)
                             .animation(nil)
                     }
                     .transition(.opacity)
             }
         }
         .background(Color.clear)
-        .onAppear {
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
-            sonosService.monitorWatch(useCache: true)
-        }
 //        .overlay {
 //            VStack {
 //                Text(!sonosService.sonosPulse.isCancelled ? "Running" : "Cancelled")
@@ -137,12 +147,12 @@ struct DeviceListView: View {
 
 #Preview {
     DeviceListView(activeSubscription: .constant(false), selected: .constant(nil))
-        .environment(SonosService())
-        .environment(Popover())
+        .environment(Router())
+        .withEnvironments()
 }
 
 #Preview("Active Subscription") {
     DeviceListView(activeSubscription: .constant(true), selected: .constant(nil))
-        .environment(SonosService())
-        .environment(Popover())
+        .environment(Router())
+        .withEnvironments()
 }

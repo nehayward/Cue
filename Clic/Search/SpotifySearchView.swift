@@ -1,4 +1,5 @@
 import CloudStorage
+import Defaults
 import MusicSearchKit
 import OrderedCollections
 import SwiftUI
@@ -9,6 +10,8 @@ struct SpotifySearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
     @Environment(Router.self) var router: Router
+
+    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     var isAdding: Bool = false
     @Binding var addingContent: PlayableContent?
@@ -63,16 +66,25 @@ struct SpotifySearchView: View {
             ForEach(tracks) { item in
                 Button {
                     Task {
+                        let content = PlayableContent(
+                            title: item.name,
+                            subtitle: item.artists.first?.name ?? "",
+                            artwork: URL(
+                                string: item.album.images.first?.url ?? ""
+                            ),
+                            content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil)
+                        )
+                        playHistory.remove(content)
+                        playHistory.insert(content, at: 0)
+
                         if isAdding {
-                            let content = PlayableContent(title: item.name, subtitle: item.artists.first?.name ?? "", artwork: URL(string: item.album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil))
                             addingContent = content
                             router.dismiss = true
                             return
                         }
 
                         guard let group = group else {
-                            let content = PlayableContent(title: item.name, subtitle: item.artists.first?.name ?? "", artwork: URL(string: item.album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil))
-                            await router.navigate(to: .groupDestination(content: content))
+                            router.navigate(to: .groupDestination(content: content))
                             return
                         }
                         router.dismiss = true
@@ -167,9 +179,20 @@ struct SpotifySearchView: View {
             ForEach(albums) { album in
                 Button {
                     Task {
+                        let content = PlayableContent(
+                            title: album.name,
+                            subtitle: album.artists.first?.name ?? "",
+                            artwork: URL(
+                                string: album.images.first?.url ?? ""
+                            ),
+                            content: MediaContent(service: .spotify, id: album.id, type: .album, location: nil)
+                        )
+                        playHistory.remove(content)
+                        playHistory.insert(content, at: 0)
+
                         guard let group = group else {
                             let content = PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: album.id, type: .album, location: nil))
-                            await router.navigate(to: .groupDestination(content: content))
+                            router.navigate(to: .groupDestination(content: content))
                             return
                         }
                         router.dismiss = true
@@ -211,9 +234,20 @@ struct SpotifySearchView: View {
             ForEach(playlists) { item in
                 Button {
                     Task {
+                        let content = PlayableContent(
+                            title: item.name,
+                            subtitle: item.owner.displayName,
+                            artwork: URL(
+                                string: item.images.first?.url ?? ""
+                            ),
+                            content: MediaContent(service: .spotify, id: item.id, type: .playlist, location: nil)
+                        )
+                        playHistory.remove(content)
+                        playHistory.insert(content, at: 0)
+
                         guard let group = group else {
                             let content = PlayableContent(title: item.name, subtitle: item.owner.displayName, artwork: URL(string: item.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .playlist, location: nil))
-                            await router.navigate(to: .groupDestination(content: content))
+                            router.navigate(to: .groupDestination(content: content))
                             return
                         }
                         router.dismiss = true

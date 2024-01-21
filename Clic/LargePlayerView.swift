@@ -56,21 +56,20 @@ struct LargePlayerView: View {
                         router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
                     } label: {
                         Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                            .font(.body)
+                            .fontDesign(.rounded)
+                            .font(.title3)
                     }
-                    .fontDesign(.rounded)
                     .buttonStyle(.plain)
-                    .font(.body)
                     Spacer()
                     Button {
                         router.presentedSheet = .search(group: group)
                     } label: {
-                        Image(systemName: "waveform.and.magnifyingglass")
-                            .font(.body)
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .fontDesign(.rounded)
+                            .font(.title3)
                     }
-                    .fontDesign(.rounded)
                     .buttonStyle(.plain)
-                    .font(.body)
+
                     if group.rooms.count > 1 {
                         Spacer()
                         Button {
@@ -78,8 +77,10 @@ struct LargePlayerView: View {
                                 isExpanded.toggle()
                             }
                         } label: {
-                            Image(systemName: "speaker.square.fill")
-                                .font(.body)
+                           Label("Room Volume", systemImage: "speaker.wave.2.circle.fill")
+                                .labelStyle(.iconOnly)
+                                .fontDesign(.rounded)
+                                .font(.title3)
                         }
                         .buttonStyle(.plain)
                     }
@@ -87,12 +88,11 @@ struct LargePlayerView: View {
                     Button {
                         router.presentedSheet = .queue(group: $group)
                     } label: {
-                        Image(systemName: "music.note.list")
-                            .font(.body)
+                        Image(systemName: "list.number")
+                            .fontDesign(.rounded)
+                            .font(.title3)
                     }
-                    .fontDesign(.rounded)
                     .buttonStyle(.plain)
-                    .font(.body)
 
 //                    if let musicServiceOpenURL = group.coordinatorRoom.track.safeURL {
                         // TODO: Add when flickering fixed

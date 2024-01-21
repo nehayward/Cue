@@ -1,3 +1,20 @@
+# 2024.6
+
+## External 
+
+- Improved system monitoring.
+- Watch app will now auto launch to currently playing group. You can turn this off in settings.
+- Added play history.
+- UI Improvements.
+
+## Internal
+
+- Improved monitoring so SwiftUI view isn't constantly redrawn.
+- Adding function to observe group changes.
+- Remove queue index number on watch and phone.
+- Add Defaults Package
+- Fix permission button not showing.
+
 # 2024.3
 
 ## External 

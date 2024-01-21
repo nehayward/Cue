@@ -29,7 +29,7 @@ class SonosStorageIP: ObservableObject {
 
 @Observable
 final class SonosSystemDiscoverService {
-    var isSearching: Bool = true
+    var isSearching: Bool = false
 
     @ObservationIgnored var sonosStorageIP = SonosStorageIP()
     @ObservationIgnored private var browser: NWBrowser?
@@ -64,35 +64,12 @@ final class SonosSystemDiscoverService {
         self.browser = browser
         browser.browseResultsChangedHandler = { [weak self] results, changed in
             guard let self else { return }
-            print("Browse results")
-            print(results)
-            print("CHANGED")
-            print(changed)
-            self.changeHandler(results)
+            changeHandler(results)
         }
 
         browser.stateUpdateHandler = { [weak self] newState in
-            guard let self = self else { return }
-            os_log("[browser] %@", newState.debugDescription)
-//            print(newState.debugDescription)
-            lastKnownState = newState.debugDescription
-            switch newState {
-            case .cancelled:
-                break
-            case .failed:
-                print("Failed")
-                os_log("[browser] restarting")
-                self.browser?.cancel()
-                self.startBrowsing()
-            case .ready:
-                break
-            case .setup:
-                break
-            case .waiting(let error):
-                print(error)
-            @unknown default:
-                break
-            }
+            guard let self else { return }
+            stateHandler(newState)
         }
 
         browser.start(queue: .main)
@@ -103,41 +80,16 @@ final class SonosSystemDiscoverService {
         browser = nil
         
     }
-    //
-    //    func search() {
-    //        print("Search")
-    //        let parameters = NWParameters()
-    //        parameters.includePeerToPeer = true
-    //        parameters.acceptLocalOnly = true
-    //        parameters.allowFastOpen = true
-    //
-    //        browser = nil
-    //        browser = NWBrowser(for: .bonjourWithTXTRecord(type: "_sonos._tcp", domain: nil), using: parameters)
-    //        browser?.browseResultsChangedHandler = { [weak self] results, _ in
-    //            self?.changeHandler(results)
-    //        }
-    //        browser?.stateUpdateHandler = { [weak self] in self?.stateHandler($0) }
-    //        browser?.start(queue: .main)
-    //    }
-    //
-    //    func stop() {
-    //        isSearching = false
-    //        browser?.cancel()
-    //        browser = nil
-    //    }
 
     @MainActor
     func getFirstIP(useCache: Bool) async throws -> String {
-        //        try? await Task.sleep(for: .seconds(4))
-//        lastKnownIP = ""
-
+        if useCache && !sonosStorageIP.sonosIP.isEmpty {
+            return sonosStorageIP.sonosIP
+        }
         defer {
             isSearching = false
         }
         isSearching = true
-        if useCache && !sonosStorageIP.sonosIP.isEmpty {
-            return sonosStorageIP.sonosIP
-        }
 
         lastKnownIP = ""
         startBrowsing()
@@ -192,26 +144,26 @@ final class SonosSystemDiscoverService {
     }
 
     private func stateHandler(_ newState: NWBrowser.State) {
+        lastKnownState = newState.debugDescription
+
         switch newState {
         case .ready:
-            lastKnownState = "Ready"
-            print("Ready")
             logger.trace("Browser ready. Starting browsing...")
         case let .failed(error):
-            lastKnownState = "Failed"
             logger.trace("Browser failed with error: \(error)")
-            stopBrowsing()
+            self.browser?.cancel()
+            self.startBrowsing()
         case let .waiting(error):
-            print("Waiting")
-            lastKnownState = "Waiting"
-            logger.trace("Browser failed waiting error: \(error)")
-            permissionsDenied = true
+            print(error.errorCode)
+            if let description = error.errorUserInfo["NSDescription"] as? String, description == "PolicyDenied" {
+                logger.trace("Browser failed waiting error: \(error)")
+                print(NSURLErrorDNSLookupFailed)
+                //            CFNetworkErrors.cfNetServiceErrorDNSServiceFailure.rawValue
+                permissionsDenied = true
+            }
         case .cancelled:
             lastKnownState = "Cancelled"
-            print("Browser Cancelled")
-            print(newState)
         default:
-            print("NewState:", newState)
             break
         }
     }

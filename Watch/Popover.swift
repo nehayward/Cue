@@ -1,7 +1,9 @@
 import Observation
 
 @Observable
-class Popover {
+final class Popover {
+    static var shared = Popover()
+    
     var isShowing: Bool = false
     var text: String = ""
 }

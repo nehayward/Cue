@@ -48,16 +48,16 @@ struct ClicApp: App {
                     updatedScene.playableContent = nil
                     return updatedScene
                 }
-
                 scenes = updatedScenes
+                
+                SonosService.shared.groupsChanged = { groups in
+                    guard subscriptionService.subscription.isActive else { return }
+                    liveActivityManager.createActivity()
+                }
             }
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
-        }
-        .onChange(of: sonosService.sorted.map(\.coordinatorRoom.isPlaying), initial: false) {
-            guard subscriptionService.subscription.isActive else { return }
-            liveActivityManager.createActivity()
         }
         .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
             activeSubscription =  newValue.isActive

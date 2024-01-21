@@ -1,13 +1,33 @@
 import Foundation
-import Combine
 import OrderedCollections
 import MusicSearchKit
 import Observation
 import SwiftUI
 
 @Observable
+public class SonosSystemState {
+    public var notFound: Bool = false
+    @ObservationIgnored var systemNotFound: Bool = false {
+        didSet {
+            if oldValue != systemNotFound {
+                notFound = systemNotFound
+            }
+        }
+    }
+
+    public var permissionDenied: Bool = false
+    @ObservationIgnored var systemPermissionDenied: Bool = false {
+        didSet {
+            if oldValue != systemPermissionDenied {
+                permissionDenied = systemPermissionDenied
+            }
+        }
+    }
+}
+
+@Observable
 public final class SonosService {
-    public static var shared = SonosService()
+    @ObservationIgnored public static var shared = SonosService()
 
     public var ID: String? = nil
     public var groups: [GroupRoom] = []
@@ -15,24 +35,24 @@ public final class SonosService {
 
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
-    @ObservationIgnored public var networkMonitorService = NetworkMonitorService()
 
+    @ObservationIgnored public var networkMonitorService = NetworkMonitorService()
     @ObservationIgnored private var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private var api = SonosAPI()
     @ObservationIgnored private var musicSearch = MusicSearchService()
 
-    public var systemNotFound: Bool = false
-    public var permissionsDenied: Bool = false
-    public var pulseIsRunning: Bool = false
+    public var systemState = SonosSystemState()
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
     public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
 
     @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
     @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
+    @ObservationIgnored public var isEditing: Bool = false
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
-    @ObservationIgnored public var isEditing: Bool = false
+
+    public var groupsChanged: (([GroupRoom]) -> ())? = nil
 
     public init () {
         sonosPulse.cancel()
@@ -82,9 +102,10 @@ public final class SonosService {
             var useCache = useCache
             var retry = retry
             repeat {
+                groupsChanged?(sorted)
                 do {
-                    systemNotFound = false
-                    permissionsDenied = false
+                    systemState.systemNotFound = false
+                    systemState.systemPermissionDenied = false
                     if isEditing {
                         try? await Task.sleep(for: .milliseconds(500))
                         continue
@@ -99,13 +120,13 @@ public final class SonosService {
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
-                    permissionsDenied = true
+                    systemState.systemPermissionDenied = true
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     guard retry else {
                         print("System not found")
-                        systemNotFound = true
+                        systemState.systemNotFound = true
                         sonosPulse.cancel()
                         return
                     }
@@ -135,20 +156,19 @@ public final class SonosService {
 
             repeat {
                 do {
-                    systemNotFound = false
-                    permissionsDenied = false
+                    systemState.systemNotFound = false
+                    systemState.systemPermissionDenied = false
                     try await fetch(useCache: useCache)
                     try? await Task.sleep(for: duration) // exception thrown when cancelled by SwiftUI when this view disappears.
-//                    print("Tock", Date.now)
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
                     print("Permision")
-                    permissionsDenied = true
+                    systemState.systemNotFound = true
                     sonosPulse.cancel()
                 }
                 catch SonosServiceError.sonosSystemNotFound {
                     print("System not found")
-                    systemNotFound = true
+                    systemState.systemNotFound = true
                     // MARK: Invalidate Cache
                     useCache = false
                 }
@@ -157,7 +177,7 @@ public final class SonosService {
                 }
                 catch {
                     print(error)
-                    permissionsDenied = true
+                    systemState.systemPermissionDenied = true
                     sonosPulse.cancel()
                 }
             } while (!sonosPulse.isCancelled)

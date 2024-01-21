@@ -18,6 +18,9 @@ struct DeviceListMainView: View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
 
+        // MARK: Add Back for Debugging
+        let _ = Self._printChanges()
+
         NavigationStack(path: $router.path) {
             List ($sonosService.sorted) { $group in
                 Section {
@@ -62,36 +65,39 @@ struct DeviceListMainView: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
+            .overlay(alignment: .bottom) {
                 VStack {
-                    if sonosService.permissionsDenied {
+                    if sonosService.systemState.permissionDenied {
                         Button {
                             // MARK: Settings Action
                             if let url = URL(string: UIApplication.openSettingsURLString) {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
-                            Text("Local Network Permission Needed")
+                            Label("Local Network Permission Needed", systemImage: "wifi.exclamationmark.circle.fill")
+                                .bold()
+                                .imageScale(.large)
+                                .symbolEffect(.pulse.wholeSymbol)
                                 .padding()
                                 .background {
                                     Capsule()
-                                        .foregroundStyle(.thinMaterial)
+                                        .foregroundStyle(.ultraThinMaterial)
                                 }
                         }
-                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                        .padding()
+                        .transition(.scale)
                     }
 
-                    if sonosService.systemNotFound {
+                    if sonosService.systemState.notFound {
                         Button {
                             sonosService.monitor()
                         } label: {
-                            Text("Discover")
-                                .bold()
+                            Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
+                                .imageScale(.large)
+                                .symbolEffect(.variableColor)
                                 .padding()
                                 .background {
                                     Capsule()
-                                        .foregroundStyle(.thinMaterial)
+                                        .foregroundStyle(.ultraThinMaterial)
                                 }
                         }
                         .transition(.scale)
@@ -101,119 +107,72 @@ struct DeviceListMainView: View {
                         PaywallButtonView()
                             .padding(.horizontal)
                             .padding(.vertical, 8)
+                            .transition(.scale)
                     }
-
-                    HStack {
-                        Spacer()
-                        if subscriptionService.subscription.isActive {
-                            Menu {
-                                ForEach(scenes) { scene in
-                                    Button {
-                                        alertService.showAlert(with: "Running \(scene.name)")
-                                        Task {
-                                            try? await sonosService.runScene(scene)
-                                        }
-                                    } label: {
-                                        Text(scene.name)
-                                            .tint(.red)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Spacer()
+                    if subscriptionService.subscription.isActive {
+                        Menu {
+                            ForEach(scenes) { scene in
+                                Button {
+                                    alertService.showAlert(with: "Running \(scene.name)")
+                                    Task {
+                                        try? await sonosService.runScene(scene)
                                     }
+                                } label: {
+                                    Text(scene.name)
+                                        .tint(.red)
                                 }
-                            } label: {
-                                Image(systemName: "bolt.circle.fill")
-                                    .font(.title)
-                                    .foregroundStyle(.accent)
                             }
-                            .buttonStyle(.haptic)
-                        }
-
-                        Button {
-                            router.presentedSheet = .search()
                         } label: {
-                            Image(systemName: "magnifyingglass.circle.fill")
+                            Image(systemName: "bolt.circle.fill")
                                 .font(.title)
                                 .foregroundStyle(.accent)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
                         .buttonStyle(.haptic)
                     }
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity)
-                    .background(.bar)
 
-//                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive && !scenes.isEmpty {
-//                        SceneView()
-//                            .transition(.offset(y: 100))
-//                    }
-//                    HStack {
-//                        Spacer()
-//                        Button {
-////                            show = true
-//                        } label: {
-//                            Text("Search")
-//                                .bold()
-//                                .padding()
-//                                .background {
-//                                    Capsule()
-//                                        .foregroundStyle(.thinMaterial)
-//                                }
-//                        }
-//                        .buttonStyle(.haptic)
-//                        .bold()
-//                        .buttonStyle(.borderedProminent)
-//                    }
-//                    .background(.clear)
-//                    .scrollTargetLayout()
-//                    .fontDesign(.rounded)
-//                    .fontWeight(.bold)
+                    Button {
+                        router.presentedSheet = .search()
+                    } label: {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.accent)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .buttonStyle(.haptic)
                 }
+                .ignoresSafeArea()
+                .frame(maxWidth: .infinity)
+                .background(.bar)
             }
         }
-
-//        .onChange(of: sonosService.sorted.count) {
-//            if let currentPath = router.path.last {
-//                switch currentPath {
-//                case .player(let group):
-//                    let group = sonos
-//                }
-//                router.path.removeAll()
-//                router.navigate(to: .player(group: group))
-//            }
-
-//            guard !OSEnvironment.pad else { return }
-//            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected.id }) {
-//                sonosService.selectedGroup = sonosService.sorted[index]
-//            } else {
-//                sonosService.selectedGroup = nil
-//                selected = nil
-//            }
-            
-//        }
         .animation(.spring, value: sonosService.isSearching)
         .safeAreaInset(edge: .top) {
             VStack {
                 if alertService.alert.isShowing {
                     PillView()
                 }
+
                 if !sonosService.networkMonitorService.isConnected {
-                    Label {
-                        Text("Connect to WiFi to find system")
-                    } icon: {
-                        Image(systemName: "wifi.slash")
-                    }
-                    .bold()
-                    .padding()
-                    .background {
-                        Capsule()
-                            .foregroundStyle(.thinMaterial)
-                    }
-                    .transition(.move(edge: .top).combined(with: .scale(0.8)))
-                    .padding()
-                    .offset(y: 50)
+                    Label("Can't find System, Connect to Wi-Fi", systemImage: "wifi.slash")
+                        .bold()
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.thinMaterial)
+                        }
+                        .transition(.move(edge: .top).combined(with: .scale(0.8)))
+                        .padding()
+                        .offset(y: 50)
                 }
 
-                if sonosService.isSearching && sonosService.groups.isEmpty {
-                    Label("Searching", systemImage: "waveform.badge.magnifyingglass")
+                if sonosService.isSearching {
+                    Label("Discovering Devices", systemImage: "waveform.badge.magnifyingglass")
                         .imageScale(.large)
                         .symbolEffect(.variableColor)
                         .padding()
@@ -227,14 +186,10 @@ struct DeviceListMainView: View {
             }
         }
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
-        .animation(.spring, value: sonosService.systemNotFound)
-        .animation(.spring, value: sonosService.permissionsDenied)
+        .animation(.spring, value: sonosService.systemState.notFound)
+        .animation(.spring, value: sonosService.systemState.permissionDenied)
         .animation(.spring, value: alertService.alert.isShowing)
         .animation(.interactiveSpring, value: sonosService.groups)
-        .task {
-            guard OSEnvironment.isPreviews else { return }
-            sonosService.monitor()
-        }
     }
 
     private func enabled(group: GroupRoom) -> Bool {

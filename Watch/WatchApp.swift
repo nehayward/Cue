@@ -8,15 +8,19 @@ import CloudStorage
 struct WatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
-    @State var sonosService = SonosService()
-    @State var popover = Popover()
-    @State var selected: String?
+
+    @State private var router: Router = Router()
+    @State private var sonosService = SonosService.shared
+    @State private var popover = Popover.shared
+    @State private var selected: String?
+
+    @AppStorage("com.clic.autoLaunchNowPlaying", store: UserDefaults(suiteName: "group.com.clic")) private var autoLaunchNowPlaying: Bool = true
 
     var body: some Scene {
         WindowGroup {
             DeviceListView(activeSubscription: $activeSubscription, selected: $selected)
-                .environment(popover)
-                .environment(sonosService)
+                .environment(router)
+                .withEnvironments()
                 .onChange(of: selected) {
                     print("Update current")
                     if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
@@ -71,25 +75,26 @@ struct WatchApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
+            if autoLaunchNowPlaying {
+                Task {
+                    try? await sonosService.updateGroupsCheckPlayback()
+                    if selected == nil {
+                        let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
+                        if playingGroups.count == 1, let groupPlaying = playingGroups.first {
+                            Task { @MainActor in
+                                selected = groupPlaying.coordinatorID
+                            }
+                        }
+                    }
+                }
+            }
+
             if sonosService.selectedGroup != nil {
                 Task {
                     try? await sonosService.fetch(useCache: true)
                 }
             }
             sonosService.monitorWatch(useCache: true)
-
-//            Task {
-//                try? await sonosService.updateGroupsCheckPlayback()
-//                
-//                if selected == nil {
-//                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
-//                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
-//                        try await Task.sleep(for: .milliseconds(200))
-//                        //                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
-//                        selected = groupPlaying.coordinatorID
-//                    }
-//                }
-//            }
         case .inactive:
             print("Inactive")
         case .background:

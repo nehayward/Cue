@@ -41,8 +41,8 @@ struct GroupListLargeScreen: View {
                                 .frame(height: 24)
                         }
                     }
-                    .tint(.primary)
-                    //                    .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
+//                    .tint(.primary)
+//                    .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                 } header: {
                     Text(group.nameWithCount)
@@ -67,7 +67,7 @@ struct GroupListLargeScreen: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack {
-                    if sonosService.permissionsDenied {
+                    if sonosService.systemState.permissionDenied {
                         Button {
                             // MARK: Settings Action
                             if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -85,7 +85,7 @@ struct GroupListLargeScreen: View {
                         .padding()
                     }
 
-                    if sonosService.systemNotFound {
+                    if sonosService.systemState.notFound {
                         Button {
                             sonosService.monitor()
                         } label: {
@@ -142,7 +142,6 @@ struct GroupListLargeScreen: View {
                 }
             }
         }
-        .animation(.spring, value: sonosService.isSearching)
         .safeAreaInset(edge: .top) {
             VStack {
                 if alertService.alert.isShowing {
@@ -179,20 +178,12 @@ struct GroupListLargeScreen: View {
                 }
             }
         }
+        .animation(.spring, value: sonosService.isSearching)
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
-        .animation(.spring, value: sonosService.systemNotFound)
-        .animation(.spring, value: sonosService.permissionsDenied)
+        .animation(.spring, value: sonosService.systemState.notFound)
+        .animation(.spring, value: sonosService.systemState.permissionDenied)
         .animation(.spring, value: alertService.alert.isShowing)
-        .onAppear {
-            let thumbImage = UIImage()
-            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-        }
         .animation(.interactiveSpring, value: sonosService.groups)
-        .task {
-            guard OSEnvironment.isPreviews else { return }
-            sonosService.monitor()
-        }
-        .navigationSplitViewStyle(.balanced)
     }
 
     private func enabled(group: GroupRoom) -> Bool {

@@ -14,7 +14,8 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-
+    @AppStorage("com.clic.autoLaunchNowPlaying", store: UserDefaults(suiteName: "group.com.clic")) private var autoLaunchNowPlaying: Bool = false
+    
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
     var body: some View {
@@ -91,6 +92,16 @@ struct PreferenceScreen: View {
                     Text("Live Activities")
                 }
                 
+                Section {
+                    Toggle(isOn: $autoLaunchNowPlaying) {
+                        Text("Auto Launch Group")
+                    }
+                    .tint(.accent)
+                } header: {
+                    Text("Watch")
+                } footer: {
+                    Text("Instantly jump to the group currently playing.")
+                }
 //                Section {
 //                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
 //                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in

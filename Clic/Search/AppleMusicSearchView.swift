@@ -1,4 +1,5 @@
 import CloudStorage
+import Defaults
 import MusicSearchKit
 import OrderedCollections
 import SwiftUI
@@ -9,6 +10,8 @@ struct AppleMusicSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
+    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+
     @Binding var results: [ItunesResult]
     @Binding var filters: [FilterSelection]
     var group: GroupRoom?
@@ -18,6 +21,23 @@ struct AppleMusicSearchView: View {
         ForEach(results) { result in
             Button {
                 Task {
+                    let content = PlayableContent(
+                        title: result.trackName,
+                        subtitle: result.artistName,
+                        artwork: URL(
+                            string: result.artworkURL
+                        ),
+                        content: MediaContent(
+                            service: .apple,
+                            id: String(
+                                result.trackID
+                            ),
+                            type: .track,
+                            location: nil
+                        )
+                    )
+                    playHistory.remove(content)
+                    playHistory.insert(content, at: 0)
                     guard let group = group else {
                         let content = PlayableContent(title: result.trackName, subtitle: result.artistName, artwork: URL(string: result.artworkURL), content: MediaContent(service: .apple, id: String(result.trackID), type: .track, location: nil))
                         router.navigate(to: .groupDestination(content: content))

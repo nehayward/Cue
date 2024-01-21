@@ -1,15 +1,17 @@
 import CloudStorage
 import MusicSearchKit
+import NukeUI
 import OrderedCollections
 import SwiftUI
 import SonosKit
 import Kingfisher
+import Defaults
 
 struct ImprovedSearch: View, KeyboardReadable {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(\.dismiss) var dismiss
+    @Environment(SonosService.self) private var sonosService: SonosService
+    @Environment(\.dismiss) private var dismiss
 
-    let musicSearchService = MusicSearchService()
+    private let musicSearchService = MusicSearchService()
 
     @Binding var adding: PlayableContent?
     var isAdding: Bool = false
@@ -31,12 +33,18 @@ struct ImprovedSearch: View, KeyboardReadable {
 
     @AppStorage("com.clic.searchSelection") private var musicSearchSelection: SearchSelection = .spotify
     @CloudStorage("com.clic.searchHistory") var searchHistory: OrderedSet<String> = []
+    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     var group: GroupRoom?
 
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
+                if !searchFieldIsPresented, !playHistory.isEmpty {
+                    PlayHistoryView()
+                        .environment(router)
+                        .environment(group)
+                }
                 switch musicSearchSelection {
                 case .spotify:
                     SpotifySearchView(isAdding: isAdding, addingContent: $adding, spotifyResult: $spotifyResult, filters: $filters, group: group)
@@ -107,6 +115,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Search")
             .safeAreaInset(edge: .bottom) {
                 HStack {
                     if musicSearchSelection == .spotify {
@@ -177,6 +186,7 @@ struct ImprovedSearch: View, KeyboardReadable {
         .onDisappear {
             if !query.isEmpty {
                 searchHistory = OrderedSet(searchHistory.prefix(10))
+                playHistory = OrderedSet(playHistory.prefix(20))
                 searchHistory.remove(query)
                 searchHistory.insert(query, at: 0)
             }
@@ -198,14 +208,14 @@ struct ImprovedSearch: View, KeyboardReadable {
     }
 }
 
-//#Preview {
-//    Text("Searching...")
-//        .sheet(isPresented: .constant(true)) {
-//            ImprovedSearch(query: "Dua Lipa", group: .garage)
-//                .environment(SonosService())
-//        }
-//}
-//
+#Preview {
+    Text("Searching...")
+        .sheet(isPresented: .constant(true)) {
+            ImprovedSearch(adding: .constant(nil), query: "", group: .garage)
+                .environment(SonosService.shared)
+        }
+}
+
 //#Preview("Empty Queue") {
 //    Text("Searching Empty...")
 //        .sheet(isPresented: .constant(true)) {

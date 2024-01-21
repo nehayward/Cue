@@ -58,6 +58,10 @@ final class LiveActivityManager: LiveActivityManageable {
             try? await sonosService.load(useCache: true)
 
             for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
+                guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
+                    continue
+                }
+
                 await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
 
                 let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
@@ -76,9 +80,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                name: group.nameWithCount)
 
                 let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
-                guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
-                    continue
-                }
+
 
                 do {
                     if Task.isCancelled { return }
