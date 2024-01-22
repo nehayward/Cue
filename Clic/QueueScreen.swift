@@ -154,7 +154,7 @@ struct QueueScreen: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .background(.thinMaterial)
                 }
-                .task {
+                .task(id: group) {
                     isLoading = true
                     self.tracks = await sonosService.getQueue(ip: group.ip)
                     group.playMode = await sonosService.playMode(ip: group.ip)

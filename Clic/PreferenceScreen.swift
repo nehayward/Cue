@@ -1,3 +1,4 @@
+import CloudStorage
 import SwiftUI
 import WatchConnectivity
 import SonosKit
@@ -14,8 +15,9 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    @AppStorage("com.clic.autoLaunchNowPlaying", store: UserDefaults(suiteName: "group.com.clic")) private var autoLaunchNowPlaying: Bool = false
-    
+
+    @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
+
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
     var body: some View {
@@ -92,15 +94,17 @@ struct PreferenceScreen: View {
                     Text("Live Activities")
                 }
                 
-                Section {
-                    Toggle(isOn: $autoLaunchNowPlaying) {
-                        Text("Auto Launch Group")
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    Section {
+                        Toggle(isOn: $autoLaunchNowPlaying) {
+                            Text("Auto Launch Group")
+                        }
+                        .tint(.accent)
+                    } header: {
+                        Text("Watch")
+                    } footer: {
+                        Text("Instantly jump to the group currently playing.")
                     }
-                    .tint(.accent)
-                } header: {
-                    Text("Watch")
-                } footer: {
-                    Text("Instantly jump to the group currently playing.")
                 }
 //                Section {
 //                    Picker(selection: $selectedAppIcon, label: EmptyView()) {

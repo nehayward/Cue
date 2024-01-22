@@ -6,6 +6,7 @@ import SonosKit
 
 @Observable public final class Router {
     var path: [RouterDestination] = []
+    var selection: RouterDestination?
     @MainActor var presentedSheet: SheetDestination?
     var dismiss: Bool = false
 

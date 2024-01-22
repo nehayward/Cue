@@ -19,30 +19,26 @@ struct GroupListLargeScreen: View {
         @Bindable var router = router
 
         NavigationSplitView {
-            List ($sonosService.sorted) { $group in
+            List ($sonosService.sorted, selection: $router.selection) { $group in
                 Section {
-                    Button {
-                        router.path.removeAll()
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    } label: {
-                        VStack(spacing: 12) {
-                            if group.tvMode {
-                                TVModeViewCell(group: $group)
-                            } else {
-                                HStack(alignment: .top) {
-                                    ArtworkViewKing(group: $group)
-                                        .frame(width: 72, height: 72)
-                                    ZoneView(group: $group)
-                                    Spacer()
-                                    MediaControlsView(group: $group)
-                                }
+                    VStack(spacing: 12) {
+                        if group.tvMode {
+                            TVModeViewCell(group: $group)
+                        } else {
+                            HStack(alignment: .top) {
+                                ArtworkViewKing(group: $group)
+                                    .frame(width: 72, height: 72)
+                                ZoneView(group: $group)
+                                Spacer()
+                                MediaControlsView(group: $group)
                             }
-                            VolumeControlView(group: $group, touchDelay: 0.05)
-                                .frame(height: 24)
                         }
+                        VolumeControlView(group: $group, touchDelay: 0.05)
+                            .frame(height: 24)
                     }
-//                    .tint(.primary)
-//                    .accentColor(group.coordinatorID == selected?.id ? .primary : .accent)
+                    .tag(RouterDestination.player(groupID: group.coordinatorID))
+                    .listRowBackground(group.coordinatorID == router.selection?.id ? Color(uiColor: .systemFill) : nil)
+                    .foregroundStyle(.primary)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                 } header: {
                     Text(group.nameWithCount)
@@ -54,6 +50,7 @@ struct GroupListLargeScreen: View {
                 .disabled(!enabled(group: group))
                 .selectionDisabled(!enabled(group: group))
             }
+            .listStyle(.insetGrouped)
             .withAppRouter(router: router)
             .navigationBarTitle("", displayMode: .inline)
             .toolbar {
@@ -124,21 +121,22 @@ struct GroupListLargeScreen: View {
                 }
             }
         } detail: {
-            NavigationStack {
-                if let destination = router.path.first {
-                    switch destination {
-                    case let .player(groupID):
-                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-                            LargePlayerView(group: $sonosService.sorted[group])
-                        } else {
-                            Text("Group No Longer Available")
-                                .onTapGesture {
-                                    router.path.removeAll()
-                                }
-                        }
-                    default:
-                        EmptyView()
+            if let destination = router.selection {
+                switch destination {
+                case let .player(groupID):
+                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
+                        LargePlayerView(group: $sonosService.sorted[group])
+                            .navigationBarTitleDisplayMode(.inline)
+                    } else {
+                        Text("Group No Longer Available")
+                            .onTapGesture {
+                                router.selection = nil
+                            }
+                            .navigationBarTitleDisplayMode(.inline)
                     }
+                default:
+                    Text("Select a group")
+                        .navigationBarTitleDisplayMode(.inline)
                 }
             }
         }

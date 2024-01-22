@@ -45,9 +45,6 @@ struct VolumeControlView: View {
                 }
             }
             .foregroundStyle(.accent)
-//            .sensoryFeedback(.selection, trigger: group.groupVolume) { _, _ in
-//                isEditing
-//            }
             Text("\(group.groupVolume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())
                 .monospacedDigit()
