@@ -10,6 +10,89 @@
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
+		E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
+		E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
+		E92B3E9F2B60249B00724FA1 /* Bundle+AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */; };
+		E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */; };
+		E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
+		E92B3EA22B60249B00724FA1 /* LogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */; };
+		E92B3EA32B60249B00724FA1 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
+		E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
+		E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
+		E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
+		E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
+		E92B3EA82B60249B00724FA1 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
+		E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D38C502B5DADBB0025CC31 /* PlayHistoryView.swift */; };
+		E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */; };
+		E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABF2B0EBC9900AF57EA /* SearchSelection.swift */; };
+		E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
+		E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
+		E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
+		E92B3EAF2B60249B00724FA1 /* Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F32B54797300D66181 /* Paywall.swift */; };
+		E92B3EB02B60249B00724FA1 /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */; };
+		E92B3EB12B60249B00724FA1 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
+		E92B3EB22B60249B00724FA1 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
+		E92B3EB32B60249B00724FA1 /* ImprovedSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */; };
+		E92B3EB42B60249B00724FA1 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
+		E92B3EB52B60249B00724FA1 /* AnimatedWallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F12B54744000D66181 /* AnimatedWallView.swift */; };
+		E92B3EB62B60249B00724FA1 /* LiveActivityNowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D492A325CC5005AB0E0 /* LiveActivityNowPlayingWidget.swift */; };
+		E92B3EB72B60249B00724FA1 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
+		E92B3EB82B60249B00724FA1 /* VolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03AF62A57668800FB9118 /* VolumeControlView.swift */; };
+		E92B3EB92B60249B00724FA1 /* PlayerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */; };
+		E92B3EBA2B60249B00724FA1 /* SearchHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */; };
+		E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
+		E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
+		E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
+		E92B3EBE2B60249B00724FA1 /* UIApplication+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */; };
+		E92B3EBF2B60249B00724FA1 /* RouterDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */; };
+		E92B3EC02B60249B00724FA1 /* ReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */; };
+		E92B3EC12B60249B00724FA1 /* MusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9678B2A2B3FC6970011B905 /* MusicSearchScreen.swift */; };
+		E92B3EC22B60249B00724FA1 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
+		E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0092B2FF3FB002E5A96 /* LogView.swift */; };
+		E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856282A9FBB020024B192 /* AlertService.swift */; };
+		E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
+		E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
+		E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
+		E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
+		E92B3EC92B60249B00724FA1 /* GroupListLargeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */; };
+		E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
+		E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
+		E92B3ECC2B60249B00724FA1 /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
+		E92B3ECD2B60249B00724FA1 /* PreviewScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CB9E5F2AE6DD1F00107408 /* PreviewScreenshot.swift */; };
+		E92B3ECE2B60249B00724FA1 /* RoomVolumeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */; };
+		E92B3ECF2B60249B00724FA1 /* SpotifySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */; };
+		E92B3ED02B60249B00724FA1 /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
+		E92B3ED12B60249B00724FA1 /* MediaControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */; };
+		E92B3ED22B60249B00724FA1 /* PaywallButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */; };
+		E92B3ED32B60249B00724FA1 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
+		E92B3ED42B60249B00724FA1 /* TogglePlaybackIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D592A32687D005AB0E0 /* TogglePlaybackIntent.swift */; };
+		E92B3ED52B60249B00724FA1 /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A72AA52EF8007848A7 /* DebugView.swift */; };
+		E92B3ED62B60249B00724FA1 /* DeviceNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E982AEA82ABA027500709FC0 /* DeviceNameView.swift */; };
+		E92B3ED72B60249B00724FA1 /* FilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E940E7152AAFBD17004303CD /* FilterView.swift */; };
+		E92B3ED82B60249B00724FA1 /* Track+.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92D6EEE2B46634800E49AC8 /* Track+.swift */; };
+		E92B3ED92B60249B00724FA1 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D38C522B5EE1C50025CC31 /* HapticManager.swift */; };
+		E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
+		E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856262A9FB5AD0024B192 /* PillView.swift */; };
+		E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
+		E92B3EDD2B60249B00724FA1 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
+		E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
+		E92B3EDF2B60249B00724FA1 /* AppleMusicSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABD2B0EBB8000AF57EA /* AppleMusicSearchView.swift */; };
+		E92B3EE02B60249B00724FA1 /* ArtworkViewKing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A242AAACB49002E432C /* ArtworkViewKing.swift */; };
+		E92B3EE12B60249B00724FA1 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
+		E92B3EE22B60249B00724FA1 /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
+		E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E982B60249B00724FA1 /* Nuke */; };
+		E92B3EE52B60249B00724FA1 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E8E2B60249B00724FA1 /* Kingfisher */; };
+		E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E932B60249B00724FA1 /* SubscriptionKit */; };
+		E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E942B60249B00724FA1 /* OrderedCollections */; };
+		E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E9B2B60249B00724FA1 /* Defaults */; };
+		E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E9A2B60249B00724FA1 /* NukeUI */; };
+		E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E962B60249B00724FA1 /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
+		E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E922B60249B00724FA1 /* VibesDS */; };
+		E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E8D2B60249B00724FA1 /* SonosKit */; };
+		E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E902B60249B00724FA1 /* CloudStorage */; };
+		E92B3EF02B60249B00724FA1 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
+		E92B3EF12B60249B00724FA1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
 		E92CABEF2AB8FE70002A3D4D /* TVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92CABED2AB8FE24002A3D4D /* TVView.swift */; };
 		E92D6EEF2B46634800E49AC8 /* Track+.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92D6EEE2B46634800E49AC8 /* Track+.swift */; };
 		E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E2D472AA6D37300D27DBC /* Popover.swift */; };
@@ -237,6 +320,7 @@
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
+		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92CABED2AB8FE24002A3D4D /* TVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVView.swift; sourceTree = "<group>"; };
 		E92D6EEE2B46634800E49AC8 /* Track+.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Track+.swift"; sourceTree = "<group>"; };
 		E92E2D472AA6D37300D27DBC /* Popover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Popover.swift; sourceTree = "<group>"; };
@@ -375,6 +459,24 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E92B3EE32B60249B00724FA1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
+				E92B3EE52B60249B00724FA1 /* Kingfisher in Frameworks */,
+				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
+				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
+				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
+				E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */,
+				E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */,
+				E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */,
+				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
+				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
+				E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E92E47402B360C5C00DE6647 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -570,6 +672,7 @@
 				E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */,
 				E9B12B532A5F31790008868C /* Widgets Watch.appex */,
 				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
+				E92B3EFB2B60249B00724FA1 /* Clic.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -761,6 +864,35 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E92B3E862B60249B00724FA1 /* Clic (Vision) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Clic (Vision)" */;
+			buildPhases = (
+				E92B3E9C2B60249B00724FA1 /* Sources */,
+				E92B3EE32B60249B00724FA1 /* Frameworks */,
+				E92B3EEF2B60249B00724FA1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Clic (Vision)";
+			packageProductDependencies = (
+				E92B3E8D2B60249B00724FA1 /* SonosKit */,
+				E92B3E8E2B60249B00724FA1 /* Kingfisher */,
+				E92B3E902B60249B00724FA1 /* CloudStorage */,
+				E92B3E922B60249B00724FA1 /* VibesDS */,
+				E92B3E932B60249B00724FA1 /* SubscriptionKit */,
+				E92B3E942B60249B00724FA1 /* OrderedCollections */,
+				E92B3E962B60249B00724FA1 /* RevenueCatUI */,
+				E92B3E982B60249B00724FA1 /* Nuke */,
+				E92B3E9A2B60249B00724FA1 /* NukeUI */,
+				E92B3E9B2B60249B00724FA1 /* Defaults */,
+			);
+			productName = Sonos;
+			productReference = E92B3EFB2B60249B00724FA1 /* Clic.app */;
+			productType = "com.apple.product-type.application";
+		};
 		E92E47422B360C5C00DE6647 /* QueueAction */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */;
@@ -933,11 +1065,21 @@
 				E97C0D402A325CC5005AB0E0 /* Widgets */,
 				E9B12B522A5F31790008868C /* Widgets (Watch) */,
 				E92E47422B360C5C00DE6647 /* QueueAction */,
+				E92B3E862B60249B00724FA1 /* Clic (Vision) */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E92B3EEF2B60249B00724FA1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92B3EF02B60249B00724FA1 /* Preview Assets.xcassets in Resources */,
+				E92B3EF12B60249B00724FA1 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E92E47412B360C5C00DE6647 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -983,6 +1125,83 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E92B3E9C2B60249B00724FA1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */,
+				E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */,
+				E92B3E9F2B60249B00724FA1 /* Bundle+AppIcon.swift in Sources */,
+				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
+				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
+				E92B3EA22B60249B00724FA1 /* LogScreen.swift in Sources */,
+				E92B3EA32B60249B00724FA1 /* CreateLiveActivityIntent.swift in Sources */,
+				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
+				E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */,
+				E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */,
+				E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */,
+				E92B3EA82B60249B00724FA1 /* SceneBuilderScreen.swift in Sources */,
+				E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */,
+				E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */,
+				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
+				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
+				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
+				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
+				E92B3EAF2B60249B00724FA1 /* Paywall.swift in Sources */,
+				E92B3EB02B60249B00724FA1 /* GroupScreen.swift in Sources */,
+				E92B3EB12B60249B00724FA1 /* PreviousIntent.swift in Sources */,
+				E92B3EB22B60249B00724FA1 /* SetRelativeGroupVolumeIntent.swift in Sources */,
+				E92B3EB32B60249B00724FA1 /* ImprovedSearch.swift in Sources */,
+				E92B3EB42B60249B00724FA1 /* SonosDeviceQuery.swift in Sources */,
+				E92B3EB52B60249B00724FA1 /* AnimatedWallView.swift in Sources */,
+				E92B3EB62B60249B00724FA1 /* LiveActivityNowPlayingWidget.swift in Sources */,
+				E92B3EB72B60249B00724FA1 /* LargePlayerView.swift in Sources */,
+				E92B3EB82B60249B00724FA1 /* VolumeControlView.swift in Sources */,
+				E92B3EB92B60249B00724FA1 /* PlayerSelectionView.swift in Sources */,
+				E92B3EBA2B60249B00724FA1 /* SearchHistoryView.swift in Sources */,
+				E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */,
+				E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */,
+				E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */,
+				E92B3EBE2B60249B00724FA1 /* UIApplication+Environment.swift in Sources */,
+				E92B3EBF2B60249B00724FA1 /* RouterDestination.swift in Sources */,
+				E92B3EC02B60249B00724FA1 /* ReviewService.swift in Sources */,
+				E92B3EC12B60249B00724FA1 /* MusicSearchScreen.swift in Sources */,
+				E92B3EC22B60249B00724FA1 /* IntentError.swift in Sources */,
+				E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */,
+				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
+				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
+				E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */,
+				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
+				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
+				E92B3EC92B60249B00724FA1 /* GroupListLargeScreen.swift in Sources */,
+				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
+				E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */,
+				E92B3ECC2B60249B00724FA1 /* RefreshIntent.swift in Sources */,
+				E92B3ECD2B60249B00724FA1 /* PreviewScreenshot.swift in Sources */,
+				E92B3ECE2B60249B00724FA1 /* RoomVolumeView.swift in Sources */,
+				E92B3ECF2B60249B00724FA1 /* SpotifySearchView.swift in Sources */,
+				E92B3ED02B60249B00724FA1 /* ManageSceneScreen.swift in Sources */,
+				E92B3ED12B60249B00724FA1 /* MediaControlsView.swift in Sources */,
+				E92B3ED22B60249B00724FA1 /* PaywallButtonView.swift in Sources */,
+				E92B3ED32B60249B00724FA1 /* OSEnvironment.swift in Sources */,
+				E92B3ED42B60249B00724FA1 /* TogglePlaybackIntent.swift in Sources */,
+				E92B3ED52B60249B00724FA1 /* DebugView.swift in Sources */,
+				E92B3ED62B60249B00724FA1 /* DeviceNameView.swift in Sources */,
+				E92B3ED72B60249B00724FA1 /* FilterView.swift in Sources */,
+				E92B3ED82B60249B00724FA1 /* Track+.swift in Sources */,
+				E92B3ED92B60249B00724FA1 /* HapticManager.swift in Sources */,
+				E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */,
+				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
+				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */,
+				E92B3EDD2B60249B00724FA1 /* ClicApp.swift in Sources */,
+				E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */,
+				E92B3EDF2B60249B00724FA1 /* AppleMusicSearchView.swift in Sources */,
+				E92B3EE02B60249B00724FA1 /* ArtworkViewKing.swift in Sources */,
+				E92B3EE12B60249B00724FA1 /* OnboardView.swift in Sources */,
+				E92B3EE22B60249B00724FA1 /* DebugScreen.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E92E473F2B360C5C00DE6647 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1167,6 +1386,156 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		E92B3EF82B60249B00724FA1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A953192ADDA06D00600516 /* Debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Clic;
+				PRODUCT_NAME = "$(PRODUCT_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+		E92B3EF92B60249B00724FA1 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Clic;
+				PRODUCT_NAME = "$(PRODUCT_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Beta;
+		};
+		E92B3EFA2B60249B00724FA1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ICON = "$(ICON)";
+				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.4;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				OTHER_SWIFT_FLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID)";
+				PRODUCT_MODULE_NAME = Clic;
+				PRODUCT_NAME = "$(PRODUCT_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
 		E92E47522B360C5C00DE6647 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E9A953192ADDA06D00600516 /* Debug.xcconfig */;
@@ -1588,7 +1957,6 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1640,7 +2008,6 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1847,7 +2214,6 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2008,6 +2374,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Clic (Vision)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E92B3EF82B60249B00724FA1 /* Debug */,
+				E92B3EF92B60249B00724FA1 /* Beta */,
+				E92B3EFA2B60249B00724FA1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E92E47512B360C5C00DE6647 /* Build configuration list for PBXNativeTarget "QueueAction" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2071,6 +2447,46 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		E92B3E8F2B60249B00724FA1 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.9.0;
+			};
+		};
+		E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+		E92B3E952B60249B00724FA1 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.5;
+			};
+		};
+		E92B3E972B60249B00724FA1 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.28.0;
+			};
+		};
+		E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.3.0;
+			};
+		};
 		E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -2114,6 +2530,52 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E92B3E8D2B60249B00724FA1 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		E92B3E8E2B60249B00724FA1 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E8F2B60249B00724FA1 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		E92B3E902B60249B00724FA1 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E92B3E922B60249B00724FA1 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		E92B3E932B60249B00724FA1 /* SubscriptionKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SubscriptionKit;
+		};
+		E92B3E942B60249B00724FA1 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E952B60249B00724FA1 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
+		};
+		E92B3E962B60249B00724FA1 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E972B60249B00724FA1 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		E92B3E982B60249B00724FA1 /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+		E92B3E9A2B60249B00724FA1 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E92B3E992B60249B00724FA1 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E92B3E9B2B60249B00724FA1 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
 		E92E47552B3647E200DE6647 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;

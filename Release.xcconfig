@@ -3,5 +3,6 @@ BUILD_NUMBER = 1
 MAC_ENABLED = NO
 BUNDLE_ID = com.nick.Clic
 NAME = Clic
+PRODUCT_NAME = Clic
 ICON = AppIcon
 ICON[sdk=xr*] = VisionAppIcon
