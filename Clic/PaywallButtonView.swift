@@ -33,10 +33,18 @@ struct PaywallButtonView: View {
                         VStack {
                             Text(element.0)
                                 .font(.title3)
+                                #if os(visionOS)
                                 .foregroundStyle(.primary)
+                                #else
+                                .foregroundStyle(.ultraThickMaterial)
+                                #endif
                             Text(element.1)
                                 .lineLimit(2, reservesSpace: true)
+                                #if os(visionOS)
                                 .foregroundStyle(.secondary)
+                                #else
+                                .foregroundStyle(.bar)
+                                #endif
                         }
                         .multilineTextAlignment(.center)
                         .containerRelativeFrame([.horizontal])
