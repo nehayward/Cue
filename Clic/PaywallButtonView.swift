@@ -21,11 +21,10 @@ struct PaywallButtonView: View {
     @State private var count = 0
 
     @State private var timer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
-    private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
 
     var body: some View {
         Button {
-            impactFeedbackGenerator.impactOccurred()
+            HapticManager.shared.fireHaptic(.buttonPress)
             router?.presentedSheet = .paywall
         } label: {
             ScrollView(.horizontal) {
@@ -34,10 +33,10 @@ struct PaywallButtonView: View {
                         VStack {
                             Text(element.0)
                                 .font(.title3)
-                                .foregroundStyle(.thickMaterial)
+                                .foregroundStyle(.primary)
                             Text(element.1)
                                 .lineLimit(2, reservesSpace: true)
-                                .foregroundStyle(.thinMaterial)
+                                .foregroundStyle(.secondary)
                         }
                         .multilineTextAlignment(.center)
                         .containerRelativeFrame([.horizontal])

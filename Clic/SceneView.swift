@@ -34,6 +34,7 @@ struct SceneView: View {
                 .background(.clear)
                 if scenes.isEmpty {
                     Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         show = true
                     } label: {
                         Label("Add Scene", systemImage: "plus.circle.fill")
@@ -44,17 +45,16 @@ struct SceneView: View {
                                     .shadow(radius: 2, x: 0, y: 1)
                             }
                     }
-                    .buttonStyle(.haptic)
                     .bold()
                     .buttonStyle(.borderedProminent)
                 } else {
                     Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         show = true
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title)
                     }
-                    .buttonStyle(.haptic)
                     .bold()
                     .foregroundStyle(Color.accentColor.gradient)
                 }

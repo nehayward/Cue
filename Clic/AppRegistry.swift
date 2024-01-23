@@ -13,7 +13,7 @@ extension View {
                 case let .groupScreen(groupScreenViewModel, group):
                     GroupScreen(id: group.coordinatorID, sheetDestination: sheetDestinations, viewModel: groupScreenViewModel)
                 case .paywall:
-                    PaywallView()
+                    PaywallView(displayCloseButton: true)
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
@@ -30,6 +30,13 @@ extension View {
                         PlayerSelectionView(mediaContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
+                    }
+                case .createScene:
+                    NavigationStack {
+                        SceneBuilderScreen(sheetDestination: .constant(nil))
+                            .addDismiss {
+                                sheetDestinations.wrappedValue = nil
+                            }
                     }
                 }
             }
@@ -63,5 +70,14 @@ extension View {
         environment(SonosService.shared)
             .environment(SubscriptionService.shared)
             .environment(AlertService.shared)
+    }
+
+    func addDismiss(action: @escaping () -> Void) -> some View {
+        toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
+                    .labelStyle(.iconOnly)
+            }
+        }
     }
 }

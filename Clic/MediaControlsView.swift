@@ -20,6 +20,7 @@ struct MediaControlsView: View {
 
             Button {
                 Task {
+                    HapticManager.shared.fireHaptic(.selection)
                     if group.coordinatorRoom.isPlaying {
                         group.coordinatorRoom.isPlaying = false
                         await sonosService.pause(ip: group.coordinatorRoom.ip)
@@ -49,7 +50,6 @@ struct MediaControlsView: View {
                 .frame(width: 20, height: 40, alignment: .center)
             }
             .buttonStyle(.plain)
-            .sensoryFeedback(.selection, trigger: group.coordinatorRoom.isPlaying)
         }
     }
 }

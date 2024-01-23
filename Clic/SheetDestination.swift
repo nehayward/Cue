@@ -10,6 +10,7 @@ enum SheetDestination: Identifiable {
     case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
+    case createScene
 
     var id: String {
         switch self {
@@ -29,6 +30,8 @@ enum SheetDestination: Identifiable {
             "playContent"
         case .playMedia:
             "mediaContent"
+        case .createScene:
+            "createScene"
         }
     }
 }

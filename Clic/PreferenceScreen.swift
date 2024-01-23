@@ -9,6 +9,7 @@ import RevenueCatUI
 struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
+    @Environment(\.dismiss) var dismiss
 
     @State private var router = Router()
     @State private var showSubscriptions = false
@@ -18,15 +19,13 @@ struct PreferenceScreen: View {
 
     @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
 
-    private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
-
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     if !subscriptionService.subscription.isActive {
                         Button {
-
+                            HapticManager.shared.fireHaptic(.buttonPress)
                         } label: {
                             PaywallButtonView()
                         }
@@ -175,12 +174,12 @@ struct PreferenceScreen: View {
             .manageSubscriptionsSheet(isPresented: $showSubscriptions)
             .withAppRouter(router: router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+            .addDismiss {
+                dismiss()
+            }
         }
         .task {
             try? await subscriptionService.checkSubscription()
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
-            sonosService.monitor()
-            impactFeedbackGenerator.prepare()
         }
     }
 }

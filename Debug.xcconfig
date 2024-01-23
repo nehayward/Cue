@@ -4,3 +4,4 @@ BUNDLE_ID = com.nick.clic.debug
 MAC_ENABLED = NO
 NAME = Clic°
 ICON = Alternate
+ICON[sdk=xr*] = VisionAppIcon

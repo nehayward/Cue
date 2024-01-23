@@ -1,7 +1,6 @@
 import CloudStorage
 import CloudKit
 import UIKit
-import WidgetKit
 import Observation
 import RevenueCat
 
@@ -13,6 +12,8 @@ public final class SubscriptionService: SubscriptionServicing {
     private let sync = CloudStorageSync.shared
     public var subscription: Subscription = .notActive
     private let identifierKey = "com.clic.identifier"
+
+    public var subscriptionUpdated: ((Subscription) -> ())?
 
     public init() {
 #if DEBUG
@@ -50,7 +51,7 @@ public final class SubscriptionService: SubscriptionServicing {
             } else {
                 subscription = .notActive
             }
-            WidgetCenter.shared.reloadAllTimelines()
+            subscriptionUpdated?(subscription)
         }
     }
 
@@ -71,7 +72,7 @@ public final class SubscriptionService: SubscriptionServicing {
                 } else {
                     subscription = .notActive
                 }
-                WidgetCenter.shared.reloadAllTimelines()
+                subscriptionUpdated?(subscription)
             }
         }
     }

@@ -5,7 +5,9 @@ import SonosKit
 import SubscriptionKit
 import StoreKit
 import SwiftUI
+#if canImport(WidgetKit)
 import WidgetKit
+#endif
 
 @main
 struct ClicApp: App {
@@ -26,7 +28,7 @@ struct ClicApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if OSEnvironment.pad {
+                if OSEnvironment.pad || UIDevice.current.userInterfaceIdiom == .vision {
                     GroupListLargeScreen()
                 } else {
                     DeviceListMainView()
@@ -53,6 +55,12 @@ struct ClicApp: App {
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }
                     liveActivityManager.createActivity()
+                }
+
+                SubscriptionService.shared.subscriptionUpdated = { subscription in
+                    #if canImport(WidgetKit)
+                    WidgetCenter.shared.reloadAllTimelines()
+                    #endif
                 }
             }
         }
@@ -102,7 +110,9 @@ struct ClicApp: App {
 //            }
         case .inactive:
             print("Inactive")
+#if canImport(WidgetKit)
             WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
+#endif
             Task {
                 await liveActivityManager.refresh(type: .refresh)
             }

@@ -56,7 +56,7 @@ struct GroupListLargeScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        router.presentedSheet = .settings
+                        router.sheet(to: .settings)
                     } label: {
                         Image(systemName: "slider.vertical.3")
                     }
@@ -71,54 +71,89 @@ struct GroupListLargeScreen: View {
                                 UIApplication.shared.open(url)
                             }
                         } label: {
-                            Text("Local Network Permission Needed")
+                            Label("Local Network Permission Needed", systemImage: "wifi.exclamationmark.circle.fill")
+                                .bold()
+                                .imageScale(.large)
+                                .symbolEffect(.pulse.wholeSymbol)
                                 .padding()
                                 .background {
                                     Capsule()
-                                        .foregroundStyle(.thinMaterial)
+                                        .foregroundStyle(.ultraThinMaterial)
                                 }
                         }
-                        .transition(.move(edge: .bottom).combined(with: .scale(0.8)))
-                        .padding()
+                        .transition(.scale)
                     }
 
                     if sonosService.systemState.notFound {
                         Button {
                             sonosService.monitor()
                         } label: {
-                            Text("Search")
-                                .bold()
+                            Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
+                                .imageScale(.large)
+                                .symbolEffect(.variableColor)
                                 .padding()
                                 .background {
                                     Capsule()
-                                        .foregroundStyle(.thinMaterial)
+                                        .foregroundStyle(.ultraThinMaterial)
                                 }
                         }
                         .transition(.scale)
                     }
 
-                    if !sonosService.groups.isEmpty && subscriptionService.subscription.isActive && !scenes.isEmpty {
-                        SceneView()
-                            .transition(.offset(y: 100))
-                    }
-
                     if !subscriptionService.subscription.isActive {
-                        Button {
-                            router.presentedSheet = .paywall
-                        } label: {
-                            Text("Show all devices (\(sonosService.groups.count))")
-                                .fontDesign(.rounded)
-                                .bold()
-                                .foregroundStyle(Color.accentColor.gradient)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(.thickMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .padding()
-                                .shadow(radius: 16, x: 0, y: 2)
-                        }
+                        PaywallButtonView()
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            .transition(.scale)
+                            .buttonStyle(.plain)
                     }
                 }
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Spacer()
+                    if subscriptionService.subscription.isActive {
+                        Menu {
+                            ForEach(scenes) { scene in
+                                Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    alertService.showAlert(with: "Running \(scene.name)")
+                                    Task {
+                                        try? await sonosService.runScene(scene)
+                                    }
+                                } label: {
+                                    Text(scene.name)
+                                        .tint(.red)
+                                }
+                            }
+                            ControlGroup {
+                                Button {
+                                    router.sheet(to: .createScene)
+                                } label: {
+                                    Label("Create Scene", systemImage: "plus")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "bolt.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(.accent)
+                        }
+                    }
+
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.presentedSheet = .search()
+                    } label: {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.accent)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+                .ignoresSafeArea()
+                .frame(maxWidth: .infinity)
+                .background(.bar)
             }
         } detail: {
             if let destination = router.selection {

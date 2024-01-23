@@ -7,7 +7,7 @@ import VibesDS
 struct SceneBuilderScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
-    
+
     var group: Binding<GroupRoom>? = nil
     @Binding var sheetDestination: SheetDestination?
     @State var selections = Set<String>()
@@ -33,6 +33,7 @@ struct SceneBuilderScreen: View {
                 ForEach($rooms) { $room in
                     VStack {
                         Button {
+                            HapticManager.shared.fireHaptic(.selection)
                             if selections.contains(room.id) {
                                 selections.remove(room.id)
                             } else {
@@ -49,7 +50,6 @@ struct SceneBuilderScreen: View {
                             .fontDesign(.rounded)
                             .bold()
                         }
-                        .sensoryFeedback(.selection, trigger: selections.contains(room.id))
                         RoomVolumeView(room: $room, touchDelay: 0.05)
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .tint(selections.contains(room.id) ? .black : .accentColor)

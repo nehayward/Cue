@@ -13,9 +13,6 @@ struct LargePlayerView: View {
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
 
-    private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
-    private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
-
     var body: some View {
         @Bindable var sonosService = sonosService
 
@@ -192,8 +189,8 @@ struct LargePlayerView: View {
     private func mediaControlsView() -> some View {
         HStack {
             Button {
-                selectionFeedbackGenerator.selectionChanged()
                 Task {
+                    await HapticManager.shared.fireHaptic(.selection)
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
                 }
             } label: {
@@ -207,10 +204,10 @@ struct LargePlayerView: View {
             Button{
                 Task {
                     if group.coordinatorRoom.isPlaying {
-                        await selectionFeedbackGenerator.selectionChanged()
+                        await HapticManager.shared.fireHaptic(.selection)
                         await sonosService.pause(ip: group.coordinatorRoom.ip)
                     } else {
-                        await selectionFeedbackGenerator.selectionChanged()
+                        await HapticManager.shared.fireHaptic(.selection)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
                 }
@@ -225,8 +222,8 @@ struct LargePlayerView: View {
             .buttonStyle(.plain)
             Spacer()
             Button {
-                selectionFeedbackGenerator.selectionChanged()
                 Task {
+                    await HapticManager.shared.fireHaptic(.selection)
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
             } label: {

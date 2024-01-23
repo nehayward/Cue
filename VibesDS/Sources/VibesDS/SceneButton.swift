@@ -8,7 +8,9 @@ public struct SceneButtonStyle: ButtonStyle {
             .label
             .bold()
             .fontDesign(.rounded)
+            #if !os(visionOS)
             .sensoryFeedback(.selection, trigger: configuration.isPressed == true)
+            #endif
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background{

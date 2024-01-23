@@ -19,7 +19,7 @@ struct DeviceListMainView: View {
         @Bindable var router = router
 
         // MARK: Add Back for Debugging
-        let _ = Self._printChanges()
+//        let _ = Self._printChanges()
 
         NavigationStack(path: $router.path) {
             List ($sonosService.sorted) { $group in
@@ -118,6 +118,7 @@ struct DeviceListMainView: View {
                         Menu {
                             ForEach(scenes) { scene in
                                 Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
                                     alertService.showAlert(with: "Running \(scene.name)")
                                     Task {
                                         try? await sonosService.runScene(scene)
@@ -127,15 +128,22 @@ struct DeviceListMainView: View {
                                         .tint(.red)
                                 }
                             }
+                            ControlGroup {
+                                Button {
+                                    router.sheet(to: .createScene)
+                                } label: {
+                                    Label("Create Scene", systemImage: "plus")
+                                }
+                            }
                         } label: {
                             Image(systemName: "bolt.circle.fill")
                                 .font(.title)
                                 .foregroundStyle(.accent)
                         }
-                        .buttonStyle(.haptic)
                     }
 
                     Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         router.presentedSheet = .search()
                     } label: {
                         Image(systemName: "magnifyingglass.circle.fill")
@@ -144,14 +152,12 @@ struct DeviceListMainView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .buttonStyle(.haptic)
                 }
                 .ignoresSafeArea()
                 .frame(maxWidth: .infinity)
                 .background(.bar)
             }
         }
-        .animation(.spring, value: sonosService.isSearching)
         .safeAreaInset(edge: .top) {
             VStack {
                 if alertService.alert.isShowing {
@@ -185,6 +191,7 @@ struct DeviceListMainView: View {
                 }
             }
         }
+        .animation(.spring, value: sonosService.isSearching)
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)

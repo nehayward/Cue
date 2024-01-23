@@ -11,8 +11,6 @@ struct PlayerSelectionView: View {
     @State var playableContent: PlayableContent?
     @State var mediaContent: MediaContent?
 
-    private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
-
     var body: some View {
         @Bindable var sonosService = sonosService
 
@@ -49,7 +47,7 @@ struct PlayerSelectionView: View {
             List ($sonosService.sorted) { $group in
                 VStack(alignment: .leading) {
                     Button {
-                        impactFeedbackGenerator.impactOccurred()
+                        HapticManager.shared.fireHaptic(.buttonPress)
                         router?.dismiss = true
                         dismiss()
                         Task {
@@ -97,7 +95,6 @@ struct PlayerSelectionView: View {
             }
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)
-            impactFeedbackGenerator.prepare()
         }
         .listStyle(.insetGrouped)
     }

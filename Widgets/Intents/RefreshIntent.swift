@@ -1,7 +1,9 @@
 import AppIntents
 import CloudStorage
 import SonosKit
+#if canImport(WidgetKit)
 import WidgetKit
+#endif
 import SwiftUI
 
 struct RefreshIntent: LiveActivityIntent {
@@ -19,7 +21,9 @@ struct RefreshIntent: LiveActivityIntent {
         }
 
         await Self.liveActivityManager.refresh(type: .refresh)
+#if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
+#endif
         return .result()
     }
 }

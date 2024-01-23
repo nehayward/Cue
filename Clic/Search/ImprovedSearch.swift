@@ -171,10 +171,15 @@ struct ImprovedSearch: View, KeyboardReadable {
                 }
                 .background(.bar)
             }
+            .addDismiss {
+                dismiss()
+            }
         }
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
+        #if !os(visionOS)
         .scrollDismissesKeyboard(.immediately)
+        #endif
         .presentationBackgroundInteraction(.enabled)
         .presentationDragIndicator(.hidden)
         .scrollContentBackground(.hidden)

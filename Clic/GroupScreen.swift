@@ -22,6 +22,7 @@ struct GroupScreen: View {
                 ForEach($sonosService.sortedRooms.filter { $0.id != viewModel.group.coordinatorID }) { $room in
                     VStack {
                         Button {
+                            HapticManager.shared.fireHaptic(.selection)
                             viewModel.buttonAction(id: room.id)
                         } label: {
                             HStack {
@@ -48,7 +49,6 @@ struct GroupScreen: View {
                             .foregroundStyle(Color.accentColor.gradient.opacity(0.8) )
                         : nil
                     )
-                    .sensoryFeedback(.selection, trigger: viewModel.selections.contains(room.id))
                 }
             }
             .navigationDestination(for: Set<String>.self) { ids in
@@ -139,6 +139,9 @@ struct GroupScreen: View {
                 }
             }
             .toolbarTitleDisplayMode(.inline)
+            .addDismiss {
+                dismiss()
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)

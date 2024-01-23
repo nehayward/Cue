@@ -1,7 +1,10 @@
 import AppIntents
 import CloudStorage
-import WidgetKit
 import SonosKit
+
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 struct SetRelativeGroupVolumeIntent: AppIntent {
     static var title: LocalizedStringResource = "Set Relative Volume"
@@ -38,7 +41,9 @@ struct SetRelativeGroupVolumeIntent: AppIntent {
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
         try? await Task.sleep(for: .milliseconds(250))
         await Self.liveActivityManager.refresh(type: .refresh)
+#if canImport(WidgetKit)
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
+#endif
         return .result()
     }
 }

@@ -42,7 +42,6 @@ struct FilterView: View {
             HStack {
                 ForEach($filters) { $filter in
                     Toggle(filter.filter.title, isOn: $filter.isFiltered)
-                        .sensoryFeedback(.selection, trigger: filter.isFiltered)
                         .toggleStyle(.button)
                         .clipShape(Capsule())
                         .background {
@@ -55,6 +54,9 @@ struct FilterView: View {
                             }
                         }
                         .foregroundStyle(filter.isFiltered ? Color.black.gradient : Color.accentColor.gradient)
+                        .onChange(of: filter) {
+                            HapticManager.shared.fireHaptic(.selection)
+                        }
                 }
             }
             .scrollTargetLayout()

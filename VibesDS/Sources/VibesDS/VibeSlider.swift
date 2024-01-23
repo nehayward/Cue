@@ -48,10 +48,12 @@ public struct VibeSlider: View {
                 .onChange(of: geometry.size.width, initial: true) {
                     width = geometry.size.width
                 }
+                #if !os(visionOS)
                 .sensoryFeedback(trigger: value) { oldValue, newValue in
                     guard isDragging else { return .none }
                     return oldValue < newValue ? .decrease : .increase
                 }
+                #endif
             }
         }
         .frame(height: isDragging ? 20 : 10)

@@ -144,6 +144,11 @@ struct QueueScreen: View {
                         }
                     }
                 }
+                #if os(visionOS)
+                .addDismiss {
+                    dismiss()
+                }
+                #endif
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         Toggle("Shuffle", systemImage: "shuffle.circle", isOn: isShuffle)
