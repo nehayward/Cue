@@ -21,7 +21,7 @@ public final class ArtworkManager {
         guard let image = UIImage(data: imageData) else { return }
 
         let size = image.size
-        let targetSize  = CGSize(width: 300, height: 300)
+        let targetSize  = CGSize(width: 200, height: 200)
         let widthRatio  = targetSize.width  / size.width
         let heightRatio = targetSize.height / size.height
         let newSize = widthRatio > heightRatio ? CGSize(width: size.width * heightRatio, height: size.height * heightRatio) : CGSize(width: size.width * widthRatio, height: size.height * widthRatio)

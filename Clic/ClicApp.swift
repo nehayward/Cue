@@ -111,7 +111,7 @@ struct ClicApp: App {
         case .inactive:
             print("Inactive")
 #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadTimelines(ofKind: "NowPlayingWidget")
+            WidgetCenter.shared.reloadAllTimelines()
 #endif
             Task {
                 await liveActivityManager.refresh(type: .refresh)

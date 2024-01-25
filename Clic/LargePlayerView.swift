@@ -23,7 +23,7 @@ struct LargePlayerView: View {
                 .shadow(radius: 10)
                 .frame(maxWidth: 500)
 
-            if group.tvMode {
+            if group.coordinatorRoom.track.TVMode {
                 TVModeView()
             }
             else {
@@ -39,7 +39,7 @@ struct LargePlayerView: View {
                 .padding(.bottom, isExpanded ? 20 : 40)
                 .fontDesign(.rounded)
 
-            if !group.tvMode {
+            if !group.coordinatorRoom.track.TVMode {
                 playbackView()
                 Spacer()
                 mediaControlsView()
@@ -113,7 +113,7 @@ struct LargePlayerView: View {
         .task {
             guard OSEnvironment.isPreviews else { return }
 
-            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero)
+            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero, TVMode: false)
             track.artworkURL = await sonosService.getArtwork(from: track)
             group.rooms[0].track = track
             group.coordinatorRoom.track.duration = 200000

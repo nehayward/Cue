@@ -1,5 +1,6 @@
 import SonosKit
 import SwiftUI
+import VibesDS
 
 @MainActor
 extension View {
@@ -9,6 +10,8 @@ extension View {
                 switch destination {
                 case .preferences:
                     PreferenceScreen()
+                case .scenes:
+                    SceneView()
                 }
             }
             .withEnvironments()

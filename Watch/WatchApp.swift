@@ -14,7 +14,7 @@ struct WatchApp: App {
     @State private var popover = Popover.shared
     @State private var selected: String?
 
-    @AppStorage("com.clic.autoLaunchNowPlaying", store: UserDefaults(suiteName: "group.com.clic")) private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     var body: some Scene {
         WindowGroup {

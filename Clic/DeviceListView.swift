@@ -28,7 +28,7 @@ struct DeviceListMainView: View {
                         router.navigate(to: .player(groupID: group.coordinatorID))
                     } label: {
                         VStack(spacing: 12) {
-                            if group.tvMode {
+                            if group.TVMode {
                                 TVModeViewCell(group: $group)
                             } else {
                                 HStack(alignment: .top) {
@@ -43,7 +43,7 @@ struct DeviceListMainView: View {
                                 .frame(height: 24)
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.tvMode ? 12 : 10, trailing: 12))
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))
                 } header: {
                     Text(group.nameWithCount)
                         .fontDesign(.rounded)

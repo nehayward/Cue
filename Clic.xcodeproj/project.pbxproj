@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E900165A2B60CC07004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
+		E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
+		E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
+		E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
@@ -316,7 +320,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E90016592B60CC07004C051D /* NightModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightModeIntent.swift; sourceTree = "<group>"; };
 		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
+		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
@@ -621,6 +627,8 @@
 				E98248C92AF03FB4008927EF /* RefreshIntent.swift */,
 				E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */,
 				E9C03B172A5A196200FB9118 /* NextIntent.swift */,
+				E90016592B60CC07004C051D /* NightModeIntent.swift */,
+				E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */,
 				E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */,
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
 				E9EE31832ADF82B000F71303 /* IntentError.swift */,
@@ -1215,11 +1223,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */,
 				E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */,
 				E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */,
 				E9DAE49E2A5FACD400B03199 /* NowPlayingWidgetProvider.swift in Sources */,
 				E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */,
 				E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */,
+				E900165A2B60CC07004C051D /* NightModeIntent.swift in Sources */,
 				E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */,
 				E9DE849A2A66F87C004C3947 /* RemoteWidgetRectangularView.swift in Sources */,
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
@@ -1274,6 +1284,7 @@
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
+				E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */,
 				E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */,
 				E9FDDC302B238216005D281E /* Router.swift in Sources */,
 				E9CF44F42B54797300D66181 /* Paywall.swift in Sources */,
@@ -1311,6 +1322,7 @@
 				E9BF3ABC2B0E7CFC00AF57EA /* SpotifySearchView.swift in Sources */,
 				E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
+				E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */,
 				E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */,
@@ -1405,6 +1417,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1455,6 +1468,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1505,6 +1519,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

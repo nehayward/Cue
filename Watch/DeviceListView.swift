@@ -10,16 +10,16 @@ struct DeviceListView: View {
     @Binding var activeSubscription: Bool
     @Binding var selected: String?
 
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
         
         // MARK: Add Back for Debugging
-        let _ = Self._printChanges()
+//        let _ = Self._printChanges()
         NavigationSplitView {
             List (selection: $selected) {
-                SceneView()
-                    .listRowBackground(Color.clear)
                 ForEach($sonosService.sorted) { $group in
                     DeviceCellView(group: $group)
                         .tag(group.coordinatorID)
@@ -37,6 +37,15 @@ struct DeviceListView: View {
                     } label: {
                         Image(systemName: "slider.vertical.3")
                     }
+                }
+                
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        router.sheet(to: .scenes)
+                    } label: {
+                        Image(systemName: "bolt.circle.fill")
+                    }
+                    Spacer()
                 }
             }
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)

@@ -29,6 +29,8 @@ public final class Track: Identifiable, Sendable {
     /// The URL for the album art specific to Sonos service.
     public var sonosAlbumArtURL: URL?
 
+    public var TVMode: Bool
+
     /// The identifier for `Identifiable` conformance.
     public var id: String { trackID }
     /// The playback position of the track, thread-safe.
@@ -49,7 +51,7 @@ public final class Track: Identifiable, Sendable {
     ///   - playbackPosition: The current playback position of the track.
     ///   - position: The position of the track in a playlist or queue.
     ///   - sonosAlbumArtURL: The URL for the album art specific to Sonos service.
-    public init(trackID: String, name: String = "", artist: String = "", album: String = "", artworkURL: URL? = nil, musicService: MusicService = .unknown, duration: TimeInterval = .zero, playbackPosition: TimeInterval = .zero, position: Int = 0, sonosAlbumArtURL: URL? = nil) {
+    public init(trackID: String, name: String = "", artist: String = "", album: String = "", artworkURL: URL? = nil, musicService: MusicService = .unknown, duration: TimeInterval = .zero, playbackPosition: TimeInterval = .zero, position: Int = 0, sonosAlbumArtURL: URL? = nil, TVMode: Bool) {
         self.trackID = trackID
         self.name = name
         self.artist = artist
@@ -60,6 +62,7 @@ public final class Track: Identifiable, Sendable {
         self._playbackPosition = playbackPosition
         self.position = position
         self.sonosAlbumArtURL = sonosAlbumArtURL
+        self.TVMode = TVMode
     }
 
     /// Updates the track's artwork URL.
@@ -110,7 +113,7 @@ public extension Track {
     }
 
     /// A static instance of `Track` representing an empty state.
-    static let empty = Track(trackID: "", name: "Nothing playing")
+    static let empty = Track(trackID: "", name: "Nothing playing", TVMode: false)
 
     @MainActor
     var musicServiceOpenURLs: [URL?] {

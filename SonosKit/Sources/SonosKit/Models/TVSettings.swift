@@ -1,8 +1,7 @@
 import Foundation
 import Observation
 
-@Observable
-public class TVSettings {
+public struct TVSettings: Codable, Hashable, Equatable {
     public var nightMode: Bool
     public var dialogLevel: Bool
     public var audioInputFormat: AudioInputFormat

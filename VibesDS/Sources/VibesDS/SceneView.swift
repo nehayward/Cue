@@ -11,26 +11,28 @@ public struct SceneView: View {
     }
 
     public var body: some View {
-        if scenes.isEmpty {
-            EmptyView()
-        } else {
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach($scenes) { $scene in
-                        SceneButton(scene: $scene) {
-                            Task {
-                                try? await sonosService.runScene(scene)
+        NavigationStack {
+            if scenes.isEmpty {
+                Text("Create a scene on your phone.")
+            } else {
+                ScrollView(.horizontal) {
+                    VStack {
+                        ForEach($scenes) { $scene in
+                            SceneButton(scene: $scene) {
+                                Task {
+                                    try? await sonosService.runScene(scene)
+                                }
                             }
                         }
                     }
+                    .scrollTargetLayout()
+                    .fontDesign(.rounded)
+                    .fontWeight(.bold)
                 }
-                .scrollTargetLayout()
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
+                .scrollTargetBehavior(.viewAligned)
+                .scrollIndicators(.hidden)
+                .scrollContentBackground(.hidden)
             }
-            .scrollTargetBehavior(.viewAligned)
-            .scrollIndicators(.hidden)
-            .scrollContentBackground(.hidden)
         }
     }
 }

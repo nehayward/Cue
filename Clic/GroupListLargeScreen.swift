@@ -22,7 +22,7 @@ struct GroupListLargeScreen: View {
             List ($sonosService.sorted, selection: $router.selection) { $group in
                 Section {
                     VStack(spacing: 12) {
-                        if group.tvMode {
+                        if group.TVMode {
                             TVModeViewCell(group: $group)
                         } else {
                             HStack(alignment: .top) {

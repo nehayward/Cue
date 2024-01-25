@@ -12,6 +12,8 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
         var volume: Double
         var name: String
         var update: UpdateType = .refresh
+        var TVMode: Bool
+        var TVSettings: TVSettings? = nil
     }
     var room: SonosDeviceEntity
 }
@@ -25,17 +27,33 @@ struct LiveActivityNowPlayingWidget: Widget {
                 DynamicIslandExpandedRegion(.center) {
                     VStack {
                         Link(destination: URL(string: "clic://device?id=\(context.attributes.room.id)")!) {
-                            Text(context.state.trackName)
-                                .lineLimit(0)
-                                .bold()
-                                .invalidatableContent()
-                                .id(context.state.trackName)
-                                .transition(updateTransition(context: context))
-                            Text(context.state.artist)
-                                .lineLimit(0)
-                                .invalidatableContent()
-                                .id(context.state.artist)
-                                .transition(updateTransition(context: context))
+                            HStack {
+                                if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        .frame(width: 50, height: 50)
+                                }
+                                VStack(alignment: .leading) {
+                                    Text(context.state.trackName)
+                                        .lineLimit(0)
+                                        .bold()
+                                        .invalidatableContent()
+                                        .id(context.state.trackName)
+                                        .transition(updateTransition(context: context))
+                                    Text(context.state.artist)
+                                        .lineLimit(0)
+                                        .invalidatableContent()
+                                        .id(context.state.artist)
+                                        .transition(updateTransition(context: context))
+                                }
+                                if context.state.TVSettings != nil || context.state.trackName == "Nothing playing" {
+
+                                } else {
+                                    Spacer()
+                                }
+                            }
                         }
                         HStack {
                             Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
@@ -63,15 +81,42 @@ struct LiveActivityNowPlayingWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 24) {
-                        Button(intent: PreviousIntent(room: context.attributes.room)) {
-                            Image(systemName: "backward.end.fill")
-                        }
-                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                            Image(systemName: "playpause.fill")
-                                .imageScale(.large)
-                        }
-                        Button(intent: NextIntent(room: context.attributes.room)) {
-                            Image(systemName: "forward.end.fill")
+                        if let settings = context.state.TVSettings {
+                            Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                                Label("Night Mode", systemImage: "moon.zzz")
+                            }
+                            .symbolVariant(settings.nightMode ? .fill : .none)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .foregroundStyle(.thickMaterial)
+                            .frame(width: 40, height: 40)
+                            .foregroundStyle(.thickMaterial)
+                            .frame(width: 40, height: 40)
+                            .tint(.secondary)
+                            .background(settings.nightMode ? .primary : .tertiary, in: Capsule())
+                            
+                            Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                                Label("Speech Enhancement", systemImage: "person.wave.2")
+                            }
+                            .symbolVariant(settings.dialogLevel ? .fill : .none)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .contentShape(.circle)
+                            .foregroundStyle(.thickMaterial)
+                            .frame(width: 40, height: 40)
+                            .tint(.secondary)
+                            .background(settings.dialogLevel ? .primary : .tertiary, in: Capsule())
+                        } else {
+                            Button(intent: PreviousIntent(room: context.attributes.room)) {
+                                Image(systemName: "backward.end.fill")
+                            }
+                            Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                                Image(systemName: "playpause.fill")
+                                    .imageScale(.large)
+                            }
+                            Button(intent: NextIntent(room: context.attributes.room)) {
+                                Image(systemName: "forward.end.fill")
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -89,8 +134,13 @@ struct LiveActivityNowPlayingWidget: Widget {
                 Image(systemName: "hifispeaker.fill")
                     .font(.caption)
             } compactTrailing: {
-                Text("\(context.state.volume, specifier: "%0.f")%")
-                    .contentTransition(.numericText())
+                if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .frame(width: 20, height: 20)
+                }
             } minimal: {
                 Image(systemName: "hifispeaker.fill")
             }
@@ -120,7 +170,8 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
                                                     artist: "Dua Lipa",
                                                     volume: 39,
-                                                    name: "Kitchen + 1")
+                                                    name: "Kitchen + 1",
+                                                    TVMode: false)
      }
 }
 

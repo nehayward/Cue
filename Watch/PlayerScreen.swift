@@ -5,7 +5,7 @@ struct PlayerScreen: View {
     @Binding var group: GroupRoom
 
     var body: some View {
-        if group.tvMode {
+        if group.TVMode {
             TVView(group: $group)
         } else {
             PlayerView(group: $group)

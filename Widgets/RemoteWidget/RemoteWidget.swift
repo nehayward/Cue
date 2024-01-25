@@ -17,7 +17,21 @@ struct Provider: AppIntentTimelineProvider {
         if let room = configuration.room {
             if let coordinatorRoom = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id), let volume = try? await SonosService.shared.getGroupVolume(ip: coordinatorRoom.ip) {
                 let track = await SonosService.shared.getTrack(ip: coordinatorRoom.ip)
-                let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track, name: coordinatorRoom.nameWithCount)
+                var entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track, name: coordinatorRoom.nameWithCount)
+
+//                // MARK: Mock
+//                if room.name == "Theater" {
+//                    if let TVSettings = try? await SonosService.shared.getTVSettings(ip: coordinatorRoom.ip) {
+//                        entry.TVSettings = TVSettings
+//                    }
+//                    return Timeline(entries: [entry], policy: .atEnd)
+//                }
+
+                if track?.TVMode ?? false {
+                    if let TVSettings = try? await SonosService.shared.getTVSettings(ip: coordinatorRoom.ip) {
+                        entry.TVSettings = TVSettings
+                    }
+                }
                 return Timeline(entries: [entry], policy: .atEnd)
             }
         }
@@ -33,6 +47,7 @@ struct RemoteWidgetEntry: TimelineEntry {
     let volume: Double
     let track: Track?
     var name: String? = nil
+    var TVSettings: TVSettings? = nil
 }
 
 struct RemoteWidget: Widget {
@@ -59,6 +74,12 @@ struct RemoteWidget: Widget {
                             }
                             .widgetURL(URL(string: "clic://subscribe"))
                     }
+                }
+                .onAppear {
+#if DEBUG
+                    let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"]
+                    activeSubscription = subscribe != "false"
+#endif
                 }
         }
         .supportedFamilies(families)
@@ -89,7 +110,8 @@ struct RemoteWidget: Widget {
             album: "Barbie",
             musicService: .apple,
             duration: 0,
-            playbackPosition: 0
+            playbackPosition: 0,
+            TVMode: false
         )
     )
 }

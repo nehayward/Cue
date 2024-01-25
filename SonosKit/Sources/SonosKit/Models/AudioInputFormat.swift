@@ -1,5 +1,5 @@
 
-public enum AudioInputFormat: Int {
+public enum AudioInputFormat: Int, Codable, Hashable, Equatable {
     case noInputConnected = 0
     case stereo = 2
     case dolbyStereo = 7

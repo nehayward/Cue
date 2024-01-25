@@ -36,26 +36,56 @@ struct RemoteWidgetEntryView : View {
                             .font(.subheadline)
                             .padding(.bottom, 8)
                         HStack(spacing: 18) {
-                            VStack(spacing: 12) {
-                                Button(intent: TogglePlaybackIntent(room: room)) {
-                                    Image(systemName: "playpause.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.thickMaterial)
-                                        .frame(width: 40, height: 40)
-                                }
-                                .buttonBorderShape(.circle)
-                                .tint(.secondary)
-                                .background(.primary, in: Capsule())
+                            if let TVSettings = entry.TVSettings {
+                                VStack(spacing: 12) {
+                                    Toggle(isOn: TVSettings.nightMode, intent: NightModeIntent(room: room, nightMode: !TVSettings.nightMode)) {
+                                        Label("Night Mode", systemImage: "moon.zzz")
+                                    }
+                                    .symbolVariant(TVSettings.nightMode ? .fill : .none)
+                                    .labelStyle(.iconOnly)
+                                    .contentShape(.circle)
+                                    .toggleStyle(.button)
+                                    .foregroundStyle(.thickMaterial)
+                                    .frame(width: 40, height: 40)
+                                    .foregroundStyle(.thickMaterial)
+                                    .frame(width: 40, height: 40)
+                                    .tint(.secondary)
+                                    .background(TVSettings.nightMode ? .primary : .tertiary, in: Capsule())
 
-                                Button(intent: NextIntent(room: room)) {
-                                    Image(systemName: "forward.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(.thickMaterial)
-                                        .frame(width: 40, height: 40)
+                                    Toggle(isOn: TVSettings.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !TVSettings.dialogLevel)) {
+                                        Label("Speech Enhancement", systemImage: "person.wave.2")
+                                    }
+                                    .symbolVariant(TVSettings.dialogLevel ? .fill : .none)
+                                    .labelStyle(.iconOnly)
+                                    .toggleStyle(.button)
+                                    .contentShape(.circle)
+                                    .foregroundStyle(.thickMaterial)
+                                    .frame(width: 40, height: 40)
+                                    .tint(.secondary)
+                                    .background(TVSettings.dialogLevel ? .primary : .tertiary, in: Capsule())
                                 }
-                                .buttonBorderShape(.circle)
-                                .tint(.secondary)
-                                .background(.primary, in: Capsule())
+                            } else {
+                                VStack(spacing: 12) {
+                                    Button(intent: TogglePlaybackIntent(room: room)) {
+                                        Image(systemName: "playpause.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(.thickMaterial)
+                                            .frame(width: 40, height: 40)
+                                    }
+                                    .buttonBorderShape(.circle)
+                                    .tint(.secondary)
+                                    .background(.primary, in: Capsule())
+
+                                    Button(intent: NextIntent(room: room)) {
+                                        Image(systemName: "forward.fill")
+                                            .font(.caption)
+                                            .foregroundStyle(.thickMaterial)
+                                            .frame(width: 40, height: 40)
+                                    }
+                                    .buttonBorderShape(.circle)
+                                    .tint(.secondary)
+                                    .background(.primary, in: Capsule())
+                                }
                             }
                             VStack(spacing: 12) {
                                 Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: 3)) {
@@ -112,7 +142,7 @@ struct RemoteWidgetEntryView : View {
 #Preview("Small", as: .systemSmall) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0, TVMode: false))
 }
 
 #Preview("Circle", as: .accessoryCircular) {

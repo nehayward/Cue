@@ -128,6 +128,12 @@ final class XMLParserSonos {
             xml = xml.unescaped
         }
         let xmlParsed = XMLHash.parse(xml)
+
+        // Check for TV
+        if let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text, trackURI.contains("htastream") {
+            return Track(trackID: "", TVMode: true)
+        }
+
         guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
               let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text,
               let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text,
@@ -207,7 +213,7 @@ final class XMLParserSonos {
             sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
         }
 
-        return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL)
+        return Track(trackID: trackID, name: name, artist: artist, album: album, musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL, TVMode: false)
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
@@ -380,7 +386,8 @@ final class XMLParserSonos {
                 duration: trackDuration,
                 playbackPosition: playbackPosition,
                 position: trackNumber,
-                sonosAlbumArtURL: sonosAlbumArtURL
+                sonosAlbumArtURL: sonosAlbumArtURL,
+                TVMode: false
             )
 
             tracks.append(track)

@@ -95,15 +95,42 @@ struct LiveActivityNowPlayingView: View {
                 }
                 .padding([.bottom], 4)
                 HStack(spacing: 32) {
-                    Button(intent: PreviousIntent(room: context.attributes.room)) {
-                        Image(systemName: "backward.end.fill")
-                    }
-                    Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                        Image(systemName: "playpause.fill")
-                            .imageScale(.large)
-                    }
-                    Button(intent: NextIntent(room: context.attributes.room)) {
-                        Image(systemName: "forward.end.fill")
+                    if let settings = context.state.TVSettings {
+                        Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                            Label("Night Mode", systemImage: "moon.zzz")
+                        }
+                        .symbolVariant(settings.nightMode ? .fill : .none)
+                        .labelStyle(.iconOnly)
+                        .toggleStyle(.button)
+                        .foregroundStyle(.thickMaterial)
+                        .frame(width: 40, height: 40)
+                        .foregroundStyle(.thickMaterial)
+                        .frame(width: 40, height: 40)
+                        .tint(.secondary)
+                        .background(settings.nightMode ? .primary : .tertiary, in: Capsule())
+
+                        Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                            Label("Speech Enhancement", systemImage: "person.wave.2")
+                        }
+                        .symbolVariant(settings.dialogLevel ? .fill : .none)
+                        .labelStyle(.iconOnly)
+                        .toggleStyle(.button)
+                        .contentShape(.circle)
+                        .foregroundStyle(.thickMaterial)
+                        .frame(width: 40, height: 40)
+                        .tint(.secondary)
+                        .background(settings.dialogLevel ? .primary : .tertiary, in: Capsule())
+                    } else {
+                        Button(intent: PreviousIntent(room: context.attributes.room)) {
+                            Image(systemName: "backward.end.fill")
+                        }
+                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                            Image(systemName: "playpause.fill")
+                                .imageScale(.large)
+                        }
+                        Button(intent: NextIntent(room: context.attributes.room)) {
+                            Image(systemName: "forward.end.fill")
+                        }
                     }
                 }
                 .tint(.primary)
@@ -129,14 +156,16 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
                                                     artist: "Dua Lipa",
                                                     volume: 39,
-                                                    name: "Kitchen + Gym")
+                                                    name: "Kitchen + Gym",
+                                                    TVMode: false)
     }
 
     fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night",
                                                     artist: "Dua Lipa",
                                                     volume: 50,
-                                                    name: "Kitchen + 1")
+                                                    name: "Kitchen + 1",
+                                                    TVMode: false)
     }
 }
 

@@ -84,15 +84,17 @@ struct PreferenceScreen: View {
                 }
 
                 // TODO: Add next release
-                Section {
-                    Toggle(isOn: $isCompact) {
-                        Text("Compact")
+                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
+                    Section {
+                        Toggle(isOn: $isCompact) {
+                            Text("Compact")
+                        }
+                        .tint(.accent)
+                    } header: {
+                        Text("Live Activities")
                     }
-                    .tint(.accent)
-                } header: {
-                    Text("Live Activities")
                 }
-                
+
                 if UIDevice.current.userInterfaceIdiom == .phone {
                     Section {
                         Toggle(isOn: $autoLaunchNowPlaying) {

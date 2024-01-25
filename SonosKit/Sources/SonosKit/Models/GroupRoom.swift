@@ -9,7 +9,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
-    public var tvMode: Bool = false
+    public var TVMode: Bool { coordinatorRoom.track.TVMode }
     public var tvSettings: TVSettings? = nil
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false

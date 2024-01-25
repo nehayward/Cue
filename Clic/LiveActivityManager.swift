@@ -35,15 +35,21 @@ final class LiveActivityManager: LiveActivityManageable {
             }
 
             var title = group.coordinatorRoom.track.name
-            if let settings = group.tvSettings {
-                title = settings.audioInputFormat.description
+            var tvSettings: TVSettings?
+            if group.TVMode {
+                tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                if let settings = tvSettings {
+                    title = settings.audioInputFormat.description
+                }
             }
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                            artist: group.coordinatorRoom.track.artist,
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
-                                                                           update: type)
+                                                                           TVMode: group.coordinatorRoom.track.TVMode,
+                                                                           TVSettings: tvSettings)
+
             let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
             await activity.update(activityContent)
         }
@@ -57,7 +63,7 @@ final class LiveActivityManager: LiveActivityManageable {
             let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
             try? await sonosService.load(useCache: true)
 
-            for group in sonosService.groups.filter(\.coordinatorRoom.isPlaying) {
+            for group in sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.coordinatorRoom.track.TVMode }) {
                 guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
                     continue
                 }
@@ -70,14 +76,20 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                             volume: group.groupVolume))
 
                 var title = group.coordinatorRoom.track.name
-                if let settings = group.tvSettings {
-                    title = settings.audioInputFormat.description
+                var tvSettings: TVSettings?
+                if group.TVMode {
+                    tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                    if let settings = tvSettings {
+                        title = settings.audioInputFormat.description
+                    }
                 }
 
                 let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                                artist: group.coordinatorRoom.track.artist,
                                                                                volume: group.groupVolume,
-                                                                               name: group.nameWithCount)
+                                                                               name: group.nameWithCount,
+                                                                               TVMode: group.coordinatorRoom.track.TVMode,
+                                                                               TVSettings: tvSettings)
 
                 let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
 
@@ -109,15 +121,21 @@ final class LiveActivityManager: LiveActivityManageable {
 
         // MARK: Rework have it be title and subtitle
         var title = group.coordinatorRoom.track.name
-        if let settings = group.tvSettings {
-            title = settings.audioInputFormat.description
+        var tvSettings: TVSettings?
+        if group.TVMode {
+            tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+            if let settings = tvSettings {
+                title = settings.audioInputFormat.description
+            }
         }
 
         let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
                                                                        artist: group.coordinatorRoom.track.artist,
                                                                        volume: group.groupVolume,
-                                                                       name: group.nameWithCount)
-
+                                                                       name: group.nameWithCount,
+                                                                       TVMode: group.coordinatorRoom.track.TVMode,
+                                                                       TVSettings: tvSettings)
+        
         let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: activities.isEmpty ? 0 : 1)
         guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
             print("Failed")

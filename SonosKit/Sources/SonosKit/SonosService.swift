@@ -415,6 +415,10 @@ public final class SonosService {
                         } else {
                             roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                         }
+                        
+                        if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
+                            roomGroup.groupVolume = groupVolumeAwaited
+                        }
                         return
                     }
 
@@ -425,10 +429,6 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.isPlaying = false
                     default:
                         break
-                    }
-
-                    if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
-                        roomGroup.groupVolume = groupVolumeAwaited
                     }
 
                     roomGroup.playMode = await playMode
@@ -498,19 +498,16 @@ public final class SonosService {
             for roomGroup in roomGroups {
                 group.addTask { [weak self] in
                     guard let self else { return }
-                    let isTVMode = await self.isTVMode(ip: roomGroup.coordinatorRoom.ip)
-                    roomGroup.tvMode = isTVMode
-
-                    if isTVMode {
-                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
-                    }
-//
-//                    // MARK: Make Screenshot Mock Mode
+                    // MARK: Theater Mock
 //                    if roomGroup.coordinatorRoom.name == "Theater" {
-//                        roomGroup.tvMode = true
+//                        roomGroup.coordinatorRoom.track.TVMode = true
 //                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
 //                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
+//                        return
 //                    }
+                    if roomGroup.coordinatorRoom.track.TVMode {
+                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
+                    }
                 }
             }
         }
@@ -801,14 +798,14 @@ public final class SonosService {
         await api.setPlayMode(IP, playMode: mode)
     }
 
-    public func isTVMode(ip: String) async -> Bool {
-       await api.mediaInfo(ipAddress: ip)
-    }
+//    public func isTVMode(ip: String) async -> Bool {
+//       await api.mediaInfo(ipAddress: ip)
+//    }
 
     public func getTVSettings(ip: String) async throws -> TVSettings {
+        let audioInputFormat = try await api.getAudioInputFormat(IP: ip)
         let dialogLevel = try await api.getDialogLevel(IP: ip)
         let nightMode = try await api.getNightMode(IP: ip)
-        let audioInputFormat = try await api.getAudioInputFormat(IP: ip)
         return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioInputFormat: audioInputFormat)
     }
 
