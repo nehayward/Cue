@@ -1,4 +1,3 @@
-import UIKit
 import SwiftUI
 import SonosKit
 import VibesDS
@@ -58,6 +57,7 @@ struct RoomVolumeView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: room.volume)
+        .frame(height: 24)
     }
 
     private func updateVolume(volume: Double) {
@@ -74,9 +74,5 @@ struct RoomVolumeView: View {
 
 #Preview {
     return RoomVolumeView(room: .constant(.garage))
-        .environment(SonosService())
-        .onAppear {
-            let thumbImage = UIImage()
-            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-        }
+        .environment(SonosService.shared)
 }
