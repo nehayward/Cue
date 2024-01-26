@@ -5,10 +5,10 @@ import VibesDS
 
 struct RoomVolumeView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
-    
+
     @Binding var room: Room
+    @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    @State private var isEditingRoomVolume = false
     var updatedVolume: (() -> Void)? = nil
 
     private let touchDelay: TimeInterval
@@ -21,23 +21,38 @@ struct RoomVolumeView: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
-            Image(systemName: "speaker.wave.3.fill", variableValue: room.volume/100)
-                .renderingMode(.template)
-                .padding(.trailing, 8)
-            VibeSlider(value: $room.volume, in: 0...100, touchDelay: touchDelay) { isEditing in
-                self.isEditingRoomVolume = isEditing
-                room.isEditingVolume = isEditing
-                if !isEditing {
-                    let volume = room.volume
-                    updateVolume(volume: volume)
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Task {
+                    await sonosService.setRoomMute(room: room, mute: !room.isMuted)
+                }
+            } label: {
+                Image(systemName: room.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: room.volume/100)
+                    .renderingMode(.template)
+                    .contentTransition(.symbolEffect(.automatic))
+                    .padding(.trailing, 8)
+            }
+            .frame(width: 24, alignment: .leading)
+            .buttonStyle(.plain)
+
+            VibeSlider(value: $room.volume, touchDelay: touchDelay) { isEditing in
+                if room.isMuted {
+                    Task {
+                        await sonosService.setRoomMute(room: room, mute: false)
+                    }
+                }
+                self.isEditing = isEditing
+                updateVolume(volume: room.volume)
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    room.isEditingVolume = isEditing
                 }
             }
-            .frame(height: 32)
             Text("\(room.volume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())
                 .monospacedDigit()
                 .animation(.spring.speed(2), value: room.volume)
-                .frame(width: 36, alignment: .trailing)
+                .frame(width: 38, alignment: .trailing)
                 .fontDesign(.rounded)
         }
         .font(.caption)
@@ -48,10 +63,8 @@ struct RoomVolumeView: View {
     private func updateVolume(volume: Double) {
         volumeTask?.cancel()
         volumeTask = Task {
-            room.volume = volume
             try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
-            room.volume = volume
             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(volume))
             updatedVolume?()
         }

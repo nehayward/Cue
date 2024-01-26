@@ -58,7 +58,7 @@
          <EnvironmentVariable
             key = "IDELogRedirectionPolicy"
             value = "oslogToStdio"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>

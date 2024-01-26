@@ -277,10 +277,18 @@ final class XMLParserSonos {
 
     }
 
-    func parseGetGroupMute(xml: String) -> Bool {
+    func parseGetGroupMute(xml: String) -> Bool? {
         let xmlParsed = XMLHash.parse(xml)
         guard let isMuted = xmlParsed["s:Envelope"]["s:Body"]["u:GetGroupMuteResponse"]["CurrentMute"].element?.text else {
-            return false
+            return nil
+        }
+        return isMuted == "1"
+    }
+
+    func parseGetRoomMute(xml: String) -> Bool? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let isMuted = xmlParsed["s:Envelope"]["s:Body"]["u:GetMuteResponse"]["CurrentMute"].element?.text else {
+            return nil
         }
         return isMuted == "1"
     }

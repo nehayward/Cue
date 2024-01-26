@@ -18,12 +18,14 @@ struct VolumeControlView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
                 Task {
                     await sonosService.setGroupMute(group: group, mute: !group.isMuted)
                 }
             } label: {
                 Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
                     .renderingMode(.template)
+                    .contentTransition(.symbolEffect(.automatic))
                     .foregroundColor(.accentColor)
                     .padding(.trailing, 8)
             }

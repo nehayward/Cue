@@ -32,20 +32,53 @@ final class SonosAPI {
         }
     }
 
-    func getGroupMute(IP: String) async -> Bool {
+    func getGroupMute(IP: String) async -> Bool? {
         let arguments: [String: Any] = [
             "InstanceID": 0
         ]
 
-        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") {
-            if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-            }
-            let xml = String(decoding: data, as: UTF8.self)
-            return XMLParserSonos().parseGetGroupMute(xml: xml)
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else {
+            logger.error("\(IP) Failed to \(#function)")
+            return nil
+        }
+        
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            logger.error("\(IP) Failed to \(#function)")
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        return XMLParserSonos().parseGetGroupMute(xml: xml)
+    }
+
+    func getRoomMute(IP: String) async -> Bool? {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Channel": "Master"
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
+            logger.error("\(IP) Failed to \(#function)")
+            return nil
         }
 
-        return false
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+        let xml = String(decoding: data, as: UTF8.self)
+        return XMLParserSonos().parseGetRoomMute(xml: xml)
+    }
+
+    func setRoomMute(IP: String, mute: Bool) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "Channel": "Master",
+            "DesiredMute": mute ? 1 : 0
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                logger.error("\(IP) Failed to \(#function)")
+            }
+        }
     }
 
     func setGroupMute(IP: String, mute: Bool) async {

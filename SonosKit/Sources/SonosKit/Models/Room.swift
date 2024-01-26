@@ -11,6 +11,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public let name: String
 
     public var volume: Double = 0
+    public var isMuted: Bool = false
     public var isPlaying: Bool = false
     public var track: Track = .empty
     public var isEditingVolume: Bool = false

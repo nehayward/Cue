@@ -399,12 +399,13 @@ public final class SonosService {
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
                     async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
 
+                    if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
+                        roomGroup.groupVolume = groupVolumeAwaited
+                    }
+
                     guard let awaitedTrack = await track else {
                         if roomGroup.coordinatorRoom.track != .empty {
                             roomGroup.coordinatorRoom.track = .empty
-                        }
-                        if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
-                            roomGroup.groupVolume = groupVolumeAwaited
                         }
                         return
                     }
@@ -414,10 +415,6 @@ public final class SonosService {
                             roomGroup.coordinatorRoom.track = awaitedTrack
                         } else {
                             roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        }
-                        
-                        if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
-                            roomGroup.groupVolume = groupVolumeAwaited
                         }
                         return
                     }
@@ -459,6 +456,10 @@ public final class SonosService {
                         guard let self else { return }
                         if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume {
                             room.volume = volume
+                        }
+
+                        if let isMuted = await api.getRoomMute(IP: room.ip) {
+                            room.isMuted = isMuted
                         }
                     }
                 }
@@ -518,7 +519,9 @@ public final class SonosService {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
                 group.addTask {
-                    roomGroup.isMuted = await self.isMuted(for: roomGroup)
+                    if let isMuted = await self.isMuted(for: roomGroup) {
+                        roomGroup.isMuted = isMuted
+                    }
                 }
             }
         }
@@ -629,6 +632,12 @@ public final class SonosService {
     public func setGroupMute(group: GroupRoom, mute: Bool) async {
         group.isMuted = mute
         await api.setGroupMute(IP: group.coordinatorRoom.ip, mute: mute)
+    }
+
+    @MainActor
+    public func setRoomMute(room: Room, mute: Bool) async {
+        room.isMuted = mute
+        await api.setRoomMute(IP: room.ip, mute: mute)
     }
 
     public func setGroupVolume(ip: String, volume: Int) async {
@@ -770,7 +779,7 @@ public final class SonosService {
         await api.previous(ipAddress: ip)
     }
 
-    public func isMuted(for group: GroupRoom) async -> Bool {
+    public func isMuted(for group: GroupRoom) async -> Bool? {
         await api.getGroupMute(IP: group.coordinatorRoom.ip)
     }
     
