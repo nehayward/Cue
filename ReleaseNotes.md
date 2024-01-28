@@ -1,3 +1,12 @@
+# 2024.10
+
+## External 
+
+- Improved system monitoring.
+- Watch app will now auto launch to currently playing group. You can turn this off in settings.
+- Added play history.
+- UI Improvements.
+
 # 2024.6
 
 ## External 
