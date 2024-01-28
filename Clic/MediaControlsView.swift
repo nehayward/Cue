@@ -50,6 +50,7 @@ struct MediaControlsView: View {
                 .frame(width: 20, height: 40, alignment: .center)
             }
             .buttonStyle(.plain)
+            .buttonBorderShape(.circle)
         }
     }
 }

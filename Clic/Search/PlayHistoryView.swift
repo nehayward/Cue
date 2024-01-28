@@ -28,19 +28,9 @@ struct PlayHistoryView: View {
                     }
                 } label: {
                     HStack {
-                        LazyImage(url: item.artwork) { state in
-                            if let image = state.image {
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 60, height: 60)
-                            } else {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .foregroundStyle(.thinMaterial)
-                                    .frame(width: 60, height: 60)
-                            }
-                        }
-
+                        ContentArtworkView(content: .constant(item))
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 60, height: 60)
                         VStack(alignment: .leading) {
                             Text(item.title)
                             Text(item.subtitle)

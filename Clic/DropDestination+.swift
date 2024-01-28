@@ -9,11 +9,11 @@ extension View {
             guard let url = items.first else { return false }
             Task {
                 guard let playableContent = await SonosService.shared.getContent(from: url) else { return }
+                HapticManager.shared.fireHaptic(.notification(.success))
                 await SonosService.shared.queue(content: playableContent.content, group: group, position: now ? .now : .next)
                 if now {
                     await SonosService.shared.play(ip: group.ip)
                 }
-                HapticManager.shared.fireHaptic(.notification(.success))
             }
             return true
         } isTargeted: { targeting in

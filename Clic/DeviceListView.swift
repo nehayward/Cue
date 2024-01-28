@@ -117,34 +117,6 @@ struct DeviceListMainView: View {
                 HStack {
                     Spacer()
                     if subscriptionService.subscription.isActive {
-//                        Menu {
-//                            ForEach(scenes) { scene in
-//                                Button {
-//                                    HapticManager.shared.fireHaptic(.buttonPress)
-//                                    alertService.showAlert(with: "Running \(scene.name)")
-//                                    Task {
-//                                        try? await sonosService.runScene(scene)
-//                                    }
-//                                } label: {
-//                                    HStack {
-//                                        Text(scene.name)
-//                                        LazyImage(url: <#T##URL?#>)
-//                                    }
-//                                }
-//                            }
-//                            ControlGroup {
-//                                Button {
-//                                    router.sheet(to: .createScene)
-//                                } label: {
-//                                    Label("Create Scene", systemImage: "plus")
-//                                }
-//                            }
-//                        } label: {
-//                            Image(systemName: "bolt.circle.fill")
-//                                .font(.title)
-//                                .foregroundStyle(.accent)
-//                        }
-
                         Button {
                             router.sheet(to: .scenes)
                         } label: {

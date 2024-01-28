@@ -101,6 +101,8 @@
 		E92D6EEF2B46634800E49AC8 /* Track+.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92D6EEE2B46634800E49AC8 /* Track+.swift */; };
 		E92DCB9C2B6445EC00A2C3B5 /* DropDestination+.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DCB9B2B6445EC00A2C3B5 /* DropDestination+.swift */; };
 		E92DCB9E2B660D3F00A2C3B5 /* ContentArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DCB9D2B660D3F00A2C3B5 /* ContentArtworkView.swift */; };
+		E92DCB9F2B66FDF700A2C3B5 /* ContentArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DCB9D2B660D3F00A2C3B5 /* ContentArtworkView.swift */; };
+		E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92DCB9B2B6445EC00A2C3B5 /* DropDestination+.swift */; };
 		E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E2D472AA6D37300D27DBC /* Popover.swift */; };
 		E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */; };
 		E92E47132B33F42C00DE6647 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
@@ -1175,6 +1177,7 @@
 				E92B3EBA2B60249B00724FA1 /* SearchHistoryView.swift in Sources */,
 				E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */,
 				E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */,
+				E92DCB9F2B66FDF700A2C3B5 /* ContentArtworkView.swift in Sources */,
 				E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */,
 				E92B3EBE2B60249B00724FA1 /* UIApplication+Environment.swift in Sources */,
 				E92B3EBF2B60249B00724FA1 /* RouterDestination.swift in Sources */,
@@ -1185,6 +1188,7 @@
 				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
 				E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */,
+				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
 				E92B3EC92B60249B00724FA1 /* GroupListLargeScreen.swift in Sources */,
@@ -1425,7 +1429,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1446,6 +1450,7 @@
 				PRODUCT_MODULE_NAME = Clic;
 				PRODUCT_NAME = "$(PRODUCT_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1476,7 +1481,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1497,6 +1502,7 @@
 				PRODUCT_MODULE_NAME = Clic;
 				PRODUCT_NAME = "$(PRODUCT_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1527,7 +1533,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1548,6 +1554,7 @@
 				PRODUCT_MODULE_NAME = Clic;
 				PRODUCT_NAME = "$(PRODUCT_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
