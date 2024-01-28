@@ -44,14 +44,6 @@ struct ClicApp: App {
                 subscriptionService.monitorChanges()
             }
             .onAppear {
-                // MARK: Remove when update is complete
-                let updatedScenes = scenes.map { scene in
-                    var updatedScene = scene
-                    updatedScene.playableContent = nil
-                    return updatedScene
-                }
-                scenes = updatedScenes
-                
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }
                     liveActivityManager.createActivity()
@@ -207,7 +199,8 @@ struct ClicApp: App {
                 let id = paths[4]
 
                 let media = MediaContent(service: service, id: id, type: type, location: nil)
-                router.presentedSheet = .playMedia(content: media)
+                print(media)
+                router.sheet(to: .playMedia(content: media))
             }
         }
     }

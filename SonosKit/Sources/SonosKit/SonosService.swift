@@ -52,7 +52,7 @@ public final class SonosService {
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
 
-    public var groupsChanged: (([GroupRoom]) -> ())? = nil
+    public var groupsChanged: (([GroupRoom]) -> ()) = { _ in }
 
     public init () {
         sonosPulse.cancel()
@@ -102,7 +102,7 @@ public final class SonosService {
             var useCache = useCache
             var retry = retry
             repeat {
-                groupsChanged?(sorted)
+                groupsChanged(sorted)
                 do {
                     systemState.systemNotFound = false
                     systemState.systemPermissionDenied = false
@@ -111,11 +111,8 @@ public final class SonosService {
                         continue
                     }
                     // MARK: Update room volumes
-                    if selectedGroup != nil {
-                        try? await Task.sleep(for: .milliseconds(500))
-                    } else {
-                        try? await Task.sleep(for: .seconds(1))
-                    }
+                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 1000))
+
                     try await load(useCache: useCache)
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
@@ -224,6 +221,8 @@ public final class SonosService {
             async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
+            async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
+            
             await updateGroupsRooms(from: [roomGroup])
             await updateGroupCheckTVMode(from: [roomGroup])
 
@@ -242,7 +241,7 @@ public final class SonosService {
                 roomGroup.groupVolume = updateGroupVolume
             }
 
-            guard let track = await track else {
+            guard let awaitedTrack = await track else {
                 ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                 roomGroup.coordinatorRoom.track = .empty
                 return
@@ -253,23 +252,30 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.track.artworkURL = previousArtwork
             }
 
-            guard let artworkURL = await self.getArtwork(from: track, size: 200) else {
-                if roomGroup.coordinatorRoom.track != track {
-                    roomGroup.coordinatorRoom.track = track
+            guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
+                if roomGroup.coordinatorRoom.track != awaitedTrack {
+                    roomGroup.coordinatorRoom.track = awaitedTrack
                 } else {
-                    roomGroup.coordinatorRoom.track.playbackPosition = track.playbackPosition
+                    roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                 }
-
                 return
             }
 
-            if roomGroup.coordinatorRoom.track != track {
-                roomGroup.coordinatorRoom.track = track
-            } else {
-                roomGroup.coordinatorRoom.track.playbackPosition = track.playbackPosition
+            roomGroup.playMode = await playMode
+
+            awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+            awaitedTrack.metadata = trackMetadata
+
+            if artworkURL != awaitedTrack.artworkURL {
+                roomGroup.coordinatorRoom.track.artworkURL = artworkURL
             }
 
-            roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+            if roomGroup.coordinatorRoom.track != awaitedTrack {
+                roomGroup.coordinatorRoom.track = awaitedTrack
+                roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+            } else {
+                roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+            }
             return
         }
         try await updateGroups(from: groups)
@@ -309,7 +315,6 @@ public final class SonosService {
             }
 
             let roomGroup = groups[groupIndex]
-//            print(roomGroup == selectedGroup)
             if roomGroup != selectedGroup {
                 self.selectedGroup = roomGroup
             }
@@ -334,7 +339,6 @@ public final class SonosService {
             }
             guard let fetchedTrack else {
                 roomGroup.coordinatorRoom.track = .empty
-                ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                 return
             }
             roomGroup.coordinatorRoom.track = fetchedTrack
@@ -410,15 +414,6 @@ public final class SonosService {
                         return
                     }
 
-                    guard let artworkURL = await self.getArtwork(from: awaitedTrack) else {
-                        if roomGroup.coordinatorRoom.track != awaitedTrack {
-                            roomGroup.coordinatorRoom.track = awaitedTrack
-                        } else {
-                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        }
-                        return
-                    }
-
                     switch await playbackInfo {
                     case .playing:
                         roomGroup.coordinatorRoom.isPlaying = true
@@ -428,9 +423,21 @@ public final class SonosService {
                         break
                     }
 
+                    guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
+                        if roomGroup.coordinatorRoom.track != awaitedTrack {
+                            roomGroup.coordinatorRoom.track = awaitedTrack
+                        } else {
+                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                        }
+                        print("Failed")
+                        return
+                    }
+
                     roomGroup.playMode = await playMode
 
                     awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+                    awaitedTrack.metadata = trackMetadata
+
                     if artworkURL != awaitedTrack.artworkURL {
                         roomGroup.coordinatorRoom.track.artworkURL = artworkURL
                     }
@@ -441,7 +448,6 @@ public final class SonosService {
                     } else {
                         roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                     }
-
                 }
             }
         }
@@ -545,22 +551,37 @@ public final class SonosService {
                         break
                     }
 
+
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
-                    
-                    guard let track = await track else {
+
+                    guard let awaitedTrack = await track else { return }
+
+                    guard let artworkURL = await self.getArtwork(from: awaitedTrack, size: 200) else {
+                        if roomGroup.coordinatorRoom.track != awaitedTrack {
+                            roomGroup.coordinatorRoom.track = awaitedTrack
+                        } else {
+                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                        }
                         return
                     }
 
-                    roomGroup.coordinatorRoom.track = track
-//                    return (index, roomGroup)
+                    awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+
+                    if artworkURL != awaitedTrack.artworkURL {
+                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                    }
+
+                    if roomGroup.coordinatorRoom.track != awaitedTrack {
+                        roomGroup.coordinatorRoom.track = awaitedTrack
+                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                    } else {
+                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                    }
+                    return
                 }
             }
-//
-//            for try await (index, group) in group {
-//                self.groups[index] = group
-//            }
         }
     }
 
@@ -665,13 +686,13 @@ public final class SonosService {
         case .spotify:
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
             if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
-                guard let url = URL(string: image.url) else { return nil }
+                guard let url = URL(string: image.url) else { return track.sonosAlbumArtURL }
                 return url
             }
 
             if size == 200, spotifyTrack.album.images.count > 2 {
                 let image = spotifyTrack.album.images[1]
-                guard let url = URL(string: image.url) else { return nil }
+                guard let url = URL(string: image.url) else { return track.sonosAlbumArtURL }
                 return url
             }
 
@@ -679,51 +700,81 @@ public final class SonosService {
             return url
         case .airplay, .unknown:
             return track.sonosAlbumArtURL
-            // MARK: Delete
-//            let searchResults = await musicSearch.search(song: track.name, artist: track.artist)
-//            let found = searchResults.first { result in
-//                result.artistName == track.artist &&
-//                (result.trackName == track.name || result.trackCensoredName == track.name)
-//            }
-//            guard let artworkString = found?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return track.sonosAlbumArtURL }
-//            return url
+        }
+    }
+
+    // TODO: Change size to enum
+    public func getTrackInformation(from track: Track, size: Int = 500) async -> (Track.Metadata?, URL?)? {
+        switch track.musicService {
+        case .spotify:
+            var imageURL: URL? = track.sonosAlbumArtURL
+            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.id) else { return (nil, track.sonosAlbumArtURL) }
+
+            if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+                imageURL = URL(string: image.url)
+            } else if size == 200, spotifyTrack.album.images.count > 2 {
+                let image = spotifyTrack.album.images[1]
+                imageURL = URL(string: image.url)
+            } else if let artworkString = spotifyTrack.album.images.first?.url {
+                imageURL = URL(string: artworkString)
+            }
+
+            if imageURL == nil {
+                imageURL = track.sonosAlbumArtURL
+            }
+            return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify)), imageURL)
+        case .apple:
+            var imageURL: URL? = track.sonosAlbumArtURL
+            guard let appleTrack = await musicSearch.appleLookup(id: track.id) else { return (nil, track.sonosAlbumArtURL) }
+
+            imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
+
+            if imageURL == nil {
+                imageURL = track.sonosAlbumArtURL
+            }
+            return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL)), imageURL)
+        default:
+            return (nil, track.sonosAlbumArtURL)
         }
     }
 
     public func getArtwork(from content: MediaContent, size: Int = 500) async -> URL? {
-        guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-        
-        if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
-            guard let url = URL(string: image.url) else { return nil }
-            return url
+        switch (content.type, content.service) {
+        case (.album, .spotify):
+                guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
+              return URL(string: album.images.first?.url ?? "")
+        case (.track, .spotify):
+            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+            return URL(string: track.album.images.first?.url ?? "")
+        case (.playlist, .spotify):
+            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
+            return URL(string: playlist.images.first?.url ?? "")
+        case (.track, .apple):
+            guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+            return URL(string: track.artworkURL)
+        default:
+            return nil
         }
-
-        if size == 200, spotifyTrack.album.images.count > 2 {
-            let image = spotifyTrack.album.images[1]
-            guard let url = URL(string: image.url) else { return nil }
-            return url
-        }
-
-        guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
-        return url
     }
 
     public func getContent(from url: URL) async -> PlayableContent? {
         guard let content = api.parse(url: url) else { return nil }
-        switch content.type {
-        case .playlist:
-            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
-            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
-        case .track:
-            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
-        case .album:
+        switch (content.type, content.service) {
+        case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
             return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: content)
+        case (.track, .spotify):
+            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
+        case (.playlist, .spotify):
+            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
+            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
+        case (.track, .apple):
+            guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+            return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
         default:
-            break
+            return nil
         }
-        return nil
     }
 
     public func getContent(from content: MediaContent) async -> PlayableContent? {
@@ -732,8 +783,15 @@ public final class SonosService {
             guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
             return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
         case .track:
-            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
+            if content.service == .spotify {
+                guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+                return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
+            }
+
+            if content.service == .apple {
+                guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+                return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
+            }
         case .album:
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
             return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: content)
@@ -745,13 +803,14 @@ public final class SonosService {
 
 
     public func pause(ip: String) async {
-        let groupIndex = groups.firstIndex { room in
-            room.coordinatorRoom.ip == ip
+        let groupIndex = groups.firstIndex { group in
+            group.coordinatorRoom.ip == ip
         }
 
         if let groupIndex {
             for (index, _) in groups[groupIndex].rooms.enumerated() {
                 groups[groupIndex].rooms[index].isPlaying = false
+                groups[groupIndex].coordinatorRoom.isPlaying = false
             }
         }
 
@@ -766,6 +825,7 @@ public final class SonosService {
         if let groupIndex {
             for (index, _) in groups[groupIndex].rooms.enumerated() {
                 groups[groupIndex].rooms[index].isPlaying = true
+                groups[groupIndex].coordinatorRoom.isPlaying = true
             }
         }
         await api.play(ipAddress: ip)
@@ -849,10 +909,9 @@ public final class SonosService {
     public func runScene(_ scene: SonosScene) async throws {
         let playlistAction = { [weak self] in
             guard let self else { return }
-            guard let roomID = scene.rooms.first?.id, let playableContentID = scene.playableContent?.content.id else { return }
+            guard let roomID = scene.rooms.first?.id, let playableContent = scene.playableContent else { return }
             guard let group = await getGroupCoordinatorWithRoom(roomID: roomID) else { return }
-            //    https://open.spotify.com/playlist/37i9dQZEVXcTv12cCWsQJf
-            await queueSpotifyPlaylist(id: playableContentID, group: group)
+            await queue(content: playableContent.content, group: group)
         }
 
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}

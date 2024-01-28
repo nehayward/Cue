@@ -1,6 +1,7 @@
 import CloudStorage
 import SwiftUI
 import SonosKit
+import NukeUI
 
 public struct SceneButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
@@ -40,13 +41,14 @@ public extension ButtonStyle where Self == SceneButtonStyle {
 }
 
 public struct SceneButton: View {
-    @Binding public var scene: SonosScene
+    public var scene: SonosScene
     public var action: () -> Void
 
     @State private var started: Bool = false
+    @State private var artworkURL: URL?
 
-    public init(scene: Binding<SonosScene>, action: @escaping () -> Void) {
-        self._scene = scene
+    public init(scene: SonosScene, action: @escaping () -> Void) {
+        self.scene = scene
         self.action = action
     }
 
@@ -55,16 +57,41 @@ public struct SceneButton: View {
             action()
             started = true
         } label: {
-            Text(scene.name)
+            VStack {
+                Text(scene.name)
+                    .frame(maxWidth: .infinity)
+                    .fontDesign(.rounded)
+                    .bold()
+                    .padding()
+            }
         }
-        .buttonStyle(.scene)
+        .overlay(alignment: .leading) {
+            if let artworkURL {
+                LazyImage(url: artworkURL) { state in
+                    if let image = state.image {
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 50, height: 50)
+                            .clipShape(Circle())
+                    } else {
+                        Circle()
+                            .foregroundStyle(.thinMaterial)
+                            .frame(width: 50, height: 50)
+                    }
+                }
+                .padding()
+            }
+        }
         .overlay {
             ZStack {
                 Capsule()
+                    .inset(by: 4)
                     .trim(from: 0, to: 1)
                     .stroke(Color.accentColor.gradient, lineWidth: 3)
                     .opacity(started ? 0.4 : 0)
                 Capsule()
+                    .inset(by: 4)
                     .trim(from: 0, to: started ? 1 : 0)
                     .stroke(Color.accentColor.gradient, style: .init(lineWidth: 4, lineCap: started ? .round : .butt))
                     .rotationEffect(.degrees(-180))
@@ -75,39 +102,76 @@ public struct SceneButton: View {
                     Task {
                         try? await Task.sleep(for: .seconds(2))
                         started = false
-                        print("Done")
                     }
                 }
             }
         }
         .animation(started ? .snappy : nil, value: started)
-
+        .task {
+            if let content = scene.playableContent {
+                artworkURL = await SonosService.shared.getArtwork(from: content.content)
+            }
+        }
+        .buttonBorderShape(.capsule)
+        .background(.thinMaterial)
+        .clipShape(Capsule())
     }
 }
 
 #Preview {
-    HStack {
-        SceneButton(
-            scene: .constant(
-                SonosScene(
-                    id: UUID(),
-                    name: "Main",
-                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)]
-                )
-            )
-        ) {
-            print("HERE")
-        }
-        SceneButton(
-            scene: .constant(
-                SonosScene(
-                    id: UUID(),
-                    name: "Main",
-                    rooms: [SceneRoom(id: "", ip: "", name: "Main", volume: 10)]
-                )
-            )
-        ) {
-            print("HERE")
+    ScrollView {
+        VStack {
+            SceneButton(
+                scene:
+                    SonosScene(
+                        id: UUID(),
+                        name: "Living Room",
+                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                    )
+            ) {
+                print("HERE")
+            }
+            SceneButton(
+                scene:
+                    SonosScene(
+                        id: UUID(),
+                        name: "Main",
+                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10),SceneRoom(id: "", ip: "", name: "Gym", volume: 10)]
+                    )
+            ) {
+                print("HERE")
+            }
+
+            SceneButton(
+                scene:
+                    SonosScene(
+                        id: UUID(),
+                        name: "Theater + Kitchen",
+                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                    )
+            ) {
+                print("HERE")
+            }
+
+            SceneButton(
+                scene:
+                    SonosScene(
+                        id: UUID(),
+                        name: "Living Room",
+                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                    )
+            ) {
+                print("HERE")
+            }
         }
     }
 }

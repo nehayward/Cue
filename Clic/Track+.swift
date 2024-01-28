@@ -3,15 +3,19 @@ import SonosKit
 import UIKit
 
 extension Track {
-    @MainActor
-    var safeURL: URL? {
+    public var nowPlayingURL: URL {
 #if canImport(UIKit)
-        for url in musicServiceOpenURLs.compactMap({$0}) {
-            if UIApplication.shared.canOpenURL(url) {
-                return url
-            }
-        }
+        return nowPlayingURLs.filter(UIApplication.shared.canOpenURL).first!
 #endif
-        return nil
+    }
+
+    var nowPlayingURLs: [URL] {
+        var urls = [URL(string: "https://apps.apple.com/app/apple-store/id1596487035?pt=670995&ct=click-for-sonos&mt=8")!]
+        if musicService == .apple, let url = URL(string:"nowplaying://musicSong?i=\(trackID)") {
+            urls.insert(url, at: 0)
+        } else if musicService == .spotify, let isrc = metadata?.ISRC, let url = URL(string:"nowplaying://song?isrc=\(isrc)") {
+            urls.insert(url, at: 0)
+        }
+        return urls
     }
 }

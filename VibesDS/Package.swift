@@ -14,7 +14,8 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SonosKit"),
-        .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0")
+        .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
+        .package(url: "https://github.com/kean/Nuke", from: "12.3.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -23,7 +24,8 @@ let package = Package(
             name: "VibesDS",
             dependencies: [
                 "CloudStorage",
-                "SonosKit"
+                "SonosKit",
+                .product(name: "NukeUI", package: "Nuke")
             ]),
         .testTarget(
             name: "VibesDSTests",

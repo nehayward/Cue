@@ -9,27 +9,19 @@ struct PlayerSelectionView: View {
     @Environment(Router.self) private var router: Router?
 
     @State var playableContent: PlayableContent?
-    @State var mediaContent: MediaContent?
+    var mediaContent: MediaContent?
+    @State var artworkURL: URL?
 
     var body: some View {
         @Bindable var sonosService = sonosService
 
         VStack {
             HStack(alignment: .top) {
-                if let playableContent {
-                    LazyImage(url: playableContent.artwork) { state in
-                        if let image = state.image {
-                            image
-                                .resizable()
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                        } else {
-                            ProgressView()
-                                .padding()
-                        }
-                    }
+                ContentArtworkView(content: $playableContent)
                     .transition(.scale)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 100, height: 100)
+                if let playableContent {
                     VStack(alignment: .leading) {
                         Text(playableContent.title)
                         Text(playableContent.subtitle)
@@ -92,6 +84,7 @@ struct PlayerSelectionView: View {
         .task {
             if let mediaContent {
                 playableContent = await sonosService.getContent(from: mediaContent)
+                artworkURL = await sonosService.getArtwork(from: mediaContent)
             }
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)

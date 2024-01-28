@@ -130,6 +130,7 @@ struct QueueScreen: View {
                             Text("Queue")
                                 .bold()
                             Text(tracks.count, format: .number)
+                                .contentTransition(.numericText())
                                 .foregroundStyle(.secondary)
                         }
                     }

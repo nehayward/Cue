@@ -24,7 +24,7 @@ public class HapticManager {
 
   #if !os(visionOS)
   private let selectionGenerator = UISelectionFeedbackGenerator()
-  private let impactGenerator = UIImpactFeedbackGenerator(style: .heavy)
+  private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
   private let notificationGenerator = UINotificationFeedbackGenerator()
   #endif
 

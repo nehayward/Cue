@@ -90,6 +90,7 @@ struct DeviceListView: View {
             }
         }
         .background(Color.clear)
+        .animation(.interactiveSpring, value: sonosService.groups)
 //        .overlay {
 //            VStack {
 //                Text(!sonosService.sonosPulse.isCancelled ? "Running" : "Cancelled")

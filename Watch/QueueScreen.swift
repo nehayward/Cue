@@ -18,18 +18,20 @@ struct QueueScreen: View {
                         HStack {
                             LazyImage(url: track.artworkURL) { state in
                                 if let image = state.image {
-                                    image.resizable().aspectRatio(contentMode: .fit)
-                                } else {
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                } else if state.isLoading {
                                     RoundedRectangle(cornerRadius: 4)
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.ultraThinMaterial)
                                         .shadow(radius: 2)
                                 }
                             }
-                            .processors([.resize(width: 40)])
+                            .processors([.resize(width: 50)])
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                             .shadow(radius: 2)
-                            .frame(width: 40, height: 40)
+                            .frame(width: 50, height: 50)
                             .overlay(alignment: .bottomTrailing) {
                                 switch track.musicService {
                                 case .apple:
@@ -37,18 +39,20 @@ struct QueueScreen: View {
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 10, height: 10)
                                         .padding([.trailing, .bottom], 4)
+                                        .shadow(radius: 10)
                                 case .spotify:
                                     Image(.spotifyLogo)
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 10, height: 10)
                                         .padding([.trailing, .bottom], 4)
+                                        .shadow(radius: 10)
                                 case .airplay, .unknown:
                                     EmptyView()
-                                        .padding([.trailing, .bottom], 4)
+                                        .padding([.trailing, .bottom], 12)
                                 }
                             }
                             .task(id: track.name) {

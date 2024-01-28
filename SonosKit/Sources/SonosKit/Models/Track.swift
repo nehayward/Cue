@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(UIKit)
-import UIKit
-#endif
 
 /// An observable class representing a track in a music service.
 @Observable
@@ -31,6 +28,8 @@ public final class Track: Identifiable, Sendable {
 
     public var TVMode: Bool
 
+    public var metadata: Metadata?
+
     /// The identifier for `Identifiable` conformance.
     public var id: String { trackID }
     /// The playback position of the track, thread-safe.
@@ -51,7 +50,20 @@ public final class Track: Identifiable, Sendable {
     ///   - playbackPosition: The current playback position of the track.
     ///   - position: The position of the track in a playlist or queue.
     ///   - sonosAlbumArtURL: The URL for the album art specific to Sonos service.
-    public init(trackID: String, name: String = "", artist: String = "", album: String = "", artworkURL: URL? = nil, musicService: MusicService = .unknown, duration: TimeInterval = .zero, playbackPosition: TimeInterval = .zero, position: Int = 0, sonosAlbumArtURL: URL? = nil, TVMode: Bool) {
+    public init(
+        trackID: String,
+        name: String = "",
+        artist: String = "",
+        album: String = "",
+        artworkURL: URL? = nil,
+        musicService: MusicService = .unknown,
+        duration: TimeInterval = .zero,
+        playbackPosition: TimeInterval = .zero,
+        position: Int = 0,
+        sonosAlbumArtURL: URL? = nil,
+        metadata: Metadata? = nil,
+        TVMode: Bool = false
+    ) {
         self.trackID = trackID
         self.name = name
         self.artist = artist
@@ -113,19 +125,5 @@ public extension Track {
     }
 
     /// A static instance of `Track` representing an empty state.
-    static let empty = Track(trackID: "", name: "Nothing playing", TVMode: false)
-
-    @MainActor
-    var musicServiceOpenURLs: [URL?] {
-        switch musicService {
-        case .apple:
-            return []
-        case .spotify:
-            let urls = [URL(string:"spotify://track/\(trackID)"),
-                        URL(string:"https://open.spotify.com/track/\(trackID)")]
-            return urls
-        case .unknown, .airplay:
-            return []
-        }
-    }
+    static let empty = Track(trackID: "", name: "Nothing playing")
 }

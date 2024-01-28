@@ -16,10 +16,11 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var track: Track = .empty
     public var isEditingVolume: Bool = false
 
-    public init(id: String, ip: String, name: String) {
+    public init(id: String, ip: String, name: String, track: Track = .empty) {
         self.id = id
         self.ip = ip
         self.name = name
+        self.track = track
     }
 
     @MainActor
@@ -55,6 +56,6 @@ extension Room: CustomStringConvertible {
 
 extension Room {
     public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage")
-    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater")
+    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134", TVMode: true))
     public static let garage_kitchen_display = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Kitchen")
 }

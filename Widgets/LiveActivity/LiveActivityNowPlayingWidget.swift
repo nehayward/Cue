@@ -131,8 +131,11 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: "hifispeaker.fill")
-                    .font(.caption)
+                if let settings = context.state.TVSettings {
+                    Image(systemName: "tv.and.hifispeaker.fill")
+                } else {
+                    Image(systemName: "hifispeaker.fill")
+                }
             } compactTrailing: {
                 if let image = ArtworkManager.shared.getImage(name: context.state.name) {
                     Image(uiImage: image)

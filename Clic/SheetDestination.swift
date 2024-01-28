@@ -11,6 +11,7 @@ enum SheetDestination: Identifiable {
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
     case createScene
+    case scenes
 
     var id: String {
         switch self {
@@ -28,10 +29,12 @@ enum SheetDestination: Identifiable {
             "queue"
         case .playContent:
             "playContent"
-        case .playMedia:
-            "mediaContent"
+        case let .playMedia(content):
+            "mediaContent.\(content)"
         case .createScene:
             "createScene"
+        case .scenes:
+            "scenes"
         }
     }
 }

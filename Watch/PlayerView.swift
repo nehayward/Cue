@@ -12,7 +12,6 @@ struct PlayerView: View {
     @State private var showGroup: Bool = false
     @State private var volumeTask: Task<Void, Error>?
     @State private var artworkURL: URL?
-    @State private var artworkURLSmall: URL?
 
     var body: some View {
         VStack(spacing: 4) {
@@ -26,7 +25,29 @@ struct PlayerView: View {
                         .shadow(radius: 2)
                 }
             }
-//            .processors([.resize(width: 200)])
+            .overlay(alignment: .bottomTrailing) {
+                switch group.coordinatorRoom.track.musicService {
+                case .apple:
+                    Image(systemName: "apple.logo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: 10, height: 10)
+                        .padding([.trailing, .bottom], 4)
+                        .shadow(radius: 10)
+                case .spotify:
+                    Image(.spotifyLogo)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: 10, height: 10)
+                        .padding([.trailing, .bottom], 4)
+                        .shadow(radius: 10)
+                case .airplay, .unknown:
+                    EmptyView()
+                        .padding([.trailing, .bottom], 12)
+                }
+            }
             .cornerRadius(12)
             .shadow(radius: 10)
             .focusable()
@@ -67,8 +88,10 @@ struct PlayerView: View {
                 Button(action: {
                     Task {
                         if group.coordinatorRoom.isPlaying {
+                            WKInterfaceDevice.current().play(.stop)
                             await sonosService.pause(ip: group.coordinatorRoom.ip)
                         } else {
+                            WKInterfaceDevice.current().play(.start)
                             await sonosService.play(ip: group.coordinatorRoom.ip)
                         }
                     }
@@ -96,9 +119,6 @@ struct PlayerView: View {
                 })
                 .clipShape(Circle())
                 .frame(width: 48, height: 48)
-                .sensoryFeedback(trigger: group.coordinatorRoom.isPlaying) { old, new in
-                    new ? .start : .stop
-                }
                 Button {
                     WKInterfaceDevice.current().play(.click)
                     Task {
@@ -126,12 +146,14 @@ struct PlayerView: View {
         .background {
             LazyImage(url: artworkURL) { state in
                 if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fit)
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
                 }
             }
             .blur(radius: 20)
             .ignoresSafeArea()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .overlay {
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
@@ -191,8 +213,7 @@ struct PlayerView: View {
             track.artworkURL = await sonosService.getArtwork(from: track)
             group.coordinatorRoom.track = track
         }
-        .task(id: group.coordinatorRoom.track.name) {
-            artworkURLSmall = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 100)
+        .task(id: group.coordinatorRoom.track.id) {
             artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
         }
         .animation(.spring, value: popOver.isShowing)

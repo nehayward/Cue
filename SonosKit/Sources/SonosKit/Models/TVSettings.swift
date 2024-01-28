@@ -6,7 +6,7 @@ public struct TVSettings: Codable, Hashable, Equatable {
     public var dialogLevel: Bool
     public var audioInputFormat: AudioInputFormat
 
-    init(nightMode: Bool, dialogLevel: Bool, audioInputFormat: AudioInputFormat) {
+    public init(nightMode: Bool, dialogLevel: Bool, audioInputFormat: AudioInputFormat) {
         self.nightMode = nightMode
         self.dialogLevel = dialogLevel
         self.audioInputFormat = audioInputFormat

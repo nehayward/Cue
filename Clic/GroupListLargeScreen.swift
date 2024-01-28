@@ -26,7 +26,7 @@ struct GroupListLargeScreen: View {
                             TVModeViewCell(group: $group)
                         } else {
                             HStack(alignment: .top) {
-                                ArtworkViewKing(group: $group)
+                                ArtworkView(track: $group.coordinatorRoom.track)
                                     .frame(width: 72, height: 72)
                                 ZoneView(group: $group)
                                 Spacer()

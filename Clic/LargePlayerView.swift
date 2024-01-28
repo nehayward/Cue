@@ -12,12 +12,13 @@ struct LargePlayerView: View {
     @State var isExpanded: Bool = false
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
+    @State private var isHoveringOnQueueList: Bool = false
 
     var body: some View {
         @Bindable var sonosService = sonosService
 
         VStack(alignment: .center) {
-            ArtworkViewKing(group: $group)
+            ArtworkView(track: $group.coordinatorRoom.track)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
                 .shadow(radius: 10)
@@ -52,16 +53,21 @@ struct LargePlayerView: View {
                     Button {
                         router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
                     } label: {
-                        Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
-                            .fontDesign(.rounded)
-                            .font(.title3)
+                        if group.TVMode {
+                            Image(systemName: "tv.and.hifispeaker.fill")
+                        } else {
+                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                                .fontDesign(.rounded)
+                                .font(.title3)
+                        }
+
                     }
                     .buttonStyle(.plain)
                     Spacer()
                     Button {
                         router.presentedSheet = .search(group: group)
                     } label: {
-                        Image(systemName: "magnifyingglass.circle.fill")
+                        Image(systemName: "magnifyingglass")
                             .fontDesign(.rounded)
                             .font(.title3)
                     }
@@ -74,7 +80,7 @@ struct LargePlayerView: View {
                                 isExpanded.toggle()
                             }
                         } label: {
-                           Label("Room Volume", systemImage: "speaker.wave.2.circle.fill")
+                           Label("Room Volume", systemImage: "speaker.wave.2")
                                 .labelStyle(.iconOnly)
                                 .fontDesign(.rounded)
                                 .font(.title3)
@@ -85,47 +91,33 @@ struct LargePlayerView: View {
                     Button {
                         router.presentedSheet = .queue(group: $group)
                     } label: {
-                        Image(systemName: "list.number")
+                        Image(systemName: "list.dash")
                             .fontDesign(.rounded)
                             .font(.title3)
+                            .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
+                            .overlay(alignment: .topTrailing) {
+                                if isHoveringOnQueueList {
+                                    Image(systemName: "plus.circle.fill")
+                                        .offset(x: 12, y: -18)
+                                        .transition(.scale)
+                                        .foregroundStyle(.green)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
-
-//                    if let musicServiceOpenURL = group.coordinatorRoom.track.safeURL {
-                        // TODO: Add when flickering fixed
-//                        Spacer()
-//                        Menu {
-//                            Link(destination: musicServiceOpenURL) {
-//                                Label("Open in Spotify", image: .spotifyLogo)
-//                            }
-//                        } label: {
-//                            Image(systemName: "ellipsis.circle.fill")
-//                        }
-//                        .tint(.primary)
-//                    }
+                    .dropDestinationPlay(on: group, now: false) { isTargeted in
+                        if isTargeted {
+                            HapticManager.shared.fireHaptic(.selection)
+                        }
+                        isHoveringOnQueueList = isTargeted
+                    }
                 }
                 .frame(maxWidth: 300)
-                .padding(.horizontal, 80)
+                .padding(.horizontal, 60)
             }
         }
         .frame(maxHeight: .infinity)
         .padding()
-        .task {
-            guard OSEnvironment.isPreviews else { return }
-
-            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero, TVMode: false)
-            track.artworkURL = await sonosService.getArtwork(from: track)
-            group.rooms[0].track = track
-            group.coordinatorRoom.track.duration = 200000
-            Task {
-                repeat {
-                    try? await Task.sleep(for: .seconds(1)) // exception thrown when cancelled by SwiftUI when this view disappears.
-                    group.rooms[0].track.playbackPosition += 1000
-
-                } while (!Task.isCancelled)
-            }
-
-        }
         .onAppear {
             guard !OSEnvironment.pad else { return }
             sonosService.selectedGroup = group
@@ -141,7 +133,7 @@ struct LargePlayerView: View {
         }
         .background {
             ZStack {
-                ArtworkViewKing(group: $group)
+                ArtworkView(track: $group.coordinatorRoom.track)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(2)
                     .blur(radius: 50)
@@ -153,6 +145,33 @@ struct LargePlayerView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(group.nameWithCount)
+        .toolbar {
+            if !group.TVMode {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if let openInURL = group.coordinatorRoom.track.metadata?.openInURL {
+                            if group.coordinatorRoom.track.musicService == .apple {
+                                Link(destination: openInURL) {
+                                    Label("Open in Apple Music…", systemImage: "apple.logo")
+                                }
+                            }
+                            if group.coordinatorRoom.track.musicService == .spotify {
+                                Link(destination: openInURL) {
+                                    Label("Open in Spotify…", image: .spotifyLogo)
+                                }
+                            }
+                        }
+                        Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
+                            Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                    }
+                    .tint(.primary)
+                }
+            }
+        }
+        .dropDestinationPlay(on: group)
     }
 
     private func playbackView() -> some View {
@@ -275,33 +294,48 @@ struct LargePlayerView: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        LargePlayerView(group: .constant(.garage))
-            .environment(SonosService())
+
+fileprivate struct TVContainer: View {
+    @State var group: GroupRoom = .theater
+    var body: some View {
+        NavigationStack {
+            LargePlayerView(group: $group)
+                .environment(SonosService.shared)
+                .environment(Router())
+        }
+        .colorScheme(.dark)
     }
 }
 
-#if DEBUG
-#Preview("Group") {
-    NavigationStack {
-        LargePlayerView(group: .constant(.garagePlusTheater))
-            .screenshot(name: "Player Screen")
-            .environment(SonosService())
+fileprivate struct DuaLipaContainer: View {
+    @State var group: GroupRoom = GroupRoom(id: "RINCON_48A6B80D8FB401400:2447655112",
+                                            coordinatorID: Room.theater.id,
+                                            rooms: [.theater],
+                                            coordinatorRoom: .theater,
+                                            tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .dolbyStereo))
+
+    var body: some View {
+        NavigationStack {
+            LargePlayerView(group: $group)
+                .environment(SonosService.shared)
+                .environment(Router())
+        }
+        .colorScheme(.dark)
+        .task {
+            // https://open.spotify.com/track/11C4y2Yz1XbHmaQwO06s9f
+            let track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero, TVMode: false)
+            track.artworkURL = await SonosService.shared.getArtwork(from: track)
+            group.coordinatorRoom.track = track
+            group.coordinatorRoom.track.duration = 200000
+            group.groupVolume = 10
+        }
     }
-    .colorScheme(.dark)
 }
 
-#Preview("Appstore Screens") {
-    NavigationStack {
-        LargePlayerView(group: .constant(.garage))
-            .screenshot(name: "Player Screen")
-            .colorScheme(.dark)
-            .environment(SonosService())
-            .onAppear {
-                let thumbImage = UIImage()
-                UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-            }
-    }
+#Preview("Theater") {
+    TVContainer()
 }
-#endif
+
+#Preview("Dua Lipa") {
+    DuaLipaContainer()
+}

@@ -44,9 +44,8 @@ struct TVModeViewCell: View {
             Button {
                 routePath.presentedSheet = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
             } label: {
-                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
+                Image(systemName: "tv.and.hifispeaker.fill")
                     .frame(width: 20)
-                    .foregroundStyle(.tint, .thickMaterial)
             }
             .buttonStyle(.plain)
         }

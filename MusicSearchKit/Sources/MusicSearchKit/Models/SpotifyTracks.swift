@@ -4,11 +4,12 @@ public struct SpotifyTracks: Decodable, Sendable {
 
 public struct SpotifyTrackItems: Decodable, Identifiable, Sendable {
     public let id: String
-    public let externalUrls: ExternalUrls
     public let href: String
     public let name: String
     public let album: SpotifyAlbum
     public let artists: [SpotifyArtistsInfo]
+    public let externalUrls: ExternalUrls
+    public let externalIds: SpotifyExternalIDS
     public let type: String
     public let uri: String
     public let popularity: Int

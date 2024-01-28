@@ -12,68 +12,66 @@ struct SceneView: View {
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack {
-                ForEach($scenes) { $scene in
-                    SceneButton(scene: $scene) {
-                        alertService.showAlert(with: "Running \(scene.name)")
-                        Task {
-                            try? await sonosService.runScene(scene)
+        NavigationStack {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    ForEach(scenes) { scene in
+                        SceneButton(scene: scene) {
+                            alertService.showAlert(with: "Running \(scene.name)")
+                            Task {
+                                try? await sonosService.runScene(scene)
+                            }
                         }
-                    }
-                    .contentShape(.contextMenuPreview, Capsule())
-                    .contextMenu {
-                        Button("Remove", role: .destructive) {
-                            scenes.removeAll { sceneSearch in
-                                sceneSearch.id == scene.id
+                        .contentShape(.contextMenuPreview, Capsule())
+                        .contextMenu {
+                            Button("Remove", role: .destructive) {
+                                scenes.removeAll { sceneSearch in
+                                    sceneSearch.id == scene.id
+                                }
                             }
                         }
                     }
+                    .padding(.vertical)
+                    if scenes.isEmpty {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            show = true
+                        } label: {
+                            Label("Add Scene", systemImage: "plus.circle.fill")
+                                .padding(12)
+                                .background{
+                                    Capsule()
+                                        .foregroundStyle(.thinMaterial)
+                                        .shadow(radius: 2, x: 0, y: 1)
+                                }
+                        }
+                        .bold()
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            show = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title)
+                        }
+                        .bold()
+                        .foregroundStyle(Color.accentColor.gradient)
+                    }
                 }
-                .padding(.vertical)
-                .background(.clear)
-                if scenes.isEmpty {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        show = true
-                    } label: {
-                        Label("Add Scene", systemImage: "plus.circle.fill")
-                            .padding(12)
-                            .background{
-                                Capsule()
-                                    .foregroundStyle(.thinMaterial)
-                                    .shadow(radius: 2, x: 0, y: 1)
-                            }
-                    }
-                    .bold()
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        show = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title)
-                    }
-                    .bold()
-                    .foregroundStyle(Color.accentColor.gradient)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+            }
+            .contentMargins(.leading, 12, for: .scrollContent)
+            //        .scrollContentBackground(.hidden)
+            .sheet(isPresented: $show) {
+                NavigationStack {
+                    SceneBuilderScreen(sheetDestination: .constant(nil))
                 }
             }
-            .background(.clear)
-            .scrollTargetLayout()
-            .fontDesign(.rounded)
-            .fontWeight(.bold)
         }
-        .scrollTargetBehavior(.viewAligned)
-        .contentMargins(.leading, 12, for: .scrollContent)
-        .scrollContentBackground(.hidden)
-        .background(.bar)
-        .sheet(isPresented: $show) {
-            NavigationStack {
-                SceneBuilderScreen(sheetDestination: .constant(nil))
-            }
-        }
-
+        .presentationDetents([.medium, .large])
+        .presentationBackground(.ultraThinMaterial.secondary)
     }
 }
 

@@ -12,6 +12,7 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
     public let type: String
     public let artworkUrl100: String
     public let durationInMiliSeconds: Int
+    public let trackViewURL: String
     public var artworkURL: String {
         artworkUrl100.replacingOccurrences(of: "100", with: "1000")
     }
@@ -34,6 +35,7 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
             self.type = ""
             self.trackCensoredName = ""
             self.durationInMiliSeconds = 0
+            self.trackViewURL = ""
             return
         }
         self.artistName = try container.decode(String.self, forKey: .artistName)
@@ -45,6 +47,7 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
         self.collectionID = try container.decodeIfPresent(Int.self, forKey: .collectionId)
         self.trackID = try container.decode(Int.self, forKey: .trackId)
         self.durationInMiliSeconds = try container.decodeIfPresent(Int.self, forKey: .durationInMiliSeconds) ?? 0
+        self.trackViewURL = try container.decodeIfPresent(String.self, forKey: .trackViewURL) ?? ""
         self.type = type
     }
 
@@ -59,6 +62,7 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
         case collectionId
         case trackId
         case durationInMiliSeconds = "trackTimeMillis"
+        case trackViewURL = "trackViewUrl"
     }
 
 }

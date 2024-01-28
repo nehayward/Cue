@@ -1,11 +1,11 @@
 import RevenueCatUI
 import SubscriptionKit
 import SonosKit
+import VibesDS
 import SwiftUI
 
 @MainActor
 extension View {
-
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>) -> some View {
         sheet(item: sheetDestinations) { destination in
             Group {
@@ -38,6 +38,8 @@ extension View {
                                 sheetDestinations.wrappedValue = nil
                             }
                     }
+                case .scenes:
+                    SceneView()
                 }
             }
             .withEnvironments()

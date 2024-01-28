@@ -2,6 +2,7 @@ import CloudStorage
 import SwiftUI
 import SonosKit
 import SubscriptionKit
+import VibesDS
 import RevenueCat
 import RevenueCatUI
 
@@ -32,7 +33,7 @@ struct DeviceListMainView: View {
                                 TVModeViewCell(group: $group)
                             } else {
                                 HStack(alignment: .top) {
-                                    ArtworkViewKing(group: $group)
+                                    ArtworkView(track: $group.coordinatorRoom.track)
                                         .frame(width: 72, height: 72)
                                     ZoneView(group: $group)
                                     Spacer()
@@ -44,6 +45,7 @@ struct DeviceListMainView: View {
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))
+                    .dropDestinationPlay(on: group)
                 } header: {
                     Text(group.nameWithCount)
                         .fontDesign(.rounded)
@@ -115,26 +117,36 @@ struct DeviceListMainView: View {
                 HStack {
                     Spacer()
                     if subscriptionService.subscription.isActive {
-                        Menu {
-                            ForEach(scenes) { scene in
-                                Button {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    alertService.showAlert(with: "Running \(scene.name)")
-                                    Task {
-                                        try? await sonosService.runScene(scene)
-                                    }
-                                } label: {
-                                    Text(scene.name)
-                                        .tint(.red)
-                                }
-                            }
-                            ControlGroup {
-                                Button {
-                                    router.sheet(to: .createScene)
-                                } label: {
-                                    Label("Create Scene", systemImage: "plus")
-                                }
-                            }
+//                        Menu {
+//                            ForEach(scenes) { scene in
+//                                Button {
+//                                    HapticManager.shared.fireHaptic(.buttonPress)
+//                                    alertService.showAlert(with: "Running \(scene.name)")
+//                                    Task {
+//                                        try? await sonosService.runScene(scene)
+//                                    }
+//                                } label: {
+//                                    HStack {
+//                                        Text(scene.name)
+//                                        LazyImage(url: <#T##URL?#>)
+//                                    }
+//                                }
+//                            }
+//                            ControlGroup {
+//                                Button {
+//                                    router.sheet(to: .createScene)
+//                                } label: {
+//                                    Label("Create Scene", systemImage: "plus")
+//                                }
+//                            }
+//                        } label: {
+//                            Image(systemName: "bolt.circle.fill")
+//                                .font(.title)
+//                                .foregroundStyle(.accent)
+//                        }
+
+                        Button {
+                            router.sheet(to: .scenes)
                         } label: {
                             Image(systemName: "bolt.circle.fill")
                                 .font(.title)
@@ -213,16 +225,3 @@ struct DeviceListMainView: View {
         .environment(AlertService.shared)
         .environment(Router())
 }
-
-
-#if DEBUG
-#Preview("Appstore Screens") {
-    DeviceListMainView()
-        .screenshot(name: "Appstore")
-        .colorScheme(.dark)
-        .environment(SonosService.shared)
-        .environment(SubscriptionService.shared)
-        .environment(AlertService.shared)
-        .environment(Router())
-}
-#endif
