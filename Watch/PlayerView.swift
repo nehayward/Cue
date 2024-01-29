@@ -143,23 +143,6 @@ struct PlayerView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .background {
-            LazyImage(url: artworkURL) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                }
-            }
-            .blur(radius: 20)
-            .ignoresSafeArea()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .overlay {
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-                    .ignoresSafeArea()
-            }
-        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

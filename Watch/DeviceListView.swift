@@ -50,10 +50,11 @@ struct DeviceListView: View {
             }
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         } detail: {
-            TabView {
-                if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                    PlayerScreen(group: $sonosService.sorted[index])
-                }
+            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                PlayerScreen(group: $sonosService.sorted[index])
+            } else {
+                Text("Group No Longer Available")
+                    .navigationBarTitleDisplayMode(.inline)
             }
         }
         .safeAreaInset(edge: .bottom) {

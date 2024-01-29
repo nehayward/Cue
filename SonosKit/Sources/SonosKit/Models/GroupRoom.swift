@@ -10,7 +10,23 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var TVMode: Bool { coordinatorRoom.track.TVMode }
-    public var tvSettings: TVSettings? = nil
+    public var tvSettings: TVSettings? {
+        get {
+            return lock.withLock {
+                return privateTVSettings
+            }
+        }
+        set {
+            lock.withLock {
+                DispatchQueue.main.async { [weak self] in
+                    self?.privateTVSettings = newValue
+                }
+            }
+        }
+    }
+    @ObservationIgnored
+    private var privateTVSettings: TVSettings? = nil
+
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }

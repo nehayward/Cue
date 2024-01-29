@@ -1,5 +1,18 @@
 # 2024.10
 
++ Add integration with NowPlaying!
++ Add drag and drop support for Apple Music and Spotify
++ Add Open in for Apple Music and Spotify
++ UI Tweaks
++ Improve Watch UI
++ Add Icon when in TV Mode
+
+## External 
+
++ InvalidatableContent State to Widgets
+
+# 2024.6
+
 ## External 
 
 - Improved system monitoring.
@@ -7,6 +20,13 @@
 - Added play history.
 - UI Improvements.
 
+## Internal
+
+- Improved monitoring so SwiftUI view isn't constantly redrawn.
+- Adding function to observe group changes.
+- Remove queue index number on watch and phone.
+- Add Defaults Package
+- Fix permission button not showing.
 # 2024.6
 
 ## External 

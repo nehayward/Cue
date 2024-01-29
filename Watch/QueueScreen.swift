@@ -87,6 +87,7 @@ struct QueueScreen: View {
                                 }
                             }
                         }
+                        .id(index)
                         .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
                     }
                     .fontDesign(.rounded)
@@ -108,14 +109,19 @@ struct QueueScreen: View {
                 }
                 .task {
                     await getQueue()
+                }
+                .task(id: tracks.count) {
                     withAnimation {
+                        print(group.coordinatorRoom.track.position - 1)
                         proxy.scrollTo(group.coordinatorRoom.track.position - 1)
                     }
                 }
                 .animation(.spring, value: tracks)
                 .overlay {
-                    if isLoading, !tracks.isEmpty {
+                    if isLoading {
                         ProgressView()
+                            .padding()
+                            .background(.thinMaterial)
                     }
                     if tracks.isEmpty, !isLoading {
                         ContentUnavailableView("Empty", systemImage: "music.note.list")
@@ -125,7 +131,6 @@ struct QueueScreen: View {
             }
             .animation(Animation.default.delay(tracks.isEmpty ? 0 : 2), value: tracks)
         }
-        .presentationBackground(.thinMaterial)
     }
 
     private func getQueue() async {

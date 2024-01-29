@@ -20,6 +20,7 @@ struct RemoteWidgetAccessoryCircularView: View {
             }
             .buttonStyle(.plain)
             .containerBackground(.bar, for: .widget)
+            .invalidatableContent()
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

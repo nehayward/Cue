@@ -29,6 +29,7 @@ struct RemoteWidgetRectangularView: View {
                 .bold()
             }
             .buttonStyle(.plain)
+            .invalidatableContent()
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)
