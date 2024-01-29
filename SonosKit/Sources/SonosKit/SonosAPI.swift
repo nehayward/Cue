@@ -7,6 +7,7 @@ import Network
 final class SonosAPI {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     private lazy var session: URLSession = privateSession
+    private lazy var xmlParser = XMLParserSonos()
 
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
@@ -46,7 +47,7 @@ final class SonosAPI {
             logger.error("\(IP) Failed to \(#function)")
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return XMLParserSonos().parseGetGroupMute(xml: xml)
+        return xmlParser.parseGetGroupMute(xml: xml)
     }
 
     func getRoomMute(IP: String) async -> Bool? {
@@ -64,7 +65,7 @@ final class SonosAPI {
             print("Failed")
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return XMLParserSonos().parseGetRoomMute(xml: xml)
+        return xmlParser.parseGetRoomMute(xml: xml)
     }
 
     func setRoomMute(IP: String, mute: Bool) async {
@@ -125,7 +126,7 @@ final class SonosAPI {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        let volume = try XMLParserSonos().parseVolume(xml: xml)
+        let volume = try xmlParser.parseVolume(xml: xml)
         return Double(volume)
     }
 
@@ -139,7 +140,7 @@ final class SonosAPI {
         }
         
         let xml = String(decoding: data, as: UTF8.self)
-        let volume = try XMLParserSonos().parseGroupVolume(xml: xml)
+        let volume = try xmlParser.parseGroupVolume(xml: xml)
         return Double(volume)
     }
 
@@ -181,7 +182,7 @@ final class SonosAPI {
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
-            let trackInfo = XMLParserSonos().parsePositionInfo(xml: xmlString.unescaped, IP: ipAddress)
+            let trackInfo = xmlParser.parsePositionInfo(xml: xmlString.unescaped, IP: ipAddress)
             SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xmlString.unescaped)
             return trackInfo
         }
@@ -260,7 +261,7 @@ final class SonosAPI {
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             let xmlString = String(data: data, encoding: .utf8)!
-            let playbackInfo = XMLParserSonos().parsePlaybackInfo(xml: xmlString)
+            let playbackInfo = xmlParser.parsePlaybackInfo(xml: xmlString)
             return playbackInfo
         }
 
@@ -276,7 +277,7 @@ final class SonosAPI {
             return .normal
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return XMLParserSonos().parsePlaybackMode(xml) ?? .normal
+        return xmlParser.parsePlaybackMode(xml) ?? .normal
     }
 
     public func setPlayMode(_ IP: String, playMode: PlayMode) async {
@@ -304,7 +305,7 @@ final class SonosAPI {
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetMediaInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return false }
-            let isTVMode = XMLParserSonos().parseMediaInfo(xml: xmlString)
+            let isTVMode = xmlParser.parseMediaInfo(xml: xmlString)
             return isTVMode
         }
 
@@ -322,7 +323,7 @@ final class SonosAPI {
             guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [:], endpoint: "ZoneGroupTopology") else { return [] }
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
             SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
-            let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
+            let zones = xmlParser.parseZones(xml: xmlString.unescaped)
             return zones.compactMap { $0.toGroup }
         } catch URLError.cancelled {
             print("Cancelled")
@@ -347,9 +348,9 @@ final class SonosAPI {
             guard let xmlString = String(data: data, encoding: .utf8) else { throw SonosAPIError.deviceNotFound }
 
             SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
-            let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
+            let zones = xmlParser.parseZones(xml: xmlString.unescaped)
             let mappedZones =  zones.compactMap { $0.toGroup }
-            let vanishedDevices = XMLParserSonos().parseVanishedDevices(xml: xmlString.unescaped)
+            let vanishedDevices = xmlParser.parseVanishedDevices(xml: xmlString.unescaped)
 
             return System(zones: mappedZones, vanished: vanishedDevices, id: "")
 
@@ -373,7 +374,7 @@ final class SonosAPI {
 
         if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: arguments, endpoint: "ZoneGroupTopology") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-            let zones = XMLParserSonos().parseZones(xml: xmlString.unescaped)
+            let zones = xmlParser.parseZones(xml: xmlString.unescaped)
 
             let mappedRooms = zones.flatMap { zoneGroup in
                 zoneGroup.zoneGroupMembers.compactMap {
@@ -597,7 +598,7 @@ final class SonosAPI {
         if let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetCurrentTransportActions", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 let xmlString = String(data: data, encoding: .utf8)!
-                guard let transportActions = XMLParserSonos().parseGetCurrentTransportActions(xml: xmlString) else {
+                guard let transportActions = xmlParser.parseGetCurrentTransportActions(xml: xmlString) else {
                     return nil
                 }
                 print(transportActions)
@@ -625,7 +626,7 @@ final class SonosAPI {
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-            return XMLParserSonos().parseQueue(IP: IP, xml: xmlString)
+            return xmlParser.parseQueue(IP: IP, xml: xmlString)
         }
         return []
     }
@@ -699,7 +700,7 @@ final class SonosAPI {
     func getHouseHoldID(for IP: String) async -> String {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
-            let houseID = XMLParserSonos().parseHouseID(xml: xmlString)
+            let houseID = xmlParser.parseHouseID(xml: xmlString)
             return houseID
         }
 

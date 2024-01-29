@@ -91,6 +91,33 @@ final class SonosKitTests: XCTestCase {
         let tracks = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
         XCTAssertEqual(tracks.count, 25)
     }
+    
+    func testGetQueueLargeParsing() throws {
+        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
+        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
+
+        measure {
+            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
+        }
+    }
+
+    func testGetQueueLargeFastParsing() throws {
+        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
+        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
+
+        measure {
+            let _ = XMLParserSonos().parseQueueFast(IP: "", xml: getQueueLargeXML)
+        }
+    }
+
+    func testGetQueueSmallParsing() throws {
+        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
+        let getQueueXML = try! String(contentsOf: getQueueURL!)
+
+        measure {
+            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
+        }
+    }
 
     func testGetCurrentTransportActions() throws {
         let xmlURL = Bundle.module.url(forResource: "GetCurrentTransportActions", withExtension: "xml")

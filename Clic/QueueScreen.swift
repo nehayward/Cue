@@ -174,7 +174,7 @@ struct QueueScreen: View {
         }
         .presentationBackground(.thinMaterial)
         .overlay {
-            if isLoading, !tracks.isEmpty {
+            if isLoading, tracks.isEmpty {
                 ProgressView()
             }
             if tracks.isEmpty, !isLoading {

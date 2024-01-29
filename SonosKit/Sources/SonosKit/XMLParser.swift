@@ -309,6 +309,7 @@ final class XMLParserSonos {
         guard let items = resultsParsed.children.first?.children else { return [] }
         var tracks: [Track] = []
 
+   
         for item in items {
             guard let title = item["dc:title"].element?.text,
                   let artist = item["dc:creator"].element?.text,
@@ -319,29 +320,6 @@ final class XMLParserSonos {
                   let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
             else {
                 continue
-            }
-
-            var playbackPosition = TimeInterval.zero
-            // MARK: Parse out RelTime
-            let pattern = "<RelTime>(.*?)</RelTime>"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
-
-                if let match = regex.firstMatch(in: xml, options: [], range: range) {
-                    let valueRange = match.range(at: 1)
-                    if let valueRange = Range(valueRange, in: xml) {
-                        let timeStamp = String(xml[valueRange])
-                        let components = timeStamp.components(separatedBy: ":")
-                        if components.count == 3,
-                           let hours = Int(components[0]),
-                           let minutes = Int(components[1]),
-                           let seconds = Int(components[2])
-                        {
-                            let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
-                            playbackPosition = TimeInterval(totalMilliseconds)
-                        }
-                    }
-                }
             }
 
             var trackDuration = TimeInterval.zero
@@ -392,7 +370,7 @@ final class XMLParserSonos {
                 album: album,
                 musicService: musicService,
                 duration: trackDuration,
-                playbackPosition: playbackPosition,
+                playbackPosition: .zero,
                 position: trackNumber,
                 sonosAlbumArtURL: sonosAlbumArtURL,
                 TVMode: false

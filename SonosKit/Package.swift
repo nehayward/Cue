@@ -40,6 +40,7 @@ let package = Package(
                 .copy("Resources/ZoneEvent.xml"),
                 .copy("Resources/GetZoneGroupAttributes.xml"),
                 .copy("Resources/GetQueue.xml"),
+                .copy("Resources/GetQueueLarge.xml"),
                 .copy("Resources/ZonesVanished.xml"),
                 .copy("Resources/GetCurrentTransportActions.xml")
             ]
