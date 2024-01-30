@@ -394,6 +394,7 @@ public final class SonosService {
         return
     }
 
+    @MainActor
     public func updateGroups(from groups: [GroupRoom]) async throws {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {
