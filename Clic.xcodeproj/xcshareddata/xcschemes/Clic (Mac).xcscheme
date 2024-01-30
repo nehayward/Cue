@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E97562C82B699B2400787E14"
-               BuildableName = "Clic (Mac).app"
+               BuildableName = "Clic.app"
                BlueprintName = "Clic (Mac)"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
@@ -44,7 +44,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E97562C82B699B2400787E14"
-            BuildableName = "Clic (Mac).app"
+            BuildableName = "Clic.app"
             BlueprintName = "Clic (Mac)"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
@@ -61,7 +61,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "E97562C82B699B2400787E14"
-            BuildableName = "Clic (Mac).app"
+            BuildableName = "Clic.app"
             BlueprintName = "Clic (Mac)"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>

@@ -499,7 +499,6 @@
 		E9678B2A2B3FC6970011B905 /* MusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicSearchScreen.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
 		E97563432B699B2400787E14 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E97563442B699B2400787E14 /* Clic-Mac.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Clic-Mac.plist"; path = "/Users/nickhayward/Library/Mobile Documents/com~apple~CloudDocs/Active/Clic/Clic-Mac.plist"; sourceTree = "<absolute>"; };
 		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -522,6 +521,7 @@
 		E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogScreen.swift; sourceTree = "<group>"; };
 		E98CE0092B2FF3FB002E5A96 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
+		E99011392B69A0BC00D2DFF5 /* Clic-Mac.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Clic-Mac.plist"; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
@@ -757,14 +757,6 @@
 			path = Search;
 			sourceTree = "<group>";
 		};
-		E97563452B699B7800787E14 /* Mac */ = {
-			isa = PBXGroup;
-			children = (
-				E97563442B699B2400787E14 /* Clic-Mac.plist */,
-			);
-			path = Mac;
-			sourceTree = "<group>";
-		};
 		E97C0D462A325CC5005AB0E0 /* Widgets */ = {
 			isa = PBXGroup;
 			children = (
@@ -811,6 +803,24 @@
 			path = Intents;
 			sourceTree = "<group>";
 		};
+		E99011382B69A0BC00D2DFF5 /* Mac */ = {
+			isa = PBXGroup;
+			children = (
+				E99011392B69A0BC00D2DFF5 /* Clic-Mac.plist */,
+			);
+			path = Mac;
+			sourceTree = "<group>";
+		};
+		E990113C2B69A10000D2DFF5 /* Coniguration */ = {
+			isa = PBXGroup;
+			children = (
+				E9A9531A2ADDA06D00600516 /* Release.xcconfig */,
+				E9A953192ADDA06D00600516 /* Debug.xcconfig */,
+				E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */,
+			);
+			path = Coniguration;
+			sourceTree = "<group>";
+		};
 		E9A46FCE2B684093000D4094 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
@@ -836,17 +846,15 @@
 		E9BDE56329E3396700D230A8 = {
 			isa = PBXGroup;
 			children = (
-				E9A9531A2ADDA06D00600516 /* Release.xcconfig */,
-				E9A953192ADDA06D00600516 /* Debug.xcconfig */,
-				E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */,
+				E990113C2B69A10000D2DFF5 /* Coniguration */,
 				E93AFA752B587E5000B20AC4 /* Defaults */,
 				E960ED462AC46769003E3732 /* SubscriptionKit */,
 				E959B91D2AB65EC3000D596E /* VibesDS */,
 				E96396332A3B700900518A17 /* MusicSearchKit */,
 				E9F3D44D2A02C2900042F208 /* SonosKit */,
 				E9BDE56E29E3396700D230A8 /* Clic */,
+				E99011382B69A0BC00D2DFF5 /* Mac */,
 				E9C03AFD2A586F5E00FB9118 /* Watch */,
-				E97563452B699B7800787E14 /* Mac */,
 				E92DCBA12B67020A00A2C3B5 /* Vision */,
 				E97C0D462A325CC5005AB0E0 /* Widgets */,
 				E9B12B562A5F31790008868C /* WatchWidgets */,
@@ -2009,7 +2017,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
-				INFOPLIST_FILE = "Clic-Mac.plist";
+				INFOPLIST_FILE = "Mac/Clic-Mac.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2061,7 +2069,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
-				INFOPLIST_FILE = "Clic-Mac.plist";
+				INFOPLIST_FILE = "Mac/Clic-Mac.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2113,7 +2121,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
-				INFOPLIST_FILE = "Clic-Mac.plist";
+				INFOPLIST_FILE = "Mac/Clic-Mac.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
