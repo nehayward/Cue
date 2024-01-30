@@ -6,6 +6,8 @@
 + UI Tweaks
 + Improve Watch UI
 + Add Icon when in TV Mode
++ Add repeat and shuffle controls
++ Add content type to Play History
 
 ## External 
 
