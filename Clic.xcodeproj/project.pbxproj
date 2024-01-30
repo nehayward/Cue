@@ -78,7 +78,6 @@
 		E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
 		E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856262A9FB5AD0024B192 /* PillView.swift */; };
 		E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
-		E92B3EDD2B60249B00724FA1 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
 		E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
 		E92B3EDF2B60249B00724FA1 /* AppleMusicSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABD2B0EBB8000AF57EA /* AppleMusicSearchView.swift */; };
 		E92B3EE02B60249B00724FA1 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A242AAACB49002E432C /* ArtworkView.swift */; };
@@ -180,6 +179,7 @@
 		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */; };
+		E9A46FD22B68C15C000D4094 /* ClicVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */; };
 		E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */; };
 		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
 		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
@@ -399,6 +399,7 @@
 		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
+		E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicVisionApp.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
 		E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
 		E9A953192ADDA06D00600516 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -557,6 +558,7 @@
 		E92DCBA12B67020A00A2C3B5 /* Vision */ = {
 			isa = PBXGroup;
 			children = (
+				E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */,
 				E92DCBA22B67022600A2C3B5 /* MiniPlayerView.swift */,
 			);
 			path = Vision;
@@ -1175,6 +1177,7 @@
 				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
 				E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */,
 				E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */,
+				E9A46FD22B68C15C000D4094 /* ClicVisionApp.swift in Sources */,
 				E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */,
 				E92B3EA82B60249B00724FA1 /* SceneBuilderScreen.swift in Sources */,
 				E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */,
@@ -1232,7 +1235,6 @@
 				E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */,
 				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
 				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */,
-				E92B3EDD2B60249B00724FA1 /* ClicApp.swift in Sources */,
 				E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */,
 				E92B3EDF2B60249B00724FA1 /* AppleMusicSearchView.swift in Sources */,
 				E92B3EE02B60249B00724FA1 /* ArtworkView.swift in Sources */,
@@ -1451,7 +1453,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1503,7 +1505,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -1555,7 +1557,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

@@ -175,6 +175,7 @@ final class SonosAPI {
         return
     }
 
+    @MainActor
     func getCurrentTrack(ipAddress: String) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,
@@ -626,7 +627,7 @@ final class SonosAPI {
             }
 
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
-            return xmlParser.parseQueue(IP: IP, xml: xmlString)
+            return await xmlParser.parseQueue(IP: IP, xml: xmlString)
         }
         return []
     }

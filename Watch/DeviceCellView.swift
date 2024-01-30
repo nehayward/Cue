@@ -26,6 +26,20 @@ struct DeviceCellView: View {
                                         .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.ultraThinMaterial)
                                         .shadow(radius: 2)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.accent.gradient.secondary)
+                                        .shadow(radius: 2)
+                                        .overlay {
+                                            if artworkURL == nil {
+                                                Image(systemName: "music.note")
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .foregroundStyle(.regularMaterial)
+                                                    .frame(width: 24, height: 24)
+                                            }
+                                        }
                                 }
                             }
                             .transition(.scale)
@@ -67,7 +81,7 @@ struct DeviceCellView: View {
                     }
                 }
                 Spacer()
-                if group.tvSettings == nil {
+                if group.tvSettings == nil && group.coordinatorRoom.track != .empty {
                     Button {
                         Task {
                             if group.coordinatorRoom.isPlaying {

@@ -5,8 +5,10 @@ import SonosKit
 struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
-    @State var artworkURL: URL?
-    @State var size: Double = 24
+    @State private var artworkURL: URL?
+    @State private var size: Double = 24
+
+    private var placeholderSize: Double { size == 24 ? 100 : 42 }
 
     var body: some View {
         GeometryReader { proxy in
@@ -21,6 +23,20 @@ struct ArtworkView: View {
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
+                } else {
+                    RoundedRectangle(cornerRadius: 4)
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.accent.gradient.secondary)
+                        .shadow(radius: 2)
+                        .overlay {
+                            if artworkURL == nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.regularMaterial)
+                                    .frame(width: placeholderSize, height: placeholderSize)
+                            }
+                        }
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -58,8 +74,10 @@ struct ArtworkView: View {
                 } else {
                     size = 24
                 }
+                print(size)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .animation(.spring, value: artworkURL)
         }
     }
 }

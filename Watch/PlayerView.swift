@@ -21,8 +21,17 @@ struct PlayerView: View {
                 } else {
                     RoundedRectangle(cornerRadius: 4)
                         .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
+                        .foregroundStyle(.accent.gradient.secondary)
                         .shadow(radius: 2)
+                        .overlay {
+                            if artworkURL == nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.regularMaterial)
+                                    .frame(width: 42, height: 42)
+                            }
+                        }
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -135,14 +144,6 @@ struct PlayerView: View {
         .frame(maxWidth: .infinity)
         .padding(.bottom, 8)
         .ignoresSafeArea(edges: .bottom)
-        .overlay(alignment: .center) {
-            if group.coordinatorRoom.track.name.isEmpty {
-                Text("Nothing to play")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .multilineTextAlignment(.center)
-            }
-        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
