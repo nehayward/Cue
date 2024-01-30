@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "VibesDS",
-    platforms: [.iOS(.v17), .watchOS(.v10)],
+    platforms: [.iOS(.v17), .watchOS(.v10), .macOS(.v14)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
