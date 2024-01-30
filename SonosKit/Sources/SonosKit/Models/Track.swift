@@ -95,6 +95,7 @@ extension Track: Hashable {
         hasher.combine(trackID)
         hasher.combine(name)
         hasher.combine(position)
+        hasher.combine(TVMode)
     }
 }
 

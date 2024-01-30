@@ -18,7 +18,7 @@ struct LargePlayerView: View {
         @Bindable var sonosService = sonosService
 
         VStack(alignment: .center) {
-            ArtworkView(track: $group.coordinatorRoom.track)
+            ArtworkView(group: $group)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
                 .shadow(radius: 10)
@@ -103,6 +103,18 @@ struct LargePlayerView: View {
                                         .foregroundStyle(.green)
                                 }
                             }
+                            .overlay(alignment: .topTrailing) {
+                                if group.playMode.contains(.shuffle) {
+                                    Image(systemName: "shuffle.circle.fill")
+                                        .offset(x: 12, y: -12)
+                                } else if group.playMode.contains(.repeatAll){
+                                    Image(systemName: "repeat.circle.fill")
+                                        .offset(x: 12, y: -12)
+                                } else if group.playMode.contains(.repeatOne){
+                                    Image(systemName: "repeat.1.circle.fill")
+                                        .offset(x: 12, y: -12)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
                     .dropDestinationPlay(on: group, now: false) { isTargeted in
@@ -133,7 +145,7 @@ struct LargePlayerView: View {
         }
         .background {
             ZStack {
-                ArtworkView(track: $group.coordinatorRoom.track)
+                ArtworkView(group: $group)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(2)
                     .blur(radius: 50)
@@ -172,6 +184,7 @@ struct LargePlayerView: View {
             }
         }
         .dropDestinationPlay(on: group)
+        .animation(.bouncy, value: group.playMode)
     }
 
     private func playbackView() -> some View {

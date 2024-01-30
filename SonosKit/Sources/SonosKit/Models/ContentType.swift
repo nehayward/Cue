@@ -19,4 +19,17 @@ public enum ContentType: Equatable, Codable {
             return nil
         }
     }
+
+    public var title: String {
+        switch self {
+        case .playlist:
+            "Playlist"
+        case .artist:
+            "Artist"
+        case .album:
+            "Album"
+        case .track:
+            "Song"
+        }
+    }
 }

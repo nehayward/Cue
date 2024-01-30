@@ -33,7 +33,7 @@ struct PlayHistoryView: View {
                             .frame(width: 60, height: 60)
                         VStack(alignment: .leading) {
                             Text(item.title)
-                            Text(item.subtitle)
+                            Text("\(item.content.type.title) • \(item.subtitle)")
                                 .foregroundStyle(.secondary)
                         }
                     }

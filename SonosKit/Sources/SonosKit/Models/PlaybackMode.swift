@@ -3,9 +3,9 @@ public struct PlayMode: OptionSet {
 
 //    NORMAL / REPEAT_ALL / REPEAT_ONE / SHUFFLE_NOREPEAT / SHUFFLE / SHUFFLE_REPEAT_ONE
     public static let normal = Self(rawValue: 1 << 0)
-    public static let repeatOne = Self(rawValue: 1 << 1)
-    public static let repeatAll = Self(rawValue: 1 << 2)
-    public static let shuffle = Self(rawValue: 1 << 3)
+    public static let shuffle = Self(rawValue: 1 << 1)
+    public static let repeatOne = Self(rawValue: 1 << 2)
+    public static let repeatAll = Self(rawValue: 1 << 3)
 
     public init(rawValue: Int) {
         self.rawValue = rawValue

@@ -175,19 +175,20 @@ final class SonosAPI {
         return
     }
 
+//    @MainActor
     func getCurrentTrack(ipAddress: String) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,
         ]
 
-        if let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return nil }
-            let trackInfo = xmlParser.parsePositionInfo(xml: xmlString.unescaped, IP: ipAddress)
-            SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xmlString.unescaped)
-            return trackInfo
+        guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else  {
+            return nil
         }
 
-        return nil
+        let xml = String(decoding: data, as: UTF8.self)
+        let trackInfo = xmlParser.parsePositionInfo(xml: xml.unescaped, IP: ipAddress)
+        SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xml.unescaped)
+        return trackInfo
     }
 
     func pause(ipAddress: String) async {

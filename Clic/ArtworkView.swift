@@ -4,7 +4,7 @@ import SonosKit
 
 struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var track: Track
+    @Binding var group: GroupRoom
     @State var artworkURL: URL?
     @State var size: Double = 24
 
@@ -26,7 +26,7 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                switch track.musicService {
+                switch group.coordinatorRoom.track.musicService {
                 case .apple:
                     Image(systemName: "apple.logo")
                         .resizable()
@@ -48,9 +48,9 @@ struct ArtworkView: View {
                         .padding([.trailing, .bottom], 12)
                 }
             }
-            .task(id: track.id) {
-                print("Fetching Track for \(track.id)")
-                artworkURL = await sonosService.getArtwork(from: track)
+            .task(id: group.coordinatorRoom.track.id) {
+                print("Fetching Track for \(group.coordinatorRoom.track.id)")
+                artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
             }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width < 100 {
@@ -63,25 +63,25 @@ struct ArtworkView: View {
         }
     }
 }
-
-#Preview("Empty") {
-    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))
-        .environment(SonosService.shared)
-}
-
-#Preview("Dua Lipa") {
-    ArtworkView(track: .constant(Track(trackID: "6wf7Yu7cxBSPrRlWeSeK0Q", musicService: .spotify)))
-        .environment(SonosService.shared)
-}
-
-#Preview("White Background") {
-    ArtworkView(track: .constant(Track(trackID: "204669559", musicService: .apple)))
-        .environment(SonosService.shared)
-
-}
-
-#Preview("Dark Album") {
-    ArtworkView(track: .constant(Track(trackID: "7sjuNUjWtSqhbxJ3RAUffm", musicService: .spotify)))
-        .environment(SonosService.shared)
-}
-
+//
+//#Preview("Empty") {
+//    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))
+//        .environment(SonosService.shared)
+//}
+//
+//#Preview("Dua Lipa") {
+//    ArtworkView(track: .constant(Track(trackID: "6wf7Yu7cxBSPrRlWeSeK0Q", musicService: .spotify)))
+//        .environment(SonosService.shared)
+//}
+//
+//#Preview("White Background") {
+//    ArtworkView(track: .constant(Track(trackID: "204669559", musicService: .apple)))
+//        .environment(SonosService.shared)
+//
+//}
+//
+//#Preview("Dark Album") {
+//    ArtworkView(track: .constant(Track(trackID: "7sjuNUjWtSqhbxJ3RAUffm", musicService: .spotify)))
+//        .environment(SonosService.shared)
+//}
+//

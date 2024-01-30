@@ -67,24 +67,24 @@ struct ContentArtworkView: View {
     }
 }
 
-#Preview("Empty") {
-    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))
-        .environment(SonosService.shared)
-}
-
-#Preview("Dua Lipa") {
-    ArtworkView(track: .constant(Track(trackID: "6wf7Yu7cxBSPrRlWeSeK0Q", musicService: .spotify)))
-        .environment(SonosService.shared)
-}
-
-#Preview("White Background") {
-    ArtworkView(track: .constant(Track(trackID: "204669559", musicService: .apple)))
-        .environment(SonosService.shared)
-
-}
-
-#Preview("Dark Album") {
-    ArtworkView(track: .constant(Track(trackID: "7sjuNUjWtSqhbxJ3RAUffm", musicService: .spotify)))
-        .environment(SonosService.shared)
-}
-
+//#Preview("Empty") {
+//    ContentArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))
+//        .environment(SonosService.shared)
+//}
+//
+//#Preview("Dua Lipa") {
+//    ContentArtworkView(track: .constant(Track(trackID: "6wf7Yu7cxBSPrRlWeSeK0Q", musicService: .spotify)))
+//        .environment(SonosService.shared)
+//}
+//
+//#Preview("White Background") {
+//    ContentArtworkView(track: .constant(Track(trackID: "204669559", musicService: .apple)))
+//        .environment(SonosService.shared)
+//
+//}
+//
+//#Preview("Dark Album") {
+//    ContentArtworkView(track: .constant(Track(trackID: "7sjuNUjWtSqhbxJ3RAUffm", musicService: .spotify)))
+//        .environment(SonosService.shared)
+//}
+//
