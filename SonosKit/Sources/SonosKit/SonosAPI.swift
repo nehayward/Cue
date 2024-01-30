@@ -175,7 +175,6 @@ final class SonosAPI {
         return
     }
 
-//    @MainActor
     func getCurrentTrack(ipAddress: String) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,
