@@ -34,8 +34,15 @@ public struct VibeSlider: View {
         }
 
     public var body: some View {
+#if os(visionOS)
+        Slider(value: $value, in: range, step: step, onEditingChanged: onEditingChanged)
+            .onChange(of: value) { oldValue, newValue in
+                onEditingChanged(true)
+            }
+#else
         Group {
             GeometryReader { geometry in
+                #if !os(visionOS)
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .foregroundStyle(.quaternary)
@@ -48,7 +55,6 @@ public struct VibeSlider: View {
                 .onChange(of: geometry.size.width, initial: true) {
                     width = geometry.size.width
                 }
-                #if !os(visionOS)
                 .sensoryFeedback(trigger: value) { oldValue, newValue in
                     guard isDragging else { return .none }
                     return oldValue < newValue ? .decrease : .increase
@@ -60,6 +66,7 @@ public struct VibeSlider: View {
         .animation(.interactiveSpring, value: value)
         .animation(.interactiveSpring, value: isDragging)
         .fixedSize(horizontal: false, vertical: true)
+#endif
     }
 
     private var dragGesture: some Gesture {
