@@ -7,7 +7,6 @@ struct RemoteWidgetEntryView : View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) private var widgetFamily: WidgetFamily
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
     @ViewBuilder
     var body: some View {

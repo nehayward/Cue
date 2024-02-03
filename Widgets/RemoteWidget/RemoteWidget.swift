@@ -6,18 +6,29 @@ import SonosKit
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemoteWidgetEntry {
-        RemoteWidgetEntry(date: Date(), configuration: RemoteWidgetConfigurationIntent(), volume: 0, track: nil)
+        let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
+        return RemoteWidgetEntry(date: Date(), configuration: RemoteWidgetConfigurationIntent(), volume: 0, track: nil, activeSubscription: activeSubscription)
     }
 
     func snapshot(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> RemoteWidgetEntry {
-        RemoteWidgetEntry(date: Date(), configuration: configuration, volume: 0, track: nil)
+        let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
+        return RemoteWidgetEntry(date: Date(), configuration: configuration, volume: 0, track: nil, activeSubscription: activeSubscription)
     }
     
     func timeline(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> Timeline<RemoteWidgetEntry> {
+        let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
+
         if let room = configuration.room {
             if let coordinatorRoom = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id), let volume = try? await SonosService.shared.getGroupVolume(ip: coordinatorRoom.ip) {
                 let track = await SonosService.shared.getTrack(ip: coordinatorRoom.ip)
-                var entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: volume, track: track, name: coordinatorRoom.nameWithCount)
+                var entry = RemoteWidgetEntry(
+                    date: .now,
+                    configuration: configuration,
+                    volume: volume,
+                    track: track,
+                    name: coordinatorRoom.nameWithCount,
+                    activeSubscription: activeSubscription
+                )
 
 //                // MARK: Mock
 //                if room.name == "Theater" {
@@ -36,7 +47,7 @@ struct Provider: AppIntentTimelineProvider {
             }
         }
 
-        let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: 0, track: nil)
+        let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: 0, track: nil, activeSubscription: activeSubscription)
         return Timeline(entries: [entry], policy: .atEnd)
     }
 }
@@ -48,12 +59,12 @@ struct RemoteWidgetEntry: TimelineEntry {
     let track: Track?
     var name: String? = nil
     var TVSettings: TVSettings? = nil
+    var activeSubscription = false
 }
 
 struct RemoteWidget: Widget {
     private let kind: String = "RemoteWidget"
     @Environment(\.widgetFamily) var widgetFamily: WidgetFamily
-    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
     var families: [WidgetFamily] {
         [.accessoryRectangular, .accessoryCircular, .systemSmall]
@@ -62,9 +73,9 @@ struct RemoteWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: RemoteWidgetConfigurationIntent.self, provider: Provider()) { entry in
            RemoteWidgetEntryView(entry: entry)
-                .disabled(!activeSubscription)
+                .disabled(!entry.activeSubscription)
                 .overlay {
-                    if !activeSubscription {
+                    if !entry.activeSubscription {
                         Circle()
                             .frame(maxWidth: 64, maxHeight: 64)
                             .foregroundStyle(.thinMaterial)
@@ -74,12 +85,6 @@ struct RemoteWidget: Widget {
                             }
                             .widgetURL(URL(string: "clic://subscribe"))
                     }
-                }
-                .onAppear {
-#if DEBUG
-                    let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"]
-                    activeSubscription = subscribe != "false"
-#endif
                 }
         }
         .supportedFamilies(families)
@@ -153,7 +158,7 @@ struct RemoteWidget: Widget {
 }
 
 #Preview("Unlocked Rectangle", as: .accessoryRectangular) {
-    RemoteWidget(activeSubscription: true)
+    RemoteWidget()
 } timeline: {
     RemoteWidgetEntry(
         date: .now,
@@ -166,6 +171,7 @@ struct RemoteWidget: Widget {
             )
         ),
         volume: 20,
-        track: .empty
+        track: .empty,
+        activeSubscription: true
     )
 }

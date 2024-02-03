@@ -50,6 +50,7 @@ struct ClicApp: App {
                 }
 
                 SubscriptionService.shared.subscriptionUpdated = { subscription in
+                    activeSubscription = subscription.isActive
                     #if canImport(WidgetKit)
                     WidgetCenter.shared.reloadAllTimelines()
                     #endif

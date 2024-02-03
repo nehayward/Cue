@@ -21,6 +21,7 @@ public final class SubscriptionService: SubscriptionServicing {
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
         subscription = Subscription(isActive: true)
         sync.set(true, for: "com.clic.subscriptions")
+        NSUbiquitousKeyValueStore.default.synchronize()
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
         return
 #endif
@@ -39,6 +40,8 @@ public final class SubscriptionService: SubscriptionServicing {
         Task { @MainActor in
             setup()
         }
+
+        monitorChanges()
     }
 
     @MainActor
@@ -55,7 +58,6 @@ public final class SubscriptionService: SubscriptionServicing {
         }
     }
 
-    @MainActor
     public func monitorChanges() {
 #if DEBUG
         return
@@ -65,7 +67,7 @@ public final class SubscriptionService: SubscriptionServicing {
         }
 
         subscriptionTask?.cancel()
-        subscriptionTask = Task {
+        subscriptionTask = Task { @MainActor in
             for try await customerInfo in Purchases.shared.customerInfoStream {
                 if !customerInfo.activeSubscriptions.isEmpty {
                     subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
@@ -96,6 +98,7 @@ public final class SubscriptionService: SubscriptionServicing {
         } else {
             subscription = .notActive
         }
+        subscriptionUpdated?(subscription)
     }
 
     func login() {
