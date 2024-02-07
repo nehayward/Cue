@@ -34,18 +34,6 @@ struct ClicVisionApp: App {
             .task {
                 subscriptionService.monitorChanges()
             }
-            .onAppear {
-                SonosService.shared.groupsChanged = { groups in
-                    guard subscriptionService.subscription.isActive else { return }
-                    liveActivityManager.createActivity()
-                }
-
-                SubscriptionService.shared.subscriptionUpdated = { subscription in
-                    #if canImport(WidgetKit)
-                    WidgetCenter.shared.reloadAllTimelines()
-                    #endif
-                }
-            }
         }
 
         .onChange(of: scenePhase) {
