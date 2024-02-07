@@ -682,10 +682,11 @@ final class SonosAPI: NSObject {
     ///   - time: Time in milliseconds
     ///   - IP: Group IP
     func seek(to time: TimeInterval, IP: String) async {
+        // MARK: Convert milliseconds to time.
         let arguments: [String: Any] = [
             "InstanceID": 0,
             "Unit": "REL_TIME",
-            "Target": "00:00:\(Int(time / 1000))",
+            "Target": convertMillisecondsToHoursMinutesSeconds(Int(time)),
         ]
 
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
@@ -693,6 +694,16 @@ final class SonosAPI: NSObject {
                 print("Failed")
             }
         }
+    }
+
+    private func convertMillisecondsToHoursMinutesSeconds(_ milliseconds: Int) -> String {
+        let seconds = milliseconds / 1000
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+
+        // Format string to "HH:mm:ss"
+        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
     }
 
     func setAVTransport(IP: String, ID: String) async {

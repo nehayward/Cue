@@ -126,6 +126,9 @@
 		E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
 		E950E7CF2B70AFF30029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E950E7D02B70AFF40029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
+		E950E7D22B7418080029415B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950E7D12B7418080029415B /* SplitView.swift */; };
+		E950E7D32B74185F0029415B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950E7D12B7418080029415B /* SplitView.swift */; };
+		E950E7D42B7418610029415B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950E7D12B7418080029415B /* SplitView.swift */; };
 		E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A72AA52EF8007848A7 /* DebugView.swift */; };
 		E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
 		E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
@@ -487,6 +490,7 @@
 		E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlView.swift; sourceTree = "<group>"; };
 		E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlScreen.swift; sourceTree = "<group>"; };
 		E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneBuilderScreen.swift; sourceTree = "<group>"; };
+		E950E7D12B7418080029415B /* SplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitView.swift; sourceTree = "<group>"; };
 		E95498A72AA52EF8007848A7 /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugEmbedTest.swift; sourceTree = "<group>"; };
 		E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDebugView.swift; sourceTree = "<group>"; };
@@ -710,6 +714,7 @@
 			isa = PBXGroup;
 			children = (
 				E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */,
+				E950E7D12B7418080029415B /* SplitView.swift */,
 				E92DCBA22B67022600A2C3B5 /* MiniPlayerView.swift */,
 			);
 			path = Vision;
@@ -1385,6 +1390,7 @@
 				E92B3E9F2B60249B00724FA1 /* Bundle+AppIcon.swift in Sources */,
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
+				E950E7D32B74185F0029415B /* SplitView.swift in Sources */,
 				E92B3EA22B60249B00724FA1 /* LogScreen.swift in Sources */,
 				E92B3EA32B60249B00724FA1 /* CreateLiveActivityIntent.swift in Sources */,
 				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
@@ -1541,6 +1547,7 @@
 				E97563222B699B2400787E14 /* UpdateType.swift in Sources */,
 				E97563232B699B2400787E14 /* PillView.swift in Sources */,
 				E97563242B699B2400787E14 /* LiveActivityNowPlayingView.swift in Sources */,
+				E950E7D42B7418610029415B /* SplitView.swift in Sources */,
 				E97563252B699B2400787E14 /* ClicApp.swift in Sources */,
 				E97563262B699B2400787E14 /* ArtworkDebugView.swift in Sources */,
 				E97563272B699B2400787E14 /* AppleMusicSearchView.swift in Sources */,
@@ -1670,6 +1677,7 @@
 				E98248CE2AF04EDE008927EF /* UpdateType.swift in Sources */,
 				E9D856272A9FB5AD0024B192 /* PillView.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
+				E950E7D22B7418080029415B /* SplitView.swift in Sources */,
 				E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */,
 				E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */,
 				E9BF3ABE2B0EBB8000AF57EA /* AppleMusicSearchView.swift in Sources */,

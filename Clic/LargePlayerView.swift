@@ -197,7 +197,7 @@ struct LargePlayerView: View {
                     }
 
                     if !isEditing {
-                        Task {
+                        Task { @MainActor in
                             await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
                         }
                     }

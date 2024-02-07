@@ -6,6 +6,7 @@ public struct VibeSlider: View {
     @State private var width = 0.0
     @State private var isDragging: Bool = false
     @State private var startingValue: Double?
+    @State private var onEditingChangedTask: Task<Void, Error> = Task { }
 
     private let touchDelay: TimeInterval
     private var onEditingChanged: (Bool) -> Void
@@ -35,14 +36,16 @@ public struct VibeSlider: View {
 
     public var body: some View {
 #if os(visionOS)
-        Slider(value: $value, in: range, step: step, onEditingChanged: onEditingChanged)
-            .onChange(of: value) { oldValue, newValue in
-                onEditingChanged(true)
+        Slider(value: $value, in: range, step: step) { value in
+            onEditingChangedTask.cancel()
+            onEditingChangedTask = Task { @MainActor in
+                onEditingChanged(value)
             }
+        }
+        .animation(.interactiveSpring, value: value)
 #else
         Group {
             GeometryReader { geometry in
-                #if !os(visionOS)
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .foregroundStyle(.quaternary)
@@ -59,7 +62,6 @@ public struct VibeSlider: View {
                     guard isDragging else { return .none }
                     return oldValue < newValue ? .decrease : .increase
                 }
-                #endif
             }
         }
         .frame(height: isDragging ? 20 : 10)

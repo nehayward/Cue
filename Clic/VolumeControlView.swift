@@ -38,6 +38,7 @@ struct VolumeControlView: View {
                         await sonosService.setGroupMute(group: group, mute: false)
                     }
                 }
+                
                 self.isEditing = isEditing
                 updateVolume(volume: group.groupVolume)
                 Task { @MainActor in

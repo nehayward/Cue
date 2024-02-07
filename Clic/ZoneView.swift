@@ -9,9 +9,11 @@ struct ZoneView: View {
         VStack(alignment: .leading) {
             Text(group.coordinatorRoom.track.name)
                 .tint(.primary)
+                .lineLimit(2)
             Text(group.coordinatorRoom.track.artist)
                 .font(.subheadline)
                 .tint(.secondary)
+                .lineLimit(2)
         }
         .frame(alignment: .top)
         .fontDesign(.rounded)
