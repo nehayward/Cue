@@ -25,15 +25,15 @@ struct ClicVisionApp: App {
     var body: some Scene {
         WindowGroup {
             GroupListLargeScreen()
-            .environment(router)
-            .environment(sonosService)
-            .environment(subscriptionService)
-            .environment(alertService)
-            .onOpenURL(perform: handle)
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-            .task {
-                subscriptionService.monitorChanges()
-            }
+                .environment(router)
+                .environment(sonosService)
+                .environment(subscriptionService)
+                .environment(alertService)
+                .onOpenURL(perform: handle)
+                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+                .task {
+                    subscriptionService.monitorChanges()
+                }
         }
 
         .onChange(of: scenePhase) {
@@ -52,10 +52,6 @@ struct ClicVisionApp: App {
 
             if !subscriptionService.subscription.isActive {
                 return
-            }
-
-            Task {
-                await liveActivityManager.refresh(type: .refresh)
             }
 
             Task {
