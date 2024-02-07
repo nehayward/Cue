@@ -24,7 +24,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
             }
         }
     }
-    @ObservationIgnored
+    
     private var privateTVSettings: TVSettings? = nil
 
     public var playMode: PlayMode = .normal

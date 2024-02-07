@@ -4,6 +4,7 @@ public enum ContentType: Equatable, Codable {
     case artist
     case album
     case track
+    case favorite
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -30,6 +31,8 @@ public enum ContentType: Equatable, Codable {
             "Album"
         case .track:
             "Song"
+        case .favorite:
+            "Favorite"
         }
     }
 }

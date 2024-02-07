@@ -52,7 +52,7 @@ struct QueueScreen: View {
                                         .padding([.trailing, .bottom], 4)
                                 }
                             }
-                            .task(id: track.name) {
+                            .task(id: track.name + index.formatted(.number)) {
                                 guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
                                     return
                                 }

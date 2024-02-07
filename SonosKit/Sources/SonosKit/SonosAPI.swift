@@ -4,16 +4,27 @@ import Network
 
 /// `SonosAPI` provides a set of functionalities to interact with Sonos devices over the network.
 /// It handles tasks like setting volume, getting track info, and other control actions.
-final class SonosAPI {
+final class SonosAPI: NSObject {
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     private lazy var session: URLSession = privateSession
+    private lazy var insecure: URLSession = insecureSession
+
     private lazy var xmlParser = XMLParserSonos()
+    private lazy var decoder = JSONDecoder()
+    private lazy var encoder = JSONEncoder()
 
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
         configuration.timeoutIntervalForRequest = 3
         return URLSession(configuration: configuration)
+    }()
+
+    private lazy var insecureSession: URLSession = {
+        let configuration: URLSessionConfiguration = .default
+        configuration.allowsCellularAccess = false
+        configuration.timeoutIntervalForRequest = 3
+        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
 
     func setVolume(ipAddress: String, volume: Int) async {
@@ -708,6 +719,81 @@ final class SonosAPI {
         return ""
     }
 
+    func getFavorites(for IP: String) async -> FavoritesList? {
+        let houseHoldID = await getHouseHoldID(for: IP)
+        guard let url = URL(string: "https://\(IP):1443/api/v1/households/\(houseHoldID)/favorites") else { return nil }
+        var request = URLRequest(url: url)
+        request.addValue("00aa27d9-e053-4de9-864a-09eeda033099", forHTTPHeaderField: "X-Sonos-Api-Key")
+        request.httpMethod = "GET"
+
+        guard let (data, response) = try? await insecure.data(for: request), let httpResponse = response as? HTTPURLResponse, 200..<300 ~= httpResponse.statusCode else {
+            logger.error("\(IP) Failed to \(#function)")
+            return nil
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        print(xml)
+        guard let favoriteList = try? decoder.decode(FavoritesList.self, from: data) else { return nil }
+        print(favoriteList)
+        return favoriteList
+    }
+    
+
+    func playFavorite(on group: GroupRoom, favoriteID: String) async {
+        guard let url = URL(string: "https://\(group.ip):1443/api/v1/groups/\(group.id)/favorites") else { return }
+        var request = URLRequest(url: url)
+        request.addValue("00aa27d9-e053-4de9-864a-09eeda033099", forHTTPHeaderField: "X-Sonos-Api-Key")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpMethod = "POST"
+
+        struct Favorite: Codable {
+            let favoriteId: String
+        }
+
+        let favorite = Favorite(favoriteId: favoriteID)
+        request.httpBody = try? encoder.encode(favorite)
+
+        print(String(decoding: request.httpBody!, as: UTF8.self))
+
+        guard let (data, response) = try? await insecure.data(for: request) else {
+            logger.error("\(group.nameWithCount) (\(group.ip)) Failed to \(#function)")
+            return
+        }
+
+        if let httpResponse = response as? HTTPURLResponse, 200..<300 ~= httpResponse.statusCode {
+            let xml = String(decoding: data, as: UTF8.self)
+            print(xml)
+            logger.error("\(group.nameWithCount) Failed to \(#function)")
+            return
+        }
+
+
+//        guard let favoriteList = try? decoder.decode(FavoritesList.self, from: data) else { return nil }
+//        print(favoriteList)
+//        return favoriteList
+    }
+
+    func favoriteArtwork(on favorite: Favorite, group: GroupRoom) -> URL? {
+        if let sonosAlbumArtURL = URL(string: "http://\(group.ip):1400\(favorite.imageUrl.unescaped)") {
+            print(sonosAlbumArtURL)
+            return sonosAlbumArtURL
+        }
+
+        print(favorite.imageUrl)
+        return URL(string: favorite.imageUrl)
+    }
+
+    func deleteFavorite(IP: String, itemID: String) async{
+        let arguments: [String: Any] = [
+            "ObjectID": "FV:2/\(itemID)",
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "DestroyObject", arguments: arguments, endpoint: "MediaServer/ContentDirectory") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
     
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
         let xmlString = """
@@ -739,6 +825,14 @@ final class SonosAPI {
             return nil
         }
         return try await session.data(for: request)
+    }
+}
+
+extension SonosAPI: URLSessionDelegate {
+    public func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        //Trust the certificate even if not valid
+        let urlCredential = URLCredential(trust: challenge.protectionSpace.serverTrust!)
+        completionHandler(.useCredential, urlCredential)
     }
 }
 

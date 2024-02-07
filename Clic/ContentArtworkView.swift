@@ -48,11 +48,24 @@ struct ContentArtworkView: View {
                             .padding([.trailing, .bottom], 12)
                     }
                 }
+
+                if content?.content.type == .favorite {
+                    Image(systemName: "star.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: size, height: size, alignment: .bottomTrailing)
+                        .padding(size == 24 ? 16 : 4)
+                        .shadow(radius: 10)
+                }
             }
             .task(id: content?.content.id) {
                 print("Fetching Track for \(content?.content.id)")
-                if let content = content?.content {
+                if let content = content?.content, artworkURL == nil {
                     artworkURL = await sonosService.getArtwork(from: content)
+                }
+                if let artwork = content?.artwork {
+                    artworkURL = artwork
                 }
             }
             .onChange(of: proxy.size, initial: true) {

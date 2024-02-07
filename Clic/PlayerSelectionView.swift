@@ -84,7 +84,7 @@ struct PlayerSelectionView: View {
         .task {
             if let mediaContent {
                 playableContent = await sonosService.getContent(from: mediaContent)
-                artworkURL = await sonosService.getArtwork(from: mediaContent)
+                artworkURL =  await sonosService.getArtwork(from: mediaContent)
             }
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)

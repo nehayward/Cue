@@ -16,8 +16,8 @@ extension View {
                     PaywallView(displayCloseButton: true)
                 case .settings:
                     PreferenceScreen()
-                case let .search(group):
-                    ImprovedSearch(adding: .constant(nil), group: group)
+                case let .search(group, instant):
+                    ImprovedSearch(adding: .constant(nil), group: group, instant: instant)
                 case let .add(mediaContent):
                     ImprovedSearch(adding: mediaContent, isAdding: true)
                 case let .queue(group):

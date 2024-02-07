@@ -124,6 +124,8 @@
 		E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
 		E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */; };
 		E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
+		E950E7CF2B70AFF30029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
+		E950E7D02B70AFF40029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A72AA52EF8007848A7 /* DebugView.swift */; };
 		E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
 		E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
@@ -285,6 +287,7 @@
 		E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeViewCell.swift */; };
 		E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
+		E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
 		E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
 		E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
@@ -543,6 +546,7 @@
 		E9B256512A9951A00083869E /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneButton.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
+		E9BC83762B7022CC0088BF1F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
 		E9BDE57129E3396700D230A8 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
@@ -752,6 +756,7 @@
 				E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */,
 				E9BF3ABD2B0EBB8000AF57EA /* AppleMusicSearchView.swift */,
 				E9D38C502B5DADBB0025CC31 /* PlayHistoryView.swift */,
+				E9BC83762B7022CC0088BF1F /* FavoritesView.swift */,
 				E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */,
 			);
 			path = Search;
@@ -1405,6 +1410,7 @@
 				E92B3EB72B60249B00724FA1 /* LargePlayerView.swift in Sources */,
 				E92B3EB82B60249B00724FA1 /* VolumeControlView.swift in Sources */,
 				E92B3EB92B60249B00724FA1 /* PlayerSelectionView.swift in Sources */,
+				E950E7CF2B70AFF30029415B /* FavoritesView.swift in Sources */,
 				E92B3EBA2B60249B00724FA1 /* SearchHistoryView.swift in Sources */,
 				E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */,
 				E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */,
@@ -1475,6 +1481,7 @@
 				E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */,
 				E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */,
 				E97562E92B699B2400787E14 /* TVModeViewCell.swift in Sources */,
+				E950E7D02B70AFF40029415B /* FavoritesView.swift in Sources */,
 				E97562EA2B699B2400787E14 /* SceneBuilderScreen.swift in Sources */,
 				E97562EB2B699B2400787E14 /* PlayHistoryView.swift in Sources */,
 				E97562EC2B699B2400787E14 /* WidgetManager.swift in Sources */,
@@ -1603,6 +1610,7 @@
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
+				E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
 				E9D38C512B5DADBB0025CC31 /* PlayHistoryView.swift in Sources */,
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,

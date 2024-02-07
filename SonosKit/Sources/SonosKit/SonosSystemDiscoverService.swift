@@ -30,6 +30,7 @@ class SonosStorageIP: ObservableObject {
 @Observable
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
+    var houseHoldIDs: Set<String> = []
 
     @ObservationIgnored var sonosStorageIP = SonosStorageIP()
     @ObservationIgnored private var browser: NWBrowser?
@@ -129,6 +130,10 @@ final class SonosSystemDiscoverService {
             logger.error("No TXTRecord found")
             print("No Record")
             return
+        }
+        
+        if let houseID = txtRecord.dictionary["mhhid"] {
+            houseHoldIDs.insert(houseID)
         }
 
         print("Found Sonos Device: \(location)")

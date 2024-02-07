@@ -1,3 +1,19 @@
+# 2024.12
+
+## External 
+
++ Add favorites to search, you can now browse and play your Sonos Favorites with a single tap.
++ Add star to content artwork
+
+## Internal
+- Start multi house setup.
++ Add favorite type to playable content.
++ Fix parsing of stations.
+
+# 2024.11
+
++ Fix widgets subscription info being lost
+
 # 2024.10
 
 + Add integration with NowPlaying!

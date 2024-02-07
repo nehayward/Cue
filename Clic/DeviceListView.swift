@@ -113,33 +113,38 @@ struct DeviceListMainView: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Spacer()
-                    if subscriptionService.subscription.isActive {
-                        Button {
-                            router.sheet(to: .scenes)
-                        } label: {
-                            Image(systemName: "bolt.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.accent)
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    HStack(spacing: 16) {
+                        Spacer()
+                        if subscriptionService.subscription.isActive {
+                            Button {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                router.sheet(to: .scenes)
+                            } label: {
+                                Image(systemName: "wand.and.stars.inverse")
+                                    .foregroundStyle(.accent)
+                            }
                         }
-                    }
 
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        router.presentedSheet = .search()
-                    } label: {
-                        Image(systemName: "magnifyingglass.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.accent)
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .foregroundStyle(.accent.gradient)
+                            .simultaneousGesture(
+                                LongPressGesture()
+                                    .onEnded { _ in
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        router.presentedSheet = .search(instant: true)
+                                    }
+                            )
+                            .highPriorityGesture(
+                                TapGesture()
+                                    .onEnded { _ in
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        router.presentedSheet = .search()
+                                    }
+                            )
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
                 }
-                .ignoresSafeArea()
-                .frame(maxWidth: .infinity)
-                .background(.bar)
             }
         }
         .safeAreaInset(edge: .top) {

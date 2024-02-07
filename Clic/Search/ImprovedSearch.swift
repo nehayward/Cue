@@ -22,7 +22,7 @@ struct ImprovedSearch: View, KeyboardReadable {
     @State var results: [ItunesResult] = []
     @State var spotifyResult: SpotifyResult?
     @State private var searchTask: Task<Void, Error>?
-    @State private var searchFieldIsPresented: Bool = true
+    @State private var searchFieldIsPresented: Bool = false
     @State var filters = [
         FilterSelection(filter: .albums, isFiltered: false),
 //        FilterSelection(filter: .artist, isFiltered: false),
@@ -30,18 +30,23 @@ struct ImprovedSearch: View, KeyboardReadable {
         FilterSelection(filter: .playlists, isFiltered: false),
     ]
     @FocusState private var focusedField: Bool
-
     @AppStorage("com.clic.searchSelection") private var musicSearchSelection: SearchSelection = .spotify
     @CloudStorage("com.clic.searchHistory") var searchHistory: OrderedSet<String> = []
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     var group: GroupRoom?
+    var instant: Bool = false
 
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
                 if !searchFieldIsPresented, !playHistory.isEmpty {
                     PlayHistoryView()
+                        .environment(router)
+                        .environment(group)
+                }
+                if !searchFieldIsPresented {
+                    FavoritesView()
                         .environment(router)
                         .environment(group)
                 }
@@ -53,7 +58,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                 }
             }
             .withAppRouter(router: router)
-            .searchable(text: $query, isPresented: $searchFieldIsPresented, prompt: "Searching \(musicSearchSelection.title)")
+            .searchable(text: $query, isPresented: $searchFieldIsPresented, placement: .navigationBarDrawer(displayMode: .always), prompt: "Searching \(musicSearchSelection.title)")
             .searchSuggestions {
                 if query.isEmpty {
                     ForEach(Array(searchHistory), id: \.self) { suggestion in
@@ -80,6 +85,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                     }
                 }
             }
+            .headerProminence(.increased)
             .onReceive(keyboardPublisher) { newIsKeyboardVisible in
                 print("Is keyboard visible? ", newIsKeyboardVisible)
                 isKeyboardVisible = newIsKeyboardVisible
@@ -118,8 +124,10 @@ struct ImprovedSearch: View, KeyboardReadable {
             .navigationTitle("Search")
             .safeAreaInset(edge: .bottom) {
                 HStack {
-                    if musicSearchSelection == .spotify {
-                        FilterView(filters: $filters)
+                    if !query.isEmpty {
+                        if musicSearchSelection == .spotify {
+                            FilterView(filters: $filters)
+                        }
                     }
                     Spacer()
                     Menu {
@@ -186,7 +194,10 @@ struct ImprovedSearch: View, KeyboardReadable {
         .interactiveDismissDisabled(isKeyboardVisible)
         .listStyle(.inset)
         .onAppear {
-            showKeyboard()
+            if instant {
+                searchFieldIsPresented = true
+                showKeyboard()
+            }
         }
         .onDisappear {
             if !query.isEmpty {

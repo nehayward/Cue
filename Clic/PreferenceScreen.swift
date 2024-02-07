@@ -20,6 +20,7 @@ struct PreferenceScreen: View {
     @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
 
     var body: some View {
+        @Bindable var sonosService = sonosService
         NavigationStack {
             Form {
                 Section {
@@ -53,6 +54,15 @@ struct PreferenceScreen: View {
                     NavigationLink("Logs") {
                         LogScreen()
                     }
+
+                    // MARK: Add multiple household ids
+////                    Picker("HouseID", selection: $sonosService.houseID) {
+//                    VStack {
+//                        ForEach(Array(sonosService.houseIDs), id: \.self) {
+//                            Text($0)
+//                        }
+//                    }
+////                    }
                     #endif
                     if UIApplication.shared.isRunningInTestFlightEnvironment() {
                         NavigationLink("Logs") {

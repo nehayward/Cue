@@ -31,6 +31,7 @@ public final class SonosService {
 
     public var ID: String? = nil
     public var groups: [GroupRoom] = []
+    public var favorites: FavoritesList?
     public var zones: OrderedDictionary<String, GroupRoom> = [:]
 
     public var rooms: [Room] = []
@@ -59,6 +60,9 @@ public final class SonosService {
     }
 
     public var system: System?
+
+    public var primaryHouseID: String? { sonosSystemDiscoverService.houseHoldIDs.first }
+    public var houseIDs: Set<String> { sonosSystemDiscoverService.houseHoldIDs }
 
     public var sorted: [GroupRoom] {
         get {
@@ -938,6 +942,26 @@ public final class SonosService {
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
     }
 
+    public func getFavoriteList() async {
+        guard let group = groups.first else { return }
+        self.favorites = await api.getFavorites(for: group.ip )
+    }
+
+    public func playFavorite(on group: GroupRoom, favoriteID: String) async {
+        await api.playFavorite(on: group, favoriteID: favoriteID)
+        await api.play(ipAddress: group.ip)
+    }
+
+    public func favoriteImageURL(on group: GroupRoom?, favorite: Favorite) -> URL? {
+        guard let foundGroup = groups.first else { return nil }
+        return api.favoriteArtwork(on: favorite, group: group ?? foundGroup)
+    }
+
+    public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
+        guard let foundGroup = groups.first else { return }
+        await api.deleteFavorite(IP: group?.ip ?? foundGroup.ip, itemID: favoriteID)
+    }
+
     public func seek(to time: TimeInterval, on group: GroupRoom) async {
         await api.seek(to: time, IP: group.coordinatorRoom.ip)
     }
@@ -995,6 +1019,8 @@ public final class SonosService {
             if content.service == .apple {
                 await api.queue(song: content.id, IP: group.ip, position: position)
             }
+        case .favorite:
+            await playFavorite(on: group, favoriteID: content.id)
         }
 
         if position == .now {
@@ -1020,6 +1046,8 @@ public final class SonosService {
             if content.service == .apple {
                 await api.queue(song: content.id, IP: group.ip, position: position)
             }
+        case .favorite:
+            await playFavorite(on: group, favoriteID: content.id)
         }
 
         if position == .now {

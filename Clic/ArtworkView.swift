@@ -64,7 +64,7 @@ struct ArtworkView: View {
                         .padding([.trailing, .bottom], 12)
                 }
             }
-            .task(id: group.coordinatorRoom.track.id) {
+            .task(id: group.coordinatorRoom.track.id + (group.coordinatorRoom.track.artworkURL?.absoluteString ?? "")) {
                 print("Fetching Track for \(group.coordinatorRoom.track.id)")
                 artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
             }
