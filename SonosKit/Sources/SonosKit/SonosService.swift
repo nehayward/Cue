@@ -956,7 +956,7 @@ public final class SonosService {
 
     public func getFavoriteList() async {
         guard let group = groups.first else { return }
-        self.favorites = await api.getFavorites(for: group.ip )
+        self.favorites = await api.getFavorites(for: group.ip)
     }
 
     public func playFavorite(on group: GroupRoom, favoriteID: String) async {

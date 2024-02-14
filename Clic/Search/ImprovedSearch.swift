@@ -210,6 +210,9 @@ struct ImprovedSearch: View, KeyboardReadable {
                 searchFieldIsPresented = true
                 showKeyboard()
             }
+            Task {
+                await sonosService.getFavoriteList()
+            }
         }
         .onDisappear {
             if !query.isEmpty {

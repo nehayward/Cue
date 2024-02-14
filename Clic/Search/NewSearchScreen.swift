@@ -212,6 +212,9 @@ struct NewSearchScreen: View, KeyboardReadable {
         .onAppear {
             if musicSearchService.query.isEmpty {
                 appleMusicAuthorized = musicSearchService.getMusicAuthorization()
+                Task {
+                    await sonosService.getFavoriteList()
+                }
             }
             if instant {
                 searchFocused = true
