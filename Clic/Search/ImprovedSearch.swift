@@ -61,6 +61,7 @@ struct ImprovedSearch: View, KeyboardReadable {
                 }
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)
+                    .listRowSeparator(.hidden)
             }
             .withAppRouter(router: router)
             .searchable(text: $query, isPresented: $searchFieldIsPresented, placement: .navigationBarDrawer(displayMode: .always), prompt: "Searching \(musicSearchSelection.title)")

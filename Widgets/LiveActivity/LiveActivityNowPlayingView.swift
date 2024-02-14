@@ -32,13 +32,13 @@ struct LiveActivityNowPlayingView: View {
                 Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
                         .resizable()
-                        .frame(width: 32, height: 32)
+                        .frame(width: 24, height: 24)
                         .bold()
                 }
                 Button(intent: RefreshIntent()) {
                     Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
                         .resizable()
-                        .frame(width: 32, height: 32)
+                        .frame(width: 24, height: 24)
                         .bold()
                 }
                 .buttonStyle(.plain)

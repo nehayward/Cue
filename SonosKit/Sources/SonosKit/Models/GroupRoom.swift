@@ -68,6 +68,7 @@ extension GroupRoom: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(coordinatorID)
         hasher.combine(rooms)
+        hasher.combine(coordinatorRoom)
     }
 }
 

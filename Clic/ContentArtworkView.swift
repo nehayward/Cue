@@ -75,6 +75,16 @@ struct ContentArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .onAppear {
+                let pattern = "https?://[^\\s]+"
+                if let url = artworkURL?.absoluteString {
+                    if let range = url.range(of: pattern, options: .regularExpression) {
+                        let httpUrl = String(url[range])
+                        print("HTTP URL: \(httpUrl)")
+                        artworkURL = URL(string: httpUrl)
+                    }
+                }
+            }
         }
     }
 }

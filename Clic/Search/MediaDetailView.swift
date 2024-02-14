@@ -142,13 +142,11 @@ struct MediaDetailView: View {
             //            artworkURL = URL(string: "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/c0/54/97/c05497aa-c19f-bf4f-de29-71edf30fbefb/075679688767.jpg/1000x1000bb.jpg")
             switch kind {
             case .album:
-                print("HERE")
                 album = try? await MusicSearchService().lookup(id: id)
-                artworkURL = album?.artwork?.url(width: 1000, height: 1000)
-                print(album)
+                artworkURL = album?.artwork?.url(width: 800, height: 800)
             case .playlist:
                 playlist = try? await MusicSearchService().lookup(id: id)
-                artworkURL = playlist?.artwork?.url(width: 1000, height: 1000)
+                artworkURL = playlist?.artwork?.url(width: 800, height: 800)
             default:
                 break
             }
