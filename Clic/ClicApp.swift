@@ -3,6 +3,8 @@ import RevenueCat
 import RevenueCatUI
 import SonosKit
 import SubscriptionKit
+import MusicKit
+import MusicSearchKit
 import StoreKit
 import SwiftUI
 #if canImport(WidgetKit)

@@ -1,13 +1,90 @@
 import Foundation
+import MusicKit
 
+@Observable
 public final class MusicSearchService {
+    public var query: String = "" {
+        didSet {
+            if _query.isEmpty {
+                suggestions.removeAll()
+                topResults = []
+            }
+        }
+    }
+    public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let spotifySearchAPI = SpotifySearchAPI()
+    private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
+    private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
 
-    public init() {
+    private let debounceDuration: Duration = .milliseconds(100)
 
+    public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
+    public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
+    public var spotifyResult: SpotifyResult?
+
+    public init() { }
+
+    @MainActor
+    public func search(for provider: MediaSearchService) async {
+        // Cancel the previous task if it exists
+        searchSuggestionTask.cancel()
+
+        // Create a new task
+        searchSuggestionTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            let results = await searchSuggestion(query: query)
+            return results
+        }
+
+        // Create a new task
+        spotifySearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            let results = await searchSpotify(query: query)
+            return results
+        }
+
+        // Wait for the task to complete and return the result
+        guard let results = await searchSuggestionTask.value else { return }
+        suggestions = results.0
+
+        switch provider {
+        case .apple:
+            topResults = results.1
+        case .spotify:
+            guard let result = await spotifySearchTask.value else { return }
+            spotifyResult = result
+        }
     }
-    
+
+    public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],  
+                                                          MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)? {
+        guard await requestMusicAuthorization() else { return ([], []) }
+
+        var request = MusicCatalogSearchSuggestionsRequest(term: query, includingTopResultsOfTypes: [Song.self, Album.self, Artist.self, Playlist.self])
+//        var request = MusicCatalogSearchSuggestionsRequest(term: query, includingTopResultsOfTypes: [Song.self])
+        request.limit = 10
+        do {
+            let response = try await request.response()
+            return (response.suggestions, response.topResults)
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+//    public func search(query: String, service: MusicSearchService) -> [MediaContent] {
+//
+//
+//        return []
+//    }
+
     public func search(song: String, artist: String) async -> [ItunesResult] {
         await appleMusicSearchAPI.search(for: "\(song) \(artist)")
     }
@@ -39,6 +116,104 @@ public final class MusicSearchService {
     @MainActor
     public func searchSpotify(query: String) async -> SpotifyResult? {
         await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
+    }
+
+//    public func searchSpotifyTopResults(query: String) async -> [String] {
+//        let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
+//
+////        let top = results?.playlists?.items.sorted(by: { a, b in
+////            a.popularity < b.popularity
+////        }).map({ item in
+////            return "\(item.name).\(item.popularity)"
+////        })
+//
+//        print(results)
+//
+//        return []
+//    }
+
+    public func searchAppleMusic(query: String) async throws -> String {
+        guard await requestMusicAuthorization() else { return "" }
+
+        var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self])
+        request.includeTopResults = true
+        let response = try await request.response()
+        print(response)
+
+        guard let song = response.songs.first else { return  "" }
+
+        print(song.title)
+        print(song.isrc)
+        var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: song.id)
+        let response2 = try await request.response()
+        print(response2)
+//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
+//
+//        print(searchResponse)
+//
+//        print(searchResponse.songs)
+//        print(searchResponse.artists)
+        return ""
+    }
+
+    public func lookup(id: String) async throws -> Album? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let albumID = MusicItemID(id)
+        print(id)
+        var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
+        catalogResource.properties = [.tracks]
+        let response2 = try await catalogResource.response()
+        print(response2)
+//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
+//
+//        print(searchResponse)
+//
+//        print(searchResponse.songs)
+//        print(searchResponse.artists)
+        return response2.items.first
+    }
+
+    public func lookup(id: String) async throws -> Playlist? {
+        guard await requestMusicAuthorization() else { return nil }
+        let playlistID = MusicItemID(id)
+        var catalogResource = MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: playlistID)
+        catalogResource.properties = [.tracks]
+        let response = try await catalogResource.response()
+        return response.items.first
+    }
+
+    public func requestMusicAuthorization() async -> Bool {
+        let status = await MusicAuthorization.request()
+
+        switch status {
+        case .notDetermined:
+            appleMusicAuthorizationStatus = .notDetermined
+        case .denied, .restricted:
+            appleMusicAuthorizationStatus = .denied
+        case .authorized:
+            appleMusicAuthorizationStatus = .authorized
+            return true
+        default:
+            appleMusicAuthorizationStatus = .denied
+        }
+        return false
+    }
+
+    public func getMusicAuthorization() -> AppleMusicAuthorization {
+        let status = MusicAuthorization.currentStatus
+
+        switch status {
+        case .notDetermined:
+            appleMusicAuthorizationStatus = .notDetermined
+        case .denied, .restricted:
+            appleMusicAuthorizationStatus = .denied
+        case .authorized:
+            appleMusicAuthorizationStatus = .authorized
+        default:
+            appleMusicAuthorizationStatus = .denied
+        }
+        return appleMusicAuthorizationStatus
     }
 }
 

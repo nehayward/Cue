@@ -64,14 +64,20 @@ struct LargePlayerView: View {
                     }
                     .buttonStyle(.plain)
                     Spacer()
-                    Button {
-                        router.presentedSheet = .search(group: group)
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .fontDesign(.rounded)
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .onTapGesture {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.presentedSheet = .search(group: group)
+                        }
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    router.presentedSheet = .search(instant: true)
+                                }
+                        )
 
                     if group.rooms.count > 1 {
                         Spacer()

@@ -32,5 +32,7 @@
 	<array>
 		<string>_sonos._tcp</string>
 	</array>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Our app uses Music access to play music and create a pleasant experience.</string>
 </dict>
 </plist>

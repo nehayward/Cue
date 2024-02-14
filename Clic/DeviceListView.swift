@@ -29,7 +29,7 @@ struct DeviceListMainView: View {
                         router.navigate(to: .player(groupID: group.coordinatorID))
                     } label: {
                         VStack(spacing: 12) {
-                            if group.TVMode {
+                            if group.tvSettings != nil {
                                 TVModeViewCell(group: $group)
                             } else {
                                 HStack(alignment: .top) {
@@ -56,6 +56,7 @@ struct DeviceListMainView: View {
                 .disabled(!enabled(group: group))
                 .selectionDisabled(!enabled(group: group))
             }
+            .environment(\.defaultMinListRowHeight, 40)
             .withAppRouter(router: router)
             .navigationBarTitle("", displayMode: .inline)
             .toolbar {
@@ -113,38 +114,41 @@ struct DeviceListMainView: View {
                     }
                 }
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    HStack(spacing: 16) {
-                        Spacer()
-                        if subscriptionService.subscription.isActive {
-                            Button {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                router.sheet(to: .scenes)
-                            } label: {
-                                Image(systemName: "wand.and.stars.inverse")
-                                    .foregroundStyle(.accent)
-                            }
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 24) {
+                    Spacer()
+                    if subscriptionService.subscription.isActive {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.sheet(to: .scenes)
+                        } label: {
+                            Image(systemName: "wand.and.stars.inverse")
+                                .resizable()
+                                .foregroundStyle(.accent.gradient)
+                                .frame(width: 24, height: 24)
                         }
-
-                        Image(systemName: "sparkle.magnifyingglass")
-                            .foregroundStyle(.accent.gradient)
-                            .simultaneousGesture(
-                                LongPressGesture()
-                                    .onEnded { _ in
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        router.presentedSheet = .search(instant: true)
-                                    }
-                            )
-                            .highPriorityGesture(
-                                TapGesture()
-                                    .onEnded { _ in
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        router.presentedSheet = .search()
-                                    }
-                            )
                     }
+
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .resizable()
+                        .foregroundStyle(.accent.gradient)
+                        .frame(width: 24, height: 24)
+                        .onTapGesture {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.presentedSheet = .search()
+                        }
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.5)
+                                .onEnded { _ in
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    router.presentedSheet = .search(instant: true)
+                                }
+                        )
                 }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(.thinMaterial)
+                .ignoresSafeArea(.keyboard)
             }
         }
         .safeAreaInset(edge: .top) {
@@ -185,7 +189,7 @@ struct DeviceListMainView: View {
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)
         .animation(.spring, value: alertService.alert.isShowing)
-        .animation(.interactiveSpring, value: sonosService.groups)
+        .animation(.interactiveSpring, value: sonosService.sorted)
     }
 
     private func enabled(group: GroupRoom) -> Bool {

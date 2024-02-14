@@ -1,5 +1,5 @@
 import Foundation
 
 public enum CloudKeys {
-    public static let playHistory = "\(Bundle.main.bundleIdentifier ?? "com.clic.nick").playHistory"
+    public static let playHistory = "\(Prefix.id).playHistory"
 }

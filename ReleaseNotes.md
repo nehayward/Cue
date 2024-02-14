@@ -1,3 +1,18 @@
+# 2024.13
+
+## External 
+
++ Improved Search!
++ Search Suggestions
++ Queue Apple Albums and Playlists
++ Long press for instant search
+
+## Internal
+
+- Update when no scenes are created.
+- Fix live activity buttons
+- Fix playback button being jumpy
+
 # 2024.12
 
 ## External 

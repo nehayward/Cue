@@ -60,7 +60,6 @@ struct ContentArtworkView: View {
                 }
             }
             .task(id: content?.content.id) {
-                print("Fetching Track for \(content?.content.id)")
                 if let content = content?.content, artworkURL == nil {
                     artworkURL = await sonosService.getArtwork(from: content)
                 }

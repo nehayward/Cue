@@ -24,19 +24,21 @@ struct LiveActivityNowPlayingView: View {
 
     var body: some View {
         VStack(spacing: 4){
-            HStack {
+            HStack(spacing: 16) {
                 Text(context.state.name)
                     .font(.headline)
                     .fontDesign(.rounded)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
                 Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
                     Image(systemName: "magnifyingglass.circle.fill")
-                        .imageScale(.large)
+                        .resizable()
+                        .frame(width: 32, height: 32)
                         .bold()
                 }
                 Button(intent: RefreshIntent()) {
                     Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                        .imageScale(.large)
+                        .resizable()
+                        .frame(width: 32, height: 32)
                         .bold()
                 }
                 .buttonStyle(.plain)
@@ -102,8 +104,7 @@ struct LiveActivityNowPlayingView: View {
                         .symbolVariant(settings.nightMode ? .fill : .none)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
+                        .buttonBorderShape(.circle)
                         .foregroundStyle(.thickMaterial)
                         .frame(width: 40, height: 40)
                         .tint(.secondary)
@@ -115,7 +116,7 @@ struct LiveActivityNowPlayingView: View {
                         .symbolVariant(settings.dialogLevel ? .fill : .none)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .contentShape(.circle)
+                        .buttonBorderShape(.circle)
                         .foregroundStyle(.thickMaterial)
                         .frame(width: 40, height: 40)
                         .tint(.secondary)

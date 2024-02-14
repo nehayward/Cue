@@ -1,7 +1,6 @@
 #if canImport(ActivityKit)
 import ActivityKit
 import Foundation
-import Kingfisher
 import SonosKit
 import MusicSearchKit
 import UIKit

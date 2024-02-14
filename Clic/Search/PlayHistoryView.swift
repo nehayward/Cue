@@ -45,6 +45,12 @@ struct PlayHistoryView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 }
+                .contentShape(.contextMenuPreview, Capsule())
+                .contextMenu {
+                    Button("Remove", role: .destructive) {
+                        playHistory.remove(item)
+                    }
+                }
             }
             if !playHistory.isEmpty {
                 Button {

@@ -17,7 +17,7 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group, instant):
-                    ImprovedSearch(adding: .constant(nil), group: group, instant: instant)
+                    NewSearchScreen(group: group, instant: instant)
                 case let .add(mediaContent):
                     ImprovedSearch(adding: mediaContent, isAdding: true)
                 case let .queue(group):
@@ -64,6 +64,8 @@ extension View {
                 PlayerSelectionView(playableContent: content)
             case .manageScenes:
                 ManageSceneScreen()
+            case let .mediaDetail(id, title, kind, group):
+                MediaDetailView(id: id, title: title, kind: kind, group: group)
             }
         }
     }

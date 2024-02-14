@@ -510,6 +510,62 @@ final class SonosAPI: NSObject {
         }
     }
 
+    func queueAppleAlbum(ID: String, IP: String, position: QueuePosition = .next) async {
+        let URIMetadata = """
+        &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="1004206calbum%3a1590035691" restricted="true"&gt;&lt;dc:title&gt;Apple Music&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+        """
+
+        let albumURI = "x-rincon-cpcontainer:1004206calbum%3a\(ID)?sid=204&amp;flags=8300&amp;sn=5"
+
+        var arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": albumURI,
+            "EnqueuedURIMetaData": URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 1
+        ]
+
+        switch position {
+        case .front: break
+        case .end:
+            arguments["DesiredFirstTrackNumberEnqueued"] = 0
+        case .now:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index
+            arguments["EnqueueAsNext"] = 0
+        case .next:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
+            arguments["EnqueueAsNext"] = 1
+        }
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            } else {
+                print("Success", (response as? HTTPURLResponse)?.statusCode)
+            }
+        }
+    }
+
+    func queueApplePlaylist(ID: String, IP: String) async {
+        let URIMetadata = """
+            &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="1006206cplaylist%3apl.efaeab71d9cd4e079d9d1097c3b6b525" restricted="true"&gt;&lt;dc:title&gt;Apple Music&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+            """
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": "x-rincon-cpcontainer:1006206cplaylist%3a\(ID)?sid=204&amp;flags=8300&amp;sn=5",
+            "EnqueuedURIMetaData": URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 0,
+            "EnqueueAsNext": 1
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+            print("Failed:", response)
+        }
+    }
+
     func queueSpotifyPlaylist(ID: String, IP: String) async {
         let URIMetadata = """
         <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"><item id="1006206cspotify%3aplaylist%3a\(ID)" restricted="true"><dc:title>Clic&#32;-&#32;playlist&#32;by&#32;Clic&#32;|&#32;Spotify</dc:title><upnp:class>object.container.playlistContainer.#PlaylistView</upnp:class><desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">SA_RINCON3079_X_#Svc3079-0-Token</desc></item></DIDL-Lite>

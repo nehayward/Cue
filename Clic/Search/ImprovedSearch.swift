@@ -4,7 +4,6 @@ import NukeUI
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import Kingfisher
 import Defaults
 
 struct ImprovedSearch: View, KeyboardReadable {
@@ -23,13 +22,17 @@ struct ImprovedSearch: View, KeyboardReadable {
     @State var spotifyResult: SpotifyResult?
     @State private var searchTask: Task<Void, Error>?
     @State private var searchFieldIsPresented: Bool = false
+    @State private var searchSuggestion = Task<Void, Error>{}
+    
     @State var filters = [
         FilterSelection(filter: .albums, isFiltered: false),
 //        FilterSelection(filter: .artist, isFiltered: false),
-        FilterSelection(filter: .tracks, isFiltered: false),
+        FilterSelection(filter: .songs, isFiltered: false),
         FilterSelection(filter: .playlists, isFiltered: false),
     ]
+
     @FocusState private var focusedField: Bool
+
     @AppStorage("com.clic.searchSelection") private var musicSearchSelection: SearchSelection = .spotify
     @CloudStorage("com.clic.searchHistory") var searchHistory: OrderedSet<String> = []
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
@@ -54,8 +57,10 @@ struct ImprovedSearch: View, KeyboardReadable {
                 case .spotify:
                     SpotifySearchView(isAdding: isAdding, addingContent: $adding, spotifyResult: $spotifyResult, filters: $filters, group: group)
                 case .apple:
-                    AppleMusicSearchView(results: $results, filters: $filters, group: group)
+                    ClassicAppleMusicSearchView(results: $results, filters: $filters, group: group)
                 }
+                AppleMusicPermissionsView()
+                    .environment(musicSearchService)
             }
             .withAppRouter(router: router)
             .searchable(text: $query, isPresented: $searchFieldIsPresented, placement: .navigationBarDrawer(displayMode: .always), prompt: "Searching \(musicSearchSelection.title)")
@@ -91,6 +96,12 @@ struct ImprovedSearch: View, KeyboardReadable {
                 isKeyboardVisible = newIsKeyboardVisible
             }
             .onChange(of: query, initial: true) { old, new in
+//                searchSuggestion.cancel()
+//                searchSuggestion = Task { @MainActor in
+//                    try await Task.sleep(for: .milliseconds(100))
+//                    let results = try await musicSearchService.searchSuggestion(query: query)
+//                }
+
                 let shouldDebounce = new.count - old.count < 2
                 searchTask?.cancel()
                 print("Searching... \(query)")
@@ -216,7 +227,6 @@ struct ImprovedSearch: View, KeyboardReadable {
     @MainActor
     private func showKeyboard() {
         UIView.setAnimationsEnabled(false)
-        focusedField = true
         Task {
             try await Task.sleep(for: .milliseconds(400))
             UIView.setAnimationsEnabled(true)

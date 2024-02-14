@@ -4,7 +4,6 @@ import MusicSearchKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import Kingfisher
 
 struct SpotifySearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -46,7 +45,7 @@ struct SpotifySearchView: View {
                     if let artists = spotifyResult?.artists?.items {
                         artistRow(artists: artists)
                     }
-                case .tracks:
+                case .songs:
                     if let tracks = spotifyResult?.tracks?.items {
                         trackSection(tracks: tracks)
                     }

@@ -24,9 +24,8 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
             }
         }
     }
-    
-    private var privateTVSettings: TVSettings? = nil
 
+    private var privateTVSettings: TVSettings? = nil
     public var playMode: PlayMode = .normal
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }

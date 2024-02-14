@@ -12,16 +12,39 @@ struct FavoritesView: View {
     @Environment(GroupRoom.self) var group: GroupRoom?
 
     var body: some View {
-        Section {
+        Group {
             if let favorites = sonosService.favorites, !favorites.items.isEmpty {
-                ForEach(favorites.items) { item in
-                    Button {
-                        Task {
-                            guard let group = group else {
+                Section {
+                    ForEach(favorites.items) { item in
+                        Button {
+                            Task {
+                                guard let group = group else {
+                                    let content = PlayableContent(
+                                        title: item.name,
+                                        subtitle: item.description,
+                                        artwork: sonosService.favoriteImageURL(on: group, favorite: item),
+                                        content: .init(
+                                            service: .unknown,
+                                            id: item.id,
+                                            type: .favorite,
+                                            location: nil
+                                        )
+                                    )
+                                    router.navigate(to: .groupDestination(content: content))
+                                    return
+                                }
+                                router.dismiss = true
+                                await sonosService.playFavorite(on: group, favoriteID: item.id)
+                            }
+                        } label: {
+                            HStack {
                                 let content = PlayableContent(
                                     title: item.name,
                                     subtitle: item.description,
-                                    artwork: sonosService.favoriteImageURL(on: group, favorite: item),
+                                    artwork: sonosService.favoriteImageURL(
+                                        on: group,
+                                        favorite: item
+                                    ),
                                     content: .init(
                                         service: .unknown,
                                         id: item.id,
@@ -29,64 +52,41 @@ struct FavoritesView: View {
                                         location: nil
                                     )
                                 )
-                                router.navigate(to: .groupDestination(content: content))
-                                return
+                                ContentArtworkView(content: .constant(content), artworkURL: sonosService.favoriteImageURL(on: group, favorite: item))
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 60, height: 60)
+                                VStack(alignment: .leading) {
+                                    Text(item.name)
+                                    Text(item.description)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            router.dismiss = true
-                            await sonosService.playFavorite(on: group, favoriteID: item.id)
                         }
-                    } label: {
-                        HStack {
-                            let content = PlayableContent(
-                                title: item.name,
-                                subtitle: item.description,
-                                artwork: sonosService.favoriteImageURL(
-                                    on: group,
-                                    favorite: item
-                                ),
-                                content: .init(
-                                    service: .unknown,
-                                    id: item.id,
-                                    type: .favorite,
-                                    location: nil
-                                )
-                            )
-                            ContentArtworkView(content: .constant(content), artworkURL: sonosService.favoriteImageURL(on: group, favorite: item))
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 60, height: 60)
-                            VStack(alignment: .leading) {
-                                Text(item.name)
-                                Text(item.description)
-                                    .foregroundStyle(.secondary)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                Task {
+                                    await sonosService.deleteFavorite(on: group, favoriteID: item.id)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .contentShape(.contextMenuPreview, Capsule())
+                        .contextMenu {
+                            Button("Remove", role: .destructive) {
+                                Task {
+                                    await sonosService.deleteFavorite(on: group, favoriteID: item.id)
+                                }
                             }
                         }
                     }
-                    .swipeActions {
-                        Button(role: .destructive) {
-                            Task {
-                                await sonosService.deleteFavorite(on: group, favoriteID: item.id)
-                            }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    .contentShape(.contextMenuPreview, Capsule())
-                    .contextMenu {
-                        Button("Remove", role: .destructive) {
-                            Task {
-                                await sonosService.deleteFavorite(on: group, favoriteID: item.id)
-                            }
-                        }
+                } header: {
+                    Label {
+                        Text("Favorites")
+                    } icon: {
+                        Image(systemName: "text.badge.star")
                     }
                 }
-            } else {
-                ContentUnavailableView("No Favorites", image: "star.slash.fill")
-            }
-        } header: {
-            Label {
-                Text("Favorites")
-            } icon: {
-                Image(systemName: "text.badge.star")
             }
         }
         .task {

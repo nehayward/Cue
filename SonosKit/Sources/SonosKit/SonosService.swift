@@ -777,6 +777,12 @@ public final class SonosService {
         case (.track, .apple):
             guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
             return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
+//        case (.album, .apple):
+//            guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+//            return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
+//        case (.playlist, .apple):
+//            guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+//            return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
         default:
             return nil
         }
@@ -819,7 +825,10 @@ public final class SonosService {
             }
         }
 
+        isEditing = true
         await api.pause(ipAddress: ip)
+        try? await Task.sleep(for: .seconds(2))
+        isEditing = false
     }
 
     public func play(ip: String) async {
@@ -833,7 +842,10 @@ public final class SonosService {
                 groups[groupIndex].coordinatorRoom.isPlaying = true
             }
         }
+        isEditing = true
         await api.play(ipAddress: ip)
+        try? await Task.sleep(for: .seconds(2))
+        isEditing = false
     }
 
     public func next(ip: String) async {
@@ -980,6 +992,12 @@ public final class SonosService {
         await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
     }
 
+    public func queueApplePlaylist(id: String, group: GroupRoom) async {
+        await api.removeAllTrackFromQueue(IP: group.ip)
+        await api.queueApplePlaylist(ID: id, IP: group.ip)
+        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+    }
+
     public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
 
@@ -990,6 +1008,14 @@ public final class SonosService {
 
     public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
+
+        if position == .now {
+            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+        }
+    }
+
+    public func queueAppleAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
+        await api.queueAppleAlbum(ID: id, IP: group.coordinatorRoom.ip)
 
         if position == .now {
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
@@ -1028,29 +1054,33 @@ public final class SonosService {
         }
     }
 
+    // HERE
     public func queue(content: MediaContent, group: GroupRoom, position: QueuePosition = .now) async {
-        switch content.type {
-        case .album:
-            if content.service == .spotify {
-                await queueSpotifyAlbum(id: content.id, group: group, position: position)
-            }
-        case .playlist:
+        switch (content.type, content.service) {
+        case (.album, .spotify):
+            await queueSpotifyAlbum(id: content.id, group: group, position: position)
+        case (.album, .apple):
+            await queueAppleAlbum(id: content.id, group: group, position: position)
+        case (.playlist, .spotify):
             await api.removeAllTrackFromQueue(IP: group.ip)
             await api.queueSpotifyPlaylist(ID: content.id, IP: group.ip)
-        case .artist:
+        case (.playlist, .apple):
+            await queueApplePlaylist(id: content.id, group: group)
+        case (.artist, .spotify):
             break
-        case .track:
-            if content.service == .spotify {
-                await api.queueSpotifyTrack(ID: content.id, IP: group.ip, position: position)
-            }
-            if content.service == .apple {
-                await api.queue(song: content.id, IP: group.ip, position: position)
-            }
-        case .favorite:
+        case (.artist, .apple):
+            break
+        case (.track, .spotify):
+            await api.queueSpotifyTrack(ID: content.id, IP: group.ip, position: position)
+        case (.track, .apple):
+            await api.queue(song: content.id, IP: group.ip, position: position)
+        case (.favorite, _):
             await playFavorite(on: group, favoriteID: content.id)
+        default:
+            break
         }
 
-        if position == .now {
+        if position == .now && content.type != .playlist {
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
         }
     }

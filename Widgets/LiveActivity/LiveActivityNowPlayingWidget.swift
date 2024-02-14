@@ -88,8 +88,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .symbolVariant(settings.nightMode ? .fill : .none)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .foregroundStyle(.thickMaterial)
-                            .frame(width: 40, height: 40)
+                            .buttonBorderShape(.circle)
                             .foregroundStyle(.thickMaterial)
                             .frame(width: 40, height: 40)
                             .tint(.secondary)
@@ -101,7 +100,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .symbolVariant(settings.dialogLevel ? .fill : .none)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .contentShape(.circle)
+                            .buttonBorderShape(.circle)
                             .foregroundStyle(.thickMaterial)
                             .frame(width: 40, height: 40)
                             .tint(.secondary)
@@ -131,7 +130,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } compactLeading: {
-                if let settings = context.state.TVSettings {
+                if context.state.TVSettings != nil {
                     Image(systemName: "tv.and.hifispeaker.fill")
                 } else {
                     Image(systemName: "hifispeaker.fill")

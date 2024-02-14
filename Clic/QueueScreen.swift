@@ -103,25 +103,6 @@ struct QueueScreen: View {
                     }
 
                     ToolbarItemGroup(placement: .topBarTrailing) {
-//                        Toggle("Shuffle", systemImage: "shuffle", isOn: isShuffle)
-//                            .toggleStyle(.button)
-//                        let isShuffle = Binding(
-//                            get: {
-//                                group.playMode.contains(.shuffle)
-//                            },
-//                            set: {
-//                                if $0 {
-//                                    group.playMode.insert(.shuffle)
-//                                } else {
-//                                    group.playMode.remove(.shuffle)
-//                                }
-//                                Task {
-//                                    await sonosService.setPlayMode(group.ip, mode: group.playMode)
-//                                    self.tracks = await sonosService.getQueue(ip: group.ip)
-//                                }
-//                            }
-//                        )
-
                         Button {
                             var currentPlayMode = group.playMode
                             if currentPlayMode.contains(.shuffle) {
@@ -178,11 +159,9 @@ struct QueueScreen: View {
                         }
                     }
                 }
-                #if os(visionOS)
                 .addDismiss {
                     dismiss()
                 }
-                #endif
                 .task(id: group) {
                     isLoading = true
                     self.tracks = await sonosService.getQueue(ip: group.ip)

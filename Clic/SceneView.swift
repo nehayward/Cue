@@ -33,20 +33,20 @@ struct SceneView: View {
                     }
                     .padding(.vertical)
                     if scenes.isEmpty {
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            show = true
-                        } label: {
-                            Label("Add Scene", systemImage: "plus.circle.fill")
-                                .padding(12)
-                                .background{
-                                    Capsule()
-                                        .foregroundStyle(.thinMaterial)
-                                        .shadow(radius: 2, x: 0, y: 1)
-                                }
+                        ContentUnavailableView {
+                            Label("Add Scene", systemImage: "wand.and.stars.inverse")
+                        } description: {
+                            Text("Create a scene, to automate grouping and volume.")
+                        } actions: {
+                            Button {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                show = true
+                            } label: {
+                                Label("Add Scene", systemImage: "plus.circle.fill")
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .bold()
-                        .buttonStyle(.borderedProminent)
+                        .padding(.vertical)
                     } else {
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)

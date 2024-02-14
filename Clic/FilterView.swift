@@ -3,7 +3,7 @@ import SonosKit
 
 enum Filter: String, CaseIterable {
     case artist
-    case tracks
+    case songs
     case albums
     case playlists
 
@@ -31,6 +31,13 @@ class FilterSelection: Hashable, Identifiable {
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(ObjectIdentifier(self))
     }
+
+    static var songs = FilterSelection(filter: .songs, isFiltered: false)
+    static var albums = FilterSelection(filter: .albums, isFiltered: false)
+    static var playlists = FilterSelection(filter: .playlists, isFiltered: false)
+    static var artist = FilterSelection(filter: .artist, isFiltered: false)
+
+    static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists]
 }
 
 struct FilterView: View {
@@ -66,10 +73,29 @@ struct FilterView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
-        .contentMargins(.leading, 12, for: .scrollContent)
-        .mask(alignment: .trailing) {
-            LinearGradient(stops: [.init(color: Color.black, location: 0.9), .init(color: Color.black.opacity(0), location: 1.05)], startPoint: .leading, endPoint: .trailing)
-        }
+        .contentMargins(.leading, 20, for: .scrollContent)
+        .mask(
+            HStack(spacing: 0) {
+                // Left gradient
+                LinearGradient(gradient:
+                   Gradient(
+                       colors: [Color.black.opacity(0), Color.black]),
+                       startPoint: .leading, endPoint: .trailing
+                   )
+                   .frame(width: 20)
+
+                // Middle
+                Rectangle().fill(Color.black)
+
+                // Right gradient
+                LinearGradient(gradient:
+                   Gradient(
+                       colors: [Color.black, Color.black.opacity(0)]),
+                       startPoint: .leading, endPoint: .trailing
+                   )
+                   .frame(width: 20)
+            }
+         )
     }
 }
 
@@ -86,7 +112,7 @@ struct FilterView: View {
                     isFiltered: false
                 ),
                 FilterSelection(
-                    filter: .tracks,
+                    filter: .songs,
                     isFiltered: false
                 ),
                 FilterSelection(

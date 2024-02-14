@@ -6,7 +6,7 @@ import SwiftUI
 import SonosKit
 import NukeUI
 
-struct AppleMusicSearchView: View {
+struct ClassicAppleMusicSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
