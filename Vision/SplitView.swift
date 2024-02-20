@@ -1,46 +1,46 @@
 import Foundation
 import SwiftUI
 import UIKit
+import SonosKit
+import SubscriptionKit
 
-#if targetEnvironment(macCatalyst) || os(visionOS)
-//import AppKit
 
-struct MacSplitViewRepresentable<Master, Detail>: UIViewControllerRepresentable where Master: View, Detail: View {
-    // View builders for the master and detail views
-    let masterBuilder: () -> Master
-    let detailBuilder: () -> Detail
+struct SidebarSplitView: View, UIViewControllerRepresentable {
+    typealias UIViewControllerType = UISplitViewController
+    let splitViewController = UISplitViewController(style: .doubleColumn)
 
-    // Custom initializer accepting view builders
-    init(@ViewBuilder masterBuilder: @escaping () -> Master,
-         @ViewBuilder detailBuilder: @escaping () -> Detail) {
-        self.masterBuilder = masterBuilder
-        self.detailBuilder = detailBuilder
+    var columnA = UIViewController()
+    var columnB = UIViewController()
+
+    init<A: View, B:View>(@ViewBuilder content: @escaping () -> TupleView <(A,B)>) {
+        let content = content()
+
+        columnA = UIHostingController(rootView: content.value.0)
+        columnB = UIHostingController(rootView: content.value.1)
+
+        columnA.view.backgroundColor = .clear
+        columnB.view.backgroundColor = .clear
+
+        splitViewController.viewControllers = [columnA, columnB]
     }
 
-    func makeUIViewController(context: Context) -> UISplitViewController {
-        let splitViewController = UISplitViewController()
+    func makeUIViewController(context: Context) -> UIViewControllerType {
         splitViewController.primaryBackgroundStyle = .sidebar
-        splitViewController.minimumPrimaryColumnWidth = 500
+        splitViewController.preferredDisplayMode = .oneBesideSecondary
+        splitViewController.preferredSplitBehavior = .tile
         splitViewController.maximumPrimaryColumnWidth = 800
+        splitViewController.minimumPrimaryColumnWidth = 400
 
-        // Create hosting controllers for the master and detail views
-        let masterVC = UIHostingController(rootView: masterBuilder())
-        let detailVC = UIHostingController(rootView: detailBuilder())
 
-        splitViewController.viewControllers = [masterVC, detailVC]
-
+        splitViewController.preferredPrimaryColumnWidthFraction = 0.3
         return splitViewController
     }
 
-    func updateUIViewController(_ uiViewController: UISplitViewController, context: Context) {
-       #if targetEnvironment(macCatalyst)
-       if let windowScene = uiViewController.view.window?.windowScene {
-           windowScene.titlebar?.titleVisibility = .hidden
-           windowScene.titlebar?.toolbar = nil
-       }
-       #endif
+    func updateUIViewController(_ uiView: UIViewControllerType, context: Context) {
+        
     }
 }
+
 
 //class AppDelegate: NSObject, UIApplicationDelegate, NSToolbarDelegate {
 //    // Your UIKit app delegate methods
@@ -121,5 +121,4 @@ struct MacSplitViewRepresentable<Master, Detail>: UIViewControllerRepresentable 
 //        present(vc, animated: true, completion: nil)
 //    }
 //}
-#endif
 

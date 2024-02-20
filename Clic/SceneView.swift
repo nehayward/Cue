@@ -6,6 +6,7 @@ import SonosKit
 struct SceneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(AlertService.self) var alertService: AlertService
+    @Environment(\.dismiss) var dismiss
 
     @State var show: Bool = false
 
@@ -63,11 +64,13 @@ struct SceneView: View {
                 .fontWeight(.bold)
             }
             .contentMargins(.leading, 12, for: .scrollContent)
-            //        .scrollContentBackground(.hidden)
             .sheet(isPresented: $show) {
                 NavigationStack {
                     SceneBuilderScreen(sheetDestination: .constant(nil))
                 }
+            }
+            .addDismiss {
+                dismiss()
             }
         }
         .presentationDetents([.medium, .large])

@@ -57,7 +57,7 @@
 		E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
-		E92B3EC92B60249B00724FA1 /* GroupListLargeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */; };
+		E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
 		E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E92B3ECC2B60249B00724FA1 /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
@@ -82,7 +82,6 @@
 		E92B3EE12B60249B00724FA1 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
 		E92B3EE22B60249B00724FA1 /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E982B60249B00724FA1 /* Nuke */; };
-		E92B3EE52B60249B00724FA1 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E8E2B60249B00724FA1 /* Kingfisher */; };
 		E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E932B60249B00724FA1 /* SubscriptionKit */; };
 		E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E942B60249B00724FA1 /* OrderedCollections */; };
@@ -186,7 +185,7 @@
 		E975630A2B699B2400787E14 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E975630B2B699B2400787E14 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
-		E975630D2B699B2400787E14 /* GroupListLargeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */; };
+		E975630D2B699B2400787E14 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
 		E975630E2B699B2400787E14 /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E975630F2B699B2400787E14 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E97563102B699B2400787E14 /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
@@ -216,7 +215,6 @@
 		E97563292B699B2400787E14 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
 		E975632A2B699B2400787E14 /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E975632C2B699B2400787E14 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E97562DA2B699B2400787E14 /* Nuke */; };
-		E975632D2B699B2400787E14 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D02B699B2400787E14 /* Kingfisher */; };
 		E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D52B699B2400787E14 /* SubscriptionKit */; };
 		E97563302B699B2400787E14 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D62B699B2400787E14 /* OrderedCollections */; };
@@ -258,7 +256,6 @@
 		E98527952A5E5C99009016C2 /* LiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98527932A5E5C90009016C2 /* LiveActivityManager.swift */; };
 		E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */; };
 		E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E987959C2A9667EC002C684A /* PlayerScreen.swift */; };
-		E98795A72A969078002C684A /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = E98795A62A969078002C684A /* Kingfisher */; };
 		E98BCB5F2B7AD83600180F71 /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */; };
 		E98BCB602B7AD83700180F71 /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */; };
 		E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */; };
@@ -274,8 +271,11 @@
 		E99CC9F72B7AC18400B42A7A /* AppleMusicPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */; };
 		E99CC9F82B7AC18500B42A7A /* AppleMusicPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A3EC712B8308AF002517E3 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
+		E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
+		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
+		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */; };
-		E9A46FD22B68C15C000D4094 /* ClicVisionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */; };
 		E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */; };
 		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
 		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
@@ -351,7 +351,7 @@
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
 		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
 		E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C52B4E62040039AAA6 /* NukeUI */; };
-		E9F600C82B50DDF10039AAA6 /* GroupListLargeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */; };
+		E9F600C82B50DDF10039AAA6 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
 		E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */; };
 		E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
@@ -543,6 +543,7 @@
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
 		E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicPermissionView.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLargePlayerView.swift; sourceTree = "<group>"; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
 		E9A46FD12B68C15C000D4094 /* ClicVisionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicVisionApp.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
@@ -611,7 +612,7 @@
 		E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterDestination.swift; sourceTree = "<group>"; };
 		E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiveActivity+Environment.swift"; sourceTree = "<group>"; };
 		E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetManager.swift; sourceTree = "<group>"; };
-		E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupListLargeScreen.swift; sourceTree = "<group>"; };
+		E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListViewLarge.swift; sourceTree = "<group>"; };
 		E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSelectionView.swift; sourceTree = "<group>"; };
 		E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardView.swift; sourceTree = "<group>"; };
 		E9F7BF442AE2257E00EFE380 /* Keyboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keyboard.swift; sourceTree = "<group>"; };
@@ -628,7 +629,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
-				E92B3EE52B60249B00724FA1 /* Kingfisher in Frameworks */,
 				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
 				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
 				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
@@ -656,7 +656,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E975632C2B699B2400787E14 /* Nuke in Frameworks */,
-				E975632D2B699B2400787E14 /* Kingfisher in Frameworks */,
 				E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */,
 				E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */,
 				E97563302B699B2400787E14 /* OrderedCollections in Frameworks */,
@@ -710,7 +709,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */,
-				E98795A72A969078002C684A /* Kingfisher in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
 				E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */,
@@ -918,7 +916,7 @@
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
-				E9F600C72B50DDF10039AAA6 /* GroupListLargeScreen.swift */,
+				E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */,
 				E94A6A242AAACB49002E432C /* ArtworkView.swift */,
@@ -929,6 +927,7 @@
 				E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */,
 				E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */,
 				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
+				E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */,
@@ -1105,7 +1104,6 @@
 			name = "Clic (Vision)";
 			packageProductDependencies = (
 				E92B3E8D2B60249B00724FA1 /* SonosKit */,
-				E92B3E8E2B60249B00724FA1 /* Kingfisher */,
 				E92B3E902B60249B00724FA1 /* CloudStorage */,
 				E92B3E922B60249B00724FA1 /* VibesDS */,
 				E92B3E932B60249B00724FA1 /* SubscriptionKit */,
@@ -1159,7 +1157,6 @@
 			name = "Clic (Mac)";
 			packageProductDependencies = (
 				E97562CF2B699B2400787E14 /* SonosKit */,
-				E97562D02B699B2400787E14 /* Kingfisher */,
 				E97562D22B699B2400787E14 /* CloudStorage */,
 				E97562D42B699B2400787E14 /* VibesDS */,
 				E97562D52B699B2400787E14 /* SubscriptionKit */,
@@ -1262,7 +1259,6 @@
 			name = "Clic (Watch)";
 			packageProductDependencies = (
 				E9C03B0E2A586F7E00FB9118 /* SonosKit */,
-				E98795A62A969078002C684A /* Kingfisher */,
 				E959B91B2AB506BF000D596E /* CloudStorage */,
 				E959B91E2AB65F3D000D596E /* VibesDS */,
 				E9F600C52B4E62040039AAA6 /* NukeUI */,
@@ -1410,14 +1406,15 @@
 				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
 				E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */,
 				E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */,
-				E9A46FD22B68C15C000D4094 /* ClicVisionApp.swift in Sources */,
 				E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */,
 				E92B3EA82B60249B00724FA1 /* SceneBuilderScreen.swift in Sources */,
 				E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */,
 				E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */,
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
+				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
+				E9A3EC712B8308AF002517E3 /* ClicApp.swift in Sources */,
 				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
 				E92B3EAF2B60249B00724FA1 /* Paywall.swift in Sources */,
 				E92B3EB02B60249B00724FA1 /* GroupScreen.swift in Sources */,
@@ -1448,7 +1445,7 @@
 				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
-				E92B3EC92B60249B00724FA1 /* GroupListLargeScreen.swift in Sources */,
+				E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */,
 				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
 				E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */,
 				E9B135C02B6C1A860096A14E /* NewSearchScreen.swift in Sources */,
@@ -1524,6 +1521,7 @@
 				E97562FC2B699B2400787E14 /* VolumeControlView.swift in Sources */,
 				E97562FD2B699B2400787E14 /* PlayerSelectionView.swift in Sources */,
 				E97562FE2B699B2400787E14 /* SearchHistoryView.swift in Sources */,
+				E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E97562FF2B699B2400787E14 /* SceneButton.swift in Sources */,
 				E97563002B699B2400787E14 /* LiveActivityManager.swift in Sources */,
 				E97563012B699B2400787E14 /* SceneView.swift in Sources */,
@@ -1538,7 +1536,7 @@
 				E975630A2B699B2400787E14 /* GroupScreenViewModel.swift in Sources */,
 				E975630B2B699B2400787E14 /* Environments.swift in Sources */,
 				E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */,
-				E975630D2B699B2400787E14 /* GroupListLargeScreen.swift in Sources */,
+				E975630D2B699B2400787E14 /* ListViewLarge.swift in Sources */,
 				E975630E2B699B2400787E14 /* PlayGroupScreen.swift in Sources */,
 				E9DCF6E52B7C730600899228 /* AppleMusicSearchScreen.swift in Sources */,
 				E975630F2B699B2400787E14 /* Keyboard.swift in Sources */,
@@ -1657,6 +1655,7 @@
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
 				E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */,
+				E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
 				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
@@ -1673,7 +1672,7 @@
 				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
-				E9F600C82B50DDF10039AAA6 /* GroupListLargeScreen.swift in Sources */,
+				E9F600C82B50DDF10039AAA6 /* ListViewLarge.swift in Sources */,
 				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
@@ -3013,14 +3012,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		E92B3E8F2B60249B00724FA1 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.9.0;
-			};
-		};
 		E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -3067,14 +3058,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 4.28.0;
-			};
-		};
-		E97562D12B699B2400787E14 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.9.0;
 			};
 		};
 		E97562D32B699B2400787E14 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
@@ -3139,11 +3122,6 @@
 		E92B3E8D2B60249B00724FA1 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
-		};
-		E92B3E8E2B60249B00724FA1 /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E92B3E8F2B60249B00724FA1 /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
 		};
 		E92B3E902B60249B00724FA1 /* CloudStorage */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -3221,11 +3199,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
-		E97562D02B699B2400787E14 /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E97562D12B699B2400787E14 /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
-		};
 		E97562D22B699B2400787E14 /* CloudStorage */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E97562D32B699B2400787E14 /* XCRemoteSwiftPackageReference "CloudStorage" */;
@@ -3266,11 +3239,6 @@
 		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
-		};
-		E98795A62A969078002C684A /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
 		};
 		E9A6AAB72B3CCC9A00C24B98 /* VibesDS */ = {
 			isa = XCSwiftPackageProductDependency;

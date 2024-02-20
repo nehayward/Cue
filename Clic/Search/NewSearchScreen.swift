@@ -11,6 +11,7 @@ import Defaults
 struct NewSearchScreen: View, KeyboardReadable {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.dismiss) private var dismiss
+    @Environment(Router.self) var parentRouter: Router?
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -91,13 +92,15 @@ struct NewSearchScreen: View, KeyboardReadable {
                     .headerProminence(.increased)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            TextField("Search", text: $musicSearchService.query, prompt: Text("Searching \(musicSearchSelection.title) \t\t\t\t\t"))
+                            TextField("Search", text: $musicSearchService.query, prompt: Text("Searching \(musicSearchSelection.title) \t\t\t\t"))
                                 .focused($searchFocused)
+                                .textFieldStyle(.roundedBorder)
                         }
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel) {
                                 if musicSearchService.query.isEmpty {
                                     dismiss()
+                                    parentRouter?.inspectorSheet = nil
                                 } else {
                                     musicSearchService.query.removeAll()
                                 }
@@ -112,6 +115,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                         if suggestion == nil {
                             searchCompletionTapped = false
                         }
+//                        if appleMusicAuthorized == .notDetermined { return }
                         await musicSearchService.search(for: musicSearchSelection)
                         suggestion = nil
                     }

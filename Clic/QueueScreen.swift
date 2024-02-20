@@ -6,6 +6,7 @@ import SwiftUI
 struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
+    @Environment(Router.self) var router: Router?
 
     @Binding var group: GroupRoom
     @State private var tracks: [Track] = []
@@ -85,7 +86,7 @@ struct QueueScreen: View {
                                 }
                             }
                         }
-                        .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? nil : Color.clear)
+                        .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? Color(uiColor: UIColor.systemFill) : Color.clear)
                     }
                     .onMove(perform: move)
                 }
@@ -117,7 +118,7 @@ struct QueueScreen: View {
                             }
                         } label: {
                             Image(systemName: "shuffle")
-                                .tint(group.playMode.contains(.shuffle) ? .accentColor : .secondary)
+                                .foregroundStyle(group.playMode.contains(.shuffle) ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
 
@@ -143,7 +144,7 @@ struct QueueScreen: View {
                             }
                         } label: {
                             Image(systemName: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
-                                .tint(group.playMode.rawValue > 2 ? .accentColor : .secondary)
+                                .foregroundStyle(group.playMode.rawValue > 2 ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
                     }
@@ -160,6 +161,7 @@ struct QueueScreen: View {
                     }
                 }
                 .addDismiss {
+                    router?.inspectorSheet = nil
                     dismiss()
                 }
                 .task(id: group) {

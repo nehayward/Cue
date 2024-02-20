@@ -70,6 +70,31 @@ extension View {
         }
     }
 
+    func withInspector(inspectorDestination: Binding<SheetDestination?>) -> some View {
+        #if !os(visionOS)
+        inspector(isPresented: .constant(inspectorDestination.wrappedValue  != nil)) {
+            Group {
+                switch inspectorDestination.wrappedValue {
+                case let .search(group, instant):
+                    NewSearchScreen(group: group, instant: instant)
+                        .inspectorColumnWidth(400)
+                case let .queue(group):
+                    QueueScreen(group: group)
+                        .inspectorColumnWidth(400)
+                default:
+                    EmptyView()
+                        .onAppear {
+                            inspectorDestination.wrappedValue = nil
+                        }
+                }
+            }
+            .withEnvironments()
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
     func withEnvironments() -> some View {
         environment(SonosService.shared)
             .environment(SubscriptionService.shared)

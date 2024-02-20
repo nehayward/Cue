@@ -115,7 +115,7 @@ public final class SonosService {
                         continue
                     }
                     // MARK: Update room volumes
-                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 1000))
+                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
 
                     try await load(useCache: useCache)
                     useCache = true
@@ -876,6 +876,7 @@ public final class SonosService {
         await api.getCurrentTransportActions(IP: ip)
     }
 
+    @MainActor
     public func playMode(ip: String) async -> PlayMode {
         await api.playMode(ip)
     }

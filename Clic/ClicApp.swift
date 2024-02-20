@@ -27,11 +27,76 @@ struct ClicApp: App {
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
+    @State var selectedID: String?
+
     var body: some Scene {
         WindowGroup {
             Group {
                 if OSEnvironment.pad || UIDevice.current.userInterfaceIdiom == .vision {
-                    GroupListLargeScreen()
+                    HStack {
+                        SidebarSplitView {
+                            ListViewLarge(selected: $selectedID)
+                            ContainerLargePlayerView(id: $selectedID)
+                                .toolbar {
+                                    ToolbarItemGroup(placement: .primaryAction) {
+                                        if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision {
+                                            Button {
+                                                if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                                                    if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: false) {
+                                                        router.inspectorSheet = .search(group: sonosService.sorted[group], instant: false)
+                                                    } else {
+                                                        router.inspectorSheet = nil
+                                                    }
+                                                }
+                                            } label: {
+                                                Image(systemName: "sparkle.magnifyingglass")
+                                                    .tint(.primary)
+                                            }
+
+                                            Button {
+                                                if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                                                    if router.inspectorSheet != .queue(group: $sonosService.sorted[group]) {
+                                                        router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                                                    } else {
+                                                        router.inspectorSheet = nil
+                                                    }
+                                                }
+                                            } label: {
+                                                Image(systemName: "list.dash")
+                                                    .tint(.primary)
+                                            }
+                                        }
+                                    }
+                                }
+                        }
+                        .ignoresSafeArea()
+#if os(visionOS)
+                        .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
+                            Group {
+                                switch router.inspectorSheet {
+                                case let .search(group, instant):
+                                    NewSearchScreen(group: group, instant: instant)
+                                case let .queue(group):
+                                    QueueScreen(group: group)
+                                default:
+                                    EmptyView()
+                                        .onAppear {
+                                            router.inspectorSheet = nil
+                                        }
+                                }
+                            }
+                            .glassBackgroundEffect()
+                            .frame(minWidth: 400, minHeight: 800)
+                            .offset(x: router.inspectorSheet != nil ? 0 : -400)
+                            .offset(z: router.inspectorSheet != nil ? 0 : -64)
+                            .opacity(router.inspectorSheet != nil ? 1 : 0)
+                            .animation(.spring, value: router.inspectorSheet)
+                        }
+#endif
+#if !os(visionOS)
+                        .withInspector(inspectorDestination: $router.inspectorSheet)
+#endif
+                    }
                 } else {
                     DeviceListMainView()
                 }
@@ -53,18 +118,42 @@ struct ClicApp: App {
 
                 SubscriptionService.shared.subscriptionUpdated = { subscription in
                     activeSubscription = subscription.isActive
-                    #if canImport(WidgetKit)
+#if canImport(WidgetKit)
                     WidgetCenter.shared.reloadAllTimelines()
-                    #endif
+#endif
                 }
             }
+            .onAppear { hideTitleBarOnCatalyst() }
+#if targetEnvironment(macCatalyst)
+            .frame(minWidth: 500, minHeight: 500)
+#endif
         }
+        .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
         }
         .onChange(of: subscriptionService.subscription, initial: true) { oldValue, newValue in
             activeSubscription =  newValue.isActive
         }
+        .onChange(of: selectedID) { old, new in
+            if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                if let sheet = router.inspectorSheet, sheet.id == "search" {
+                    router.inspectorSheet = .search(group: sonosService.sorted[group], instant: false)
+                } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
+                    router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                }
+            }
+        }
+        .commands {
+            SidebarCommands()
+            InspectorCommands()
+        }
+    }
+
+    func hideTitleBarOnCatalyst() {
+#if targetEnvironment(macCatalyst)
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.titlebar?.titleVisibility = .hidden
+#endif
     }
 
     @MainActor
@@ -72,11 +161,11 @@ struct ClicApp: App {
         switch scenePhase {
         case .active:
             sonosService.monitor()
-            
+
             if !subscriptionService.subscription.isActive {
                 return
             }
-            
+
             Task {
                 await liveActivityManager.refresh(type: .refresh)
             }
@@ -89,20 +178,6 @@ struct ClicApp: App {
                 try? await Task.sleep(for: .seconds(1))
                 ReviewService.shared.askForRatingIfNeeded()
             }
-
-//            // MARK: Add back when monitoring is fixed
-//            Task { @MainActor in
-//                try? await sonosService.updateGroupsCheckPlayback()
-//
-//                if selected == nil {
-//                    let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
-//                    if playingGroups.count == 1, let groupPlaying = playingGroups.first {
-//                        try await Task.sleep(for: .milliseconds(200))
-//                        alertService.showAlert(with: "Jumped to \(groupPlaying.coordinatorRoom.name)")
-//                        selected = groupPlaying.coordinatorID
-//                    }
-//                }
-//            }
         case .inactive:
             print("Inactive")
 #if canImport(WidgetKit)
@@ -210,5 +285,16 @@ struct ClicApp: App {
 }
 
 class AppDelegate: NSObject, UIApplicationDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
 
+        guard let windowScene = (scene as? UIWindowScene) else { return }
+
+#if targetEnvironment(macCatalyst)
+        if let titlebar = windowScene.titlebar {
+            titlebar.titleVisibility = .hidden
+            titlebar.toolbar = nil
+        }
+#endif
+
+    }
 }

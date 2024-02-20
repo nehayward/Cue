@@ -1,7 +1,7 @@
 import SonosKit
 import SwiftUI
 
-enum SheetDestination: Identifiable {
+enum SheetDestination: Identifiable, Equatable {
     case settings
     case paywall
     case groupScreen(groupScreenViewModel: GroupScreenViewModel, group: GroupRoom)
@@ -36,5 +36,9 @@ enum SheetDestination: Identifiable {
         case .scenes:
             "scenes"
         }
+    }
+
+    static func == (lhs: SheetDestination, rhs: SheetDestination) -> Bool {
+        lhs.id == rhs.id
     }
 }

@@ -26,8 +26,7 @@ struct LargePlayerView: View {
 
             if group.coordinatorRoom.track.TVMode {
                 TVModeView()
-            }
-            else {
+            }  else {
                 Text(group.coordinatorRoom.track.name)
                     .bold()
                     .multilineTextAlignment(.center)
@@ -39,6 +38,7 @@ struct LargePlayerView: View {
                 .foregroundStyle(.secondary)
                 .padding(.bottom, isExpanded ? 20 : 40)
                 .fontDesign(.rounded)
+                .frame(maxWidth: .infinity)
 
             if !group.coordinatorRoom.track.TVMode {
                 playbackView()
@@ -49,102 +49,122 @@ struct LargePlayerView: View {
             VStack {
                 GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
                     .padding(.bottom, 12)
-                HStack(spacing: 0) {
-                    Button {
-                        router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
-                    } label: {
-                        if group.TVMode {
-                            Image(systemName: "tv.and.hifispeaker.fill")
-                        } else {
-                            Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                if UIDevice.current.userInterfaceIdiom == .phone {
+                    HStack(spacing: 0) {
+                        Button {
+                            router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                        } label: {
+                            if group.TVMode {
+                                Image(systemName: "tv.and.hifispeaker.fill")
+                            } else {
+                                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                                    .fontDesign(.rounded)
+                                    .font(.title3)
+                            }
+
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .onTapGesture {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                router.presentedSheet = .search(group: group)
+                            }
+                            .simultaneousGesture(
+                                LongPressGesture(minimumDuration: 0.5)
+                                    .onEnded { _ in
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        router.presentedSheet = .search(instant: true)
+                                    }
+                            )
+
+                        if group.rooms.count > 1 {
+                            Spacer()
+                            Button {
+                                withAnimation(.bouncy(duration: 0.3)) {
+                                    isExpanded.toggle()
+                                }
+                            } label: {
+                                Label("Room Volume", systemImage: "speaker.wave.2")
+                                    .labelStyle(.iconOnly)
+                                    .fontDesign(.rounded)
+                                    .font(.title3)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                        Button {
+                            router.presentedSheet = .queue(group: $group)
+                        } label: {
+                            Image(systemName: "list.dash")
                                 .fontDesign(.rounded)
                                 .font(.title3)
-                        }
-
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                    Image(systemName: "sparkle.magnifyingglass")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .onTapGesture {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedSheet = .search(group: group)
-                        }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.5)
-                                .onEnded { _ in
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    router.presentedSheet = .search(instant: true)
+                                .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
+                                .overlay(alignment: .topTrailing) {
+                                    if isHoveringOnQueueList {
+                                        Image(systemName: "plus.circle.fill")
+                                            .offset(x: 12, y: -18)
+                                            .transition(.scale)
+                                            .foregroundStyle(.green)
+                                    }
                                 }
-                        )
-
+                                .overlay(alignment: .topTrailing) {
+                                    if group.playMode.contains(.shuffle) {
+                                        Image(systemName: "shuffle.circle.fill")
+                                            .offset(x: 12, y: -12)
+                                    } else if group.playMode.contains(.repeatAll){
+                                        Image(systemName: "repeat.circle.fill")
+                                            .offset(x: 12, y: -12)
+                                    } else if group.playMode.contains(.repeatOne){
+                                        Image(systemName: "repeat.1.circle.fill")
+                                            .offset(x: 12, y: -12)
+                                    }
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .dropDestinationPlay(on: group, now: false) { isTargeted in
+                            if isTargeted {
+                                HapticManager.shared.fireHaptic(.selection)
+                            }
+                            isHoveringOnQueueList = isTargeted
+                        }
+                    }
+                    .frame(maxWidth: 300)
+                    .padding(.horizontal, 60)
+                } else {
                     if group.rooms.count > 1 {
-                        Spacer()
                         Button {
                             withAnimation(.bouncy(duration: 0.3)) {
                                 isExpanded.toggle()
                             }
                         } label: {
-                           Label("Room Volume", systemImage: "speaker.wave.2")
+                            Label("Room Volume", systemImage: "speaker.wave.2")
                                 .labelStyle(.iconOnly)
                                 .fontDesign(.rounded)
                                 .font(.title3)
                         }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                    Button {
-                        router.presentedSheet = .queue(group: $group)
-                    } label: {
-                        Image(systemName: "list.dash")
-                            .fontDesign(.rounded)
-                            .font(.title3)
-                            .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
-                            .overlay(alignment: .topTrailing) {
-                                if isHoveringOnQueueList {
-                                    Image(systemName: "plus.circle.fill")
-                                        .offset(x: 12, y: -18)
-                                        .transition(.scale)
-                                        .foregroundStyle(.green)
-                                }
-                            }
-                            .overlay(alignment: .topTrailing) {
-                                if group.playMode.contains(.shuffle) {
-                                    Image(systemName: "shuffle.circle.fill")
-                                        .offset(x: 12, y: -12)
-                                } else if group.playMode.contains(.repeatAll){
-                                    Image(systemName: "repeat.circle.fill")
-                                        .offset(x: 12, y: -12)
-                                } else if group.playMode.contains(.repeatOne){
-                                    Image(systemName: "repeat.1.circle.fill")
-                                        .offset(x: 12, y: -12)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .dropDestinationPlay(on: group, now: false) { isTargeted in
-                        if isTargeted {
-                            HapticManager.shared.fireHaptic(.selection)
-                        }
-                        isHoveringOnQueueList = isTargeted
+                        .frame(maxWidth: 300)
+                        .padding(.horizontal, 60)
+                        .padding(.bottom, 24)
+                        .frame(width: 40, height: 40)
                     }
                 }
-                .frame(maxWidth: 300)
-                .padding(.horizontal, 60)
             }
         }
         .frame(maxHeight: .infinity)
         .padding()
         .onAppear {
-            guard !OSEnvironment.pad else { return }
+            guard !OSEnvironment.pad && UIDevice.current.userInterfaceIdiom != .vision &&  UIDevice.current.userInterfaceIdiom != .mac else { return }
             sonosService.selectedGroup = group
         }
         .onDisappear {
-            guard !OSEnvironment.pad else { return }
+            guard !OSEnvironment.pad && UIDevice.current.userInterfaceIdiom != .vision  && UIDevice.current.userInterfaceIdiom != .mac else { return }
             sonosService.selectedGroup = nil
         }
         .onChange(of: sonosService.selectedGroup) {
+            guard !OSEnvironment.pad  && UIDevice.current.userInterfaceIdiom != .vision  && UIDevice.current.userInterfaceIdiom != .mac else { return }
             if group != sonosService.selectedGroup, let selectedGroup = sonosService.selectedGroup {
                 group = selectedGroup
             }

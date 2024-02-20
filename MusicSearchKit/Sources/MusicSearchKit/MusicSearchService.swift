@@ -27,6 +27,8 @@ public final class MusicSearchService {
 
     @MainActor
     public func search(for provider: MediaSearchService) async {
+        if query.isEmpty { return }
+
         // Cancel the previous task if it exists
         searchSuggestionTask.cancel()
 
@@ -65,6 +67,7 @@ public final class MusicSearchService {
 
     public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],  
                                                           MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)? {
+        if query.isEmpty { return ([], []) }
         guard await requestMusicAuthorization() else { return ([], []) }
 
         var request = MusicCatalogSearchSuggestionsRequest(term: query, includingTopResultsOfTypes: [Song.self, Album.self, Artist.self, Playlist.self])

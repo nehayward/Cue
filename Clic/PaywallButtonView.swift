@@ -71,6 +71,8 @@ struct PaywallButtonView: View {
             .shadow(radius: 8, x: 0, y: 1)
             .fixedSize(horizontal: false, vertical: true)
         }
+        .buttonStyle(.plain)
+        .buttonBorderShape(.roundedRectangle(radius: 12))
         .onReceive(timer) { _ in
             count += 1
             withAnimation {
