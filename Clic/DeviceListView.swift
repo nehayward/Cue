@@ -41,7 +41,6 @@ struct DeviceListMainView: View {
                                 }
                             }
                             VolumeControlView(group: $group, touchDelay: 0.05)
-                                .frame(height: 24)
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))

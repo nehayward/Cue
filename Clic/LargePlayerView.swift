@@ -155,19 +155,8 @@ struct LargePlayerView: View {
         }
         .frame(maxHeight: .infinity)
         .padding()
-        .onAppear {
-            guard !OSEnvironment.pad && UIDevice.current.userInterfaceIdiom != .vision &&  UIDevice.current.userInterfaceIdiom != .mac else { return }
+        .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
-        }
-        .onDisappear {
-            guard !OSEnvironment.pad && UIDevice.current.userInterfaceIdiom != .vision  && UIDevice.current.userInterfaceIdiom != .mac else { return }
-            sonosService.selectedGroup = nil
-        }
-        .onChange(of: sonosService.selectedGroup) {
-            guard !OSEnvironment.pad  && UIDevice.current.userInterfaceIdiom != .vision  && UIDevice.current.userInterfaceIdiom != .mac else { return }
-            if group != sonosService.selectedGroup, let selectedGroup = sonosService.selectedGroup {
-                group = selectedGroup
-            }
         }
         .background {
             ZStack {
@@ -214,9 +203,9 @@ struct LargePlayerView: View {
     }
 
     private func playbackView() -> some View {
-        VStack(spacing: 0) {
+        VStack {
             if !group.coordinatorRoom.track.duration.isZero {
-                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000) { isEditing in
+                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                         sonosService.isEditing = isEditing
@@ -228,7 +217,8 @@ struct LargePlayerView: View {
                         }
                     }
                 }
-                .frame(maxWidth: 500, minHeight: 32)
+                .frame(maxWidth: 500)
+                .frame(height: 40)
                 .foregroundStyle(.primary)
             }
             HStack {
@@ -242,6 +232,7 @@ struct LargePlayerView: View {
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
+        .frame(height: 60)
     }
 
     private func mediaControlsView() -> some View {

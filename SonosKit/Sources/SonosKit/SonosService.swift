@@ -49,6 +49,7 @@ public final class SonosService {
 
     @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
     @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
+    @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
@@ -101,6 +102,26 @@ public final class SonosService {
         if isRunning { return }
         print("Monitoring!")
 
+        self.watcher = Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                if isEditing {
+                    try? await Task.sleep(for: .milliseconds(500))
+                    continue
+                }
+                // MARK: Update room volumes
+                if let selectedGroup {
+                    try? await Task.sleep(for: .milliseconds(1000))
+                    let nonSelectedGroup = groups.filter { $0 != selectedGroup }
+                    try await updateGroups(from: nonSelectedGroup)
+                    await updateGroupCheckTVMode(from: nonSelectedGroup)
+                    await updateGroupMuteState(for: nonSelectedGroup)
+                } else {
+                    try? await Task.sleep(for: .milliseconds(1000))
+                }
+            } while (!watcher.isCancelled)
+        }
+
         self.sonosPulse = Task { [weak self] in
             guard let self else { return }
             var useCache = useCache
@@ -116,8 +137,8 @@ public final class SonosService {
                     }
                     // MARK: Update room volumes
                     try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
-
                     try await load(useCache: useCache)
+
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
                     print("Permission")
@@ -402,7 +423,7 @@ public final class SonosService {
     public func updateGroups(from groups: [GroupRoom]) async throws {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {
-                group.addTask{
+                group.addTask {
                     async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
@@ -413,9 +434,10 @@ public final class SonosService {
                     }
 
                     guard let awaitedTrack = await track else {
-                        if roomGroup.coordinatorRoom.track != .empty {
-                            roomGroup.coordinatorRoom.track = .empty
-                        }
+                        // MARK: Fix need to catch for cancelled urls
+//                        if roomGroup.coordinatorRoom.track != .empty {
+//                            roomGroup.coordinatorRoom.track = .empty
+//                        }
                         return
                     }
 

@@ -15,11 +15,8 @@ struct GroupVolumeControlView: View {
 
     var body: some View {
         VStack {
-            HStack {
-                VolumeControlView(group: $group)
-            }
-            .frame(height: 20)
-
+            VolumeControlView(group: $group)
+                .frame(height: 40)
             VStack {
                 ForEach($group.rooms) { $room in
                     VStack(alignment: .leading, spacing: 4) {
@@ -34,7 +31,6 @@ struct GroupVolumeControlView: View {
                                 await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
                             }
                         }
-                        .frame(height: 32)
                     }
                 }
                 Button {
@@ -61,7 +57,7 @@ struct GroupVolumeControlView: View {
                                    value: $0.frame(in: .local).size.height)
         })
         .onPreferenceChange(ViewHeightKey.self) { subviewHeight = $0 }
-        .frame(height: isExpanded ? subviewHeight : 30, alignment: .top)
+        .frame(height: isExpanded ? subviewHeight : 40, alignment: .top)
         .clipped()
         .frame(maxWidth: 500)
     }

@@ -19,7 +19,7 @@ struct ClicApp: App {
     @Environment(\.requestReview) var requestReview
     @Environment(\.liveActivityManager) var liveActivityManager
 
-    @State private var router: Router = Router()
+    @State private var router: Router = Router.main
     @State private var subscriptionService = SubscriptionService.shared
     @State private var sonosService = SonosService.shared
     @State private var alertService = AlertService.shared
@@ -123,9 +123,8 @@ struct ClicApp: App {
 #endif
                 }
             }
-            .onAppear { hideTitleBarOnCatalyst() }
 #if targetEnvironment(macCatalyst)
-            .frame(minWidth: 500, minHeight: 500)
+            .frame(minWidth: 800, minHeight: 500)
 #endif
         }
         .windowResizability(.contentMinSize)
@@ -150,18 +149,11 @@ struct ClicApp: App {
         }
     }
 
-    func hideTitleBarOnCatalyst() {
-#if targetEnvironment(macCatalyst)
-        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.titlebar?.titleVisibility = .hidden
-#endif
-    }
-
     @MainActor
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
             sonosService.monitor()
-
             if !subscriptionService.subscription.isActive {
                 return
             }
@@ -190,6 +182,7 @@ struct ClicApp: App {
             print("Background")
             Task {
                 sonosService.sonosPulse.cancel()
+                sonosService.watcher.cancel()
             }
         @unknown default:
             break
@@ -284,17 +277,101 @@ struct ClicApp: App {
     }
 }
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(
+       _ application: UIApplication,
+       configurationForConnecting connectingSceneSession: UISceneSession,
+       options: UIScene.ConnectionOptions
+     ) -> UISceneConfiguration {
+       let sceneConfig = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+       sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
+       return sceneConfig
+     }
+}
+
+
+class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
+    var toolbarDelegate = ToolbarDelegate()
+
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
 
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
+            let toolbar = NSToolbar(identifier: "main")
+            toolbar.delegate = toolbarDelegate
+            toolbar.displayMode = .iconOnly
             titlebar.titleVisibility = .hidden
-            titlebar.toolbar = nil
+            titlebar.toolbar = toolbar
+            titlebar.toolbarStyle = .automatic
         }
 #endif
-
     }
 }
+
+
+class ToolbarDelegate: NSObject {
+    @objc func prefs(_ sender:Any) {
+        Task { @MainActor in
+            Router.main.presentedSheet = .settings
+        }
+    }
+}
+
+
+#if targetEnvironment(macCatalyst)
+extension NSToolbarItem.Identifier {
+    static let preferences = NSToolbarItem.Identifier("com.clic.preferences")
+//    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
+//    static let search = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.search")
+}
+
+
+extension ToolbarDelegate: NSToolbarDelegate {
+
+    func toolbarIdentifiers() -> [NSToolbarItem.Identifier] {
+        return [.flexibleSpace, .preferences, .toggleSidebar, .primarySidebarTrackingSeparatorItemIdentifier, .flexibleSpace]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        return toolbarIdentifiers()
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        return toolbarIdentifiers()
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if itemIdentifier == .preferences {
+            let barItem = UIBarButtonItem(image: UIImage(systemName: "slider.vertical.3"), style: .plain, target: self, action: #selector(prefs(_:)))
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
+            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
+            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            return item
+        }
+//        else if itemIdentifier == .newFolder {
+//            let barItem = UIBarButtonItem(image: UIImage(systemName: "plus"), style: .plain, target: self, action: nil)
+//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
+//            item.accessibilityLabel = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
+//            item.toolTip = NSLocalizedString("TOOLBAR_NEW_FOLDER_BUTTON", comment: "")
+//
+//            return item
+//        }
+//        else if itemIdentifier == .search {
+//
+////            if let searchItem = CATAppDelegate.appKitController?.searchToolbarItem(sceneIdentifier:scene?.session.persistentIdentifier ?? UUID().uuidString, itemIdentifier: itemIdentifier, target: self, selector: #selector(search(_:))) {
+////                return searchItem
+////            }
+////            else {
+//                return NSToolbarItem(itemIdentifier: itemIdentifier)
+////            }
+//        }
+//        else {
+//            return NSToolbarItem(itemIdentifier: itemIdentifier)
+//        }
+        return NSToolbarItem(itemIdentifier: itemIdentifier)
+    }
+
+}
+#endif

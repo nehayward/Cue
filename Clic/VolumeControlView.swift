@@ -24,15 +24,16 @@ struct VolumeControlView: View {
                 }
             } label: {
                 Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
-                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
-                    .foregroundColor(.accentColor)
-                    .padding(.trailing, 8)
+                    .foregroundStyle(group.isMuted ? Color.secondary : Color.accentColor)
+                    .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
             }
-            .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)
+            .padding(.trailing)
 
-            VibeSlider(value: $group.groupVolume, touchDelay: touchDelay) { isEditing in
+            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)
@@ -58,7 +59,7 @@ struct VolumeControlView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: group.groupVolume)
-        .frame(height: 40)
+        .frame(height: UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40)
     }
 
     private func updateVolume(volume: Double) {
@@ -77,9 +78,5 @@ struct VolumeControlView: View {
 
 #Preview {
     VolumeControlView(group: .constant(.garage))
-        .environment(SonosService())
-        .onAppear {
-            let thumbImage = UIImage()
-            UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-        }
+        .environment(SonosService.shared)
 }

@@ -34,7 +34,6 @@ struct ListViewLarge: View {
                         }
                     }
                     VolumeControlView(group: $group, touchDelay: 0.05)
-                        .frame(height: 24)
                 }
                 .tag(group.coordinatorID)
                 .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)
@@ -50,10 +49,17 @@ struct ListViewLarge: View {
             .disabled(!enabled(group: group))
             .selectionDisabled(!enabled(group: group))
         }
+        .environment(\.defaultMinListRowHeight, 40)
         .animation(.interactiveSpring, value: sonosService.groups)
         .onChange(of: sonosService.sorted) { 
             if selected == nil {
+                sonosService.selectedGroup = sonosService.sorted.first
                 selected = sonosService.sorted.first?.coordinatorID
+            }
+        }
+        .onChange(of: selected) {
+            if let id = selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                sonosService.selectedGroup = sonosService.sorted[index]
             }
         }
         #if targetEnvironment(macCatalyst)

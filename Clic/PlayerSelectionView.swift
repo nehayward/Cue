@@ -57,7 +57,6 @@ struct PlayerSelectionView: View {
                             .bold()
                     }
                     VolumeControlView(group: $group, touchDelay: 0.05)
-                        .frame(height: 24)
                 }
                 .foregroundStyle(.primary)
                 .swipeActions {

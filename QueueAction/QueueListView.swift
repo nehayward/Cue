@@ -62,7 +62,6 @@ struct QueueListView: View {
                                 }
                             }
                             .frame(height: 40)
-
                         }
                         .foregroundStyle(.primary)
                         .swipeActions {

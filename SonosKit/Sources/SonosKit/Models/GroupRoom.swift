@@ -31,7 +31,6 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
 
-    @ObservationIgnored
     private var privateGroupVolume: Double = 0
 
     public var groupVolume: Double {

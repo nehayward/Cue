@@ -34,7 +34,7 @@ struct RoomVolumeView: View {
             .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)
 
-            VibeSlider(value: $room.volume, touchDelay: touchDelay) { isEditing in
+            VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
                 if room.isMuted {
                     Task {
                         await sonosService.setRoomMute(room: room, mute: false)
@@ -57,7 +57,7 @@ struct RoomVolumeView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: room.volume)
-        .frame(height: 24)
+        .frame(height: 40)
     }
 
     private func updateVolume(volume: Double) {

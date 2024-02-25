@@ -29,7 +29,6 @@ public struct VolumeControlView: View {
                 let volume = volume
                 updateVolume(volume: volume)
             }
-            .frame(height: 32)
             Text("\(volume, specifier: "%03.0f")%")
                 .contentTransition(.numericText())
                 .monospacedDigit()
@@ -40,6 +39,7 @@ public struct VolumeControlView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: volume)
+        .frame(height: 38)
     }
 
     private func updateVolume(volume: Double) {

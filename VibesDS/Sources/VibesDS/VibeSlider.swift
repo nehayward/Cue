@@ -8,9 +8,10 @@ public struct VibeSlider: View {
     @State private var startingValue: Double?
     @State private var onEditingChangedTask: Task<Void, Error> = Task { }
 
+    private let baseHeight: Double
+    private var expandedHeight: Double { baseHeight * 1.65 }
     private let touchDelay: TimeInterval
     private var onEditingChanged: (Bool) -> Void
-    private var cornerRadius: Double { isDragging ? 50 : 12 }
     private var range: ClosedRange<Double>
     private let step: Double.Stride
 
@@ -25,50 +26,81 @@ public struct VibeSlider: View {
         value: Binding<Double>,
         in range: ClosedRange<Double> = 0...100,
         step: Double.Stride = 1,
+        baseHeight: CGFloat = 24,
         touchDelay: TimeInterval = 0,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
             self.range = range
             self.step = step
+            self.baseHeight = baseHeight
             self.touchDelay = touchDelay
             self.onEditingChanged = onEditingChanged
         }
 
     public var body: some View {
-#if os(visionOS)
-        Slider(value: $value, in: range, step: step) { value in
-            onEditingChangedTask.cancel()
-            onEditingChangedTask = Task { @MainActor in
-                onEditingChanged(value)
+        ZStack {
+            // visionOS (on device) does not like when drag targets are smaller than 40pt tall, so add an almost-transparent (as it still needs to be interactive) that enforces an effective minimum height. If the slider is tall than this on its own it's essentially just ignored.
+            #if os(visionOS)
+            Color.orange.opacity(0.0001)
+                .frame(height: 40.0)
+            #endif
+            Capsule()
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onChange(of: proxy.size.width, initial: true) {
+                                width = proxy.size.width
+                            }
+                    }
+                }
+                .frame(height: isDragging ? expandedHeight : baseHeight)
+                .foregroundStyle(
+                    .quaternary
+                        .shadow(.inner(color: .black.opacity(0.3), radius: 3.0, y: 2.0))
+                )
+                .shadow(color: .white.opacity(0.2), radius: 1, y: 1)
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .overlay {
+                            if isDragging {
+                                Capsule().foregroundStyle(Color.black.opacity(0.15)).blendMode(.lighten)
+                            }
+                        }
+                        #if os(visionOS)
+                        .overlay(alignment: .trailing) {
+                            ZStack {
+                                Circle()
+                                    .foregroundStyle(Color.white)
+                                    .shadow(radius: 1.0)
+                                    .padding(innerCirclePadding)
+                                    .opacity(isDragging ? 1.0 : 0.0)
+                            }
+                        }
+                        #endif
+                        .frame(width: calculateProgressWidth(), height: isDragging ? expandedHeight : baseHeight)
+                }
+                .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
+            #if !os(watchOS)
+                .contentShape(.hoverEffect, .capsule)
+            #endif
             }
+        .delaysTouches(for: touchDelay) { }
+        .gesture(dragGesture)
+        #if !os(visionOS)
+        .sensoryFeedback(trigger: value) { oldValue, newValue in
+            guard isDragging else { return .none }
+            return oldValue < newValue ? .decrease : .increase
         }
-        .animation(.interactiveSpring, value: value)
-#else
-        Group {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .foregroundStyle(.quaternary)
-                    Rectangle()
-                        .frame(width: geometry.size.width * CGFloat(self.value / range.upperBound))
-                }
-                .delaysTouches(for: touchDelay) { }
-                .gesture(dragGesture)
-                .cornerRadius(cornerRadius)
-                .onChange(of: geometry.size.width, initial: true) {
-                    width = geometry.size.width
-                }
-                .sensoryFeedback(trigger: value) { oldValue, newValue in
-                    guard isDragging else { return .none }
-                    return oldValue < newValue ? .decrease : .increase
-                }
-            }
-        }
-        .frame(height: isDragging ? 20 : 10)
+        #endif
+        #if !os(watchOS)
+        .hoverEffect(.highlight)
+        .defaultHoverEffect(.highlight)
+        #endif
         .animation(.interactiveSpring, value: value)
         .animation(.interactiveSpring, value: isDragging)
-        .fixedSize(horizontal: false, vertical: true)
-#endif
+        .accessibilityRepresentation {
+            Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
+        }
     }
 
     private var dragGesture: some Gesture {
@@ -96,6 +128,14 @@ public struct VibeSlider: View {
             startingValue = value
         }
         self.value = min(max(range.lowerBound, (startingValue ?? value) + stepValue), range.upperBound)
+    }
+
+    private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
+
+    private func calculateProgressWidth() -> CGFloat {
+        let calculatedWidth = (value / range.upperBound) * width
+        // Don't let the bar get so small that it disappears
+        return max(0, calculatedWidth)
     }
 }
 
