@@ -61,6 +61,8 @@ struct QueueListView: View {
                                     await sonosService.setGroupVolume(ip: group.ip, volume: Int(volume))
                                 }
                             }
+                            .frame(height: 40)
+
                         }
                         .foregroundStyle(.primary)
                         .swipeActions {

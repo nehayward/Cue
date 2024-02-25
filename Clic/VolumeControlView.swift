@@ -58,6 +58,7 @@ struct VolumeControlView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: group.groupVolume)
+        .frame(height: 40)
     }
 
     private func updateVolume(volume: Double) {
