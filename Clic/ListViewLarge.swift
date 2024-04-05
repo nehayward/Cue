@@ -21,29 +21,47 @@ struct ListViewLarge: View {
         
         List ($sonosService.sorted, selection: $selected) { $group in
             Section {
-                VStack(spacing: 12) {
-                    if group.TVMode {
-                        TVModeViewCell(group: $group)
-                    } else {
-                        HStack(alignment: .top) {
-                            ArtworkView(group: $group)
-                                .frame(width: 72, height: 72)
-                            ZoneView(group: $group)
-                            Spacer()
-                            MediaControlsView(group: $group)
+                if group.coordinatorRoom.state == .active {
+                    VStack(spacing: 12) {
+                        if group.TVMode {
+                            TVModeViewCell(group: $group)
+                        } else {
+                            HStack(alignment: .top) {
+                                ArtworkView(group: $group)
+                                    .frame(width: 72, height: 72)
+                                ZoneView(group: $group)
+                                Spacer()
+                                MediaControlsView(group: $group)
+                            }
+                        }
+                        VolumeControlView(group: $group, touchDelay: 0.05)
+                    }
+                    .tag(group.coordinatorID)
+                    .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)
+                    .foregroundStyle(.primary)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                } else {
+                    Text(group.coordinatorRoom.state.reason)
+                        .selectionDisabled()
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                }
+            } header: {
+                HStack {
+                    Text(group.nameWithCount)
+                    if let battery = group.coordinatorRoom.battery {
+                        Spacer()
+                        Text((battery.percentage / 100), format: .percent)
+                            .foregroundStyle(.secondary)
+                        if battery.chargingState == .charging {
+                            Image(systemName: "battery.100percent.bolt")
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
                         }
                     }
-                    VolumeControlView(group: $group, touchDelay: 0.05)
                 }
-                .tag(group.coordinatorID)
-                .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)
-                .foregroundStyle(.primary)
-                .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
-            } header: {
-                Text(group.nameWithCount)
-                    .fontDesign(.rounded)
-                    .headerProminence(.increased)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
+                .fontDesign(.rounded)
+                .headerProminence(.increased)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
             }
             .redacted(reason: enabled(group: group) ? [] : .placeholder)
             .disabled(!enabled(group: group))

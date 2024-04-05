@@ -10,112 +10,133 @@ struct DeviceCellView: View {
 
     var body: some View {
         Section {
-            HStack {
-                VStack(alignment: .leading) {
-                    if let settings = group.tvSettings {
-                        Text(settings.audioInputFormat.description)
-                    } else {
-                        HStack {
-                            LazyImage(url: artworkURL) { state in
-                                if let image = state.image {
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } else if state.isLoading {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.ultraThinMaterial)
-                                        .shadow(radius: 2)
-                                } else {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.accent.gradient.secondary)
-                                        .shadow(radius: 2)
-                                        .overlay {
-                                            if artworkURL == nil {
-                                                Image(systemName: "music.note")
-                                                    .resizable()
-                                                    .scaledToFit()
-                                                    .foregroundStyle(.regularMaterial)
-                                                    .frame(width: 24, height: 24)
+            if group.coordinatorRoom.state == .active {
+                HStack {
+                    VStack(alignment: .leading) {
+                        if let settings = group.tvSettings {
+                            Text(settings.audioInputFormat.description)
+                        } else {
+                            HStack {
+                                LazyImage(url: artworkURL) { state in
+                                    if let image = state.image {
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                    } else if state.isLoading {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.ultraThinMaterial)
+                                            .shadow(radius: 2)
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.accent.gradient.secondary)
+                                            .shadow(radius: 2)
+                                            .overlay {
+                                                if artworkURL == nil {
+                                                    Image(systemName: "music.note")
+                                                        .resizable()
+                                                        .scaledToFit()
+                                                        .foregroundStyle(.regularMaterial)
+                                                        .frame(width: 24, height: 24)
+                                                }
                                             }
-                                        }
+                                    }
                                 }
-                            }
-                            .transition(.scale)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .shadow(radius: 2)
-                            .frame(width: 40, height: 40)
-                            .overlay(alignment: .bottomTrailing) {
-                                switch group.coordinatorRoom.track.musicService {
-                                case .apple:
-                                    Image(systemName: "apple.logo")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 10, height: 10)
-                                        .padding([.trailing, .bottom], 4)
-                                        .shadow(radius: 10)
-                                case .spotify:
-                                    Image(.spotifyLogo)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 10, height: 10)
-                                        .padding([.trailing, .bottom], 4)
-                                        .shadow(radius: 10)
-                                case .airplay, .unknown:
-                                    EmptyView()
-                                        .padding([.trailing, .bottom], 12)
+                                .transition(.scale)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .shadow(radius: 2)
+                                .frame(width: 40, height: 40)
+                                .overlay(alignment: .bottomTrailing) {
+                                    switch group.coordinatorRoom.track.musicService {
+                                    case .apple:
+                                        Image(systemName: "apple.logo")
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.white.gradient)
+                                            .frame(width: 10, height: 10)
+                                            .padding([.trailing, .bottom], 4)
+                                            .shadow(radius: 10)
+                                    case .spotify:
+                                        Image(.spotifyLogo)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.white.gradient)
+                                            .frame(width: 10, height: 10)
+                                            .padding([.trailing, .bottom], 4)
+                                            .shadow(radius: 10)
+                                    case .airplay, .unknown:
+                                        EmptyView()
+                                            .padding([.trailing, .bottom], 12)
+                                    }
                                 }
-                            }
-                            VStack(alignment: .leading) {
-                                Text(group.coordinatorRoom.track.name)
-                                    .lineLimit(1, reservesSpace: true)
-                                    .redacted(reason: group.coordinatorRoom.track.name.isEmpty ? .placeholder : [])
-                                Text(group.coordinatorRoom.track.artist)
-                                    .lineLimit(1, reservesSpace: true)
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading) {
+                                    Text(group.coordinatorRoom.track.name)
+                                        .lineLimit(1, reservesSpace: true)
+                                        .redacted(reason: group.coordinatorRoom.track.name.isEmpty ? .placeholder : [])
+                                    Text(group.coordinatorRoom.track.artist)
+                                        .lineLimit(1, reservesSpace: true)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
+                    }
+                    Spacer()
+                    if group.tvSettings == nil && group.coordinatorRoom.track != .empty {
+                        Button {
+                            Task {
+                                if group.coordinatorRoom.isPlaying {
+                                    WKInterfaceDevice.current().play(.stop)
+                                    await sonosService.pause(ip: group.coordinatorRoom.ip)
+                                } else {
+                                    WKInterfaceDevice.current().play(.start)
+                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                }
+                            }
+                        } label: {
+                            Gauge(
+                                value: group.coordinatorRoom.track.playbackPosition,
+                                in: 0...group.coordinatorRoom.track.duration,
+                                label: {
+
+                                },
+                                currentValueLabel: {
+                                    Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                        .renderingMode(.template)
+                                        .foregroundColor(.accentColor)
+                                        .contentTransition(.symbolEffect(.automatic))
+                                }
+                            )
+                            .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
+                            .gaugeStyle(.accessoryCircularCapacity)
+                            .scaleEffect(0.65)
+                            .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                Spacer()
-                if group.tvSettings == nil && group.coordinatorRoom.track != .empty {
-                    Button {
-                        Task {
-                            if group.coordinatorRoom.isPlaying {
-                                WKInterfaceDevice.current().play(.stop)
-                                await sonosService.pause(ip: group.coordinatorRoom.ip)
-                            } else {
-                                WKInterfaceDevice.current().play(.start)
-                                await sonosService.play(ip: group.coordinatorRoom.ip)
-                            }
-                        }
-                    } label: {
-                        Gauge(
-                            value: group.coordinatorRoom.track.playbackPosition,
-                            in: 0...group.coordinatorRoom.track.duration,
-                            label: {
-
-                            },
-                            currentValueLabel: {
-                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                    .renderingMode(.template)
-                                    .foregroundColor(.accentColor)
-                                    .contentTransition(.symbolEffect(.automatic))
-                            }
-                        )
-                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
-                        .gaugeStyle(.accessoryCircularCapacity)
-                        .scaleEffect(0.65)
-                        .frame(width: 24, height: 24)
-                    }
-                    .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 12) {
+                    Text(group.coordinatorRoom.state.reason)
                 }
             }
         } header: {
-           Text(group.nameWithCount)
+            HStack {
+                Text(group.nameWithCount)
+                if let battery = group.coordinatorRoom.battery {
+                    Spacer()
+                    Text((battery.percentage / 100), format: .percent)
+                        .foregroundStyle(.secondary)
+                    if battery.chargingState == .charging {
+                        Image(systemName: "battery.100percent.bolt")
+                            .symbolRenderingMode(.hierarchical)
+                            .font(.caption)
+                            .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                    }
+                }
+            }
+            .fontDesign(.rounded)
+            .headerProminence(.increased)
         }
         .tag(group.coordinatorID)
         .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)

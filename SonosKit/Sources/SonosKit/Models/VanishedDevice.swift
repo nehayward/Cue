@@ -6,4 +6,6 @@ public struct VanishedDevice: Identifiable {
     public let reason: String?
     public let IP: String?
     public let lastSeen: Date?
+    public let info: String?
+    public let macAddress: String?
 }

@@ -325,10 +325,10 @@ final class SonosAPI: NSObject {
     }
 
 
-    func getBatteryLevel(ipAddress: String) {
-//        guard let url = URL(string: "http://\(ipAddress):1400/status/batterystatus") else { return }
+//    func batteryLevel(IP: String) {
+//        guard let url = URL(string: "http://\(IP):1400/status/batterystatus") else { return }
 //        let request = URLRequest(url: url)
-    }
+//    }
 
     func getGroups(ipAddress: String) async throws -> [GroupRoom] {
         do {
@@ -336,7 +336,9 @@ final class SonosAPI: NSObject {
             guard let xmlString = String(data: data, encoding: .utf8) else { return [] }
             SonosLogInformation.shared.log(name: "Groups.txt", xmlString.unescaped)
             let zones = xmlParser.parseZones(xml: xmlString.unescaped)
-            return zones.compactMap { $0.toGroup }
+            let vanishedZones = xmlParser.parseVanishedDevices(xml: xmlString.unescaped).compactMap { $0.toGroup }
+            let groups = zones.compactMap { $0.toGroup }
+            return groups + vanishedZones
         } catch URLError.cancelled {
             print("Cancelled")
             throw SonosServiceError.cancelled

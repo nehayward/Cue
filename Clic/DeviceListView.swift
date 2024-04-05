@@ -25,31 +25,48 @@ struct DeviceListMainView: View {
         NavigationStack(path: $router.path) {
             List ($sonosService.sorted) { $group in
                 Section {
-                    Button {
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    } label: {
-                        VStack(spacing: 12) {
-                            if group.tvSettings != nil {
-                                TVModeViewCell(group: $group)
-                            } else {
-                                HStack(alignment: .top) {
-                                    ArtworkView(group: $group)
-                                        .frame(width: 72, height: 72)
-                                    ZoneView(group: $group)
-                                    Spacer()
-                                    MediaControlsView(group: $group)
+                    if group.coordinatorRoom.state == .active {
+                        Button {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } label: {
+                            VStack(spacing: 12) {
+                                if group.tvSettings != nil {
+                                    TVModeViewCell(group: $group)
+                                } else {
+                                    HStack(alignment: .top) {
+                                        ArtworkView(group: $group)
+                                            .frame(width: 72, height: 72)
+                                        ZoneView(group: $group)
+                                        Spacer()
+                                        MediaControlsView(group: $group)
+                                    }
                                 }
+                                VolumeControlView(group: $group, touchDelay: 0.05)
                             }
-                            VolumeControlView(group: $group, touchDelay: 0.05)
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))
+                        .dropDestinationPlay(on: group)
+                    } else {
+                        Text(group.coordinatorRoom.state.reason)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                    }
+                } header: {
+                    HStack {
+                        Text(group.nameWithCount)
+                        if let battery = group.coordinatorRoom.battery {
+                            Spacer()
+                            Text((battery.percentage / 100), format: .percent)
+                                .foregroundStyle(.secondary)
+                            if battery.chargingState == .charging {
+                                Image(systemName: "battery.100percent.bolt")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                            }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))
-                    .dropDestinationPlay(on: group)
-                } header: {
-                    Text(group.nameWithCount)
-                        .fontDesign(.rounded)
-                        .headerProminence(.increased)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
+                    .fontDesign(.rounded)
+                    .headerProminence(.increased)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 }
                 .redacted(reason: enabled(group: group) ? [] : .placeholder)
                 .disabled(!enabled(group: group))

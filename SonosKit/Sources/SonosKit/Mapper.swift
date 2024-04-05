@@ -22,7 +22,7 @@ extension ZoneGroupMember {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
-        return Room(id: UUID, ip: ip, name: zoneName)
+        return Room(id: UUID, ip: ip, name: zoneName, battery: Battery(info: info))
     }
 
     func coordinatorRoom(coordinatorID: String) -> Room? {
@@ -30,6 +30,20 @@ extension ZoneGroupMember {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
-        return Room(id: UUID, ip: ip, name: zoneName)
+        return Room(id: UUID, ip: ip, name: zoneName, battery: Battery(info: info))
+    }
+}
+
+
+extension VanishedDevice {
+    var toGroup: GroupRoom? {
+        guard let IP, let name, let info, let reason, let macAddress else { return nil }
+
+        let room = Room(id: id, ip: IP, name: name, state: RoomState(reason: reason), battery: Battery(info: info), macAddress: macAddress)
+        return GroupRoom(id: id,
+                         coordinatorID: id,
+                         rooms: [room],
+                         coordinatorRoom: room
+        )
     }
 }

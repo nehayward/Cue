@@ -6,3 +6,4 @@ NAME = Clic°
 PRODUCT_NAME = Clic
 ICON = Alternate
 ICON[sdk=xr*] = VisionAppIcon
+//ICON[sdk=macos*] = MacAppIcon

@@ -16,11 +16,18 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var track: Track = .empty
     public var isEditingVolume: Bool = false
 
-    public init(id: String, ip: String, name: String, track: Track = .empty) {
+    public var state: RoomState
+    public var battery: Battery?
+    public var macAddress: String?
+
+    public init(id: String, ip: String, name: String, track: Track = .empty, state: RoomState = .active, battery: Battery? = nil, macAddress: String? = nil) {
         self.id = id
         self.ip = ip
         self.name = name
         self.track = track
+        self.state = state
+        self.battery = battery
+        self.macAddress = macAddress
     }
 
     @MainActor
@@ -43,6 +50,8 @@ extension Room: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(name)
         hasher.combine(ip)
+        hasher.combine(state)
+        hasher.combine(macAddress)
     }
 }
 

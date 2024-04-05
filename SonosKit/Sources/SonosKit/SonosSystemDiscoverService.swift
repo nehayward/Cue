@@ -172,4 +172,33 @@ final class SonosSystemDiscoverService {
             break
         }
     }
+
+    func sendWakeOnLANPacket(macAddress: String, broadcastAddress: String = "255.255.255.255") {
+        // Convert the MAC address to data
+        let macData = macAddress.split(separator: ":").compactMap { UInt8($0, radix: 16) }
+        guard macData.count == 6 else {
+            print("Invalid MAC address")
+            return
+        }
+
+        // Create the magic packet
+        var packet = Data(repeating: 0xFF, count: 6)
+        for _ in 0..<16 {
+            packet.append(contentsOf: macData)
+        }
+
+        // Create a UDP connection to the broadcast address
+        let connection = NWConnection(host: NWEndpoint.Host(broadcastAddress), port: 9, using: .udp)
+
+        // Send the magic packet
+        connection.start(queue: .global())
+        connection.send(content: packet, completion: .contentProcessed { error in
+            if let error = error {
+                print("Failed to send magic packet: \(error)")
+            } else {
+                print("Magic packet sent successfully")
+            }
+            connection.cancel()
+        })
+    }
 }

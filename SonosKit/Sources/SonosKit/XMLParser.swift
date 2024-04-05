@@ -90,8 +90,11 @@ final class XMLParserSonos {
             let lastKnownIP = item.element?.attribute(by: "LastKnownIP")?.text
             let date = dateFormatter.date(from: item.element?.attribute(by: "LastSeenUTC")?.text ?? "")
             let reason = item.element?.attribute(by: "Reason")?.text
+            let info = item.element?.attribute(by: "MoreInfo")?.text
+            let macAddress = item.element?.attribute(by: "Mac")?.text
 
-            return VanishedDevice(id: id, name: name, reason: reason, IP: lastKnownIP, lastSeen: date)
+
+            return VanishedDevice(id: id, name: name, reason: reason, IP: lastKnownIP, lastSeen: date, info: info, macAddress: macAddress)
         }
     }
 

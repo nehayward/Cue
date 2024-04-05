@@ -169,7 +169,7 @@ public final class SonosService {
     }
 
     @MainActor
-    public func monitorWatch(retry: Bool = true, duration: Duration = .seconds(2), useCache: Bool) {
+    public func monitorWatch(retry: Bool = true, duration: Duration = .seconds(1.5), useCache: Bool) {
         if isRunning { return }
         print("Monitoring!")
         self.sonosPulse = Task { [weak self] in
@@ -222,6 +222,8 @@ public final class SonosService {
             self.rooms = newGroup.flatMap(\.rooms)
             refreshGroup = true
         }
+
+        await wakeSleepingRooms(rooms: rooms)
 
         if let selectedGroup, !refreshGroup {
             guard let groupIndex = groups.firstIndex(where: { group in
@@ -320,6 +322,9 @@ public final class SonosService {
             self.rooms = newGroup.flatMap(\.rooms)
             refreshGroup = true
         }
+
+        await wakeSleepingRooms(rooms: rooms)
+
         if let selectedGroup, !refreshGroup {
 //            print("Selected Group")
 //            print(selectedGroup.coordinatorRoom.id)
@@ -554,6 +559,19 @@ public final class SonosService {
                 group.addTask {
                     if let isMuted = await self.isMuted(for: roomGroup) {
                         roomGroup.isMuted = isMuted
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
+    public func wakeSleepingRooms(rooms: [Room]) async {
+        await withDiscardingTaskGroup { taskGroup in
+            for room in rooms {
+                taskGroup.addTask { [weak self] in
+                    if let macAddress = room.macAddress, room.state == .sleeping {
+                        self?.sonosSystemDiscoverService.sendWakeOnLANPacket(macAddress: macAddress)
                     }
                 }
             }
