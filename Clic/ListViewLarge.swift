@@ -81,7 +81,6 @@ struct ListViewLarge: View {
             }
         }
         #if targetEnvironment(macCatalyst)
-        .navigationBarHidden(true)
         .listStyle(.sidebar)
         #else
         .listStyle(.insetGrouped)
@@ -155,23 +154,6 @@ struct ListViewLarge: View {
                             .frame(width: 24, height: 24)
                     }
                 }
-
-                Image(systemName: "sparkle.magnifyingglass")
-                    .resizable()
-                    .foregroundStyle(.accent.gradient)
-                    .frame(width: 24, height: 24)
-                    .onTapGesture {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        router.presentedSheet = .search()
-                    }
-                    .simultaneousGesture(
-                        LongPressGesture(minimumDuration: 0.5)
-                            .onEnded { _ in
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                router.presentedSheet = .search(instant: true)
-                            }
-                    )
-                    .contentShape(Capsule())
             }
             .padding()
             .frame(maxWidth: .infinity)

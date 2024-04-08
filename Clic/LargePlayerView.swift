@@ -269,6 +269,7 @@ struct LargePlayerView: View {
 
             }
             .buttonStyle(.plain)
+            .keyboardShortcut(.space, modifiers: []) 
             Spacer()
             Button {
                 Task {

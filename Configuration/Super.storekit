@@ -1,0 +1,194 @@
+{
+  "identifier" : "DE3117CA",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6451395577",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_developerTeamID" : "Z9QV6PA2TY",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 734040627.44951904,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : {
+          "index" : 2,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : {
+          "index" : 1,
+          "type" : "purchase"
+        },
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : {
+          "index" : 2,
+          "type" : "generic"
+        },
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21368046",
+      "localizations" : [
+
+      ],
+      "name" : "Main",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+            {
+              "displayPrice" : "9.99",
+              "internalID" : "F2CC8825",
+              "numberOfPeriods" : 1,
+              "offerID" : "com.super.saver",
+              "paymentMode" : "payUpFront",
+              "referenceName" : "SAVER",
+              "subscriptionPeriod" : "P1Y"
+            }
+          ],
+          "codeOffers" : [
+            {
+              "eligibility" : [
+                "existing",
+                "new"
+              ],
+              "internalID" : "71E29779",
+              "isStackable" : true,
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "referenceName" : "Brand Reach",
+              "subscriptionPeriod" : "P6M"
+            },
+            {
+              "eligibility" : [
+                "new",
+                "expired",
+                "existing"
+              ],
+              "internalID" : "26B28BB5",
+              "isStackable" : true,
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "referenceName" : "Supporter",
+              "subscriptionPeriod" : "P3M"
+            }
+          ],
+          "displayPrice" : "14.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6455175401",
+          "introductoryOffer" : {
+            "internalID" : "13407D3E",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlock all Sonos devices, watch and more!",
+              "displayName" : "Super",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.super.clic.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Annual Super",
+          "subscriptionGroupID" : "21368046",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+            {
+              "displayPrice" : "0.99",
+              "eligibility" : [
+                "new",
+                "existing"
+              ],
+              "internalID" : "22AEC58F",
+              "isStackable" : true,
+              "numberOfPeriods" : 12,
+              "paymentMode" : "payAsYouGo",
+              "referenceName" : "Hygge",
+              "subscriptionPeriod" : "P1M"
+            }
+          ],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6467562856",
+          "introductoryOffer" : {
+            "internalID" : "5428991B",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Unlock all unlimited devices, Watch, and more",
+              "displayName" : "Super",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.super.clic.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Super",
+          "subscriptionGroupID" : "21368046",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

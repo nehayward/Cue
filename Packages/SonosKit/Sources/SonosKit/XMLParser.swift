@@ -78,9 +78,7 @@ final class XMLParserSonos {
     func parseVanishedDevices(xml: String) -> [VanishedDevice] {
         let xmlParsed = XMLHash.parse(xml)
         let vanishedDevices = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["VanishedDevices"]
-        print(vanishedDevices)
         let items = vanishedDevices.children
-        print(items)
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
 

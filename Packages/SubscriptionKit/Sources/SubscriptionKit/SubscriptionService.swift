@@ -7,31 +7,41 @@ import Foundation
 import Security
 
 @Observable
-public final class SubscriptionService: SubscriptionServicing {
+public final class SubscriptionService {
     public static var shared = SubscriptionService()
 
     private var subscriptionTask: Task<Void, Error>?
     private let sync = CloudStorageSync.shared
     public var subscription: Subscription = .notActive
-    private let identifierKey = "com.clic.identifier"
-
     public var subscriptionUpdated: ((Subscription) -> ())?
+    private var keyID: String?
 
-    public init() {
+    public var userID: String {
+        return Purchases.shared.appUserID
+    }
+
+    public func initialize(key: String, mock: Bool = false) {
+        self.keyID = key
+        guard let keyID else { return }
+
 #if DEBUG
         Purchases.logLevel = .debug
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
-        subscription = Subscription(isActive: true)
-        sync.set(true, for: "com.clic.subscriptions")
+//        subscription = Subscription(isActive: true)
+//        sync.set(true, for: keyID)
+        subscription = Subscription(isActive: false)
+        sync.set(false, for: keyID)
+
         NSUbiquitousKeyValueStore.default.synchronize()
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
+
         return
 #endif
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             Purchases.logLevel = .error
             Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
             subscription = Subscription(isActive: true)
-            sync.set(true, for: "com.clic.subscriptions")
+            sync.set(true, for: keyID)
             Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "TESTFLIGHT"])
             return
         }
@@ -39,6 +49,7 @@ public final class SubscriptionService: SubscriptionServicing {
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP")
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "PRODUCTION"])
+        
         Task { @MainActor in
             setup()
         }
@@ -92,7 +103,6 @@ public final class SubscriptionService: SubscriptionServicing {
             return
         }
 
-
         let customerInfo = try await Purchases.shared.customerInfo()
         if !customerInfo.activeSubscriptions.isEmpty {
             let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
@@ -101,25 +111,6 @@ public final class SubscriptionService: SubscriptionServicing {
             subscription = .notActive
         }
         subscriptionUpdated?(subscription)
-    }
-
-    func login() {
-        Task {
-            if let id = sync.string(for: identifierKey) {
-                guard let (_, created) = try? await Purchases.shared.logIn(id) else { return }
-                print(created)
-                return
-            }
-            guard let id = await UIDevice.current.identifierForVendor?.uuidString else {
-                print("No ID")
-                return
-            }
-            guard let (_, created) = try? await Purchases.shared.logIn(id) else { return }
-            if created {
-                sync.set(id, for: identifierKey)
-                NSUbiquitousKeyValueStore.default.synchronize()
-            }
-        }
     }
 }
 

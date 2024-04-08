@@ -298,6 +298,7 @@
 		E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
+		E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
 		E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
 		E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
@@ -316,6 +317,8 @@
 		E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B112A58721F00FB9118 /* PlayerView.swift */; };
 		E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
+		E9C889662BBFA6E8004C31DE /* Super.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E9C889652BBFA6E8004C31DE /* Super.storekit */; };
+		E9C889692BBFAA5B004C31DE /* SubscriptionDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */; };
 		E9CF44F22B54744000D66181 /* AnimatedWallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F12B54744000D66181 /* AnimatedWallView.swift */; };
 		E9CF44F42B54797300D66181 /* Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F32B54797300D66181 /* Paywall.swift */; };
 		E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */; };
@@ -469,6 +472,7 @@
 /* Begin PBXFileReference section */
 		E90016592B60CC07004C051D /* NightModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightModeIntent.swift; sourceTree = "<group>"; };
 		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
+		E90F31432BC4795800884EA5 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SonosKit; path = Packages/SonosKit; sourceTree = "<group>"; };
 		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
@@ -489,7 +493,7 @@
 		E92E47572B36530000DE6647 /* QueueAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QueueAction.entitlements; sourceTree = "<group>"; };
 		E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E9331B522AAE20A7002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
-		E93AFA752B587E5000B20AC4 /* Defaults */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Defaults; sourceTree = "<group>"; };
+		E93AFA752B587E5000B20AC4 /* Defaults */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Defaults; path = Packages/Defaults; sourceTree = "<group>"; };
 		E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIApplication+Environment.swift"; sourceTree = "<group>"; };
 		E940E7152AAFBD17004303CD /* FilterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterView.swift; sourceTree = "<group>"; };
 		E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImprovedSearch.swift; sourceTree = "<group>"; };
@@ -505,11 +509,11 @@
 		E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E959B9192AB506A4000D596E /* Clic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clic.entitlements; sourceTree = "<group>"; };
 		E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Clic (Watch).entitlements"; sourceTree = "<group>"; };
-		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = VibesDS; sourceTree = "<group>"; };
-		E960ED462AC46769003E3732 /* SubscriptionKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SubscriptionKit; sourceTree = "<group>"; };
+		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VibesDS; path = Packages/VibesDS; sourceTree = "<group>"; };
+		E960ED462AC46769003E3732 /* SubscriptionKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SubscriptionKit; path = Packages/SubscriptionKit; sourceTree = "<group>"; };
 		E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
 		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
-		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MusicSearchKit; sourceTree = "<group>"; };
+		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = MusicSearchKit; path = Packages/MusicSearchKit; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
 		E97563432B699B2400787E14 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -583,6 +587,8 @@
 		E9C03B112A58721F00FB9118 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceEntity.swift; sourceTree = "<group>"; };
 		E9C03B172A5A196200FB9118 /* NextIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextIntent.swift; sourceTree = "<group>"; };
+		E9C889652BBFA6E8004C31DE /* Super.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Super.storekit; sourceTree = "<group>"; };
+		E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailScreen.swift; sourceTree = "<group>"; };
 		E9CF44F12B54744000D66181 /* AnimatedWallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedWallView.swift; sourceTree = "<group>"; };
 		E9CF44F32B54797300D66181 /* Paywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall.swift; sourceTree = "<group>"; };
 		E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallButtonView.swift; sourceTree = "<group>"; };
@@ -608,7 +614,6 @@
 		E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
 		E9F3D44C2A02C2780042F208 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		E9F3D44D2A02C2900042F208 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = SonosKit; sourceTree = "<group>"; };
 		E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouterDestination.swift; sourceTree = "<group>"; };
 		E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LiveActivity+Environment.swift"; sourceTree = "<group>"; };
 		E9F600BB2B4DCB560039AAA6 /* WidgetManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetManager.swift; sourceTree = "<group>"; };
@@ -832,14 +837,15 @@
 			path = Mac;
 			sourceTree = "<group>";
 		};
-		E990113C2B69A10000D2DFF5 /* Coniguration */ = {
+		E990113C2B69A10000D2DFF5 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
+				E9C889652BBFA6E8004C31DE /* Super.storekit */,
 				E9A9531A2ADDA06D00600516 /* Release.xcconfig */,
 				E9A953192ADDA06D00600516 /* Debug.xcconfig */,
 				E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */,
 			);
-			path = Coniguration;
+			path = Configuration;
 			sourceTree = "<group>";
 		};
 		E9A46FCE2B684093000D4094 /* Managers */ = {
@@ -867,12 +873,12 @@
 		E9BDE56329E3396700D230A8 = {
 			isa = PBXGroup;
 			children = (
-				E990113C2B69A10000D2DFF5 /* Coniguration */,
+				E990113C2B69A10000D2DFF5 /* Configuration */,
+				E90F31432BC4795800884EA5 /* SonosKit */,
 				E93AFA752B587E5000B20AC4 /* Defaults */,
 				E960ED462AC46769003E3732 /* SubscriptionKit */,
 				E959B91D2AB65EC3000D596E /* VibesDS */,
 				E96396332A3B700900518A17 /* MusicSearchKit */,
-				E9F3D44D2A02C2900042F208 /* SonosKit */,
 				E9BDE56E29E3396700D230A8 /* Clic */,
 				E99011382B69A0BC00D2DFF5 /* Mac */,
 				E9C03AFD2A586F5E00FB9118 /* Watch */,
@@ -914,6 +920,7 @@
 				E9294B5A2B33A531009E1F45 /* Environments.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
+				E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
 				E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */,
@@ -1304,7 +1311,6 @@
 			);
 			mainGroup = E9BDE56329E3396700D230A8;
 			packageReferences = (
-				E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */,
 				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
 				E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */,
@@ -1372,6 +1378,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9C889662BBFA6E8004C31DE /* Super.storekit in Resources */,
 				E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */,
 				E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */,
 			);
@@ -1564,6 +1571,7 @@
 				E97563242B699B2400787E14 /* LiveActivityNowPlayingView.swift in Sources */,
 				E950E7D42B7418610029415B /* SplitView.swift in Sources */,
 				E97563252B699B2400787E14 /* ClicApp.swift in Sources */,
+				E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135C32B6C1A880096A14E /* MediaDetailView.swift in Sources */,
 				E97563262B699B2400787E14 /* ArtworkDebugView.swift in Sources */,
 				E97563272B699B2400787E14 /* ClassicAppleMusicSearchView.swift in Sources */,
@@ -1698,6 +1706,7 @@
 				E99CC9F62B7AC0C200B42A7A /* AppleMusicPermissionView.swift in Sources */,
 				E950E7D22B7418080029415B /* SplitView.swift in Sources */,
 				E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */,
+				E9C889692BBFAA5B004C31DE /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135BF2B6B62B00096A14E /* MediaDetailView.swift in Sources */,
 				E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */,
 				E9BF3ABE2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift in Sources */,
@@ -3096,14 +3105,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 12.3.0;
-			};
-		};
-		E98795A52A969071002C684A /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 7.9.0;
 			};
 		};
 		E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */ = {

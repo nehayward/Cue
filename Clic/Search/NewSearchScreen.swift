@@ -157,6 +157,7 @@ struct NewSearchScreen: View, KeyboardReadable {
 
                                 Button {
                                     musicSearchSelection = .apple
+//                                    Telemetry.shared.send(event: .selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
                                 } label: {
                                     HStack {
                                         Text("Apple Music")

@@ -6,13 +6,14 @@ import RevenueCat
 import SubscriptionKit
 import RevenueCatUI
 
+
 struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
     @State private var router = Router()
-    @State private var showSubscriptions = false
+    @State private var showManageSubscriptions = false
     
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
@@ -36,7 +37,9 @@ struct PreferenceScreen: View {
                     } else {
                         VStack(alignment: .leading) {
                             Button {
-                                showSubscriptions = true
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                showManageSubscriptions = true
+//                                Telemetry.shared.send(event: .viewedManageSubscription)
                             } label: {
                                 Text("Manage Subscription")
                             }
@@ -94,6 +97,7 @@ struct PreferenceScreen: View {
                 }
 
                 // TODO: Add next release
+                #if !targetEnvironment(macCatalyst)
                 if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
                     Section {
                         Toggle(isOn: $isCompact) {
@@ -150,6 +154,7 @@ struct PreferenceScreen: View {
 //                    Text("Customize")
 //                }
 
+                
                 Section {
                     if let name = Bundle.main.iconFileNames.first {
                         HStack {
@@ -169,6 +174,7 @@ struct PreferenceScreen: View {
                     Text("Personalize")
                 }
 
+#endif
                 Section {
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Link("Support hi@clic.dance", destination: URL(string: message)!)
@@ -183,7 +189,11 @@ struct PreferenceScreen: View {
                 }
             }
             .navigationTitle("Preferences")
-            .manageSubscriptionsSheet(isPresented: $showSubscriptions)
+            .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
+//            .sheet(isPresented: $showSubscriptions) {
+//                SubscriptionDetailScreen()
+//                    .environment(subscriptionService)
+//            }
             .withAppRouter(router: router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .addDismiss {
@@ -199,7 +209,7 @@ struct PreferenceScreen: View {
 
 #Preview {
     PreferenceScreen()
-        .environment(SonosService())
-        .environment(SubscriptionService())
+        .environment(SonosService.shared)
+        .environment(SubscriptionService.shared)
 }
 

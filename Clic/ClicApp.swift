@@ -6,6 +6,7 @@ import SubscriptionKit
 import MusicKit
 import MusicSearchKit
 import StoreKit
+//import Telemetry
 import SwiftUI
 #if canImport(WidgetKit)
 import WidgetKit
@@ -28,6 +29,11 @@ struct ClicApp: App {
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @State var selectedID: String?
+
+    init () {
+        SubscriptionService.shared.initialize(key: "com.clic.subscriptions")
+//        Telemetry.shared.setup(userID: SubscriptionService.shared.userID)
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -69,6 +75,8 @@ struct ClicApp: App {
                                     }
                                 }
                         }
+                        .toolbar(removing: .sidebarToggle)
+                        .withInspector(inspectorDestination: $router.inspectorSheet)
                         .ignoresSafeArea()
 #if os(visionOS)
                         .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
@@ -92,9 +100,6 @@ struct ClicApp: App {
                             .opacity(router.inspectorSheet != nil ? 1 : 0)
                             .animation(.spring, value: router.inspectorSheet)
                         }
-#endif
-#if !os(visionOS)
-                        .withInspector(inspectorDestination: $router.inspectorSheet)
 #endif
                     }
                 } else {
@@ -147,6 +152,7 @@ struct ClicApp: App {
             SidebarCommands()
             InspectorCommands()
         }
+
     }
 
     @MainActor
@@ -168,7 +174,7 @@ struct ClicApp: App {
 
             Task {
                 try? await Task.sleep(for: .seconds(1))
-                ReviewService.shared.askForRatingIfNeeded()
+                ReviewCoordinator.shared.requestReview()
             }
         case .inactive:
             print("Inactive")
@@ -277,6 +283,7 @@ struct ClicApp: App {
     }
 }
 
+
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(
        _ application: UIApplication,
@@ -289,7 +296,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
      }
 }
 
-
 class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
     var toolbarDelegate = ToolbarDelegate()
 
@@ -300,16 +306,15 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
             let toolbar = NSToolbar(identifier: "main")
-            toolbar.delegate = toolbarDelegate
-            toolbar.displayMode = .iconOnly
+//            toolbar.delegate = toolbarDelegate
+//            toolbar.displayMode = .iconOnly
             titlebar.titleVisibility = .hidden
-            titlebar.toolbar = toolbar
-            titlebar.toolbarStyle = .automatic
+//            titlebar.toolbar = toolbar
+//            titlebar.toolbarStyle = .unified
         }
 #endif
     }
 }
-
 
 class ToolbarDelegate: NSObject {
     @objc func prefs(_ sender:Any) {
@@ -317,14 +322,19 @@ class ToolbarDelegate: NSObject {
             Router.main.presentedSheet = .settings
         }
     }
-}
 
+    @objc func search(_ sender:Any) {
+        Task { @MainActor in
+            Router.main.inspectorSheet = .search(group: nil, instant: false)
+        }
+    }
+}
 
 #if targetEnvironment(macCatalyst)
 extension NSToolbarItem.Identifier {
     static let preferences = NSToolbarItem.Identifier("com.clic.preferences")
 //    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
-//    static let search = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.search")
+//    static let search = NSToolbarItem.Identifier("com.clic.search")
 }
 
 
@@ -350,6 +360,13 @@ extension ToolbarDelegate: NSToolbarDelegate {
             item.toolTip = NSLocalizedString("Preferences", comment: "")
             return item
         }
+//        else if itemIdentifier == .search {
+//            let barItem = UIBarButtonItem(image: UIImage(systemName: "sparkle.magnifyingglass"), style: .plain, target: self, action: #selector(search))
+//            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
+//            item.accessibilityLabel = NSLocalizedString("Search", comment: "")
+//            item.toolTip = NSLocalizedString("Search", comment: "")
+//            return item
+//        }
 //        else if itemIdentifier == .newFolder {
 //            let barItem = UIBarButtonItem(image: UIImage(systemName: "plus"), style: .plain, target: self, action: nil)
 //            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
@@ -360,9 +377,9 @@ extension ToolbarDelegate: NSToolbarDelegate {
 //        }
 //        else if itemIdentifier == .search {
 //
-////            if let searchItem = CATAppDelegate.appKitController?.searchToolbarItem(sceneIdentifier:scene?.session.persistentIdentifier ?? UUID().uuidString, itemIdentifier: itemIdentifier, target: self, selector: #selector(search(_:))) {
-////                return searchItem
-////            }
+//            if let searchItem = CATAppDelegate.appKitController?.searchToolbarItem(sceneIdentifier:scene?.session.persistentIdentifier ?? UUID().uuidString, itemIdentifier: itemIdentifier, target: self, selector: #selector(search(_:))) {
+//                return searchItem
+//            }
 ////            else {
 //                return NSToolbarItem(itemIdentifier: itemIdentifier)
 ////            }

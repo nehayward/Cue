@@ -1,42 +1,56 @@
 import Foundation
+import UIKit
 import StoreKit
 
-final class ReviewService {
-    static var shared = ReviewService()
+final class ReviewCoordinator {
+    struct UserDefaultsKeys {
+        static let processCompletedCountKey = "processCompletedCountKey"
+        static let lastVersionPromptedForReviewKey = "lastVersionPromptedForReviewKey"
+    }
 
-    private var numberOfOpens: Int {
-        get {
-            UserDefaults.standard.integer(forKey: "com.clic.numberOfOpens")
-        } set {
-            UserDefaults.standard.set(newValue, forKey: "com.clic.numberOfOpens")
+    static let shared = ReviewCoordinator()
+    let identifier = "[ReviewCoordinator] "
+    let debug = false
+
+    func requestReview() {
+        var lastVersionPromptedForReview = "0"
+        if let version = UserDefaults.standard.string(forKey: UserDefaultsKeys.lastVersionPromptedForReviewKey) {
+            lastVersionPromptedForReview = version
         }
-    }
 
-    private var shouldAskForRating: Bool {
-        numberOfOpens > 4 && !OSEnvironment.isDebugging
-    }
+        // Get the current bundle version for the app
+        let infoDictionaryKey = kCFBundleVersionKey as String
+        guard let currentVersion = Bundle.main.object(forInfoDictionaryKey: infoDictionaryKey) as? String
+        else { fatalError("Expected to find a bundle version in the info dictionary") }
 
-    func askForRatingIfNeeded() {
-        guard shouldAskForRating else {
-            numberOfOpens += 1
+        guard currentVersion != lastVersionPromptedForReview else {
+            debugPrint("\(self.identifier) | Already asked to review this version")
+            UserDefaults.standard.set(0, forKey: UserDefaultsKeys.processCompletedCountKey)
             return
         }
-        askForRating()
-    }
 
-    private func askForRating() {
-        #if os(macOS)
-            SKStoreReviewController.requestReview()
-        #else
-            guard let scene = UIApplication.shared.foregroundActiveScene else { return }
-            SKStoreReviewController.requestReview(in: scene)
-        #endif
+        //         If the count has not yet been stored, this will return 0
+        var count = UserDefaults.standard.integer(forKey: UserDefaultsKeys.processCompletedCountKey)
+        count += 1
+        UserDefaults.standard.set(count, forKey: UserDefaultsKeys.processCompletedCountKey)
+
+        debugPrint("\(self.identifier) | Process completed \(count) time(s)")
+
+        debugPrint("\(self.identifier) | lastVersionPromptedForReview \(lastVersionPromptedForReview)")
+
+        // Has the process been completed several times and the user has not already been prompted for this version?
+        if count >= 0 && currentVersion != lastVersionPromptedForReview {
+            debugPrint("\(self.identifier) | valid review request")
+            if let scene = UIApplication
+                .shared
+                .connectedScenes
+                .flatMap({ ($0 as? UIWindowScene)?.windows ?? [] }).first?.windowScene {
+
+                SKStoreReviewController.requestReview(in: scene)
+                UserDefaults.standard.set(currentVersion, forKey: UserDefaultsKeys.lastVersionPromptedForReviewKey)
+                UserDefaults.standard.set(0, forKey: UserDefaultsKeys.processCompletedCountKey)
+            }
+        }
     }
 }
 
-extension UIApplication {
-    var foregroundActiveScene: UIWindowScene? {
-        connectedScenes
-            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
-    }
-}

@@ -79,7 +79,6 @@ final class SonosSystemDiscoverService {
     func stopBrowsing() {
         browser?.cancel()
         browser = nil
-        
     }
 
     @MainActor

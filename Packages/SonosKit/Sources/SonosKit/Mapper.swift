@@ -34,7 +34,6 @@ extension ZoneGroupMember {
     }
 }
 
-
 extension VanishedDevice {
     var toGroup: GroupRoom? {
         guard let IP, let name, let info, let reason, let macAddress else { return nil }
