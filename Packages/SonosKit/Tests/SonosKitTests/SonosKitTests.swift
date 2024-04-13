@@ -106,7 +106,7 @@ final class SonosKitTests: XCTestCase {
         let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
 
         measure {
-            let _ = XMLParserSonos().parseQueueFast(IP: "", xml: getQueueLargeXML)
+            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
         }
     }
 

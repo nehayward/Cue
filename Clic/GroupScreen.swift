@@ -50,6 +50,9 @@ struct GroupScreen: View {
                         : nil
                     )
                 }
+                SceneListView()
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 SceneBuilderScreen(group: $viewModel.group, sheetDestination: $sheetDestination, selections: ids)

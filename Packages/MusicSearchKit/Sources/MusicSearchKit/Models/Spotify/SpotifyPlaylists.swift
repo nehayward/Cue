@@ -14,12 +14,12 @@ public struct SpotifyPlaylistItems: Decodable, Identifiable, Sendable {
     let primaryColor: String?
     let `public`: Bool?
     let snapshotId: String
-    let tracks: Tracks
+    public let tracks: Tracks
     public let type: String
     public let uri: String
 }
 
-public struct ExternalUrls: Decodable, Sendable {
+public struct ExternalUrls: Equatable, Decodable, Sendable {
     public let spotify: String
 }
 
@@ -41,4 +41,13 @@ public struct Owner: Decodable, Sendable {
 public struct Tracks: Decodable, Sendable {
     let href: String
     let total: Int
+    public let items: [SpotifyPlaylistItemContainer]?
+}
+
+public struct SpotifyPlaylistsFullContainer: Decodable, Sendable {
+    public let items: [SpotifyPlaylistItemContainer]
+}
+
+public struct SpotifyPlaylistItemContainer: Decodable, Sendable {
+    public let track: SpotifyAlbumTrackItems
 }

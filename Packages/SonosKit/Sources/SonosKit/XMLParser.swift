@@ -445,4 +445,15 @@ extension String {
         xml = xml.replacingOccurrences(of: " ", with: "&#32;")
         return xml
     }
+
+    var encodeForSonos: String {
+        var xml = self
+        return xml
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+            .replacingOccurrences(of: " ", with: "&#32;")
+    }
 }

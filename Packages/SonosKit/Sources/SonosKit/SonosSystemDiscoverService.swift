@@ -31,6 +31,7 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
     var houseHoldIDs: Set<String> = []
+    var currentWakes: Set<String> = []
 
     @ObservationIgnored var sonosStorageIP = SonosStorageIP()
     @ObservationIgnored private var browser: NWBrowser?
@@ -173,6 +174,9 @@ final class SonosSystemDiscoverService {
     }
 
     func sendWakeOnLANPacket(macAddress: String, broadcastAddress: String = "255.255.255.255") {
+        if currentWakes.contains(macAddress) { return }
+
+        currentWakes.insert(macAddress)
         // Convert the MAC address to data
         let macData = macAddress.split(separator: ":").compactMap { UInt8($0, radix: 16) }
         guard macData.count == 6 else {

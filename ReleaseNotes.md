@@ -1,3 +1,18 @@
+# 2024.17
+
+## External 
+
++ New App Icon
++ Added artist to search results.
++ Added album details.
++ Added Artist details.
+- Fix Sonos Move and Roam Battery Level not being updated.
+- Fix slow launch due to Roam or Move being powered off/sleeping
+
+## Internal
++ Add Storekit Configuration Integration
+
+
 # 2024.13
 
 ## External 

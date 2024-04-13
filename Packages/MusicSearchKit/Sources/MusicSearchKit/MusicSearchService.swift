@@ -11,6 +11,7 @@ public final class MusicSearchService {
             }
         }
     }
+    
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let spotifySearchAPI = SpotifySearchAPI()
@@ -104,7 +105,7 @@ public final class MusicSearchService {
         await spotifySearchAPI.searchSong(for: "\(song) \(artist)")
     }
 
-    public func spotifyTrackLookup(id: String) async -> SpotifyTrackItems? {
+    public func spotifyTrackLookup(id: String) async -> SpotifyTrackItem? {
         await spotifySearchAPI.lookupTrack(id: id)
     }
 
@@ -112,8 +113,28 @@ public final class MusicSearchService {
         await spotifySearchAPI.playlist(id: id)
     }
 
-    public func spotifyAlbumLookup(id: String) async -> SpotifyAlbumItems? {
+    public func spotifyAlbumLookup(id: String) async -> SpotifyAlbumItem? {
         await spotifySearchAPI.album(id: id)
+    }
+
+    public func spotifyAlbumTracksLookup(id: String) async -> [SpotifyAlbumTrackItems] {
+        await spotifySearchAPI.albumTracks(id: id) ?? []
+    }
+
+    public func spotifyPlaylist(id: String) async -> SpotifyPlaylistItems? {
+        await spotifySearchAPI.playlist(id: id)
+    }
+
+    public func spotifyArtist(id: String) async -> SpotifyArtistsItems? {
+        await spotifySearchAPI.artist(id: id)
+    }
+
+    public func spotifyArtistAlbums(id: String) async -> SpotifyArtistAlbums? {
+        await spotifySearchAPI.artistAlbums(id: id)
+    }
+
+    public func spotifyArtistTopTracks(id: String) async -> [SpotifyTrackItem] {
+        await spotifySearchAPI.artistTopTracks(id: id)
     }
 
     @MainActor
@@ -183,6 +204,24 @@ public final class MusicSearchService {
         var catalogResource = MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: playlistID)
         catalogResource.properties = [.tracks]
         let response = try await catalogResource.response()
+        return response.items.first
+    }
+
+    public func lookup(id: String) async throws -> Artist? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let albumID = MusicItemID(id)
+        print(id)
+        var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: albumID)
+        catalogResource.properties = [.albums, .topSongs]
+        let response = try await catalogResource.response()
+        print(response)
+//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
+//
+//        print(searchResponse)
+//
+//        print(searchResponse.songs)
+//        print(searchResponse.artists)
         return response.items.first
     }
 

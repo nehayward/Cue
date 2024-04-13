@@ -27,14 +27,29 @@ public final class SubscriptionService {
 #if DEBUG
         Purchases.logLevel = .debug
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
+
+//        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
+//            subscription = Subscription(isActive: false)
+//            sync.set(false, for: keyID)
+//        } else {
+//            subscription = Subscription(isActive: true)
+//            sync.set(true, for: keyID)
+//        }
+
+        subscription = .notActive
+        sync.set(false, for: keyID)
+//    
 //        subscription = Subscription(isActive: true)
 //        sync.set(true, for: keyID)
-        subscription = Subscription(isActive: false)
-        sync.set(false, for: keyID)
+
+//        Task { @MainActor in
+//            setup()
+//        }
+//
+//        monitorChanges()
 
         NSUbiquitousKeyValueStore.default.synchronize()
         Purchases.shared.attribution.setAttributes(["ENVIRONMENT": "DEBUG"])
-
         return
 #endif
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
@@ -62,7 +77,8 @@ public final class SubscriptionService {
         Task {
             let customerInfo = try await Purchases.shared.customerInfo()
             if !customerInfo.activeSubscriptions.isEmpty {
-                let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+                let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
                 subscription = newSubscription
             } else {
                 subscription = .notActive
@@ -71,10 +87,7 @@ public final class SubscriptionService {
         }
     }
 
-    public func monitorChanges() {
-#if DEBUG
-        return
-#endif
+    private func monitorChanges() {
         if UIApplication.shared.isRunningInTestFlightEnvironment() {
             return
         }
@@ -83,7 +96,9 @@ public final class SubscriptionService {
         subscriptionTask = Task { @MainActor in
             for try await customerInfo in Purchases.shared.customerInfoStream {
                 if !customerInfo.activeSubscriptions.isEmpty {
-                    subscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+                    let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+                    let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
+                    subscription = newSubscription
                 } else {
                     subscription = .notActive
                 }
@@ -92,26 +107,30 @@ public final class SubscriptionService {
         }
     }
 
+    @MainActor
     public func checkSubscription() async throws {
 #if DEBUG
-        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
-            subscription.isActive = false
-        }
+//        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
+//            subscription = .notActive
+//        }
         return
 #endif
         if await UIApplication.shared.isRunningInTestFlightEnvironment() {
+            subscription = .active
             return
         }
 
         let customerInfo = try await Purchases.shared.customerInfo()
         if !customerInfo.activeSubscriptions.isEmpty {
-            let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate)
+            let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+            let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
             subscription = newSubscription
         } else {
             subscription = .notActive
         }
         subscriptionUpdated?(subscription)
     }
+
 }
 
 

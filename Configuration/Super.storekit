@@ -95,8 +95,8 @@
           "codeOffers" : [
             {
               "eligibility" : [
-                "existing",
-                "new"
+                "new",
+                "existing"
               ],
               "internalID" : "71E29779",
               "isStackable" : true,
@@ -107,9 +107,9 @@
             },
             {
               "eligibility" : [
+                "existing",
                 "new",
-                "expired",
-                "existing"
+                "expired"
               ],
               "internalID" : "26B28BB5",
               "isStackable" : true,

@@ -1,3 +1,5 @@
+import Analytics
+import Defaults
 import CloudStorage
 import RevenueCat
 import RevenueCatUI
@@ -6,7 +8,6 @@ import SubscriptionKit
 import MusicKit
 import MusicSearchKit
 import StoreKit
-//import Telemetry
 import SwiftUI
 #if canImport(WidgetKit)
 import WidgetKit
@@ -14,7 +15,9 @@ import WidgetKit
 
 @main
 struct ClicApp: App {
+    #if targetEnvironment(macCatalyst)
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.requestReview) var requestReview
@@ -32,7 +35,16 @@ struct ClicApp: App {
 
     init () {
         SubscriptionService.shared.initialize(key: "com.clic.subscriptions")
-//        Telemetry.shared.setup(userID: SubscriptionService.shared.userID)
+        Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
+
+        // Check MusicService
+        if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
+            Analytics.shared.setSelection(metadata: ["MusicService": musicService])
+        }
+
+        Task { @MainActor in
+            try? await SubscriptionService.shared.checkSubscription()
+        }
     }
 
     var body: some Scene {
@@ -75,7 +87,6 @@ struct ClicApp: App {
                                     }
                                 }
                         }
-                        .toolbar(removing: .sidebarToggle)
                         .withInspector(inspectorDestination: $router.inspectorSheet)
                         .ignoresSafeArea()
 #if os(visionOS)
@@ -112,9 +123,6 @@ struct ClicApp: App {
             .environment(alertService)
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-            .task {
-                subscriptionService.monitorChanges()
-            }
             .onAppear {
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }

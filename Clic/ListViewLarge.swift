@@ -18,7 +18,10 @@ struct ListViewLarge: View {
         @Bindable var alertService = alertService
         @Bindable var sonosService = sonosService
         @Bindable var router = router
-        
+
+        // MARK: Add Back for Debugging
+//        let _ = Self._printChanges()
+
         List ($sonosService.sorted, selection: $selected) { $group in
             Section {
                 if group.coordinatorRoom.state == .active {

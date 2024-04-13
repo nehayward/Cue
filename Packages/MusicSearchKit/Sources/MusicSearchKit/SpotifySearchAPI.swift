@@ -56,7 +56,7 @@ final actor SpotifySearchAPI {
         }
     }
 
-    func lookupTrack(id: String) async -> SpotifyTrackItems? {
+    func lookupTrack(id: String) async -> SpotifyTrackItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -64,7 +64,7 @@ final actor SpotifySearchAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyTrack: SpotifyTrackItems = try await loadAuthorized(url)
+            let spotifyTrack: SpotifyTrackItem = try await loadAuthorized(url)
             return spotifyTrack
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -88,7 +88,7 @@ final actor SpotifySearchAPI {
         }
     }
 
-    func album(id: String) async -> SpotifyAlbumItems? {
+    func album(id: String) async -> SpotifyAlbumItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -96,8 +96,90 @@ final actor SpotifySearchAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let album: SpotifyAlbumItems = try await loadAuthorized(url)
+            let album: SpotifyAlbumItem = try await loadAuthorized(url)
             return album
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func albumTracks(id: String) async -> [SpotifyAlbumTrackItems]? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/albums/\(id)/tracks"
+        components.queryItems = [
+//            URLQueryItem(name: "market", value: ""),
+            URLQueryItem(name: "limit", value: "50")
+        ]
+
+        guard let url = components.url else { return nil }
+
+        do {
+            let tracks: SpotifyAlbumTracks = try await loadAuthorized(url)
+            return tracks.items
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func artist(id: String) async -> SpotifyArtistsItems? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/artists/\(id)"
+        components.queryItems = [
+//            URLQueryItem(name: "market", value: ""),
+        ]
+        guard let url = components.url else { return nil }
+
+        do {
+            let artist: SpotifyArtistsItems = try await loadAuthorized(url)
+            return artist
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func artistTopTracks(id: String) async -> [SpotifyTrackItem] {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/artists/\(id)/top-tracks"
+        components.queryItems = [
+//            URLQueryItem(name: "market", value: ""),
+            URLQueryItem(name: "limit", value: "50")
+        ]
+
+        guard let url = components.url else { return [] }
+//
+        do {
+            let spotifyArtistTopTracks: SpotifyArtistTopTracks = try await loadAuthorized(url)
+            return spotifyArtistTopTracks.tracks
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return []
+        }
+    }
+
+    func artistAlbums(id: String) async -> SpotifyArtistAlbums? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/artists/\(id)/albums"
+        components.queryItems = [
+//            URLQueryItem(name: "market", value: ""),
+            URLQueryItem(name: "limit", value: "50")
+        ]
+
+        guard let url = components.url else { return nil }
+
+        do {
+            let tracks: SpotifyArtistAlbums = try await loadAuthorized(url)
+            return tracks
         } catch {
             logger.error("\(error.localizedDescription)")
             return nil
@@ -148,8 +230,14 @@ final actor SpotifySearchAPI {
             throw AuthError.invalidToken
         }
 
-        let response = try decoder.decode(T.self, from: data)
-        return response
+        do {
+            let response = try decoder.decode(T.self, from: data)
+            return response
+        } catch {
+            logger.error("Failed to decode ⚠️")
+            assertionFailure(String(decoding: data, as: UTF8.self))
+            throw error
+        }
     }
 
     private func authorizedRequest(from url: URL) async throws -> URLRequest {

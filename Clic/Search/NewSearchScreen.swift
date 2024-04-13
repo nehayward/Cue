@@ -1,3 +1,4 @@
+import Analytics
 import CloudStorage
 import MusicSearchKit
 import Defaults
@@ -142,7 +143,10 @@ struct NewSearchScreen: View, KeyboardReadable {
                             Spacer()
                             Menu {
                                 Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
                                     musicSearchSelection = .spotify
+                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
                                 } label: {
                                     HStack {
                                         Text("Spotify")
@@ -156,8 +160,10 @@ struct NewSearchScreen: View, KeyboardReadable {
                                 .id(SearchSelection.spotify)
 
                                 Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
                                     musicSearchSelection = .apple
-//                                    Telemetry.shared.send(event: .selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
                                 } label: {
                                     HStack {
                                         Text("Apple Music")

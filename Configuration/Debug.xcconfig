@@ -1,6 +1,7 @@
 VERSION_NUMBER = 2024.17
 BUILD_NUMBER = 1
-BUNDLE_ID = com.nick.clic.debug
+BUNDLE_ID = com.nick.Clic
+//BUNDLE_ID = com.nick.clic.debug
 MAC_ENABLED = NO
 NAME = Clic°
 PRODUCT_NAME = Clic

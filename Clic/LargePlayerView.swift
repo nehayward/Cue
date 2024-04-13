@@ -39,6 +39,7 @@ struct LargePlayerView: View {
                 .padding(.bottom, isExpanded ? 20 : 40)
                 .fontDesign(.rounded)
                 .frame(maxWidth: .infinity)
+                .lineLimit(0, reservesSpace: true)
 
             if !group.coordinatorRoom.track.TVMode {
                 playbackView()
@@ -220,15 +221,16 @@ struct LargePlayerView: View {
                 .frame(maxWidth: 500)
                 .frame(height: 40)
                 .foregroundStyle(.primary)
+
+                HStack {
+                    Text(group.coordinatorRoom.track.timestamp)
+                    Spacer()
+                    Text(group.coordinatorRoom.track.remainingTimestamp)
+                }
+                .frame(maxWidth: 500)
+                .monospacedDigit()
+                .font(.caption)
             }
-            HStack {
-                Text(group.coordinatorRoom.track.timestamp)
-                Spacer()
-                Text(group.coordinatorRoom.track.remainingTimestamp)
-            }
-            .frame(maxWidth: 500)
-            .monospacedDigit()
-            .font(.caption)
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)

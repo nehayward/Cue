@@ -19,15 +19,14 @@ struct ArtworkView: View {
                         .aspectRatio(contentMode: .fit)
                         .transition(.opacity)
                 } else if state.isLoading {
-                    RoundedRectangle(cornerRadius: 4)
+                    Rectangle()
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
                 } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .aspectRatio(contentMode: .fit)
+                    Rectangle()
                         .foregroundStyle(.accent.gradient.secondary)
-                        .shadow(radius: 2)
+                        .aspectRatio(contentMode: .fit)
                         .overlay {
                             if artworkURL == nil {
                                 Image(systemName: "music.note")
@@ -65,6 +64,7 @@ struct ArtworkView: View {
                 }
             }
             .task(id: group.coordinatorRoom.track.id + (group.coordinatorRoom.track.artworkURL?.absoluteString ?? "")) {
+                artworkURL = group.coordinatorRoom.track.artworkURL
                 print("Fetching Track for \(group.coordinatorRoom.track.id)")
                 artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
             }
@@ -74,7 +74,6 @@ struct ArtworkView: View {
                 } else {
                     size = 24
                 }
-                print(size)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .animation(.spring, value: artworkURL)

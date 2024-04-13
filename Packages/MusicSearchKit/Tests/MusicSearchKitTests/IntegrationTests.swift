@@ -14,6 +14,13 @@ final class IntegrationsTests: XCTestCase {
         XCTAssertNotNil(results, "Results is nil")
     }
 
+    func testSpotifyAlbumTrackLookup() async throws {
+        let results = await musicSearchService.spotifyAlbumTracksLookup(id: "6PeoltoiWQWCyWA0JBHVGN")
+        let results2 = await musicSearchService.spotifyAlbumTracksLookup(id: "6BzxX6zkDsYKFJ04ziU5xQ")
+
+        XCTAssertNotNil(results, "Results is nil")
+    }
+
     func testAppleSearch() async throws {
         let results = await musicSearchService.search(song: "", artist: "Dua Lipa")
         XCTAssertNotNil(results, "Results is nil")

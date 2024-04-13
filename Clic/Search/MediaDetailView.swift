@@ -15,18 +15,12 @@ struct MediaDetailView: View {
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
-    @State var playableContent: PlayableContent?
-    @State var artworkURL: URL?
-
-    let id: String
-    let title: String
-    let kind: MediaKind
-
-    @State var album: Album? = nil
-    @State var playlist: Playlist? = nil
+    @State var playableContent: PlayableContent
+    @State private var tracks: [PlayableContent] = []
+    @State private var artworkURL: URL?
 
     var group: GroupRoom?
-    
+
     var body: some View {
         List {
             Group {
@@ -49,104 +43,94 @@ struct MediaDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .listSectionSeparator(.hidden)
-            if album != nil || playlist != nil {
-                Section {
-                    if let tracks = album?.tracks {
-                        ForEach(tracks) { track in
-                            let playableContent = PlayableContent(title: track.title, subtitle: track.artistName, artwork: track.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: track.id.description, type: .track, location: track.url))
-                            Button {
-                                play(content: playableContent)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(track.title)
-                                        Text(track.artistName)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Menu {
-                                        menu(content: playableContent)
-                                    } label: {
-                                        Image(systemName: "ellipsis")
-                                            .frame(maxWidth: 40, maxHeight: .infinity)
-                                            .background(.clear)
-                                    }
-                                }
-                                .contextMenu {
-                                    menu(content: playableContent)
-                                }
-                            }
-                        }
-                    }
-                    if let tracks = playlist?.tracks {
-                        ForEach(tracks) { track in
-                            let playableContent = PlayableContent(title: track.title, subtitle: track.artistName, artwork: track.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: track.id.description, type: .track, location: track.url))
-
-                            Button {
-                                play(content: playableContent)
-                            } label: {
-                                HStack {
-                                    ContentArtworkView(content: .constant(nil), artworkURL: track.artwork?.url(width: 100, height: 100))
-                                        .frame(width: 44, height: 44)
-                                    VStack(alignment: .leading) {
-                                        Text(track.title)
-                                        Text(track.artistName)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Menu {
-                                        menu(content: playableContent)
-                                    } label: {
-                                        Image(systemName: "ellipsis")
-                                            .frame(maxWidth: 40, maxHeight: .infinity)
-                                            .background(.clear)
-                                    }
-                                }
-                                .contextMenu {
-                                    menu(content: playableContent)
-                                }
-                            }
-                        }
-                    }
-                } header: {
+            Section {
+                ForEach(tracks) { track in
                     Button {
-                        switch kind {
-                        case .album:
-                            guard let album else { return }
-                            let playableContent = PlayableContent(title: album.title, subtitle: album.artistName, artwork: album.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: album.id.description, type: .album, location: nil))
-                            play(content: playableContent)
-                        case .playlist:
-                            guard let playlist else { return }
-                            let playableContent = PlayableContent(title: playlist.name, subtitle: playlist.curatorName ?? "", artwork: playlist.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: playlist.id.description, type: .playlist, location: nil))
-                            play(content: playableContent)
-                        default:
-                            break
-                        }
+                        play(content: track)
                     } label: {
-                        Text("Queue All")
+                        HStack {
+                            if playableContent.content.type == .playlist {
+                                ContentArtworkView(content: .constant(track))
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 60, height: 60)
+                            }
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text(track.title)
+                                    Spacer()
+                                }
+                                Text(track.subtitle)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if let duration = track.duration {
+                                Text(duration, format: .time(pattern: .minuteSecond))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Menu {
+                                menu(content: track)
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .frame(maxWidth: 40, maxHeight: .infinity)
+                                    .background(.clear)
+                            }
+                        }
+                        .contextMenu {
+                            menu(content: track)
+                        }
                     }
-                    .padding()
-                    .background(
-                        .ultraThinMaterial,
-                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    )
-                    .padding(.vertical)
-                    .frame(maxWidth: .infinity, alignment: .center)
                 }
+                if tracks.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowSeparator(.hidden)
+                }
+            } header: {
+                Button {
+                    switch playableContent.content.type {
+                    case .album:
+                        play(content: playableContent)
+                    case .playlist:
+                        play(content: playableContent)
+                    default:
+                        break
+                    }
+                } label: {
+                    Text("Queue All")
+                }
+                .padding()
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+                .padding(.vertical)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .listStyle(.inset)
         .listSectionSeparator(.hidden)
-        .navigationTitle(title)
+        .navigationTitle(playableContent.title)
         .task {
-            //            artworkURL = URL(string: "https://is1-ssl.mzstatic.com/image/thumb/Music116/v4/c0/54/97/c05497aa-c19f-bf4f-de29-71edf30fbefb/075679688767.jpg/1000x1000bb.jpg")
-            switch kind {
-            case .album:
-                album = try? await MusicSearchService().lookup(id: id)
-                artworkURL = album?.artwork?.url(width: 800, height: 800)
-            case .playlist:
-                playlist = try? await MusicSearchService().lookup(id: id)
-                artworkURL = playlist?.artwork?.url(width: 800, height: 800)
+            artworkURL = playableContent.artwork
+            switch (playableContent.content.type, playableContent.content.service) {
+            case (.album, .apple):
+                guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
+                artworkURL = album.artwork?.url(width: 800, height: 800)
+                guard let tracks = album.tracks else { return }
+                self.tracks = tracks.map(\.toPlayable)
+            case (.album, .spotify):
+                let tracks: [SpotifyAlbumTrackItems] = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id)
+                self.tracks = tracks.map(\.toPlayable)
+            case (.playlist, .apple):
+                guard let playlist: Playlist = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
+                artworkURL = playlist.artwork?.url(width: 800, height: 800)
+                guard let tracks = playlist.tracks else { return }
+                self.tracks = tracks.map(\.toPlayable)
+            case (.playlist, .spotify):
+                guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
+                guard let items = playlist.tracks.items else { return }
+                self.tracks = items.map(\.track.toPlayable) 
             default:
                 break
             }
@@ -155,13 +139,14 @@ struct MediaDetailView: View {
 
     private func play(content: PlayableContent, position: QueuePosition = .now) {
         Task {
-            playHistory.remove(content)
-            playHistory.insert(content, at: 0)
-
             guard let group = group else {
                 router.navigate(to: .groupDestination(content: content))
                 return
             }
+            
+            playHistory.remove(content)
+            playHistory.insert(content, at: 0)
+
             router.dismiss = true
             await sonosService.queue(content: content.content, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
@@ -185,18 +170,10 @@ struct MediaDetailView: View {
     }
 }
 
-#Preview {
-    // https://music.apple.com/us/playlist/dua-lipa-essentials/pl.ee7b1aea4b5f42d398e6cd3084f7396b
-    // https://music.apple.com/us/album/future-nostalgia-the-moonlight-edition/1551178998
-    MediaDetailView(id: "1552269067", title: "Future Nostaliga", kind: .album)
-        .environment(SonosService.shared)
-        .environment(Router())
-}
-
-struct ViewOffsetKey: PreferenceKey {
-    typealias Value = CGFloat
-    static var defaultValue = CGFloat.zero
-    static func reduce(value: inout Value, nextValue: () -> Value) {
-        value += nextValue()
-    }
-}
+//#Preview {
+//    // https://music.apple.com/us/playlist/dua-lipa-essentials/pl.ee7b1aea4b5f42d398e6cd3084f7396b
+//    // https://music.apple.com/us/album/future-nostalgia-the-moonlight-edition/1551178998
+//    MediaDetailView(id: "1552269067", title: "Future Nostaliga", kind: .album)
+//        .environment(SonosService.shared)
+//        .environment(Router())
+//}

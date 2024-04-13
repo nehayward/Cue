@@ -12,15 +12,12 @@ struct SidebarSplitView: View, UIViewControllerRepresentable {
     var columnA = UIViewController()
     var columnB = UIViewController()
 
-    init<A: View, B:View>(@ViewBuilder content: @escaping () -> TupleView <(A,B)>) {
+    init<A:View, B:View>(@ViewBuilder content: @escaping () -> TupleView <(A,B)>) {
         let content = content()
-
         columnA = UIHostingController(rootView: content.value.0)
         columnB = UIHostingController(rootView: content.value.1)
-
         columnA.view.backgroundColor = .clear
         columnB.view.backgroundColor = .clear
-
         splitViewController.viewControllers = [columnA, columnB]
     }
 
@@ -31,16 +28,12 @@ struct SidebarSplitView: View, UIViewControllerRepresentable {
         splitViewController.maximumPrimaryColumnWidth = 800
         splitViewController.minimumPrimaryColumnWidth = 400
 
-
         splitViewController.preferredPrimaryColumnWidthFraction = 0.3
         return splitViewController
     }
 
-    func updateUIViewController(_ uiView: UIViewControllerType, context: Context) {
-        
-    }
+    func updateUIViewController(_ uiView: UIViewControllerType, context: Context) { }
 }
-
 
 //class AppDelegate: NSObject, UIApplicationDelegate, NSToolbarDelegate {
 //    // Your UIKit app delegate methods

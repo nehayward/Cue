@@ -19,6 +19,16 @@ final class IntegrationsTests: XCTestCase {
         await sonosService.queueSpotifyAlbum(id: "01sfgrNbnnPUEyz6GZYlt9", group: .garage)
     }
 
+    // Dua Lipa
+    func testSpotifyTopTrackQueue() async throws {
+        await sonosService.queueSpotifyArtistTopTracks(id: "6M2wZ9GZgrQXHCFfjv46we", group: .garage)
+    }
+
+    // Dua Lipa
+    func testQueueSpotifyArtistRadio() async throws {
+        await sonosService.queueSpotifyArtistRadio(id: "6M2wZ9GZgrQXHCFfjv46we", group: .garage)
+    }
+
     func testGetQueue() async throws {
         let tracks = await sonosService.getQueue(ip: garageSonosIP)
     }

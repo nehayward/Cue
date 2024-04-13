@@ -74,6 +74,11 @@ extension GroupRoom: Hashable {
 
 extension GroupRoom {
     static var debug: [GroupRoom] = []
+    public static let gym = GroupRoom(id: "RINCON_7828CAC7352E01400:857060900",
+                                         coordinatorID: Room.gym.id,
+                                         rooms: [.gym],
+                                         coordinatorRoom: .gym)
+
     public static let garage = GroupRoom(id: "RINCON_B8E937525BB001400:931790658",
                                          coordinatorID: Room.garage.id,
                                          rooms: [.garage],

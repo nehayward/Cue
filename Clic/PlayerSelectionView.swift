@@ -1,3 +1,6 @@
+import CloudStorage
+import OrderedCollections
+import Defaults
 import SwiftUI
 import SonosKit
 import NukeUI
@@ -7,6 +10,8 @@ struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
+
+    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     @State var playableContent: PlayableContent?
     var mediaContent: MediaContent?
@@ -44,6 +49,8 @@ struct PlayerSelectionView: View {
                         dismiss()
                         Task {
                             if let playableContent {
+                                playHistory.remove(playableContent)
+                                playHistory.insert(playableContent, at: 0)
                                 await sonosService.queue(content: playableContent.content, group: group)
                             }
                             if let mediaContent {
@@ -65,6 +72,8 @@ struct PlayerSelectionView: View {
                         dismiss()
                         Task {
                             if let playableContent {
+                                playHistory.remove(playableContent)
+                                playHistory.insert(playableContent, at: 0)
                                 await sonosService.queue(content: playableContent.content, group: group, position: .next)
                             }
                             if let mediaContent {

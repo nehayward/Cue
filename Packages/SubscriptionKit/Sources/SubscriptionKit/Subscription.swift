@@ -19,6 +19,7 @@ public class Subscription: Codable, Equatable {
 }
 
 extension Subscription {
+    public static var active = Subscription(isActive: true, expiration: .distantFuture)
     public static var notActive = Subscription(isActive: false)
 }
 

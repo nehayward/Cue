@@ -11,6 +11,7 @@ struct SceneView: View {
     @State var show: Bool = false
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+//    @State private var path: [Set<String>] = []
 
     var body: some View {
         NavigationStack {
@@ -39,36 +40,54 @@ struct SceneView: View {
                         } description: {
                             Text("Create a scene, to automate grouping and volume.")
                         } actions: {
-                            Button {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                show = true
+                            NavigationLink {
+                                SceneBuilderScreen(sheetDestination: .constant(nil))
                             } label: {
                                 Label("Add Scene", systemImage: "plus.circle.fill")
+
+    //                            Button {
+    //                                HapticManager.shared.fireHaptic(.buttonPress)
+    //                                show = true
+    //                            } label: {
+//                                    Image(systemName: "plus.circle.fill")
+//                                        .font(.title)
+    //                            }
+    //                            .bold()
+    //                            .foregroundStyle(Color.accentColor.gradient)
                             }
-                            .buttonStyle(.bordered)
                         }
                         .padding(.vertical)
                     } else {
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            show = true
+                        NavigationLink {
+                            SceneBuilderScreen(sheetDestination: .constant(nil))
                         } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title)
+//                            Button {
+//                                HapticManager.shared.fireHaptic(.buttonPress)
+//                                show = true
+//                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title)
+//                            }
+//                            .bold()
+//                            .foregroundStyle(Color.accentColor.gradient)
                         }
-                        .bold()
-                        .foregroundStyle(Color.accentColor.gradient)
                     }
                 }
                 .fontDesign(.rounded)
                 .fontWeight(.bold)
             }
             .contentMargins(.leading, 12, for: .scrollContent)
-            .sheet(isPresented: $show) {
-                NavigationStack {
-                    SceneBuilderScreen(sheetDestination: .constant(nil))
-                }
-            }
+//            .navigationDestination(for: Set<String>.self) { ids in
+//                SceneBuilderScreen(sheetDestination: .constant(nil))
+//            }
+//            .sheet(isPresented: $show) {
+//                NavigationStack {
+//                    SceneBuilderScreen(sheetDestination: .constant(nil))
+//                        .addDismiss {
+//                            dismiss()
+//                        }
+//                }
+//            }
             .addDismiss {
                 dismiss()
             }

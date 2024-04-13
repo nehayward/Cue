@@ -1,3 +1,4 @@
+import Analytics
 import RevenueCatUI
 import SubscriptionKit
 import SonosKit
@@ -13,7 +14,18 @@ extension View {
                 case let .groupScreen(groupScreenViewModel, group):
                     GroupScreen(id: group.coordinatorID, sheetDestination: sheetDestinations, viewModel: groupScreenViewModel)
                 case .paywall:
-                    PaywallView(displayCloseButton: true)
+                   ClicPaywall()
+//                    PaywallView(displayCloseButton: true)
+//                        .onPurchaseCompleted { transaction, customerInfo in
+//                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
+//                                ///                     self.displayPaywall = false
+//                                ///                 }
+//                            ///                 print(
+//                            print("Complete")
+//                        }
+//                        .onAppear {
+//                            Analytics.shared.track(.viewedPaywall)
+//                        }
                 case .settings:
                     PreferenceScreen()
                 case let .search(group, instant):
@@ -64,8 +76,10 @@ extension View {
                 PlayerSelectionView(playableContent: content)
             case .manageScenes:
                 ManageSceneScreen()
-            case let .mediaDetail(id, title, kind, group):
-                MediaDetailView(id: id, title: title, kind: kind, group: group)
+            case let .mediaDetail(content, group):
+                MediaDetailView(playableContent: content, group: group)
+            case let .artistDetail(content, group):
+                ArtistDetailView(playableContent: content, group: group)
             }
         }
     }
@@ -91,7 +105,7 @@ extension View {
             .withEnvironments()
         }
         #else
-        EmptyView()
+        return self
         #endif
     }
 

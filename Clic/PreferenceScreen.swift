@@ -1,3 +1,4 @@
+import Analytics
 import CloudStorage
 import SwiftUI
 import WatchConnectivity
@@ -39,14 +40,20 @@ struct PreferenceScreen: View {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 showManageSubscriptions = true
-//                                Telemetry.shared.send(event: .viewedManageSubscription)
+                                Analytics.shared.track(.viewedManageSubscription)
                             } label: {
                                 Text("Manage Subscription")
                             }
-                            if let expiration = subscriptionService.subscription.expiration {
-                                Text("Expiring \(Text(expiration, style: .date))")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                            if let info = subscriptionService.subscription.info, let expiration = info.expirationDate {
+                                if info.willRenew {
+                                    Text("Renews \(Text(expiration, style: .date))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("Expiring \(Text(expiration, style: .date))")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }

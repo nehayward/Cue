@@ -26,12 +26,11 @@ struct OnboardView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.capsule)
-
                 }
                 .padding()
                 .tag(1)
                 
-                PaywallView()
+                ClicPaywall()
                     .tag(2)
                 //            PaywallView()
             }

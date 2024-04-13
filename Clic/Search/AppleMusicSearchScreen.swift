@@ -54,35 +54,44 @@ struct AppleMusicSearchScreen: View {
 
     @ViewBuilder
     private func artist(_ result: MusicCatalogSearchSuggestionsResponse.TopResult) -> some View {
-//        if case let .artist(artist) = result {
-//            HStack {
-//                ContentArtworkView(content: .constant(nil), artworkURL: result.artwork?.url(width: 100, height: 100))
-//                    .frame(width: 44, height: 44)
-//                    .clipShape(Circle())
-//                VStack(alignment: .leading) {
-//                    Text(artist.name)
+        if case let .artist(artist) = result {
+            PlayableContentView(item: artist.toPlayable, group: group)
+
+//            NavigationLink(value: RouterDestination.mediaDetail(content: playlist.toPlayable, group: group)) {
+//                HStack {
+//                    ContentArtworkView(content: .constant(playlist.toPlayable))
+//                        .frame(width: 44, height: 44)
+//                    VStack(alignment: .leading) {
+//                        Text(playlist.name)
+//                        Text(playlist.curatorName ?? "")
+//                            .lineLimit(1, reservesSpace: true)
+//                            .foregroundStyle(.secondary)
+//                    }
 //                }
 //            }
-//        } else {
+        } else {
             EmptyView()
-//        }
+        }
     }
 
     @ViewBuilder
     private func playlist(_ result: MusicCatalogSearchSuggestionsResponse.TopResult) -> some View {
         if case let .playlist(playlist) = result {
-            NavigationLink(value: RouterDestination.mediaDetail(id: playlist.id.description, title: playlist.name, kind: .playlist, group: group)) {
-                HStack {
-                    ContentArtworkView(content: .constant(nil), artworkURL: playlist.artwork?.url(width: 100, height: 100))
-                        .frame(width: 44, height: 44)
-                    VStack(alignment: .leading) {
-                        Text(playlist.name)
-                        Text(playlist.curatorName ?? "")
-                            .lineLimit(1, reservesSpace: true)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
+
+            PlayableContentView(item: playlist.toPlayable, group: group)
+
+//            NavigationLink(value: RouterDestination.mediaDetail(content: playlist.toPlayable, group: group)) {
+//                HStack {
+//                    ContentArtworkView(content: .constant(playlist.toPlayable))
+//                        .frame(width: 44, height: 44)
+//                    VStack(alignment: .leading) {
+//                        Text(playlist.name)
+//                        Text(playlist.curatorName ?? "")
+//                            .lineLimit(1, reservesSpace: true)
+//                            .foregroundStyle(.secondary)
+//                    }
+//                }
+//            }
         } else {
             EmptyView()
         }
@@ -91,31 +100,33 @@ struct AppleMusicSearchScreen: View {
     @ViewBuilder
     private func songs(_ result: MusicCatalogSearchSuggestionsResponse.TopResult) -> some View {
         if case let .song(song) = result {
-            let playableContent = PlayableContent(title: song.title, subtitle: song.artistName, artwork: song.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: song.id.description, type: .track, location: song.url))
-            Button {
-                play(content: playableContent)
-            } label: {
-                HStack {
-                    ContentArtworkView(content: .constant(nil), artworkURL: song.artwork?.url(width: 100, height: 100))
-                        .frame(width: 44, height: 44)
-                    VStack(alignment: .leading) {
-                        Text(song.title)
-                        Text(song.artistName)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Menu {
-                        menu(content: playableContent)
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(maxWidth: 40, maxHeight: .infinity)
-                            .background(.clear)
-                    }
-                }
-                .contextMenu {
-                    menu(content: playableContent)
-                }
-            }
+            PlayableContentView(item: song.toPlayable, group: group)
+
+//            let playableContent = PlayableContent(title: song.title, subtitle: song.artistName, artwork: song.artwork?.url(width: 100, height: 100), content: MediaContent(service: .apple, id: song.id.description, type: .track, location: song.url))
+//            Button {
+//                play(content: playableContent)
+//            } label: {
+//                HStack {
+//                    ContentArtworkView(content: .constant(nil), artworkURL: song.artwork?.url(width: 100, height: 100))
+//                        .frame(width: 44, height: 44)
+//                    VStack(alignment: .leading) {
+//                        Text(song.title)
+//                        Text(song.artistName)
+//                            .foregroundStyle(.secondary)
+//                    }
+//                    Spacer()
+//                    Menu {
+//                        menu(content: playableContent)
+//                    } label: {
+//                        Image(systemName: "ellipsis")
+//                            .frame(maxWidth: 40, maxHeight: .infinity)
+//                            .background(.clear)
+//                    }
+//                }
+//                .contextMenu {
+//                    menu(content: playableContent)
+//                }
+//            }
         } else {
             EmptyView()
         }
@@ -124,17 +135,19 @@ struct AppleMusicSearchScreen: View {
     @ViewBuilder
     private func album(_ result: MusicCatalogSearchSuggestionsResponse.TopResult) -> some View {
         if case let .album(album) = result {
-            NavigationLink(value: RouterDestination.mediaDetail(id: album.id.description, title: album.title, kind: .album, group: group)) {
-                HStack {
-                    ContentArtworkView(content: .constant(nil), artworkURL: album.artwork?.url(width: 100, height: 100))
-                        .frame(width: 44, height: 44)
-                    VStack(alignment: .leading) {
-                        Text(album.title)
-                        Text(album.artistName)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
+            PlayableContentView(item: album.toPlayable, group: group)
+
+//            NavigationLink(value: RouterDestination.mediaDetail(content: album.toPlayable, group: group)) {
+//                HStack {
+//                    ContentArtworkView(content: .constant(album.toPlayable))
+//                        .frame(width: 44, height: 44)
+//                    VStack(alignment: .leading) {
+//                        Text(album.title)
+//                        Text(album.artistName)
+//                            .foregroundStyle(.secondary)
+//                    }
+//                }
+//            }
         } else {
             EmptyView()
         }

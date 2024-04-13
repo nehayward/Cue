@@ -7,7 +7,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
     case groupDestination(content: PlayableContent)
     case manageScenes
-    case mediaDetail(id: String, title: String, kind: MediaKind, group: GroupRoom?)
+    case mediaDetail(content: PlayableContent, group: GroupRoom?)
+    case artistDetail(content: PlayableContent, group: GroupRoom?)
 
     public var id: String {
         switch self {
@@ -17,8 +18,10 @@ public enum RouterDestination: Hashable, Identifiable {
             content.content.id
         case .manageScenes:
             "manageScenes"
-        case let .mediaDetail(id, title, kind, _):
-            id + title + kind.rawValue
+        case let .mediaDetail(content, _):
+            content.id
+        case let .artistDetail(content, _):
+            content.id
         }
     }
 }

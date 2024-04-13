@@ -36,13 +36,15 @@ struct ClassicAppleMusicSearchView: View {
                             location: nil
                         )
                     )
-                    playHistory.remove(content)
-                    playHistory.insert(content, at: 0)
                     guard let group = group else {
                         let content = PlayableContent(title: result.trackName, subtitle: result.artistName, artwork: URL(string: result.artworkURL), content: MediaContent(service: .apple, id: String(result.trackID), type: .track, location: nil))
                         router.navigate(to: .groupDestination(content: content))
                         return
                     }
+                    
+                    playHistory.remove(content)
+                    playHistory.insert(content, at: 0)
+
                     router.dismiss = true
                     await sonosService.queue(song: "\(result.trackID)", on: group)
                     await sonosService.play(ip: group.coordinatorRoom.ip)

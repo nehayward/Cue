@@ -22,6 +22,10 @@ struct SpotifySearchView: View {
     var body: some View {
         if filters.filter(\.isFiltered).isEmpty {
             Group {
+                if let artists = spotifyResult?.artists?.items {
+                    artistRow(artists: artists)
+                }
+
                 if let playlists = spotifyResult?.playlists?.items {
                     playlist(playlists: playlists)
                 }
@@ -60,168 +64,20 @@ struct SpotifySearchView: View {
         }
     }
 
-    private func trackSection(tracks: [SpotifyTrackItems]) -> some View {
+    private func trackSection(tracks: [SpotifyTrackItem]) -> some View {
         Section {
             ForEach(tracks) { item in
-                Button {
-                    Task {
-                        let content = PlayableContent(
-                            title: item.name,
-                            subtitle: item.artists.first?.name ?? "",
-                            artwork: URL(
-                                string: item.album.images.first?.url ?? ""
-                            ),
-                            content: MediaContent(service: .spotify, id: item.id, type: .track, location: nil)
-                        )
-                        playHistory.remove(content)
-                        playHistory.insert(content, at: 0)
-
-                        if isAdding {
-                            addingContent = content
-                            router.dismiss = true
-                            return
-                        }
-
-                        guard let group = group else {
-                            router.navigate(to: .groupDestination(content: content))
-                            return
-                        }
-                        router.dismiss = true
-                        await sonosService.queueSpotifyTrack(id: item.id, group: group)
-                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    HStack {
-                        AsyncImage(url: URL(string: item.album.images.first?.url ?? ""),
-                                   transaction: Transaction(animation: .snappy)
-                        ) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .frame(width: 60, height: 60)
-                            default:
-                                RoundedRectangle(cornerRadius: 12)
-                                    .foregroundStyle(.thinMaterial)
-                                    .frame(width: 60, height: 60)
-                            }
-                        }
-                        VStack(alignment: .leading) {
-                            Text(item.name)
-                            Text(item.artists.first?.name ?? "")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button {
-                        Task {
-                            guard let group = group else { return }
-                            await sonosService.queueSpotifyTrack(id: item.id, group: group, position: .next)
-                        }
-                        router.dismiss = true
-                    } label: {
-                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
-                    }
-                }
+                PlayableContentView(item: item.toPlayable, group: group)
             }
         } header: {
             Text("Tracks")
         }
     }
 
-    private func artistRow(artists: [SpotifyArtistsItems]) -> some View {
-        Section {
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(artists) { item in
-                        VStack {
-                            AsyncImage( url: URL(string: item.images.first?.url ?? ""),
-                                        transaction: Transaction(animation: .snappy)
-                            ) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .frame(width: 60, height: 60)
-                                        .clipShape(Circle())
-                                default:
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .foregroundStyle(.thinMaterial)
-                                        .frame(width: 60, height: 60)
-                                }
-                            }
-                            VStack(alignment: .leading) {
-                                Text(item.name)
-                            }
-                        }
-                        .fontDesign(.rounded)
-                        .onTapGesture {
-                            dismiss()
-                            Task {
-                                guard let group = group else { return }
-                                await sonosService.queueSpotifyTrack(id: item.id, group: group)
-                                await sonosService.play(ip: group.coordinatorRoom.ip)
-                            }
-                        }
-                    }
-                }
-            }
-            .scrollIndicators(.hidden)
-        } header: {
-            Text("Artist")
-        }
-    }
-
-    private func albumRow(albums: [SpotifyAlbumItems]) -> some View {
+    private func albumRow(albums: [SpotifyAlbumItem]) -> some View {
         Section {
             ForEach(albums) { album in
-                Button {
-                    Task {
-                        let content = PlayableContent(
-                            title: album.name,
-                            subtitle: album.artists.first?.name ?? "",
-                            artwork: URL(
-                                string: album.images.first?.url ?? ""
-                            ),
-                            content: MediaContent(service: .spotify, id: album.id, type: .album, location: nil)
-                        )
-                        playHistory.remove(content)
-                        playHistory.insert(content, at: 0)
-
-                        guard let group = group else {
-                            let content = PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: album.id, type: .album, location: nil))
-                            router.navigate(to: .groupDestination(content: content))
-                            return
-                        }
-                        router.dismiss = true
-                        await sonosService.queueSpotifyAlbum(id: album.id, group: group, position: .now)
-                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    HStack {
-                        AsyncImage(url: URL(string: album.images.first?.url ?? ""),
-                                   transaction: Transaction(animation: .snappy)
-                        ) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .frame(width: 60, height: 60)
-                            default:
-                                RoundedRectangle(cornerRadius: 12)
-                                    .foregroundStyle(.thinMaterial)
-                                    .frame(width: 60, height: 60)
-                            }
-                        }
-                        VStack(alignment: .leading) {
-                            Text(album.name)
-                            Text(album.artists.first?.name ?? "")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .fontDesign(.rounded)
-                }
+                PlayableContentView(item: album.toPlayable, group: group)
             }
         } header: {
             Text("Albums")
@@ -231,60 +87,61 @@ struct SpotifySearchView: View {
     private func playlist(playlists: [SpotifyPlaylistItems]) -> some View {
         Section {
             ForEach(playlists) { item in
-                Button {
-                    Task {
-                        let content = PlayableContent(
-                            title: item.name,
-                            subtitle: item.owner.displayName,
-                            artwork: URL(
-                                string: item.images.first?.url ?? ""
-                            ),
-                            content: MediaContent(service: .spotify, id: item.id, type: .playlist, location: nil)
-                        )
-                        playHistory.remove(content)
-                        playHistory.insert(content, at: 0)
-
-                        guard let group = group else {
-                            let content = PlayableContent(title: item.name, subtitle: item.owner.displayName, artwork: URL(string: item.images.first?.url ?? ""), content: MediaContent(service: .spotify, id: item.id, type: .playlist, location: nil))
-                            router.navigate(to: .groupDestination(content: content))
-                            return
-                        }
-                        router.dismiss = true
-                        await sonosService.queueSpotifyPlaylist(
-                            id: item.id,
-                            group: group
-                        )
-                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                    }
-                } label: {
-                    HStack {
-                        AsyncImage(url: URL(string: item.images.first?.url ?? ""),
-                                   transaction: Transaction(animation: .snappy)
-                        ) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 60, height: 60)
-                                    .clipped()
-                            default:
-                                RoundedRectangle(cornerRadius: 12)
-                                    .foregroundStyle(.thinMaterial)
-                                    .frame(width: 60, height: 60)
-                            }
-                        }
-                        VStack(alignment: .leading) {
-                            Text(item.name)
-                            Text(item.owner.displayName)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                PlayableContentView(item: item.toPlayable, group: group)
             }
         } header: {
             Text("Playlist")
         }
+    }
+
+    private func artistRow(artists: [SpotifyArtistsItems]) -> some View {
+        Section {
+            ForEach(artists) { item in
+                PlayableContentView(item: item.toPlayable, group: group)
+            }
+        } header: {
+            Text("Artists")
+        }
+//        Section {
+//            ScrollView(.horizontal) {
+//                HStack {
+//                    ForEach(artists) { item in
+//                        VStack {
+//                            AsyncImage( url: URL(string: item.images.first?.url ?? ""),
+//                                        transaction: Transaction(animation: .snappy)
+//                            ) { phase in
+//                                switch phase {
+//                                case .success(let image):
+//                                    image
+//                                        .resizable()
+//                                        .frame(width: 60, height: 60)
+//                                        .clipShape(Circle())
+//                                default:
+//                                    RoundedRectangle(cornerRadius: 12)
+//                                        .foregroundStyle(.thinMaterial)
+//                                        .frame(width: 60, height: 60)
+//                                }
+//                            }
+//                            VStack(alignment: .leading) {
+//                                Text(item.name)
+//                            }
+//                        }
+//                        .fontDesign(.rounded)
+//                        .onTapGesture {
+//                            dismiss()
+//                            Task {
+//                                guard let group = group else { return }
+//                                await sonosService.queueSpotifyArtistTopTracks(id: item.id, group: group)
+//                                await sonosService.play(ip: group.coordinatorRoom.ip)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            .scrollIndicators(.hidden)
+//        } header: {
+//            Text("Artist")
+//        }
     }
 }
 

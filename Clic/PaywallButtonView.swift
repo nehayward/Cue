@@ -1,7 +1,7 @@
+import Analytics
 import NukeUI
 import SwiftUI
 import SonosKit
-//import Telemetry
 
 struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -25,7 +25,7 @@ struct PaywallButtonView: View {
     var body: some View {
         Button {
             HapticManager.shared.fireHaptic(.buttonPress)
-//            Telemetry.shared.send(event: .viewedPaywall)
+            Analytics.shared.track(.viewedPaywall)
             router?.presentedSheet = .paywall
         } label: {
             ScrollView(.horizontal) {

@@ -20,9 +20,22 @@ struct ContentArtworkView: View {
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
+                } else {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient.secondary)
+                        .aspectRatio(contentMode: .fit)
+                        .overlay {
+                            if artworkURL == nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.regularMaterial)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(content?.content.type == .artist ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
                 if let content = content {
@@ -60,11 +73,13 @@ struct ContentArtworkView: View {
                 }
             }
             .task(id: content?.content.id) {
-                if let content = content?.content, artworkURL == nil {
-                    artworkURL = await sonosService.getArtwork(from: content)
-                }
                 if let artwork = content?.artwork {
                     artworkURL = artwork
+                    return
+                }
+                if let content = content?.content, artworkURL == nil {
+                    let artworkURL = await sonosService.getArtwork(from: content)
+                    self.artworkURL = artworkURL
                 }
             }
             .onChange(of: proxy.size, initial: true) {

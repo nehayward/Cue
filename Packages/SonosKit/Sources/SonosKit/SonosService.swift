@@ -37,10 +37,10 @@ public final class SonosService {
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
 
-    @ObservationIgnored public var networkMonitorService = NetworkMonitorService()
-    @ObservationIgnored private var sonosSystemDiscoverService = SonosSystemDiscoverService()
-    @ObservationIgnored private var api = SonosAPI()
-    @ObservationIgnored private var musicSearch = MusicSearchService()
+    @ObservationIgnored public lazy var networkMonitorService = NetworkMonitorService()
+    @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
+    @ObservationIgnored private lazy var api = SonosAPI()
+    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
 
     public var systemState = SonosSystemState()
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
@@ -86,6 +86,13 @@ public final class SonosService {
     public func updateGroups() async throws {
         let newGroup = try await getGroups(useCache: true)
         system = try await findSystem(useCache: true)
+
+        // MARK: Update Battery Info
+        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+            guard let index = groups.firstIndex(of: updateGroup) else { continue }
+            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+        }
+
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
@@ -216,6 +223,12 @@ public final class SonosService {
         let newGroup = try await getGroups(useCache: useCache)
         var refreshGroup: Bool = false
 
+        // MARK: Update Battery Info
+        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+            guard let index = groups.firstIndex(of: updateGroup) else { continue }
+            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+        }
+
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             await updateGroupsRooms(from: newGroup)
             self.groups = newGroup
@@ -240,6 +253,7 @@ public final class SonosService {
                 self.selectedGroup = nil
                 return
             }
+            if selectedGroup.coordinatorRoom.state != .active { return }
 
             let roomGroup = groups[groupIndex]
             if roomGroup != selectedGroup {
@@ -271,6 +285,7 @@ public final class SonosService {
             guard let awaitedTrack = await track else {
                 ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                 roomGroup.coordinatorRoom.track = .empty
+                roomGroup.coordinatorRoom.track.artworkURL = nil
                 return
             }
 
@@ -315,6 +330,12 @@ public final class SonosService {
     public func fetch(useCache: Bool) async throws {
         let newGroup = try await getGroups(useCache: useCache)
         var refreshGroup: Bool = false
+
+        // MARK: Update Battery Info
+        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+            guard let index = groups.firstIndex(of: updateGroup) else { continue }
+            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+        }
 
         if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
             await updateGroupsRooms(from: newGroup)
@@ -429,6 +450,8 @@ public final class SonosService {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {
                 group.addTask {
+                    // MARK: Sleeping
+                    if roomGroup.coordinatorRoom.state != .active { return }
                     async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
@@ -491,6 +514,7 @@ public final class SonosService {
             for roomGroup in roomGroups {
                 for room in roomGroup.rooms {
                     group.addTask {  [weak self] in
+                        if room.state != .active { return }
                         guard let self else { return }
                         if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume {
                             room.volume = volume
@@ -557,7 +581,7 @@ public final class SonosService {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
                 group.addTask {
-                    if let isMuted = await self.isMuted(for: roomGroup) {
+                    if roomGroup.coordinatorRoom.state == .active, let isMuted = await self.isMuted(for: roomGroup) {
                         roomGroup.isMuted = isMuted
                     }
                 }
@@ -583,6 +607,9 @@ public final class SonosService {
         try await withThrowingDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
                 group.addTask {
+                    // MARK: Sleeping
+                    if roomGroup.coordinatorRoom.state != .active { return }
+
                     async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
@@ -1033,6 +1060,16 @@ public final class SonosService {
         await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
     }
 
+    public func queueSpotifyArtistTopTracks(id: String, group: GroupRoom) async {
+        await api.queueSpotifyArtistTopTracks(ID: id, IP: group.ip)
+        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+    }
+
+    public func queueSpotifyArtistRadio(id: String, group: GroupRoom) async {
+        await api.queueSpotifyArtistRadio(ID: id, IP: group.ip)
+        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+    }
+
     public func queueApplePlaylist(id: String, group: GroupRoom) async {
         await api.removeAllTrackFromQueue(IP: group.ip)
         await api.queueApplePlaylist(ID: id, IP: group.ip)
@@ -1108,7 +1145,7 @@ public final class SonosService {
         case (.playlist, .apple):
             await queueApplePlaylist(id: content.id, group: group)
         case (.artist, .spotify):
-            break
+            await queueSpotifyArtistTopTracks(id: content.id, group: group)
         case (.artist, .apple):
             break
         case (.track, .spotify):

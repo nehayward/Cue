@@ -1,3 +1,4 @@
+import Analytics
 import CloudStorage
 import Combine
 import SwiftUI
@@ -136,7 +137,7 @@ struct SceneBuilderScreen: View {
 //                        let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: PlayableContent(title: "", subtitle: "", artwork: nil, content: MediaContent(service: .spotify, id: "37i9dQZEVXcTv12cCWsQJf", type: .playlist, location: nil)))
                         let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: playableContent)
                         scenes.append(newScene)
-//                        Telemetry.shared.send(event: .createdScene)
+                        Analytics.shared.track(.createdScene)
                         sheetDestination = nil
                         dismiss()
                     } label: {
@@ -192,6 +193,9 @@ struct SceneBuilderScreen: View {
                 print(id)
                 self.id = id
             }
+        }
+        .onAppear {
+            Analytics.shared.track(.viewedSceneBuilderScreen)
         }
     }
 }

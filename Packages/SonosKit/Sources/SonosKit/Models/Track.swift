@@ -88,11 +88,12 @@ public final class Track: Identifiable, Sendable {
 
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
-        lhs.trackID == rhs.trackID && lhs.name == rhs.name && lhs.position == rhs.position && lhs.TVMode == rhs.TVMode
+        lhs.trackID == rhs.trackID && lhs.name == rhs.name && lhs.position == rhs.position && lhs.TVMode == rhs.TVMode && lhs.artworkURL == rhs.artworkURL
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(trackID)
+        hasher.combine(artworkURL)
         hasher.combine(name)
         hasher.combine(position)
         hasher.combine(TVMode)
