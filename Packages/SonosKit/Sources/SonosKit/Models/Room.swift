@@ -58,7 +58,7 @@ extension Room: Hashable {
 
 extension Room: CustomStringConvertible {
     public var description: String {
-        "\(name): \(volume)% [\(id)]"
+        "\(name): \(volume)% [\(id)] [\(ip)]"
     }
 }
 

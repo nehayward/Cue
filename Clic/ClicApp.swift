@@ -60,15 +60,15 @@ struct ClicApp: App {
                                         if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision {
                                             Button {
                                                 if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                                    if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: false) {
-                                                        router.inspectorSheet = .search(group: sonosService.sorted[group], instant: false)
+                                                    if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: true) {
+                                                        router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
                                                     } else {
                                                         router.inspectorSheet = nil
                                                     }
                                                 }
                                             } label: {
                                                 Image(systemName: "sparkle.magnifyingglass")
-                                                    .tint(.primary)
+                                                    .foregroundStyle(.accent.gradient)
                                             }
 
                                             Button {
@@ -81,7 +81,7 @@ struct ClicApp: App {
                                                 }
                                             } label: {
                                                 Image(systemName: "list.dash")
-                                                    .tint(.primary)
+                                                    .foregroundStyle(.accent.gradient)
                                             }
                                         }
                                     }
@@ -150,7 +150,7 @@ struct ClicApp: App {
         .onChange(of: selectedID) { old, new in
             if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 if let sheet = router.inspectorSheet, sheet.id == "search" {
-                    router.inspectorSheet = .search(group: sonosService.sorted[group], instant: false)
+                    router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
                 } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
                     router.inspectorSheet = .queue(group: $sonosService.sorted[group])
                 }
@@ -158,9 +158,37 @@ struct ClicApp: App {
         }
         .commands {
             SidebarCommands()
-            InspectorCommands()
-        }
+            CommandGroup(after: .sidebar) {
+                Divider()
+                Button("Show/Hide Search") {
+                    if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                        if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: true) {
+                            router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
+                        } else {
+                            router.inspectorSheet = nil
+                        }
+                    }
+                }
+                .keyboardShortcut("s")
 
+                Button {
+                    if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                        if router.inspectorSheet != .queue(group: $sonosService.sorted[group]) {
+                            router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                        } else {
+                            router.inspectorSheet = nil
+                        }
+                    }
+                } label: {
+                    Label("Show/Hide Queue", systemImage: "list.dash")
+                        .tint(.accentColor)
+                }
+                .keyboardShortcut("l")
+            }
+            CommandMenu("Playback") {
+                Text("Coming Soon…")
+            }
+        }
     }
 
     @MainActor
@@ -215,18 +243,7 @@ struct ClicApp: App {
                 router.presentedSheet = nil
 
                 if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                        router.path.removeAll()
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    } else if router.path.isEmpty {
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    }
-                    router.presentedSheet = .search(group: group)
-                    return
-                }
-                Task {
-                    try await sonosService.fetch(useCache: true)
-                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
                         if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
                             router.path.removeAll()
                             router.navigate(to: .player(groupID: group.coordinatorID))
@@ -234,6 +251,27 @@ struct ClicApp: App {
                             router.navigate(to: .player(groupID: group.coordinatorID))
                         }
                         router.presentedSheet = .search(group: group)
+                    } else {
+                        selectedID = group.coordinatorID
+                        router.inspectorSheet = .search(group: group, instant: true)
+                    }
+                    return
+                }
+                Task {
+                    try await sonosService.fetch(useCache: true)
+                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                                router.path.removeAll()
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            } else if router.path.isEmpty {
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            }
+                            router.presentedSheet = .search(group: group)
+                        } else {
+                            selectedID = group.coordinatorID
+                            router.inspectorSheet = .search(group: group, instant: true)
+                        }
                         return
                     }
                 }
@@ -242,26 +280,28 @@ struct ClicApp: App {
             if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
                 router.presentedSheet = nil
 
-                if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                        router.path.removeAll()
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    } else if router.path.isEmpty {
-                        router.navigate(to: .player(groupID: group.coordinatorID))
+                let navigateToGroup = {
+                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                                router.path.removeAll()
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            } else if router.path.isEmpty {
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            }
+                        } else {
+                            selectedID = group.coordinatorID
+                        }
+                        return true
                     }
+                    return false
+                }
+                if navigateToGroup() {
                     return
                 }
                 Task {
                     try await sonosService.fetch(useCache: true)
-                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                            router.path.removeAll()
-                            router.navigate(to: .player(groupID: group.coordinatorID))
-                        } else if router.path.isEmpty {
-                            router.navigate(to: .player(groupID: group.coordinatorID))
-                        }
-                        return
-                    }
+                    _ = navigateToGroup()
                 }
             }
 
@@ -313,7 +353,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
 
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
-            let toolbar = NSToolbar(identifier: "main")
+//            let toolbar = NSToolbar(identifier: "main")
 //            toolbar.delegate = toolbarDelegate
 //            toolbar.displayMode = .iconOnly
             titlebar.titleVisibility = .hidden

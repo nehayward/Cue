@@ -12,5 +12,6 @@ struct ContainerLargePlayerView: View {
                 LargePlayerView(group: $sonosService.sorted[group])
             }
         }
+        .ignoresSafeArea(.keyboard)
     }
 }

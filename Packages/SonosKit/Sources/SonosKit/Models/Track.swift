@@ -16,7 +16,15 @@ public final class Track: Identifiable, Sendable {
     /// The album of the track.
     public var album: String
     /// The URL for the track's artwork.
-    public var artworkURL: URL?
+    public var artworkURL: URL? {
+        if let downloadedArtworkURL {
+            return downloadedArtworkURL
+        }
+        return sonosAlbumArtURL
+    }
+
+    /// The URL for the track's artwork.
+    public var downloadedArtworkURL: URL?
     /// The music service associated with the track.
     public var musicService: MusicService
     /// The duration of the track, in seconds.
@@ -32,6 +40,7 @@ public final class Track: Identifiable, Sendable {
 
     /// The identifier for `Identifiable` conformance.
     public var id: String { trackID }
+    
     /// The playback position of the track, thread-safe.
     public var playbackPosition: TimeInterval {
         get { queue.sync { _playbackPosition } }
@@ -68,21 +77,13 @@ public final class Track: Identifiable, Sendable {
         self.name = name
         self.artist = artist
         self.album = album
-        self.artworkURL = artworkURL
+        self.downloadedArtworkURL = artworkURL
         self.musicService = musicService
         self.duration = duration
         self._playbackPosition = playbackPosition
         self.position = position
         self.sonosAlbumArtURL = sonosAlbumArtURL
         self.TVMode = TVMode
-    }
-
-    /// Updates the track's artwork URL.
-    /// - Parameter track: The track with the new artwork URL.
-    public func updateTrack(track: Track) {
-        queue.sync {
-            self.artworkURL = track.artworkURL
-        }
     }
 }
 

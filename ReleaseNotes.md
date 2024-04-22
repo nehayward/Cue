@@ -1,3 +1,11 @@
+# 2024.18
+
+## External 
+
++ Improved grouping speakers, you can now remove any speaker from group.
++ Improve search, even faster now.
+- Fixed and issue where toolbar would get hidden on iPad. Thanks Jason!
+
 # 2024.17
 
 ## External 

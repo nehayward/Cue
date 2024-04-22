@@ -68,14 +68,21 @@ struct PlayableContentView: View {
                 } label: {
                     Text("View Playlist")
                 }
+
+                Button {
+                    play()
+                } label: {
+                    Text("Play Playlist")
+                }
             case .album, .track, .favorite:
-                if item.content.type == .album {
+                if [.album, .track].contains(item.content.type) {
                     Button {
                         router.path.append(.mediaDetail(content: item, group: group))
                     } label: {
-                        Text("View Album")
+                        Label("View Album", systemImage: "rectangle.stack.fill")
                     }
                 }
+
                 Button {
                     play(position: .next)
                 } label: {
@@ -119,22 +126,27 @@ struct PlayableContentView: View {
                     EmptyView()
                 }
             }
-            .contextMenu {
-                menu
-            }
+            .fontDesign(.rounded)
         }
-        .swipeActions {
-            if playHistory.contains(item) {
-                Button(role: .destructive) {
-                    playHistory.remove(item)
-                } label: {
-                    Label("Remove from History", systemImage: "trash")
-                }
-            }
-        }
+        // MARK: SwiftUI Issues
+//        .swipeActions {
+//            if playHistory.contains(item) {
+//                Button(role: .destructive) {
+//                    playHistory.remove(item)
+//                } label: {
+//                    Label("Remove from History", systemImage: "trash")
+//                }
+//            }
+//        }
         .contentShape(.contextMenuPreview, Capsule())
         .contextMenu {
             menu
         }
+    }
+}
+
+extension UIApplication {
+    func endEditing() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

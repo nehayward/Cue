@@ -60,7 +60,7 @@ struct QueueScreen: View {
                                     return
                                 }
 
-                                track.artworkURL = artworkURL
+                                track.downloadedArtworkURL = artworkURL
                             }
 
                             Button {

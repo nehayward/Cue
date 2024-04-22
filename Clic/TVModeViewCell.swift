@@ -44,7 +44,7 @@ struct TVModeViewCell: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .topTrailing) {
             Button {
-                routePath.presentedSheet = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                routePath.presentedSheet = .groupScreen(group: group)
             } label: {
                 Image(systemName: "tv.and.hifispeaker.fill")
                     .frame(width: 20)

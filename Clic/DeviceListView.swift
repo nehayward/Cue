@@ -84,6 +84,11 @@ struct DeviceListMainView: View {
                     }
                 }
             }
+            .overlay(alignment: .center) {
+                if sonosService.sorted.isEmpty {
+                    ProgressView()
+                }
+            }
             .overlay(alignment: .bottom) {
                 VStack {
                     if sonosService.systemState.permissionDenied {
@@ -112,7 +117,6 @@ struct DeviceListMainView: View {
                         } label: {
                             Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
                                 .imageScale(.large)
-                                .symbolEffect(.variableColor)
                                 .padding()
                                 .background {
                                     Capsule()
@@ -145,27 +149,21 @@ struct DeviceListMainView: View {
                         }
                     }
 
-                    Image(systemName: "sparkle.magnifyingglass")
-                        .resizable()
-                        .foregroundStyle(.accent.gradient)
-                        .frame(width: 24, height: 24)
-                        .onTapGesture {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedSheet = .search()
-                        }
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 0.5)
-                                .onEnded { _ in
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    router.presentedSheet = .search(instant: true)
-                                }
-                        )
+                    Button{
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.sheet(to: .search())
+                    } label: {
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .resizable()
+                            .foregroundStyle(.accent.gradient)
+                            .frame(width: 24, height: 24)
+                    }
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
                 .background(.thinMaterial)
-                .ignoresSafeArea(.keyboard)
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .safeAreaInset(edge: .top) {
             VStack {
@@ -175,15 +173,16 @@ struct DeviceListMainView: View {
 
                 if !sonosService.networkMonitorService.isConnected {
                     Label("Can't find System, Connect to Wi-Fi", systemImage: "wifi.slash")
-                        .bold()
                         .padding()
                         .background {
                             Capsule()
-                                .foregroundStyle(.thinMaterial)
+                                .foregroundStyle(.thickMaterial)
                         }
-                        .transition(.move(edge: .top).combined(with: .scale(0.8)))
-                        .padding()
-                        .offset(y: 50)
+                        .frame(alignment: .top)
+                        .fontDesign(.rounded)
+                        .bold()
+                        .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
+                        .offset(y: sonosService.networkMonitorService.isConnected ? 0 : -300)
                 }
 
                 if sonosService.isSearching {

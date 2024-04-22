@@ -4,12 +4,13 @@ import SwiftUI
 enum SheetDestination: Identifiable, Equatable {
     case settings
     case paywall
-    case groupScreen(groupScreenViewModel: GroupScreenViewModel, group: GroupRoom)
+    case groupScreen(group: GroupRoom)
     case search(group: GroupRoom? = nil, instant: Bool = false)
     case add(mediaContent: Binding<PlayableContent?>)
     case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
+    case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case createScene
     case scenes
 
@@ -35,6 +36,8 @@ enum SheetDestination: Identifiable, Equatable {
             "createScene"
         case .scenes:
             "scenes"
+        case let .mediaDetail(content, _):
+            content.id
         }
     }
 

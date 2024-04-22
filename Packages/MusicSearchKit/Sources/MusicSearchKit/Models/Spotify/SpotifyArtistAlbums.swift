@@ -17,7 +17,7 @@ public struct SpotifyArtistAlbums: Decodable {
         public let externalUrls: ExternalUrls
         public let href: String
         public let id: String
-        public let images: [Image]
+        public let images: [SpotifyImage]
         public let name: String
         public let releaseDate: String
         public let releaseDatePrecision: String

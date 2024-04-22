@@ -16,7 +16,6 @@
 		E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
-		E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */; };
 		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
@@ -56,7 +55,6 @@
 		E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0092B2FF3FB002E5A96 /* LogView.swift */; };
 		E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856282A9FBB020024B192 /* AlertService.swift */; };
 		E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
-		E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
 		E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
@@ -182,7 +180,6 @@
 		E97563072B699B2400787E14 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0092B2FF3FB002E5A96 /* LogView.swift */; };
 		E97563082B699B2400787E14 /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856282A9FBB020024B192 /* AlertService.swift */; };
 		E97563092B699B2400787E14 /* SheetDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC312B27BD20005D281E /* SheetDestination.swift */; };
-		E975630A2B699B2400787E14 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E975630B2B699B2400787E14 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
 		E975630D2B699B2400787E14 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
@@ -263,7 +260,6 @@
 		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
-		E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
 		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */; };
@@ -481,7 +477,6 @@
 		E90F31642BC5999900884EA5 /* ClicPaywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicPaywall.swift; sourceTree = "<group>"; };
 		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
-		E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
 		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92CABED2AB8FE24002A3D4D /* TVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVView.swift; sourceTree = "<group>"; };
@@ -547,7 +542,6 @@
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E99011392B69A0BC00D2DFF5 /* Clic-Mac.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Clic-Mac.plist"; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
-		E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreenViewModel.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
 		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
@@ -781,11 +775,11 @@
 		E960ED452AC38936003E3732 /* Search */ = {
 			isa = PBXGroup;
 			children = (
-				E90F31612BC4976800884EA5 /* PlayableContentView.swift */,
-				E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */,
 				E9B135BA2B6ADE690096A14E /* NewSearchScreen.swift */,
 				E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */,
 				E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */,
+				E90F31612BC4976800884EA5 /* PlayableContentView.swift */,
+				E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */,
 				E9B135BE2B6B62B00096A14E /* MediaDetailView.swift */,
 				E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */,
 				E9BF3ABF2B0EBC9900AF57EA /* SearchSelection.swift */,
@@ -957,7 +951,6 @@
 				E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */,
 				E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */,
 				E92DCB9B2B6445EC00A2C3B5 /* DropDestination+.swift */,
-				E992B6EC2A65AE4A00FD6380 /* GroupScreenViewModel.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
 				E960ED452AC38936003E3732 /* Search */,
@@ -1016,7 +1009,6 @@
 				E9C03B112A58721F00FB9118 /* PlayerView.swift */,
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
 				E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */,
-				E919EC0F2A61A84900B6022C /* GroupScreenViewModel.swift */,
 				E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */,
 				E9A46FCE2B684093000D4094 /* Managers */,
 				E9331B542AAE20AB002D3CFD /* Debug */,
@@ -1464,7 +1456,6 @@
 				E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */,
 				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
-				E92B3EC62B60249B00724FA1 /* GroupScreenViewModel.swift in Sources */,
 				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
@@ -1557,7 +1548,6 @@
 				E97563072B699B2400787E14 /* LogView.swift in Sources */,
 				E97563082B699B2400787E14 /* AlertService.swift in Sources */,
 				E97563092B699B2400787E14 /* SheetDestination.swift in Sources */,
-				E975630A2B699B2400787E14 /* GroupScreenViewModel.swift in Sources */,
 				E975630B2B699B2400787E14 /* Environments.swift in Sources */,
 				E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */,
 				E975630D2B699B2400787E14 /* ListViewLarge.swift in Sources */,
@@ -1693,7 +1683,6 @@
 				E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
-				E992B6ED2A65AE4A00FD6380 /* GroupScreenViewModel.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9F600C82B50DDF10039AAA6 /* ListViewLarge.swift in Sources */,
@@ -1750,7 +1739,6 @@
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
-				E919EC112A61A94400B6022C /* GroupScreenViewModel.swift in Sources */,
 				E9D38C492B5D9EEF0025CC31 /* SheetDestination.swift in Sources */,
 				E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */,
 				E9C03B012A586F5E00FB9118 /* DeviceListView.swift in Sources */,

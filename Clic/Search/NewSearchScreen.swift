@@ -21,8 +21,7 @@ struct NewSearchScreen: View, KeyboardReadable {
     @State private var isKeyboardVisible = false
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
-
-    @FocusState private var searchFocused: Bool
+    @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
 
     @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
@@ -48,7 +47,6 @@ struct NewSearchScreen: View, KeyboardReadable {
                                     musicSearchService.query = suggestion.searchTerm
                                     self.suggestion = suggestion.searchTerm
                                     searchCompletionTapped = true
-                                    searchFocused = false
                                 } label: {
                                     HStack {
                                         Image(systemName: "magnifyingglass")
@@ -89,28 +87,14 @@ struct NewSearchScreen: View, KeyboardReadable {
                             .listRowSeparator(.hidden)
 
                     }
-                    .ignoresSafeArea(.keyboard)
-                    .headerProminence(.increased)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            TextField("Search", text: $musicSearchService.query, prompt: Text("Searching \(musicSearchSelection.title) \t\t\t\t"))
-                                .focused($searchFocused)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel) {
-                                if musicSearchService.query.isEmpty {
-                                    dismiss()
-                                    parentRouter?.inspectorSheet = nil
-                                } else {
-                                    musicSearchService.query.removeAll()
-                                }
-                            }
-                            .labelStyle(.iconOnly)
-                        }
-                    }
+                    .searchable(
+                        text: $musicSearchService.query,
+                        isPresented: $searchFieldIsPresented,
+                        placement: .navigationBarDrawer(displayMode: .always),
+                        prompt: "Searching \(musicSearchSelection.title)"
+                    )
                     .navigationBarTitleDisplayMode(.inline)
-                    .navigationTitle("")
+                    .navigationTitle(musicSearchSelection.title)
                     .withAppRouter(router: router)
                     .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                         if suggestion == nil {
@@ -127,13 +111,6 @@ struct NewSearchScreen: View, KeyboardReadable {
                             withAnimation {
                                 isKeyboardVisible = newIsKeyboardVisible
                                 searchCompletionTapped = !newIsKeyboardVisible
-                            }
-                        }
-                    }
-                    .onDisappear {
-                        if musicSearchService.query.isEmpty {
-                            Task { @MainActor in
-                                searchFocused = false
                             }
                         }
                     }
@@ -212,6 +189,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                 .onChange(of: router.dismiss) {
                     dismiss()
                 }
+                .ignoresSafeArea(.keyboard)
             case .notDetermined:
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)
@@ -221,14 +199,14 @@ struct NewSearchScreen: View, KeyboardReadable {
             }
         }
         .onAppear {
+            searchFieldIsPresented = true
             if musicSearchService.query.isEmpty {
                 appleMusicAuthorized = musicSearchService.getMusicAuthorization()
                 Task {
                     await sonosService.getFavoriteList()
                 }
             }
-            if instant {
-                searchFocused = true
+            if UIDevice.current.userInterfaceIdiom == .phone {
                 showKeyboard()
             }
         }

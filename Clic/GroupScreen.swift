@@ -8,22 +8,29 @@ struct GroupScreen: View {
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
-    let id: String
+    @State var group: GroupRoom?
+    @State var coordinatorID: String
     @Binding var sheetDestination: SheetDestination?
-    @Bindable var viewModel: GroupScreenViewModel
+
     @State private var path: [Set<String>] = []
+    @State private var selections: Set<String> = []
     @State private var groupVolume: Double = 0.0
     @State private var groupVolumeTask: Task<Void,Error>?
 
+    init(coordinatorID: String, sheetDestination: Binding<SheetDestination?>) {
+        self.coordinatorID = coordinatorID
+        self._sheetDestination = sheetDestination
+    }
+    
     var body: some View {
+        @Bindable var sonosService = sonosService
         NavigationStack(path: $path) {
-            @Bindable var sonosService = sonosService
             List {
-                ForEach($sonosService.sortedRooms.filter { $0.id != viewModel.group.coordinatorID }) { $room in
+                ForEach($sonosService.sortedRooms) { $room in
                     VStack {
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
-                            viewModel.buttonAction(id: room.id)
+                            addGroup(id: room.id)
                         } label: {
                             HStack {
                                 VStack(alignment: .leading) {
@@ -33,19 +40,19 @@ struct GroupScreen: View {
                                     }
                                 }
                                 Spacer()
-                                Image(systemName: viewModel.selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
-                                    .symbolEffect(.bounce, options: .speed(5), value: viewModel.selections.contains(room.id))
+                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                    .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
                             }
-                            .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
+                            .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .fontDesign(.rounded)
                             .bold()
                         }
                         RoomVolumeView(room: $room, touchDelay: 0.05)
-                            .foregroundStyle(viewModel.selections.contains(room.id) ? .black : .primary)
-                            .tint(viewModel.selections.contains(room.id) ? .black : .accentColor)
+                            .foregroundStyle(selections.contains(room.id) ? .black : .primary)
+                            .tint(selections.contains(room.id) ? .black : .accentColor)
                     }
                     .listRowBackground(
-                        viewModel.selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
+                        selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
                             .foregroundStyle(Color.accentColor.gradient.opacity(0.8) )
                         : nil
                     )
@@ -55,29 +62,29 @@ struct GroupScreen: View {
                     .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
             }
             .navigationDestination(for: Set<String>.self) { ids in
-                SceneBuilderScreen(group: $viewModel.group, sheetDestination: $sheetDestination, selections: ids)
+                if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
+                    SceneBuilderScreen(group: .constant(foundGroup), sheetDestination: $sheetDestination, selections: ids)
+                }
             }
             .listRowSpacing(10)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HStack {
-                        Image(systemName: viewModel.selections.count > 0 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
-                            .animation(nil, value: UUID())
-                        Text(viewModel.group.coordinatorRoom.name)
-                            .animation(nil, value: UUID())
-                        Text(viewModel.grouping)
-                            .animation(nil, value: UUID())
-                        Text(viewModel.numberInGroup)
-                            .contentTransition(.numericText())
+                    if let name = sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID })?.nameWithCount {
+                        HStack {
+                            Text(name)
+                                .animation(.snappy, value: sonosService.sorted)
+                        }
+                        .fontDesign(.rounded)
+                        .bold()
+                    } else {
+                        ProgressView()
                     }
-                    .fontDesign(.rounded)
-                    .bold()
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     if subscriptionService.subscription.isActive {
-                        NavigationLink("Add Scene", value: viewModel.selections)
-                            .animation(.spring, value: viewModel.selections.isEmpty)
+                        NavigationLink("Add Scene", value: selections)
+                            .animation(.spring, value: selections.isEmpty)
                     } else {
                         Button {
                             sheetDestination = .paywall
@@ -106,32 +113,12 @@ struct GroupScreen: View {
                     .onChange(of: groupVolume, initial: false) { _, newValue in
                         groupVolumeTask?.cancel()
                         groupVolumeTask = Task {
-                            for room in viewModel.sonosService.rooms {
+                            for room in sonosService.rooms {
                                 room.volume = groupVolume
-                                await viewModel.sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                                await sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
                             }
                         }
                     }
-                    .padding(.bottom)
-//                    Button {
-//                        let rooms = sonosService.sortedRooms.filter { room in
-//                            viewModel.selections.contains(room.id)
-//                        }
-//                        Task {
-//                            dismiss()
-//                            await sonosService.smartGroup(rooms: rooms, to: viewModel.group)
-//                        }
-//                    } label: {
-//                        Text(viewModel.groupingLabel)
-//                            .foregroundStyle(.ultraThickMaterial)
-//                            .fontDesign(.rounded)
-//                            .font(.title3)
-//                            .bold()
-//                            .frame(maxWidth: .infinity)
-//                            .animation(nil, value: UUID())
-//                    }
-//                    .buttonStyle(.borderedProminent)
-//                    .buttonBorderShape(.roundedRectangle)
                 }
                 .padding()
                 .background {
@@ -148,6 +135,38 @@ struct GroupScreen: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
+        .task(id: sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID })?.rooms) {
+            if sonosService.isGrouping { return }
+            guard let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
+            group = foundGroup
+            selections = Set(foundGroup.rooms.map { $0.id })
+        }
+    }
+
+    private func addGroup(id: String) {
+        if selections.contains(id), selections.count == 1 { return }
+        let oldRooms = sonosService.sortedRooms.filter { room in selections.contains(room.id) }
+
+        selections.formSymmetricDifference([id])
+        let rooms = sonosService.sortedRooms.filter { selections.contains($0.id) }
+
+        Task {
+            guard let group = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
+            let newCoordinatorID = await sonosService.smartGroup(rooms: rooms, oldRooms: oldRooms, to: group)
+            if !selections.contains(group.coordinatorID) {
+                // MARK: Reassign coordinatorID
+                if let id = newCoordinatorID {
+                    coordinatorID = id
+                    Task { @MainActor in
+                        if Router.main.path.isEmpty { return }
+
+                        Router.main.path.removeAll()
+                        Router.main.navigate(to: .player(groupID: coordinatorID))
+                    }
+                }
+            }
+        }
+
     }
 }
 

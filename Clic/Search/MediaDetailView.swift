@@ -43,6 +43,7 @@ struct MediaDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .listSectionSeparator(.hidden)
+            .listRowBackground(Color.clear)
             Section {
                 ForEach(tracks) { track in
                     Button {
@@ -80,11 +81,13 @@ struct MediaDetailView: View {
                             menu(content: track)
                         }
                     }
+                    .listRowBackground(Color.clear)
                 }
                 if tracks.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             } header: {
                 Button {
@@ -110,7 +113,7 @@ struct MediaDetailView: View {
         }
         .listStyle(.inset)
         .listSectionSeparator(.hidden)
-        .navigationTitle(playableContent.title)
+        .navigationTitle(playableContent.content.type != .track ? playableContent.title : "")
         .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
@@ -120,8 +123,8 @@ struct MediaDetailView: View {
                 guard let tracks = album.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
             case (.album, .spotify):
-                let tracks: [SpotifyAlbumTrackItems] = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id)
-                self.tracks = tracks.map(\.toPlayable)
+                guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
+                self.tracks = albumDetails.tracks.items.map(\.toPlayable)
             case (.playlist, .apple):
                 guard let playlist: Playlist = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
                 artworkURL = playlist.artwork?.url(width: 800, height: 800)
@@ -131,10 +134,26 @@ struct MediaDetailView: View {
                 guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
                 guard let items = playlist.tracks.items else { return }
                 self.tracks = items.map(\.track.toPlayable) 
+            case (.track, .apple):
+                guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
+                guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
+                artworkURL = album.artwork?.url(width: 800, height: 800)
+                playableContent = album.toPlayable
+                guard let tracks = album.tracks else { return }
+                self.tracks = tracks.map(\.toPlayable)
+//                self.tracks = tracks.map(\.toPlayable)
+            case (.track, .spotify):
+                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id) else { return }
+                guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: song.album.id) else { return }
+                playableContent = albumDetails.toPlayable
+                artworkURL = albumDetails.images.biggestImageURL
+                self.tracks = albumDetails.tracks.items.map(\.toPlayable)
+//                self.tracks = items.map(\.track.toPlayable)
             default:
                 break
             }
         }
+        .addDismiss{ dismiss() }
     }
 
     private func play(content: PlayableContent, position: QueuePosition = .now) {

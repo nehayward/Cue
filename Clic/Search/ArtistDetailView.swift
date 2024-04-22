@@ -25,11 +25,12 @@ struct ArtistDetailView: View {
 
     var body: some View {
         List {
-            LazyImage(url: playableContent.artwork) { state in
+            LazyImage(url: artworkURL) { state in
                 if let image = state.image {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .transition(.opacity)
                 } else if state.isLoading {
                     RoundedRectangle(cornerRadius: 4)
                         .aspectRatio(contentMode: .fit)
@@ -103,6 +104,7 @@ struct ArtistDetailView: View {
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
+        .animation(.spring, value: artworkURL)
         .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
@@ -111,11 +113,7 @@ struct ArtistDetailView: View {
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
-
-                print(artist)
-//                artworkURL = album.artwork?.url(width: 800, height: 800)
-//                guard let tracks = album.tracks else { return }
-//                self.tracks = tracks.map(\.toPlayable)
+                artworkURL = artist.artwork?.url(width: 500, height: 500)
             case (.artist, .spotify):
                 async let artist = MusicSearchService().spotifyArtist(id: playableContent.content.id)
                 async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: playableContent.content.id)

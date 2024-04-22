@@ -144,9 +144,9 @@ struct ListViewLarge: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 24) {
-                Spacer()
-                if subscriptionService.subscription.isActive {
+            if subscriptionService.subscription.isActive {
+                HStack(spacing: 24) {
+                    Spacer()
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         router.sheet(to: .scenes)
@@ -157,12 +157,12 @@ struct ListViewLarge: View {
                             .frame(width: 24, height: 24)
                     }
                 }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(.thinMaterial)
             }
-            .padding()
-            .frame(maxWidth: .infinity)
-            .background(.thinMaterial)
-            .ignoresSafeArea(.keyboard)
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
     private func enabled(group: GroupRoom) -> Bool {

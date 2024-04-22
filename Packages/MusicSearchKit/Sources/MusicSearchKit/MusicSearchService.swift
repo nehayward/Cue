@@ -18,7 +18,7 @@ public final class MusicSearchService {
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
     private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
 
-    private let debounceDuration: Duration = .milliseconds(100)
+    private let debounceDuration: Duration = .milliseconds(200)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
     public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
@@ -26,12 +26,12 @@ public final class MusicSearchService {
 
     public init() { }
 
-    @MainActor
     public func search(for provider: MediaSearchService) async {
         if query.isEmpty { return }
 
         // Cancel the previous task if it exists
         searchSuggestionTask.cancel()
+        spotifySearchTask.cancel()
 
         // Create a new task
         searchSuggestionTask = Task { [weak self] in
@@ -62,7 +62,9 @@ public final class MusicSearchService {
             topResults = results.1
         case .spotify:
             guard let result = await spotifySearchTask.value else { return }
-            spotifyResult = result
+            Task { @MainActor in
+                spotifyResult = result
+            }
         }
     }
 
@@ -117,8 +119,8 @@ public final class MusicSearchService {
         await spotifySearchAPI.album(id: id)
     }
 
-    public func spotifyAlbumTracksLookup(id: String) async -> [SpotifyAlbumTrackItems] {
-        await spotifySearchAPI.albumTracks(id: id) ?? []
+    public func spotifyAlbumTracksLookup(id: String) async -> SpotifyAlbumDetails? {
+        await spotifySearchAPI.albumDetails(id: id)
     }
 
     public func spotifyPlaylist(id: String) async -> SpotifyPlaylistItems? {
@@ -137,7 +139,6 @@ public final class MusicSearchService {
         await spotifySearchAPI.artistTopTracks(id: id)
     }
 
-    @MainActor
     public func searchSpotify(query: String) async -> SpotifyResult? {
         await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
     }
@@ -156,21 +157,21 @@ public final class MusicSearchService {
 //        return []
 //    }
 
-    public func searchAppleMusic(query: String) async throws -> String {
+    public func searchAppleMusic(query: String) async -> String {
         guard await requestMusicAuthorization() else { return "" }
 
         var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self])
         request.includeTopResults = true
-        let response = try await request.response()
+        let response = try? await request.response()
         print(response)
 
-        guard let song = response.songs.first else { return  "" }
-
-        print(song.title)
-        print(song.isrc)
-        var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: song.id)
-        let response2 = try await request.response()
-        print(response2)
+//        guard let song = response.songs.first else { return  "" }
+//
+//        print(song.title)
+//        print(song.isrc)
+//        var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: song.id)
+//        let response2 = try await request.response()
+//        print(response2)
 //        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
 //
 //        print(searchResponse)
@@ -178,6 +179,15 @@ public final class MusicSearchService {
 //        print(searchResponse.songs)
 //        print(searchResponse.artists)
         return ""
+    }
+
+    public func lookup(id: String) async throws -> Song? {
+        guard await requestMusicAuthorization() else { return nil }
+        let musicItemID = MusicItemID(id)
+        var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: musicItemID)
+        catalogResource.properties = [.albums]
+        let response = try await catalogResource.response()
+        return response.items.first
     }
 
     public func lookup(id: String) async throws -> Album? {
@@ -224,6 +234,7 @@ public final class MusicSearchService {
 //        print(searchResponse.artists)
         return response.items.first
     }
+    
 
     public func requestMusicAuthorization() async -> Bool {
         let status = await MusicAuthorization.request()

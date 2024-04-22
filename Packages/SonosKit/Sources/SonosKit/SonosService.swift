@@ -41,6 +41,7 @@ public final class SonosService {
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private lazy var musicSearch = MusicSearchService()
+    @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
 
     public var systemState = SonosSystemState()
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
@@ -51,9 +52,9 @@ public final class SonosService {
     @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
     @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
+    @ObservationIgnored public var isGrouping: Bool = false
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
-
     public var groupsChanged: (([GroupRoom]) -> ()) = { _ in }
 
     public init () {
@@ -229,11 +230,16 @@ public final class SonosService {
             groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
         }
 
-        if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
+        if !newGroup.isEmpty, Set(newGroup) != Set(groups), !isGrouping {
             await updateGroupsRooms(from: newGroup)
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
             refreshGroup = true
+            print("Refreshed")
+            print("NewGroup \(newGroup.count), Old \(groups.count)")
+            print("Set NewGroup \(Set(newGroup).count), Old \(Set(groups).count)")
+
+            print(isGrouping)
         }
 
         await wakeSleepingRooms(rooms: rooms)
@@ -285,13 +291,14 @@ public final class SonosService {
             guard let awaitedTrack = await track else {
                 ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                 roomGroup.coordinatorRoom.track = .empty
-                roomGroup.coordinatorRoom.track.artworkURL = nil
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
+                roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
                 return
             }
 
             let previousArtwork = roomGroup.coordinatorRoom.track.artworkURL
             if previousArtwork != nil {
-                roomGroup.coordinatorRoom.track.artworkURL = previousArtwork
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = previousArtwork
             }
 
             guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
@@ -305,16 +312,16 @@ public final class SonosService {
 
             roomGroup.playMode = await playMode
 
-            awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+            awaitedTrack.downloadedArtworkURL = roomGroup.coordinatorRoom.track.artworkURL
             awaitedTrack.metadata = trackMetadata
 
             if artworkURL != awaitedTrack.artworkURL {
-                roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
             }
 
             if roomGroup.coordinatorRoom.track != awaitedTrack {
                 roomGroup.coordinatorRoom.track = awaitedTrack
-                roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
             } else {
                 roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
             }
@@ -463,9 +470,9 @@ public final class SonosService {
 
                     guard let awaitedTrack = await track else {
                         // MARK: Fix need to catch for cancelled urls
-//                        if roomGroup.coordinatorRoom.track != .empty {
-//                            roomGroup.coordinatorRoom.track = .empty
-//                        }
+                        if roomGroup.coordinatorRoom.track != .empty, !Task.isCancelled {
+                            roomGroup.coordinatorRoom.track = .empty
+                        }
                         return
                     }
 
@@ -489,17 +496,15 @@ public final class SonosService {
                     }
 
                     roomGroup.playMode = await playMode
-
-                    awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+                    awaitedTrack.downloadedArtworkURL = artworkURL
                     awaitedTrack.metadata = trackMetadata
-
-                    if artworkURL != awaitedTrack.artworkURL {
-                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
-                    }
+//
+//                    if artworkURL != awaitedTrack.artworkURL {
+//                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+//                    }
 
                     if roomGroup.coordinatorRoom.track != awaitedTrack {
                         roomGroup.coordinatorRoom.track = awaitedTrack
-                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
                     } else {
                         roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                     }
@@ -570,6 +575,8 @@ public final class SonosService {
 //                    }
                     if roomGroup.coordinatorRoom.track.TVMode {
                         roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
+                    } else {
+                        roomGroup.tvSettings = nil
                     }
                 }
             }
@@ -639,15 +646,15 @@ public final class SonosService {
                         return
                     }
 
-                    awaitedTrack.artworkURL = roomGroup.coordinatorRoom.track.artworkURL
+                    awaitedTrack.downloadedArtworkURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL
 
                     if artworkURL != awaitedTrack.artworkURL {
-                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
                     }
 
                     if roomGroup.coordinatorRoom.track != awaitedTrack {
                         roomGroup.coordinatorRoom.track = awaitedTrack
-                        roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
                     } else {
                         roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                     }
@@ -684,27 +691,67 @@ public final class SonosService {
         }
     }
 
-    public func smartGroup(rooms: [Room], to group: GroupRoom) async {
-        // MARK: Only group new rooms
-        let rooms = rooms.filter { $0.id != group.coordinatorID }
-        let nonCoordinatorRooms = group.rooms.filter { $0.id != group.coordinatorID }
-        let changes = rooms.difference(from: nonCoordinatorRooms)
+    public func smartGroup(rooms: [Room], oldRooms: [Room], to group: GroupRoom) async -> String? {
+        var newCoordinatorID: String? = nil
 
-        if rooms.isEmpty {
-            for room in nonCoordinatorRooms {
-                await api.ungroup(IP: room.ip)
+        isGrouping = true
+        let newRooms = Set(rooms)
+        let oldRoomsSet = Set(oldRooms)
+
+        // Determine the rooms that have been added
+        let addedRooms = newRooms.subtracting(oldRoomsSet)
+
+        for room in addedRooms {
+            print("Added room: \(room)")
+            // MARK: Remove Rooms
+            for group in groups {
+                group.rooms.removeAll(where: { $0.id == room.id })
             }
-            return
+
+            if let groupIndex = groups.firstIndex(where: { groupLooking in groupLooking.coordinatorID == group.coordinatorID }) {
+                groups[groupIndex].rooms.append(room)
+            }
+
+            groups.removeAll(where: { group in group.coordinatorID == room.id })
+            await api.group(IP: room.ip, to: group.coordinatorID)
         }
 
-        for change in changes {
-            switch change {
-            case let .insert(_, element, _):
-                await api.group(IP: element.ip, to: group.coordinatorID)
-            case let .remove(_, element, _):
-                await api.ungroup(IP: element.ip)
+        // Determine the rooms that have been removed
+        let removedRooms = oldRoomsSet.subtracting(newRooms)
+        for room in removedRooms {
+            print("Removed room: \(room)")
+            let groupIndex = groups.firstIndex { groupResult in
+                groupResult.coordinatorID == group.coordinatorID
             }
+
+            if let groupIndex {
+                groups[groupIndex].rooms.removeAll { roomResult in
+                    roomResult.id == room.id
+                }
+                print(groups[groupIndex].rooms)
+
+                // Address If Coordinator Room is changing
+                if group.coordinatorID == room.id {
+                    print("Removing Coordinator")
+                    if let newCoordinatorRoom = groups[groupIndex].rooms.first {
+                        groups[groupIndex].coordinatorRoom = newCoordinatorRoom
+                        newCoordinatorID = newCoordinatorRoom.id
+                    }
+                }
+            }
+
+            groups.append(room.toGroup)
+            await api.ungroup(IP: room.ip)
         }
+
+        isGroupingTask.cancel()
+        isGroupingTask = Task {
+            try? await Task.sleep(for: .seconds(3.5))
+            if Task.isCancelled { return }
+            isGrouping = false
+        }
+
+        return newCoordinatorID
     }
 
     /// Ungroup all rooms
@@ -749,7 +796,6 @@ public final class SonosService {
         await api.getCurrentTrack(ipAddress: ip)
     }
 
-    @MainActor
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
         switch track.musicService  {
         case .apple:
@@ -779,7 +825,7 @@ public final class SonosService {
     public func getTrackInformation(from track: Track, size: Int = 500) async -> (Track.Metadata?, URL?)? {
         switch track.musicService {
         case .spotify:
-            var imageURL: URL? = track.sonosAlbumArtURL
+            var imageURL: URL? = nil
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.id) else { return (nil, track.sonosAlbumArtURL) }
 
             if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
@@ -791,19 +837,13 @@ public final class SonosService {
                 imageURL = URL(string: artworkString)
             }
 
-            if imageURL == nil {
-                imageURL = track.sonosAlbumArtURL
-            }
             return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify)), imageURL)
         case .apple:
-            var imageURL: URL? = track.sonosAlbumArtURL
+            var imageURL: URL? = nil
             guard let appleTrack = await musicSearch.appleLookup(id: track.id) else { return (nil, track.sonosAlbumArtURL) }
 
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
 
-            if imageURL == nil {
-                imageURL = track.sonosAlbumArtURL
-            }
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL)), imageURL)
         default:
             return (nil, track.sonosAlbumArtURL)

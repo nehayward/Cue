@@ -9,7 +9,9 @@ public class NetworkMonitorService {
 
     public init() {
         networkMonitor.pathUpdateHandler = { path in
-            self.isConnected = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                self?.isConnected = path.status == .satisfied
+            }
         }
         networkMonitor.start(queue: workerQueue)
     }

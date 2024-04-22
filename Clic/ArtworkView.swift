@@ -5,14 +5,13 @@ import SonosKit
 struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
-    @State private var artworkURL: URL?
     @State private var size: Double = 24
 
     private var placeholderSize: Double { size == 24 ? 100 : 42 }
 
     var body: some View {
         GeometryReader { proxy in
-            LazyImage(url: artworkURL) { state in
+            LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -23,12 +22,13 @@ struct ArtworkView: View {
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
+                        .transition(.opacity)
                 } else {
                     Rectangle()
                         .foregroundStyle(.accent.gradient.secondary)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if artworkURL == nil {
+                            if group.coordinatorRoom.track.artworkURL == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
@@ -63,11 +63,6 @@ struct ArtworkView: View {
                         .padding([.trailing, .bottom], 12)
                 }
             }
-            .task(id: group.coordinatorRoom.track.id + (group.coordinatorRoom.track.artworkURL?.absoluteString ?? "")) {
-                artworkURL = group.coordinatorRoom.track.artworkURL
-                print("Fetching Track for \(group.coordinatorRoom.track.id)")
-                artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track)
-            }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width < 100 {
                     size = 16
@@ -76,7 +71,7 @@ struct ArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .animation(.spring, value: artworkURL)
+            .animation(.spring, value: group.coordinatorRoom.track.artworkURL)
         }
     }
 }

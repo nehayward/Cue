@@ -59,9 +59,9 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
 
 extension GroupRoom: Hashable {
     public static func == (lhs: GroupRoom, rhs: GroupRoom) -> Bool {
-        lhs.id == rhs.id &&
         lhs.coordinatorID == rhs.coordinatorID &&
-        lhs.rooms == rhs.rooms
+        lhs.rooms == rhs.rooms &&
+        lhs.coordinatorRoom == rhs.coordinatorRoom
     }
 
     public func hash(into hasher: inout Hasher) {

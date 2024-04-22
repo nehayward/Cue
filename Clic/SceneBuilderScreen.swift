@@ -40,6 +40,10 @@ struct SceneBuilderScreen: View {
                             } else {
                                 selections.insert(room.id)
                             }
+                            let rooms = rooms.filter { room in
+                                selections.contains(room.id)
+                            }
+                            sceneName = rooms.map(\.name).joined(separator: " + ")
                         } label: {
                             HStack {
                                 Text(room.name)
@@ -175,8 +179,7 @@ struct SceneBuilderScreen: View {
                         return room
                     }
                 }
-            }
-            .onChange(of: selections, initial: true) { oldValue, newValue in
+
                 let rooms = rooms.filter { room in
                     selections.contains(room.id)
                 }

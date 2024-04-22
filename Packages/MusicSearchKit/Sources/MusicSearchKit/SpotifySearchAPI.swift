@@ -1,7 +1,8 @@
 import Foundation
 import OSLog
 
-final actor SpotifySearchAPI {
+final class SpotifySearchAPI {
+
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -12,7 +13,7 @@ final actor SpotifySearchAPI {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
 
-    func search(for query: String, limit: Int = 15, types: Set<SpotifyType>) async -> SpotifyResult? {
+    func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -104,11 +105,11 @@ final actor SpotifySearchAPI {
         }
     }
 
-    func albumTracks(id: String) async -> [SpotifyAlbumTrackItems]? {
+    func albumDetails(id: String) async -> SpotifyAlbumDetails? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
-        components.path = "/v1/albums/\(id)/tracks"
+        components.path = "/v1/albums/\(id)"
         components.queryItems = [
 //            URLQueryItem(name: "market", value: ""),
             URLQueryItem(name: "limit", value: "50")
@@ -117,8 +118,8 @@ final actor SpotifySearchAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let tracks: SpotifyAlbumTracks = try await loadAuthorized(url)
-            return tracks.items
+            let spotifyAlbum: SpotifyAlbumDetails = try await loadAuthorized(url)
+            return spotifyAlbum
         } catch {
             logger.error("\(error.localizedDescription)")
             return nil

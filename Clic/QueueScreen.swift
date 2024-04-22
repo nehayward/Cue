@@ -9,6 +9,7 @@ struct QueueScreen: View {
     @Environment(Router.self) var router: Router?
 
     @Binding var group: GroupRoom
+    @State private var viewRouter = Router()
     @State private var tracks: [Track] = []
     @State private var isLoading: Bool = true
 
@@ -57,8 +58,7 @@ struct QueueScreen: View {
                                 guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
                                     return
                                 }
-
-                                track.artworkURL = artworkURL
+                                track.downloadedArtworkURL = artworkURL
                             }
 
                             Button {
@@ -115,6 +115,11 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
                                 self.tracks = await sonosService.getQueue(ip: group.ip)
+                                if currentPlayMode.contains(.shuffle) {
+                                    withAnimation {
+                                        proxy.scrollTo(group.coordinatorRoom.track.position - 1)
+                                    }
+                                }
                             }
                         } label: {
                             Image(systemName: "shuffle")
@@ -159,12 +164,7 @@ struct QueueScreen: View {
                             Text("Clear")
                         }
                     }
-                }
-                .addDismiss {
-                    router?.inspectorSheet = nil
-                    dismiss()
-                }
-                .task(id: group) {
+                }.task(id: group) {
                     isLoading = true
                     self.tracks = await sonosService.getQueue(ip: group.ip)
                     group.playMode = await sonosService.playMode(ip: group.ip)
@@ -187,15 +187,19 @@ struct QueueScreen: View {
             }
         }
         .fontDesign(.rounded)
+        .withAppRouter(router: viewRouter)
     }
 
-    func move(from source: IndexSet, to destination: Int) {
+    private func move(from source: IndexSet, to destination: Int) {
         tracks.move(fromOffsets: source, toOffset: destination)
         Task {
             guard let sourceIndex = source.first else { return }
             try await sonosService.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
         }
     }
+
+    
+
 }
 
 fileprivate struct ContainerView: View {

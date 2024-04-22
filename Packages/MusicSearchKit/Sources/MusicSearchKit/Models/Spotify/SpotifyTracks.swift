@@ -1,3 +1,5 @@
+import Foundation
+
 public struct SpotifyTracks: Equatable, Decodable, Sendable {
     public let items: [SpotifyTrackItem]
 }
@@ -16,17 +18,11 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
 }
 
-public struct SpotifyImage: Equatable, Decodable, Sendable {
-    public let height: Int?
-    public let url: String
-    public let width: Int?
-}
-
 public struct SpotifyAlbum: Equatable, Decodable, Sendable {
+    public let id: String
     public let images: [SpotifyImage]
 }
 
 public struct SpotifyArtistsInfo: Equatable, Decodable, Sendable {
     public let name: String
 }
-

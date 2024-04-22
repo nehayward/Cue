@@ -49,13 +49,10 @@ final class SonosAPI: NSObject {
             "InstanceID": 0
         ]
 
-        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else {
-            logger.error("\(IP) Failed to \(#function)")
-            return nil
-        }
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetGroupMute", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else { return nil }
         
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            logger.error("\(IP) Failed to \(#function)")
+        if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode != 200 {
+            logger.error("\(IP): \(statusCode) Failed to \(#function)")
         }
         let xml = String(decoding: data, as: UTF8.self)
         return xmlParser.parseGetGroupMute(xml: xml)

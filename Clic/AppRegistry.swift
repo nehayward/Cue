@@ -11,8 +11,8 @@ extension View {
         sheet(item: sheetDestinations) { destination in
             Group {
                 switch destination {
-                case let .groupScreen(groupScreenViewModel, group):
-                    GroupScreen(id: group.coordinatorID, sheetDestination: sheetDestinations, viewModel: groupScreenViewModel)
+                case let .groupScreen(group):
+                    GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
                 case .paywall:
                    ClicPaywall()
 //                    PaywallView(displayCloseButton: true)
@@ -52,6 +52,14 @@ extension View {
                     }
                 case .scenes:
                     SceneView()
+                case let .mediaDetail(content, group):
+                    NavigationStack {
+                        MediaDetailView(playableContent: content, group: group)
+                            .environment(Router())
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
                 }
             }
             .withEnvironments()
@@ -116,11 +124,15 @@ extension View {
     }
 
     func addDismiss(action: @escaping () -> Void) -> some View {
-        toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
-                    .labelStyle(.iconOnly)
+        #if targetEnvironment(macCatalyst) || os(visionOS)
+            toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
+                        .labelStyle(.iconOnly)
+                }
             }
-        }
+        #else
+        return self
+        #endif
     }
 }

@@ -9,21 +9,20 @@ struct WatchApp: App {
     @Environment(\.scenePhase) var scenePhase
     @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
 
-    @State private var router: Router = Router()
+    @State private var router: Router = .main
     @State private var sonosService = SonosService.shared
     @State private var popover = Popover.shared
-    @State private var selected: String?
 
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     var body: some Scene {
         WindowGroup {
-            DeviceListView(activeSubscription: $activeSubscription, selected: $selected)
+            DeviceListView(activeSubscription: $activeSubscription, selected: $router.selectedID)
                 .environment(router)
                 .withEnvironments()
-                .onChange(of: selected) {
+                .onChange(of: router.selectedID) {
                     print("Update current")
-                    if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
+                    if let selected = router.selectedID, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
                         sonosService.selectedGroup = sonosService.sorted[index]
                     }
                 }
@@ -78,11 +77,11 @@ struct WatchApp: App {
             if autoLaunchNowPlaying {
                 Task {
                     try? await sonosService.updateGroupsCheckPlayback()
-                    if selected == nil {
+                    if router.selectedID == nil {
                         let playingGroups = sonosService.groups.filter(\.coordinatorRoom.isPlaying)
                         if playingGroups.count == 1, let groupPlaying = playingGroups.first {
                             Task { @MainActor in
-                                selected = groupPlaying.coordinatorID
+                                router.selectedID = groupPlaying.coordinatorID
                             }
                         }
                     }

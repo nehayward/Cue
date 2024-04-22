@@ -53,7 +53,7 @@ struct LargePlayerView: View {
                 if UIDevice.current.userInterfaceIdiom == .phone {
                     HStack(spacing: 0) {
                         Button {
-                            router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                            router.presentedSheet = .groupScreen(group: group)
                         } label: {
                             if group.TVMode {
                                 Image(systemName: "tv.and.hifispeaker.fill")
@@ -192,15 +192,24 @@ struct LargePlayerView: View {
                         Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
                             Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                         }
+                        if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService) {
+                            Button {
+                                router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                            } label: {
+                                Text("View Album")
+                            }
+                        }
                     } label: {
-                        Image(systemName: "ellipsis.circle.fill")
+                        Image(systemName: "ellipsis")
+                            .padding(.vertical)
                     }
-                    .tint(.primary)
+                    .tint(.accentColor)
                 }
             }
         }
         .dropDestinationPlay(on: group)
         .animation(.bouncy, value: group.playMode)
+        .ignoresSafeArea(.keyboard)
     }
 
     private func playbackView() -> some View {
@@ -357,7 +366,7 @@ fileprivate struct DuaLipaContainer: View {
         .task {
             // https://open.spotify.com/track/11C4y2Yz1XbHmaQwO06s9f
             let track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero, TVMode: false)
-            track.artworkURL = await SonosService.shared.getArtwork(from: track)
+            track.downloadedArtworkURL = await SonosService.shared.getArtwork(from: track)
             group.coordinatorRoom.track = track
             group.coordinatorRoom.track.duration = 200000
             group.groupVolume = 10

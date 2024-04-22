@@ -46,3 +46,13 @@ extension VanishedDevice {
         )
     }
 }
+
+extension Room {
+    public var toGroup: GroupRoom {
+        return GroupRoom(id: id,
+                         coordinatorID: id,
+                         rooms: [self],
+                         coordinatorRoom: self
+        )
+    }
+}

@@ -25,7 +25,7 @@ public final class SubscriptionService {
         guard let keyID else { return }
 
 #if DEBUG
-        Purchases.logLevel = .debug
+        Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
 
 //        if let subscribe = ProcessInfo.processInfo.environment["SUBSCRIBED"], subscribe == "false" {
@@ -36,11 +36,11 @@ public final class SubscriptionService {
 //            sync.set(true, for: keyID)
 //        }
 
-        subscription = .notActive
-        sync.set(false, for: keyID)
+//        subscription = .notActive
+//        sync.set(false, for: keyID)
 //    
-//        subscription = Subscription(isActive: true)
-//        sync.set(true, for: keyID)
+        subscription = .active
+        sync.set(true, for: keyID)
 
 //        Task { @MainActor in
 //            setup()

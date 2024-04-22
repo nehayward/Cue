@@ -1,6 +1,7 @@
 import NukeUI
 import SwiftUI
 import SonosKit
+import MusicKit
 
 struct ContentArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -10,7 +11,7 @@ struct ContentArtworkView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            LazyImage(url: artworkURL) { state in
+            LazyImage(url: content?.artwork) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -72,16 +73,16 @@ struct ContentArtworkView: View {
                         .shadow(radius: 10)
                 }
             }
-            .task(id: content?.content.id) {
-                if let artwork = content?.artwork {
-                    artworkURL = artwork
-                    return
-                }
-                if let content = content?.content, artworkURL == nil {
-                    let artworkURL = await sonosService.getArtwork(from: content)
-                    self.artworkURL = artworkURL
-                }
-            }
+//            .task(id: content?.content.id) {
+//                if let artwork = content?.artwork {
+//                    artworkURL = artwork
+//                    return
+//                }
+//                if let content = content?.content, artworkURL == nil {
+//                    let artworkURL = await sonosService.getArtwork(from: content)
+//                    self.artworkURL = artworkURL
+//                }
+//            }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width <= 100 {
                     size = 16
@@ -90,16 +91,16 @@ struct ContentArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .onAppear {
-                let pattern = "https?://[^\\s]+"
-                if let url = artworkURL?.absoluteString {
-                    if let range = url.range(of: pattern, options: .regularExpression) {
-                        let httpUrl = String(url[range])
-                        print("HTTP URL: \(httpUrl)")
-                        artworkURL = URL(string: httpUrl)
-                    }
-                }
-            }
+//            .onAppear {
+//                let pattern = "https?://[^\\s]+"
+//                if let url = artworkURL?.absoluteString {
+//                    if let range = url.range(of: pattern, options: .regularExpression) {
+//                        let httpUrl = String(url[range])
+//                        print("HTTP URL: \(httpUrl)")
+//                        artworkURL = URL(string: httpUrl)
+//                    }
+//                }
+//            }
         }
     }
 }

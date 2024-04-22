@@ -10,7 +10,7 @@ struct MediaControlsView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 12) {
             Button {
-                router.presentedSheet  = .groupScreen(groupScreenViewModel: GroupScreenViewModel(groupCoordinatorID: group.coordinatorID, sonosService: sonosService), group: group)
+                router.presentedSheet = .groupScreen(group: group)
             } label: {
                 Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
                     .frame(width: 20)
@@ -31,24 +31,32 @@ struct MediaControlsView: View {
                         }
                     }
                 } label: {
-                    Gauge(
-                        value: group.coordinatorRoom.track.playbackPosition,
-                        in: 0...group.coordinatorRoom.track.duration,
-                        label: {
-                            
-                        },
-                        currentValueLabel: {
-                            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                .renderingMode(.template)
-                                .foregroundColor(.accentColor)
-                                .contentTransition(.symbolEffect(.automatic))
-                        }
-                    )
-                    .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
-                    .gaugeStyle(.accessoryCircularCapacity)
-                    .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
-                    .scaleEffect(0.5)
-                    .frame(width: 20, height: 40, alignment: .center)
+                    if group.coordinatorRoom.track.duration > 0 {
+                        Gauge(
+                            value: group.coordinatorRoom.track.playbackPosition,
+                            in: 0...group.coordinatorRoom.track.duration,
+                            label: {
+
+                            },
+                            currentValueLabel: {
+                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                    .renderingMode(.template)
+                                    .foregroundColor(.accentColor)
+                                    .contentTransition(.symbolEffect(.automatic))
+                            }
+                        )
+                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
+                        .gaugeStyle(.accessoryCircularCapacity)
+                        .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
+                        .scaleEffect(0.5)
+                        .frame(width: 20, height: 40, alignment: .center)
+                    } else {
+                        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                            .renderingMode(.template)
+                            .foregroundColor(.accentColor)
+                            .contentTransition(.symbolEffect(.automatic))
+                            .frame(width: 20, height: 40, alignment: .center)
+                    }
                 }
                 .buttonStyle(.plain)
                 .buttonBorderShape(.circle)
