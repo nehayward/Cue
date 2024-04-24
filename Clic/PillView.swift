@@ -17,6 +17,7 @@ struct PillView: View {
             }
             .frame(alignment: .top)
             .fontDesign(.rounded)
+            .symbolRenderingMode(.hierarchical)
             .bold()
             .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
             .offset(y: alertService.alert.isShowing ? 0 : -300)

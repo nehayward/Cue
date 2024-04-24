@@ -6,7 +6,6 @@ import SonosKit
 struct DeviceCellView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Binding var group: GroupRoom
-    @State private var artworkURL: URL?
 
     var body: some View {
         Section {
@@ -17,7 +16,7 @@ struct DeviceCellView: View {
                             Text(settings.audioInputFormat.description)
                         } else {
                             HStack {
-                                LazyImage(url: artworkURL) { state in
+                                LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
                                     if let image = state.image {
                                         image
                                             .resizable()
@@ -33,7 +32,7 @@ struct DeviceCellView: View {
                                             .foregroundStyle(.accent.gradient.secondary)
                                             .shadow(radius: 2)
                                             .overlay {
-                                                if artworkURL == nil {
+                                                if group.coordinatorRoom.track.artworkURL == nil {
                                                     Image(systemName: "music.note")
                                                         .resizable()
                                                         .scaledToFit()
@@ -76,6 +75,7 @@ struct DeviceCellView: View {
                                         .redacted(reason: group.coordinatorRoom.track.name.isEmpty ? .placeholder : [])
                                     Text(group.coordinatorRoom.track.artist)
                                         .lineLimit(1, reservesSpace: true)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -86,31 +86,43 @@ struct DeviceCellView: View {
                         Button {
                             Task {
                                 if group.coordinatorRoom.isPlaying {
-                                    WKInterfaceDevice.current().play(.stop)
+                                    WKInterfaceDevice.current().play(.click)
+                                    group.coordinatorRoom.isPlaying = false
                                     await sonosService.pause(ip: group.coordinatorRoom.ip)
                                 } else {
-                                    WKInterfaceDevice.current().play(.start)
+                                    WKInterfaceDevice.current().play(.click)
+                                    group.coordinatorRoom.isPlaying = true
                                     await sonosService.play(ip: group.coordinatorRoom.ip)
                                 }
                             }
                         } label: {
-                            Gauge(
-                                value: group.coordinatorRoom.track.playbackPosition,
-                                in: 0...group.coordinatorRoom.track.duration,
-                                label: {
+                            if group.coordinatorRoom.track.duration > 0 {
+                                Gauge(
+                                    value: group.coordinatorRoom.track.playbackPosition,
+                                    in: 0...group.coordinatorRoom.track.duration,
+                                    label: {
 
-                                },
-                                currentValueLabel: {
-                                    Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                        .renderingMode(.template)
-                                        .foregroundColor(.accentColor)
-                                        .contentTransition(.symbolEffect(.automatic))
-                                }
-                            )
-                            .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
-                            .gaugeStyle(.accessoryCircularCapacity)
-                            .scaleEffect(0.65)
-                            .frame(width: 24, height: 24)
+                                    },
+                                    currentValueLabel: {
+                                        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                            .renderingMode(.template)
+                                            .foregroundStyle(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
+                                            .contentTransition(.symbolEffect(.automatic))
+
+                                    }
+                                )
+                                .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
+                                .gaugeStyle(.accessoryCircularCapacity)
+                                .animation(.smooth, value: group.coordinatorRoom.track.playbackPosition)
+                                .scaleEffect(0.5)
+                                .frame(width: 20, height: 40, alignment: .center)
+                            } else {
+                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                    .renderingMode(.template)
+                                    .foregroundColor(.accentColor)
+                                    .contentTransition(.symbolEffect(.automatic))
+                                    .frame(width: 20, height: 40, alignment: .center)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -140,8 +152,10 @@ struct DeviceCellView: View {
         }
         .tag(group.coordinatorID)
         .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
-        .task(id: group.coordinatorRoom.track.id) {
-            artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
+        .overlay(alignment: .center) {
+            if sonosService.sorted.isEmpty {
+                ProgressView()
+            }
         }
     }
 }

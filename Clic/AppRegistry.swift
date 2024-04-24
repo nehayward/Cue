@@ -7,6 +7,7 @@ import SwiftUI
 
 @MainActor
 extension View {
+    
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>) -> some View {
         sheet(item: sheetDestinations) { destination in
             Group {
@@ -57,6 +58,67 @@ extension View {
                         MediaDetailView(playableContent: content, group: group)
                             .environment(Router())
                             .navigationBarTitleDisplayMode(.inline)
+                    }
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
+                case let .artistDetail(content, group):
+                    ArtistDetailView(playableContent: content, group: group)
+                }
+            }
+            .withEnvironments()
+        }
+    }
+
+    func withPopoverDestinations(popoverDestination: Binding<SheetDestination?>)  -> some View {
+        popover(item: popoverDestination) { destination in
+            Group {
+                switch destination {
+                case let .groupScreen(group):
+                    GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: popoverDestination)
+                        .frame(idealWidth: 400, idealHeight: 800)
+                case .paywall:
+                   ClicPaywall()
+                case .settings:
+                    PreferenceScreen()
+                case let .search(group, instant):
+                    NewSearchScreen(group: group, instant: instant)
+                case let .add(mediaContent):
+                    ImprovedSearch(adding: mediaContent, isAdding: true)
+                case let .queue(group):
+                    QueueScreen(group: group)
+                        .presentationDetents([.medium, .large])
+                case let .playContent(content):
+                    PlayerSelectionView(playableContent: content)
+                case let .playMedia(content):
+                    NavigationStack {
+                        PlayerSelectionView(mediaContent: content)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .navigationTitle("Choose Group")
+                    }
+                case .createScene:
+                    NavigationStack {
+                        SceneBuilderScreen(sheetDestination: .constant(nil))
+                            .addDismiss {
+                                popoverDestination.wrappedValue = nil
+                            }
+                    }
+                case .scenes:
+                    SceneView()
+                case let .mediaDetail(content, group):
+                    NavigationStack {
+                        MediaDetailView(playableContent: content, group: group)
+                            .environment(Router())
+                            .navigationBarTitleDisplayMode(.inline)
+                    }
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
+                case let .artistDetail(content, group):
+                    @State var router = Router()
+                    NavigationStack(path: $router.path) {
+                        ArtistDetailView(playableContent: content, group: group)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .withAppRouter(router: router)
+                            .environment(router)
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
@@ -123,16 +185,17 @@ extension View {
             .environment(AlertService.shared)
     }
 
+    @ViewBuilder
     func addDismiss(action: @escaping () -> Void) -> some View {
-        #if targetEnvironment(macCatalyst) || os(visionOS)
+        if [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom) {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
                         .labelStyle(.iconOnly)
                 }
             }
-        #else
-        return self
-        #endif
+        } else {
+            self
+        }
     }
 }

@@ -15,9 +15,7 @@ import WidgetKit
 
 @main
 struct ClicApp: App {
-    #if targetEnvironment(macCatalyst)
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    #endif
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.requestReview) var requestReview
@@ -60,6 +58,15 @@ struct ClicApp: App {
                                         if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision {
                                             Button {
                                                 if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                                                    router.popover = .groupScreen(group: sonosService.sorted[group])
+                                                }
+                                            } label: {
+                                                Image(systemName: "hifispeaker")
+                                            }
+                                            .withPopoverDestinations(popoverDestination: $router.popover)
+                                            .tint(.primary)
+                                            Button {
+                                                if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                                                     if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: true) {
                                                         router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
                                                     } else {
@@ -68,8 +75,8 @@ struct ClicApp: App {
                                                 }
                                             } label: {
                                                 Image(systemName: "sparkle.magnifyingglass")
-                                                    .foregroundStyle(.accent.gradient)
                                             }
+                                            .tint(.primary)
 
                                             Button {
                                                 if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -80,9 +87,9 @@ struct ClicApp: App {
                                                     }
                                                 }
                                             } label: {
-                                                Image(systemName: "list.dash")
-                                                    .foregroundStyle(.accent.gradient)
+                                                Image(systemName: "list.bullet")
                                             }
+                                            .tint(.primary)
                                         }
                                     }
                                 }
@@ -327,6 +334,43 @@ struct ClicApp: App {
                 print(media)
                 router.sheet(to: .playMedia(content: media))
             }
+
+            if components.host?.lowercased() == "group", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
+                router.presentedSheet = nil
+                if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        router.presentedSheet = .groupScreen(group: group)
+                    } else {
+                        selectedID = group.coordinatorID
+                        // MARK: Maybe add group to toolbar
+                    }
+                    return
+                }
+                Task {
+                    try await sonosService.fetch(useCache: true)
+                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                                router.path.removeAll()
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            } else if router.path.isEmpty {
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            }
+                            router.presentedSheet = .groupScreen(group: group)
+                        } else {
+                            selectedID = group.coordinatorID
+                            // MARK: Maybe add group to toolbar
+                        }
+                        return
+                    }
+                }
+            }
         }
     }
 }
@@ -338,6 +382,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        configurationForConnecting connectingSceneSession: UISceneSession,
        options: UIScene.ConnectionOptions
      ) -> UISceneConfiguration {
+         if let shortcutItem = options.shortcutItem {
+             if shortcutItem.type == "com.cllic.search" {
+                 Task { @MainActor in
+                     // MARK: Delay for Toolbar
+                     try await Task.sleep(for: .milliseconds(200))
+                     Router.main.path.removeAll()
+                     Router.main.presentedSheet = .search(group: nil, instant: false)
+                 }
+             }
+         }
        let sceneConfig = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
        sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
        return sceneConfig
@@ -348,9 +402,8 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
     var toolbarDelegate = ToolbarDelegate()
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-
         guard let windowScene = (scene as? UIWindowScene) else { return }
-
+        
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
 //            let toolbar = NSToolbar(identifier: "main")
@@ -361,6 +414,19 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
 //            titlebar.toolbarStyle = .unified
         }
 #endif
+    }
+    func windowScene(_ windowScene: UIWindowScene,
+                     performActionFor shortcutItem: UIApplicationShortcutItem,
+                     completionHandler: @escaping (Bool) -> Void) {
+
+        if shortcutItem.type == "com.cllic.search" {
+            Task { @MainActor in
+                // MARK: Delay for Toolbar
+                try await Task.sleep(for: .milliseconds(200))
+                Router.main.path.removeAll()
+                Router.main.presentedSheet = .search(group: nil, instant: false)
+            }
+        }
     }
 }
 

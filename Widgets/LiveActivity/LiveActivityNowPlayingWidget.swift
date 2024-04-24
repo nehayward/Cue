@@ -4,6 +4,7 @@ import AppIntents
 import WidgetKit
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
@@ -33,7 +34,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                         .resizable()
                                         .aspectRatio(contentMode: .fit)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
-                                        .frame(width: 50, height: 50)
+                                        .frame(width: 48, height: 48)
                                 }
                                 VStack(alignment: .leading) {
                                     Text(context.state.trackName)
@@ -44,6 +45,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                         .transition(updateTransition(context: context))
                                     Text(context.state.artist)
                                         .lineLimit(0)
+                                        .foregroundStyle(.secondary)
                                         .invalidatableContent()
                                         .id(context.state.artist)
                                         .transition(updateTransition(context: context))
@@ -60,51 +62,41 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 Image(systemName: "minus")
                                     .bold()
                             }
-                            .buttonStyle(.plain)
-                            .buttonBorderShape(.circle)
                             .tint(.primary)
-                            ProgressView(value: Double(context.state.volume), total: 100)
-                                .tint(.teal)
+                            .buttonStyle(.liveActivity)
+                            VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
+                                .foregroundStyle(.teal)
                                 .invalidatableContent()
                             Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                                 Image(systemName: "plus")
                                     .bold()
                             }
-                            .buttonStyle(.plain)
                             .tint(.primary)
-                            .buttonBorderShape(.circle)
-                            .contentShape(Circle())
+                            .buttonStyle(.liveActivity)
                         }
-                        .padding([.bottom], 4)
                         .frame(maxWidth: 240)
+                        .frame(height: 12)
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 24) {
                         if let settings = context.state.TVSettings {
                             Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
-                                Label("Night Mode", systemImage: "moon.zzz")
+                                Label("Night Mode", systemImage: "moon.zzz.fill")
                             }
-                            .symbolVariant(settings.nightMode ? .fill : .none)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .buttonBorderShape(.circle)
-                            .foregroundStyle(.thickMaterial)
-                            .frame(width: 40, height: 40)
-                            .tint(.secondary)
-                            .background(settings.nightMode ? .primary : .tertiary, in: Capsule())
-                            
+                            .foregroundStyle(settings.nightMode ? Color.teal : .secondary.opacity(0.8))
+                            .frame(width: 32, height: 32)
+
                             Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
-                                Label("Speech Enhancement", systemImage: "person.wave.2")
+                                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                             }
-                            .symbolVariant(settings.dialogLevel ? .fill : .none)
+                            .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .buttonBorderShape(.circle)
-                            .foregroundStyle(.thickMaterial)
-                            .frame(width: 40, height: 40)
-                            .tint(.secondary)
-                            .background(settings.dialogLevel ? .primary : .tertiary, in: Capsule())
+                            .foregroundStyle(settings.dialogLevel ? Color.teal : .secondary.opacity(0.8))
+                            .frame(width: 32, height: 32)
                         } else {
                             Button(intent: PreviousIntent(room: context.attributes.room)) {
                                 Image(systemName: "backward.end.fill")
@@ -128,12 +120,21 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 .bold()
                         }
                     }
+                    .overlay(alignment: .leading) {
+                        Link(destination: URL(string: "clic://group?id=\(context.attributes.room.id)")!) {
+                            Image("hifispeaker.circle.fill")
+                                .imageScale(.large)
+                                .bold()
+                        }
+                    }
                 }
             } compactLeading: {
                 if context.state.TVSettings != nil {
                     Image(systemName: "tv.and.hifispeaker.fill")
                 } else {
                     Image(systemName: "hifispeaker.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .fontDesign(.rounded)
                 }
             } compactTrailing: {
                 if let image = ArtworkManager.shared.getImage(name: context.state.name) {

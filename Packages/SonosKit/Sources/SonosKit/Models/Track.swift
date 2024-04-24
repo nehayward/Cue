@@ -17,6 +17,7 @@ public final class Track: Identifiable, Sendable {
     public var album: String
     /// The URL for the track's artwork.
     public var artworkURL: URL? {
+        if trackID.isEmpty { return nil }
         if let downloadedArtworkURL {
             return downloadedArtworkURL
         }

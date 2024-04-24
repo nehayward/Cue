@@ -113,7 +113,20 @@ struct MediaDetailView: View {
         }
         .listStyle(.inset)
         .listSectionSeparator(.hidden)
-        .navigationTitle(playableContent.content.type != .track ? playableContent.title : "")
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                if tracks.isEmpty, playableContent.content.type != .track {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                } else {
+                    Text(playableContent.title)
+                        .fontDesign(.rounded)
+                        .bold()
+                }
+            }
+        }
         .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {

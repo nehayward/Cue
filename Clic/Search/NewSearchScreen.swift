@@ -94,7 +94,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                         prompt: "Searching \(musicSearchSelection.title)"
                     )
                     .navigationBarTitleDisplayMode(.inline)
-                    .navigationTitle(musicSearchSelection.title)
+                    .navigationTitle("Search")
                     .withAppRouter(router: router)
                     .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                         if suggestion == nil {

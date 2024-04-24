@@ -8,12 +8,14 @@ struct ZoneView: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text(group.coordinatorRoom.track.name)
+                .foregroundStyle(.primary)
                 .tint(.primary)
-                .lineLimit(2)
+                .lineLimit(1)
             Text(group.coordinatorRoom.track.artist)
-                .font(.subheadline)
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 .tint(.secondary)
-                .lineLimit(2)
+                .lineLimit(1)
         }
         .frame(alignment: .top)
         .fontDesign(.rounded)

@@ -11,20 +11,27 @@ struct PlayerView: View {
     @State private var isIdle: Bool = true
     @State private var showGroup: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    @State private var artworkURL: URL?
 
     var body: some View {
         VStack(spacing: 4) {
-            LazyImage(url: artworkURL) { state in
+            LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
                 if let image = state.image {
-                    image.resizable().aspectRatio(contentMode: .fit)
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
+                    image
+                        .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.accent.gradient.secondary)
+                        .transition(.opacity)
+                } else if state.isLoading {
+                    Rectangle()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
+                        .transition(.opacity)
+                } else {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient.secondary)
+                        .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if artworkURL == nil {
+                            if group.coordinatorRoom.track.artworkURL == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
@@ -150,7 +157,8 @@ struct PlayerView: View {
                 Button {
                     showGroup.toggle()
                 } label: {
-                    Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                    Image(systemName: "hifispeaker.fill")
+                        .fontDesign(.rounded)
                         .foregroundStyle(.foreground)
                 }
             }
@@ -197,10 +205,8 @@ struct PlayerView: View {
             track.downloadedArtworkURL = await sonosService.getArtwork(from: track)
             group.coordinatorRoom.track = track
         }
-        .task(id: group.coordinatorRoom.track.id) {
-            artworkURL = await sonosService.getArtwork(from: group.coordinatorRoom.track, size: 200)
-        }
         .animation(.spring, value: popOver.isShowing)
+        .animation(.spring, value: group.coordinatorRoom.track.artworkURL)
     }
 }
 

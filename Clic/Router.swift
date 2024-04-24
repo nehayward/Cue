@@ -11,6 +11,8 @@ import SonosKit
     var selection: RouterDestination?
     @MainActor var presentedSheet: SheetDestination?
     @MainActor var inspectorSheet: SheetDestination?
+    @MainActor var popover: SheetDestination?
+
     var dismiss: Bool = false
 
     private let sonosService: SonosService

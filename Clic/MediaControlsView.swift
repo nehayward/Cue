@@ -12,11 +12,11 @@ struct MediaControlsView: View {
             Button {
                 router.presentedSheet = .groupScreen(group: group)
             } label: {
-                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" :  "hifispeaker.fill")
-                    .frame(width: 20)
-                    .foregroundStyle(.tint, .thickMaterial)
+                Image(systemName: "hifispeaker.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
 
             if group.coordinatorRoom.track != .empty {
                 Button {
@@ -41,13 +41,14 @@ struct MediaControlsView: View {
                             currentValueLabel: {
                                 Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                                     .renderingMode(.template)
-                                    .foregroundColor(.accentColor)
+                                    .foregroundStyle(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
                                     .contentTransition(.symbolEffect(.automatic))
+
                             }
                         )
-                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.secondary)
+                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
                         .gaugeStyle(.accessoryCircularCapacity)
-                        .animation(.linear, value: group.coordinatorRoom.track.playbackPosition)
+                        .animation(.smooth, value: group.coordinatorRoom.track.playbackPosition)
                         .scaleEffect(0.5)
                         .frame(width: 20, height: 40, alignment: .center)
                     } else {

@@ -11,7 +11,7 @@ import VibesDS
 struct ArtistDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
-    @Environment(Router.self) private var router
+    @Environment(Router.self) private var router: Router?
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
@@ -44,61 +44,67 @@ struct ArtistDetailView: View {
             .frame(width: 200, height: 200)
             .frame(maxWidth: .infinity)
             .listSectionSeparator(.hidden)
+            .listRowBackground(Color.clear)
 
             Section("Top Tracks") {
                 ForEach(tracks) { track in
-                   PlayableContentView(item: track, group: group)
+                    PlayableContentView(item: track, group: group)
+                        .listRowBackground(Color.clear)
                 }
+
                 if tracks.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             }
 
             Section("Albums") {
                 ForEach(albums) { album in
                     PlayableContentView(item: album, group: group)
+                        .listRowBackground(Color.clear)
                 }
                 if tracks.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             }
 
-//            Section {
-//                ForEach(tracks) { track in
-//                   PlayableContentView(item: track, group: group)
-//                }
-//                if tracks.isEmpty {
-//                    ProgressView()
-//                        .frame(maxWidth: .infinity, alignment: .center)
-//                        .listRowSeparator(.hidden)
-//                }
-//                ForEach(albums) { album in
-//                    PlayableContentView(item: album, group: group)
-//                }
-//                if tracks.isEmpty {
-//                    ProgressView()
-//                        .frame(maxWidth: .infinity, alignment: .center)
-//                        .listRowSeparator(.hidden)
-//                }
-//            } header: {
-// MARK: Add back when queue multiple songs
-//                Button {
-//                    play(content: playableContent)
-//                } label: {
-//                    Text("Play Artist Top Tracks")
-//                }
-//                .padding()
-//                .background(
-//                    .ultraThinMaterial,
-//                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-//                )
-//                .padding(.vertical)
-//                .frame(maxWidth: .infinity, alignment: .center)
-//            }
+            //            Section {
+            //                ForEach(tracks) { track in
+            //                   PlayableContentView(item: track, group: group)
+            //                }
+            //                if tracks.isEmpty {
+            //                    ProgressView()
+            //                        .frame(maxWidth: .infinity, alignment: .center)
+            //                        .listRowSeparator(.hidden)
+            //                }
+            //                ForEach(albums) { album in
+            //                    PlayableContentView(item: album, group: group)
+            //                }
+            //                if tracks.isEmpty {
+            //                    ProgressView()
+            //                        .frame(maxWidth: .infinity, alignment: .center)
+            //                        .listRowSeparator(.hidden)
+            //                }
+            //            } header: {
+            // MARK: Add back when queue multiple songs
+            //                Button {
+            //                    play(content: playableContent)
+            //                } label: {
+            //                    Text("Play Artist Top Tracks")
+            //                }
+            //                .padding()
+            //                .background(
+            //                    .ultraThinMaterial,
+            //                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            //                )
+            //                .padding(.vertical)
+            //                .frame(maxWidth: .infinity, alignment: .center)
+            //            }
         }
         .listStyle(.inset)
         .listSectionSeparator(.hidden)
@@ -126,28 +132,31 @@ struct ArtistDetailView: View {
                 playableContent = artistAwait.toPlayable
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 self.tracks = artistTopTracksAwait.map(\.toPlayable)
-//                print(artistAwait)
-//                print(artistAlbumsAwait)
+            case (.track, .apple):
+                guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = song.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
+                self.tracks = topTracks.map(\.toPlayable)
+                self.albums = albums.map(\.toPlayable)
+                artworkURL = artist.artwork?.url(width: 500, height: 500)
+                playableContent = artist.toPlayable
+            case (.track, .spotify):
+                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
+                async let artist = MusicSearchService().spotifyArtist(id: artistID)
+                async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: artistID)
+                async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: artistID)
 
+                guard let artistAwait = await artist else { return }
+                guard let artistAlbumsAwait = await artistAlbums else { return }
+                let artistTopTracksAwait = await artistTopTracks
+
+                playableContent = artistAwait.toPlayable
+                albums = artistAlbumsAwait.items.map(\.toPlayable)
+                artworkURL = artistAwait.images.biggestImageURL
+                self.tracks = artistTopTracksAwait.map(\.toPlayable)
             default:
                 break
             }
-        }
-    }
-
-    private func play(content: PlayableContent, position: QueuePosition = .now) {
-        Task {
-            guard let group = group else {
-                router.navigate(to: .groupDestination(content: content))
-                return
-            }
-
-            playHistory.remove(content)
-            playHistory.insert(content, at: 0)
-
-            router.dismiss = true
-            await sonosService.queue(content: content.content, group: group, position: position)
-            await sonosService.play(ip: group.coordinatorRoom.ip)
         }
     }
 }

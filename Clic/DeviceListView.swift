@@ -48,7 +48,8 @@ struct DeviceListMainView: View {
                         .dropDestinationPlay(on: group)
                     } else {
                         Text(group.coordinatorRoom.state.reason)
-                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                            .padding(.vertical, 8)
+                            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                     }
                 } header: {
                     HStack {

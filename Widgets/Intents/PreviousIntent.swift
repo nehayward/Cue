@@ -33,7 +33,7 @@ struct PreviousIntent: AppIntent {
 
         await Self.sonosService.previous(ip: coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(type: .refresh)
+        await Self.liveActivityManager.refresh(type: .previous)
         return .result()
     }
 }

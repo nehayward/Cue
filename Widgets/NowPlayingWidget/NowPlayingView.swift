@@ -14,6 +14,7 @@ struct NowPlayingWidgetView: View {
         default:
             if let info = entry.info {
                 Label(info.room.name, systemImage: "hifispeaker.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .padding(4)
                     .frame(maxWidth: .infinity)
                     .background(.thinMaterial)

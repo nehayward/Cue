@@ -57,29 +57,26 @@ struct LargePlayerView: View {
                         } label: {
                             if group.TVMode {
                                 Image(systemName: "tv.and.hifispeaker.fill")
-                            } else {
-                                Image(systemName: group.rooms.count > 1 ? "hifispeaker.2.fill" : "hifispeaker.fill")
                                     .fontDesign(.rounded)
-                                    .font(.title3)
+                            } else {
+                                Image(systemName: "hifispeaker.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .fontDesign(.rounded)
                             }
-
                         }
                         .buttonStyle(.plain)
+                        .imageScale(.large)
                         Spacer()
-                        Image(systemName: "sparkle.magnifyingglass")
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .onTapGesture {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                router.presentedSheet = .search(group: group)
-                            }
-                            .simultaneousGesture(
-                                LongPressGesture(minimumDuration: 0.5)
-                                    .onEnded { _ in
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        router.presentedSheet = .search(instant: true)
-                                    }
-                            )
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.presentedSheet = .search(group: group)
+                        } label: {
+                            Image(systemName: "sparkle.magnifyingglass")
+                                .symbolRenderingMode(.hierarchical)
+                                .fontDesign(.rounded)
+                        }
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
 
                         if group.rooms.count > 1 {
                             Spacer()
@@ -88,18 +85,19 @@ struct LargePlayerView: View {
                                     isExpanded.toggle()
                                 }
                             } label: {
-                                Label("Room Volume", systemImage: "speaker.wave.2")
+                                Label("Room Volume", systemImage: "speaker.wave.2.circle")
+                                    .symbolRenderingMode(.hierarchical)
                                     .labelStyle(.iconOnly)
                                     .fontDesign(.rounded)
-                                    .font(.title3)
                             }
                             .buttonStyle(.plain)
+                            .imageScale(.large)
                         }
                         Spacer()
                         Button {
                             router.presentedSheet = .queue(group: $group)
                         } label: {
-                            Image(systemName: "list.dash")
+                            Image(systemName: "list.bullet")
                                 .fontDesign(.rounded)
                                 .font(.title3)
                                 .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
@@ -111,25 +109,38 @@ struct LargePlayerView: View {
                                             .foregroundStyle(.green)
                                     }
                                 }
-                                .overlay(alignment: .topTrailing) {
-                                    if group.playMode.contains(.shuffle) {
-                                        Image(systemName: "shuffle.circle.fill")
-                                            .offset(x: 12, y: -12)
-                                    } else if group.playMode.contains(.repeatAll){
-                                        Image(systemName: "repeat.circle.fill")
-                                            .offset(x: 12, y: -12)
-                                    } else if group.playMode.contains(.repeatOne){
-                                        Image(systemName: "repeat.1.circle.fill")
-                                            .offset(x: 12, y: -12)
-                                    }
-                                }
                         }
                         .buttonStyle(.plain)
+                        .imageScale(.large)
                         .dropDestinationPlay(on: group, now: false) { isTargeted in
                             if isTargeted {
                                 HapticManager.shared.fireHaptic(.selection)
                             }
                             isHoveringOnQueueList = isTargeted
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            if group.playMode.contains(.shuffle) {
+                                Image(systemName: "shuffle.circle.fill")
+                                    .symbolRenderingMode(.multicolor)
+                                    .foregroundStyle(.background)
+                                    .offset(x: 8, y: -8)
+                                    .shadow(radius: 2)
+                                    .environment(\.colorScheme, .dark)
+                            } else if group.playMode.contains(.repeatAll){
+                                Image(systemName: "repeat.circle.fill")
+                                    .symbolRenderingMode(.multicolor)
+                                    .foregroundStyle(.background)
+                                    .offset(x: 8, y: -8)
+                                    .shadow(radius: 2)
+                                    .environment(\.colorScheme, .dark)
+                            } else if group.playMode.contains(.repeatOne){
+                                Image(systemName: "repeat.1.circle.fill")
+                                    .symbolRenderingMode(.multicolor)
+                                    .foregroundStyle(.background)
+                                    .offset(x: 8, y: -8)
+                                    .shadow(radius: 2)
+                                    .environment(\.colorScheme, .dark)
+                            }
                         }
                     }
                     .frame(maxWidth: 300)
@@ -141,15 +152,16 @@ struct LargePlayerView: View {
                                 isExpanded.toggle()
                             }
                         } label: {
-                            Label("Room Volume", systemImage: "speaker.wave.2")
+                            Label("Room Volume", systemImage: "speaker.wave.2.circle")
+                                .symbolRenderingMode(.hierarchical)
                                 .labelStyle(.iconOnly)
                                 .fontDesign(.rounded)
-                                .font(.title3)
                         }
                         .frame(maxWidth: 300)
                         .padding(.horizontal, 60)
                         .padding(.bottom, 24)
-                        .frame(width: 40, height: 40)
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
                     }
                 }
             }
@@ -196,14 +208,20 @@ struct LargePlayerView: View {
                             Button {
                                 router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                             } label: {
-                                Text("View Album")
+                                Label("View Album", systemImage: "rectangle.stack.fill")
                             }
+                            // TODO: Add back
+//                            Button {
+//                                router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+//                            } label: {
+//                                Label("View Artist", systemImage: "music.mic.circle.fill")
+//                            }
                         }
                     } label: {
                         Image(systemName: "ellipsis")
                             .padding(.vertical)
                     }
-                    .tint(.accentColor)
+                    .tint(.primary)
                 }
             }
         }
@@ -281,6 +299,7 @@ struct LargePlayerView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.space, modifiers: []) 
+            .id(group.coordinatorID)
             Spacer()
             Button {
                 Task {
@@ -303,14 +322,15 @@ struct LargePlayerView: View {
         VStack(alignment: .center) {
             if let settings = group.tvSettings {
                 Text(settings.audioInputFormat.description)
+                    .bold()
             }
             HStack {
                 if let settings = Binding<TVSettings>($group.tvSettings) {
-                    Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
-                        .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
+                    Toggle("Night Mode", systemImage: "moon.zzz.fill", isOn: settings.nightMode)
+                        .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
-                        .contentShape(.circle)
                         .toggleStyle(.button)
+                        .foregroundStyle(settings.nightMode.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
                         .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
@@ -318,11 +338,11 @@ struct LargePlayerView: View {
                             }
                         }
 
-                    Toggle("Dialog Mode", systemImage: "person.wave.2", isOn: settings.dialogLevel)
-                        .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
+                    Toggle("Dialog Mode", systemImage: "person.wave.2.fill", isOn: settings.dialogLevel)
+                        .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .contentShape(.circle)
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
                         .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)

@@ -3,6 +3,7 @@ public enum RoomState: Hashable {
     case active
     case sleeping
     case poweredOff
+    case lowBattery
     case unknown
 
     init(reason: String) {
@@ -11,6 +12,8 @@ public enum RoomState: Hashable {
             self = .poweredOff
         case "sleeping":
             self = .sleeping
+        case "low battery":
+            self = .lowBattery
         default:
             self = .unknown
         }
@@ -24,6 +27,8 @@ public enum RoomState: Hashable {
             "Sleeping"
         case .poweredOff:
             "Off"
+        case .lowBattery:
+            "Low Battery"
         case .unknown:
             "Unknown"
         }
@@ -37,6 +42,8 @@ public enum RoomState: Hashable {
             "moon.zzz.fill"
         case .poweredOff:
             "power.circle.fill"
+        case .lowBattery:
+            "battery.0percent"
         case .unknown:
             ""
         }

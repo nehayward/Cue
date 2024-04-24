@@ -4,7 +4,19 @@
 
 + Improved grouping speakers, you can now remove any speaker from group.
 + Improve search, even faster now.
++ Add group button to toolbar.
++ Search from HomeScreen shortcut.
++ Added View Album on ellipsis button on player screen.
++ Added View Artist on ellipsis button on player screen.
+
++ Improve Live Activities
++ Customize App Icon
 - Fixed and issue where toolbar would get hidden on iPad. Thanks Jason!
+
+## Internal
++ Fix track showing wrong album art
++ Fix Live Activity not transitioning animation.
+
 
 # 2024.17
 

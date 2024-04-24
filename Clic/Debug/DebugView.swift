@@ -18,6 +18,8 @@ struct DebugView: View {
                 } header: {
                     HStack {
                         Image(systemName: "hifispeaker.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .fontDesign(.rounded)
                         Text(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
                     }
                     .fontDesign(.rounded)

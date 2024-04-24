@@ -71,7 +71,9 @@ struct QueueScreen: View {
                             } label: {
                                 VStack(alignment: .leading) {
                                     Text(track.name)
+                                        .lineLimit(1)
                                     Text(track.artist)
+                                        .lineLimit(1)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

@@ -46,6 +46,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                            artist: group.coordinatorRoom.track.artist,
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
+                                                                           update: type,
                                                                            TVMode: group.coordinatorRoom.track.TVMode,
                                                                            TVSettings: tvSettings)
 

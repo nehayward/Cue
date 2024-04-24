@@ -45,7 +45,9 @@ struct GroupVolumeControlView: View {
                     }
                 } label: {
                     Text("Sync Volume")
-                        .bold()
+                        .padding()
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .frame(maxWidth: 500)
             }

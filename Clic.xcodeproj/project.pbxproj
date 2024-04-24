@@ -271,6 +271,7 @@
 		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */; };
+		E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A5412B2BD83F5800EAAF5C /* VibesDS */; };
 		E9A6AAB62B3CCADA00C24B98 /* QueueListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */; };
 		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
 		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
@@ -289,7 +290,6 @@
 		E9B135C32B6C1A880096A14E /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B135BE2B6B62B00096A14E /* MediaDetailView.swift */; };
 		E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */; };
 		E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
-		E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B256512A9951A00083869E /* TVModeViewCell.swift */; };
 		E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
@@ -563,7 +563,6 @@
 		E9B135BE2B6B62B00096A14E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
-		E9B256512A9951A00083869E /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneButton.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
 		E9BC83762B7022CC0088BF1F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
@@ -679,6 +678,7 @@
 				E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */,
 				E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */,
 				E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */,
+				E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1002,7 +1002,6 @@
 				E9C03B002A586F5E00FB9118 /* DeviceListView.swift */,
 				E9D38C4E2B5DA44F0025CC31 /* PreferenceScreen.swift */,
 				E9855CB42ADC859E00FD7072 /* DeviceCellView.swift */,
-				E9B256512A9951A00083869E /* TVModeViewCell.swift */,
 				E92CABED2AB8FE24002A3D4D /* TVView.swift */,
 				E92E2D472AA6D37300D27DBC /* Popover.swift */,
 				E987959C2A9667EC002C684A /* PlayerScreen.swift */,
@@ -1200,6 +1199,7 @@
 			name = Widgets;
 			packageProductDependencies = (
 				E97C0D5C2A326D25005AB0E0 /* SonosKit */,
+				E9A5412B2BD83F5800EAAF5C /* VibesDS */,
 			);
 			productName = SonosWidgetExtension;
 			productReference = E97C0D412A325CC5005AB0E0 /* Widgets.appex */;
@@ -1734,7 +1734,6 @@
 				E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */,
 				E9D38C4F2B5DA44F0025CC31 /* PreferenceScreen.swift in Sources */,
 				E987959E2A96683F002C684A /* PlayerScreen.swift in Sources */,
-				E9B256532A9951FA0083869E /* TVModeViewCell.swift in Sources */,
 				E9D38C482B5D9EEB0025CC31 /* Router.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */,
@@ -3259,6 +3258,10 @@
 		E97C0D5C2A326D25005AB0E0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		E9A5412B2BD83F5800EAAF5C /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
 		};
 		E9A6AAB72B3CCC9A00C24B98 /* VibesDS */ = {
 			isa = XCSwiftPackageProductDependency;

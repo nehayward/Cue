@@ -126,6 +126,8 @@ struct RemoteWidgetEntryView : View {
             } else {
                 VStack {
                     Image(systemName: "hifispeaker")
+                        .symbolRenderingMode(.hierarchical)
+                        .fontDesign(.rounded)
                         .imageScale(.large)
                     Text("Choose Room")
                         .multilineTextAlignment(.center)

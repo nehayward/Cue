@@ -14,15 +14,15 @@ struct TVView: View {
             VStack {
                 if let settings = group.tvSettings {
                     Text(settings.audioInputFormat.description)
+                        .bold()
                 }
                 Text("\(Text(group.groupVolume, format: .number))%")
                 Spacer()
                 HStack {
                     if let settings = Binding<TVSettings>($group.tvSettings) {
-                        Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
-                            .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
+                        Toggle("Night Mode", systemImage: "moon.zzz.fill", isOn: settings.nightMode)
+                            .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
-                            .contentShape(.circle)
                             .toggleStyle(.button)
                             .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
                                 Task {
@@ -31,11 +31,10 @@ struct TVView: View {
                                 }
                             }
 
-                        Toggle("Dialog Mode", systemImage: "person.wave.2", isOn: settings.dialogLevel)
-                            .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
+                        Toggle("Dialog Mode", systemImage: "person.wave.2.fill", isOn: settings.dialogLevel)
+                            .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .contentShape(.circle)
                             .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
                                 Task {
                                     try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)

@@ -97,6 +97,11 @@ struct ListViewLarge: View {
                 }
             }
         }
+        .overlay(alignment: .center) {
+            if sonosService.sorted.isEmpty {
+                ProgressView()
+            }
+        }
         .overlay(alignment: .bottom) {
             VStack {
                 if sonosService.systemState.permissionDenied {

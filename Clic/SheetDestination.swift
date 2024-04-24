@@ -11,6 +11,7 @@ enum SheetDestination: Identifiable, Equatable {
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
+    case artistDetail(content: PlayableContent, group: GroupRoom?)
     case createScene
     case scenes
 
@@ -37,7 +38,9 @@ enum SheetDestination: Identifiable, Equatable {
         case .scenes:
             "scenes"
         case let .mediaDetail(content, _):
-            content.id
+            content.id + "media"
+        case let .artistDetail(content, _):
+            content.id + "artist"
         }
     }
 

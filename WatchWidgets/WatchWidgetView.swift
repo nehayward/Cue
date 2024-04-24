@@ -9,6 +9,8 @@ struct WatchWidgetsEntryView: View {
         ZStack {
             AccessoryWidgetBackground()
             Image(systemName: "hifispeaker.fill")
+                .symbolRenderingMode(.hierarchical)
+                .fontDesign(.rounded)
                 .font(.largeTitle)
         }
         .containerBackground(.foreground, for: .widget)

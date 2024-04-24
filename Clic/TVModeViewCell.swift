@@ -10,14 +10,14 @@ struct TVModeViewCell: View {
         VStack {
             if let settings = Binding<TVSettings>($group.tvSettings) {
                 Text(settings.wrappedValue.audioInputFormat.description)
+                    .bold()
                     .tint(.primary)
                 HStack {
-                    Toggle("Night Mode", systemImage: "moon.zzz", isOn: settings.nightMode)
-                        .symbolVariant(settings.nightMode.wrappedValue ? .fill : .none)
+                    Toggle("Night Mode", systemImage: "moon.zzz.fill", isOn: settings.nightMode)
+                        .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
-                        .contentShape(.circle)
                         .toggleStyle(.button)
-                        .foregroundStyle(.accent)
+                        .foregroundStyle(settings.nightMode.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
                         .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
@@ -25,12 +25,11 @@ struct TVModeViewCell: View {
                             }
                         }
 
-                    Toggle("Dialog Mode", systemImage: "person.wave.2", isOn: settings.dialogLevel)
-                        .symbolVariant(settings.dialogLevel.wrappedValue ? .fill : .none)
+                    Toggle("Dialog Mode", systemImage: "person.wave.2.fill", isOn: settings.dialogLevel)
+                        .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .contentShape(.circle)
-                        .foregroundStyle(.accent)
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
                         .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)
@@ -47,6 +46,8 @@ struct TVModeViewCell: View {
                 routePath.presentedSheet = .groupScreen(group: group)
             } label: {
                 Image(systemName: "tv.and.hifispeaker.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .fontDesign(.rounded)
                     .frame(width: 20)
             }
             .buttonStyle(.plain)
