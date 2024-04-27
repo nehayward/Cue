@@ -47,7 +47,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                            volume: group.groupVolume,
                                                                            name: group.nameWithCount,
                                                                            update: type,
-                                                                           TVMode: group.coordinatorRoom.track.TVMode,
+                                                                           TVMode: group.TVMode,
                                                                            TVSettings: tvSettings)
 
             let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
@@ -63,7 +63,7 @@ final class LiveActivityManager: LiveActivityManageable {
             let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
             try? await sonosService.load(useCache: true)
 
-            for group in sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.coordinatorRoom.track.TVMode }) {
+            for group in sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.TVMode }) {
                 guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
                     continue
                 }
@@ -88,7 +88,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                artist: group.coordinatorRoom.track.artist,
                                                                                volume: group.groupVolume,
                                                                                name: group.nameWithCount,
-                                                                               TVMode: group.coordinatorRoom.track.TVMode,
+                                                                               TVMode: group.TVMode,
                                                                                TVSettings: tvSettings)
 
                 let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
@@ -133,7 +133,7 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                        artist: group.coordinatorRoom.track.artist,
                                                                        volume: group.groupVolume,
                                                                        name: group.nameWithCount,
-                                                                       TVMode: group.coordinatorRoom.track.TVMode,
+                                                                       TVMode: group.TVMode,
                                                                        TVSettings: tvSettings)
         
         let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: activities.isEmpty ? 0 : 1)

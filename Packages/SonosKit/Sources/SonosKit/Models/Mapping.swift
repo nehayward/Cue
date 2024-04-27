@@ -8,7 +8,7 @@ extension Track {
             title: name,
             subtitle: artist,
             artwork: artworkURL,
-            content: MediaContent(service: musicService, id: id.description, type: .track, location: nil)
+            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: nil)
         )
     }
 }

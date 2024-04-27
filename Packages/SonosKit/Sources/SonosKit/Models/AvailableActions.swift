@@ -8,6 +8,7 @@ public struct AvailableActions: OptionSet {
     public static let play = Self(rawValue: 1 << 3)
     public static let next = Self(rawValue: 1 << 4)
     public static let previous = Self(rawValue: 1 << 5)
+    public static let scrubbable = Self(rawValue: 1 << 6)
 
     public init(rawValue: Int) {
         self.rawValue = rawValue
@@ -27,6 +28,8 @@ public struct AvailableActions: OptionSet {
             self = .next
         case "previous":
             self = .previous
+        case "x_dlna_seektime":
+            self = .scrubbable
         default:
             return nil
         }
@@ -39,8 +42,9 @@ extension AvailableActions: CustomStringConvertible, CustomDebugStringConvertibl
         (.stop, "stop"),
         (.pause, "pause"),
         (.play, "play"),
-        (.next, "play"),
-        (.previous, "next")
+        (.next, "next"),
+        (.previous, "previous"),
+        (.scrubbable, "scrubbable")
     ]
     
     public var debugDescription: String {

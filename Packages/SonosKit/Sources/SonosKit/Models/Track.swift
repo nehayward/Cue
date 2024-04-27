@@ -9,15 +9,19 @@ public final class Track: Identifiable, Sendable {
 
     /// The unique identifier of the track.
     public let trackID: String
+
     /// The name of the track.
     public var name: String
+
     /// The artist of the track.
     public var artist: String
+
     /// The album of the track.
     public var album: String
+
     /// The URL for the track's artwork.
     public var artworkURL: URL? {
-        if trackID.isEmpty { return nil }
+        if trackID.isEmpty, name.isEmpty { return nil }
         if let downloadedArtworkURL {
             return downloadedArtworkURL
         }
@@ -26,26 +30,32 @@ public final class Track: Identifiable, Sendable {
 
     /// The URL for the track's artwork.
     public var downloadedArtworkURL: URL?
+
     /// The music service associated with the track.
     public var musicService: MusicService
-    /// The duration of the track, in seconds.
-    public var duration: TimeInterval
+
     /// The position of the track in a playlist or queue.
     public var position: Int
+    
     /// The URL for the album art specific to Sonos service.
     public var sonosAlbumArtURL: URL?
-
-    public var TVMode: Bool
 
     public var metadata: Metadata?
 
     /// The identifier for `Identifiable` conformance.
-    public var id: String { trackID }
-    
+    public var id: String { trackID + name + position.description }
+
+    /// The duration of the track, in seconds.
+    public var duration: TimeInterval
+
     /// The playback position of the track, thread-safe.
     public var playbackPosition: TimeInterval {
         get { queue.sync { _playbackPosition } }
         set { queue.sync { _playbackPosition = newValue } }
+    }
+
+    public var timeRemaining: Duration {
+        Duration.milliseconds(duration - playbackPosition)
     }
 
     /// Initializes a new `Track` instance.
@@ -84,50 +94,25 @@ public final class Track: Identifiable, Sendable {
         self._playbackPosition = playbackPosition
         self.position = position
         self.sonosAlbumArtURL = sonosAlbumArtURL
-        self.TVMode = TVMode
     }
 }
 
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
-        lhs.trackID == rhs.trackID && lhs.name == rhs.name && lhs.position == rhs.position && lhs.TVMode == rhs.TVMode && lhs.artworkURL == rhs.artworkURL
+        lhs.id == rhs.id &&
+        lhs.name == rhs.name &&
+        lhs.position == rhs.position &&
+        lhs.artworkURL == rhs.artworkURL
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(trackID)
-        hasher.combine(artworkURL)
+        hasher.combine(id)
         hasher.combine(name)
         hasher.combine(position)
-        hasher.combine(TVMode)
     }
 }
 
 public extension Track {
-    /// A formatted timestamp of the current playback position.
-    var timestamp: String {
-        formatTimestamp(playbackPosition)
-    }
-
-    /// A formatted timestamp of the remaining time of the track.
-    var remainingTimestamp: String {
-        formatTimestamp(duration - playbackPosition, negative: true)
-    }
-
-    /// Formats a given time interval into a timestamp.
-    /// - Parameters:
-    ///   - interval: The time interval to format.
-    ///   - negative: A Boolean value indicating whether the timestamp should be negative.
-    /// - Returns: A formatted string representing the time interval.
-    private func formatTimestamp(_ interval: TimeInterval, negative: Bool = false) -> String {
-        let totalSeconds = interval / 1000
-        let hours = Int(totalSeconds / 3600)
-        let minutes = Int((totalSeconds / 60).truncatingRemainder(dividingBy: 60))
-        let seconds = Int(totalSeconds.truncatingRemainder(dividingBy: 60))
-        let sign = negative ? "-" : ""
-
-        return hours > 0 ? "\(sign)\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))" : "\(sign)\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
-    }
-
     /// A static instance of `Track` representing an empty state.
     static let empty = Track(trackID: "", name: "")
 }

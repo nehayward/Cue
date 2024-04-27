@@ -81,12 +81,9 @@ struct NewSearchScreen: View, KeyboardReadable {
                                 }
                             }
                         }
-                        Rectangle()
-                            .foregroundStyle(.clear)
-                            .frame(height: 100)
-                            .listRowSeparator(.hidden)
-
                     }
+                    .ignoresSafeArea(.keyboard)
+                    .contentMargins(.bottom, 100, for: .scrollContent)
                     .searchable(
                         text: $musicSearchService.query,
                         isPresented: $searchFieldIsPresented,
@@ -189,7 +186,6 @@ struct NewSearchScreen: View, KeyboardReadable {
                 .onChange(of: router.dismiss) {
                     dismiss()
                 }
-                .ignoresSafeArea(.keyboard)
             case .notDetermined:
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)

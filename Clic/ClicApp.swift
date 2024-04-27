@@ -146,6 +146,8 @@ struct ClicApp: App {
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)
 #endif
+            .fontDesign(.rounded)
+            .accentColor(.accent)
         }
         .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {
@@ -188,7 +190,6 @@ struct ClicApp: App {
                     }
                 } label: {
                     Label("Show/Hide Queue", systemImage: "list.dash")
-                        .tint(.accentColor)
                 }
                 .keyboardShortcut("l")
             }
@@ -392,6 +393,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                  }
              }
          }
+
        let sceneConfig = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
        sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
        return sceneConfig
@@ -415,6 +417,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
         }
 #endif
     }
+    
     func windowScene(_ windowScene: UIWindowScene,
                      performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {

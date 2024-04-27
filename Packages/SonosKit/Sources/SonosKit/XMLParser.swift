@@ -215,6 +215,14 @@ final class XMLParserSonos {
             sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
         }
 
+        // MARK: Upscale
+        if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
+            let modified = sonosAlbumArt.replacingOccurrences(of: "w=\\d+", with: "w=\(800)", options: .regularExpression)
+            if let upscaledURL = URL(string: modified) {
+                sonosAlbumArtURL = upscaledURL
+            }
+        }
+
         return Track(trackID: trackID, name: name, artist: artist, album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL, TVMode: false)
     }
 
@@ -233,13 +241,38 @@ final class XMLParserSonos {
         return .transitioning
     }
 
-    func parseMediaInfo(xml: String) -> Bool {
+    func parseMediaInfo(xml: String) -> PlaybackService {
         let xmlParsed = XMLHash.parse(xml)
-        guard let currentURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetMediaInfoResponse"]["CurrentURI"].element?.text
-        else {
-            return false
+        guard let currentURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetMediaInfoResponse"]["CurrentURI"].element?.text else {
+            return .unknown
         }
-        return currentURI.contains("htastream")
+
+        if currentURI.contains("htastream") {
+            return .tv
+        }
+
+        if currentURI.contains("radio") {
+            return .radio
+        }
+
+        if currentURI.contains("airplay") {
+            return .airplay
+        }
+
+        if currentURI.contains("queue") {
+            return .queue
+        }
+
+        if currentURI.contains("spotify") {
+            return .spotifyConnect
+        }
+
+        // TODO: Figure out
+        if currentURI.contains("line-in") {
+            return .lineIn
+        }
+
+        return .unknown
     }
 
     func parseGetCurrentTransportActions(xml: String) -> AvailableActions? {

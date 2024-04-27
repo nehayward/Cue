@@ -2,6 +2,7 @@ import SwiftUI
 
 /// A custom slider view that provides a visual and interactive representation of a value within a range.
 public struct VibeSlider: View {
+    @Environment(\.isEnabled) private var isEnabled
     @Binding private var value: Double
     @State private var width = 0.0
     @State private var isDragging: Bool = false
@@ -101,6 +102,7 @@ public struct VibeSlider: View {
         .accessibilityRepresentation {
             Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
         }
+        .opacity(isEnabled ? 1 : 0.5)
     }
 
     private var dragGesture: some Gesture {

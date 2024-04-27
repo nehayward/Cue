@@ -7,7 +7,7 @@ extension SonosAPI {
             "EQType": "DialogLevel",
         ]
 
-        guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             print("Failed with \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
@@ -23,7 +23,7 @@ extension SonosAPI {
             "DesiredValue": enabled ? 1 : 0,
         ]
 
-        guard let (_, response) = try await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             print("Failed with \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading
@@ -36,7 +36,7 @@ extension SonosAPI {
             "EQType": "NightMode",
         ]
 
-        guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
             print("Failed with \(httpResponse.statusCode)")
             throw SonosAPIError.failedLoading

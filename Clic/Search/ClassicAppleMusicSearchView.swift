@@ -46,7 +46,7 @@ struct ClassicAppleMusicSearchView: View {
                     playHistory.insert(content, at: 0)
 
                     router.dismiss = true
-                    await sonosService.queue(song: "\(result.trackID)", on: group)
+                    await sonosService.queueAppleSong(id: "\(result.trackID)", group: group)
                     await sonosService.play(ip: group.coordinatorRoom.ip)
                 }
             } label: {
@@ -80,7 +80,7 @@ struct ClassicAppleMusicSearchView: View {
                             return
                         }
                         router.dismiss = true
-                        await sonosService.queue(song: result.trackID.description, on: group, position: .next)
+                        await sonosService.queueAppleSong(id: result.trackID.description, group: group, position: .next)
                     }
                 } label: {
                     Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")

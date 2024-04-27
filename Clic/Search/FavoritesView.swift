@@ -63,17 +63,19 @@ struct FavoritesView: View {
                             }
                         }
                         .swipeActions {
-                            Button(role: .destructive) {
+                            Button {
                                 Task {
                                     await sonosService.deleteFavorite(on: group, favoriteID: item.id)
                                 }
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Remove", systemImage: "trash")
+                                    .foregroundStyle(.white)
                             }
+                            .tint(.red)
                         }
                         .contentShape(.contextMenuPreview, Capsule())
                         .contextMenu {
-                            Button("Remove", role: .destructive) {
+                            Button("Remove", systemImage: "trash", role: .destructive) {
                                 Task {
                                     await sonosService.deleteFavorite(on: group, favoriteID: item.id)
                                 }

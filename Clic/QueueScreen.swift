@@ -17,7 +17,7 @@ struct QueueScreen: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
-                    ForEach(Array(tracks.enumerated()), id: \.0) { index, track in
+                    ForEach(tracks) { track in
                         HStack {
                             LazyImage(url: track.artworkURL) { state in
                                 if let image = state.image {
@@ -54,7 +54,7 @@ struct QueueScreen: View {
                                         .padding([.trailing, .bottom], 4)
                                 }
                             }
-                            .task(id: track.name + index.formatted(.number)) {
+                            .task(id: track.id) {
                                 guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
                                     return
                                 }
@@ -64,32 +64,38 @@ struct QueueScreen: View {
                             Button {
                                 dismiss()
                                 Task {
-                                    await sonosService.seek(trackNumber: index + 1, on: group)
+                                    await sonosService.seek(trackNumber: track.position, on: group)
                                     await sonosService.play(ip: group.coordinatorRoom.ip)
                                 }
                             } label: {
                                 VStack(alignment: .leading) {
+//                                    Text(track.position, format: .number) // MARK: Debug Only
                                     Text(track.name)
+                                        .lineLimit(1)
                                     Text(track.artist)
+                                        .lineLimit(1)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                             .swipeActions {
                                 Button(role: .destructive) {
-                                    tracks.remove(at: index)
+                                    tracks.remove(at: track.position - 1)
                                     Task {
-                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: index)
+                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: track.position)
+                                        tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
                                     }
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
                         }
-                        .listRowBackground(group.coordinatorRoom.track.position == index + 1 ? Color(uiColor: UIColor.systemFill) : Color.clear)
+                        .id(track.id)
+                        .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
                     }
                     .onMove(perform: move)
                 }
+                .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
                 .toolbar {
@@ -115,10 +121,9 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
                                 self.tracks = await sonosService.getQueue(ip: group.ip)
-                                if currentPlayMode.contains(.shuffle) {
-                                    withAnimation {
-                                        proxy.scrollTo(group.coordinatorRoom.track.position - 1)
-                                    }
+                                try? await Task.sleep(for: .milliseconds(200))
+                                withAnimation {
+                                    proxy.scrollTo(group.coordinatorRoom.track.id)
                                 }
                             }
                         } label: {
@@ -170,7 +175,7 @@ struct QueueScreen: View {
                     group.playMode = await sonosService.playMode(ip: group.ip)
                     isLoading = false
                     withAnimation {
-                        proxy.scrollTo(group.coordinatorRoom.track.position - 1)
+                        proxy.scrollTo(group.coordinatorRoom.track.id)
                     }
                 }
                 .animation(.spring, value: tracks)
@@ -186,20 +191,31 @@ struct QueueScreen: View {
                     .transition(.opacity)
             }
         }
+        .overlay(alignment: .bottom) {
+            if group.playbackService != .queue  {
+                Text("Queue Not Active")
+                    .padding()
+                    .background(.thickMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
         .fontDesign(.rounded)
-        .withAppRouter(router: viewRouter)
+        .animation(.default, value: group.playbackService)
     }
 
     private func move(from source: IndexSet, to destination: Int) {
+        // TODO: Fix swap positions
         tracks.move(fromOffsets: source, toOffset: destination)
+
         Task {
             guard let sourceIndex = source.first else { return }
             try await sonosService.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
         }
     }
 
-    
-
+    private func isTrackPlaying(for track: Track) -> Bool {
+        group.coordinatorRoom.track.position == track.position && group.playbackService == .queue
+    }
 }
 
 fileprivate struct ContainerView: View {

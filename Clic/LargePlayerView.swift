@@ -24,7 +24,7 @@ struct LargePlayerView: View {
                 .shadow(radius: 10)
                 .frame(maxWidth: 500)
 
-            if group.coordinatorRoom.track.TVMode {
+            if group.TVMode {
                 TVModeView()
             }  else {
                 Text(group.coordinatorRoom.track.name)
@@ -41,7 +41,9 @@ struct LargePlayerView: View {
                 .frame(maxWidth: .infinity)
                 .lineLimit(0, reservesSpace: true)
 
-            if !group.coordinatorRoom.track.TVMode {
+//            Text(group.coordinatorRoom.track.artworkURL?.absoluteString ?? "")
+
+            if !group.TVMode {
                 playbackView()
                 Spacer()
                 mediaControlsView()
@@ -59,7 +61,7 @@ struct LargePlayerView: View {
                                 Image(systemName: "tv.and.hifispeaker.fill")
                                     .fontDesign(.rounded)
                             } else {
-                                Image(systemName: "hifispeaker.fill")
+                                Image(systemName: "hifispeaker")
                                     .symbolRenderingMode(.hierarchical)
                                     .fontDesign(.rounded)
                             }
@@ -97,18 +99,26 @@ struct LargePlayerView: View {
                         Button {
                             router.presentedSheet = .queue(group: $group)
                         } label: {
-                            Image(systemName: "list.bullet")
-                                .fontDesign(.rounded)
-                                .font(.title3)
-                                .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
-                                .overlay(alignment: .topTrailing) {
-                                    if isHoveringOnQueueList {
-                                        Image(systemName: "plus.circle.fill")
-                                            .offset(x: 12, y: -18)
-                                            .transition(.scale)
-                                            .foregroundStyle(.green)
-                                    }
+                            Group {
+                                if group.playbackService == .queue {
+                                    Image(systemName: "list.bullet")
+                                } else {
+                                    Image("custom.list.bullet.slash")
+                                        .foregroundStyle(.secondary)
                                 }
+                            }
+                            .contentTransition(.symbolEffect)
+                            .fontDesign(.rounded)
+                            .font(.title3)
+                            .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
+                            .overlay(alignment: .topTrailing) {
+                                if isHoveringOnQueueList {
+                                    Image(systemName: "plus.circle.fill")
+                                        .offset(x: 12, y: -18)
+                                        .transition(.scale)
+                                        .foregroundStyle(.green)
+                                }
+                            }
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
@@ -171,6 +181,9 @@ struct LargePlayerView: View {
         .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
         }
+        .onDisappear {
+            sonosService.selectedGroup = nil
+        }
         .background {
             ZStack {
                 ArtworkView(group: $group)
@@ -188,6 +201,7 @@ struct LargePlayerView: View {
         .toolbar {
             if !group.TVMode {
                 ToolbarItem(placement: .topBarTrailing) {
+
                     Menu {
                         if let openInURL = group.coordinatorRoom.track.metadata?.openInURL {
                             if group.coordinatorRoom.track.musicService == .apple {
@@ -210,7 +224,8 @@ struct LargePlayerView: View {
                             } label: {
                                 Label("View Album", systemImage: "rectangle.stack.fill")
                             }
-                            // TODO: Add back
+
+
 //                            Button {
 //                                router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
 //                            } label: {
@@ -248,11 +263,12 @@ struct LargePlayerView: View {
                 .frame(maxWidth: 500)
                 .frame(height: 40)
                 .foregroundStyle(.primary)
+                .disabled(!group.availableActions.contains(.scrubbable))
 
                 HStack {
-                    Text(group.coordinatorRoom.track.timestamp)
+                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
                     Spacer()
-                    Text(group.coordinatorRoom.track.remainingTimestamp)
+                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
                 }
                 .frame(maxWidth: 500)
                 .monospacedDigit()
@@ -278,6 +294,8 @@ struct LargePlayerView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
+            .disabled(!group.availableActions.contains(.previous))
+            
             Spacer()
             Button{
                 Task {

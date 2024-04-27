@@ -32,7 +32,7 @@ struct SpotifySearchView: View {
                 if let tracks = spotifyResult?.tracks?.items {
                     trackSection(tracks: tracks)
                 }
-                // TODO: Add back when you can queue
+
                 if let albums = spotifyResult?.albums?.items {
                     albumRow(albums: albums)
                 }

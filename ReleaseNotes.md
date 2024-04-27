@@ -2,6 +2,28 @@
 
 ## External 
 
++ Show if Queue is Active now
++ Fix playlist/songs not starting if spotify connect or airplay is active
++ Improve Sonos Album Art for Radio
++ Improve Queue List
++ Add Badge for Sonos Radio
+
+## Internal
+
++ Add disabled mode to VibeSlider
++ Add Available Actions to Sonos API
++ Update TV Mode, get it from media info
++ Add Playback Service, whether queue is active
++ Use duration for playback position
++ Add playbackService to SonosService
++ Fix queue not being activated
++ Clean up URL queue
+
+
+# 2024.18
+
+## External 
+
 + Improved grouping speakers, you can now remove any speaker from group.
 + Improve search, even faster now.
 + Add group button to toolbar.

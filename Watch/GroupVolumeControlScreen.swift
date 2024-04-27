@@ -24,7 +24,7 @@ struct GroupVolumeControlScreen: View {
                         volumeTask = Task { @MainActor in
                             print("Changing \(group.coordinatorRoom.name)")
                             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: volumeChange)
-                            try? await sonosService.updateGroupsRooms(from: [group])
+                            await sonosService.updateGroupsRooms(from: [group])
                         }
                     },
                     onDecrement: {

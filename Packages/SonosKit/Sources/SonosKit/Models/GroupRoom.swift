@@ -9,7 +9,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
-    public var TVMode: Bool { coordinatorRoom.track.TVMode }
+    public var TVMode: Bool { playbackService == .tv }
     public var tvSettings: TVSettings? {
         get {
             return lock.withLock {
@@ -30,6 +30,8 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
+    public var playbackService: PlaybackService = .unknown
+    public var availableActions: AvailableActions = []
 
     private var privateGroupVolume: Double = 0
 
@@ -48,7 +50,13 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
         }
     }
 
-    public init(id: String, coordinatorID: String, rooms: [Room], coordinatorRoom: Room, tvSettings: TVSettings? = nil) {
+    public init(
+        id: String,
+        coordinatorID: String,
+        rooms: [Room],
+        coordinatorRoom: Room,
+        tvSettings: TVSettings? = nil
+    ) {
         self.id = id
         self.coordinatorID = coordinatorID
         self.rooms = rooms

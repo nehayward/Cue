@@ -41,27 +41,7 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                switch group.coordinatorRoom.track.musicService {
-                case .apple:
-                    Image(systemName: "apple.logo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: size, height: size, alignment: .bottomTrailing)
-                        .padding(size == 24 ? 16 : 4)
-                        .shadow(radius: 10)
-                case .spotify:
-                    Image(.spotifyLogo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: size, height: size, alignment: .bottomTrailing)
-                        .padding(size == 24 ? 16 : 4)
-                        .shadow(radius: 10)
-                case .airplay, .unknown:
-                    EmptyView()
-                        .padding([.trailing, .bottom], 12)
-                }
+                ArtworkBadgeView(group: $group, size: $size)
             }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width < 100 {
@@ -71,7 +51,7 @@ struct ArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .animation(.spring, value: group.coordinatorRoom.track.artworkURL)
+            .animation(.spring, value: group.coordinatorRoom.track.trackID)
         }
     }
 }

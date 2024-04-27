@@ -44,7 +44,7 @@ struct DeviceListMainView: View {
                                 VolumeControlView(group: $group, touchDelay: 0.05)
                             }
                         }
-                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.coordinatorRoom.track.TVMode ? 12 : 10, trailing: 12))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
                         .dropDestinationPlay(on: group)
                     } else {
                         Text(group.coordinatorRoom.state.reason)

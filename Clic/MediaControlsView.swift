@@ -41,12 +41,12 @@ struct MediaControlsView: View {
                             currentValueLabel: {
                                 Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                                     .renderingMode(.template)
-                                    .foregroundStyle(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
+                                    .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
                                     .contentTransition(.symbolEffect(.automatic))
 
                             }
                         )
-                        .tint(group.coordinatorRoom.isPlaying ? .accentColor : Color.accentColor.opacity(0.7))
+                        .tint(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
                         .gaugeStyle(.accessoryCircularCapacity)
                         .animation(.smooth, value: group.coordinatorRoom.track.playbackPosition)
                         .scaleEffect(0.5)
@@ -54,7 +54,7 @@ struct MediaControlsView: View {
                     } else {
                         Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                             .renderingMode(.template)
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(.accent)
                             .contentTransition(.symbolEffect(.automatic))
                             .frame(width: 20, height: 40, alignment: .center)
                     }

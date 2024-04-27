@@ -17,7 +17,7 @@ struct TVModeViewCell: View {
                         .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .foregroundStyle(settings.nightMode.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
+                        .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
                         .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
@@ -29,7 +29,7 @@ struct TVModeViewCell: View {
                         .symbolRenderingMode(.hierarchical)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .foregroundStyle(settings.dialogLevel.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
                         .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
                             Task {
                                 try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)

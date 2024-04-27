@@ -19,14 +19,18 @@ struct Provider: AppIntentTimelineProvider {
         let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
 
         if let room = configuration.room {
-            if let coordinatorRoom = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id), let volume = try? await SonosService.shared.getGroupVolume(ip: coordinatorRoom.ip) {
-                let track = await SonosService.shared.getTrack(ip: coordinatorRoom.ip)
+            if let group = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id),
+                let volume = try? await SonosService.shared.getGroupVolume(ip: group.ip) {
+
+                let track = await SonosService.shared.getTrack(ip: group.ip)
+                let playbackService = await SonosService.shared.playbackService(ip: group.ip)
+
                 var entry = RemoteWidgetEntry(
                     date: .now,
                     configuration: configuration,
                     volume: volume,
                     track: track,
-                    name: coordinatorRoom.nameWithCount,
+                    name: group.nameWithCount,
                     activeSubscription: activeSubscription
                 )
 
@@ -38,8 +42,8 @@ struct Provider: AppIntentTimelineProvider {
 //                    return Timeline(entries: [entry], policy: .atEnd)
 //                }
 
-                if track?.TVMode ?? false {
-                    if let TVSettings = try? await SonosService.shared.getTVSettings(ip: coordinatorRoom.ip) {
+                if playbackService == .tv {
+                    if let TVSettings = try? await SonosService.shared.getTVSettings(ip: group.ip) {
                         entry.TVSettings = TVSettings
                     }
                 }
