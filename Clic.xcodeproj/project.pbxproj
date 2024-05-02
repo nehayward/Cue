@@ -142,6 +142,9 @@
 		E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E96385FB2AD8E346005411BF /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
 		E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */; };
 		E96396372A3B8F5200518A17 /* ZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96396362A3B8F5200518A17 /* ZoneView.swift */; };
+		E9684B6A2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		E9684B6B2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
+		E9684B6C2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
 		E97562DF2B699B2400787E14 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E97562E02B699B2400787E14 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
@@ -523,6 +526,7 @@
 		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
 		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = MusicSearchKit; path = Packages/MusicSearchKit; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
+		E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
 		E97563432B699B2400787E14 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -890,6 +894,7 @@
 		E9BDE56329E3396700D230A8 = {
 			isa = PBXGroup;
 			children = (
+				E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */,
 				E990113C2B69A10000D2DFF5 /* Configuration */,
 				E90F315C2BC481E400884EA5 /* Analytics */,
 				E90F31432BC4795800884EA5 /* SonosKit */,
@@ -1355,6 +1360,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9684B6B2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
 				E92B3EF02B60249B00724FA1 /* Preview Assets.xcassets in Resources */,
 				E92B3EF12B60249B00724FA1 /* Assets.xcassets in Resources */,
 			);
@@ -1371,6 +1377,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9684B6C2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
 				E97563382B699B2400787E14 /* Preview Assets.xcassets in Resources */,
 				E97563392B699B2400787E14 /* Assets.xcassets in Resources */,
 			);
@@ -1399,6 +1406,7 @@
 			files = (
 				E9C889662BBFA6E8004C31DE /* Super.storekit in Resources */,
 				E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */,
+				E9684B6A2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
 				E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
