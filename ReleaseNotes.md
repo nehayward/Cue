@@ -1,16 +1,16 @@
-# 2024.18
+# 2024.19
 
 ## External 
 
-+ Show if Queue is Active now
-+ Fix playlist/songs not starting if spotify connect or airplay is active
-+ Improve Sonos Album Art for Radio
-+ Improve Queue List
-+ Add Badge for Sonos Radio
-+ Add crossfade settings for groups
-+ Improve queuing, even faster now!
-+ Add spotify new releases in search.
-+ Drag and drop songs/tracks between rooms.
++ Show if the Queue is Active now.
++ Fixed an issue where playlists/songs wouldn't start if the queue was inactive.
++ Enhanced album art display for Radio.
++ Improved Queue List functionality.
++ Added badge for Radio.
++ Added crossfade settings for groups.
++ Enhanced queuing speed.
++ Added new releases to search results.
++ Enabled drag-and-drop functionality for songs/tracks between rooms.
 
 ## Internal
 

@@ -2549,7 +2549,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2600,7 +2600,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2808,7 +2808,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
