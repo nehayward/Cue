@@ -23,10 +23,7 @@ class FilterSelection: Hashable, Identifiable {
         self.isFiltered = isFiltered
     }
 
-    nonisolated static func == (lhs:
-                                FilterSelection, rhs: FilterSelection) -> Bool {
-        lhs === rhs
-    }
+    nonisolated static func == (lhs: FilterSelection, rhs: FilterSelection) -> Bool { lhs === rhs}
 
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(ObjectIdentifier(self))

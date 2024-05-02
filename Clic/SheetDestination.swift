@@ -12,7 +12,7 @@ enum SheetDestination: Identifiable, Equatable {
     case playMedia(content: MediaContent)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
-    case createScene
+    case createScene(content: PlayableContent? = nil)
     case scenes
 
     var id: String {

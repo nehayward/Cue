@@ -57,30 +57,46 @@ struct PlayableContentView: View {
             }
             switch item.content.type {
             case .artist:
-                Button {
-                    router.path.append(.artistDetail(content: item, group: group))
-                } label: {
-                    Text("View Artist")
+                NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
+                    Label("View Artist", systemImage: "music.mic.circle.fill")
                 }
             case .playlist:
-                Button {
-                    router.path.append(.mediaDetail(content: item, group: group))
-                } label: {
-                    Text("View Playlist")
-                }
-
                 Button {
                     play()
                 } label: {
                     Text("Play Playlist")
                 }
+
+                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
+                    Text("View Playlist")
+                }
+                
+// TODO: Add scene playlist
+//                NavigationLink(value: RouterDestination.createScene(content: item)) {
+//                    Label("Create Scene", systemImage: "bolt.fill")
+//                }
+
             case .album, .track, .favorite:
                 if [.album, .track].contains(item.content.type) {
-                    Button {
-                        router.path.append(.mediaDetail(content: item, group: group))
-                    } label: {
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
                         Label("View Album", systemImage: "rectangle.stack.fill")
                     }
+
+
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
+                        Label("View Artist", systemImage: "music.mic.circle.fill")
+                    }
+
+                    // TODO: Add scene playlist
+//                    NavigationLink(value: RouterDestination.createScene(content: item)) {
+//                        Label("Create Scene", systemImage: "bolt.fill")
+//                    }
+                }
+
+                Button {
+                    play()
+                } label: {
+                    Label("Play Now", systemImage: "play.fill")
                 }
 
                 Button {
@@ -109,8 +125,10 @@ struct PlayableContentView: View {
                     .frame(width: 60, height: 60)
                 VStack(alignment: .leading) {
                     Text(item.title)
+                        .lineLimit(1)
                     Text("\(item.content.type.title)\(item.subtitle.isEmpty ? "" : " • \(item.subtitle)")")
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer()
                 switch item.content.type {
@@ -142,6 +160,7 @@ struct PlayableContentView: View {
         .contextMenu {
             menu
         }
+        .draggable(item)
     }
 }
 

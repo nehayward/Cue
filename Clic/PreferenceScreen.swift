@@ -104,7 +104,7 @@ struct PreferenceScreen: View {
                 }
 
                 // TODO: Add next release
-#if !targetEnvironment(macCatalyst) || !os(visionOS)
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
                 if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
                     Section {
                         Toggle(isOn: $isCompact) {

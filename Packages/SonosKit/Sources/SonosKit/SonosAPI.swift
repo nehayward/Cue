@@ -788,6 +788,39 @@ final class SonosAPI: NSObject {
         }
     }
 
+    func crossfade(IP: String) async -> Bool? {
+        let arguments: [String: Any] = ["InstanceID": 0]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetCrossfadeMode", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return nil
+        }
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        guard let isCrossfaded = xmlParser.parseGetCrossfade(xml: xml) else {
+            return nil
+        }
+        return isCrossfaded
+    }
+
+    func setCrossfade(IP: String, enabled: Bool) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "CrossfadeMode": enabled ? 1 : 0
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetCrossfadeMode", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed \(#function)")
+        }
+    }
+
+
     func getHouseHoldID(for IP: String) async -> String {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {
             guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
@@ -862,7 +895,7 @@ final class SonosAPI: NSObject {
         return URL(string: favorite.imageUrl)
     }
 
-    func deleteFavorite(IP: String, itemID: String) async{
+    func deleteFavorite(IP: String, itemID: String) async {
         let arguments: [String: Any] = [
             "ObjectID": "FV:2/\(itemID)",
         ]
@@ -873,7 +906,16 @@ final class SonosAPI: NSObject {
             print("Failed")
         }
     }
-    
+
+    // TODO: Implement
+    func deviceInfo(IP: String) async {
+        guard let url = URL(string: "http://\(IP):1400/xml/device_description.xml") else { return }
+        let request = URLRequest(url: url)
+        guard let (data, response) = try? await session.data(for: request) else { return }
+        let xml = String(decoding: data, as: UTF8.self)
+        print(xml)
+    }
+
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
         let xmlString = """
             <?xml version="1.0" encoding="utf-8"?>

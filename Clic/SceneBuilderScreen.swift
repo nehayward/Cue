@@ -31,6 +31,10 @@ struct SceneBuilderScreen: View {
                 .foregroundStyle(.ultraThinMaterial)
                 .ignoresSafeArea()
             List {
+                // TODO: Scenes
+//                if let playableContent {
+//                    PlayableContentView(item: playableContent)
+//                }
                 ForEach($rooms) { $room in
                     VStack {
                         Button {
@@ -69,9 +73,8 @@ struct SceneBuilderScreen: View {
                         selections.insert(group.wrappedValue.coordinatorRoom.id)
                     }
                 }
-//                Text("+")
-//                    .listRowBackground(Color.clear)
-//
+
+                // TODO: Scenes
 //                if let playableContent {
 //                    Text(playableContent.title)
 //                } else {

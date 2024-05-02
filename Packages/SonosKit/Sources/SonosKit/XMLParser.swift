@@ -328,6 +328,14 @@ final class XMLParserSonos {
         return isMuted == "1"
     }
 
+    func parseGetCrossfade(xml: String) -> Bool? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let isCrossfadeEnabled = xmlParsed["s:Envelope"]["s:Body"]["u:GetCrossfadeModeResponse"]["CrossfadeMode"].element?.text else {
+            return nil
+        }
+        return isCrossfadeEnabled == "1"
+    }
+
     func parseHouseID(xml: String) -> String {
         let xmlParsed = XMLHash.parse(xml)
         guard let householdID = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupAttributesResponse"]["CurrentMuseHouseholdId"].element?.text

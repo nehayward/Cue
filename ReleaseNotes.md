@@ -7,6 +7,10 @@
 + Improve Sonos Album Art for Radio
 + Improve Queue List
 + Add Badge for Sonos Radio
++ Add crossfade settings for groups
++ Improve queuing, even faster now!
++ Add spotify new releases in search.
++ Drag and drop songs/tracks between rooms.
 
 ## Internal
 

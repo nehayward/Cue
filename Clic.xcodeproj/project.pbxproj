@@ -315,6 +315,9 @@
 		E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B112A58721F00FB9118 /* PlayerView.swift */; };
 		E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
+		E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
+		E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
+		E9C7CAFB2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
 		E9C889662BBFA6E8004C31DE /* Super.storekit in Resources */ = {isa = PBXBuildFile; fileRef = E9C889652BBFA6E8004C31DE /* Super.storekit */; };
 		E9C889692BBFAA5B004C31DE /* SubscriptionDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */; };
 		E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */; };
@@ -589,6 +592,7 @@
 		E9C03B112A58721F00FB9118 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceEntity.swift; sourceTree = "<group>"; };
 		E9C03B172A5A196200FB9118 /* NextIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextIntent.swift; sourceTree = "<group>"; };
+		E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewReleasesView.swift; sourceTree = "<group>"; };
 		E9C889652BBFA6E8004C31DE /* Super.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Super.storekit; sourceTree = "<group>"; };
 		E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailScreen.swift; sourceTree = "<group>"; };
 		E9CF44F52B55C94C00D66181 /* PaywallButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallButtonView.swift; sourceTree = "<group>"; };
@@ -788,6 +792,7 @@
 				E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */,
 				E9BF3ABF2B0EBC9900AF57EA /* SearchSelection.swift */,
 				E9D38C502B5DADBB0025CC31 /* PlayHistoryView.swift */,
+				E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */,
 				E9BC83762B7022CC0088BF1F /* FavoritesView.swift */,
 				E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */,
 				E9BF3ABD2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift */,
@@ -1487,6 +1492,7 @@
 				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
 				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */,
 				E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */,
+				E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E92B3EDF2B60249B00724FA1 /* ClassicAppleMusicSearchView.swift in Sources */,
 				E949E8EF2BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */,
 				E92B3EE02B60249B00724FA1 /* ArtworkView.swift in Sources */,
@@ -1550,6 +1556,7 @@
 				E97563032B699B2400787E14 /* RouterDestination.swift in Sources */,
 				E97563042B699B2400787E14 /* ReviewService.swift in Sources */,
 				E9B135C22B6C1A880096A14E /* NewSearchScreen.swift in Sources */,
+				E9C7CAFB2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E9D49E322BC6ED8B0084185E /* PlayableContentView.swift in Sources */,
 				E97563062B699B2400787E14 /* IntentError.swift in Sources */,
 				E97563072B699B2400787E14 /* LogView.swift in Sources */,
@@ -1685,6 +1692,7 @@
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
 				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
+				E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */,
 				E9B135BB2B6ADE690096A14E /* NewSearchScreen.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
 				E98CE00A2B2FF3FB002E5A96 /* LogView.swift in Sources */,
@@ -2533,7 +2541,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2584,7 +2592,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2792,7 +2800,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";

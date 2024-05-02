@@ -3,6 +3,7 @@ import RevenueCatUI
 import SubscriptionKit
 import SonosKit
 import VibesDS
+import MusicSearchKit
 import SwiftUI
 
 @MainActor
@@ -44,12 +45,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case .createScene:
+                case let .createScene(content):
                     NavigationStack {
-                        SceneBuilderScreen(sheetDestination: .constant(nil))
-                            .addDismiss {
-                                sheetDestinations.wrappedValue = nil
-                            }
+                        SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
                     }
                 case .scenes:
                     SceneView()
@@ -58,11 +56,27 @@ extension View {
                         MediaDetailView(playableContent: content, group: group)
                             .environment(Router())
                             .navigationBarTitleDisplayMode(.inline)
+                            .addDismiss {
+                                sheetDestinations.wrappedValue = nil
+                            }
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
                 case let .artistDetail(content, group):
-                    ArtistDetailView(playableContent: content, group: group)
+                    Group {
+                        @State var router = Router()
+                        NavigationStack {
+                            ArtistDetailView(playableContent: content, group: group)
+                                .navigationBarTitleDisplayMode(.inline)
+                                .withAppRouter(router: router)
+                                .addDismiss {
+                                    sheetDestinations.wrappedValue = nil
+                                }
+                        }
+                        .environment(router)
+                        .scrollContentBackground(.hidden)
+                        .presentationBackground(.thinMaterial)
+                    }
                 }
             }
             .withEnvironments()
@@ -77,13 +91,13 @@ extension View {
                     GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: popoverDestination)
                         .frame(idealWidth: 400, idealHeight: 800)
                 case .paywall:
-                   ClicPaywall()
+                    ClicPaywall()
                 case .settings:
                     PreferenceScreen()
                 case let .search(group, instant):
                     NewSearchScreen(group: group, instant: instant)
                 case let .add(mediaContent):
-                    ImprovedSearch(adding: mediaContent, isAdding: true)
+                    NewSearchScreen()
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -95,12 +109,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case .createScene:
+                case let .createScene(content):
                     NavigationStack {
-                        SceneBuilderScreen(sheetDestination: .constant(nil))
-                            .addDismiss {
-                                popoverDestination.wrappedValue = nil
-                            }
+                        SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
                     }
                 case .scenes:
                     SceneView()
@@ -150,6 +161,8 @@ extension View {
                 MediaDetailView(playableContent: content, group: group)
             case let .artistDetail(content, group):
                 ArtistDetailView(playableContent: content, group: group)
+            case let .createScene(content):
+                SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
             }
         }
     }
@@ -183,6 +196,7 @@ extension View {
         environment(SonosService.shared)
             .environment(SubscriptionService.shared)
             .environment(AlertService.shared)
+            .environment(MusicSearchService.shared)
     }
 
     @ViewBuilder
@@ -192,6 +206,7 @@ extension View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
                         .labelStyle(.iconOnly)
+                        .keyboardShortcut(.escape, modifiers: [])
                 }
             }
         } else {

@@ -137,7 +137,7 @@ struct MediaDetailView: View {
                 self.tracks = tracks.map(\.toPlayable)
             case (.album, .spotify):
                 guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
-                self.tracks = albumDetails.tracks.items.map(\.toPlayable)
+                self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
             case (.playlist, .apple):
                 guard let playlist: Playlist = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
                 artworkURL = playlist.artwork?.url(width: 800, height: 800)
@@ -146,7 +146,7 @@ struct MediaDetailView: View {
             case (.playlist, .spotify):
                 guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
                 guard let items = playlist.tracks.items else { return }
-                self.tracks = items.map(\.track.toPlayable) 
+                self.tracks = items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
             case (.track, .apple):
                 guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
                 guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
@@ -154,19 +154,16 @@ struct MediaDetailView: View {
                 playableContent = album.toPlayable
                 guard let tracks = album.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
-//                self.tracks = tracks.map(\.toPlayable)
             case (.track, .spotify):
                 guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id) else { return }
                 guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: song.album.id) else { return }
                 playableContent = albumDetails.toPlayable
                 artworkURL = albumDetails.images.biggestImageURL
-                self.tracks = albumDetails.tracks.items.map(\.toPlayable)
-//                self.tracks = items.map(\.track.toPlayable)
+                self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
             default:
                 break
             }
         }
-        .addDismiss{ dismiss() }
     }
 
     private func play(content: PlayableContent, position: QueuePosition = .now) {

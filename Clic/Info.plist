@@ -46,12 +46,29 @@
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>
-			<key>UIApplicationShortcutItemType</key>
-			<string>com.cllic.search</string>
-			<key>UIApplicationShortcutItemTitle</key>
-			<string>Search</string>
 			<key>UIApplicationShortcutItemIconType</key>
 			<string>UIApplicationShortcutIconTypeSearch</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Search</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.cllic.search</string>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>PlayableItem</string>
+			<key>UTTypeIconFiles</key>
+			<array/>
+			<key>UTTypeIdentifier</key>
+			<string>com.clic.playableContent</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
 		</dict>
 	</array>
 </dict>

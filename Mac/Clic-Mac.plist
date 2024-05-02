@@ -32,5 +32,22 @@
 	<array>
 		<string>_sonos._tcp</string>
 	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>PlayableItem</string>
+			<key>UTTypeIconFiles</key>
+			<array/>
+			<key>UTTypeIdentifier</key>
+			<string>com.clic.playableContent</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
 </dict>
 </plist>

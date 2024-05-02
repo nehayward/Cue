@@ -50,18 +50,14 @@ extension Playlist {
             let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
             components.scheme?.lowercased() == "musickit" {
             let pattern = "https%3A%2F%2F[^&]+"
-            do {
-                let regex = try NSRegularExpression(pattern: pattern)
+            if let regex = try? NSRegularExpression(pattern: pattern) {
                 let nsString = artworkURLFound.absoluteString as NSString
                 let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
 
                 if let match = results.first {
                     let encodedUrl = nsString.substring(with: match.range)
-
                     artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
                 }
-            } catch {
-                
             }
         }
 
@@ -149,11 +145,11 @@ extension SpotifyAlbumDetails {
 }
 
 extension SpotifyAlbumTrackItems {
-    public var toPlayable: PlayableContent {
+    public func toPlayable(artwork: URL?) -> PlayableContent {
         PlayableContent(
             title: name,
             subtitle: allArtists,
-            artwork: album?.images.thumbnail,
+            artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
             duration: Duration.milliseconds(durationMs)
         )

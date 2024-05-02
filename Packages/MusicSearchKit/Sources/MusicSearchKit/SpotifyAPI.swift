@@ -1,7 +1,7 @@
 import Foundation
 import OSLog
 
-final class SpotifySearchAPI {
+final class SpotifyAPI {
 
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
@@ -46,6 +46,23 @@ final class SpotifySearchAPI {
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
 
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
+            return spotifySearch
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    func newReleases() async -> SpotifyResult? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/browse/new-releases"
+     
         guard let url = components.url else { return nil }
 
         do {
@@ -288,7 +305,7 @@ final class SpotifySearchAPI {
     }
 }
 
-extension SpotifySearchAPI {
+extension SpotifyAPI {
     struct Token {
         let validUntil: Date
         let id: String

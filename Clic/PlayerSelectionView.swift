@@ -52,6 +52,8 @@ struct PlayerSelectionView: View {
                                 playHistory.remove(playableContent)
                                 playHistory.insert(playableContent, at: 0)
                                 await sonosService.queue(content: playableContent.content, group: group)
+                                await sonosService.play(ip: group.ip)
+                                return
                             }
                             if let mediaContent {
                                 await sonosService.queue(content: mediaContent, group: group)
@@ -98,6 +100,9 @@ struct PlayerSelectionView: View {
             try? await sonosService.load(useCache: true)
         }
         .listStyle(.insetGrouped)
+        .addDismiss {
+            dismiss()
+        }
     }
 }
 

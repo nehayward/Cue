@@ -20,4 +20,21 @@ extension View {
             isTargeted(targeting)
         }
     }
+
+    @MainActor
+    func dropDestinationPlayableContentPlay(on group: GroupRoom, now: Bool = true, isTargeted: @escaping (Bool) -> Void = { _ in }) -> some View {
+        dropDestination(for: PlayableContent.self) { items, location in
+            guard let playableContent = items.first else { return false }
+            Task {
+                HapticManager.shared.fireHaptic(.notification(.success))
+                await SonosService.shared.queue(content: playableContent.content, group: group, position: now ? .now : .next)
+                if now {
+                    await SonosService.shared.play(ip: group.ip)
+                }
+            }
+            return true
+        } isTargeted: { targeting in
+            isTargeted(targeting)
+        }
+    }
 }

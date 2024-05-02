@@ -15,4 +15,15 @@ public enum MusicService: Sendable, Codable {
             return nil
         }
     }
+
+    var name: String? {
+        switch self {
+        case .apple:
+            "apple"
+        case .spotify:
+            "spotify"
+        default:
+            nil
+        }
+    }
 }

@@ -13,6 +13,7 @@ struct NewSearchScreen: View, KeyboardReadable {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.dismiss) private var dismiss
     @Environment(Router.self) var parentRouter: Router?
+    @Environment(MusicSearchService.self) var musicSearchService
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -30,8 +31,6 @@ struct NewSearchScreen: View, KeyboardReadable {
         }
     }
 
-    @State private var musicSearchService = MusicSearchService()
-
     var group: GroupRoom?
     var instant: Bool = false
 
@@ -39,6 +38,7 @@ struct NewSearchScreen: View, KeyboardReadable {
         Group {
             switch appleMusicAuthorized {
             case .authorized:
+                @Bindable var musicSearchService = musicSearchService
                 NavigationStack(path: $router.path) {
                     List {
                         if !searchCompletionTapped {
@@ -58,16 +58,16 @@ struct NewSearchScreen: View, KeyboardReadable {
                             }
                         }
 
+                        if musicSearchService.query.isEmpty, musicSearchSelection == .spotify {
+                            NewReleasesView()
+                        }
+
                         if !playHistory.isEmpty, musicSearchService.query.isEmpty {
                             PlayHistoryView()
-                                .environment(router)
-                                .environment(group)
                         }
 
                         if musicSearchService.query.isEmpty {
                             FavoritesView()
-                                .environment(router)
-                                .environment(group)
                         }
 
                         if !musicSearchService.query.isEmpty {
@@ -93,6 +93,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                     .navigationBarTitleDisplayMode(.inline)
                     .navigationTitle("Search")
                     .withAppRouter(router: router)
+                    .withSheetDestinations(sheetDestinations: $router.presentedSheet)
                     .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                         if suggestion == nil {
                             searchCompletionTapped = false
@@ -103,14 +104,14 @@ struct NewSearchScreen: View, KeyboardReadable {
                     }
                     .animation(.interactiveSpring, value: musicSearchService.topResults)
                     .animation(.interactiveSpring, value: searchCompletionTapped)
-                    .onReceive(keyboardPublisher) { newIsKeyboardVisible in
-                        if musicSearchService.query.isEmpty {
-                            withAnimation {
-                                isKeyboardVisible = newIsKeyboardVisible
-                                searchCompletionTapped = !newIsKeyboardVisible
-                            }
-                        }
-                    }
+//                    .onReceive(keyboardPublisher) { newIsKeyboardVisible in
+//                        if musicSearchService.query.isEmpty {
+//                            withAnimation {
+//                                isKeyboardVisible = newIsKeyboardVisible
+//                                searchCompletionTapped = !newIsKeyboardVisible
+//                            }
+//                        }
+//                    }
                     .overlay(alignment: .bottom) {
                         HStack {
                             FilterView(filters: $filters)
@@ -132,7 +133,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                                     }
                                 }
                                 .id(SearchSelection.spotify)
-
+                                
                                 Button {
                                     HapticManager.shared.fireHaptic(.buttonPress)
                                     musicSearchSelection = .apple
@@ -182,7 +183,11 @@ struct NewSearchScreen: View, KeyboardReadable {
                 .presentationDragIndicator(.hidden)
                 .scrollContentBackground(.hidden)
                 .listStyle(.inset)
+//                .listStyle(.grouped) // MARK: Update later.
+//                .headerProminence(.increased)
                 .environment(router)
+                .environment(group)
+                .environment(musicSearchService)
                 .onChange(of: router.dismiss) {
                     dismiss()
                 }
@@ -195,6 +200,7 @@ struct NewSearchScreen: View, KeyboardReadable {
             }
         }
         .onAppear {
+            musicSearchService.query = ""
             searchFieldIsPresented = true
             if musicSearchService.query.isEmpty {
                 appleMusicAuthorized = musicSearchService.getMusicAuthorization()

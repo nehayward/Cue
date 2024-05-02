@@ -27,7 +27,7 @@ struct VolumeControlView: View {
                     .resizable()
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
-                    .foregroundStyle(group.isMuted ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(group.isMuted ? Color.secondary : Color.accent)
                     .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
             }
             .buttonStyle(.plain)

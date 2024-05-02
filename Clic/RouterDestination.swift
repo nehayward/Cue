@@ -7,6 +7,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
     case groupDestination(content: PlayableContent)
     case manageScenes
+    case createScene(content: PlayableContent? = nil)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
 
@@ -22,6 +23,8 @@ public enum RouterDestination: Hashable, Identifiable {
             content.id
         case let .artistDetail(content, _):
             content.id
+        case let .createScene(content):
+            content?.id ?? "scene"
         }
     }
 }

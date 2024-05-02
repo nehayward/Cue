@@ -13,6 +13,7 @@ struct LargePlayerView: View {
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
+    @State private var isCrossfaded: Bool = false
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -21,6 +22,7 @@ struct LargePlayerView: View {
             ArtworkView(group: $group)
                 .cornerRadius(12)
                 .padding(.bottom, 24)
+                .draggable(group.coordinatorRoom.track.toPlayable)
                 .shadow(radius: 10)
                 .frame(maxWidth: 500)
 
@@ -201,7 +203,6 @@ struct LargePlayerView: View {
         .toolbar {
             if !group.TVMode {
                 ToolbarItem(placement: .topBarTrailing) {
-
                     Menu {
                         if let openInURL = group.coordinatorRoom.track.metadata?.openInURL {
                             if group.coordinatorRoom.track.musicService == .apple {
@@ -225,12 +226,22 @@ struct LargePlayerView: View {
                                 Label("View Album", systemImage: "rectangle.stack.fill")
                             }
 
+                            Button {
+                                router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                            } label: {
+                                Label("View Artist", systemImage: "music.mic.circle.fill")
+                            }
 
-//                            Button {
-//                                router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
-//                            } label: {
-//                                Label("View Artist", systemImage: "music.mic.circle.fill")
-//                            }
+//                            let playable = group.coordinatorRoom.track.toPlayable
+//                            ShareLink(item: playable)
+                        }
+                        ControlGroup {
+                            Button {
+                                setCrossfade()
+                            } label: {
+                                Label("Crossfade is \(isCrossfaded ? "On" : "Off")", systemImage: isCrossfaded ? "waveform" : "waveform.slash")
+                            }
+                            .menuActionDismissBehavior(.disabled)
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -243,6 +254,12 @@ struct LargePlayerView: View {
         .dropDestinationPlay(on: group)
         .animation(.bouncy, value: group.playMode)
         .ignoresSafeArea(.keyboard)
+        .task {
+            group.isCrossfaded = await sonosService.isCrossfaded(for: group)
+            if let isCrossfaded = group.isCrossfaded {
+                self.isCrossfaded = isCrossfaded
+            }
+        }
     }
 
     private func playbackView() -> some View {
@@ -371,6 +388,13 @@ struct LargePlayerView: View {
             }
         }
         .fontDesign(.rounded)
+    }
+
+    private func setCrossfade() {
+        Task {
+            isCrossfaded.toggle()
+            await sonosService.setCrossfade(group: group, enabled: isCrossfaded)
+        }
     }
 }
 

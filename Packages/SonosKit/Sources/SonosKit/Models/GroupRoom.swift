@@ -10,6 +10,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var TVMode: Bool { playbackService == .tv }
+    public var isCrossfaded: Bool? = nil
     public var tvSettings: TVSettings? {
         get {
             return lock.withLock {

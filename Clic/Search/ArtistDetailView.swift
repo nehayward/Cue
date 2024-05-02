@@ -154,9 +154,34 @@ struct ArtistDetailView: View {
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 artworkURL = artistAwait.images.biggestImageURL
                 self.tracks = artistTopTracksAwait.map(\.toPlayable)
+            case (.album, .apple):
+                guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
+                self.tracks = topTracks.map(\.toPlayable)
+                self.albums = albums.map(\.toPlayable)
+                artworkURL = artist.artwork?.url(width: 500, height: 500)
+                playableContent = artist.toPlayable
+            case (.album, .spotify):
+                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
+                async let artist = MusicSearchService().spotifyArtist(id: artistID)
+                async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: artistID)
+                async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: artistID)
+
+                guard let artistAwait = await artist else { return }
+                guard let artistAlbumsAwait = await artistAlbums else { return }
+                let artistTopTracksAwait = await artistTopTracks
+
+                playableContent = artistAwait.toPlayable
+                albums = artistAlbumsAwait.items.map(\.toPlayable)
+                artworkURL = artistAwait.images.biggestImageURL
+                self.tracks = artistTopTracksAwait.map(\.toPlayable)
             default:
                 break
             }
+        }
+        .onChange(of: router?.dismiss) {
+            dismiss()
         }
     }
 }

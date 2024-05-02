@@ -66,4 +66,8 @@ final class IntegrationsAPITests: XCTestCase {
         let getAudioInputFormat = try await sonosAPI.getAudioInputFormat(IP: theaterIP)
         XCTAssertEqual(getAudioInputFormat, .multiChannelPCM)
     }
+
+    func testDeviceInfo() async throws {
+        try await sonosAPI.deviceInfo(IP: theaterIP)
+    }
 }

@@ -3,6 +3,8 @@ import MusicKit
 
 @Observable
 public final class MusicSearchService {
+    public static var shared = MusicSearchService()
+
     public var query: String = "" {
         didSet {
             if _query.isEmpty {
@@ -14,7 +16,7 @@ public final class MusicSearchService {
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
-    private let spotifySearchAPI = SpotifySearchAPI()
+    private let spotifySearchAPI = SpotifyAPI()
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
     private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
 
@@ -23,6 +25,7 @@ public final class MusicSearchService {
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
     public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
     public var spotifyResult: SpotifyResult?
+    public var newReleases: [SpotifyAlbumItem] = []
 
     public init() { }
 
@@ -97,6 +100,10 @@ public final class MusicSearchService {
 
     public func appleLookup(id: String) async -> ItunesResult? {
         await appleMusicSearchAPI.lookupTrack(id: id)
+    }
+
+    public func spotifyNewReleases() async -> SpotifyResult? {
+        await spotifySearchAPI.newReleases()
     }
 
     public func searchSpotify(song: String, artist: String) async -> SpotifyResult? {
@@ -185,7 +192,7 @@ public final class MusicSearchService {
         guard await requestMusicAuthorization() else { return nil }
         let musicItemID = MusicItemID(id)
         var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: musicItemID)
-        catalogResource.properties = [.albums]
+        catalogResource.properties = [.albums, .artists]
         let response = try await catalogResource.response()
         return response.items.first
     }
@@ -196,7 +203,7 @@ public final class MusicSearchService {
         let albumID = MusicItemID(id)
         print(id)
         var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
-        catalogResource.properties = [.tracks]
+        catalogResource.properties = [.tracks, .artists]
         let response2 = try await catalogResource.response()
         print(response2)
 //        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
@@ -234,7 +241,15 @@ public final class MusicSearchService {
 //        print(searchResponse.artists)
         return response.items.first
     }
-    
+
+//    public func myPlaylists() async throws -> [Playlist]? {
+//        guard await requestMusicAuthorization() else { return nil }
+//        var request = MusicLibraryRequest<Playlist>()
+//        request.sort(by: \.lastPlayedDate, ascending: false)
+//        let response = try await request.response()
+//        return response.items
+//    }
+
 
     public func requestMusicAuthorization() async -> Bool {
         let status = await MusicAuthorization.request()

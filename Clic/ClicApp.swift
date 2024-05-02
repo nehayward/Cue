@@ -25,25 +25,12 @@ struct ClicApp: App {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var sonosService = SonosService.shared
     @State private var alertService = AlertService.shared
+    @State private var musicSearchService = MusicSearchService.shared
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @State var selectedID: String?
-
-    init () {
-        SubscriptionService.shared.initialize(key: "com.clic.subscriptions")
-        Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
-
-        // Check MusicService
-        if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
-            Analytics.shared.setSelection(metadata: ["MusicService": musicService])
-        }
-
-        Task { @MainActor in
-            try? await SubscriptionService.shared.checkSubscription()
-        }
-    }
 
     var body: some Scene {
         WindowGroup {
@@ -128,9 +115,23 @@ struct ClicApp: App {
             .environment(sonosService)
             .environment(subscriptionService)
             .environment(alertService)
+            .environment(musicSearchService)
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
+                // MARK: Move for accent color fix
+                SubscriptionService.shared.initialize(key: "com.clic.subscriptions")
+                Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
+
+                // Check MusicService
+                if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
+                    Analytics.shared.setSelection(metadata: ["MusicService": musicService])
+                }
+
+                Task { @MainActor in
+                    try? await SubscriptionService.shared.checkSubscription()
+                }
+
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }
                     liveActivityManager.createActivity()
@@ -147,7 +148,6 @@ struct ClicApp: App {
             .frame(minWidth: 800, minHeight: 500)
 #endif
             .fontDesign(.rounded)
-            .accentColor(.accent)
         }
         .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {

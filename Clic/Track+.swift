@@ -3,6 +3,7 @@ import SonosKit
 import UIKit
 
 extension Track {
+    @MainActor
     public var nowPlayingURL: URL {
 #if canImport(UIKit)
         return nowPlayingURLs.filter(UIApplication.shared.canOpenURL).first!

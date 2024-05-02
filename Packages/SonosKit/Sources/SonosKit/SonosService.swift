@@ -457,7 +457,7 @@ public final class SonosService {
             for roomGroup in groups {
                 group.addTask { [weak self] in
                     guard let self else { return }
-                    // MARK: Sleeping
+                    // MARK: Sleeping or Off
                     if roomGroup.coordinatorRoom.state != .active { return }
 
                     async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
@@ -574,8 +574,11 @@ public final class SonosService {
     func updateGroupCheckTVMode(from roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
+                if roomGroup.coordinatorRoom.state != .active { return }
+
                 group.addTask { [weak self] in
                     guard let self else { return }
+                    // MARK: Sleeping or Off
                     // MARK: Theater Mock
 //                    if roomGroup.coordinatorRoom.name == "Theater" {
 //                        roomGroup.coordinatorRoom.track.TVMode = true
@@ -987,7 +990,16 @@ public final class SonosService {
     public func isMuted(for group: GroupRoom) async -> Bool? {
         await api.getGroupMute(IP: group.coordinatorRoom.ip)
     }
-    
+
+    public func isCrossfaded(for group: GroupRoom) async -> Bool? {
+        await api.crossfade(IP: group.coordinatorRoom.ip)
+    }
+
+    public func setCrossfade(group: GroupRoom, enabled: Bool) async {
+        group.isCrossfaded = enabled
+        await api.setCrossfade(IP: group.coordinatorRoom.ip, enabled: enabled)
+    }
+
     public func getVolume(ip: String) async throws -> Double {
        try await api.getVolume(ipAddress: ip)
     }
@@ -1058,6 +1070,7 @@ public final class SonosService {
             guard let roomID = scene.rooms.first?.id, let playableContent = scene.playableContent else { return }
             guard let group = await getGroupCoordinatorWithRoom(roomID: roomID) else { return }
             await queue(content: playableContent.content, group: group)
+            await play(ip: group.ip)
         }
 
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
@@ -1109,17 +1122,20 @@ public final class SonosService {
 
     public func queueAppleSong(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueAppleSong(id: id, IP: group.ip, position: position)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
 
         if position == .now {
-            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+            await next(ip: group.ip)
         }
     }
 
     public func queueAppleAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueAppleAlbum(ID: id, IP: group.coordinatorRoom.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
         if position == .now {
             await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
         }
@@ -1134,34 +1150,44 @@ public final class SonosService {
     public func queueSpotifyPlaylist(id: String, group: GroupRoom) async {
         await api.removeAllTrackFromQueue(IP: group.ip)
         await api.queueSpotifyPlaylist(ID: id, IP: group.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
     }
 
     public func queueSpotifyArtistTopTracks(id: String, group: GroupRoom) async {
         await api.queueSpotifyArtistTopTracks(ID: id, IP: group.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
     }
 
     public func queueSpotifyArtistRadio(id: String, group: GroupRoom) async {
         await api.queueSpotifyArtistRadio(ID: id, IP: group.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
     }
 
     public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
         if position == .now {
-            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+            await next(ip: group.ip)
         }
     }
 
     public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
 
         if position == .now {
-            await seek(trackNumber: group.coordinatorRoom.track.position + 1, on: group)
+            await next(ip: group.ip)
         }
     }
 
