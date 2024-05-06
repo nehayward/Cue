@@ -34,7 +34,7 @@ struct PlayableContentView: View {
     private func play(position: QueuePosition = .now) {
         Task {
             guard let group = group else {
-                router.navigate(to: .groupDestination(content: item))
+                router.navigate(to: .groupDestination(content: item, position: position))
                 return
             }
             playHistory.remove(item)

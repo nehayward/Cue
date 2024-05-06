@@ -33,6 +33,13 @@ struct ArtworkDebugView: View {
                                 .foregroundStyle(.thickMaterial)
                                 .frame(width: 16, height: 16)
                                 .padding([.trailing, .bottom], 4)
+                        case .library:
+                            Image(systemName: "books.vertical.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.thickMaterial)
+                                .frame(width: 16, height: 16)
+                                .padding([.trailing, .bottom], 4)
                         case .airplay, .unknown:
                             EmptyView()
                         }

@@ -10,10 +10,23 @@ enum Filter: String, CaseIterable {
     var title: String {
         self.rawValue.capitalized
     }
+
+    var toContentType: ContentType {
+        switch self {
+        case .artist:
+            return .artist
+        case .songs:
+            return .track
+        case .albums:
+            return .album
+        case .playlists:
+            return .playlist
+        }
+    }
 }
 
 @Observable
-class FilterSelection: Hashable, Identifiable {
+final class FilterSelection: Hashable, Identifiable {
     let filter: Filter
     var isFiltered: Bool
     var notFiltered: Bool { !isFiltered }

@@ -1,5 +1,6 @@
 import Foundation
 import MusicKit
+import MusicSearchKit
 
 @Observable
 public final class MusicSearchService {
@@ -17,14 +18,20 @@ public final class MusicSearchService {
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let spotifySearchAPI = SpotifyAPI()
+    private let sonosService = SonosService.shared
+
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
     private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
+    private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
 
     private let debounceDuration: Duration = .milliseconds(200)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
     public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
     public var spotifyResult: SpotifyResult?
+
+    public var librarySearchResults: [PlayableContent] = []
+
     public var newReleases: [SpotifyAlbumItem] = []
 
     public init() { }
@@ -35,6 +42,7 @@ public final class MusicSearchService {
         // Cancel the previous task if it exists
         searchSuggestionTask.cancel()
         spotifySearchTask.cancel()
+        librarySearchTask.cancel()
 
         // Create a new task
         searchSuggestionTask = Task { [weak self] in
@@ -56,6 +64,17 @@ public final class MusicSearchService {
             return results
         }
 
+        librarySearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            if provider == .library {
+                return await sonosService.librarySearch(query: query)
+            }
+            return nil
+        }
+
         // Wait for the task to complete and return the result
         guard let results = await searchSuggestionTask.value else { return }
         suggestions = results.0
@@ -65,9 +84,10 @@ public final class MusicSearchService {
             topResults = results.1
         case .spotify:
             guard let result = await spotifySearchTask.value else { return }
-            Task { @MainActor in
-                spotifyResult = result
-            }
+            spotifyResult = result
+        case .library:
+            guard let librarySearchResults = await librarySearchTask.value else { return }
+            self.librarySearchResults = librarySearchResults
         }
     }
 
@@ -148,6 +168,16 @@ public final class MusicSearchService {
 
     public func searchSpotify(query: String) async -> SpotifyResult? {
         await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
+    }
+
+    public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {
+        var playableContents: [PlayableContent] = []
+        guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return [] }
+        if let albums = results.albums?.items.map(\.toPlayable) {
+            playableContents.append(contentsOf: albums)
+        }
+
+        return playableContents
     }
 
 //    public func searchSpotifyTopResults(query: String) async -> [String] {

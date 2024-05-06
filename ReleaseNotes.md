@@ -1,3 +1,17 @@
+# 2024.20
+
+## External 
+
++ Add support for Music Library, you can now search and play songs from your Library!
++ Improved Album Art loading.
++ Fixed an issue with Night Mode and Dialog Mode getting reset.
++ Play History can be filtered now.
+
+## Internal
++ Fixed an issue when album being queued.
++ Add more device information
++ Prioritize ethernet connected IPs
+
 # 2024.19
 
 ## External 

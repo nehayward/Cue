@@ -12,12 +12,22 @@ struct PlayHistoryView: View {
     @Environment(GroupRoom.self) var group: GroupRoom?
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Binding var filters: [FilterSelection]
 
     var body: some View {
         Section {
-            ForEach(Array(playHistory), id: \.self) { item in
-                PlayableContentView(item: item, group: group)
+            if filters.filter(\.isFiltered).isEmpty {
+                ForEach(playHistory) { item in
+                    PlayableContentView(item: item, group: group)
+                }
+            } else {
+                ForEach(playHistory) { item in
+                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
+                        PlayableContentView(item: item, group: group)
+                    }
+                }
             }
+
         } header: {
             HStack {
                 Label {

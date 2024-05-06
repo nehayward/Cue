@@ -1,19 +1,19 @@
 import Foundation
 import OSLog
 
-final class SpotifyAPI {
+public final class SpotifyAPI {
 
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
 
-    init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
+    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
 
-    func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
+    public func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -35,7 +35,7 @@ final class SpotifyAPI {
         }
     }
 
-    func searchSong(for query: String, limit: Int = 25) async -> SpotifyResult? {
+    public func searchSong(for query: String, limit: Int = 25) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -57,7 +57,7 @@ final class SpotifyAPI {
         }
     }
 
-    func newReleases() async -> SpotifyResult? {
+    public func newReleases() async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -74,7 +74,7 @@ final class SpotifyAPI {
         }
     }
 
-    func lookupTrack(id: String) async -> SpotifyTrackItem? {
+    public func lookupTrack(id: String) async -> SpotifyTrackItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -90,7 +90,7 @@ final class SpotifyAPI {
         }
     }
 
-    func playlist(id: String) async -> SpotifyPlaylistItems? {
+    public func playlist(id: String) async -> SpotifyPlaylistItems? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -106,7 +106,7 @@ final class SpotifyAPI {
         }
     }
 
-    func album(id: String) async -> SpotifyAlbumItem? {
+    public func album(id: String) async -> SpotifyAlbumItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -122,7 +122,7 @@ final class SpotifyAPI {
         }
     }
 
-    func albumDetails(id: String) async -> SpotifyAlbumDetails? {
+    public func albumDetails(id: String) async -> SpotifyAlbumDetails? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -143,7 +143,7 @@ final class SpotifyAPI {
         }
     }
 
-    func artist(id: String) async -> SpotifyArtistsItems? {
+    public func artist(id: String) async -> SpotifyArtistsItems? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -162,7 +162,7 @@ final class SpotifyAPI {
         }
     }
 
-    func artistTopTracks(id: String) async -> [SpotifyTrackItem] {
+    public func artistTopTracks(id: String) async -> [SpotifyTrackItem] {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
@@ -183,7 +183,7 @@ final class SpotifyAPI {
         }
     }
 
-    func artistAlbums(id: String) async -> SpotifyArtistAlbums? {
+    public func artistAlbums(id: String) async -> SpotifyArtistAlbums? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"

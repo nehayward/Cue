@@ -10,6 +10,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     public let content: MediaContent
     public let duration: Duration?
     public let popularity: Int?
+    public let metadata: PlayableContentMetadata?
 
     public var shareURL: URL {
         guard let musicService = content.service.name else { return URL(string: "clic://")! }
@@ -22,7 +23,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         artwork: URL?,
         content: MediaContent,
         duration: Duration? = nil,
-        popularity: Int? = nil
+        popularity: Int? = nil,
+        metadata: PlayableContentMetadata? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -30,6 +32,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         self.content = content
         self.duration = duration
         self.popularity = popularity
+        self.metadata = metadata
     }
 }
 

@@ -5,7 +5,7 @@ import SwiftUI
 
 public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
-    case groupDestination(content: PlayableContent)
+    case groupDestination(content: PlayableContent, position: QueuePosition = .now)
     case manageScenes
     case createScene(content: PlayableContent? = nil)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
@@ -15,7 +15,7 @@ public enum RouterDestination: Hashable, Identifiable {
         switch self {
         case let .player(groupID):
             groupID
-        case let .groupDestination(content):
+        case let .groupDestination(content, _):
             content.content.id
         case .manageScenes:
             "manageScenes"

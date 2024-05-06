@@ -6,9 +6,10 @@ extension Track {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: name,
-            subtitle: artist,
+            subtitle: "\(artist) • \(album)",
             artwork: artworkURL,
-            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: nil)
+            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: nil),
+            metadata: PlayableContentMetadata(artist: artist, album: album)
         )
     }
 }

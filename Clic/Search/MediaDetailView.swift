@@ -160,6 +160,20 @@ struct MediaDetailView: View {
                 playableContent = albumDetails.toPlayable
                 artworkURL = albumDetails.images.biggestImageURL
                 self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
+            case (.album, .library):
+                artworkURL = playableContent.artwork
+                self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
+            case (.playlist, .library):
+                artworkURL = playableContent.artwork
+                self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
+            case (.track, .library):
+                artworkURL = playableContent.artwork
+                guard let albumName = playableContent.metadata?.album,
+                      let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+
+                self.tracks = await sonosService.libraryAlbum(name: albumName)
+                guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
+                playableContent = albumPlayable
             default:
                 break
             }
@@ -169,7 +183,7 @@ struct MediaDetailView: View {
     private func play(content: PlayableContent, position: QueuePosition = .now) {
         Task {
             guard let group = group else {
-                router.navigate(to: .groupDestination(content: content))
+                router.navigate(to: .groupDestination(content: content, position: position))
                 return
             }
             

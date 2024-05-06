@@ -1,17 +1,17 @@
 import Foundation
 import OSLog
 
-final class AppleMusicSearchAPI {
+public final class AppleMusicSearchAPI {
     private let logger: Logger = Logger(subsystem: "AppleMusicSearchAPI", category: "AppleMusicSearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
 
-    init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
+    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
     }
 
-    func search(for query: String, limit: Int = 25, entities: Set<AppleEntity> = [.song]) async -> [ItunesResult] {
+    public func search(for query: String, limit: Int = 25, entities: Set<AppleEntity> = [.song]) async -> [ItunesResult] {
         let entities = entities.map { $0.rawValue }.joined(separator: ", ")
         var components = URLComponents()
         components.scheme = "https"
@@ -41,7 +41,7 @@ final class AppleMusicSearchAPI {
         }
     }
 
-    func lookupTrack(id: String) async -> ItunesResult? {
+    public func lookupTrack(id: String) async -> ItunesResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "itunes.apple.com"

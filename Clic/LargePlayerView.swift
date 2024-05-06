@@ -25,6 +25,8 @@ struct LargePlayerView: View {
                 .draggable(group.coordinatorRoom.track.toPlayable)
                 .shadow(radius: 10)
                 .frame(maxWidth: 500)
+                .dropDestinationPlayableContentPlay(on: group)
+                .dropDestinationPlay(on: group)
 
             if group.TVMode {
                 TVModeView()
@@ -219,7 +221,7 @@ struct LargePlayerView: View {
                         Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
                             Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                         }
-                        if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService) {
+                        if [.spotify, .apple, .library].contains(group.coordinatorRoom.track.musicService) {
                             Button {
                                 router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                             } label: {
@@ -361,29 +363,37 @@ struct LargePlayerView: View {
             }
             HStack {
                 if let settings = Binding<TVSettings>($group.tvSettings) {
-                    Toggle("Night Mode", systemImage: "moon.zzz.fill", isOn: settings.nightMode)
-                        .symbolRenderingMode(.hierarchical)
-                        .labelStyle(.iconOnly)
-                        .toggleStyle(.button)
-                        .foregroundStyle(settings.nightMode.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
-                        .onChange(of: settings.nightMode.wrappedValue) { oldValue, newValue in
-                            Task {
-                                try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: newValue)
-                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
-                            }
+                    Button {
+                        Task {
+                            try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
+                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
+                    } label: {
+                        Label("Night Mode", systemImage: "moon.zzz.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(settings.nightMode.wrappedValue ? .accent : nil)
+                    .animation(.spring, value: settings.nightMode.wrappedValue)
 
-                    Toggle("Dialog Mode", systemImage: "person.wave.2.fill", isOn: settings.dialogLevel)
-                        .symbolRenderingMode(.hierarchical)
-                        .labelStyle(.iconOnly)
-                        .toggleStyle(.button)
-                        .foregroundStyle(settings.dialogLevel.wrappedValue ? Color.accentColor : .secondary.opacity(0.8))
-                        .onChange(of: settings.dialogLevel.wrappedValue) { oldValue, newValue in
-                            Task {
-                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: newValue)
-                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
-                            }
+                    Button {
+                        Task {
+                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
+                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
+                    } label: {
+                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                    }
+                    .buttonStyle(.bordered)
+                    .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                    .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
+                    .animation(.spring, value: settings.dialogLevel.wrappedValue)
                 }
             }
         }

@@ -62,6 +62,14 @@ struct PlayerView: View {
                 case .airplay, .unknown:
                     EmptyView()
                         .padding([.trailing, .bottom], 12)
+                case .library:
+                    Image(systemName: "books.vertical.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: 10, height: 10)
+                        .padding([.trailing, .bottom], 4)
+                        .shadow(radius: 10)
                 }
             }
             .cornerRadius(12)

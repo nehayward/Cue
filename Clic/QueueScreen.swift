@@ -52,6 +52,13 @@ struct QueueScreen: View {
                                 case .airplay, .unknown:
                                     EmptyView()
                                         .padding([.trailing, .bottom], 4)
+                                case .library:
+                                    Image(systemName: "books.vertical.fill")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white.gradient)
+                                        .frame(width: 16, height: 16)
+                                        .padding([.trailing, .bottom], 4)
                                 }
                             }
                             .task(id: track.id) {
@@ -69,6 +76,8 @@ struct QueueScreen: View {
                                 }
                             } label: {
                                 VStack(alignment: .leading) {
+//                                    Text(track.artworkURL?.absoluteString ?? "--")
+//                                        .textSelection(.enabled)
 //                                    Text(track.position, format: .number) // MARK: Debug Only
                                     Text(track.name)
                                         .lineLimit(1)
@@ -92,6 +101,7 @@ struct QueueScreen: View {
                         }
                         .id(track.id)
                         .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
+                        .draggable(track.toPlayable)
                     }
                     .onMove(perform: move)
                 }

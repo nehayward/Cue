@@ -57,6 +57,14 @@ struct ContentArtworkView: View {
                             .frame(width: size, height: size, alignment: .bottomTrailing)
                             .padding(size == 24 ? 16 : 4)
                             .shadow(radius: 10)
+                    case .library:
+                        Image(systemName: "books.vertical.circle.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white.gradient)
+                            .frame(width: size, height: size, alignment: .bottomTrailing)
+                            .padding(size == 24 ? 16 : 4)
+                            .shadow(radius: 10)
                     case .airplay, .unknown:
                         EmptyView()
                             .padding([.trailing, .bottom], 12)

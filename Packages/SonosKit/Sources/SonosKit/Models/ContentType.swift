@@ -8,13 +8,13 @@ public enum ContentType: Equatable, Codable {
 
     public init?(_ type: String) {
         switch type.lowercased() {
-        case "playlist":
-            self =  .playlist
-        case "album":
+        case let str where str.contains("playlist"):
+            self = .playlist
+        case let str where str.contains("album"):
             self = .album
-        case "artist":
+        case let str where str.contains("artist"):
             self = .artist
-        case "track", "song":
+        case let str where str.contains("track"), let str where str.contains("song"):
             self = .track
         default:
             return nil

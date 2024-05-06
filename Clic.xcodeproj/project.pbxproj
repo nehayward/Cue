@@ -13,6 +13,9 @@
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F31612BC4976800884EA5 /* PlayableContentView.swift */; };
 		E90F31652BC5999900884EA5 /* ClicPaywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F31642BC5999900884EA5 /* ClicPaywall.swift */; };
+		E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
+		E9146E8F2BE5593400056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
+		E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
@@ -484,6 +487,7 @@
 		E90F315C2BC481E400884EA5 /* Analytics */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Analytics; sourceTree = SOURCE_ROOT; };
 		E90F31612BC4976800884EA5 /* PlayableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayableContentView.swift; sourceTree = "<group>"; };
 		E90F31642BC5999900884EA5 /* ClicPaywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicPaywall.swift; sourceTree = "<group>"; };
+		E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearchView.swift; sourceTree = "<group>"; };
 		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
@@ -790,6 +794,7 @@
 				E9B135BA2B6ADE690096A14E /* NewSearchScreen.swift */,
 				E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */,
 				E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */,
+				E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */,
 				E90F31612BC4976800884EA5 /* PlayableContentView.swift */,
 				E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */,
 				E9B135BE2B6B62B00096A14E /* MediaDetailView.swift */,
@@ -1306,7 +1311,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1510;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 1530;
 				TargetAttributes = {
 					E92E47422B360C5C00DE6647 = {
 						CreatedOnToolsVersion = 15.1;
@@ -1476,6 +1481,7 @@
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
 				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
+				E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
 				E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */,
 				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
@@ -1525,6 +1531,7 @@
 			files = (
 				E97562DF2B699B2400787E14 /* QueueScreen.swift in Sources */,
 				E97562E02B699B2400787E14 /* NextIntent.swift in Sources */,
+				E9146E8F2BE5593400056149 /* LibrarySearchView.swift in Sources */,
 				E97562E12B699B2400787E14 /* Bundle+AppIcon.swift in Sources */,
 				E97562E22B699B2400787E14 /* LiveActivity+Environment.swift in Sources */,
 				E97562E32B699B2400787E14 /* AppRegistry.swift in Sources */,
@@ -1661,6 +1668,7 @@
 			files = (
 				E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
+				E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */,
 				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
@@ -1817,7 +1825,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -1870,7 +1878,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -1923,7 +1931,7 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -2082,14 +2090,16 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
@@ -2135,14 +2145,16 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
@@ -2188,14 +2200,16 @@
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"Clic/Preview Content\"";
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";

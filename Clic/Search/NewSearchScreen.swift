@@ -8,8 +8,9 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
+import TipKit
 
-struct NewSearchScreen: View, KeyboardReadable {
+struct NewSearchScreen: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.dismiss) private var dismiss
     @Environment(Router.self) var parentRouter: Router?
@@ -63,7 +64,7 @@ struct NewSearchScreen: View, KeyboardReadable {
                         }
 
                         if !playHistory.isEmpty, musicSearchService.query.isEmpty {
-                            PlayHistoryView()
+                            PlayHistoryView(filters: $filters)
                         }
 
                         if musicSearchService.query.isEmpty {
@@ -79,6 +80,8 @@ struct NewSearchScreen: View, KeyboardReadable {
                                     AppleMusicSearchScreen(result: result, filters: $filters, group: group)
                                         .fontDesign(.rounded)
                                 }
+                            case .library:
+                                LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters, group: group)
                             }
                         }
                     }
@@ -104,14 +107,6 @@ struct NewSearchScreen: View, KeyboardReadable {
                     }
                     .animation(.interactiveSpring, value: musicSearchService.topResults)
                     .animation(.interactiveSpring, value: searchCompletionTapped)
-//                    .onReceive(keyboardPublisher) { newIsKeyboardVisible in
-//                        if musicSearchService.query.isEmpty {
-//                            withAnimation {
-//                                isKeyboardVisible = newIsKeyboardVisible
-//                                searchCompletionTapped = !newIsKeyboardVisible
-//                            }
-//                        }
-//                    }
                     .overlay(alignment: .bottom) {
                         HStack {
                             FilterView(filters: $filters)
@@ -150,21 +145,23 @@ struct NewSearchScreen: View, KeyboardReadable {
                                     }
                                 }
                                 .id(SearchSelection.apple)
-                            } label: {
-                                switch musicSearchSelection {
-                                case .spotify:
-                                    Image(.spotifyLogo)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .tag(musicSearchSelection)
-                                        .frame(width: 24, height: 24)
-                                case .apple:
-                                    Image(systemName: "apple.logo")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .tag(SearchSelection.spotify)
-                                        .frame(width: 24, height: 24)
+
+                                Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    musicSearchSelection = .library
+                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                } label: {
+                                    Label("Library", systemImage: "books.vertical.circle.fill")
                                 }
+                                .id(SearchSelection.library)
+                            } label: {
+                                Label {
+                                    Text(musicSearchSelection.title)
+                                } icon: {
+                                    iconForMusicService
+                                }
+                                .labelStyle(.iconOnly)
                             }
                         }
                         .padding([.vertical, .trailing])
@@ -221,12 +218,26 @@ struct NewSearchScreen: View, KeyboardReadable {
             try await Task.sleep(for: .milliseconds(400))
             UIView.setAnimationsEnabled(true)
         }
-//        var transaction = Transaction()
-//        transaction.animation = .easeInOut(duration: 0)
-////        transaction.animation?.speed(1)
-//        withTransaction(transaction) {
-//            searchIsPresented = true
-//        }
+    }
+
+    private var iconForMusicService: some View {
+        switch musicSearchSelection {
+        case .spotify:
+            Image(.spotifyLogo)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+        case .apple:
+            Image(systemName: "apple.logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+        case .library:
+            Image(systemName: "books.vertical.circle.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+        }
     }
 }
 

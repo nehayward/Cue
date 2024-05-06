@@ -60,25 +60,12 @@ struct PreferenceScreen: View {
                 }
                 Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
-                    #if DEBUG
-                    NavigationLink("Logs") {
-                        LogScreen()
-                    }
-
-                    // MARK: Add multiple household ids
-////                    Picker("HouseID", selection: $sonosService.houseID) {
-//                    VStack {
-//                        ForEach(Array(sonosService.houseIDs), id: \.self) {
-//                            Text($0)
-//                        }
-//                    }
-////                    }
-                    #endif
                     if UIApplication.shared.isRunningInTestFlightEnvironment() {
                         NavigationLink("Logs") {
                             LogScreen()
                         }
                         Text("Vanished")
+                        
                         if let vanishes = sonosService.system?.vanished {
                             ForEach(vanishes) { vanish in
                                 VStack(alignment: .leading) {
@@ -89,6 +76,11 @@ struct PreferenceScreen: View {
                                     }
                                 }
                             }
+                        }
+                    }
+                    Button("Refresh Library") {
+                        Task {
+                            await sonosService.refreshLibrary()
                         }
                     }
                 } header: {

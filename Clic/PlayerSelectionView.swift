@@ -14,8 +14,10 @@ struct PlayerSelectionView: View {
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     @State var playableContent: PlayableContent?
-    var mediaContent: MediaContent?
     @State var artworkURL: URL?
+
+    var position: QueuePosition = .now
+    var mediaContent: MediaContent?
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -51,7 +53,7 @@ struct PlayerSelectionView: View {
                             if let playableContent {
                                 playHistory.remove(playableContent)
                                 playHistory.insert(playableContent, at: 0)
-                                await sonosService.queue(content: playableContent.content, group: group)
+                                await sonosService.queue(content: playableContent.content, group: group, position: position)
                                 await sonosService.play(ip: group.ip)
                                 return
                             }

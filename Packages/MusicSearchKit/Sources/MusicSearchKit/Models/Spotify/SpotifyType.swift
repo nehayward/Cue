@@ -1,5 +1,5 @@
 
-enum SpotifyType: String, CaseIterable {
+public enum SpotifyType: String, CaseIterable {
     case artist
     case album
     case playlist

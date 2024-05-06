@@ -25,26 +25,28 @@ struct ArtistDetailView: View {
 
     var body: some View {
         List {
-            LazyImage(url: artworkURL) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .transition(.opacity)
-                } else if state.isLoading {
-                    RoundedRectangle(cornerRadius: 4)
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
-                        .shadow(radius: 2)
+            if artworkURL != nil  {
+                LazyImage(url: artworkURL) { state in
+                    if let image = state.image {
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .transition(.opacity)
+                    } else if state.isLoading {
+                        RoundedRectangle(cornerRadius: 4)
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.ultraThinMaterial)
+                            .shadow(radius: 2)
+                    }
                 }
+                .clipShape(Circle())
+                .shadow(radius: 2)
+                .scaledToFit()
+                .frame(width: 200, height: 200)
+                .frame(maxWidth: .infinity)
+                .listSectionSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
-            .clipShape(Circle())
-            .shadow(radius: 2)
-            .scaledToFit()
-            .frame(width: 200, height: 200)
-            .frame(maxWidth: .infinity)
-            .listSectionSeparator(.hidden)
-            .listRowBackground(Color.clear)
 
             Section("Top Tracks") {
                 ForEach(tracks) { track in
@@ -110,7 +112,6 @@ struct ArtistDetailView: View {
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
-        .animation(.spring, value: artworkURL)
         .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
@@ -176,6 +177,38 @@ struct ArtistDetailView: View {
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 artworkURL = artistAwait.images.biggestImageURL
                 self.tracks = artistTopTracksAwait.map(\.toPlayable)
+            case (.track, .library):
+                artworkURL = nil
+                guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+
+                playableContent = PlayableContent(
+                    title: artistName,
+                    subtitle: playableContent.subtitle,
+                    artwork: nil,
+                    content: playableContent.content
+                )
+
+                self.albums = await sonosService.libraryArtist(name: artistName)
+                self.tracks = await sonosService.libraryArtist(name: artistName + "/").suffix(10)
+            case (.album, .library):
+                artworkURL = nil
+
+                guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+
+                playableContent = PlayableContent(
+                    title: artistName,
+                    subtitle: playableContent.subtitle,
+                    artwork: nil,
+                    content: playableContent.content
+                )
+                self.albums = await sonosService.libraryArtist(name: artistName)
+                self.tracks = await sonosService.libraryArtist(name: artistName + "/").suffix(10)
+            case (.artist, .library):
+                artworkURL = nil
+
+                artworkURL = playableContent.artwork
+                self.albums = await sonosService.libraryLookup(ID: playableContent.id)
+                self.tracks = await sonosService.libraryLookup(ID: playableContent.id + "/").suffix(10)
             default:
                 break
             }

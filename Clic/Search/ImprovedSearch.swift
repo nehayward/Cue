@@ -44,7 +44,7 @@ struct ImprovedSearch: View, KeyboardReadable {
         NavigationStack(path: $router.path) {
             List {
                 if !searchFieldIsPresented, !playHistory.isEmpty {
-                    PlayHistoryView()
+                    PlayHistoryView(filters: $filters)
                         .environment(router)
                         .environment(group)
                 }
@@ -58,6 +58,9 @@ struct ImprovedSearch: View, KeyboardReadable {
                     SpotifySearchView(isAdding: isAdding, addingContent: $adding, spotifyResult: $spotifyResult, filters: $filters, group: group)
                 case .apple:
                     ClassicAppleMusicSearchView(results: $results, filters: $filters, group: group)
+                case .library:
+//                    LibrarySearchView()
+                    Text("Library")
                 }
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)
@@ -117,6 +120,8 @@ struct ImprovedSearch: View, KeyboardReadable {
                         try await Task.sleep(for: .milliseconds(shouldDebounce ? 200 : 0))
                         results = await musicSearchService.search(song: query, artist: "")
                     }
+                case .library:
+                    break
                 }
             }
             .onChange(of: musicSearchSelection) {
@@ -130,6 +135,8 @@ struct ImprovedSearch: View, KeyboardReadable {
                     searchTask = Task {
                         results = await musicSearchService.search(song: query, artist: "")
                     }
+                case .library:
+                    break
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -176,10 +183,16 @@ struct ImprovedSearch: View, KeyboardReadable {
                             Image(.spotifyLogo)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .tag(musicSearchSelection)
+                                .tag(SearchSelection.spotify)
                                 .frame(width: 24, height: 24)
                         case .apple:
                             Image(systemName: "apple.logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .tag(SearchSelection.spotify)
+                                .frame(width: 24, height: 24)
+                        case .library:
+                            Image(systemName: "books.vertical.circle.fill")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .tag(SearchSelection.spotify)

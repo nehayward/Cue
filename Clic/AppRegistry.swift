@@ -153,8 +153,8 @@ extension View {
                             router.path.removeAll()
                         }
                 }
-            case let .groupDestination(content):
-                PlayerSelectionView(playableContent: content)
+            case let .groupDestination(content, position):
+                PlayerSelectionView(playableContent: content, position: position)
             case .manageScenes:
                 ManageSceneScreen()
             case let .mediaDetail(content, group):

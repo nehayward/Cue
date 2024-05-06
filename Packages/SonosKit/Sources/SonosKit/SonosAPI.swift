@@ -9,9 +9,9 @@ final class SonosAPI: NSObject {
     private lazy var session: URLSession = privateSession
     private lazy var insecure: URLSession = insecureSession
 
-    private lazy var xmlParser = XMLParserSonos()
-    private lazy var decoder = JSONDecoder()
-    private lazy var encoder = JSONEncoder()
+    lazy var xmlParser = XMLParserSonos()
+    lazy var decoder = JSONDecoder()
+    lazy var encoder = JSONEncoder()
 
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
@@ -164,7 +164,7 @@ final class SonosAPI: NSObject {
     }
 
     @MainActor
-    func getCurrentTrack(ipAddress: String) async -> Track? {
+    func getCurrentTrack(ipAddress: String, prioritizedAlbumArtIP: String? = nil) async -> Track? {
         let arguments: [String: Any] = [
             "InstanceID": 0,
         ]
@@ -174,7 +174,8 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        let trackInfo = xmlParser.parsePositionInfo(xml: xml.unescaped, IP: ipAddress)
+
+        let trackInfo = xmlParser.parsePositionInfo(xml: xml.unescaped, IP: ipAddress, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
         SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xml.unescaped)
         return trackInfo
     }
@@ -486,16 +487,12 @@ final class SonosAPI: NSObject {
             "DesiredFirstTrackNumberEnqueued": 1,
             "EnqueueAsNext": 1
         ]
-
+        
         switch position {
         case .front: break
         case .end:
             arguments["DesiredFirstTrackNumberEnqueued"] = 0
-        case .now:
-            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
-            arguments["DesiredFirstTrackNumberEnqueued"] = index
-            arguments["EnqueueAsNext"] = 0
-        case .next:
+        case .now, .next:
             let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
             arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
             arguments["EnqueueAsNext"] = 1
@@ -644,21 +641,17 @@ final class SonosAPI: NSObject {
             "DesiredFirstTrackNumberEnqueued": 1,
             "EnqueueAsNext": 1
         ]
-        
+      
         switch position {
         case .front: break
         case .end:
             arguments["DesiredFirstTrackNumberEnqueued"] = 0
-        case .now:
-            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
-            arguments["DesiredFirstTrackNumberEnqueued"] = index
-            arguments["EnqueueAsNext"] = 0
-        case .next:
+        case .now, .next:
             let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
             arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
             arguments["EnqueueAsNext"] = 1
         }
-        
+
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
             return
         }
@@ -686,7 +679,7 @@ final class SonosAPI: NSObject {
         return transportActions
     }
 
-    func getQueue(IP: String) async -> [Track] {
+    func getQueue(IP: String, prioritizedAlbumArtIP: String? = nil) async -> [Track] {
         let arguments: [String: Any] = [
             "ObjectID": "Q:0",
             "BrowseFlag": "BrowseDirectChildren",
@@ -705,7 +698,7 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        return xmlParser.parseQueue(IP: IP, xml: xml)
+        return xmlParser.parseQueue(IP: IP, xml: xml, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
     }
     
     func seek(trackNumber: Int, IP: String) async {
@@ -908,12 +901,15 @@ final class SonosAPI: NSObject {
     }
 
     // TODO: Implement
-    func deviceInfo(IP: String) async {
-        guard let url = URL(string: "http://\(IP):1400/xml/device_description.xml") else { return }
+    func deviceInfo(IP: String) async -> DeviceInfo? {
+        guard let url = URL(string: "http://\(IP):1400/xml/device_description.xml") else { return nil }
         let request = URLRequest(url: url)
-        guard let (data, response) = try? await session.data(for: request) else { return }
+        guard let (data, response) = try? await session.data(for: request) else { return nil }
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
         let xml = String(decoding: data, as: UTF8.self)
-        print(xml)
+        return xmlParser.parseDeviceInfo(xml: xml)
     }
 
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
@@ -925,7 +921,7 @@ final class SonosAPI: NSObject {
                 <s:Body>
                     <u:\(action) xmlns:u="urn:schemas-upnp-org:service:\(endpoint.components(separatedBy: "/").last!):1">
             """
-            + arguments.map({ "<\( $0.key )>\( $0.value )</\( $0.key )>" }).joined()
+        + arguments.map({ ($0.value as? String)?.isEmpty ?? false ? "<\( $0.key )/>" :  "<\( $0.key )>\( $0.value )</\( $0.key )>" }).joined()
             + """
                     </u:\(action)>
                 </s:Body>

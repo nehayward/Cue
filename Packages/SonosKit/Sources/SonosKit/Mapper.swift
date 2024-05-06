@@ -22,7 +22,22 @@ extension ZoneGroupMember {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
-        return Room(id: UUID, ip: ip, name: zoneName, battery: Battery(info: info))
+        return Room(
+            id: UUID,
+            ip: ip,
+            name: zoneName,
+            battery: Battery(info: info),
+            location: URL(string: location),
+            wirelessMode: wirelessMode,
+            wirelessLeafOnly: wirelessLeafOnly,
+            behindWifiExtender: behindWifiExtender,
+            wifiEnabled: wifiEnabled,
+            ethernetEnabled: ethernetEnabled,
+            voiceConfigState: voiceConfigState,
+            micEnabled: micEnabled,
+            airPlayEnabled: airPlayEnabled,
+            invisible: invisible
+        )
     }
 
     func coordinatorRoom(coordinatorID: String) -> Room? {
@@ -30,7 +45,22 @@ extension ZoneGroupMember {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
-        return Room(id: UUID, ip: ip, name: zoneName, battery: Battery(info: info))
+        return Room(
+            id: UUID,
+            ip: ip,
+            name: zoneName,
+            battery: Battery(info: info),
+            location: URL(string: location),
+            wirelessMode: wirelessMode,
+            wirelessLeafOnly: wirelessLeafOnly,
+            behindWifiExtender: behindWifiExtender,
+            wifiEnabled: wifiEnabled,
+            ethernetEnabled: ethernetEnabled,
+            voiceConfigState: voiceConfigState,
+            micEnabled: micEnabled,
+            airPlayEnabled: airPlayEnabled,
+            invisible: invisible
+        )
     }
 }
 

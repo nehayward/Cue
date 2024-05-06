@@ -125,6 +125,7 @@ public final class SonosService {
                     try await updateGroups(from: nonSelectedGroup)
                     await updateGroupCheckTVMode(from: nonSelectedGroup)
                     await updateGroupMuteState(for: nonSelectedGroup)
+                    await updateGroupsRooms(from: nonSelectedGroup)
                 } else {
                     try? await Task.sleep(for: .milliseconds(1000))
                 }
@@ -217,10 +218,16 @@ public final class SonosService {
         let newGroup = try await getGroups(useCache: useCache)
         var refreshGroup: Bool = false
 
-        // MARK: Update Battery Info
-        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+        // MARK: Update Battery Info And Other Room Information
+        for updateGroup in newGroup {
             guard let index = groups.firstIndex(of: updateGroup) else { continue }
+            groups[index].coordinatorRoom.ethernetEnabled = updateGroup.coordinatorRoom.ethernetEnabled
+            groups[index].coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
             groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+            if groups[index].coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
+                print("Update device Info")
+                groups[index].coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
+            }
         }
 
         if !newGroup.isEmpty, Set(newGroup) != Set(groups), !isGrouping {
@@ -810,7 +817,7 @@ public final class SonosService {
     }
 
     public func getTrack(ip: String) async -> Track? {
-        await api.getCurrentTrack(ipAddress: ip)
+        await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP())
     }
 
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
@@ -821,20 +828,23 @@ public final class SonosService {
         case .spotify:
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
             if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
-                guard let url = URL(string: image.url) else { return track.sonosAlbumArtURL }
+                guard let url = URL(string: image.url) else { return nil }
                 return url
             }
 
             if size == 200, spotifyTrack.album.images.count > 2 {
                 let image = spotifyTrack.album.images[1]
-                guard let url = URL(string: image.url) else { return track.sonosAlbumArtURL }
+                guard let url = URL(string: image.url) else { return nil }
                 return url
             }
 
             guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
-        case .airplay, .unknown:
+        case .airplay, .unknown, .library:
             return nil
+            // MARK: Might Remove, this is due to slow artwork
+//            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return nil }
+//            return URL(string: artworkString)
         }
     }
 
@@ -842,8 +852,8 @@ public final class SonosService {
     public func getTrackInformation(from track: Track, size: Int = 500) async -> (Track.Metadata?, URL?)? {
         switch track.musicService {
         case .spotify:
-            var imageURL: URL? = nil
-            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return (nil, track.sonosAlbumArtURL) }
+            var imageURL: URL?
+            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return (nil, nil) }
 
             if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
                 imageURL = URL(string: image.url)
@@ -857,13 +867,14 @@ public final class SonosService {
             return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify)), imageURL)
         case .apple:
             var imageURL: URL? = nil
-            guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, track.sonosAlbumArtURL) }
-
+            guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
-
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL)), imageURL)
+//        case .library:
+//            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return (nil, nil) }
+//            return (nil, URL(string: artworkString))
         default:
-            return (nil, track.sonosAlbumArtURL)
+            return (nil, nil)
         }
     }
 
@@ -1097,8 +1108,8 @@ public final class SonosService {
     }
 
     public func getFavoriteList() async {
-        guard let group = groups.first else { return }
-        self.favorites = await api.getFavorites(for: group.ip)
+        guard let ip = prioritizedIP() else { return }
+        self.favorites = await api.getFavorites(for: ip)
     }
 
     public func playFavorite(on group: GroupRoom, favoriteID: String) async {
@@ -1132,7 +1143,8 @@ public final class SonosService {
     }
 
     public func queueAppleAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        await api.queueAppleAlbum(ID: id, IP: group.coordinatorRoom.ip)
+        await api.queueAppleAlbum(ID: id, IP: group.coordinatorRoom.ip, position: position)
+
         if group.playbackService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
@@ -1172,6 +1184,7 @@ public final class SonosService {
 
     public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
+
         if group.playbackService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
@@ -1181,7 +1194,21 @@ public final class SonosService {
     }
 
     public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip)
+        await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip, position: position)
+        
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
+
+        if position == .now {
+            await next(ip: group.ip)
+        }
+    }
+
+    // MARK: Library
+    public func playLibraryItem(on group: GroupRoom, ID: String, position: QueuePosition = .now) async {
+        await api.queueLibraryItem(ID: ID, IP: group.ip, position: position)
+
         if group.playbackService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
@@ -1239,13 +1266,15 @@ public final class SonosService {
             await queueAppleSong(id: content.id, group: group, position: position)
         case (.favorite, _):
             await playFavorite(on: group, favoriteID: content.id)
+        case (_, .library):
+            await playLibraryItem(on: group, ID: content.id, position: position)
         default:
             break
         }
     }
 
     public func getQueue(ip: String) async -> [Track] {
-        await api.getQueue(IP: ip)
+        await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP() )
     }
 
     public func clearQueue(_ IP: String) async throws {
@@ -1275,9 +1304,63 @@ public final class SonosService {
         }
     }
 
-    public func getHouseID() async -> String {
-        guard let ip = groups.first?.ip else { return "" }
+    public func getHouseID() async -> String? {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return nil }
         return await api.getHouseHoldID(for: ip)
+    }
+
+    public func librarySearch(query: String) async -> [PlayableContent] {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return [] }
+
+        async let tracks = api.librarySearch(IP: ip, query: query, filter: .track)
+        async let artist = api.librarySearch(IP: ip, query: query, filter: .artist)
+        async let albums = api.librarySearch(IP: ip, query: query, filter: .album)
+        // TODO: Prioritize by query
+        let playableContent = await tracks + artist + albums
+        return playableContent
+    }
+
+    public func libraryLookup(ID: String) async -> [PlayableContent] {
+        guard let ip = prioritizedIP() else { return [] }
+        let playableContent = await api.libraryLookup(IP: ip, id: ID)
+        return playableContent
+    }
+
+    public func libraryAlbum(name: String) async -> [PlayableContent] {
+        guard let ip = prioritizedIP() else { return [] }
+        let playableContent = await api.libraryAlbumLookup(IP: ip, name: name)
+        return playableContent
+    }
+
+    public func libraryArtist(name: String) async -> [PlayableContent] {
+        guard let ip = prioritizedIP() else { return [] }
+        let playableContent = await api.libraryArtistLookup(IP: ip, name: name)
+        return playableContent
+    }
+
+    public func refreshLibrary() async {
+        guard let ip = prioritizedIP() else { return  }
+        await api.refreshLibrary(IP: ip)
+    }
+
+    func prioritizedIP() -> String? {
+        let allRooms = groups.flatMap(\.rooms)
+        guard let room = allRooms.first(where: { $0.ethernetEnabled }) else {
+            let filteredRooms = allRooms.filter { room in
+                guard let modelName = room.info?.modelName.lowercased() else { return false }
+                let notTheseModels = ["roam", "move"]
+                return notTheseModels.filter { modelName.contains($0) }.count == 0
+            }
+
+            if filteredRooms.isEmpty {
+                return allRooms.first?.ip
+            }
+
+            return filteredRooms.first?.ip
+        }
+        return room.ip
     }
 }
 
