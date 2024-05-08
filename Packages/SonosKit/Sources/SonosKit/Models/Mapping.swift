@@ -28,9 +28,9 @@ extension Song {
 
 extension MusicKit.Track {
     public var toPlayable: PlayableContent {
-        var durationMs: Duration?
+        var durationSeconds: Duration?
         if let duration {
-            durationMs = Duration.seconds(duration)
+            durationSeconds = Duration.seconds(duration)
         }
 
         return PlayableContent(
@@ -38,7 +38,7 @@ extension MusicKit.Track {
             subtitle: artistName,
             artwork: artwork?.url(width: 100, height: 100),
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
-            duration: durationMs
+            duration: durationSeconds
         )
     }
 }

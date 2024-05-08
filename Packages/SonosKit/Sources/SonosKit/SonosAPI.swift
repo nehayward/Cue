@@ -174,7 +174,6 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-
         let trackInfo = xmlParser.parsePositionInfo(xml: xml.unescaped, IP: ipAddress, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
         SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xml.unescaped)
         return trackInfo
@@ -789,6 +788,7 @@ final class SonosAPI: NSObject {
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
+            return nil
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -813,6 +813,55 @@ final class SonosAPI: NSObject {
         }
     }
 
+
+    func setSleepTimer(IP: String, duration: Duration) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "NewSleepTimerDuration": duration.formatted(.time(pattern: .hourMinuteSecond(padHourToLength: 2)))
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "ConfigureSleepTimer", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
+
+    func getSleepTimer(IP: String) async -> Date? {
+        let arguments: [String: Any] = ["InstanceID": 0]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetRemainingSleepTimerDuration", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return nil
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+            return nil
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        guard let timeEnds = xmlParser.parseSleepTimer(xml: xml) else {
+            return nil
+        }
+        return timeEnds
+    }
+
+    func stopSleepTimer(IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "NewSleepTimerDuration": ""
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "ConfigureSleepTimer", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
 
     func getHouseHoldID(for IP: String) async -> String {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {

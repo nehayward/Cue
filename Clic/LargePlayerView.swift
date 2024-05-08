@@ -6,6 +6,8 @@ import VibesDS
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @Binding var group: GroupRoom
 
@@ -13,7 +15,7 @@ struct LargePlayerView: View {
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
-    @State private var isCrossfaded: Bool = false
+    @State private var refreshID = UUID()
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -56,7 +58,7 @@ struct LargePlayerView: View {
             VStack {
                 GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
                     .padding(.bottom, 12)
-                if UIDevice.current.userInterfaceIdiom == .phone {
+                if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {
                     HStack(spacing: 0) {
                         Button {
                             router.presentedSheet = .groupScreen(group: group)
@@ -204,62 +206,31 @@ struct LargePlayerView: View {
         .navigationTitle(group.nameWithCount)
         .toolbar {
             if !group.TVMode {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if let openInURL = group.coordinatorRoom.track.metadata?.openInURL {
-                            if group.coordinatorRoom.track.musicService == .apple {
-                                Link(destination: openInURL) {
-                                    Label("Open in Apple Music…", systemImage: "apple.logo")
-                                }
-                            }
-                            if group.coordinatorRoom.track.musicService == .spotify {
-                                Link(destination: openInURL) {
-                                    Label("Open in Spotify…", image: .spotifyLogo)
-                                }
-                            }
-                        }
-                        Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
-                            Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
-                        }
-                        if [.spotify, .apple, .library].contains(group.coordinatorRoom.track.musicService) {
-                            Button {
-                                router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
-                            } label: {
-                                Label("View Album", systemImage: "rectangle.stack.fill")
-                            }
-
-                            Button {
-                                router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
-                            } label: {
-                                Label("View Artist", systemImage: "music.mic.circle.fill")
-                            }
-
-//                            let playable = group.coordinatorRoom.track.toPlayable
-//                            ShareLink(item: playable)
-                        }
-                        ControlGroup {
-                            Button {
-                                setCrossfade()
-                            } label: {
-                                Label("Crossfade is \(isCrossfaded ? "On" : "Off")", systemImage: isCrossfaded ? "waveform" : "waveform.slash")
-                            }
-                            .menuActionDismissBehavior(.disabled)
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .padding(.vertical)
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if let date = group.coordinatorRoom.sleepTimer {
+                        Text(date, style: .timer)
+                            .contentTransition(.numericText(countsDown: true))
+                            .animation(.spring, value: date)
+                            .monospacedDigit()
+                            .bold()
+                            .id(refreshID)
                     }
-                    .tint(.primary)
+                    MenuInfoView(group: group)
+                        .tint(.primary)
+                        .id(refreshID)
                 }
             }
         }
         .dropDestinationPlay(on: group)
         .animation(.bouncy, value: group.playMode)
         .ignoresSafeArea(.keyboard)
-        .task {
+        .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
-            if let isCrossfaded = group.isCrossfaded {
-                self.isCrossfaded = isCrossfaded
+            await sonosService.getSleepTimer(group: group)
+        }
+        .onChange(of: scenePhase) {
+            if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
+                refreshID = UUID()
             }
         }
     }
@@ -398,13 +369,6 @@ struct LargePlayerView: View {
             }
         }
         .fontDesign(.rounded)
-    }
-
-    private func setCrossfade() {
-        Task {
-            isCrossfaded.toggle()
-            await sonosService.setCrossfade(group: group, enabled: isCrossfaded)
-        }
     }
 }
 

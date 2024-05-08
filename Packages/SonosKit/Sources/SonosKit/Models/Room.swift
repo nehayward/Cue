@@ -29,6 +29,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var airPlayEnabled: Bool
     public var invisible: Bool
     public var info: DeviceInfo? = nil
+    public var sleepTimer: Date? = nil
 
     public init(
         id: String,

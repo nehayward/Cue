@@ -11,14 +11,18 @@ struct SidebarSplitView: View, UIViewControllerRepresentable {
 
     var columnA = UIViewController()
     var columnB = UIViewController()
+    var columnC = UIViewController()
 
-    init<A:View, B:View>(@ViewBuilder content: @escaping () -> TupleView <(A,B)>) {
+    init<A:View, B:View, C: View>(@ViewBuilder content: @escaping () -> TupleView <(A,B,C)>) {
         let content = content()
         columnA = UIHostingController(rootView: content.value.0)
         columnB = UIHostingController(rootView: content.value.1)
+        columnC = UIHostingController(rootView: content.value.2)
+
         columnA.view.backgroundColor = .clear
         columnB.view.backgroundColor = .clear
         splitViewController.viewControllers = [columnA, columnB]
+        splitViewController.setViewController(columnC, for: .compact)
     }
 
     func makeUIViewController(context: Context) -> UIViewControllerType {

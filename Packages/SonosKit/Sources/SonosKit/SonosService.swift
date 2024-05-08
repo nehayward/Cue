@@ -295,10 +295,16 @@ public final class SonosService {
             await updateGroupMuteState(for: [roomGroup])
 
             guard let awaitedTrack = await track else {
-                ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                roomGroup.coordinatorRoom.track = .empty
-                roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                return
+            }
+
+            if awaitedTrack == .empty {
+                if roomGroup.coordinatorRoom.track != .empty {
+                    ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
+                    roomGroup.coordinatorRoom.track = .empty
+                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
+                    roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
+                }
                 return
             }
 
@@ -478,9 +484,15 @@ public final class SonosService {
                     }
 
                     guard let awaitedTrack = await track else {
-                        // MARK: Fix need to catch for cancelled urls
-                        if roomGroup.coordinatorRoom.track != .empty, !Task.isCancelled {
+                        return
+                    }
+
+                    if awaitedTrack == .empty {
+                        if roomGroup.coordinatorRoom.track != .empty {
+                            ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
                             roomGroup.coordinatorRoom.track = .empty
+                            roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
+                            roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
                         }
                         return
                     }
@@ -511,10 +523,6 @@ public final class SonosService {
                     roomGroup.playMode = await playMode
                     awaitedTrack.downloadedArtworkURL = artworkURL
                     awaitedTrack.metadata = trackMetadata
-//
-//                    if artworkURL != awaitedTrack.artworkURL {
-//                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-//                    }
 
                     if roomGroup.coordinatorRoom.track != awaitedTrack {
                         roomGroup.coordinatorRoom.track = awaitedTrack
@@ -1025,6 +1033,20 @@ public final class SonosService {
 
     public func getCurrentTransportActions(ip: String) async -> AvailableActions? {
         await api.getCurrentTransportActions(IP: ip)
+    }
+
+    public func sleepTimer(group: GroupRoom, duration: Duration) async {
+        group.coordinatorRoom.sleepTimer = Date.now.addingTimeInterval(Double(duration.components.seconds))
+        await api.setSleepTimer(IP: group.ip, duration: duration)
+    }
+
+    public func getSleepTimer(group: GroupRoom) async {
+        group.coordinatorRoom.sleepTimer = await api.getSleepTimer(IP: group.ip)
+    }
+
+    public func stopSleepTimer(group: GroupRoom) async {
+        await api.stopSleepTimer(IP: group.ip)
+        group.coordinatorRoom.sleepTimer = nil
     }
 
     @MainActor

@@ -142,7 +142,7 @@ final class XMLParserSonos {
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
               let trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
         else {
-            return nil
+            return .empty
         }
 
         let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text
@@ -351,6 +351,26 @@ final class XMLParserSonos {
             return ""
         }
         return householdID
+    }
+
+    func parseSleepTimer(xml: String) -> Date? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let sleepTimeRemaining = xmlParsed["s:Envelope"]["s:Body"]["u:GetRemainingSleepTimerDurationResponse"]["RemainingSleepTimerDuration"].element?.text else {
+            return nil
+        }
+
+        var trackDuration = Duration.zero
+        let trackDurationComponents = sleepTimeRemaining.components(separatedBy: ":")
+        if trackDurationComponents.count == 3, let hours = Int(trackDurationComponents[0]), let minutes = Int(trackDurationComponents[1]), let seconds = Int(trackDurationComponents[2]) {
+            let totalSeconds = (hours * 60 * 60) + (minutes * 60) + seconds
+            trackDuration = Duration.seconds(totalSeconds)
+        }
+
+        if trackDuration != .zero {
+            return Date.now.addingTimeInterval(Double(trackDuration.components.seconds))
+        }
+
+        return nil
     }
 
     func parseQueue(IP: String, xml: String, preferredIPForTrackAlbumArt: String?) -> [Track] {

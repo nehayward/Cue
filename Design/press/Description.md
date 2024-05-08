@@ -1,6 +1,6 @@
 # Introducing Clic
 
-The fastest way to control your Sonos system. You can use your Apple Watch and Widget to easily control speakers.
+Experience the quickest way to manage your Sonos system with Clic. Seamlessly control your speakers using our Live Activities feature, or access full functionality through our native Mac app, Apple Watch, and customizable widget. With Clic, commanding your audio environment is effortless and intuitive, whether you're adjusting the volume, switching tracks, or setting the mood in different rooms. Upgrade to a smarter, faster sound experience with Clic for Sonos.
 
 Please note that your device needs to be on the same network as your speakers and local network access need to be granted by first launching the main Clic app.
 
@@ -14,7 +14,7 @@ Terms of Use: https://clic.dance/pages/terms
 # Clic Features
 
 - Mac app.
-- Apple Music and Spotify support
+- Apple Music, Spotify and Sonos Music Library support
 - Apple Watch Support.
 - Use scenes to set volume and group speakers.
 - Shortcut support!

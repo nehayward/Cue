@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		E900165A2B60CC07004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
 		E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
+		E901B5A82BEAAC0E0064A621 /* TimerMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F31612BC4976800884EA5 /* PlayableContentView.swift */; };
@@ -247,6 +248,11 @@
 		E97C0D672A33D787005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */; };
 		E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */; };
 		E97C0D6B2A38FBDD005AB0E0 /* SetRelativeGroupVolumeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */; };
+		E97DA8E52BEBCA9B004BB1F7 /* MenuInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */; };
+		E97DA8E62BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */; };
+		E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */; };
+		E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */; };
+		E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */; };
 		E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
 		E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
 		E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
@@ -482,6 +488,7 @@
 
 /* Begin PBXFileReference section */
 		E90016592B60CC07004C051D /* NightModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightModeIntent.swift; sourceTree = "<group>"; };
+		E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMenuView.swift; sourceTree = "<group>"; };
 		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
 		E90F31432BC4795800884EA5 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SonosKit; path = Packages/SonosKit; sourceTree = "<group>"; };
 		E90F315C2BC481E400884EA5 /* Analytics */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Analytics; sourceTree = SOURCE_ROOT; };
@@ -546,6 +553,7 @@
 		E97C0D622A33D5F9005AB0E0 /* NowPlayingWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidget.swift; sourceTree = "<group>"; };
 		E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
+		E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuInfoView.swift; sourceTree = "<group>"; };
 		E98248C92AF03FB4008927EF /* RefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshIntent.swift; sourceTree = "<group>"; };
 		E98248CC2AF04ED8008927EF /* UpdateType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateType.swift; sourceTree = "<group>"; };
 		E982AEA82ABA027500709FC0 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
@@ -966,6 +974,8 @@
 				E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */,
 				E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
+				E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */,
+				E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */,
 				E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */,
@@ -1435,6 +1445,7 @@
 				E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */,
 				E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */,
 				E92B3E9F2B60249B00724FA1 /* Bundle+AppIcon.swift in Sources */,
+				E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */,
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
@@ -1453,6 +1464,7 @@
 				E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */,
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
+				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
 				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
 				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
@@ -1560,6 +1572,7 @@
 				E97562FA2B699B2400787E14 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97562FB2B699B2400787E14 /* LargePlayerView.swift in Sources */,
 				E97562FC2B699B2400787E14 /* VolumeControlView.swift in Sources */,
+				E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
 				E97562FD2B699B2400787E14 /* PlayerSelectionView.swift in Sources */,
 				E97562FE2B699B2400787E14 /* SearchHistoryView.swift in Sources */,
 				E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */,
@@ -1580,6 +1593,7 @@
 				E975630B2B699B2400787E14 /* Environments.swift in Sources */,
 				E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */,
 				E975630D2B699B2400787E14 /* ListViewLarge.swift in Sources */,
+				E97DA8E62BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */,
 				E975630E2B699B2400787E14 /* PlayGroupScreen.swift in Sources */,
 				E9DCF6E52B7C730600899228 /* AppleMusicSearchScreen.swift in Sources */,
 				E975630F2B699B2400787E14 /* Keyboard.swift in Sources */,
@@ -1717,6 +1731,7 @@
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
+				E901B5A82BEAAC0E0064A621 /* TimerMenuView.swift in Sources */,
 				E9F600C82B50DDF10039AAA6 /* ListViewLarge.swift in Sources */,
 				E90F31652BC5999900884EA5 /* ClicPaywall.swift in Sources */,
 				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
@@ -1739,6 +1754,7 @@
 				E92D6EEF2B46634800E49AC8 /* Track+.swift in Sources */,
 				E9D38C532B5EE1C50025CC31 /* HapticManager.swift in Sources */,
 				E98248CE2AF04EDE008927EF /* UpdateType.swift in Sources */,
+				E97DA8E52BEBCA9B004BB1F7 /* MenuInfoView.swift in Sources */,
 				E9D856272A9FB5AD0024B192 /* PillView.swift in Sources */,
 				E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */,
 				E99CC9F62B7AC0C200B42A7A /* AppleMusicPermissionView.swift in Sources */,

@@ -1,3 +1,10 @@
+# 2024.21
+
+## External 
+
++ Add Sleep Timers!
++ Fix navigation bar disappearing on iPad, add compact mode to iPad.
+
 # 2024.20
 
 ## External 
