@@ -115,4 +115,5 @@ extension Track: Hashable {
 public extension Track {
     /// A static instance of `Track` representing an empty state.
     static let empty = Track(trackID: "", name: "")
+    static let alarm = Track(trackID: "x-rincon-buzzer:0", name: "Alarm")
 }

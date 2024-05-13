@@ -48,6 +48,7 @@ public final class SonosService {
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
     public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
+    public var parserError: String?
 
     @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
     @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
@@ -154,8 +155,18 @@ public final class SonosService {
                     print("Permission")
                     systemState.systemPermissionDenied = true
                     sonosPulse.cancel()
-                }
-                catch SonosServiceError.sonosSystemNotFound {
+                } catch SonosServiceError.parseError(let xml) {
+                    parserError = xml
+                    guard retry else {
+                        print("System not found")
+                        systemState.systemNotFound = true
+                        sonosPulse.cancel()
+                        return
+                    }
+                    // MARK: Invalidate Cache
+                    useCache = false
+                    retry = false
+                }  catch SonosServiceError.sonosSystemNotFound {
                     guard retry else {
                         print("System not found")
                         systemState.systemNotFound = true
@@ -207,10 +218,10 @@ public final class SonosService {
             } while (!sonosPulse.isCancelled)
         }
 
-//        Task {
-//            try await Task.sleep(for: .seconds(3))
-//            sonosPulse.cancel()
-//        }
+        //        Task {
+        //            try await Task.sleep(for: .seconds(3))
+        //            sonosPulse.cancel()
+        //        }
     }
 
     @MainActor
@@ -290,7 +301,7 @@ public final class SonosService {
             if let awaitedActions = await availableActions {
                 roomGroup.availableActions = awaitedActions
             }
-            
+
             await updateGroupsRooms(from: [roomGroup])
             await updateGroupMuteState(for: [roomGroup])
 
@@ -366,8 +377,8 @@ public final class SonosService {
         await wakeSleepingRooms(rooms: rooms)
 
         if let selectedGroup, !refreshGroup {
-//            print("Selected Group")
-//            print(selectedGroup.coordinatorRoom.id)
+            //            print("Selected Group")
+            //            print(selectedGroup.coordinatorRoom.id)
 
             guard let groupIndex = groups.firstIndex(where: { group in
                 group.coordinatorID == selectedGroup.coordinatorID
@@ -417,17 +428,17 @@ public final class SonosService {
             await updateGroupsRooms(from: [groups[groupIndex]])
 
 
-//            let previousArtwork = roomGroup.coordinatorRoom.track.artworkURL
-//            if previousArtwork != nil {
-//                roomGroup.coordinatorRoom.track.artworkURL = previousArtwork
-//            }
+            //            let previousArtwork = roomGroup.coordinatorRoom.track.artworkURL
+            //            if previousArtwork != nil {
+            //                roomGroup.coordinatorRoom.track.artworkURL = previousArtwork
+            //            }
 
-//            guard let artworkURL = await self.getArtwork(from: track, size: 200) else {
-//                roomGroup.coordinatorRoom.track = track
-//                return
-//            }
+            //            guard let artworkURL = await self.getArtwork(from: track, size: 200) else {
+            //                roomGroup.coordinatorRoom.track = track
+            //                return
+            //            }
 
-//            roomGroup.coordinatorRoom.track.artworkURL = artworkURL
+            //            roomGroup.coordinatorRoom.track.artworkURL = artworkURL
             return
         }
 
@@ -435,31 +446,31 @@ public final class SonosService {
         await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
 
-//        for groupIndex in groups.indices {
-//            async let track = getTrack(ip: groups[groupIndex].coordinatorRoom.ip)
-//            async let playbackInfo = getPlaybackInfo(ip: groups[groupIndex].coordinatorRoom.ip)
-//            async let groupVolume = getGroupVolume(ip: groups[groupIndex].coordinatorRoom.ip)
-//
-//            switch await playbackInfo {
-//            case .playing:
-//                groups[groupIndex].coordinatorRoom.isPlaying = true
-//            case .paused:
-//                groups[groupIndex].coordinatorRoom.isPlaying = false
-//            default:
-//                break
-//            }
-//
-//            if let track = await track {
-//                groups[groupIndex].coordinatorRoom.track = track
-//            }
-//
-//            groups[groupIndex].groupVolume = await groupVolume
-//
-//            for roomIndex in groups[groupIndex].rooms.indices {
-//                let volume = await getVolume(ip: groups[groupIndex].rooms[roomIndex].ip)
-//                groups[groupIndex].rooms[roomIndex].volume = volume
-//            }
-//        }
+        //        for groupIndex in groups.indices {
+        //            async let track = getTrack(ip: groups[groupIndex].coordinatorRoom.ip)
+        //            async let playbackInfo = getPlaybackInfo(ip: groups[groupIndex].coordinatorRoom.ip)
+        //            async let groupVolume = getGroupVolume(ip: groups[groupIndex].coordinatorRoom.ip)
+        //
+        //            switch await playbackInfo {
+        //            case .playing:
+        //                groups[groupIndex].coordinatorRoom.isPlaying = true
+        //            case .paused:
+        //                groups[groupIndex].coordinatorRoom.isPlaying = false
+        //            default:
+        //                break
+        //            }
+        //
+        //            if let track = await track {
+        //                groups[groupIndex].coordinatorRoom.track = track
+        //            }
+        //
+        //            groups[groupIndex].groupVolume = await groupVolume
+        //
+        //            for roomIndex in groups[groupIndex].rooms.indices {
+        //                let volume = await getVolume(ip: groups[groupIndex].rooms[roomIndex].ip)
+        //                groups[groupIndex].rooms[roomIndex].volume = volume
+        //            }
+        //        }
 
         return
     }
@@ -554,6 +565,16 @@ public final class SonosService {
                             room.isMuted = isMuted
                         }
                     }
+
+                    // MARK: Check Alarm
+                    group.addTask { [weak self] in
+                        if room.state != .active { return }
+                        guard let self else { return }
+                        let isRunningAlarm = await api.getRunningAlarm(IP: room.ip)
+                        if room.alarmRunning != isRunningAlarm {
+                            room.alarmRunning = isRunningAlarm
+                        }
+                    }
                 }
             }
         }
@@ -595,12 +616,12 @@ public final class SonosService {
                     guard let self else { return }
                     // MARK: Sleeping or Off
                     // MARK: Theater Mock
-//                    if roomGroup.coordinatorRoom.name == "Theater" {
-//                        roomGroup.coordinatorRoom.track.TVMode = true
-//                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
-//                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
-//                        return
-//                    }
+                    //                    if roomGroup.coordinatorRoom.name == "Theater" {
+                    //                        roomGroup.coordinatorRoom.track.TVMode = true
+                    //                        roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.coordinatorRoom.ip)
+                    //                        roomGroup.tvSettings?.audioInputFormat = .dolbyAtmosTrueHD
+                    //                        return
+                    //                    }
                     if let playbackService = await playbackService(ip: roomGroup.ip) {
                         roomGroup.playbackService = playbackService
                     }
@@ -851,8 +872,8 @@ public final class SonosService {
         case .airplay, .unknown, .library:
             return nil
             // MARK: Might Remove, this is due to slow artwork
-//            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return nil }
-//            return URL(string: artworkString)
+            //            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return nil }
+            //            return URL(string: artworkString)
         }
     }
 
@@ -878,9 +899,9 @@ public final class SonosService {
             guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL)), imageURL)
-//        case .library:
-//            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return (nil, nil) }
-//            return (nil, URL(string: artworkString))
+            //        case .library:
+            //            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return (nil, nil) }
+            //            return (nil, URL(string: artworkString))
         default:
             return (nil, nil)
         }
@@ -1020,7 +1041,7 @@ public final class SonosService {
     }
 
     public func getVolume(ip: String) async throws -> Double {
-       try await api.getVolume(ipAddress: ip)
+        try await api.getVolume(ipAddress: ip)
     }
 
     public func getGroupVolume(ip: String) async throws -> Double {
@@ -1059,7 +1080,7 @@ public final class SonosService {
     }
 
     public func playbackService(ip: String) async -> PlaybackService? {
-       await api.mediaInfo(ipAddress: ip)
+        await api.mediaInfo(ipAddress: ip)
     }
 
     public func getTVSettings(ip: String) async throws -> TVSettings {
@@ -1089,12 +1110,12 @@ public final class SonosService {
 
     // TODO: Create Scene
     public func createScene(rooms: [Room]) async {
-//        let rooms = rooms.filter { room in
-//            selections.contains(room.id)
-//        }
-//        let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
-//        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
-//        scenes.append(newScene)
+        //        let rooms = rooms.filter { room in
+        //            selections.contains(room.id)
+        //        }
+        //        let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+        //        let newScene = SonosScene(name: sceneName, rooms: sceneRooms)
+        //        scenes.append(newScene)
     }
 
     public func runScene(_ scene: SonosScene) async throws {
@@ -1110,7 +1131,7 @@ public final class SonosService {
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
         }
-        
+
         if rooms.isEmpty {
             await api.ungroup(IP: scene.rooms.first!.ip)
             await playlistAction()
@@ -1139,9 +1160,9 @@ public final class SonosService {
         await api.play(ipAddress: group.ip)
     }
 
-    public func favoriteImageURL(on group: GroupRoom?, favorite: Favorite) -> URL? {
-        guard let foundGroup = groups.first else { return nil }
-        return api.favoriteArtwork(on: favorite, group: group ?? foundGroup)
+    public func favoriteImageURL(favorite: Favorite) -> URL? {
+        guard let ip = prioritizedIP() else { return nil }
+        return api.favoriteArtwork(on: favorite, IP: ip)
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {
@@ -1217,7 +1238,7 @@ public final class SonosService {
 
     public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
         await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip, position: position)
-        
+
         if group.playbackService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
@@ -1365,6 +1386,34 @@ public final class SonosService {
     public func refreshLibrary() async {
         guard let ip = prioritizedIP() else { return  }
         await api.refreshLibrary(IP: ip)
+    }
+
+    // MARK: Alarms
+    public func listAlarms() async -> [Alarm] {
+        guard let ip = prioritizedIP() else { return [] }
+        return await api.listAlarms(IP: ip).sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
+    }
+
+    // MARK: Alarms
+    public func editAlarm(alarm: Alarm, content: PlayableContent?) async  {
+        guard let ip = prioritizedIP() else { return }
+        return await api.editAlarm(IP: ip, alarm: alarm, content: content)
+    }
+
+    // MARK: Alarms
+    public func createAlarm(alarm: Alarm, content: PlayableContent?) async  {
+        guard let ip = prioritizedIP() else { return }
+        return await api.createAlarm(IP: ip, alarm: alarm, content: content)
+    }
+
+    // MARK: Alarms
+    public func deleteAlarm(alarm: Alarm) async  {
+        guard let ip = prioritizedIP() else { return }
+        return await api.deleteAlarm(IP: ip, alarm: alarm)
+    }
+
+    public func parseAlarmClockInfo(uri: String, metadataXML: String?) -> PlayableContent? {
+        XMLParserSonos().parseAlarmClockInfo(uri: uri, metadataXML: metadataXML)
     }
 
     func prioritizedIP() -> String? {

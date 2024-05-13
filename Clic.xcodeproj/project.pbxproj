@@ -253,6 +253,12 @@
 		E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */; };
 		E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */; };
 		E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */; };
+		E98150D92BED143D0076E312 /* AlarmListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150D72BED14230076E312 /* AlarmListView.swift */; };
+		E98150DA2BED143E0076E312 /* AlarmListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150D72BED14230076E312 /* AlarmListView.swift */; };
+		E98150DB2BED143E0076E312 /* AlarmListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150D72BED14230076E312 /* AlarmListView.swift */; };
+		E98150DD2BED14610076E312 /* AlarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150DC2BED14610076E312 /* AlarmView.swift */; };
+		E98150DE2BED146A0076E312 /* AlarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150DC2BED14610076E312 /* AlarmView.swift */; };
+		E98150DF2BED146A0076E312 /* AlarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98150DC2BED14610076E312 /* AlarmView.swift */; };
 		E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
 		E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248C92AF03FB4008927EF /* RefreshIntent.swift */; };
 		E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
@@ -306,6 +312,9 @@
 		E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */; };
 		E9B2074C2A89802F0028C2E0 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */; };
+		E9B3476D2BF14BF300688851 /* ContentToAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3476C2BF14BF300688851 /* ContentToAdd.swift */; };
+		E9B347702BF2B73200688851 /* ContentToAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3476C2BF14BF300688851 /* ContentToAdd.swift */; };
+		E9B347712BF2B73300688851 /* ContentToAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3476C2BF14BF300688851 /* ContentToAdd.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
 		E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */; };
@@ -554,6 +563,8 @@
 		E97C0D652A33D657005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
 		E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRelativeGroupVolumeIntent.swift; sourceTree = "<group>"; };
 		E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuInfoView.swift; sourceTree = "<group>"; };
+		E98150D72BED14230076E312 /* AlarmListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmListView.swift; sourceTree = "<group>"; };
+		E98150DC2BED14610076E312 /* AlarmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmView.swift; sourceTree = "<group>"; };
 		E98248C92AF03FB4008927EF /* RefreshIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshIntent.swift; sourceTree = "<group>"; };
 		E98248CC2AF04ED8008927EF /* UpdateType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateType.swift; sourceTree = "<group>"; };
 		E982AEA82ABA027500709FC0 /* DeviceNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameView.swift; sourceTree = "<group>"; };
@@ -587,6 +598,7 @@
 		E9B135C72B6C21F60096A14E /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueScreen.swift; sourceTree = "<group>"; };
 		E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneButton.swift; sourceTree = "<group>"; };
+		E9B3476C2BF14BF300688851 /* ContentToAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentToAdd.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
 		E9BC83762B7022CC0088BF1F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -800,6 +812,7 @@
 			isa = PBXGroup;
 			children = (
 				E9B135BA2B6ADE690096A14E /* NewSearchScreen.swift */,
+				E9B3476C2BF14BF300688851 /* ContentToAdd.swift */,
 				E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */,
 				E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */,
 				E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */,
@@ -963,6 +976,8 @@
 				E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */,
+				E98150D72BED14230076E312 /* AlarmListView.swift */,
+				E98150DC2BED14610076E312 /* AlarmView.swift */,
 				E94A6A242AAACB49002E432C /* ArtworkView.swift */,
 				E949E8ED2BDC4C75006D4556 /* ArtworkBadgeView.swift */,
 				E92DCB9D2B660D3F00A2C3B5 /* ContentArtworkView.swift */,
@@ -1449,6 +1464,7 @@
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
+				E98150DE2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E950E7D32B74185F0029415B /* SplitView.swift in Sources */,
 				E98BCB5F2B7AD83600180F71 /* ArtistDetailView.swift in Sources */,
 				E92B3EA22B60249B00724FA1 /* LogScreen.swift in Sources */,
@@ -1468,6 +1484,7 @@
 				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
 				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
+				E98150DA2BED143E0076E312 /* AlarmListView.swift in Sources */,
 				E92B3EB02B60249B00724FA1 /* GroupScreen.swift in Sources */,
 				E92B3EB12B60249B00724FA1 /* PreviousIntent.swift in Sources */,
 				E92B3EB22B60249B00724FA1 /* SetRelativeGroupVolumeIntent.swift in Sources */,
@@ -1504,6 +1521,7 @@
 				E92B3ECF2B60249B00724FA1 /* SpotifySearchView.swift in Sources */,
 				E92B3ED02B60249B00724FA1 /* ManageSceneScreen.swift in Sources */,
 				E92B3ED12B60249B00724FA1 /* MediaControlsView.swift in Sources */,
+				E9B347702BF2B73200688851 /* ContentToAdd.swift in Sources */,
 				E92B3ED22B60249B00724FA1 /* PaywallButtonView.swift in Sources */,
 				E92B3ED32B60249B00724FA1 /* OSEnvironment.swift in Sources */,
 				E92B3ED42B60249B00724FA1 /* TogglePlaybackIntent.swift in Sources */,
@@ -1573,7 +1591,9 @@
 				E97562FB2B699B2400787E14 /* LargePlayerView.swift in Sources */,
 				E97562FC2B699B2400787E14 /* VolumeControlView.swift in Sources */,
 				E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
+				E98150DF2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E97562FD2B699B2400787E14 /* PlayerSelectionView.swift in Sources */,
+				E9B347712BF2B73300688851 /* ContentToAdd.swift in Sources */,
 				E97562FE2B699B2400787E14 /* SearchHistoryView.swift in Sources */,
 				E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E97562FF2B699B2400787E14 /* SceneButton.swift in Sources */,
@@ -1599,6 +1619,7 @@
 				E975630F2B699B2400787E14 /* Keyboard.swift in Sources */,
 				E97563102B699B2400787E14 /* RefreshIntent.swift in Sources */,
 				E97563122B699B2400787E14 /* RoomVolumeView.swift in Sources */,
+				E98150DB2BED143E0076E312 /* AlarmListView.swift in Sources */,
 				E97563132B699B2400787E14 /* SpotifySearchView.swift in Sources */,
 				E97563142B699B2400787E14 /* ManageSceneScreen.swift in Sources */,
 				E97563152B699B2400787E14 /* MediaControlsView.swift in Sources */,
@@ -1689,6 +1710,7 @@
 				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
 				E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */,
 				E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */,
+				E9B3476D2BF14BF300688851 /* ContentToAdd.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
@@ -1712,6 +1734,7 @@
 				E92DCB9C2B6445EC00A2C3B5 /* DropDestination+.swift in Sources */,
 				E985278D2A5E0848009016C2 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
+				E98150DD2BED14610076E312 /* AlarmView.swift in Sources */,
 				E9C03AF72A57668800FB9118 /* VolumeControlView.swift in Sources */,
 				E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */,
 				E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */,
@@ -1738,6 +1761,7 @@
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
 				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,
+				E98150D92BED143D0076E312 /* AlarmListView.swift in Sources */,
 				E9BF3ABC2B0E7CFC00AF57EA /* SpotifySearchView.swift in Sources */,
 				E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */,
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,

@@ -100,7 +100,7 @@ struct ListViewLarge: View {
             }
         }
         .overlay(alignment: .center) {
-            if sonosService.sorted.isEmpty {
+            if sonosService.sorted.isEmpty, sonosService.parserError == nil {
                 ProgressView()
             }
         }

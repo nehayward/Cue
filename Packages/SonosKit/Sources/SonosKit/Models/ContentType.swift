@@ -5,6 +5,7 @@ public enum ContentType: Equatable, Codable {
     case album
     case track
     case favorite
+    case radio
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -16,6 +17,8 @@ public enum ContentType: Equatable, Codable {
             self = .artist
         case let str where str.contains("track"), let str where str.contains("song"):
             self = .track
+        case let str where str.contains("audiobroadcast"), let str where str.contains("radio"):
+            self = .radio
         default:
             return nil
         }
@@ -33,6 +36,8 @@ public enum ContentType: Equatable, Codable {
             "Song"
         case .favorite:
             "Favorite"
+        case .radio:
+            "Radio"
         }
     }
 }

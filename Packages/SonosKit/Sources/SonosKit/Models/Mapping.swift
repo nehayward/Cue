@@ -178,3 +178,20 @@ extension SpotifyArtistsItems {
         )
     }
 }
+
+// MARK: Favorites
+extension Favorite {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name,
+            subtitle: description,
+            artwork: SonosService.shared.favoriteImageURL(favorite: self),
+            content: .init(
+                service: .unknown,
+                id: id,
+                type: .favorite,
+                location: nil
+            )
+        )
+    }
+}

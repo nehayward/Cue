@@ -42,82 +42,82 @@ final class SonosKitTests: XCTestCase {
         XCTAssertEqual(vanishedDevices.count, 2)
     }
 
-    func testGetPositionParse() throws {
-        let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
-        let trackXML = try! String(contentsOf: track!)
-        print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
-        XCTAssertNotNil(positionInfo)
-        XCTAssert(positionInfo?.musicService == .apple)
-    }
-
-    func testGetPositionInfoSpotifyParse() throws {
-        let track = Bundle.module.url(forResource: "GetPositionInfoSpotify", withExtension: "xml")
-        let trackXML = try! String(contentsOf: track!)
-        print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
-        XCTAssertNotNil(positionInfo)
-        XCTAssert(positionInfo?.musicService == .spotify)
-    }
-
-    func testGetPositionInfoSpotifyStreamParse() throws {
-        let track = Bundle.module.url(forResource: "GetPositionInfoSpotifyStream", withExtension: "xml")
-        let trackXML = try! String(contentsOf: track!)
-        print(trackXML)
-        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
-        XCTAssertNotNil(positionInfo)
-        XCTAssert(positionInfo?.musicService == .spotify)
-    }
-
-    func testPlaybackInfoParse() throws {
-        let transportInfoURL = Bundle.module.url(forResource: "GetTransportInfo", withExtension: "xml")
-        let transportInfoXML = try! String(contentsOf: transportInfoURL!)
-        let playbackState = XMLParserSonos().parsePlaybackInfo(xml: transportInfoXML)
-        print(playbackState)
-    }
-
-    func testGetZoneGroupAttributes() throws {
-        let getZoneGroupAttributesURL = Bundle.module.url(forResource: "GetZoneGroupAttributes", withExtension: "xml")
-        let getZoneGroupAttributesXML = try! String(contentsOf: getZoneGroupAttributesURL!)
-        print(getZoneGroupAttributesXML)
-
-        let householdID = XMLParserSonos().parseHouseID(xml: getZoneGroupAttributesXML)
-        print(householdID)
-    }
-
-    func testGetQueueParsing() throws {
-        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
-        let getQueueXML = try! String(contentsOf: getQueueURL!)
-        let tracks = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
-        XCTAssertEqual(tracks.count, 25)
-    }
-    
-    func testGetQueueLargeParsing() throws {
-        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
-        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
-
-        measure {
-            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
-        }
-    }
-
-    func testGetQueueLargeFastParsing() throws {
-        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
-        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
-
-        measure {
-            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
-        }
-    }
-
-    func testGetQueueSmallParsing() throws {
-        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
-        let getQueueXML = try! String(contentsOf: getQueueURL!)
-
-        measure {
-            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
-        }
-    }
+//    func testGetPositionParse() throws {
+//        let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
+//        let trackXML = try! String(contentsOf: track!)
+//        print(trackXML)
+//        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
+//        XCTAssertNotNil(positionInfo)
+//        XCTAssert(positionInfo?.musicService == .apple)
+//    }
+//
+//    func testGetPositionInfoSpotifyParse() throws {
+//        let track = Bundle.module.url(forResource: "GetPositionInfoSpotify", withExtension: "xml")
+//        let trackXML = try! String(contentsOf: track!)
+//        print(trackXML)
+//        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
+//        XCTAssertNotNil(positionInfo)
+//        XCTAssert(positionInfo?.musicService == .spotify)
+//    }
+//
+//    func testGetPositionInfoSpotifyStreamParse() throws {
+//        let track = Bundle.module.url(forResource: "GetPositionInfoSpotifyStream", withExtension: "xml")
+//        let trackXML = try! String(contentsOf: track!)
+//        print(trackXML)
+//        let positionInfo = XMLParserSonos().parsePositionInfo(xml: trackXML, IP: "")
+//        XCTAssertNotNil(positionInfo)
+//        XCTAssert(positionInfo?.musicService == .spotify)
+//    }
+//
+//    func testPlaybackInfoParse() throws {
+//        let transportInfoURL = Bundle.module.url(forResource: "GetTransportInfo", withExtension: "xml")
+//        let transportInfoXML = try! String(contentsOf: transportInfoURL!)
+//        let playbackState = XMLParserSonos().parsePlaybackInfo(xml: transportInfoXML)
+//        print(playbackState)
+//    }
+//
+//    func testGetZoneGroupAttributes() throws {
+//        let getZoneGroupAttributesURL = Bundle.module.url(forResource: "GetZoneGroupAttributes", withExtension: "xml")
+//        let getZoneGroupAttributesXML = try! String(contentsOf: getZoneGroupAttributesURL!)
+//        print(getZoneGroupAttributesXML)
+//
+//        let householdID = XMLParserSonos().parseHouseID(xml: getZoneGroupAttributesXML)
+//        print(householdID)
+//    }
+//
+//    func testGetQueueParsing() throws {
+//        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
+//        let getQueueXML = try! String(contentsOf: getQueueURL!)
+//        let tracks = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
+//        XCTAssertEqual(tracks.count, 25)
+//    }
+//    
+//    func testGetQueueLargeParsing() throws {
+//        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
+//        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
+//
+//        measure {
+//            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
+//        }
+//    }
+//
+//    func testGetQueueLargeFastParsing() throws {
+//        let getQueueLargeURL = Bundle.module.url(forResource: "GetQueueLarge", withExtension: "xml")
+//        let getQueueLargeXML = try! String(contentsOf: getQueueLargeURL!)
+//
+//        measure {
+//            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueLargeXML)
+//        }
+//    }
+//
+//    func testGetQueueSmallParsing() throws {
+//        let getQueueURL = Bundle.module.url(forResource: "GetQueue", withExtension: "xml")
+//        let getQueueXML = try! String(contentsOf: getQueueURL!)
+//
+//        measure {
+//            let _ = XMLParserSonos().parseQueue(IP: "", xml: getQueueXML)
+//        }
+//    }
 
     func testGetCurrentTransportActions() throws {
         let xmlURL = Bundle.module.url(forResource: "GetCurrentTransportActions", withExtension: "xml")

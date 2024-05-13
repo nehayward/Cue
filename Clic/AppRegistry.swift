@@ -77,6 +77,17 @@ extension View {
                         .scrollContentBackground(.hidden)
                         .presentationBackground(.thinMaterial)
                     }
+                case let .searchAdd(adding):
+                    NewSearchScreen()
+                        .environment(adding)
+                case let .alarms(group):
+                    Group {
+                        @State var router = Router()
+                        NavigationStack {
+                            AlarmListView(group: group)
+                                .withAppRouter(router: router)
+                        }
+                    }
                 }
             }
             .withEnvironments()
@@ -133,6 +144,13 @@ extension View {
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
+                case let .searchAdd(adding):
+                    NewSearchScreen()
+                        .environment(adding)
+                case .alarms:
+                    NavigationStack {
+                        AlarmListView()
+                    }
                 }
             }
             .withEnvironments()
@@ -163,6 +181,12 @@ extension View {
                 ArtistDetailView(playableContent: content, group: group)
             case let .createScene(content):
                 SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
+            case .alarms:
+                AlarmListView()
+            case let .addAlarm(group):
+                AlarmView(group: group, alarm: .newAlarm)
+            case let .editAlarm(alarm):
+                AlarmView(edit: true, alarm: alarm)
             }
         }
     }

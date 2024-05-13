@@ -10,6 +10,9 @@ public enum RouterDestination: Hashable, Identifiable {
     case createScene(content: PlayableContent? = nil)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
+    case alarms
+    case addAlarm(group: GroupRoom? = nil)
+    case editAlarm(alarm: Alarm)
 
     public var id: String {
         switch self {
@@ -25,6 +28,12 @@ public enum RouterDestination: Hashable, Identifiable {
             content.id
         case let .createScene(content):
             content?.id ?? "scene"
+        case .alarms:
+            "alarms"
+        case .addAlarm:
+            "addAlarm"
+        case let .editAlarm(alarm):
+            alarm.id
         }
     }
 }

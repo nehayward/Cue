@@ -15,6 +15,7 @@ struct NewSearchScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(Router.self) var parentRouter: Router?
     @Environment(MusicSearchService.self) var musicSearchService
+    @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -67,7 +68,8 @@ struct NewSearchScreen: View {
                             PlayHistoryView(filters: $filters)
                         }
 
-                        if musicSearchService.query.isEmpty {
+                        // MARK: Hide Favorites for until programURI is added
+                        if musicSearchService.query.isEmpty, contentToAdd == nil {
                             FavoritesView()
                         }
 
@@ -94,7 +96,7 @@ struct NewSearchScreen: View {
                         prompt: "Searching \(musicSearchSelection.title)"
                     )
                     .navigationBarTitleDisplayMode(.inline)
-                    .navigationTitle("Search")
+                    .navigationTitle(contentToAdd == nil ? "Search" : "Adding to Alarm")
                     .withAppRouter(router: router)
                     .withSheetDestinations(sheetDestinations: $router.presentedSheet)
                     .task(id: musicSearchService.query + musicSearchSelection.rawValue) {

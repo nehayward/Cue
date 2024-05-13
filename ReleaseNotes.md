@@ -1,3 +1,15 @@
+# 2024.22
+
+## External
++ Alarms! Add or manage existing alarms.
++ Add Favorites to play history
++ Fix queue not dismissible on iPad slide over.
++ Fix sleep timer showing when its complete.
+
+## Internal
++ Add Audio Broadcast to to ContentType Lookup
++ Improve favorite album art lookup
+
 # 2024.21
 
 ## External 

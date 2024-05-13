@@ -5,51 +5,61 @@ import SonosKit
 struct ArtworkBadgeView: View {
     @Binding var group: GroupRoom
     @Binding var size: Double
+    @Binding var alarmRunning: Bool
 
     var body: some View {
-
-        switch group.coordinatorRoom.track.musicService {
-        case .apple:
-            Image(systemName: "apple.logo")
+        if alarmRunning{
+            Image(systemName: "alarm.waves.left.and.right.fill")
                 .resizable()
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
                 .foregroundStyle(.white.gradient)
                 .frame(width: size, height: size, alignment: .bottomTrailing)
                 .padding(size == 24 ? 16 : 4)
                 .shadow(radius: 10)
-        case .spotify:
-            Image(.spotifyLogo)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.white.gradient)
-                .frame(width: size, height: size, alignment: .bottomTrailing)
-                .padding(size == 24 ? 16 : 4)
-                .shadow(radius: 10)
-        case .library:
-            Image(systemName: "books.vertical.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.white.gradient)
-                .frame(width: size, height: size, alignment: .bottomTrailing)
-                .padding(size == 24 ? 16 : 4)
-                .shadow(radius: 10)
-        case .airplay:
-            Image(systemName: "airplayaudio")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.white.gradient)
-                .frame(width: size, height: size, alignment: .bottomTrailing)
-                .padding(size == 24 ? 16 : 4)
-                .shadow(radius: 10)
-        case .unknown:
-            if group.playbackService == .radio {
-                Image(systemName: "radio.fill")
+        } else {
+            switch group.coordinatorRoom.track.musicService {
+            case .apple:
+                Image(systemName: "apple.logo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.white.gradient)
                     .frame(width: size, height: size, alignment: .bottomTrailing)
                     .padding(size == 24 ? 16 : 4)
                     .shadow(radius: 10)
+            case .spotify:
+                Image(.spotifyLogo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: size, height: size, alignment: .bottomTrailing)
+                    .padding(size == 24 ? 16 : 4)
+                    .shadow(radius: 10)
+            case .library:
+                Image(systemName: "books.vertical.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: size, height: size, alignment: .bottomTrailing)
+                    .padding(size == 24 ? 16 : 4)
+                    .shadow(radius: 10)
+            case .airplay:
+                Image(systemName: "airplayaudio")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: size, height: size, alignment: .bottomTrailing)
+                    .padding(size == 24 ? 16 : 4)
+                    .shadow(radius: 10)
+            case .unknown:
+                if group.playbackService == .radio {
+                    Image(systemName: "radio.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: size, height: size, alignment: .bottomTrailing)
+                        .padding(size == 24 ? 16 : 4)
+                        .shadow(radius: 10)
+                }
             }
         }
     }

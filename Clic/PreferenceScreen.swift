@@ -78,10 +78,18 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
-                    Button("Refresh Library") {
+
+                    Button {
                         Task {
                             await sonosService.refreshLibrary()
                         }
+                    } label: {
+                        Label("Refresh Library", systemImage: "arrow.clockwise.square.fill")
+                    }
+
+                    NavigationLink(value: RouterDestination.alarms) {
+                        Label("Alarms", systemImage: "alarm.fill")
+                            .foregroundStyle(.primary)
                     }
                 } header: {
                     Text("Sonos System")
@@ -101,6 +109,7 @@ struct PreferenceScreen: View {
                     Section {
                         Toggle(isOn: $isCompact) {
                             Text("Compact")
+                            Text("Removes volumes controls and overall size of Live Activites")
                         }
                         .tint(.accent)
                     } header: {
@@ -194,6 +203,7 @@ struct PreferenceScreen: View {
             .addDismiss {
                 dismiss()
             }
+            .fontDesign(.rounded)
         }
         .task {
             try? await subscriptionService.checkSubscription()

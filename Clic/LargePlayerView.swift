@@ -207,7 +207,7 @@ struct LargePlayerView: View {
         .toolbar {
             if !group.TVMode {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    if let date = group.coordinatorRoom.sleepTimer {
+                    if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
                         Text(date, style: .timer)
                             .contentTransition(.numericText(countsDown: true))
                             .animation(.spring, value: date)

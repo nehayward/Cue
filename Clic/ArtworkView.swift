@@ -6,6 +6,7 @@ struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var group: GroupRoom
     @State private var size: Double = 24
+    @State private var alarmRunning: Bool = false
 
     private var placeholderSize: Double { size == 24 ? 100 : 42 }
 
@@ -41,7 +42,7 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: $group, size: $size)
+                ArtworkBadgeView(group: $group, size: $size, alarmRunning: $alarmRunning)
             }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width < 100 {
@@ -52,6 +53,9 @@ struct ArtworkView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .animation(.spring, value: group.coordinatorRoom.track.trackID)
+            .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
+                alarmRunning = new
+            }
         }
     }
 }

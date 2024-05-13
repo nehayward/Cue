@@ -305,10 +305,15 @@ final class SonosAPI: NSObject {
             let zones = xmlParser.parseZones(xml: xml.unescaped)
             let vanishedZones = xmlParser.parseVanishedDevices(xml: xml.unescaped).compactMap { $0.toGroup }
             let groups = zones.compactMap { $0.toGroup }
+            if (groups + vanishedZones).isEmpty {
+                throw SonosServiceError.parseError(xml)
+            }
             return groups + vanishedZones
         } catch URLError.cannotConnectToHost {
             print("Can't connect")
             throw SonosServiceError.sonosSystemNotFound
+        } catch SonosServiceError.parseError(let xml) {
+            throw SonosServiceError.parseError(xml)
         } catch {
             print(#function, error.localizedDescription)
             // Clear IP and try again.
@@ -927,8 +932,8 @@ final class SonosAPI: NSObject {
 //        return favoriteList
     }
 
-    func favoriteArtwork(on favorite: Favorite, group: GroupRoom) -> URL? {
-        if let sonosAlbumArtURL = URL(string: "http://\(group.ip):1400\(favorite.imageUrl.unescaped)") {
+    func favoriteArtwork(on favorite: Favorite, IP: String) -> URL? {
+        if let sonosAlbumArtURL = URL(string: "http://\(IP):1400\(favorite.imageUrl.unescaped)") {
             print(sonosAlbumArtURL)
             return sonosAlbumArtURL
         }

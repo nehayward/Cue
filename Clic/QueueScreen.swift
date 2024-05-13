@@ -4,8 +4,9 @@ import SonosKit
 import SwiftUI
 
 struct QueueScreen: View {
-    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
+    @Environment(\.isPresented) var isPresented
+    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router?
 
     @Binding var group: GroupRoom
@@ -109,7 +110,17 @@ struct QueueScreen: View {
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
                 .toolbar {
-                    ToolbarItem(placement: .navigation) {
+                    ToolbarItemGroup(placement: .navigation) {
+                        #if !targetEnvironment(macCatalyst)
+                        if UIDevice.current.userInterfaceIdiom == .pad, isPresented {
+                            Button {
+                                router?.inspectorSheet = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                            }
+                        }
+                        #endif
+
                         VStack(alignment: .leading) {
                             Text("Queue")
                                 .bold()
@@ -145,7 +156,7 @@ struct QueueScreen: View {
                         Button {
                             var currentPlayMode = group.playMode
 
-                            if !currentPlayMode.contains(.repeatAll) {
+                            if currentPlayMode.contains(.normal) || currentPlayMode.rawValue == 1 {
                                 currentPlayMode.remove(.normal)
                                 currentPlayMode.insert(.repeatAll)
                             } else if currentPlayMode.contains(.repeatAll) {

@@ -14,6 +14,8 @@ enum SheetDestination: Identifiable, Equatable {
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case createScene(content: PlayableContent? = nil)
     case scenes
+    case searchAdd(adding: ContentToAdd)
+    case alarms(group: GroupRoom? = nil)
 
     var id: String {
         switch self {
@@ -41,6 +43,10 @@ enum SheetDestination: Identifiable, Equatable {
             content.id + "media"
         case let .artistDetail(content, _):
             content.id + "artist"
+        case .searchAdd:
+            "searchAdd"
+        case .alarms:
+            "alarms"
         }
     }
 

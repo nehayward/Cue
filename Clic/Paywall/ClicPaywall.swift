@@ -57,8 +57,7 @@ struct ClicPaywall: View {
             LinearGradient(colors: [.teal.opacity(0.05), .teal.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 .ignoresSafeArea()
         }
-        .paywallFooter(condensed: true,  purchaseCompleted: { customerInfo in
-            print(customerInfo)
+        .paywallFooter(condensed: false, purchaseCompleted: { customerInfo in
             Analytics.shared.track(.subscribed)
             dismiss()
         })

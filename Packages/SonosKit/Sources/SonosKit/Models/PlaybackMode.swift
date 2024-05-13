@@ -1,4 +1,4 @@
-public struct PlayMode: OptionSet {
+public struct PlayMode: OptionSet, Hashable {
     public let rawValue: Int
 
 //    NORMAL / REPEAT_ALL / REPEAT_ONE / SHUFFLE_NOREPEAT / SHUFFLE / SHUFFLE_REPEAT_ONE

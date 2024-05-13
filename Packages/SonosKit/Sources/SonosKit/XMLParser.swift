@@ -71,7 +71,7 @@ final class XMLParserSonos {
     func parseZones(xml: String) -> [ZoneGroup] {
         let xmlParsed = XMLHash.parse(xml)
         let zones = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
-        let zonesParsed: [ZoneGroup] = try! zones.value()
+        guard let zonesParsed: [ZoneGroup] = try? zones.value() else { return [] }
         return zonesParsed
     }
 
@@ -90,7 +90,6 @@ final class XMLParserSonos {
             let reason = item.element?.attribute(by: "Reason")?.text
             let info = item.element?.attribute(by: "MoreInfo")?.text
             let macAddress = item.element?.attribute(by: "Mac")?.text
-
 
             return VanishedDevice(id: id, name: name, reason: reason, IP: lastKnownIP, lastSeen: date, info: info, macAddress: macAddress)
         }
@@ -383,9 +382,6 @@ final class XMLParserSonos {
    
         for item in items {
             guard let title = item["dc:title"].element?.text,
-                  let artist = item["dc:creator"].element?.text,
-                  let album = item["upnp:album"].element?.text,
-                  let albumArtURI = item["upnp:albumArtURI"].element?.text,
                   let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
             else {
                 continue
@@ -441,25 +437,41 @@ final class XMLParserSonos {
                 }
             }
 
-            let ip = preferredIPForTrackAlbumArt ?? IP
-            var sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            let artist = item["dc:creator"].element?.text
+            var sonosAlbumArtURL: URL?
+            if let albumArtURI = item["upnp:albumArtURI"].element?.text {
+                let ip = preferredIPForTrackAlbumArt ?? IP
+                sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
 
-            if sonosAlbumArtURL == nil {
-                sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
-                // MARK: Upscale
-                if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
-                    let modified = sonosAlbumArt.replacingOccurrences(of: "w=\\d+", with: "w=\(800)", options: .regularExpression)
-                    if let upscaledURL = URL(string: modified) {
-                        sonosAlbumArtURL = upscaledURL
+                if sonosAlbumArtURL == nil {
+                    sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
+                    // MARK: Upscale
+                    if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
+                        let modified = sonosAlbumArt.replacingOccurrences(of: "w=\\d+", with: "w=\(800)", options: .regularExpression)
+                        if let upscaledURL = URL(string: modified) {
+                            sonosAlbumArtURL = upscaledURL
+                        }
                     }
                 }
+            }
+
+            var emptyArtist = ""
+            if let albumArtist {
+                emptyArtist = albumArtist
+            } else if let artist {
+                emptyArtist = artist
+            }
+
+            var emptyAlbum = ""
+            if let album = item["upnp:album"].element?.text {
+                emptyAlbum = album
             }
 
             let track = Track(
                 trackID: trackID,
                 name: title,
-                artist: albumArtist ?? artist,
-                album: album,
+                artist: emptyArtist,
+                album: emptyAlbum,
                 musicService: musicService,
                 duration: trackDuration,
                 playbackPosition: .zero,
@@ -577,6 +589,113 @@ final class XMLParserSonos {
             manufacturer: manufacturer
         )
     }
+
+    // MARK: Alarm Clock
+    func parseAlarmClockList(from xml: String) -> [Alarm] {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:ListAlarmsResponse"]["CurrentAlarmList"].element?.innerXML else { return [] }
+        let resultsParsed = XMLHash.parse(resultXML)
+        guard let items = resultsParsed.children.first?.children else { return [] }
+
+        var alarms: [Alarm] = []
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "hh:mm:ss"
+
+        for item in items {
+            guard let id = item.element?.attribute(by: "ID")?.text,
+                  let roomUUID = item.element?.attribute(by: "RoomUUID")?.text,
+                  let startTime = item.element?.attribute(by: "StartTime")?.text,
+                  let duration = item.element?.attribute(by: "Duration")?.text,
+                  let recurrence = item.element?.attribute(by: "Recurrence")?.text,
+                  let enabled = item.element?.attribute(by: "Enabled")?.text,
+                  let programURI = item.element?.attribute(by: "ProgramURI")?.text,
+                  let programMetaData = item.element?.attribute(by: "ProgramMetaData")?.text,
+                  let includeLinkedZones = item.element?.attribute(by: "IncludeLinkedZones")?.text,
+                  let volume = item.element?.attribute(by: "Volume")?.text,
+                  let playMode = item.element?.attribute(by: "PlayMode")?.text
+            else {
+                continue
+            }
+
+            var day = Calendar.current.startOfDay(for: .now)
+            let startTimeComponents = startTime.components(separatedBy: ":")
+            if startTimeComponents.count == 3, let hours = Int(startTimeComponents[0]), let minutes = Int(startTimeComponents[1]), let seconds = Int(startTimeComponents[2]) {
+                let totalSeconds = (hours * 60 * 60) + (minutes * 60) + seconds
+                day.addTimeInterval(Double(totalSeconds))
+            }
+
+            var alarmDuration = Duration.zero
+            let trackDurationComponents = duration.components(separatedBy: ":")
+            if trackDurationComponents.count == 3, let hours = Int(trackDurationComponents[0]), let minutes = Int(trackDurationComponents[1]), let seconds = Int(trackDurationComponents[2]) {
+                let totalSeconds = (hours * 60 * 60) + (minutes * 60) + seconds
+                alarmDuration = Duration.seconds(totalSeconds)
+            }
+
+            let alarm = Alarm(
+                id: id,
+                roomID: roomUUID,
+                enabled: enabled == "1",
+                startTime: day,
+                duration: alarmDuration,
+                schedule: Frequency(mode: recurrence),
+                programURI: programURI,
+                programMetaData: programMetaData,
+                volume: Double(volume) ?? 0,
+                includeLinkedZones: includeLinkedZones == "1",
+                playMode: PlayMode(mode: playMode) ?? .normal,
+                scheduleRaw: recurrence,
+                shuffle: playMode == "SHUFFLE"
+            )
+            alarms.append(alarm)
+        }
+        return alarms
+    }
+
+    func parseAlarmClockInfo(uri: String, metadataXML: String?) -> PlayableContent? {
+        guard var metadataXML, !metadataXML.isEmpty else {
+            return PlayableContent(
+                title: "Sonos Chime",
+                subtitle: "",
+                artwork: nil,
+                content: MediaContent(
+                    service: .unknown,
+                    id: uri,
+                    type: .track,
+                    location: nil
+                ),
+                duration: nil,
+                popularity: nil,
+                metadata: nil
+            )
+        }
+        if metadataXML.contains("&gt") {
+            metadataXML = metadataXML.unescaped
+        }
+        let xmlParsed = XMLHash.parse(metadataXML)
+
+        guard let id = xmlParsed["DIDL-Lite"]["item"].element?.attribute(by: "id")?.text,
+              let name = xmlParsed["DIDL-Lite"]["item"]["dc:title"].element?.text,
+              let type = xmlParsed["DIDL-Lite"]["item"]["upnp:class"].element?.text,
+              let contentType = ContentType(type)
+        else {
+            return nil
+        }
+
+        return PlayableContent(
+            title: name,
+            subtitle: "",
+            artwork: nil,
+            content: MediaContent(
+                service: .unknown,
+                id: uri,
+                type: contentType,
+                location: nil
+            ),
+            duration: nil,
+            popularity: nil,
+            metadata: nil
+        )
+    }
 }
 
 
@@ -614,5 +733,13 @@ extension String {
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&apos;")
             .replacingOccurrences(of: " ", with: "&#32;")
+    }
+
+    var encodeProgramURI: String {
+        let xml = self
+        return xml
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
     }
 }

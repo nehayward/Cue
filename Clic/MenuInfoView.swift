@@ -39,6 +39,11 @@ struct MenuInfoView: View {
 //                let playable = group.coordinatorRoom.track.toPlayable
 //                ShareLink(item: playable)
             }
+            Button {
+                router.sheet(to: .alarms(group: group))
+            } label: {
+                Label("Alarms", systemImage: "alarm.fill")
+            }
             ControlGroup {
                 if let isCrossfaded = group.isCrossfaded {
                     Button {

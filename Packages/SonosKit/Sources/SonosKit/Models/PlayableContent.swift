@@ -12,11 +12,6 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     public let popularity: Int?
     public let metadata: PlayableContentMetadata?
 
-    public var shareURL: URL {
-        guard let musicService = content.service.name else { return URL(string: "clic://")! }
-        return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
-    }
-
     public init(
         title: String,
         subtitle: String,
@@ -34,6 +29,68 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         self.popularity = popularity
         self.metadata = metadata
     }
+
+    public var shareURL: URL {
+        guard let musicService = content.service.name else { return URL(string: "clic://")! }
+        return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
+    }
+
+    public var uri: String {
+        switch (content.type, content.service) {
+        case (.track, .spotify):
+            return "x-sonos-spotify:spotify%3atrack%3a\(id)?sid=9&amp;flags=8224&amp;sn=7"
+        case (.album, .spotify):
+            return "x-rincon-cpcontainer:1004206cspotify%3aalbum%3a\(id)?sid=12&amp;flags=8300&amp;sn=3"
+        case (.playlist, .spotify):
+            return "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(id)?sid=12&amp;flags=44&amp;sn=3"
+        case (.track, .apple):
+            return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;flags=8224&amp;sn=5"
+        case (.album, .apple):
+            return "x-rincon-cpcontainer:1004206calbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
+        case (.playlist, .apple):
+            return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
+        case (.favorite, _):
+            return id
+        case (_, .library):
+            return id
+        default:
+            return ""
+        }
+    }
+
+    public var alarmURIMetadata: String {
+        return """
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? "SA_RINCON52231_X_#Svc52231-0-Token" : "SA_RINCON3079_X_#Svc3079-0-Token" )&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+    }
+
+    public var containerClass: String {
+        switch (content.type, content.service) {
+        case (.track, .spotify):
+            return "object.item.audioItem.musicTrack"
+        case (.album, .spotify):
+            return "object.container.album"
+        case (.playlist, .spotify):
+            return "object.container.playlistContainer"
+        case (.track, .apple):
+            return "object.item.audioItem.musicTrack"
+        case (.album, .apple):
+            return "object.container.album.musicAlbum.#AlbumView"
+        case (.playlist, .apple):
+            return "object.container.playlistContainer.#PlaylistView"
+        case (.favorite, _):
+            return "object.itemobject.item.sonos-favorite"
+        case (.track, .library):
+            return "object.item.audioItem.musicTrack"
+        case (.album, .library):
+            return "object.container.album"
+        case (.playlist, .library):
+            return "object.container.playlistContainer"
+        default:
+            return ""
+        }
+    }
+
 }
 
 extension PlayableContent: Transferable {
@@ -46,3 +103,37 @@ extension PlayableContent: Transferable {
 extension UTType {
     public static var playableContent: UTType { UTType(exportedAs: "com.clic.playableContent") }
 }
+
+
+/// TODO: ADD
+/// 
+/// # In the overview below, the first columns indicates whether the class is (O)fficial of (E)xtended
+//#
+//#
+//# O object                                                  -> <class 'soco.data_structures.DidlObject'>
+//# O object.item                                             -> <class 'soco.data_structures.DidlItem'>
+//# O object.item.audioItem                                   -> <class 'soco.data_structures.DidlAudioItem'>
+//# O object.item.audioItem.musicTrack                        -> <class 'soco.data_structures.DidlMusicTrack'>
+//# O object.item.audioItem.audioBook                         -> <class 'soco.data_structures.DidlAudioBook'>
+//# O object.item.audioItem.audioBroadcast                    -> <class 'soco.data_structures.DidlAudioBroadcast'>
+//# E object.item.audioItem.musicTrack.recentShow             -> <class 'soco.data_structures.DidlRecentShow'>
+//# E object.item.audioItem.audioBroadcast.sonos-favorite     -> <class 'soco.data_structures.DidlAudioBroadcastFavorite'>
+//# E object.itemobject.item.sonos-favorite                   -> <class 'soco.data_structures.DidlFavorite'>
+//# O object.container                                        -> <class 'soco.data_structures.DidlContainer'>
+//# O object.container.album                                  -> <class 'soco.data_structures.DidlAlbum'>
+//# O object.container.album.musicAlbum                       -> <class 'soco.data_structures.DidlMusicAlbum'>
+//# E object.container.album.musicAlbum.sonos-favorite        -> <class 'soco.data_structures.DidlMusicAlbumFavorite'>
+//# E object.container.album.musicAlbum.compilation           -> <class 'soco.data_structures.DidlMusicAlbumCompilation'>
+//# O object.container.person                                 -> <class 'soco.data_structures.DidlPerson'>
+//# E object.container.person.composer                        -> <class 'soco.data_structures.DidlComposer'>
+//# O object.container.person.musicArtist                     -> <class 'soco.data_structures.DidlMusicArtist'>
+//# E object.container.albumlist                              -> <class 'soco.data_structures.DidlAlbumList'>
+//# O object.container.playlistContainer                      -> <class 'soco.data_structures.DidlPlaylistContainer'>
+//# E object.container.playlistContainer.sameArtist           -> <class 'soco.data_structures.DidlSameArtist'>
+//# E object.container.playlistContainer.sonos-favorite       -> <class 'soco.data_structures.DidlPlaylistContainerFavorite'>
+//# E object.container.playlistContainer.tracklist            -> <class 'soco.data_structures.DidlPlaylistContainerTracklist'>
+//# O object.container.genre                                  -> <class 'soco.data_structures.DidlGenre'>
+//# O object.container.genre.musicGenre                       -> <class 'soco.data_structures.DidlMusicGenre'>
+//# E object.container.radioShow                              -> <class 'soco.data_structures.DidlRadioShow'>
+
+//https://github.com/SoCo/SoCo/blob/51233a36bb47c52778151c4fcc96cc9e8631f28e/tests/official_and_extended_didl_classes.txt#L22

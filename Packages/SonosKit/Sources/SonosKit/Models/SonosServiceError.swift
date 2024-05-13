@@ -4,4 +4,5 @@ enum SonosServiceError: Error {
     case sonosSystemNotFound
     case permissionDenied
     case cancelled
+    case parseError(String)
 }

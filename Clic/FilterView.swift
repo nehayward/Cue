@@ -48,6 +48,7 @@ final class FilterSelection: Hashable, Identifiable {
     static var artist = FilterSelection(filter: .artist, isFiltered: false)
 
     static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist]
+    static var alarmFilters: [FilterSelection] = [.albums, .playlists]
 }
 
 struct FilterView: View {

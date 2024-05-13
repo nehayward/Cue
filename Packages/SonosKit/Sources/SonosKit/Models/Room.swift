@@ -30,6 +30,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var invisible: Bool
     public var info: DeviceInfo? = nil
     public var sleepTimer: Date? = nil
+    public var alarmRunning: Bool = false
 
     public init(
         id: String,
