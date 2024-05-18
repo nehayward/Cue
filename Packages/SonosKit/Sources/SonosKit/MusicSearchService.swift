@@ -24,7 +24,7 @@ public final class MusicSearchService {
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
-    private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
+    private var spotifySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
 
@@ -32,8 +32,8 @@ public final class MusicSearchService {
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
     public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
-    public var spotifyResult: SpotifyResult?
 
+    public var spotifyResults: [PlayableContent] = []
     public var librarySearchResults: [PlayableContent] = []
     public var plexResults: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
@@ -74,7 +74,8 @@ public final class MusicSearchService {
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
             if provider == .library {
-                return await sonosService.librarySearch(query: query)
+                let playableContent = await sonosService.librarySearch(query: query)
+                return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
             }
             return nil
         }
@@ -99,7 +100,7 @@ public final class MusicSearchService {
             topResults = results.1
         case .spotify:
             guard let result = await spotifySearchTask.value else { return }
-            spotifyResult = result
+            spotifyResults = result
         case .library:
             guard let librarySearchResults = await librarySearchTask.value else { return }
             self.librarySearchResults = librarySearchResults
@@ -184,8 +185,25 @@ public final class MusicSearchService {
         await spotifySearchAPI.artistTopTracks(id: id)
     }
 
-    public func searchSpotify(query: String) async -> SpotifyResult? {
-        await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
+    public func searchSpotify(query: String) async -> [PlayableContent] {
+
+        var playableContent: [PlayableContent] = []
+        guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return playableContent }
+
+        if let tracks = results.tracks?.items {
+            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        }
+        if let tracks = results.albums?.items {
+            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        }
+        if let tracks = results.artists?.items {
+            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        }
+        if let tracks = results.playlists?.items {
+            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+        }
+
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
 
     public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {
@@ -306,17 +324,47 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    }
+
+    func sortContentByMatchAndPopularity(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
         return playableContent.sorted { item1, item2 in
-            let containsQuery1 = item1.title.lowercased().contains(query.lowercased())
-            let containsQuery2 = item2.title.lowercased().contains(query.lowercased())
-            if containsQuery1 && !containsQuery2 {
-                return true
-            } else if !containsQuery1 && containsQuery2 {
-                return false
-            } else {
-                // If both have the query or both do not have the query, sort alphabetically
-                return item1.title.lowercased() < item2.title.lowercased()
+            // Function to calculate a "fuzzy match score" based on how many characters in the query match characters in the title, in sequence
+            func fuzzyMatchScore(source: String, query: String) -> Int {
+                let lowerSource = source.lowercased()
+                let lowerQuery = query.lowercased()
+                var score = 0
+                var index = lowerSource.startIndex
+
+                // Increment score for each character in query that matches in sequence in the source
+                for char in lowerQuery {
+                    if let foundIndex = lowerSource[index...].firstIndex(of: char) {
+                        score += 1
+                        index = lowerSource.index(after: foundIndex) // Move index to right after the found character
+                    }
+                }
+
+                return score
             }
+
+            // Calculate match scores for both items
+            let matchScore1 = fuzzyMatchScore(source: item1.title, query: query)
+            let matchScore2 = fuzzyMatchScore(source: item2.title, query: query)
+
+            // Primary sort by match score (descending)
+            if matchScore1 != matchScore2 {
+                return matchScore1 > matchScore2
+            }
+
+            // Secondary sort by popularity (descending); handle nil popularity by assigning a low default
+            let popularity1 = item1.popularity ?? -1
+            let popularity2 = item2.popularity ?? -1
+            if popularity1 != popularity2 {
+                return popularity1 > popularity2
+            }
+
+            // Tertiary sort by title (alphabetically)
+            return item1.title.lowercased() < item2.title.lowercased()
         }
     }
 

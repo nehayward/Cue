@@ -33,7 +33,8 @@ extension View {
                 case let .search(group, instant):
                     NewSearchScreen(group: group, instant: instant)
                 case let .add(mediaContent):
-                    ImprovedSearch(adding: mediaContent, isAdding: true)
+//                    NewSearchScreen(contentToAdd: mediaContent)
+                    Text("TODO")
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])

@@ -7,6 +7,7 @@ import SonosKit
 import MusicSearchKit
 import SwiftUI
 
+// MARK: Update with something else, doesn't work that well.
 struct NewReleasesView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router

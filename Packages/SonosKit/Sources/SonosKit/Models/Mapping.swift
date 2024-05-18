@@ -107,7 +107,8 @@ extension SpotifyTrackItem {
             title: name,
             subtitle: allArtists,
             artwork: URL(string: album.images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .track, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
+            popularity: popularity
         )
     }
 }
@@ -174,7 +175,8 @@ extension SpotifyArtistsItems {
             title: name,
             subtitle: "",
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .artist, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .artist, location: nil),
+            popularity: popularity
         )
     }
 }

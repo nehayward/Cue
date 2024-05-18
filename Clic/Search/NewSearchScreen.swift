@@ -60,10 +60,6 @@ struct NewSearchScreen: View {
                             }
                         }
 
-                        if musicSearchService.query.isEmpty, musicSearchSelection == .spotify {
-                            NewReleasesView()
-                        }
-
                         if !playHistory.isEmpty, musicSearchService.query.isEmpty {
                             PlayHistoryView(filters: $filters)
                         }
@@ -76,7 +72,7 @@ struct NewSearchScreen: View {
                         if !musicSearchService.query.isEmpty {
                             switch musicSearchSelection {
                             case .spotify:
-                                SpotifySearchView(isAdding: false, addingContent: .constant(nil), spotifyResult: $musicSearchService.spotifyResult, filters: $filters, group: group)
+                                SpotifySearchView(spotifyResults: $musicSearchService.spotifyResults, filters: $filters, group: group)
                             case .apple:
                                 ForEach(musicSearchService.topResults) { result in
                                     AppleMusicSearchScreen(result: result, filters: $filters, group: group)
@@ -209,12 +205,10 @@ struct NewSearchScreen: View {
                 .onChange(of: router.dismiss) {
                     dismiss()
                 }
-            case .notDetermined:
+            case .notDetermined, .denied:
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)
                     .addDismiss(action: dismiss.callAsFunction)
-            case .denied:
-                ImprovedSearch(adding: .constant(nil), group: group)
             }
         }
         .onAppear {

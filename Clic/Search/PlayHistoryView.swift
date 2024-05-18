@@ -13,6 +13,7 @@ struct PlayHistoryView: View {
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
     @Binding var filters: [FilterSelection]
+    @State private var clearHistoryConfirmation: Bool = false
 
     var body: some View {
         Section {
@@ -38,13 +39,21 @@ struct PlayHistoryView: View {
                 Spacer()
                 if !playHistory.isEmpty {
                     Button {
-                        playHistory.removeAll()
+                        clearHistoryConfirmation.toggle()
                     } label: {
                         Text("Clear All")
                             .bold()
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
+                }
+            }
+            .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
+                Button {
+                    playHistory.removeAll()
+                } label: {
+                    Text("Remove Play History")
+                    .bold()
                 }
             }
         }

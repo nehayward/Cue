@@ -1,3 +1,13 @@
+# 2024.23
+
+## External
++ Fix missing album art in some cases.
++ 
+
+## Internal
++ Add Audio Broadcast to to ContentType Lookup
++ Improve favorite album art lookup
+
 # 2024.22
 
 ## External
