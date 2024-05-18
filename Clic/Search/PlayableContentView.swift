@@ -181,6 +181,8 @@ struct PlayableContentView: View {
 
             router.dismiss = true
             await sonosService.queue(content: item.content, group: group, position: position)
+
+//            await sonosService.queuePlayable(playable: item, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
     }

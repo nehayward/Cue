@@ -70,6 +70,14 @@ struct PlayerView: View {
                         .frame(width: 10, height: 10)
                         .padding([.trailing, .bottom], 4)
                         .shadow(radius: 10)
+                case .plex:
+                    Image(.plex)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white.gradient)
+                        .frame(width: 10, height: 10)
+                        .padding([.trailing, .bottom], 4)
+                        .shadow(radius: 10)
                 }
             }
             .cornerRadius(12)

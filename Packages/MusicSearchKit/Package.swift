@@ -7,22 +7,24 @@ let package = Package(
     name: "MusicSearchKit",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "MusicSearchKit",
             targets: ["MusicSearchKit"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/drmohundro/SWXMLHash", from: "7.0.0")
+    ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "MusicSearchKit"),
+            name: "MusicSearchKit",
+            dependencies: ["SWXMLHash"]),
         .testTarget(
             name: "MusicSearchKitTests",
             dependencies: ["MusicSearchKit"],
             resources: [
                 .copy("Resources/cryYourHeartOutSearch.json"),
-                .copy("Resources/duaLipaSpotifyPlaylistsResponse.json")
+                .copy("Resources/duaLipaSpotifyPlaylistsResponse.json"),
+                .copy("Resources/plex_search_dance.xml")
             ]),
     ]
 )

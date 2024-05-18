@@ -53,6 +53,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return id
         case (_, .library):
             return id
+        case (.track, .plex):
+            return "x-sonosapi-hls-static:10036020\(id)%3Atrack?sid=212&amp;flags=24616&amp;sn=9"
+        case (.album, .plex):
+            return "x-rincon-cpcontainer:1004206c\(id)%3Aalbum?sid=212&amp;flags=8300&amp;sn=9"
+        case (.artist, .plex):
+            return "x-rincon-cpcontainer:1005004c\(id)%3Aartist?sid=212&amp;flags=8300&amp;sn=9"
+        case (.playlist, .plex):
+            return "x-rincon-cpcontainer:1006206c\(id)%3Aplaylist?sid=212&amp;flags=8300&amp;sn=9"
         default:
             return ""
         }
@@ -63,6 +71,50 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? "SA_RINCON52231_X_#Svc52231-0-Token" : "SA_RINCON3079_X_#Svc3079-0-Token" )&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
     }
+
+    
+    public var URIMetadata: String {
+        switch (content.type, content.service) {
+//        case (.track, .spotify)
+//            return ""
+//        case (.playlist, _):
+//            <#code#>
+//        case (.artist, _):
+//            <#code#>
+//        case (.album, _):
+//            <#code#>
+//        case (.favorite, _):
+//            <#code#>
+//        case (.radio, _):
+//            <#code#>
+//        case (_, .apple):
+//            <#code#>
+//        case (_, .airplay):
+//            <#code#>
+//        case (_, .library):
+//            <#code#>
+        case (.track, .plex):
+            return """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="10036020\(id)%3Atrack"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.album, .plex):
+            return """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;container parentID="" restricted="true" id="1004206c\(id)%3Aalbum"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.artist, .plex):
+            return """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.playlist, .plex):
+            return """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1006206c\(id)%3Aplaylist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        default:
+            return ""
+        }
+    }
+
+
 
     public var containerClass: String {
         switch (content.type, content.service) {

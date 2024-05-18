@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "Plex_favicon.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

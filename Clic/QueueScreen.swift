@@ -60,6 +60,13 @@ struct QueueScreen: View {
                                         .foregroundStyle(.white.gradient)
                                         .frame(width: 16, height: 16)
                                         .padding([.trailing, .bottom], 4)
+                                case .plex:
+                                    Image(.plex)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white.gradient)
+                                        .frame(width: 16, height: 16)
+                                        .padding([.trailing, .bottom], 4)
                                 }
                             }
                             .task(id: track.id) {

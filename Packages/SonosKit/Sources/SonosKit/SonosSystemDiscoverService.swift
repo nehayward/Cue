@@ -100,7 +100,7 @@ final class SonosSystemDiscoverService {
                 if permissionsDenied {
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(5) {
+                if Date.now > date.addingTimeInterval(8) {
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(100))
@@ -162,8 +162,6 @@ final class SonosSystemDiscoverService {
             print(error.errorCode)
             if let description = error.errorUserInfo["NSDescription"] as? String, description == "PolicyDenied" {
                 logger.trace("Browser failed waiting error: \(error)")
-                print(NSURLErrorDNSLookupFailed)
-                //            CFNetworkErrors.cfNetServiceErrorDNSServiceFailure.rawValue
                 permissionsDenied = true
             }
         case .cancelled:

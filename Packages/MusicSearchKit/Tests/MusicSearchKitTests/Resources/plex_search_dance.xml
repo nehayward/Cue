@@ -1,0 +1,147 @@
+<MediaContainer size="17">
+  <Hub title="Tracks" type="track" hubIdentifier="track" context="" size="10" more="0" style="shelf">
+    <Track librarySectionTitle="Music" score="0.71000" ratingKey="1995" key="/library/metadata/1995" parentRatingKey="1990" grandparentRatingKey="1778" guid="plex://track/5d07dafe403c640290ec3d22" parentGuid="plex://album/5d07c400403c6402909bd17b" grandparentGuid="plex://artist/5d07bcfc403c64029057c188" parentStudio="Interscope Records" type="track" title="Dance in the Dark" grandparentKey="/library/metadata/1778" parentKey="/library/metadata/1990" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Lady Gaga" parentTitle="The Fame Monster" summary="" index="5" parentIndex="1" ratingCount="557383" parentYear="2009" thumb="/library/metadata/1990/thumb/1714965564" art="/library/metadata/1778/art/1715606311" parentThumb="/library/metadata/1990/thumb/1714965564" grandparentThumb="/library/metadata/1778/thumb/1715606311" grandparentArt="/library/metadata/1778/art/1715606311" duration="288933" addedAt="1714965543" updatedAt="1715606316">
+      <Media id="4578" duration="288933" bitrate="1092" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4621" key="/library/parts/4621/1714958616/file.flac" duration="288933" file="/volume1/haywardhome/Music/Lady Gaga - Discography 2008-2021 [FLAC] vtwin88cube/2009 - The Fame Monster (EP)/05. - Dance In The Dark.flac" size="39639358" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="1946" key="/library/metadata/1946" parentRatingKey="1944" grandparentRatingKey="1778" guid="plex://track/5d07d710403c640290a9fb36" parentGuid="plex://album/5d07c37e403c640290975a02" grandparentGuid="plex://artist/5d07bcfc403c64029057c188" parentStudio="Streamline Records" type="track" title="Just Dance (Live at the Cherrytree House Stripped Down version)" grandparentKey="/library/metadata/1778" parentKey="/library/metadata/1944" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Lady Gaga" parentTitle="The Cherrytree Sessions" summary="" index="2" parentIndex="1" ratingCount="8468" parentYear="2009" thumb="/library/metadata/1944/thumb/1714965558" art="/library/metadata/1778/art/1715606311" parentThumb="/library/metadata/1944/thumb/1714965558" grandparentThumb="/library/metadata/1778/thumb/1715606311" grandparentArt="/library/metadata/1778/art/1715606311" duration="125201" addedAt="1714965536" updatedAt="1715606314">
+      <Media id="4538" duration="125201" bitrate="942" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4581" key="/library/parts/4581/1714958587/file.flac" duration="125201" file="/volume1/haywardhome/Music/Lady Gaga - Discography 2008-2021 [FLAC] vtwin88cube/2010 - The Singles/9 - The Cherrytree Sessions/02 - Just Dance (Live at The Cherrytree House Stripped Down Version).flac" size="14784092" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="1725" key="/library/metadata/1725" parentRatingKey="1708" grandparentRatingKey="1695" guid="plex://track/5d07f304403c6402902926b0" parentGuid="plex://album/5d07ca52403c640290d1b023" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="URBAN" type="track" title="Last Dance" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/1708" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Dua Lipa" summary="" index="17" parentIndex="1" ratingCount="178560" parentYear="2017" thumb="/library/metadata/1708/thumb/1714748922" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/1708/thumb/1714748922" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="229015" addedAt="1714748915" updatedAt="1714748922">
+      <Media id="4333" duration="229015" bitrate="320" audioChannels="2" audioCodec="mp3" container="mp3">
+        <Part id="4376" key="/library/parts/4376/1714748320/file.mp3" duration="229015" file="/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/17 Last Dance.mp3" size="10470786" container="mp3" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2008" key="/library/metadata/2008" parentRatingKey="2007" grandparentRatingKey="1778" guid="plex://track/5d07d632403c6402909b82fd" parentGuid="plex://album/5d07c336403c64029094c3ea" grandparentGuid="plex://artist/5d07bcfc403c64029057c188" parentStudio="Interscope Records" type="track" title="Just Dance" grandparentKey="/library/metadata/1778" parentKey="/library/metadata/2007" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Lady Gaga" parentTitle="The Fame" originalTitle="Lady Gaga feat. Colby O&#x2019;Donis" summary="" index="1" parentIndex="1" ratingCount="1932896" parentYear="2008" thumb="/library/metadata/2007/thumb/1714965566" art="/library/metadata/1778/art/1715606311" parentThumb="/library/metadata/2007/thumb/1714965566" grandparentThumb="/library/metadata/1778/thumb/1715606311" grandparentArt="/library/metadata/1778/art/1715606311" duration="241933" addedAt="1714965546" updatedAt="1715606316">
+      <Media id="4589" duration="241933" bitrate="1013" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4632" key="/library/parts/4632/1714958350/file.flac" duration="241933" file="/volume1/haywardhome/Music/Lady Gaga - Discography 2008-2021 [FLAC] vtwin88cube/2008 - The Fame/01. - Just Dance.flac" size="30955172" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2355" key="/library/metadata/2355" parentRatingKey="2338" grandparentRatingKey="1695" guid="plex://track/5d07f304403c6402902926b0" parentGuid="plex://album/5d07ca52403c640290d1b023" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="Warner Bros. Records" type="track" title="Last Dance" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2338" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Dua Lipa" summary="" index="17" parentIndex="1" ratingCount="180532" parentYear="2017" thumb="/library/metadata/2338/thumb/1714965630" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2338/thumb/1714965630" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="231613" addedAt="1714965600" updatedAt="1715437661">
+      <Media id="4840" duration="231613" bitrate="1573" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4883" key="/library/parts/4883/1714957705/file.flac" duration="231613" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2017) Dua Lipa - Dua Lipa  (Deluxe) [24Bit-44.1kHz]/17. Last Dance.flac" size="45641546" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2373" key="/library/metadata/2373" parentRatingKey="2356" grandparentRatingKey="1695" guid="plex://track/5d07f304403c6402902926b0" parentGuid="plex://album/5d07ca52403c640290d1b023" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="Warner Bros. Records" type="track" title="Last Dance" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2356" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Dua Lipa" summary="" index="17" parentIndex="1" ratingCount="180532" parentYear="2017" thumb="/library/metadata/2356/thumb/1714965631" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2356/thumb/1714965631" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="228976" addedAt="1714965601" updatedAt="1715437662">
+      <Media id="4857" duration="228976" bitrate="891" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4900" key="/library/parts/4900/1714957610/file.flac" duration="228976" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2017) Dua Lipa - Dua Lipa  (Deluxe) [16Bit-44.1kHz]/17. Last Dance.flac" size="25595666" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2391" key="/library/metadata/2391" parentRatingKey="2374" grandparentRatingKey="1695" guid="plex://track/5d07f304403c6402902926b0" parentGuid="plex://album/5d07ca52403c640290d1b023" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="URBAN" type="track" title="Last Dance" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2374" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Dua Lipa" summary="" index="17" parentIndex="1" ratingCount="178473" parentYear="2017" thumb="/library/metadata/2374/thumb/1714965632" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2374/thumb/1714965632" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="228976" addedAt="1714965602" updatedAt="1714965633">
+      <Media id="4874" duration="228976" bitrate="891" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4917" key="/library/parts/4917/1714957625/file.flac" duration="228976" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2017) Dua Lipa - Dua Lipa  (Complete Edition) [16Bit-44.1kHz]/17. Last Dance.flac" size="25654207" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2410" key="/library/metadata/2410" parentRatingKey="2409" grandparentRatingKey="1695" guid="plex://track/5d07f304403c6402902926b0" parentGuid="plex://album/5d07c9e3403c640290ccf4f8" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="Warner Bros. Records" type="track" title="Last Dance" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2409" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Last Dance" summary="" index="1" parentIndex="1" ratingCount="180532" parentYear="2016" thumb="/library/metadata/2409/thumb/1714965636" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2409/thumb/1714965636" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="228976" addedAt="1714965605" updatedAt="1715437670">
+      <Media id="4886" duration="228976" bitrate="891" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4929" key="/library/parts/4929/1714957592/file.flac" duration="228976" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2016) Dua Lipa - Last Dance [16Bit-44.1kHz]/01. Last Dance.flac" size="25604605" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2412" key="/library/metadata/2412" parentRatingKey="2411" grandparentRatingKey="1695" guid="plex://track/5d07f7e9403c64029067124f" parentGuid="plex://album/5d07ca6a403c640290d2c321" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="Warner Bros. Records" type="track" title="Last Dance (Stefan Ponce remix)" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2411" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Last Dance (Remixes)" summary="" index="1" parentIndex="1" ratingCount="182" parentYear="2016" thumb="/library/metadata/2411/thumb/1714965636" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2411/thumb/1714965636" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="297696" addedAt="1714965606" updatedAt="1715437670">
+      <Media id="4887" duration="297696" bitrate="942" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4930" key="/library/parts/4930/1714957588/file.flac" duration="297696" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2016) Dua Lipa - Last Dance  (Remixes) [16Bit-44.1kHz]/01. Last Dance.flac" size="35160194" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+    <Track librarySectionTitle="Music" score="0.31000" ratingKey="2413" key="/library/metadata/2413" parentRatingKey="2411" grandparentRatingKey="1695" guid="plex://track/5d07f7e9403c640290670759" parentGuid="plex://album/5d07ca6a403c640290d2c321" grandparentGuid="plex://artist/5d07beda403c6402906e3809" parentStudio="Warner Bros. Records" type="track" title="Last Dance (Coucheron remix)" grandparentKey="/library/metadata/1695" parentKey="/library/metadata/2411" librarySectionID="3" librarySectionKey="/library/sections/3" grandparentTitle="Dua Lipa" parentTitle="Last Dance (Remixes)" summary="" index="2" parentIndex="1" ratingCount="207" parentYear="2016" thumb="/library/metadata/2411/thumb/1714965636" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/2411/thumb/1714965636" grandparentThumb="/library/metadata/1695/thumb/1715437649" grandparentArt="/library/metadata/1695/art/1715437649" duration="182492" addedAt="1714965606" updatedAt="1714965636">
+      <Media id="4888" duration="182492" bitrate="856" audioChannels="2" audioCodec="flac" container="flac">
+        <Part id="4931" key="/library/parts/4931/1714957542/file.flac" duration="182492" file="/volume1/haywardhome/Music/Dua Lipa - Discography [FLAC Songs] [PMEDIA] &#x2B50;&#xFE0F;/(2016) Dua Lipa - Last Dance  (Remixes) [16Bit-44.1kHz]/02. Last Dance.flac" size="19628206" container="flac" hasThumbnail="1"/>
+      </Media>
+    </Track>
+  </Hub>
+  <Hub title="Artists" type="artist" hubIdentifier="artist" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Albums" type="album" hubIdentifier="album" context="" size="2" more="0" style="shelf">
+    <Directory librarySectionTitle="Music" score="0.32000" ratingKey="2409" key="/library/metadata/2409/children" parentRatingKey="1695" guid="plex://album/5d07c9e3403c640290ccf4f8" parentGuid="plex://artist/5d07beda403c6402906e3809" studio="Warner Bros. Records" type="album" title="Last Dance" parentKey="/library/metadata/1695" librarySectionID="3" librarySectionKey="/library/sections/3" parentTitle="Dua Lipa" summary="" index="1" year="2016" thumb="/library/metadata/2409/thumb/1714965636" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/1695/thumb/1715437649" originallyAvailableAt="2016-02-09" addedAt="1714965605" updatedAt="1714965636" loudnessAnalysisVersion="2">
+      <Genre tag="Pop/Rock"/>
+    </Directory>
+    <Directory librarySectionTitle="Music" score="0.32000" ratingKey="2411" key="/library/metadata/2411/children" parentRatingKey="1695" guid="plex://album/5d07ca6a403c640290d2c321" parentGuid="plex://artist/5d07beda403c6402906e3809" studio="Warner Bros. Records" type="album" title="Last Dance (Remixes)" parentKey="/library/metadata/1695" librarySectionID="3" librarySectionKey="/library/sections/3" parentTitle="Dua Lipa" summary="" index="1" year="2016" thumb="/library/metadata/2411/thumb/1714965636" art="/library/metadata/1695/art/1715437649" parentThumb="/library/metadata/1695/thumb/1715437649" originallyAvailableAt="2016-03-25" addedAt="1714965606" updatedAt="1714965636" loudnessAnalysisVersion="2">
+      <Genre tag="Pop/Rock"/>
+    </Directory>
+  </Hub>
+  <Hub title="Playlists" type="playlist" hubIdentifier="playlist" context="" size="1" more="0" style="shelf">
+    <Playlist score="0.92000" ratingKey="2459" key="/playlists/2459/items" guid="com.plexapp.agents.none://80e366e6-84ca-4aed-a14b-154f91860190" type="playlist" title="Dance" summary="" smart="0" playlistType="audio" composite="/playlists/2459/composite/1715750504" viewCount="1" lastViewedAt="1715750361" duration="2611000" leafCount="13" addedAt="1715750360" updatedAt="1715750504">
+</Playlist>
+  </Hub>
+  <Hub title="Episodes" type="episode" hubIdentifier="episode" context="" size="3" more="0" style="shelf">
+    <Video librarySectionTitle="TV Shows" score="0.71089" ratingKey="750" key="/library/metadata/750" parentRatingKey="741" grandparentRatingKey="706" guid="plex://episode/5d9c1275705e7a001e75efcd" parentGuid="plex://season/602e67da1d3358002c411d92" grandparentGuid="plex://show/5d9c086c46115600200aa2fe" type="episode" title="The Dance of Dragons" titleSort="Dance of Dragons" grandparentKey="/library/metadata/706" parentKey="/library/metadata/741" librarySectionID="2" librarySectionKey="/library/sections/2" grandparentTitle="Game of Thrones" parentTitle="Season 5" contentRating="TV-MA" summary="Stannis confronts a troubling decision. Jon returns to The Wall. Mace visits the Iron Bank. Arya encounters someone from her past. Dany reluctantly oversees a traditional celebration of athleticism." index="9" parentIndex="5" audienceRating="8.9" viewCount="1" lastViewedAt="1647323556" thumb="/library/metadata/750/thumb/1673402446" art="/library/metadata/706/art/1715719052" parentThumb="/library/metadata/741/thumb/1673402435" grandparentThumb="/library/metadata/706/thumb/1715719052" grandparentArt="/library/metadata/706/art/1715719052" grandparentTheme="/library/metadata/706/theme/1715719052" duration="3144000" originallyAvailableAt="2015-06-07" addedAt="1646531443" updatedAt="1673402446" audienceRatingImage="themoviedb://image.rating" chapterSource="media">
+      <Media id="1832" duration="3144000" bitrate="69723" width="3840" height="2160" aspectRatio="1.78" audioChannels="8" audioCodec="truehd" videoCodec="hevc" videoResolution="4k" container="mkv" videoFrameRate="24p" videoProfile="main 10">
+        <Part id="1832" key="/library/parts/1832/1646531443/file.mkv" duration="3144000" file="/volume1/haywardhome/TV Shows/Game of Thrones/Game.of.Thrones.S05.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT/Game.of.Thrones.S05E09.The.Dance.of.Dragons.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.TrueHD.7.1.Atmos-FGT.mkv" size="27269073113" container="mkv" hasThumbnail="1" indexes="sd" videoProfile="main 10"/>
+      </Media>
+      <Director tag="David Nutter"/>
+      <Writer tag="D.B. Weiss"/>
+      <Writer tag="David Benioff"/>
+      <Role tag="Nell Tiger Free"/>
+      <Role tag="Toby Sebastian"/>
+      <Role tag="Ian Whyte"/>
+    </Video>
+    <Video librarySectionTitle="TV Shows" score="0.71000" ratingKey="1545" key="/library/metadata/1545" parentRatingKey="1544" grandparentRatingKey="1543" guid="plex://episode/5e833ca85161b50041ca8b4e" parentGuid="plex://season/602e754d67f4c8002ce54b3d" grandparentGuid="plex://show/5d9c090e705e7a001e6e94d8" type="episode" title="Dance Mode" grandparentKey="/library/metadata/1543" parentKey="/library/metadata/1544" librarySectionID="2" librarySectionKey="/library/sections/2" grandparentTitle="Bluey" parentTitle="Season 2" contentRating="TV-Y" summary="After Dad eats her last chip, Bingo is given three chances to put Mum and Dad in 'Dance Mode' as payback. But the others can't resist taking Bingo's turns for her." index="1" parentIndex="2" viewCount="10" lastViewedAt="1714779995" year="2020" thumb="/library/metadata/1545/thumb/1711143789" art="/library/metadata/1543/art/1713782458" parentThumb="/library/metadata/1544/thumb/1711143789" grandparentThumb="/library/metadata/1543/thumb/1713782458" grandparentArt="/library/metadata/1543/art/1713782458" grandparentTheme="/library/metadata/1543/theme/1713782458" duration="437984" originallyAvailableAt="2020-03-17" addedAt="1711143773" updatedAt="1711143789">
+      <Media id="4114" duration="437984" bitrate="1753" width="1920" height="1080" aspectRatio="1.78" audioChannels="6" audioCodec="eac3" videoCodec="hevc" videoResolution="1080" container="mkv" videoFrameRate="24p" videoProfile="main 10">
+        <Part id="4157" key="/library/parts/4157/1711119644/file.mkv" duration="437984" file="/volume1/haywardhome/TV Shows/Bluey/Bluey (2018) Season 2 S02 (1080p DSNP WEB-DL x265 HEVC 10bit EAC3 5.1 Garshasp)/Bluey (2018) - S02E01 - Dance Mode (1080p DSNP WEB-DL x265 Garshasp).mkv" size="96111531" container="mkv" indexes="sd" videoProfile="main 10"/>
+      </Media>
+      <Director tag="Joe Brumm"/>
+      <Director tag="Richard Jeffery"/>
+      <Writer tag="Joe Brumm"/>
+      <Role tag="Dave McCormack"/>
+      <Role tag="Melanie Zanetti"/>
+      <Role tag="Rupert Degas"/>
+    </Video>
+    <Video librarySectionTitle="TV Shows" score="0.31000" ratingKey="1459" key="/library/metadata/1459" parentRatingKey="1434" grandparentRatingKey="1335" guid="plex://episode/63d2d5d69160a0b583eb1ab8" parentGuid="plex://season/629b7620fb29429285439591" grandparentGuid="plex://show/5d9c08172192ba001f3071b9" type="episode" title="Fans of the Fan Dance" grandparentKey="/library/metadata/1335" parentKey="/library/metadata/1434" librarySectionID="2" librarySectionKey="/library/sections/2" grandparentTitle="Sesame Street" parentTitle="Season 53" contentRating="TV-Y" summary="Ji-Young invites her friends Elmo, Zoe, Gabrielle, Charlie, and Tamir to join her Korean fan dance class. Together they learn how to use the fans and thank Ji-Young for sharing the dance that&#x2019;s special to her and her family." index="25" parentIndex="53" year="2023" thumb="/library/metadata/1459/thumb/1706206285" art="/library/metadata/1335/art/1713366962" parentThumb="/library/metadata/1434/thumb/1706206269" grandparentThumb="/library/metadata/1335/thumb/1713366962" grandparentArt="/library/metadata/1335/art/1713366962" grandparentTheme="/library/metadata/1335/theme/1713366962" duration="1555007" originallyAvailableAt="2023-04-20" addedAt="1706206266" updatedAt="1706206285">
+      <Media id="3916" duration="1555007" bitrate="2386" width="1920" height="1080" aspectRatio="1.78" audioChannels="6" audioCodec="eac3" videoCodec="hevc" videoResolution="1080" container="mp4" videoFrameRate="NTSC" optimizedForStreaming="0" has64bitOffsets="0" videoProfile="main">
+        <Part id="3959" key="/library/parts/3959/1706129864/file.mp4" duration="1555007" file="/volume1/haywardhome/TV Shows/Sesame Street/Sesame Street Season 53/Sesame Street - S53E25 - Fans of the Fan Dance.mp4" size="464568774" container="mp4" has64bitOffsets="0" indexes="sd" optimizedForStreaming="0" videoProfile="main"/>
+      </Media>
+      <Role tag="Kevin Clash"/>
+      <Role tag="Caroll Spinney"/>
+      <Role tag="Frank Oz"/>
+    </Video>
+  </Hub>
+  <Hub title="Shows" type="show" hubIdentifier="show" context="" size="1" more="0" style="shelf">
+    <Directory librarySectionID="2" librarySectionKey="/library/sections/2" librarySectionTitle="TV Shows" reason="actor" reasonID="4737" reasonTitle="Charles Dance" score="0.33084" ratingKey="706" key="/library/metadata/706/children" guid="plex://show/5d9c086c46115600200aa2fe" studio="Revolution Sun Studios" type="show" title="Game of Thrones" contentRating="TV-MA" summary="In the mythical continent of Westeros, several powerful families fight for control of the Seven Kingdoms. As conflict erupts in the kingdoms of men, an ancient enemy rises once again to threaten them all. Meanwhile, the last heirs of a recently usurped dynasty plot to take back their homeland from across the Narrow Sea." index="1" audienceRating="8.4" year="2011" tagline="Winter is coming." thumb="/library/metadata/706/thumb/1715719052" art="/library/metadata/706/art/1715719052" theme="/library/metadata/706/theme/1715719052" duration="3600000" originallyAvailableAt="2011-04-17" leafCount="73" viewedLeafCount="72" childCount="8" addedAt="1643783295" updatedAt="1715719052" audienceRatingImage="themoviedb://image.rating" primaryExtraKey="/library/metadata/734">
+      <Genre tag="Action"/>
+      <Genre tag="Adventure"/>
+      <Country tag="United States of America"/>
+      <Role tag="Kit Harington"/>
+      <Role tag="Iain Glen"/>
+      <Role tag="Peter Dinklage"/>
+      <Location path="/volume1/haywardhome/TV Shows/Game of Thrones"/>
+    </Directory>
+  </Hub>
+  <Hub title="Movies" type="movie" hubIdentifier="movie" context="" size="1" more="0" style="shelf">
+    <Video librarySectionTitle="Movies" score="0.33092" ratingKey="902" key="/library/metadata/902" guid="plex://movie/5eb8f257ac1f29003f633d2e" studio="Compelling Pictures" type="movie" title="Whitney Houston: I Wanna Dance with Somebody" librarySectionID="1" librarySectionKey="/library/sections/1" contentRating="PG-13" summary="A joyous, emotional, heartbreaking celebration of the life and music of Whitney Houston, one of the greatest female R&amp;B pop vocalists of all time, tracking her journey from obscurity to musical super stardom." rating="4.3" audienceRating="9.2" viewOffset="7256844" lastViewedAt="1675923628" year="2022" tagline="Celebrate the untold story of an icon." thumb="/library/metadata/902/thumb/1701191239" art="/library/metadata/902/art/1701191239" duration="8663779" originallyAvailableAt="2022-12-21" addedAt="1675914682" updatedAt="1701191239" audienceRatingImage="rottentomatoes://image.rating.upright" chapterSource="media" primaryExtraKey="/library/metadata/903" ratingImage="rottentomatoes://image.rating.rotten">
+      <Media id="2065" duration="8663779" bitrate="25144" width="3840" height="1604" aspectRatio="2.35" audioChannels="6" audioCodec="eac3" videoCodec="hevc" videoResolution="4k" container="mkv" videoFrameRate="24p" videoProfile="main 10">
+        <Part id="2065" key="/library/parts/2065/1675816036/file.mkv" duration="8663779" file="/volume1/haywardhome/Movies/Whitney.Houston.I.Wanna.Dance.with.Somebody.2022.2160p.WEB-DL.DDP5.1.DV.HDR10.H.265-CMRG.mkv" size="27233846855" container="mkv" indexes="sd" videoProfile="main 10"/>
+      </Media>
+      <Genre tag="Music"/>
+      <Genre tag="Biography"/>
+      <Country tag="United States of America"/>
+      <Director tag="Kasi Lemmons"/>
+      <Writer tag="Anthony McCarten"/>
+      <Role tag="Naomi Ackie"/>
+      <Role tag="Ashton Sanders"/>
+      <Role tag="Stanley Tucci"/>
+    </Video>
+  </Hub>
+  <Hub title="Photo Albums" type="photoalbum" hubIdentifier="photoalbum" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Automatic Tags" type="autotag" hubIdentifier="autotag" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Photos" type="photo" hubIdentifier="photo" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Tags" type="tag" hubIdentifier="tag" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Directors" type="director" hubIdentifier="director" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Genres" type="genre" hubIdentifier="genre" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Collections" type="collection" hubIdentifier="collection" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Actors" type="actor" hubIdentifier="actor" context="" size="1" more="0" style="shelf">
+    <Directory key="/library/sections/2/all?actor=4737" librarySectionID="2" librarySectionKey="/library/sections/2" librarySectionTitle="TV Shows" librarySectionType="2" reason="section" reasonID="2" reasonTitle="TV Shows" score="0.32000" type="tag" id="4737" filter="actor=4737" tag="Charles Dance" tagType="6" tagKey="5d7768258718ba001e3118c3" thumb="https://metadata-static.plex.tv/4/people/4b5f6467ba5d33e0c9b51fd8e7650714.jpg" count="6"/>
+  </Hub>
+  <Hub title="Shared" type="shared" hubIdentifier="shared" context="" size="0" more="0" style="shelf">
+</Hub>
+  <Hub title="Places" type="place" hubIdentifier="place" context="" size="0" more="0" style="shelf">
+</Hub>
+</MediaContainer>

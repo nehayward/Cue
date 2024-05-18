@@ -80,7 +80,6 @@
 		E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98248CC2AF04ED8008927EF /* UpdateType.swift */; };
 		E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856262A9FB5AD0024B192 /* PillView.swift */; };
 		E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
-		E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
 		E92B3EDF2B60249B00724FA1 /* ClassicAppleMusicSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABD2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift */; };
 		E92B3EE02B60249B00724FA1 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A242AAACB49002E432C /* ArtworkView.swift */; };
 		E92B3EE12B60249B00724FA1 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
@@ -127,6 +126,8 @@
 		E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */; };
 		E94F43722A6DD83300341D9E /* GroupVolumeControlScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */; };
 		E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */; };
+		E94FA6DD2BF5395A001F9811 /* PlexSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DC2BF5395A001F9811 /* PlexSearchView.swift */; };
+		E94FA6DF2BF648F7001F9811 /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DE2BF648F7001F9811 /* MailView.swift */; };
 		E950E7CF2B70AFF30029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E950E7D02B70AFF40029415B /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E950E7D22B7418080029415B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950E7D12B7418080029415B /* SplitView.swift */; };
@@ -134,7 +135,6 @@
 		E950E7D42B7418610029415B /* SplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E950E7D12B7418080029415B /* SplitView.swift */; };
 		E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A72AA52EF8007848A7 /* DebugView.swift */; };
 		E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
-		E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
 		E955083F2A4C8D2C0066EBAF /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */; };
 		E959B9182AB50684000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9172AB50684000D596E /* CloudStorage */; };
 		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
@@ -216,7 +216,6 @@
 		E97563232B699B2400787E14 /* PillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D856262A9FB5AD0024B192 /* PillView.swift */; };
 		E97563242B699B2400787E14 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E97563252B699B2400787E14 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
-		E97563262B699B2400787E14 /* ArtworkDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */; };
 		E97563272B699B2400787E14 /* ClassicAppleMusicSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BF3ABD2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift */; };
 		E97563282B699B2400787E14 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94A6A242AAACB49002E432C /* ArtworkView.swift */; };
 		E97563292B699B2400787E14 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
@@ -533,10 +532,11 @@
 		E94F436D2A69DE7B00341D9E /* GroupVolumeControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlView.swift; sourceTree = "<group>"; };
 		E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupVolumeControlScreen.swift; sourceTree = "<group>"; };
 		E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneBuilderScreen.swift; sourceTree = "<group>"; };
+		E94FA6DC2BF5395A001F9811 /* PlexSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexSearchView.swift; sourceTree = "<group>"; };
+		E94FA6DE2BF648F7001F9811 /* MailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailView.swift; sourceTree = "<group>"; };
 		E950E7D12B7418080029415B /* SplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitView.swift; sourceTree = "<group>"; };
 		E95498A72AA52EF8007848A7 /* DebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugView.swift; sourceTree = "<group>"; };
 		E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugEmbedTest.swift; sourceTree = "<group>"; };
-		E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDebugView.swift; sourceTree = "<group>"; };
 		E955083E2A4C8D2C0066EBAF /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E959B9192AB506A4000D596E /* Clic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clic.entitlements; sourceTree = "<group>"; };
 		E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Clic (Watch).entitlements"; sourceTree = "<group>"; };
@@ -794,7 +794,6 @@
 				E98CE0092B2FF3FB002E5A96 /* LogView.swift */,
 				E95498A72AA52EF8007848A7 /* DebugView.swift */,
 				E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */,
-				E95498AB2AA533F0007848A7 /* ArtworkDebugView.swift */,
 				E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */,
 			);
 			path = Debug;
@@ -815,6 +814,7 @@
 				E9B3476C2BF14BF300688851 /* ContentToAdd.swift */,
 				E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */,
 				E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */,
+				E94FA6DC2BF5395A001F9811 /* PlexSearchView.swift */,
 				E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */,
 				E90F31612BC4976800884EA5 /* PlayableContentView.swift */,
 				E94A6A222AAA7BCC002E432C /* ImprovedSearch.swift */,
@@ -970,6 +970,7 @@
 				E9294B5A2B33A531009E1F45 /* Environments.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
 				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
+				E94FA6DE2BF648F7001F9811 /* MailView.swift */,
 				E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
 				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
@@ -1535,7 +1536,6 @@
 				E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */,
 				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
 				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */,
-				E92B3EDE2B60249B00724FA1 /* ArtworkDebugView.swift in Sources */,
 				E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E92B3EDF2B60249B00724FA1 /* ClassicAppleMusicSearchView.swift in Sources */,
 				E949E8EF2BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */,
@@ -1644,7 +1644,6 @@
 				E97563252B699B2400787E14 /* ClicApp.swift in Sources */,
 				E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135C32B6C1A880096A14E /* MediaDetailView.swift in Sources */,
-				E97563262B699B2400787E14 /* ArtworkDebugView.swift in Sources */,
 				E97563272B699B2400787E14 /* ClassicAppleMusicSearchView.swift in Sources */,
 				E97563282B699B2400787E14 /* ArtworkView.swift in Sources */,
 				E97563292B699B2400787E14 /* OnboardView.swift in Sources */,
@@ -1750,6 +1749,7 @@
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
 				E98CE00A2B2FF3FB002E5A96 /* LogView.swift in Sources */,
 				E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */,
+				E94FA6DD2BF5395A001F9811 /* PlexSearchView.swift in Sources */,
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
@@ -1774,6 +1774,7 @@
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,
 				E982AEA92ABA027500709FC0 /* DeviceNameView.swift in Sources */,
 				E940E7162AAFBD17004303CD /* FilterView.swift in Sources */,
+				E94FA6DF2BF648F7001F9811 /* MailView.swift in Sources */,
 				E92DCBA32B67022600A2C3B5 /* MiniPlayerView.swift in Sources */,
 				E92D6EEF2B46634800E49AC8 /* Track+.swift in Sources */,
 				E9D38C532B5EE1C50025CC31 /* HapticManager.swift in Sources */,
@@ -1786,7 +1787,6 @@
 				E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */,
 				E9C889692BBFAA5B004C31DE /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135BF2B6B62B00096A14E /* MediaDetailView.swift in Sources */,
-				E95498AC2AA533F0007848A7 /* ArtworkDebugView.swift in Sources */,
 				E9BF3ABE2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift in Sources */,
 				E94A6A252AAACB49002E432C /* ArtworkView.swift in Sources */,
 				E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */,

@@ -30,7 +30,7 @@ struct LogScreen: View {
         .onAppear {
             sonosService.monitor()
 
-            guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
                 print("Documents directory not found")
                 return
             }

@@ -195,3 +195,68 @@ extension Favorite {
         )
     }
 }
+
+// MARK: Plex
+extension PlexTrack {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            artwork: imageURL,
+            content: .init(
+                service: .plex,
+                id: id,
+                type: .track,
+                location: nil
+            )
+        )
+    }
+}
+
+extension PlexAlbum {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: "\(artist) • \(year)",
+            artwork: imageURL,
+            content: .init(
+                service: .plex,
+                id: id,
+                type: .album,
+                location: nil
+            )
+        )
+    }
+}
+
+extension PlexArtist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name,
+            subtitle: "",
+            artwork: imageURL,
+            content: .init(
+                service: .plex,
+                id: id,
+                type: .artist,
+                location: nil
+            )
+        )
+    }
+}
+
+extension PlexPlaylist {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: "",
+            artwork: imageURL,
+            content: .init(
+                service: .plex,
+                id: id,
+                type: .playlist,
+                location: nil
+            )
+        )
+    }
+}

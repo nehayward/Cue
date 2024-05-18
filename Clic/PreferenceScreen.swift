@@ -6,7 +6,7 @@ import SonosKit
 import RevenueCat
 import SubscriptionKit
 import RevenueCatUI
-
+import MessageUI
 
 struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -15,7 +15,8 @@ struct PreferenceScreen: View {
 
     @State private var router = Router()
     @State private var showManageSubscriptions = false
-    
+    @State private var isShowingMailView = false
+
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
 
@@ -58,15 +59,24 @@ struct PreferenceScreen: View {
                         }
                     }
                 }
-                Section {
-                    Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
-                    if UIApplication.shared.isRunningInTestFlightEnvironment() {
+                if UIApplication.shared.isRunningInTestFlightEnvironment() || UIApplication.shared.isSimulator() {
+                    Section {
                         NavigationLink("Logs") {
                             LogScreen()
                         }
-                        Text("Vanished")
-                        
+                        Button("Send Logs") {
+                            self.isShowingMailView = true
+                        }
+                        .sheet(isPresented: $isShowingMailView) {
+                            MailViewRepresentable(
+                                subject: "Support Logs",
+                                recipients: ["hi@clic.dance"],
+                                messageBody: "Version: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)",
+                                logFilesDirectory: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appending(path: "Logs")
+                            )
+                        }
                         if let vanishes = sonosService.system?.vanished {
+                            Text("Vanished")
                             ForEach(vanishes) { vanish in
                                 VStack(alignment: .leading) {
                                     Text(vanish.id)
@@ -77,8 +87,13 @@ struct PreferenceScreen: View {
                                 }
                             }
                         }
+                    } header: {
+                        Text("Debug 👾")
                     }
+                }
 
+                Section {
+                    Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
                     Button {
                         Task {
                             await sonosService.refreshLibrary()
@@ -131,53 +146,53 @@ struct PreferenceScreen: View {
                 }
 
                 // MARK: Disable until fixed later for app review.
-//                Section {
-//                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
-//                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in
-//                            HStack {
-//                                Image(uiImage: UIImage(named: name)!)
-//                                    .resizable(resizingMode: .stretch)
-//                                    .frame(width: 64, height: 64)
-//                                    .cornerRadius(16)
-//                                VStack(alignment: .leading) {
-//                                    Text(name)
-//                                        .foregroundStyle(.primary)
-//                                    Text("By SH Creative")
-//                                        .foregroundStyle(.secondary)
-//                                }
-//                                Spacer()
-//                            }.contextMenu {
-//                                Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
-//                            }
-//                        }
-//                    }
-//                    .pickerStyle(.navigationLink)
-//                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-//                    .onChange(of: selectedAppIcon) { oldValue, newValue in
-//                        if newValue == "Default" {
-//                            UIApplication.shared.setAlternateIconName(nil)
-//                            return
-//                        }
-//                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
-//                            if let error = error {
-//                                print("Failed request to update the app’s icon: \(error)")
-//                            }
-//                        }
-//                    }
-//                    .overlay {
-//                        if !subscriptionService.subscription.isActive {
-//                            Text("Subscribe to Customize")
-//                                .fontDesign(.rounded)
-//                                .bold()
-//                                .padding()
-//                                .background(.thinMaterial)
-//                                .clipShape(RoundedRectangle(cornerRadius: 12))
-//                        }
-//                    }
-//                } header: {
-//                    Text("Customize")
-//                }
-//                .disabled(!subscriptionService.subscription.isActive)
+                //                Section {
+                //                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
+                //                        ForEach( Bundle.main.iconFileNames, id: \.self) { name in
+                //                            HStack {
+                //                                Image(uiImage: UIImage(named: name)!)
+                //                                    .resizable(resizingMode: .stretch)
+                //                                    .frame(width: 64, height: 64)
+                //                                    .cornerRadius(16)
+                //                                VStack(alignment: .leading) {
+                //                                    Text(name)
+                //                                        .foregroundStyle(.primary)
+                //                                    Text("By SH Creative")
+                //                                        .foregroundStyle(.secondary)
+                //                                }
+                //                                Spacer()
+                //                            }.contextMenu {
+                //                                Link("By SH Creative", destination: URL(string: "https://www.shcreative.io")!)
+                //                            }
+                //                        }
+                //                    }
+                //                    .pickerStyle(.navigationLink)
+                //                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                //                    .onChange(of: selectedAppIcon) { oldValue, newValue in
+                //                        if newValue == "Default" {
+                //                            UIApplication.shared.setAlternateIconName(nil)
+                //                            return
+                //                        }
+                //                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
+                //                            if let error = error {
+                //                                print("Failed request to update the app’s icon: \(error)")
+                //                            }
+                //                        }
+                //                    }
+                //                    .overlay {
+                //                        if !subscriptionService.subscription.isActive {
+                //                            Text("Subscribe to Customize")
+                //                                .fontDesign(.rounded)
+                //                                .bold()
+                //                                .padding()
+                //                                .background(.thinMaterial)
+                //                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                //                        }
+                //                    }
+                //                } header: {
+                //                    Text("Customize")
+                //                }
+                //                .disabled(!subscriptionService.subscription.isActive)
 #endif
                 Section {
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
@@ -194,10 +209,10 @@ struct PreferenceScreen: View {
             }
             .navigationTitle("Preferences")
             .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
-//            .sheet(isPresented: $showSubscriptions) {
-//                SubscriptionDetailScreen()
-//                    .environment(subscriptionService)
-//            }
+            //            .sheet(isPresented: $showSubscriptions) {
+            //                SubscriptionDetailScreen()
+            //                    .environment(subscriptionService)
+            //            }
             .withAppRouter(router: router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .addDismiss {

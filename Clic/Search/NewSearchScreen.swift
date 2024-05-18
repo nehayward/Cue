@@ -84,6 +84,8 @@ struct NewSearchScreen: View {
                                 }
                             case .library:
                                 LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters, group: group)
+                            case .plex:
+                                PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters, group: group)
                             }
                         }
                     }
@@ -125,12 +127,12 @@ struct NewSearchScreen: View {
                                         Image(.spotifyLogo)
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
-                                            .tag(SearchSelection.spotify)
+                                            .tag(MediaSearchService.spotify)
                                             .frame(width: 24, height: 24)
                                     }
                                 }
-                                .id(SearchSelection.spotify)
-                                
+                                .id(MediaSearchService.spotify)
+
                                 Button {
                                     HapticManager.shared.fireHaptic(.buttonPress)
                                     musicSearchSelection = .apple
@@ -142,11 +144,10 @@ struct NewSearchScreen: View {
                                         Image(systemName: "apple.logo")
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
-                                            .tag(SearchSelection.spotify)
                                             .frame(width: 24, height: 24)
                                     }
                                 }
-                                .id(SearchSelection.apple)
+                                .id(MediaSearchService.apple)
 
                                 Button {
                                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -156,7 +157,25 @@ struct NewSearchScreen: View {
                                 } label: {
                                     Label("Library", systemImage: "books.vertical.circle.fill")
                                 }
-                                .id(SearchSelection.library)
+                                .id(MediaSearchService.library)
+
+                                // MARK: Hide feature until later
+//                                Button {
+//                                    HapticManager.shared.fireHaptic(.buttonPress)
+//                                    musicSearchSelection = .plex
+//                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+//                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+//                                } label: {
+//                                    HStack {
+//                                        Text(MediaSearchService.plex.title)
+//                                        Image(.plex)
+//                                            .resizable()
+//                                            .aspectRatio(contentMode: .fit)
+//                                            .frame(width: 24, height: 24)
+//                                            .clipShape(Circle())
+//                                    }
+//                                }
+//                                .id(MediaSearchService.plex)
                             } label: {
                                 Label {
                                     Text(musicSearchSelection.title)
@@ -222,6 +241,7 @@ struct NewSearchScreen: View {
         }
     }
 
+    @ViewBuilder
     private var iconForMusicService: some View {
         switch musicSearchSelection {
         case .spotify:
@@ -239,6 +259,12 @@ struct NewSearchScreen: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
+        case .plex:
+            Image(.plex)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+                .clipShape(Circle())
         }
     }
 }

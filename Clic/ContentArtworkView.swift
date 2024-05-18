@@ -6,34 +6,37 @@ import MusicKit
 struct ContentArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Binding var content: PlayableContent?
-    @State var artworkURL: URL?
     @State var size: Double = 24
 
     var body: some View {
         GeometryReader { proxy in
-            LazyImage(url: content?.artwork) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } else if state.isLoading {
-                    RoundedRectangle(cornerRadius: 4)
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
-                        .shadow(radius: 2)
-                } else {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient.secondary)
-                        .aspectRatio(contentMode: .fit)
-                        .overlay {
-                            if artworkURL == nil {
-                                Image(systemName: "music.note")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.regularMaterial)
-                                    .frame(width: 24, height: 24)
-                            }
+            Group {
+                if let request = request() {
+                    LazyImage(request: ImageRequest(urlRequest: request)) { state in
+                        if let image = state.image {
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else if state.isLoading {
+                            RoundedRectangle(cornerRadius: 4)
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.ultraThinMaterial)
+                                .shadow(radius: 2)
+                        } else {
+                            Rectangle()
+                                .foregroundStyle(.accent.gradient.secondary)
+                                .aspectRatio(contentMode: .fit)
+                                .overlay {
+                                    if content?.artwork == nil {
+                                        Image(systemName: "music.note")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .foregroundStyle(.regularMaterial)
+                                            .frame(width: 24, height: 24)
+                                    }
+                                }
                         }
+                    }
                 }
             }
             .clipShape(content?.content.type == .artist ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
@@ -59,6 +62,14 @@ struct ContentArtworkView: View {
                             .shadow(radius: 10)
                     case .library:
                         Image(systemName: "books.vertical.circle.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white.gradient)
+                            .frame(width: size, height: size, alignment: .bottomTrailing)
+                            .padding(size == 24 ? 16 : 4)
+                            .shadow(radius: 10)
+                    case .plex:
+                        Image(.plex)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(.white.gradient)
@@ -109,7 +120,19 @@ struct ContentArtworkView: View {
 //                    }
 //                }
 //            }
+            
         }
+    }
+
+    private func request() -> URLRequest? {
+        if let url = content?.artwork {
+            var request = URLRequest(url: url)
+            if content?.content.service == .plex {
+                request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+            }
+            return request
+        }
+        return nil
     }
 }
 

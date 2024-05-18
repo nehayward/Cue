@@ -3,6 +3,7 @@ public enum MediaSearchService: String, Sendable, Codable {
     case apple
     case spotify
     case library
+    case plex
 
     public init?(service: String) {
         switch service {
@@ -12,6 +13,8 @@ public enum MediaSearchService: String, Sendable, Codable {
             self = .apple
         case "library":
             self = .library
+        case "plex":
+            self = .plex
         default:
             return nil
         }
@@ -25,6 +28,8 @@ public enum MediaSearchService: String, Sendable, Codable {
             "Spotify"
         case .library:
             "Library"
+        case .plex:
+            "Plex"
         }
     }
 }

@@ -16,13 +16,17 @@ public final class MusicSearchService {
     }
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
+    public var plexAuthorization: AppleMusicAuthorization = .denied
+
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
+    private let plex = PlexAPI()
     private let spotifySearchAPI = SpotifyAPI()
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
     private var spotifySearchTask = Task<(SpotifyResult)?, Never> { nil }
     private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
+    private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
 
     private let debounceDuration: Duration = .milliseconds(200)
 
@@ -31,7 +35,7 @@ public final class MusicSearchService {
     public var spotifyResult: SpotifyResult?
 
     public var librarySearchResults: [PlayableContent] = []
-
+    public var plexResults: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
     public init() { }
@@ -75,6 +79,17 @@ public final class MusicSearchService {
             return nil
         }
 
+        plexSearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            if provider == .plex {
+                return await searchPlex(query: query)
+            }
+            return nil
+        }
+
         // Wait for the task to complete and return the result
         guard let results = await searchSuggestionTask.value else { return }
         suggestions = results.0
@@ -88,6 +103,9 @@ public final class MusicSearchService {
         case .library:
             guard let librarySearchResults = await librarySearchTask.value else { return }
             self.librarySearchResults = librarySearchResults
+        case .plex:
+            guard let plexResults = await plexSearchTask.value else { return }
+            self.plexResults = plexResults
         }
     }
 
@@ -280,6 +298,27 @@ public final class MusicSearchService {
 //        return response.items
 //    }
 
+    private func searchPlex(query: String) async -> [PlayableContent] {
+        var playableContent: [PlayableContent] = []
+        guard let results = await plex.search(for: query) else { return playableContent }
+        playableContent.append(contentsOf: results.tracks.map(\.toPlayable))
+        playableContent.append(contentsOf: results.album.map(\.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.toPlayable))
+        playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
+
+        return playableContent.sorted { item1, item2 in
+            let containsQuery1 = item1.title.lowercased().contains(query.lowercased())
+            let containsQuery2 = item2.title.lowercased().contains(query.lowercased())
+            if containsQuery1 && !containsQuery2 {
+                return true
+            } else if !containsQuery1 && containsQuery2 {
+                return false
+            } else {
+                // If both have the query or both do not have the query, sort alphabetically
+                return item1.title.lowercased() < item2.title.lowercased()
+            }
+        }
+    }
 
     public func requestMusicAuthorization() async -> Bool {
         let status = await MusicAuthorization.request()

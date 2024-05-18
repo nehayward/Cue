@@ -256,9 +256,15 @@ struct LargePlayerView: View {
                 .disabled(!group.availableActions.contains(.scrubbable))
 
                 HStack {
-                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
-                    Spacer()
-                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
+                    if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
+                        Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
+                        Spacer()
+                        Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
+                    } else {
+                        Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
+                        Spacer()
+                        Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
+                    }
                 }
                 .frame(maxWidth: 500)
                 .monospacedDigit()

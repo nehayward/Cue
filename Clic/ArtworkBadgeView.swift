@@ -60,6 +60,14 @@ struct ArtworkBadgeView: View {
                         .padding(size == 24 ? 16 : 4)
                         .shadow(radius: 10)
                 }
+            case .plex:
+                Image(.plex)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white.gradient)
+                    .frame(width: size, height: size, alignment: .bottomTrailing)
+                    .padding(size == 24 ? 16 : 4)
+                    .shadow(radius: 10)
             }
         }
     }

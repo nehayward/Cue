@@ -11,10 +11,6 @@ final class XMLParserSonos {
     func parse(xml: String) {
         let xml = XMLHash.parse(xml)
         let zones = xml["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
-
-        print(zones)
-
-
         let zonesParsed: [ZoneGroup] = try! zones.value()
         print(zonesParsed)
 
@@ -26,7 +22,6 @@ final class XMLParserSonos {
 
         let member: [ZoneGroupMember] = try! groups[0].value()
         print(member)
-
 
         print(zones["ZoneGroupMember"].description)
 
@@ -104,24 +99,6 @@ final class XMLParserSonos {
         return zonesParsed
     }
 
-    //    func parsePositionInfo(xml: String) -> String {
-    //        let xmlParsed = XMLHash.parse(xml)
-    //        let zones = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
-    //        let zonesParsed: [ZoneGroup] = try! zones.value()
-    //        return zonesParsed
-    //    }
-
-    //    func parseTrackInfo(xml: String) -> Track? {
-    //        let xmlParsed = XMLHash.parse(xml)
-    //        guard let trackInfo = xmlParsed["DIDL-Lite"]["item"]["dc:title"].element?.text,
-    //              let artist = xmlParsed["DIDL-Lite"]["item"]["dc:creator"].element?.text,
-    //              let album = xmlParsed["DIDL-Lite"]["item"]["upnp:album"].element?.text
-    //        else {
-    //            return nil
-    //        }
-    //        return Track(name: trackInfo, artist: artist, album: album)
-    //    }
-
     func parsePositionInfo(xml: String, IP: String, preferredIPForTrackAlbumArt: String?) -> Track? {
         var xml = xml
         if xml.contains("&gt") {
@@ -135,7 +112,6 @@ final class XMLParserSonos {
         }
 
         guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
-              let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text,
               let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
               let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].element?.text,
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
@@ -145,7 +121,11 @@ final class XMLParserSonos {
         }
 
         let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text
+        let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text
         let albumArtist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:albumArtist"].element?.text
+
+        let contentType = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text
+        let releaseDate = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:releaseDate"].element?.text
 
         var playbackPosition = TimeInterval.zero
         // MARK: Parse out RelTime
@@ -190,6 +170,8 @@ final class XMLParserSonos {
             musicService = .library
         }
 
+//        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
+
         var trackID = ""
         switch musicService {
         case .apple:
@@ -214,6 +196,8 @@ final class XMLParserSonos {
             break
         case .library:
             trackID = trackURI
+        case .plex:
+            trackID = trackURI
         }
 
         let ip = preferredIPForTrackAlbumArt ?? IP
@@ -230,7 +214,7 @@ final class XMLParserSonos {
             }
         }
 
-        return Track(trackID: trackID, name: name, artist: albumArtist ?? artist, album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL, TVMode: false)
+        return Track(trackID: trackID, name: name, artist: albumArtist ?? (artist ?? ""), album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL, TVMode: false)
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
@@ -381,14 +365,13 @@ final class XMLParserSonos {
 
    
         for item in items {
-            guard let title = item["dc:title"].element?.text,
-                  let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
+            guard let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
             else {
                 continue
             }
 
+            let title = item["dc:title"].element?.text ?? "Unknown"
             let albumArtist = item["r:albumArtist"].element?.text
-
             var trackDuration = TimeInterval.zero
             if let trackDurationString = item["res"].element?.attribute(by: "duration")?.text {
                 let trackDurationComponents = trackDurationString.components(separatedBy: ":")
@@ -415,6 +398,12 @@ final class XMLParserSonos {
                     musicService = .library
                 }
 
+                // TODO: Parse with this for HiRes info
+//                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
+//                if protocolInfo.contains("x-sonos-http") {
+//                    musicService = .plex
+//                }
+
                 switch musicService {
                 case .apple:
                     let pattern = #/song:(\w*)/#
@@ -433,6 +422,9 @@ final class XMLParserSonos {
                 case .airplay, .unknown:
                     musicService = .unknown
                 case .library:
+                    trackID = item["res"].element?.text ?? ""
+                case .plex:
+                    // MARK: Verify
                     trackID = item["res"].element?.text ?? ""
                 }
             }

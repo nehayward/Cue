@@ -19,4 +19,11 @@ final class MusicSearchKitTests: XCTestCase {
         XCTAssertEqual(playlists.items.count, 20)
     }
 
+    func testPlexDecode() throws {
+        let dance = Bundle.module.url(forResource: "plex_search_dance", withExtension: "xml")!
+        let data = try Data(contentsOf: dance)
+        let tracks = PlexParser().parseXML(xmlData: data)
+    }
+
+
 }

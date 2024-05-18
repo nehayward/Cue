@@ -665,6 +665,34 @@ final class SonosAPI: NSObject {
         }
     }
 
+    func queuePlayable(playableContent: PlayableContent, IP: String,  position: QueuePosition = .next) async {
+        var arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EnqueuedURI": playableContent.uri,
+            "EnqueuedURIMetaData": playableContent.URIMetadata,
+            "DesiredFirstTrackNumberEnqueued": 1,
+            "EnqueueAsNext": 1
+        ]
+
+        switch position {
+        case .front: break
+        case .end:
+            arguments["DesiredFirstTrackNumberEnqueued"] = 0
+        case .now, .next:
+            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+            arguments["DesiredFirstTrackNumberEnqueued"] = index + 1
+            arguments["EnqueueAsNext"] = 1
+        }
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
+
     func getCurrentTransportActions(IP: String) async -> AvailableActions? {
         let arguments: [String: Any] = ["InstanceID": 0]
 
@@ -702,7 +730,9 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        return xmlParser.parseQueue(IP: IP, xml: xml, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
+        let queue = xmlParser.parseQueue(IP: IP, xml: xml, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
+        SonosLogInformation.shared.log(name: "\(IP)_queue.txt", xml.unescaped)
+        return queue
     }
     
     func seek(trackNumber: Int, IP: String) async {

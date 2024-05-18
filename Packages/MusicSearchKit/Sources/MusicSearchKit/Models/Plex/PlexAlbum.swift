@@ -1,0 +1,11 @@
+import Foundation
+public struct PlexAlbum {
+    public var title: String
+    public var artist: String
+    public var year: String
+    public var thumb: String
+    public var art: String
+    public var ratingKey: String // Used to play on Sonos
+    public var imageURL: URL?
+    public var id: String
+}
