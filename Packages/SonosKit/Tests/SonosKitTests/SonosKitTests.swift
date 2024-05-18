@@ -42,6 +42,14 @@ final class SonosKitTests: XCTestCase {
         XCTAssertEqual(vanishedDevices.count, 2)
     }
 
+    func testZoneBoostXMLParse() throws {
+        let zone = Bundle.module.url(forResource: "ZoneWithBoost", withExtension: "xml")
+        let zoneXML = try! String(contentsOf: zone!)
+        let zones = XMLParserSonos().parseZones(xml: zoneXML)
+        print(zones)
+        XCTAssertEqual(zones.count, 2)
+    }
+
 //    func testGetPositionParse() throws {
 //        let track = Bundle.module.url(forResource: "GetPositionInfoApple", withExtension: "xml")
 //        let trackXML = try! String(contentsOf: track!)

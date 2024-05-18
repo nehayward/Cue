@@ -30,6 +30,7 @@ let package = Package(
             resources: [
                 .copy("Resources/GetVolumeResponse.xml"),
                 .copy("Resources/Zone.xml"),
+                .copy("Resources/ZoneWithBoost.xml"),
                 .copy("Resources/Track.xml"),
                 .copy("Resources/GetPositionInfoApple.xml"),
                 .copy("Resources/GetPositionInfoSpotify.xml"),
