@@ -6,7 +6,7 @@ class SonosLogInformation {
 
 
     func log(name: String, _ message: String) {
-//#if DEBUG
+#if DEBUG
         let logMessage = "\(message)"
 
         guard let logDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
@@ -30,7 +30,7 @@ class SonosLogInformation {
         } catch {
             print("Failed to log message: \(error)")
         }
-//#endif
+#endif
     }
     
 }

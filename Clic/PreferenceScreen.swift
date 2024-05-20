@@ -59,7 +59,7 @@ struct PreferenceScreen: View {
                         }
                     }
                 }
-                if UIApplication.shared.isRunningInTestFlightEnvironment() || UIApplication.shared.isSimulator() {
+                if UIApplication.shared.isRunningInTestFlightEnvironment() {
                     Section {
                         NavigationLink("Logs") {
                             LogScreen()
