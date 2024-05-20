@@ -1,24 +1,11 @@
+import SwiftUI
 
 public enum MediaSearchService: String, Sendable, Codable {
     case apple
-    case spotify
     case library
     case plex
-
-    public init?(service: String) {
-        switch service {
-        case "spotify":
-            self = .spotify
-        case "apple":
-            self = .apple
-        case "library":
-            self = .library
-        case "plex":
-            self = .plex
-        default:
-            return nil
-        }
-    }
+    case spotify
+    case tidal
 
     public var title: String {
         switch self {
@@ -30,6 +17,12 @@ public enum MediaSearchService: String, Sendable, Codable {
             "Library"
         case .plex:
             "Plex"
+        case .tidal:
+            "Tidal"
         }
+    }
+
+    public var icon: Image {
+        Image(.tidal)
     }
 }

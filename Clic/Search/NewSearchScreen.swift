@@ -82,6 +82,8 @@ struct NewSearchScreen: View {
                                 LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters, group: group)
                             case .plex:
                                 PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters, group: group)
+                            case .tidal:
+                                TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters, group: group)
                             }
                         }
                     }
@@ -151,7 +153,7 @@ struct NewSearchScreen: View {
                                     Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
                                     Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
                                 } label: {
-                                    Label("Library", systemImage: "books.vertical.circle.fill")
+                                    Label("Library", systemImage: "books.vertical.fill")
                                 }
                                 .id(MediaSearchService.library)
 
@@ -172,6 +174,25 @@ struct NewSearchScreen: View {
 //                                    }
 //                                }
 //                                .id(MediaSearchService.plex)
+
+                                // MARK: Hide feature until later
+
+//                                Button {
+//                                    HapticManager.shared.fireHaptic(.buttonPress)
+//                                    musicSearchSelection = .tidal
+//                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+//                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+//                                } label: {
+//                                    HStack {
+//                                        Text(MediaSearchService.tidal.title)
+//                                        MediaSearchService.tidal.icon
+//                                            .resizable()
+//                                            .aspectRatio(contentMode: .fit)
+//                                            .frame(width: 24, height: 24)
+//                                            .clipShape(Circle())
+//                                    }
+//                                }
+//                                .id(MediaSearchService.tidal)
                             } label: {
                                 Label {
                                     Text(musicSearchSelection.title)
@@ -249,7 +270,7 @@ struct NewSearchScreen: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
         case .library:
-            Image(systemName: "books.vertical.circle.fill")
+            Image(systemName: "books.vertical.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
@@ -259,6 +280,11 @@ struct NewSearchScreen: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
                 .clipShape(Circle())
+        case .tidal:
+            musicSearchSelection.icon
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
         }
     }
 }

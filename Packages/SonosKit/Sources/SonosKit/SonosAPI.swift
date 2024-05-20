@@ -665,7 +665,7 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func queuePlayable(playableContent: PlayableContent, IP: String,  position: QueuePosition = .next) async {
+    func queuePlayable(playableContent: PlayableContent, IP: String, position: QueuePosition = .next) async {
         var arguments: [String: Any] = [
             "InstanceID": 0,
             "EnqueuedURI": playableContent.uri,

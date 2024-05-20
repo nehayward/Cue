@@ -170,9 +170,15 @@ final class XMLParserSonos {
             musicService = .library
         }
 
-//        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
 
+//        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
         var trackID = ""
+        let tidalPattern = #/track\/(\d{9})/#
+        if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
+            musicService = .tidal
+            trackID = String(result.1)
+        }
+
         switch musicService {
         case .apple:
             let pattern = #/song:(\w*)/#
@@ -198,6 +204,9 @@ final class XMLParserSonos {
             trackID = trackURI
         case .plex:
             trackID = trackURI
+        case .tidal:
+            print(trackID)
+//            trackID = trackURI
         }
 
         let ip = preferredIPForTrackAlbumArt ?? IP
@@ -404,6 +413,12 @@ final class XMLParserSonos {
 //                    musicService = .plex
 //                }
 
+                let tidalPattern = #/track\/(\d{9})/#
+                if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
+                    musicService = .tidal
+                    trackID = String(result.1)
+                }
+
                 switch musicService {
                 case .apple:
                     let pattern = #/song:(\w*)/#
@@ -426,6 +441,8 @@ final class XMLParserSonos {
                 case .plex:
                     // MARK: Verify
                     trackID = item["res"].element?.text ?? ""
+                case .tidal:
+                    print("found")
                 }
             }
 

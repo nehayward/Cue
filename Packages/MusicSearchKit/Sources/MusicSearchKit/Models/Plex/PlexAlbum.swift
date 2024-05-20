@@ -1,4 +1,5 @@
 import Foundation
+
 public struct PlexAlbum {
     public var title: String
     public var artist: String

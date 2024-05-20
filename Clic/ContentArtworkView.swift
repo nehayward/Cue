@@ -2,6 +2,7 @@ import NukeUI
 import SwiftUI
 import SonosKit
 import MusicKit
+import MusicSearchKit
 
 struct ContentArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -79,6 +80,14 @@ struct ContentArtworkView: View {
                     case .airplay, .unknown:
                         EmptyView()
                             .padding([.trailing, .bottom], 12)
+                    case .tidal:
+                        MediaSearchService.tidal.icon
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white.gradient)
+                            .frame(width: size, height: size, alignment: .bottomTrailing)
+                            .padding(size == 24 ? 16 : 4)
+                            .shadow(radius: 10)
                     }
                 }
 

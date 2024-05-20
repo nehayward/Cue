@@ -61,7 +61,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return "x-rincon-cpcontainer:1005004c\(id)%3Aartist?sid=212&amp;flags=8300&amp;sn=9"
         case (.playlist, .plex):
             return "x-rincon-cpcontainer:1006206c\(id)%3Aplaylist?sid=212&amp;flags=8300&amp;sn=9"
+        case (.track, .tidal):
+            return "track%2f\(id)"
+        case (.album, .tidal):
+            return "x-rincon-cpcontainer:1004206calbum%2f\(id)"
+        case (.artist, .tidal):
+            return ""
         default:
+            assertionFailure("Failed")
             return ""
         }
     }
@@ -109,12 +116,26 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1006206c\(id)%3Aplaylist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
+        case (.track, .tidal):
+            return """
+\(Self.defaultXMLNSTidal) id="00032020track%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.album, .tidal):
+            return """
+\(Self.defaultXMLNSTidal) id="00040000album%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.artist, .tidal):
+            return """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
         default:
             return ""
         }
     }
 
-
+    private static var defaultXMLNSTidal = """
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item restricted="true"
+"""
 
     public var containerClass: String {
         switch (content.type, content.service) {

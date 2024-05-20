@@ -174,6 +174,9 @@ struct MediaDetailView: View {
                 self.tracks = await sonosService.libraryAlbum(name: albumName)
                 guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
                 playableContent = albumPlayable
+            case (.album, .tidal):
+                // TODO: Add rests of them
+                self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: playableContent.content.id)
             default:
                 break
             }

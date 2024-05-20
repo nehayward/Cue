@@ -69,6 +69,14 @@ struct QueueScreen: View {
                                         .frame(width: 10, height: 10)
                                         .padding([.trailing, .bottom], 4)
                                         .shadow(radius: 10)
+                                case .tidal:
+                                    MediaSearchService.tidal.icon
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white.gradient)
+                                        .frame(width: 10, height: 10)
+                                        .padding([.trailing, .bottom], 4)
+                                        .shadow(radius: 10)
                                 }
                             }
                             .task(id: track.name) {

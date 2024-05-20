@@ -2,6 +2,7 @@ import Nuke
 import NukeUI
 import SwiftUI
 import SonosKit
+import MusicSearchKit
 
 struct DeviceCellView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -77,6 +78,14 @@ struct DeviceCellView: View {
                                             .shadow(radius: 10)
                                     case .plex:
                                         Image(.plex)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .foregroundStyle(.white.gradient)
+                                            .frame(width: 10, height: 10)
+                                            .padding([.trailing, .bottom], 4)
+                                            .shadow(radius: 10)
+                                    case .tidal:
+                                        MediaSearchService.tidal.icon
                                             .resizable()
                                             .aspectRatio(contentMode: .fit)
                                             .foregroundStyle(.white.gradient)

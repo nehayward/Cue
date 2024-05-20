@@ -262,3 +262,53 @@ extension PlexPlaylist {
         )
     }
 }
+
+// MARK: Tidal
+extension TidalTrackResource {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: artists.first?.name ?? "",
+            artwork: URL(string: album.imageCover.first?.url ?? ""),
+            content: .init(
+                service: .tidal,
+                id: id,
+                type: .track,
+                location: nil
+            )
+        )
+    }
+}
+
+// MARK: Tidal
+extension TidalAlbumResource {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: artists.first?.name ?? "",
+            artwork: URL(string: imageCover?.last?.url ?? ""),
+            content: .init(
+                service: .tidal,
+                id: id,
+                type: .album,
+                location: nil
+            )
+        )
+    }
+}
+
+extension TidalArtistResource {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name,
+            subtitle: "",
+            artwork: URL(string: picture.first?.url ?? ""),
+            content: .init(
+                service: .tidal,
+                id: id,
+                type: .artist,
+                location: nil
+            )
+        )
+    }
+}

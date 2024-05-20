@@ -5,6 +5,7 @@ public enum MusicService: Sendable, Codable {
     case airplay
     case library
     case plex
+    case tidal
     case unknown
 
     public init?(service: String) {
@@ -17,6 +18,8 @@ public enum MusicService: Sendable, Codable {
             self = .library
         case "plex":
             self = .plex
+        case "tidal":
+            self = .tidal
         default:
             return nil
         }
@@ -32,6 +35,8 @@ public enum MusicService: Sendable, Codable {
             "library"
         case .plex:
             "plex"
+        case .tidal:
+            "tidal"
         default:
             nil
         }

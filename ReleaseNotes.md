@@ -2,11 +2,12 @@
 
 ## External
 + Fix missing album art in some cases.
-+ 
++ Improved search.
 
 ## Internal
 + Add Audio Broadcast to to ContentType Lookup
 + Improve favorite album art lookup
++ Add initial support for Tidal
 
 # 2024.22
 

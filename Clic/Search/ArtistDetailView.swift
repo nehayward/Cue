@@ -209,6 +209,17 @@ struct ArtistDetailView: View {
                 artworkURL = playableContent.artwork
                 self.albums = await sonosService.libraryLookup(ID: playableContent.id)
                 self.tracks = await sonosService.libraryLookup(ID: playableContent.id + "/").suffix(10)
+            case (.artist, .tidal):
+                artworkURL = nil
+                artworkURL = playableContent.artwork
+                async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: playableContent.content.id)
+                async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: playableContent.content.id)
+
+                let artistAlbumsAwait = await artistAlbums
+                let artistTopTracksAwait = await artistTopTracks
+
+                albums = artistAlbumsAwait
+                self.tracks = artistTopTracksAwait
             default:
                 break
             }

@@ -20,12 +20,14 @@ public final class MusicSearchService {
 
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let plex = PlexAPI()
+    private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI()
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
     private var spotifySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
+    private var tidalSearchTask = Task<([PlayableContent])?, Never> { nil }
     private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
 
     private let debounceDuration: Duration = .milliseconds(200)
@@ -36,6 +38,8 @@ public final class MusicSearchService {
     public var spotifyResults: [PlayableContent] = []
     public var librarySearchResults: [PlayableContent] = []
     public var plexResults: [PlayableContent] = []
+    public var tidalResults: [PlayableContent] = []
+
     public var newReleases: [SpotifyAlbumItem] = []
 
     public init() { }
@@ -47,6 +51,8 @@ public final class MusicSearchService {
         searchSuggestionTask.cancel()
         spotifySearchTask.cancel()
         librarySearchTask.cancel()
+        plexSearchTask.cancel()
+        tidalSearchTask.cancel()
 
         // Create a new task
         searchSuggestionTask = Task { [weak self] in
@@ -91,6 +97,17 @@ public final class MusicSearchService {
             return nil
         }
 
+        tidalSearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            if provider == .tidal {
+                return await searchTidal(query: query)
+            }
+            return nil
+        }
+
         // Wait for the task to complete and return the result
         guard let results = await searchSuggestionTask.value else { return }
         suggestions = results.0
@@ -107,6 +124,9 @@ public final class MusicSearchService {
         case .plex:
             guard let plexResults = await plexSearchTask.value else { return }
             self.plexResults = plexResults
+        case .tidal:
+            guard let tidalResults = await tidalSearchTask.value else { return }
+            self.tidalResults = tidalResults
         }
     }
 
@@ -316,6 +336,22 @@ public final class MusicSearchService {
 //        return response.items
 //    }
 
+    // MARK: Tidal
+    public func lookupTidalAlbumTracks(id: String) async -> [PlayableContent] {
+        let songs = await tidal.albumSongs(id: id)
+        return songs.map { $0.toPlayable }
+    }
+
+    public func lookupTidalArtistTracks(id: String) async -> [PlayableContent] {
+        let songs = await tidal.artistSongs(id: id)
+        return songs.map { $0.toPlayable }
+    }
+    
+    public func lookupTidalArtistAlbums(id: String) async -> [PlayableContent] {
+        let songs = await tidal.artistAlbums(id: id)
+        return songs.map { $0.toPlayable }
+    }
+
     private func searchPlex(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await plex.search(for: query) else { return playableContent }
@@ -323,6 +359,16 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.album.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
+
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    }
+
+    private func searchTidal(query: String) async -> [PlayableContent] {
+        var playableContent: [PlayableContent] = []
+        guard let results = await tidal.search(for: query) else { return playableContent }
+        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
 
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }

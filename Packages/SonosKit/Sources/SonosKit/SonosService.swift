@@ -869,6 +869,10 @@ public final class SonosService {
 
             guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
+        case .tidal:
+            // Track Lookup
+            // TODO: Add for Tidal
+            return nil
         case .plex:
             print(track.artworkURL)
             print(track)
