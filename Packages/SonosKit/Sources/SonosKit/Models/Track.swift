@@ -81,8 +81,7 @@ public final class Track: Identifiable, Sendable {
         playbackPosition: TimeInterval = .zero,
         position: Int = 0,
         sonosAlbumArtURL: URL? = nil,
-        metadata: Metadata? = nil,
-        TVMode: Bool = false
+        metadata: Metadata? = nil
     ) {
         self.trackID = trackID
         self.name = name
@@ -94,6 +93,7 @@ public final class Track: Identifiable, Sendable {
         self._playbackPosition = playbackPosition
         self.position = position
         self.sonosAlbumArtURL = sonosAlbumArtURL
+        self.metadata = metadata
     }
 }
 

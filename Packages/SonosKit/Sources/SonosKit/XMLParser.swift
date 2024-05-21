@@ -108,7 +108,23 @@ final class XMLParserSonos {
 
         // Check for TV
         if let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text, trackURI.contains("htastream") {
-            return Track(trackID: "", TVMode: true)
+            return Track(trackID: "")
+        }
+
+        // Check for Radio
+        if let radioText = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:streamContent"].element?.text, !radioText.isEmpty {
+            let (title, album, artist) = parseRadioTrackInfo(information: radioText)
+            let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text
+            let contentType = ContentType(xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text ?? "")
+
+            return Track(
+                trackID: trackURI ?? "",
+                name: title,
+                artist: artist,
+                album: album,
+                musicService: .unknown,
+                metadata: Track.Metadata(ISRC: nil, openInURL: nil, contentType: contentType)
+            )
         }
 
         guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
@@ -124,7 +140,8 @@ final class XMLParserSonos {
         let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text
         let albumArtist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:albumArtist"].element?.text
 
-        let contentType = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text
+        let contentType = ContentType(xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text ?? "")
+
         let releaseDate = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:releaseDate"].element?.text
 
         var playbackPosition = TimeInterval.zero
@@ -223,7 +240,7 @@ final class XMLParserSonos {
             }
         }
 
-        return Track(trackID: trackID, name: name, artist: albumArtist ?? (artist ?? ""), album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL, TVMode: false)
+        return Track(trackID: trackID, name: name, artist: albumArtist ?? (artist ?? ""), album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL)
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
@@ -485,8 +502,7 @@ final class XMLParserSonos {
                 duration: trackDuration,
                 playbackPosition: .zero,
                 position: trackNumber,
-                sonosAlbumArtURL: sonosAlbumArtURL,
-                TVMode: false
+                sonosAlbumArtURL: sonosAlbumArtURL
             )
 
             tracks.append(track)
@@ -704,6 +720,42 @@ final class XMLParserSonos {
             popularity: nil,
             metadata: nil
         )
+    }
+
+    private func parseRadioTrackInfo(information: String) -> (String, String, String){
+        var details = [String: String]()
+
+        // Split the input string into key-value pairs
+        let pairs = information.split(separator: "|")
+
+        // Iterate over each pair and split into key and value
+        for pair in pairs {
+            if let index = pair.firstIndex(of: " ") {
+                let key = String(pair[..<index])
+                let value = String(pair[pair.index(after: index)...])
+                details[key] = value
+            }
+        }
+
+        var foundTitle = ""
+        var foundAlbum = ""
+        var foundArtist = ""
+        
+        // Accessing the parsed details
+        if let title = details["TITLE"]?.trimmingCharacters(in: .whitespacesAndNewlines), title != "undefined" {
+            foundTitle = title
+        }
+        if let artist = details["ARTIST"]?.trimmingCharacters(in: .whitespacesAndNewlines), artist != "undefined" {
+            foundArtist = artist
+        }
+        if let album = details["ALBUM"]?.trimmingCharacters(in: .whitespacesAndNewlines), album != "undefined" {
+            foundAlbum = album
+        }
+
+        if foundTitle.isEmpty {
+            return (information, "", "")
+        }
+        return (foundTitle, foundAlbum, foundArtist)
     }
 }
 

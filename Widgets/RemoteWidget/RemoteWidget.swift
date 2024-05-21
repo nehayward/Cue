@@ -119,8 +119,7 @@ struct RemoteWidget: Widget {
             album: "Barbie",
             musicService: .apple,
             duration: 0,
-            playbackPosition: 0,
-            TVMode: false
+            playbackPosition: 0
         )
     )
 }

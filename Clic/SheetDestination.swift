@@ -5,8 +5,8 @@ enum SheetDestination: Identifiable, Equatable {
     case settings
     case paywall
     case groupScreen(group: GroupRoom)
-    case search(group: GroupRoom? = nil, instant: Bool = false)
-    case add(mediaContent: Binding<PlayableContent?>)
+    case search(group: GroupRoom? = nil)
+    case sceneSearchAdd(adding: ContentToAdd)
     case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
@@ -27,8 +27,8 @@ enum SheetDestination: Identifiable, Equatable {
             "groupScreen"
         case .search:
             "search"
-        case .add:
-            "media"
+        case .sceneSearchAdd:
+            "sceneSearchAdd"
         case .queue:
             "queue"
         case .playContent:

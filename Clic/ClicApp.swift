@@ -48,8 +48,9 @@ struct ClicApp: App {
                         .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
                             Group {
                                 switch router.inspectorSheet {
-                                case let .search(group, instant):
-                                    NewSearchScreen(group: group, instant: instant)
+                                case let .search(group):
+                                    SearchScreen(group: group)
+                                        .environment(Router.search)
                                 case let .queue(group):
                                     QueueScreen(group: group)
                                 default:
@@ -120,7 +121,7 @@ struct ClicApp: App {
         .onChange(of: selectedID) { old, new in
             if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 if let sheet = router.inspectorSheet, sheet.id == "search" {
-                    router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
+                    router.inspectorSheet = .search(group: sonosService.sorted[group])
                 } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
                     router.inspectorSheet = .queue(group: $sonosService.sorted[group])
                 }
@@ -132,8 +133,8 @@ struct ClicApp: App {
                 Divider()
                 Button("Show/Hide Search") {
                     if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: true) {
-                            router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
+                        if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
+                            router.inspectorSheet = .search(group: sonosService.sorted[group])
                         } else {
                             router.inspectorSheet = nil
                         }
@@ -222,7 +223,7 @@ struct ClicApp: App {
                         router.presentedSheet = .search(group: group)
                     } else {
                         selectedID = group.coordinatorID
-                        router.inspectorSheet = .search(group: group, instant: true)
+                        router.inspectorSheet = .search(group: group)
                     }
                     return
                 }
@@ -239,7 +240,7 @@ struct ClicApp: App {
                             router.presentedSheet = .search(group: group)
                         } else {
                             selectedID = group.coordinatorID
-                            router.inspectorSheet = .search(group: group, instant: true)
+                            router.inspectorSheet = .search(group: group)
                         }
                         return
                     }
@@ -350,7 +351,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                      // MARK: Delay for Toolbar
                      try await Task.sleep(for: .milliseconds(200))
                      Router.main.path.removeAll()
-                     Router.main.presentedSheet = .search(group: nil, instant: false)
+                     Router.main.presentedSheet = .search()
                  }
              }
          }
@@ -388,7 +389,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
                 // MARK: Delay for Toolbar
                 try await Task.sleep(for: .milliseconds(200))
                 Router.main.path.removeAll()
-                Router.main.presentedSheet = .search(group: nil, instant: false)
+                Router.main.presentedSheet = .search()
             }
         }
     }
@@ -403,7 +404,7 @@ class ToolbarDelegate: NSObject {
 
     @objc func search(_ sender:Any) {
         Task { @MainActor in
-            Router.main.inspectorSheet = .search(group: nil, instant: false)
+            Router.main.inspectorSheet = .search()
         }
     }
 }

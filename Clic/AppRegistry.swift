@@ -30,11 +30,15 @@ extension View {
 //                        }
                 case .settings:
                     PreferenceScreen()
-                case let .search(group, instant):
-                    NewSearchScreen(group: group, instant: instant)
-                case let .add(mediaContent):
-//                    NewSearchScreen(contentToAdd: mediaContent)
-                    Text("TODO")
+                case let .search(group):
+                    SearchScreen(group: group)
+                        .environment(Router())
+                    // MARK: Add back later maybe
+//                        .environment(Router.search)
+                case let .sceneSearchAdd(adding):
+                    SearchScreen()
+                        .environment(Router())
+                        .environment(adding)
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -79,7 +83,8 @@ extension View {
                         .presentationBackground(.thinMaterial)
                     }
                 case let .searchAdd(adding):
-                    NewSearchScreen()
+                    SearchScreen()
+                        .environment(Router())
                         .environment(adding)
                 case let .alarms(group):
                     Group {
@@ -106,10 +111,13 @@ extension View {
                     ClicPaywall()
                 case .settings:
                     PreferenceScreen()
-                case let .search(group, instant):
-                    NewSearchScreen(group: group, instant: instant)
-                case let .add(mediaContent):
-                    NewSearchScreen()
+                case let .search(group):
+                    SearchScreen(group: group)
+                        .environment(Router())
+                case let .sceneSearchAdd(adding):
+                    SearchScreen()
+                        .environment(Router())
+                        .environment(adding)
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -146,8 +154,9 @@ extension View {
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
                 case let .searchAdd(adding):
-                    NewSearchScreen()
+                    SearchScreen()
                         .environment(adding)
+                        .environment(Router())
                 case .alarms:
                     NavigationStack {
                         AlarmListView()
@@ -197,8 +206,8 @@ extension View {
         inspector(isPresented: .constant(inspectorDestination.wrappedValue  != nil)) {
             Group {
                 switch inspectorDestination.wrappedValue {
-                case let .search(group, instant):
-                    NewSearchScreen(group: group, instant: instant)
+                case let .search(group):
+                    SearchScreen(group: group)
                         .inspectorColumnWidth(400)
                 case let .queue(group):
                     QueueScreen(group: group)

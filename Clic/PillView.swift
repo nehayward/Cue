@@ -5,22 +5,35 @@ struct PillView: View {
     @Environment(AlertService.self) var alertService: AlertService
 
     var body: some View {
-        Label(alertService.alert.text, systemImage: "hifispeaker.fill")
-            .padding()
-            .background {
+        Group {
+            if let content = alertService.alert.content {
+                PlayableContentView(item: content)
+                    .disabled(true)
+            } else {
+                Label {
+                    Text(alertService.alert.text)
+                } icon: {
+                    Image(systemName: "hifispeaker.fill")
+                }
+            }
+        }
+        .padding()
+        .background {
+            if let content = alertService.alert.content {
+                RoundedRectangle(cornerRadius: 12)
+                    .foregroundStyle(.thinMaterial)
+            } else {
                 Capsule()
                     .foregroundStyle(.thickMaterial)
             }
-            .task {
-                try? await Task.sleep(for: .seconds(3))
-                alertService.alert.isShowing = false
-            }
-            .frame(alignment: .top)
-            .fontDesign(.rounded)
-            .symbolRenderingMode(.hierarchical)
-            .bold()
-            .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
-            .offset(y: alertService.alert.isShowing ? 0 : -300)
+        }
+        .frame(alignment: .top)
+        .fontDesign(.rounded)
+        .bold()
+        .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
+        .offset(y: alertService.alert.isShowing ? 0 : -300)
+        .frame(height: 100)
+        .shadow(radius: 10)
     }
 }
 

@@ -407,7 +407,7 @@ fileprivate struct DuaLipaContainer: View {
         .colorScheme(.dark)
         .task {
             // https://open.spotify.com/track/11C4y2Yz1XbHmaQwO06s9f
-            let track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero, TVMode: false)
+            let track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero)
             track.downloadedArtworkURL = await SonosService.shared.getArtwork(from: track)
             group.coordinatorRoom.track = track
             group.coordinatorRoom.track.duration = 200000

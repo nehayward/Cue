@@ -899,15 +899,16 @@ public final class SonosService {
                 imageURL = URL(string: artworkString)
             }
 
-            return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify)), imageURL)
+            return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify), contentType: .track), imageURL)
         case .apple:
             var imageURL: URL? = nil
             guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
-            return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL)), imageURL)
-            //        case .library:
-            //            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist).first?.artworkURL else { return (nil, nil) }
-            //            return (nil, URL(string: artworkString))
+            return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL), contentType: .track), imageURL)
+        case .unknown:
+            if track.metadata?.contentType != .track { return (nil, nil) }
+            guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist, album: track.album).first?.artworkURL else { return (nil, nil) }
+            return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), URL(string: artworkString))
         default:
             return (nil, nil)
         }

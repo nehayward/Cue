@@ -10,18 +10,17 @@ import SonosKit
 import Defaults
 import TipKit
 
-struct NewSearchScreen: View {
+struct SearchScreen: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.dismiss) private var dismiss
-    @Environment(Router.self) var parentRouter: Router?
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
+    @Environment(Router.self) private var router: Router
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
-    @State private var router: Router = Router()
-    @State private var isKeyboardVisible = false
+    @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
@@ -34,9 +33,10 @@ struct NewSearchScreen: View {
     }
 
     var group: GroupRoom?
-    var instant: Bool = false
 
     var body: some View {
+        @Bindable var router = router
+
         Group {
             switch appleMusicAuthorized {
             case .authorized:
@@ -103,7 +103,6 @@ struct NewSearchScreen: View {
                         if suggestion == nil {
                             searchCompletionTapped = false
                         }
-//                        if appleMusicAuthorized == .notDetermined { return }
                         await musicSearchService.search(for: musicSearchSelection)
                         suggestion = nil
                     }
@@ -158,41 +157,41 @@ struct NewSearchScreen: View {
                                 .id(MediaSearchService.library)
 
                                 // MARK: Hide feature until later
-//                                Button {
-//                                    HapticManager.shared.fireHaptic(.buttonPress)
-//                                    musicSearchSelection = .plex
-//                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-//                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-//                                } label: {
-//                                    HStack {
-//                                        Text(MediaSearchService.plex.title)
-//                                        Image(.plex)
-//                                            .resizable()
-//                                            .aspectRatio(contentMode: .fit)
-//                                            .frame(width: 24, height: 24)
-//                                            .clipShape(Circle())
-//                                    }
-//                                }
-//                                .id(MediaSearchService.plex)
+                                //                                Button {
+                                //                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                //                                    musicSearchSelection = .plex
+                                //                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                //                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                //                                } label: {
+                                //                                    HStack {
+                                //                                        Text(MediaSearchService.plex.title)
+                                //                                        Image(.plex)
+                                //                                            .resizable()
+                                //                                            .aspectRatio(contentMode: .fit)
+                                //                                            .frame(width: 24, height: 24)
+                                //                                            .clipShape(Circle())
+                                //                                    }
+                                //                                }
+                                //                                .id(MediaSearchService.plex)
 
                                 // MARK: Hide feature until later
 
-//                                Button {
-//                                    HapticManager.shared.fireHaptic(.buttonPress)
-//                                    musicSearchSelection = .tidal
-//                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-//                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-//                                } label: {
-//                                    HStack {
-//                                        Text(MediaSearchService.tidal.title)
-//                                        MediaSearchService.tidal.icon
-//                                            .resizable()
-//                                            .aspectRatio(contentMode: .fit)
-//                                            .frame(width: 24, height: 24)
-//                                            .clipShape(Circle())
-//                                    }
-//                                }
-//                                .id(MediaSearchService.tidal)
+                                //                                Button {
+                                //                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                //                                    musicSearchSelection = .tidal
+                                //                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                //                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                //                                } label: {
+                                //                                    HStack {
+                                //                                        Text(MediaSearchService.tidal.title)
+                                //                                        MediaSearchService.tidal.icon
+                                //                                            .resizable()
+                                //                                            .aspectRatio(contentMode: .fit)
+                                //                                            .frame(width: 24, height: 24)
+                                //                                            .clipShape(Circle())
+                                //                                    }
+                                //                                }
+                                //                                .id(MediaSearchService.tidal)
                             } label: {
                                 Label {
                                     Text(musicSearchSelection.title)
@@ -218,14 +217,16 @@ struct NewSearchScreen: View {
                 .presentationDragIndicator(.hidden)
                 .scrollContentBackground(.hidden)
                 .listStyle(.inset)
-//                .listStyle(.grouped) // MARK: Update later.
-//                .headerProminence(.increased)
+                //                .listStyle(.grouped) // MARK: Update later.
+                //                .headerProminence(.increased)
                 .environment(router)
                 .environment(group)
                 .environment(musicSearchService)
+                .environment(alertService)
                 .onChange(of: router.dismiss) {
                     dismiss()
                 }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
             case .notDetermined, .denied:
                 AppleMusicPermissionsView()
                     .environment(musicSearchService)
@@ -233,8 +234,9 @@ struct NewSearchScreen: View {
             }
         }
         .onAppear {
-            musicSearchService.query = ""
             searchFieldIsPresented = true
+            musicSearchService.query = ""
+
             if musicSearchService.query.isEmpty {
                 appleMusicAuthorized = musicSearchService.getMusicAuthorization()
                 Task {
@@ -245,6 +247,19 @@ struct NewSearchScreen: View {
                 showKeyboard()
             }
         }
+        .safeAreaInset(edge: .top) {
+            if alertService.alert.isShowing {
+                PillView()
+                    .environment(alertService)
+            }
+        }
+        .animation(.spring, value: alertService.alert.isShowing)
+//        .overlay(alignment: .bottom) {
+//            if !searchFieldIsPresented {
+//                MiniPlayerView(groupID: group?.coordinatorID)
+//                    .ignoresSafeArea(.keyboard, edges: .bottom)
+//            }
+//        }
     }
 
     @MainActor
@@ -290,7 +305,7 @@ struct NewSearchScreen: View {
 }
 
 #Preview {
-    NewSearchScreen(group: nil)
+    SearchScreen(group: nil)
         .environment(SonosService.shared)
 }
 

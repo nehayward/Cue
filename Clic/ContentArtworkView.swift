@@ -5,7 +5,6 @@ import MusicKit
 import MusicSearchKit
 
 struct ContentArtworkView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
     @Binding var content: PlayableContent?
     @State var size: Double = 24
 
@@ -101,16 +100,6 @@ struct ContentArtworkView: View {
                         .shadow(radius: 10)
                 }
             }
-//            .task(id: content?.content.id) {
-//                if let artwork = content?.artwork {
-//                    artworkURL = artwork
-//                    return
-//                }
-//                if let content = content?.content, artworkURL == nil {
-//                    let artworkURL = await sonosService.getArtwork(from: content)
-//                    self.artworkURL = artworkURL
-//                }
-//            }
             .onChange(of: proxy.size, initial: true) {
                 if proxy.size.width <= 100 {
                     size = 16
@@ -119,17 +108,6 @@ struct ContentArtworkView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-//            .onAppear {
-//                let pattern = "https?://[^\\s]+"
-//                if let url = artworkURL?.absoluteString {
-//                    if let range = url.range(of: pattern, options: .regularExpression) {
-//                        let httpUrl = String(url[range])
-//                        print("HTTP URL: \(httpUrl)")
-//                        artworkURL = URL(string: httpUrl)
-//                    }
-//                }
-//            }
-            
         }
     }
 

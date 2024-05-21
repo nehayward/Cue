@@ -12,6 +12,7 @@ struct PlayableContentView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
+    @Environment(AlertService.self) private var alertService: AlertService
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
     
@@ -178,8 +179,8 @@ struct PlayableContentView: View {
             }
             playHistory.remove(item)
             playHistory.insert(item, at: 0)
-
-            router.dismiss = true
+            alertService.showAlertContent(with: item)
+            HapticManager.shared.fireHaptic(.buttonPress)
             if item.content.service == .tidal {
                 await sonosService.queuePlayable(playable: item, group: group, position: position)
             } else {

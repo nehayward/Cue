@@ -44,71 +44,71 @@ struct MediaDetailView: View {
             .frame(maxWidth: .infinity)
             .listSectionSeparator(.hidden)
             .listRowBackground(Color.clear)
-            Section {
-                ForEach(tracks) { track in
-                    Button {
-                        play(content: track)
-                    } label: {
-                        HStack {
-                            if playableContent.content.type == .playlist {
-                                ContentArtworkView(content: .constant(track))
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 60, height: 60)
-                            }
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Text(track.title)
-                                    Spacer()
-                                }
-                                Text(track.subtitle)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if let duration = track.duration {
-                                Text(duration, format: .time(pattern: .minuteSecond))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Menu {
-                                menu(content: track)
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .frame(maxWidth: 40, maxHeight: .infinity)
-                                    .background(.clear)
-                            }
-                        }
-                        .contextMenu {
-                            menu(content: track)
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                }
-                if tracks.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
-            } header: {
+            HStack {
+                Text("\(playableContent.subtitle) • \(tracks.count.formatted()) Tracks •")
+                Text("\(Duration(secondsComponent: tracks.compactMap(\.duration?.components.seconds).reduce(Int64.zero, +), attosecondsComponent: 0).formatted(.time(pattern: .minuteSecond)))")
+            }
+            .frame(maxWidth: .infinity)
+            .fontDesign(.rounded)
+            Button {
+                play(content: playableContent)
+            } label: {
+                Label("Queue All", systemImage: "play.fill")
+            }
+            .ignoresSafeArea(.container, edges: .bottom)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .center)
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .padding(.vertical)
+            .ignoresSafeArea()
+            .bold()
+            .listRowSeparator(.hidden)
+            ForEach(tracks) { track in
                 Button {
-                    switch playableContent.content.type {
-                    case .album:
-                        play(content: playableContent)
-                    case .playlist:
-                        play(content: playableContent)
-                    default:
-                        break
-                    }
+                    play(content: track)
                 } label: {
-                    Text("Queue All")
+                    HStack {
+                        if playableContent.content.type == .playlist {
+                            ContentArtworkView(content: .constant(track))
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 60, height: 60)
+                        }
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text(track.title)
+                                Spacer()
+                            }
+                            Text(track.subtitle)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if let duration = track.duration {
+                            Text(duration, format: .time(pattern: .minuteSecond))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Menu {
+                            menu(content: track)
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .frame(maxWidth: 40, maxHeight: .infinity)
+                                .background(.clear)
+                        }
+                    }
+                    .contextMenu {
+                        menu(content: track)
+                    }
                 }
-                .padding()
-                .background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                )
-                .padding(.vertical)
-                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowBackground(Color.clear)
+            }
+            if tracks.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             }
         }
         .listStyle(.inset)

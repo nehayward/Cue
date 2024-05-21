@@ -33,8 +33,8 @@ struct ContainerLargePlayerView: View {
                                 
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .search(group: sonosService.sorted[group], instant: true) {
-                                            router.inspectorSheet = .search(group: sonosService.sorted[group], instant: true)
+                                        if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
+                                            router.inspectorSheet = .search(group: sonosService.sorted[group])
                                         } else {
                                             router.inspectorSheet = nil
                                         }

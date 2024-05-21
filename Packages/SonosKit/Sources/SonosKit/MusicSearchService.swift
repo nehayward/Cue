@@ -153,8 +153,8 @@ public final class MusicSearchService {
 //        return []
 //    }
 
-    public func search(song: String, artist: String) async -> [ItunesResult] {
-        await appleMusicSearchAPI.search(for: "\(song) \(artist)")
+    public func search(song: String, artist: String, album: String) async -> [ItunesResult] {
+        await appleMusicSearchAPI.search(for: "\(song) \(artist) \(album)")
     }
 
     public func appleLookup(id: String) async -> ItunesResult? {

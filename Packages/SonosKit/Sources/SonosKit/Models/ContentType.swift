@@ -15,7 +15,7 @@ public enum ContentType: Equatable, Codable {
             self = .album
         case let str where str.contains("artist"):
             self = .artist
-        case let str where str.contains("track"), let str where str.contains("song"):
+        case let str where str.contains("track"), let str where str.contains("song"), let str where str == "object.item", let str where str == "object.item.audioitem":
             self = .track
         case let str where str.contains("audiobroadcast"), let str where str.contains("radio"):
             self = .radio
