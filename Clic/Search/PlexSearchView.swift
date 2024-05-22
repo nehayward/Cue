@@ -18,7 +18,6 @@ struct PlexSearchView: View {
     var group: GroupRoom?
 
     var body: some View {
-//        if musicSearchService.appleMusicAuthorizationStatus
         Group {
             if filters.filter(\.isFiltered).isEmpty {
                 ForEach(plexResults) { item in
@@ -32,9 +31,6 @@ struct PlexSearchView: View {
                 }
             }
         }
-        .animation(.bouncy, value: filters)
-        .animation(.bouncy, value: plexResults)
         .fontDesign(.rounded)
-
     }
 }

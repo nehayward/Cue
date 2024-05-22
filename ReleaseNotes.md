@@ -1,3 +1,9 @@
+# 2024.26
+
+## External
++ Add beta support for Tidal
++ Improve search
+
 # 2024.23
 
 ## External

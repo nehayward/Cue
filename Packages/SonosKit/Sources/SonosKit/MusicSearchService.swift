@@ -10,7 +10,6 @@ public final class MusicSearchService {
         didSet {
             if _query.isEmpty {
                 suggestions.removeAll()
-                topResults = []
             }
         }
     }
@@ -25,6 +24,7 @@ public final class MusicSearchService {
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
+    private var appleSearchTask = Task<([PlayableContent])?, Never> { nil }
     private var spotifySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var tidalSearchTask = Task<([PlayableContent])?, Never> { nil }
@@ -33,8 +33,8 @@ public final class MusicSearchService {
     private let debounceDuration: Duration = .milliseconds(200)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
-    public var topResults:  MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult> = []
 
+    public var appleResults: [PlayableContent] = []
     public var spotifyResults: [PlayableContent] = []
     public var librarySearchResults: [PlayableContent] = []
     public var plexResults: [PlayableContent] = []
@@ -61,6 +61,16 @@ public final class MusicSearchService {
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
             let results = await searchSuggestion(query: query)
+            return results
+        }
+
+        // Create a new task
+        appleSearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            let results = await searchAppleMusic(query: query)
             return results
         }
 
@@ -114,7 +124,8 @@ public final class MusicSearchService {
 
         switch provider {
         case .apple:
-            topResults = results.1
+            guard let result = await appleSearchTask.value else { return }
+            appleResults = result
         case .spotify:
             guard let result = await spotifySearchTask.value else { return }
             spotifyResults = result
@@ -206,7 +217,6 @@ public final class MusicSearchService {
     }
 
     public func searchSpotify(query: String) async -> [PlayableContent] {
-
         var playableContent: [PlayableContent] = []
         guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return playableContent }
 
@@ -236,42 +246,20 @@ public final class MusicSearchService {
         return playableContents
     }
 
-//    public func searchSpotifyTopResults(query: String) async -> [String] {
-//        let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track])
-//
-////        let top = results?.playlists?.items.sorted(by: { a, b in
-////            a.popularity < b.popularity
-////        }).map({ item in
-////            return "\(item.name).\(item.popularity)"
-////        })
-//
-//        print(results)
-//
-//        return []
-//    }
-
-    public func searchAppleMusic(query: String) async -> String {
-        guard await requestMusicAuthorization() else { return "" }
-
-        var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self])
+    public func searchAppleMusic(query: String) async -> [PlayableContent] {
+        guard await requestMusicAuthorization() else { return [] }
+        var playableContent: [PlayableContent] = []
+        var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self, Playlist.self, Artist.self])
         request.includeTopResults = true
-        let response = try? await request.response()
-        print(response)
+        request.limit = 20
+        guard let results = try? await request.response() else { return [] }
 
-//        guard let song = response.songs.first else { return  "" }
-//
-//        print(song.title)
-//        print(song.isrc)
-//        var catalogResource = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: song.id)
-//        let response2 = try await request.response()
-//        print(response2)
-//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
-//
-//        print(searchResponse)
-//
-//        print(searchResponse.songs)
-//        print(searchResponse.artists)
-        return ""
+        playableContent.append(contentsOf: results.songs.map(\.toPlayable))
+        playableContent.append(contentsOf: results.albums.map(\.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.toPlayable))
+        playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
+
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
 
     public func lookup(id: String) async throws -> Song? {

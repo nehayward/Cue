@@ -75,10 +75,7 @@ struct SearchScreen: View {
                             case .spotify:
                                 SpotifySearchView(spotifyResults: $musicSearchService.spotifyResults, filters: $filters, group: group)
                             case .apple:
-                                ForEach(musicSearchService.topResults) { result in
-                                    AppleMusicSearchScreen(result: result, filters: $filters, group: group)
-                                        .fontDesign(.rounded)
-                                }
+                                AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters, group: group)
                             case .library:
                                 LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters, group: group)
                             case .plex:
@@ -107,7 +104,12 @@ struct SearchScreen: View {
                         await musicSearchService.search(for: musicSearchSelection)
                         suggestion = nil
                     }
-                    .animation(.interactiveSpring, value: musicSearchService.topResults)
+                    .animation(.bouncy, value: musicSearchService.appleResults)
+                    .animation(.bouncy, value: musicSearchService.spotifyResults)
+                    .animation(.bouncy, value: musicSearchService.librarySearchResults)
+                    .animation(.bouncy, value: musicSearchService.tidalResults)
+                    .animation(.bouncy, value: musicSearchService.plexResults)
+                    .animation(.bouncy, value: filters)
                     .animation(.interactiveSpring, value: searchCompletionTapped)
                     .overlay(alignment: .bottom) {
                         HStack {
@@ -175,7 +177,6 @@ struct SearchScreen: View {
                                 //                                }
                                 //                                .id(MediaSearchService.plex)
 
-                                // MARK: Hide feature until later
                                 if betaFeatures.tidalFeature {
                                     Button {
                                         HapticManager.shared.fireHaptic(.buttonPress)

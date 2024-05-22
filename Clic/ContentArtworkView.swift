@@ -37,6 +37,19 @@ struct ContentArtworkView: View {
                                 }
                         }
                     }
+                } else {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient.secondary)
+                        .aspectRatio(contentMode: .fit)
+                        .overlay {
+                            if content?.artwork == nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.regularMaterial)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
                 }
             }
             .clipShape(content?.content.type == .artist ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
