@@ -1,7 +1,7 @@
 // Define the Resource structure
 public struct TidalTrackResource: Codable {
     public let id: String
-    public let barcodeId: String?
+    public let isrc: String?
     public let title: String
     public let artists: [TidalArtistResource]
     public let album: TidalAlbum

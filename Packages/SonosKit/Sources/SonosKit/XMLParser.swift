@@ -187,10 +187,10 @@ final class XMLParserSonos {
             musicService = .library
         }
 
-
+        // TODO: Add hi res icon
 //        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
         var trackID = ""
-        let tidalPattern = #/track\/(\d{9})/#
+        let tidalPattern = #/track\/(\d{7,9})/#
         if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
             musicService = .tidal
             trackID = String(result.1)
@@ -222,7 +222,7 @@ final class XMLParserSonos {
         case .plex:
             trackID = trackURI
         case .tidal:
-            print(trackID)
+            break
 //            trackID = trackURI
         }
 
@@ -430,7 +430,7 @@ final class XMLParserSonos {
 //                    musicService = .plex
 //                }
 
-                let tidalPattern = #/track\/(\d{9})/#
+                let tidalPattern = #/track\/(\d{7,9})/#
                 if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
                     musicService = .tidal
                     trackID = String(result.1)
@@ -459,7 +459,7 @@ final class XMLParserSonos {
                     // MARK: Verify
                     trackID = item["res"].element?.text ?? ""
                 case .tidal:
-                    print("found")
+                    break
                 }
             }
 
@@ -688,8 +688,6 @@ final class XMLParserSonos {
                     type: .track,
                     location: nil
                 ),
-                duration: nil,
-                popularity: nil,
                 metadata: nil
             )
         }
@@ -716,8 +714,6 @@ final class XMLParserSonos {
                 type: contentType,
                 location: nil
             ),
-            duration: nil,
-            popularity: nil,
             metadata: nil
         )
     }

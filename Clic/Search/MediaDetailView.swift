@@ -46,10 +46,11 @@ struct MediaDetailView: View {
             .listRowBackground(Color.clear)
             HStack {
                 Text("\(playableContent.subtitle) • \(tracks.count.formatted()) Tracks •")
-                Text("\(Duration(secondsComponent: tracks.compactMap(\.duration?.components.seconds).reduce(Int64.zero, +), attosecondsComponent: 0).formatted(.time(pattern: .minuteSecond)))")
+                Text("\(Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +)).formatted(.time(pattern: .minuteSecond)))")
             }
             .frame(maxWidth: .infinity)
             .fontDesign(.rounded)
+            .listRowBackground(Color.clear)
             Button {
                 play(content: playableContent)
             } label: {
@@ -85,7 +86,7 @@ struct MediaDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if let duration = track.duration {
+                        if let duration = track.metadata?.duration {
                             Text(duration, format: .time(pattern: .minuteSecond))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -175,8 +176,18 @@ struct MediaDetailView: View {
                 guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
                 playableContent = albumPlayable
             case (.album, .tidal):
-                // TODO: Add rests of them
                 self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: playableContent.content.id)
+            case (.track, .tidal):
+                if let albumID = playableContent.metadata?.albumID {
+                    guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
+                    self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
+                    playableContent = album
+                } else {
+                    guard let albumID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
+                    guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
+                    self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
+                    playableContent = album
+                }
             default:
                 break
             }
@@ -194,7 +205,7 @@ struct MediaDetailView: View {
             playHistory.insert(content, at: 0)
 
             router.dismiss = true
-            await sonosService.queue(content: content.content, group: group, position: position)
+            await sonosService.queue(playable: content, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
     }

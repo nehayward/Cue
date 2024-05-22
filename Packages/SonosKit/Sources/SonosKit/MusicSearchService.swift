@@ -337,6 +337,17 @@ public final class MusicSearchService {
 //    }
 
     // MARK: Tidal
+
+    public func lookupTidalTrack(with id: String) async -> PlayableContent? {
+        guard let song = await tidal.track(with: id) else { return nil }
+        return song.toPlayable
+    }
+
+    public func lookupTidalAlbum(with id: String) async -> PlayableContent? {
+        guard let album = await tidal.album(with: id) else { return nil }
+        return album.toPlayable
+    }
+
     public func lookupTidalAlbumTracks(id: String) async -> [PlayableContent] {
         let songs = await tidal.albumSongs(id: id)
         return songs.map { $0.toPlayable }
@@ -350,6 +361,11 @@ public final class MusicSearchService {
     public func lookupTidalArtistAlbums(id: String) async -> [PlayableContent] {
         let songs = await tidal.artistAlbums(id: id)
         return songs.map { $0.toPlayable }
+    }
+
+    public func lookupTidalArtist(id: String) async -> PlayableContent? {
+        guard let artist = await tidal.artist(with: id) else { return nil }
+        return artist.toPlayable
     }
 
     private func searchPlex(query: String) async -> [PlayableContent] {
@@ -403,8 +419,8 @@ public final class MusicSearchService {
             }
 
             // Secondary sort by popularity (descending); handle nil popularity by assigning a low default
-            let popularity1 = item1.popularity ?? -1
-            let popularity2 = item2.popularity ?? -1
+            let popularity1 = item1.metadata?.popularity ?? -1
+            let popularity2 = item2.metadata?.popularity ?? -1
             if popularity1 != popularity2 {
                 return popularity1 > popularity2
             }

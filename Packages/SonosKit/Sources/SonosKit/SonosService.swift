@@ -870,9 +870,10 @@ public final class SonosService {
             guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
         case .tidal:
-            // Track Lookup
-            // TODO: Add for Tidal
+            // TODO: Add back when production is enabled for Tidal
             return nil
+//            guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return nil }
+//            return tidalTrack.artwork
         case .plex:
             print(track.artworkURL)
             print(track)
@@ -905,6 +906,9 @@ public final class SonosService {
             guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL), contentType: .track), imageURL)
+        case .tidal:
+            guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return (nil, nil) }
+            return (Track.Metadata(ISRC: nil, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist, album: track.album).first?.artworkURL else { return (nil, nil) }
@@ -1130,7 +1134,7 @@ public final class SonosService {
             guard let self else { return }
             guard let roomID = scene.rooms.first?.id, let playableContent = scene.playableContent else { return }
             guard let group = await getGroupCoordinatorWithRoom(roomID: roomID) else { return }
-            await queue(content: playableContent.content, group: group)
+            await queue(playable: playableContent, group: group)
             await play(ip: group.ip)
         }
 
@@ -1263,7 +1267,7 @@ public final class SonosService {
         }
     }
 
-    public func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
+    public func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
         let queueActive = group.playbackService == .queue
 
         if !queueActive {
@@ -1320,33 +1324,6 @@ public final class SonosService {
         }
     }
 
-    public func queue(content: MediaContent, group: GroupRoom, position: QueuePosition = .now) async {
-        switch (content.type, content.service) {
-        case (.track, .spotify):
-            await queueSpotifyTrack(id: content.id, group: group, position: position)
-        case (.album, .spotify):
-            await queueSpotifyAlbum(id: content.id, group: group, position: position)
-        case (.playlist, .apple):
-            await queueApplePlaylist(id: content.id, group: group)
-        case (.album, .apple):
-            await queueAppleAlbum(id: content.id, group: group, position: position)
-        case (.playlist, .spotify):
-            await queueSpotifyPlaylist(id: content.id, group: group)
-        case (.artist, .spotify):
-            await queueSpotifyArtistTopTracks(id: content.id, group: group)
-        case (.artist, .apple):
-            break
-        case (.track, .apple):
-            await queueAppleSong(id: content.id, group: group, position: position)
-        case (.favorite, _):
-            await playFavorite(on: group, favoriteID: content.id)
-        case (_, .library):
-            await playLibraryItem(on: group, ID: content.id, position: position)
-        default:
-            break
-        }
-    }
-
     public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
         switch (playable.content.type, playable.content.service) {
         case (.track, .spotify):
@@ -1370,12 +1347,14 @@ public final class SonosService {
         case (_, .library):
             await playLibraryItem(on: group, ID: playable.content.id, position: position)
         case (.track, .plex):
-            await api.queuePlayable(playableContent: playable, IP: group.ip, position: position)
+            await queuePlayable(playable: playable, group: group, position: position)
+            // MARK: - Tidal
+        case (_, .tidal):
+            await queuePlayable(playable: playable, group: group, position: position)
         default:
             break
         }
     }
-
 
     public func getQueue(ip: String) async -> [Track] {
         await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP() )
@@ -1449,25 +1428,22 @@ public final class SonosService {
         await api.refreshLibrary(IP: ip)
     }
 
-    // MARK: Alarms
+    // MARK: - Alarms
     public func listAlarms() async -> [Alarm] {
         guard let ip = prioritizedIP() else { return [] }
         return await api.listAlarms(IP: ip).sorted(by: { $0.startTime.compare($1.startTime) == .orderedAscending })
     }
 
-    // MARK: Alarms
     public func editAlarm(alarm: Alarm, content: PlayableContent?) async  {
         guard let ip = prioritizedIP() else { return }
         return await api.editAlarm(IP: ip, alarm: alarm, content: content)
     }
 
-    // MARK: Alarms
     public func createAlarm(alarm: Alarm, content: PlayableContent?) async  {
         guard let ip = prioritizedIP() else { return }
         return await api.createAlarm(IP: ip, alarm: alarm, content: content)
     }
 
-    // MARK: Alarms
     public func deleteAlarm(alarm: Alarm) async  {
         guard let ip = prioritizedIP() else { return }
         return await api.deleteAlarm(IP: ip, alarm: alarm)

@@ -20,6 +20,7 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
+    @State private var betaFeatures = BetaFeatures()
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
@@ -175,23 +176,21 @@ struct SearchScreen: View {
                                 //                                .id(MediaSearchService.plex)
 
                                 // MARK: Hide feature until later
-
-                                //                                Button {
-                                //                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                //                                    musicSearchSelection = .tidal
-                                //                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                //                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                //                                } label: {
-                                //                                    HStack {
-                                //                                        Text(MediaSearchService.tidal.title)
-                                //                                        MediaSearchService.tidal.icon
-                                //                                            .resizable()
-                                //                                            .aspectRatio(contentMode: .fit)
-                                //                                            .frame(width: 24, height: 24)
-                                //                                            .clipShape(Circle())
-                                //                                    }
-                                //                                }
-                                //                                .id(MediaSearchService.tidal)
+                                if betaFeatures.tidalFeature {
+                                    Button {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        musicSearchSelection = .tidal
+                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                    } label: {
+                                        HStack {
+                                            Text(MediaSearchService.tidal.title)
+                                            MediaSearchService.tidal.icon
+                                                .frame(width: 24, height: 24)
+                                        }
+                                    }
+                                    .id(MediaSearchService.tidal)
+                                }
                             } label: {
                                 Label {
                                     Text(musicSearchSelection.title)
@@ -297,8 +296,6 @@ struct SearchScreen: View {
                 .clipShape(Circle())
         case .tidal:
             musicSearchSelection.icon
-                .resizable()
-                .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
         }
     }

@@ -10,7 +10,7 @@ extension View {
             Task {
                 guard let playableContent = await SonosService.shared.getContent(from: url) else { return }
                 HapticManager.shared.fireHaptic(.notification(.success))
-                await SonosService.shared.queue(content: playableContent.content, group: group, position: now ? .now : .next)
+                await SonosService.shared.queue(playable: playableContent, group: group, position: now ? .now : .next)
                 if now {
                     await SonosService.shared.play(ip: group.ip)
                 }
@@ -27,7 +27,7 @@ extension View {
             guard let playableContent = items.first else { return false }
             Task {
                 HapticManager.shared.fireHaptic(.notification(.success))
-                await SonosService.shared.queue(content: playableContent.content, group: group, position: now ? .now : .next)
+                await SonosService.shared.queue(playable: playableContent, group: group, position: now ? .now : .next)
                 if now {
                     await SonosService.shared.play(ip: group.ip)
                 }

@@ -8,8 +8,6 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     public let subtitle: String
     public let artwork: URL?
     public let content: MediaContent
-    public let duration: Duration?
-    public let popularity: Int?
     public let metadata: PlayableContentMetadata?
 
     public init(
@@ -17,16 +15,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         subtitle: String,
         artwork: URL?,
         content: MediaContent,
-        duration: Duration? = nil,
-        popularity: Int? = nil,
         metadata: PlayableContentMetadata? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
         self.artwork = artwork
         self.content = content
-        self.duration = duration
-        self.popularity = popularity
         self.metadata = metadata
     }
 

@@ -8,8 +8,8 @@ extension Track {
             title: name,
             subtitle: "\(artist) • \(album)",
             artwork: artworkURL,
-            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: nil),
-            metadata: PlayableContentMetadata(artist: artist, album: album)
+            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: metadata?.openInURL),
+            metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album)
         )
     }
 }
@@ -21,7 +21,8 @@ extension Song {
             title: title,
             subtitle: artistName,
             artwork: artwork?.url(width: 100, height: 100),
-            content: MediaContent(service: .apple, id: id.description, type: .track, location: url)
+            content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            metadata: PlayableContentMetadata(artist: artistName, album: albumTitle, isrc: isrc)
         )
     }
 }
@@ -38,7 +39,7 @@ extension MusicKit.Track {
             subtitle: artistName,
             artwork: artwork?.url(width: 100, height: 100),
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
-            duration: durationSeconds
+            metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
         )
     }
 }
@@ -108,7 +109,7 @@ extension SpotifyTrackItem {
             subtitle: allArtists,
             artwork: URL(string: album.images.first?.url ?? ""),
             content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
-            popularity: popularity
+            metadata: PlayableContentMetadata(duration: Duration.seconds(durationMs), artist: artists.first?.name, album: album.name, isrc: externalIds.isrc)
         )
     }
 }
@@ -153,7 +154,7 @@ extension SpotifyAlbumTrackItems {
             subtitle: allArtists,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
-            duration: Duration.milliseconds(durationMs)
+            metadata: .init(duration: Duration.milliseconds(durationMs))
         )
     }
 }
@@ -176,7 +177,7 @@ extension SpotifyArtistsItems {
             subtitle: "",
             artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .artist, location: nil),
-            popularity: popularity
+            metadata: .init(popularity: popularity)
         )
     }
 }
@@ -266,16 +267,18 @@ extension PlexPlaylist {
 // MARK: Tidal
 extension TidalTrackResource {
     public var toPlayable: PlayableContent {
-        PlayableContent(
+        let artist = artists.first { $0.main ?? false }
+        return PlayableContent(
             title: title,
             subtitle: artists.first?.name ?? "",
-            artwork: URL(string: album.imageCover.first?.url ?? ""),
+            artwork: URL(string: album.imageCover.first(where: { $0.width == $0.height })?.url ?? ""),
             content: .init(
                 service: .tidal,
                 id: id,
                 type: .track,
-                location: nil
-            )
+                location: URL(string: tidalUrl)
+            ),
+            metadata: .init(duration: Duration.seconds(duration), artist: artist?.name, artistID: artist?.id, album: album.title, albumID: album.id, isrc: isrc)
         )
     }
 }
@@ -283,16 +286,18 @@ extension TidalTrackResource {
 // MARK: Tidal
 extension TidalAlbumResource {
     public var toPlayable: PlayableContent {
-        PlayableContent(
+        let artist = artists.first { $0.main ?? false }
+        return PlayableContent(
             title: title,
             subtitle: artists.first?.name ?? "",
-            artwork: URL(string: imageCover?.last?.url ?? ""),
+            artwork: URL(string: imageCover?.first(where: { $0.width == $0.height })?.url ?? ""),
             content: .init(
                 service: .tidal,
                 id: id,
                 type: .album,
-                location: nil
-            )
+                location: URL(string: tidalUrl)
+            ),
+            metadata: .init(duration: Duration.seconds(duration), artist: artist?.name, artistID: artist?.id, album: title, albumID: id)
         )
     }
 }
@@ -302,12 +307,12 @@ extension TidalArtistResource {
         PlayableContent(
             title: name,
             subtitle: "",
-            artwork: URL(string: picture.first?.url ?? ""),
+            artwork: URL(string: picture.first(where: { $0.width == $0.height })?.url ?? ""),
             content: .init(
                 service: .tidal,
                 id: id,
                 type: .artist,
-                location: nil
+                location: URL(string: tidalUrl ?? "")
             )
         )
     }

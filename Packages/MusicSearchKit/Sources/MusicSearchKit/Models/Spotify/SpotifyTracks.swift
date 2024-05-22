@@ -15,11 +15,13 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let type: String
     public let uri: String
     public let popularity: Int
+    public let durationMs: Int
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
 }
 
 public struct SpotifyAlbum: Equatable, Decodable, Sendable {
     public let id: String
+    public let name: String
     public let images: [SpotifyImage]
 }
 

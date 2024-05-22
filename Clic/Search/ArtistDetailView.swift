@@ -209,6 +209,117 @@ struct ArtistDetailView: View {
                 artworkURL = playableContent.artwork
                 self.albums = await sonosService.libraryLookup(ID: playableContent.id)
                 self.tracks = await sonosService.libraryLookup(ID: playableContent.id + "/").suffix(10)
+            // MARK: - Tidal
+            case (.track, .tidal):
+                artworkURL = nil
+                artworkURL = playableContent.artwork
+
+                if let artistID = playableContent.metadata?.artistID {
+                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+
+                    albums = artistAlbums
+                    self.tracks = artistTopTracks
+                    if let artist {
+                        self.playableContent = artist
+                    }
+                } else {
+                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+
+                    albums = artistAlbums
+                    self.tracks = artistTopTracks
+                    if let artist {
+                        self.playableContent = artist
+                    }
+                }
+                // MARK: Rate Limited
+//                if let artistID = playableContent.metadata?.artistID {
+//                    async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+//                    async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: artistID)
+//                    async let artist = MusicSearchService().lookupTidalArtist(id: artistID)
+//
+//                    let artistAlbumsAwait = await artistAlbums
+//                    let artistTopTracksAwait = await artistTopTracks
+//
+//                    albums = artistAlbumsAwait
+//                    self.tracks = artistTopTracksAwait
+//                    if let artistAwait = await artist {
+//                        self.playableContent = artistAwait
+//                    }
+//                } else {
+//                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+//                    async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+//                    async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: artistID)
+//                    async let artist = MusicSearchService().lookupTidalArtist(id: artistID)
+//
+//                    let artistAlbumsAwait = await artistAlbums
+//                    let artistTopTracksAwait = await artistTopTracks
+//
+//                    albums = artistAlbumsAwait
+//                    self.tracks = artistTopTracksAwait
+//                    if let artistAwait = await artist {
+//                        self.playableContent = artistAwait
+//                    }
+//                }
+            case (.album, .tidal):
+                artworkURL = nil
+                artworkURL = playableContent.artwork
+
+                if let artistID = playableContent.metadata?.artistID {
+                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+
+                    albums = artistAlbums
+                    self.tracks = artistTopTracks
+                    if let artist {
+                        self.playableContent = artist
+                    }
+                } else {
+                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+
+                    albums = artistAlbums
+                    self.tracks = artistTopTracks
+                    if let artist {
+                        self.playableContent = artist
+                    }
+                }
+                // MARK: Rate Limited
+//                if let artistID = playableContent.metadata?.artistID {
+//                    async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+//                    async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: artistID)
+//                    async let artist = MusicSearchService().lookupTidalArtist(id: artistID)
+//
+//                    let artistAlbumsAwait = await artistAlbums
+//                    let artistTopTracksAwait = await artistTopTracks
+//
+//                    albums = artistAlbumsAwait
+//                    self.tracks = artistTopTracksAwait
+//                    if let artistAwait = await artist {
+//                        self.playableContent = artistAwait
+//                    }
+//                } else {
+//                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+//                    async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+//                    async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: artistID)
+//                    async let artist = MusicSearchService().lookupTidalArtist(id: artistID)
+//
+//                    let artistAlbumsAwait = await artistAlbums
+//                    let artistTopTracksAwait = await artistTopTracks
+//
+//                    albums = artistAlbumsAwait
+//                    self.tracks = artistTopTracksAwait
+//                    if let artistAwait = await artist {
+//                        self.playableContent = artistAwait
+//                    }
+//                }
             case (.artist, .tidal):
                 artworkURL = nil
                 artworkURL = playableContent.artwork

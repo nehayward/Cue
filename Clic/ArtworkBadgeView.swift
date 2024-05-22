@@ -71,8 +71,6 @@ struct ArtworkBadgeView: View {
                     .shadow(radius: 10)
             case .tidal:
                 MediaSearchService.tidal.icon
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.white.gradient)
                     .frame(width: size, height: size, alignment: .bottomTrailing)
                     .padding(size == 24 ? 16 : 4)

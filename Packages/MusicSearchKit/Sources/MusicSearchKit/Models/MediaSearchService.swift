@@ -22,7 +22,11 @@ public enum MediaSearchService: String, Sendable, Codable {
         }
     }
 
-    public var icon: Image {
+    // TODO: Add all icons
+    public var icon: some View {
         Image(.tidal)
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
     }
 }

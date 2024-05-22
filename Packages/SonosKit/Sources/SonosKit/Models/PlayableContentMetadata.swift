@@ -7,13 +7,23 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     public let artistID: String?
     public let album: String?
     public let albumID: String?
+    public let isrc: String?
 
-    init(duration: Duration? = nil, popularity: Int? = nil, artist: String? = nil, artistID: String? = nil, album: String? = nil, albumID: String? = nil) {
+    init(
+        duration: Duration? = nil,
+        popularity: Int? = nil,
+        artist: String? = nil,
+        artistID: String? = nil,
+        album: String? = nil,
+        albumID: String? = nil,
+        isrc: String? = nil
+    ) {
         self.duration = duration
         self.popularity = popularity
         self.artist = artist
         self.artistID = artistID
         self.album = album
         self.albumID = albumID
+        self.isrc = isrc
     }
 }

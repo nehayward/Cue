@@ -337,6 +337,7 @@
 		E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
 		E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */; };
+		E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
 		E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
 		E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
 		E9C7CAFB2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
@@ -622,6 +623,7 @@
 		E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceEntity.swift; sourceTree = "<group>"; };
 		E9C03B172A5A196200FB9118 /* NextIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextIntent.swift; sourceTree = "<group>"; };
 		E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
+		E9C327412BFD0A7400075606 /* BetaFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeatures.swift; sourceTree = "<group>"; };
 		E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewReleasesView.swift; sourceTree = "<group>"; };
 		E9C889652BBFA6E8004C31DE /* Super.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Super.storekit; sourceTree = "<group>"; };
 		E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailScreen.swift; sourceTree = "<group>"; };
@@ -963,6 +965,7 @@
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
 				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
+				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
 				E90F31632BC5998700884EA5 /* Paywall */,
 				E9F600CB2B539FF30039AAA6 /* Onboard */,
 				E9FDDC2F2B238216005D281E /* Router.swift */,
@@ -1748,6 +1751,7 @@
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
 				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
+				E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */,
 				E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */,
 				E9B135BB2B6ADE690096A14E /* SearchScreen.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,

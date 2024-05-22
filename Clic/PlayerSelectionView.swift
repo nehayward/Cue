@@ -54,12 +54,13 @@ struct PlayerSelectionView: View {
                                 playHistory.remove(playableContent)
                                 playHistory.insert(playableContent, at: 0)
                                 alertService.showAlertContent(with: playableContent)
-                                await sonosService.queue(content: playableContent.content, group: group, position: position)
+                                await sonosService.queue(playable: playableContent, group: group, position: position)
                                 await sonosService.play(ip: group.ip)
                                 return
                             }
                             if let mediaContent {
-                                await sonosService.queue(content: mediaContent, group: group)
+                                // TODO: Need to get content, get rid of just using mediacontent
+//                                await sonosService.queue(content: mediaContent, group: group)
                             }
                             await sonosService.play(ip: group.ip)
                         }

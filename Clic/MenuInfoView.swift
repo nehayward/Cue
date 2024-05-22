@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import MusicSearchKit
 
 struct MenuInfoView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -20,21 +21,31 @@ struct MenuInfoView: View {
                         Label("Open in Spotify…", image: .spotifyLogo)
                     }
                 }
+
+                if group.coordinatorRoom.track.musicService == .tidal {
+                    Link(destination: openInURL) {
+                        Label {
+                            Text("Open in Tidal…")
+                        } icon: {
+                            MediaSearchService.tidal.icon
+                        }
+                    }
+                }
             }
             Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
                 Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
             }
-            if [.spotify, .apple, .library].contains(group.coordinatorRoom.track.musicService) {
+            if [.spotify, .apple, .library, .tidal].contains(group.coordinatorRoom.track.musicService) {
                 Button {
                     router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                 } label: {
-                    Label("View Album", systemImage: "rectangle.stack.fill")
+                    Label("View Album", systemImage: "smallcircle.circle.fill")
                 }
 
                 Button {
                     router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                 } label: {
-                    Label("View Artist", systemImage: "music.mic.circle.fill")
+                    Label("View Artist", systemImage: "music.mic")
                 }
 //                let playable = group.coordinatorRoom.track.toPlayable
 //                ShareLink(item: playable)

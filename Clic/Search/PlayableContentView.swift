@@ -181,11 +181,7 @@ struct PlayableContentView: View {
             playHistory.insert(item, at: 0)
             alertService.showAlertContent(with: item)
             HapticManager.shared.fireHaptic(.buttonPress)
-            if item.content.service == .tidal {
-                await sonosService.queuePlayable(playable: item, group: group, position: position)
-            } else {
-                await sonosService.queue(content: item.content, group: group, position: position)
-            }
+            await sonosService.queue(playable: item, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
     }

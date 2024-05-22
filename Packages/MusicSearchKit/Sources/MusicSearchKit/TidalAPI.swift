@@ -66,6 +66,50 @@ public final class TidalAPI {
 //        }
 //    }
 
+    public func track(with id: String) async -> TidalTrackResource? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "openapi.tidal.com"
+        components.path = "/tracks/\(id)"
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "100"),
+            URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+        ]
+
+        guard let url = components.url else {
+            return nil
+        }
+
+        struct TrackResult: Codable {
+            let resource: TidalTrackResource
+        }
+
+        guard let trackResult: TrackResult = try? await loadAuthorized(url) else { return nil }
+        return trackResult.resource
+    }
+
+    public func album(with id: String) async -> TidalAlbumResource? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "openapi.tidal.com"
+        components.path = "/albums/\(id)"
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "100"),
+            URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+        ]
+
+        guard let url = components.url else {
+            return nil
+        }
+
+        struct AlbumResult: Codable {
+            let resource: TidalAlbumResource
+        }
+
+        guard let trackResult: AlbumResult = try? await loadAuthorized(url) else { return nil }
+        return trackResult.resource
+    }
+
     public func albumSongs(id: String) async -> [TidalTrackResource] {
         var components = URLComponents()
         components.scheme = "https"
@@ -132,6 +176,28 @@ public final class TidalAPI {
         return album.data.map { $0.resource }
     }
 
+    public func artist(with id: String) async -> TidalArtistResource? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "openapi.tidal.com"
+        components.path = "/artists/\(id)"
+        components.queryItems = [
+            URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+        ]
+
+        guard let url = components.url else {
+            return nil
+        }
+
+        struct ArtistResult: Codable {
+            let resource: TidalArtistResource
+        }
+
+        guard let trackResult: ArtistResult = try? await loadAuthorized(url) else { return nil }
+        return trackResult.resource
+    }
+
+
     func getToken() async -> TidalTokenResponse? {
         guard let URL = URL(string: "https://auth.tidal.com/v1/oauth2/token") else { return nil }
         var request = URLRequest(url: URL)
@@ -182,6 +248,7 @@ public final class TidalAPI {
             return response
         } catch {
             print("Failed to decode ⚠️")
+            print(String(decoding: data, as: UTF8.self))
             assertionFailure(String(decoding: data, as: UTF8.self))
             throw error
         }

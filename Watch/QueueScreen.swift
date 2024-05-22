@@ -71,8 +71,6 @@ struct QueueScreen: View {
                                         .shadow(radius: 10)
                                 case .tidal:
                                     MediaSearchService.tidal.icon
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
                                         .foregroundStyle(.white.gradient)
                                         .frame(width: 10, height: 10)
                                         .padding([.trailing, .bottom], 4)

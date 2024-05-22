@@ -1,9 +1,11 @@
 import Analytics
 import CloudStorage
+import Defaults
 import SwiftUI
 import WatchConnectivity
 import SonosKit
 import RevenueCat
+import MusicSearchKit
 import SubscriptionKit
 import RevenueCatUI
 import MessageUI
@@ -13,12 +15,14 @@ struct PreferenceScreen: View {
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
+    @State private var betaFeatures = BetaFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
 
     @AppStorage("AppIcon") var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
+    @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
 
     @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
 
@@ -27,15 +31,11 @@ struct PreferenceScreen: View {
         NavigationStack {
             Form {
                 Section {
-                    if !subscriptionService.subscription.isActive {
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                        } label: {
-                            PaywallButtonView()
-                        }
-                        .environment(router)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
+                    if subscriptionService.subscription.isActive {
+                        PaywallButtonView()
+                            .environment(router)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
                     } else {
                         VStack(alignment: .leading) {
                             Button {
@@ -91,6 +91,25 @@ struct PreferenceScreen: View {
                         Text("Debug 👾")
                     }
                 }
+
+                Section {
+                    Toggle(isOn: $betaFeatures.tidalFeature) {
+                        HStack {
+                            MediaSearchService.tidal.icon
+                                .frame(width: 24, height: 24)
+                            Text(MediaSearchService.tidal.title)
+                        }
+                    }
+                    .tint(.accent)
+                    .onChange(of: betaFeatures.tidalFeature) {
+                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
+                    }
+                } header: {
+                    Text("Beta Features")
+                } footer: {
+                    Text("Requires Clic Super Subscription")
+                }
+                .disabled(!subscriptionService.subscription.isActive)
 
                 Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
