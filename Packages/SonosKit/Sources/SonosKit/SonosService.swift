@@ -1157,7 +1157,10 @@ public final class SonosService {
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {
-        await api.setAVTransport(IP: group.coordinatorRoom.ip, ID: group.coordinatorID)
+        let queueActive = group.playbackService == .queue
+        if !queueActive {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
     }
 

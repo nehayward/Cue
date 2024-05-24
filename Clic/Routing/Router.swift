@@ -10,7 +10,7 @@ import SonosKit
     var path: [RouterDestination] = []
     var selection: RouterDestination?
     @MainActor var presentedSheet: SheetDestination?
-    @MainActor var inspectorSheet: SheetDestination?
+    @MainActor var inspectorSheet: InspectorDestination?
     @MainActor var popover: SheetDestination?
 
     var dismiss: Bool = false

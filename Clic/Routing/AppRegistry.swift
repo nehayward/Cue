@@ -205,7 +205,7 @@ extension View {
         }
     }
 
-    func withInspector(inspectorDestination: Binding<SheetDestination?>) -> some View {
+    func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
         #if !os(visionOS)
         inspector(isPresented: .constant(inspectorDestination.wrappedValue  != nil)) {
             Group {

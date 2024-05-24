@@ -294,6 +294,10 @@
 		E9A380682C00F27400D5349E /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380672C00F27400D5349E /* Storage.swift */; };
 		E9A380692C00FC8C00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
 		E9A3806A2C00FC8D00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
+		E9A3806D2C01005400D5349E /* LibraryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806C2C01005400D5349E /* LibraryScreen.swift */; };
+		E9A380702C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
+		E9A380712C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
+		E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
@@ -591,6 +595,8 @@
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9A380612C00419100D5349E /* SleepTimerCustomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerCustomView.swift; sourceTree = "<group>"; };
 		E9A380672C00F27400D5349E /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
+		E9A3806C2C01005400D5349E /* LibraryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreen.swift; sourceTree = "<group>"; };
+		E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorDestination.swift; sourceTree = "<group>"; };
 		E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLargePlayerView.swift; sourceTree = "<group>"; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
@@ -907,6 +913,26 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
+		E9A3806B2C01004B00D5349E /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				E9A3806C2C01005400D5349E /* LibraryScreen.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		E9A3806E2C0100C100D5349E /* Routing */ = {
+			isa = PBXGroup;
+			children = (
+				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
+				E9FDDC2F2B238216005D281E /* Router.swift */,
+				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
+				E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */,
+				E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */,
+			);
+			path = Routing;
+			sourceTree = "<group>";
+		};
 		E9A46FCE2B684093000D4094 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
@@ -973,13 +999,10 @@
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
 				E9A380672C00F27400D5349E /* Storage.swift */,
-				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
 				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
+				E9A3806E2C0100C100D5349E /* Routing */,
 				E90F31632BC5998700884EA5 /* Paywall */,
 				E9F600CB2B539FF30039AAA6 /* Onboard */,
-				E9FDDC2F2B238216005D281E /* Router.swift */,
-				E9FDDC312B27BD20005D281E /* SheetDestination.swift */,
-				E9F600B62B4CFB420039AAA6 /* RouterDestination.swift */,
 				E92D6EEE2B46634800E49AC8 /* Track+.swift */,
 				E9294B5A2B33A531009E1F45 /* Environments.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
@@ -1014,6 +1037,7 @@
 				E92DCB9B2B6445EC00A2C3B5 /* DropDestination+.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
+				E9A3806B2C01004B00D5349E /* Library */,
 				E960ED452AC38936003E3732 /* Search */,
 				E940E7152AAFBD17004303CD /* FilterView.swift */,
 				E9D38C522B5EE1C50025CC31 /* HapticManager.swift */,
@@ -1494,6 +1518,7 @@
 				E92B3EA82B60249B00724FA1 /* SceneBuilderScreen.swift in Sources */,
 				E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */,
 				E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */,
+				E9A380712C0100DA00D5349E /* InspectorDestination.swift in Sources */,
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
 				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
@@ -1617,6 +1642,7 @@
 				E97562FF2B699B2400787E14 /* SceneButton.swift in Sources */,
 				E97563002B699B2400787E14 /* LiveActivityManager.swift in Sources */,
 				E97563012B699B2400787E14 /* SceneView.swift in Sources */,
+				E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */,
 				E9D49E312BC6ED6E0084185E /* ClicPaywall.swift in Sources */,
 				E97563022B699B2400787E14 /* UIApplication+Environment.swift in Sources */,
 				E97563032B699B2400787E14 /* RouterDestination.swift in Sources */,
@@ -1740,6 +1766,7 @@
 				E9D38C512B5DADBB0025CC31 /* PlayHistoryView.swift in Sources */,
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
 				E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */,
+				E9A380702C0100DA00D5349E /* InspectorDestination.swift in Sources */,
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */,
@@ -1790,6 +1817,7 @@
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */,
 				E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */,
+				E9A3806D2C01005400D5349E /* LibraryScreen.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */,
 				E9A380622C00419100D5349E /* SleepTimerCustomView.swift in Sources */,

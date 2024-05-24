@@ -5,6 +5,8 @@
 
 - Track Title Display Fix: Resolved an issue where the track title would not display if the album art was missing.
 
++ Fixed an issue where queue would jump to beginning of track before going to selected track. Thanks Paul!
+
 ## Internal
 + Fixed paywall button not showing in preferences 
 + Move spotify to new queueing
