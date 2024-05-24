@@ -298,6 +298,9 @@
 		E9A380702C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A380712C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
+		E9A380742C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
+		E9A380752C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
+		E9A380762C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
 		E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
@@ -597,6 +600,7 @@
 		E9A380672C00F27400D5349E /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		E9A3806C2C01005400D5349E /* LibraryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreen.swift; sourceTree = "<group>"; };
 		E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorDestination.swift; sourceTree = "<group>"; };
+		E9A380732C01052800D5349E /* CoreFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreFeatures.swift; sourceTree = "<group>"; };
 		E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLargePlayerView.swift; sourceTree = "<group>"; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
@@ -1000,6 +1004,7 @@
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
 				E9A380672C00F27400D5349E /* Storage.swift */,
 				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
+				E9A380732C01052800D5349E /* CoreFeatures.swift */,
 				E9A3806E2C0100C100D5349E /* Routing */,
 				E90F31632BC5998700884EA5 /* Paywall */,
 				E9F600CB2B539FF30039AAA6 /* Onboard */,
@@ -1551,6 +1556,7 @@
 				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
 				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
+				E9A380752C01052800D5349E /* CoreFeatures.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
 				E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
@@ -1636,6 +1642,7 @@
 				E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
 				E98150DF2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E97562FD2B699B2400787E14 /* PlayerSelectionView.swift in Sources */,
+				E9A380762C01052800D5349E /* CoreFeatures.swift in Sources */,
 				E9B347712BF2B73300688851 /* ContentToAdd.swift in Sources */,
 				E97562FE2B699B2400787E14 /* SearchHistoryView.swift in Sources */,
 				E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */,
@@ -1838,6 +1845,7 @@
 				E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */,
 				E9C889692BBFAA5B004C31DE /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135BF2B6B62B00096A14E /* MediaDetailView.swift in Sources */,
+				E9A380742C01052800D5349E /* CoreFeatures.swift in Sources */,
 				E97529262BF9B5C2006E871C /* TidalSearchView.swift in Sources */,
 				E9BF3ABE2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift in Sources */,
 				E94A6A252AAACB49002E432C /* ArtworkView.swift in Sources */,
@@ -2655,7 +2663,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2706,7 +2714,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2914,7 +2922,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";

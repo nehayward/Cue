@@ -44,7 +44,6 @@ struct ListViewLarge: View {
                     .foregroundStyle(.primary)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                     .dropDestinationPlay(on: group)
-                    .dropDestinationPlayableContentPlay(on: group)
                 } else {
                     Text(group.coordinatorRoom.state.reason)
                         .selectionDisabled()

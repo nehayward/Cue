@@ -7,6 +7,8 @@
 
 + Fixed an issue where queue would jump to beginning of track before going to selected track. Thanks Paul!
 
++ Add option to hide NowPlaying… open in.
+
 ## Internal
 + Fixed paywall button not showing in preferences 
 + Move spotify to new queueing

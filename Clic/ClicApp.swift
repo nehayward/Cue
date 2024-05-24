@@ -290,11 +290,10 @@ struct ClicApp: App {
                 guard let service = MusicService(service: paths[2]),
                       let type = ContentType(paths[3])
                 else { return }
-
                 let id = paths[4]
 
                 let media = MediaContent(service: service, id: id, type: type, location: nil)
-                print(media)
+                // TODO: Convert to Playable Content
                 router.sheet(to: .playMedia(content: media))
             }
 

@@ -16,6 +16,7 @@ struct PreferenceScreen: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var betaFeatures = BetaFeatures()
+    @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
@@ -93,25 +94,6 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    Toggle(isOn: $betaFeatures.tidalFeature) {
-                        HStack {
-                            MediaSearchService.tidal.icon
-                                .frame(width: 24, height: 24)
-                            Text(MediaSearchService.tidal.title)
-                        }
-                    }
-                    .tint(.accent)
-                    .onChange(of: betaFeatures.tidalFeature) {
-                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
-                    }
-                } header: {
-                    Text("Beta Features")
-                } footer: {
-                    Text("Requires Clic Super Subscription")
-                }
-                .disabled(!subscriptionService.subscription.isActive)
-
-                Section {
                     Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
                     Button {
                         Task {
@@ -127,6 +109,50 @@ struct PreferenceScreen: View {
                     }
                 } header: {
                     Text("Sonos System")
+                }
+
+                Section {
+                    Toggle(isOn: $betaFeatures.tidalFeature) {
+                        HStack {
+                            MediaSearchService.tidal.icon
+                                .frame(width: 24, height: 24)
+                            VStack(alignment: .leading) {
+                                Text(MediaSearchService.tidal.title)
+                                Text("Search and play songs, albums, and artists (requires Tidal authorization in the Sonos app).")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .tint(.accent)
+                    .onChange(of: betaFeatures.tidalFeature) {
+                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
+                    }
+                } header: {
+                    Text("Beta Features")
+                } footer: {
+                    Text("Requires Clic Super Subscription")
+                }
+                .disabled(!subscriptionService.subscription.isActive)
+
+                Section {
+                    Toggle(isOn: $coreFeatures.nowPlaying) {
+                        HStack {
+                            Image(.nowPlayingAppIcon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 24, height: 24)
+                            VStack(alignment: .leading) {
+                                Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
+                                Text("Add option to open current track in the Now Playing app.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .tint(.accent)
+                } header: {
+                    Text("Services")
                 }
 
                 Section {

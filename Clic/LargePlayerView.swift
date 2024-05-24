@@ -27,8 +27,6 @@ struct LargePlayerView: View {
                 .draggable(group.coordinatorRoom.track.toPlayable)
                 .shadow(radius: 10)
                 .frame(maxWidth: 500)
-                .dropDestinationPlayableContentPlay(on: group)
-                .dropDestinationPlay(on: group)
 
             if group.TVMode {
                 TVModeView()

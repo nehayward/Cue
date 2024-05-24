@@ -964,6 +964,15 @@ public final class SonosService {
         case (.playlist, .apple):
             guard let playlist: Playlist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return PlayableContent(title:   playlist.name, subtitle: playlist.curatorName ?? "", artwork: playlist.artwork?.url(width: 500, height: 500), content: content)
+        case (.track, .tidal):
+            guard let playableContent = await musicSearch.lookupTidalTrack(with: content.id) else { return nil }
+            return playableContent
+        case (.album, .tidal):
+            guard let playableContent = await musicSearch.lookupTidalAlbum(with: content.id) else { return nil }
+            return playableContent
+//        case (.playlist, .tidal):
+//            guard let playlist: Playlist = try? await musicSearch.(with: content.id) else { return nil }
+//            return PlayableContent(title: playlist.name, subtitle: playlist.curatorName ?? "", artwork: playlist.artwork?.url(width: 500, height: 500), content: content)
         default:
             return nil
         }

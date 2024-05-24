@@ -46,7 +46,6 @@ struct DeviceListMainView: View {
                         }
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
                         .dropDestinationPlay(on: group)
-                        .dropDestinationPlayableContentPlay(on: group)
                     } else {
                         Text(group.coordinatorRoom.state.reason)
                             .padding(.vertical, 8)

@@ -5,6 +5,7 @@ import MusicSearchKit
 struct MenuInfoView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
+    @State private var coreFeatures = CoreFeatures()
 
     var group: GroupRoom
 
@@ -32,8 +33,10 @@ struct MenuInfoView: View {
                     }
                 }
             }
-            Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
-                Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
+            if coreFeatures.nowPlaying {
+                Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
+                    Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
+                }
             }
             if [.spotify, .apple, .library, .tidal].contains(group.coordinatorRoom.track.musicService) {
                 Button {
