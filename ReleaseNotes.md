@@ -1,3 +1,14 @@
+# 2024.27
+
+## External
++ Custom Sleep Timers Added!: Now you can set personalized sleep timers to automatically stop playback after a specified duration.
+
+- Track Title Display Fix: Resolved an issue where the track title would not display if the album art was missing.
+
+## Internal
++ Fixed paywall button not showing in preferences 
++ Move spotify to new queueing
+
 # 2024.26
 
 ## External

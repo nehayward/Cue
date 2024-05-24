@@ -31,7 +31,7 @@ struct PreferenceScreen: View {
         NavigationStack {
             Form {
                 Section {
-                    if subscriptionService.subscription.isActive {
+                    if !subscriptionService.subscription.isActive {
                         PaywallButtonView()
                             .environment(router)
                             .listRowBackground(Color.clear)

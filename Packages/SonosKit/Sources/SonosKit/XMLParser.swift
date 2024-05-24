@@ -129,7 +129,6 @@ final class XMLParserSonos {
 
         guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
               let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
-              let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].element?.text,
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
               let trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
         else {
@@ -226,16 +225,19 @@ final class XMLParserSonos {
 //            trackID = trackURI
         }
 
-        let ip = preferredIPForTrackAlbumArt ?? IP
-        var sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+        var sonosAlbumArtURL: URL? = nil
+        if let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].element?.text {
+            let ip = preferredIPForTrackAlbumArt ?? IP
+            sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
 
-        if sonosAlbumArtURL == nil {
-            sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
-            // MARK: Upscale
-            if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
-                let modified = sonosAlbumArt.replacingOccurrences(of: "w=\\d+", with: "w=\(800)", options: .regularExpression)
-                if let upscaledURL = URL(string: modified) {
-                    sonosAlbumArtURL = upscaledURL
+            if sonosAlbumArtURL == nil {
+                sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
+                // MARK: Upscale
+                if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
+                    let modified = sonosAlbumArt.replacingOccurrences(of: "w=\\d+", with: "w=\(800)", options: .regularExpression)
+                    if let upscaledURL = URL(string: modified) {
+                        sonosAlbumArtURL = upscaledURL
+                    }
                 }
             }
         }

@@ -1268,6 +1268,10 @@ public final class SonosService {
     }
 
     public func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
+        if playable.content.type == .playlist {
+            await api.removeAllTrackFromQueue(IP: group.ip)
+        }
+
         let queueActive = group.playbackService == .queue
 
         if !queueActive {
@@ -1276,7 +1280,7 @@ public final class SonosService {
 
         await api.queuePlayable(playableContent: playable, IP: group.coordinatorRoom.ip, position: position)
 
-        if position == .now, queueActive {
+        if position == .now, queueActive, playable.content.type != .playlist {
             await next(ip: group.ip)
         }
     }
@@ -1327,21 +1331,21 @@ public final class SonosService {
     public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
         switch (playable.content.type, playable.content.service) {
         case (.track, .spotify):
-            await queueSpotifyTrack(id: playable.content.id, group: group, position: position)
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.album, .spotify):
-            await queueSpotifyAlbum(id: playable.content.id, group: group, position: position)
-        case (.playlist, .apple):
-            await queueApplePlaylist(id: playable.content.id, group: group)
-        case (.album, .apple):
-            await queueAppleAlbum(id: playable.content.id, group: group, position: position)
-        case (.playlist, .spotify):
-            await queueSpotifyPlaylist(id: playable.content.id, group: group)
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.artist, .spotify):
             await queueSpotifyArtistTopTracks(id: playable.content.id, group: group)
-        case (.artist, .apple):
-            break
+        case (.playlist, .spotify):
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.track, .apple):
             await queueAppleSong(id: playable.content.id, group: group, position: position)
+        case (.album, .apple):
+            await queueAppleAlbum(id: playable.content.id, group: group, position: position)
+        case (.artist, .apple):
+            break
+        case (.playlist, .apple):
+            await queueApplePlaylist(id: playable.content.id, group: group)
         case (.favorite, _):
             await playFavorite(on: group, favoriteID: playable.content.id)
         case (_, .library):

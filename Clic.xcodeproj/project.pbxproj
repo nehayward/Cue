@@ -288,6 +288,12 @@
 		E99CC9F72B7AC18400B42A7A /* AppleMusicPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */; };
 		E99CC9F82B7AC18500B42A7A /* AppleMusicPermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */; };
 		E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
+		E9A380622C00419100D5349E /* SleepTimerCustomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380612C00419100D5349E /* SleepTimerCustomView.swift */; };
+		E9A380632C00F14100D5349E /* SleepTimerCustomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380612C00419100D5349E /* SleepTimerCustomView.swift */; };
+		E9A380642C00F14100D5349E /* SleepTimerCustomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380612C00419100D5349E /* SleepTimerCustomView.swift */; };
+		E9A380682C00F27400D5349E /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380672C00F27400D5349E /* Storage.swift */; };
+		E9A380692C00FC8C00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
+		E9A3806A2C00FC8D00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
 		E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
@@ -583,6 +589,8 @@
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
 		E99CC9F52B7AC0C200B42A7A /* AppleMusicPermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicPermissionView.swift; sourceTree = "<group>"; };
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
+		E9A380612C00419100D5349E /* SleepTimerCustomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerCustomView.swift; sourceTree = "<group>"; };
+		E9A380672C00F27400D5349E /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
 		E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLargePlayerView.swift; sourceTree = "<group>"; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
@@ -964,6 +972,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E9A380672C00F27400D5349E /* Storage.swift */,
 				E9FDDC332B27BED4005D281E /* AppRegistry.swift */,
 				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
 				E90F31632BC5998700884EA5 /* Paywall */,
@@ -997,6 +1006,7 @@
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */,
 				E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */,
+				E9A380612C00419100D5349E /* SleepTimerCustomView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
 				E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */,
 				E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */,
@@ -1487,6 +1497,7 @@
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
 				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
+				E9A380642C00F14100D5349E /* SleepTimerCustomView.swift in Sources */,
 				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
 				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
@@ -1542,6 +1553,7 @@
 				E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */,
 				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
 				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlayingView.swift in Sources */,
+				E9A380692C00FC8C00D5349E /* BetaFeatures.swift in Sources */,
 				E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E92B3EDF2B60249B00724FA1 /* ClassicAppleMusicSearchView.swift in Sources */,
 				E949E8EF2BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */,
@@ -1609,6 +1621,7 @@
 				E97563022B699B2400787E14 /* UIApplication+Environment.swift in Sources */,
 				E97563032B699B2400787E14 /* RouterDestination.swift in Sources */,
 				E97563042B699B2400787E14 /* ReviewService.swift in Sources */,
+				E9A3806A2C00FC8D00D5349E /* BetaFeatures.swift in Sources */,
 				E9B135C22B6C1A880096A14E /* SearchScreen.swift in Sources */,
 				E9C7CAFB2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E9D49E322BC6ED8B0084185E /* PlayableContentView.swift in Sources */,
@@ -1625,6 +1638,7 @@
 				E9DCF6E52B7C730600899228 /* AppleMusicSearchScreen.swift in Sources */,
 				E975630F2B699B2400787E14 /* Keyboard.swift in Sources */,
 				E97563102B699B2400787E14 /* RefreshIntent.swift in Sources */,
+				E9A380632C00F14100D5349E /* SleepTimerCustomView.swift in Sources */,
 				E97563122B699B2400787E14 /* RoomVolumeView.swift in Sources */,
 				E98150DB2BED143E0076E312 /* AlarmListView.swift in Sources */,
 				E97563132B699B2400787E14 /* SpotifySearchView.swift in Sources */,
@@ -1750,6 +1764,7 @@
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
 				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
+				E9A380682C00F27400D5349E /* Storage.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */,
 				E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */,
@@ -1777,6 +1792,7 @@
 				E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */,
+				E9A380622C00419100D5349E /* SleepTimerCustomView.swift in Sources */,
 				E98527912A5E59B0009016C2 /* TogglePlaybackIntent.swift in Sources */,
 				E92DCB9E2B660D3F00A2C3B5 /* ContentArtworkView.swift in Sources */,
 				E95498A82AA52EF8007848A7 /* DebugView.swift in Sources */,

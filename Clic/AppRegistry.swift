@@ -94,6 +94,8 @@ extension View {
                                 .withAppRouter(router: router)
                         }
                     }
+                case let .customSleepTimer(group):
+                    SleepTimerCustomView(group: group)
                 }
             }
             .withEnvironments()
@@ -161,6 +163,8 @@ extension View {
                     NavigationStack {
                         AlarmListView()
                     }
+                case let .customSleepTimer(group):
+                    SleepTimerCustomView(group: group)
                 }
             }
             .withEnvironments()

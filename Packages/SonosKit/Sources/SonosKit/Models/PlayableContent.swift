@@ -69,15 +69,24 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
 
     public var alarmURIMetadata: String {
         return """
-&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? "SA_RINCON52231_X_#Svc52231-0-Token" : "SA_RINCON3079_X_#Svc3079-0-Token" )&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? "SA_RINCON52231_X_#Svc52231-0-Token" : "SA_RINCON\(Self.spotifyLocal)_X_#Svc\(Self.spotifyLocal)-0-Token" )&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
     }
 
-    
     public var URIMetadata: String {
         switch (content.type, content.service) {
-//        case (.track, .spotify)
-//            return ""
+        case (.track, .spotify):
+            return """
+\(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+"""
+        case (.album, .spotify):
+            return """
+\(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+"""
+        case (.playlist, .spotify):
+            return """
+\(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+"""
 //        case (.playlist, _):
 //            <#code#>
 //        case (.artist, _):
@@ -112,23 +121,28 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
 """
         case (.track, .tidal):
             return """
-\(Self.defaultXMLNSTidal) id="00032020track%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+\(Self.defaultXMLNSHeader) id="00032020track%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case (.album, .tidal):
             return """
-\(Self.defaultXMLNSTidal) id="00040000album%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+\(Self.defaultXMLNSHeader) id="00040000album%2f\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case (.artist, .tidal):
             return """
-&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+\(Self.defaultXMLNSHeader) id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         default:
             return ""
         }
     }
 
-    private static var defaultXMLNSTidal = """
+    private static var defaultXMLNSHeader = """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item restricted="true"
+"""
+    private static var spotifyLocal = Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
+
+    private static var defaultSpotifyXMLNSFooter = """
+&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON\(spotifyLocal)_X_#Svc\(spotifyLocal)-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
 
     public var containerClass: String {
