@@ -22,6 +22,7 @@
 		<string>nowplaying</string>
 		<string>spotify</string>
 		<string>music</string>
+		<string>tidal</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
