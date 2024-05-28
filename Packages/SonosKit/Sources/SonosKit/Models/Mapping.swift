@@ -108,8 +108,21 @@ extension SpotifyTrackItem {
             title: name,
             subtitle: allArtists,
             artwork: URL(string: album.images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
-            metadata: PlayableContentMetadata(duration: Duration.seconds(durationMs), artist: artists.first?.name, album: album.name, isrc: externalIds.isrc)
+            content: MediaContent(
+                service: .spotify,
+                id: id,
+                type: .track,
+                location: nil
+            ),
+            metadata: PlayableContentMetadata(
+                duration: Duration.seconds(
+                    durationMs
+                ),
+                popularity: popularity,
+                artist: artists.first?.name,
+                album: album.name,
+                isrc: externalIds.isrc
+            )
         )
     }
 }

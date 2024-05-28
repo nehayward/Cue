@@ -7,12 +7,12 @@ struct QueueScreen: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.isPresented) var isPresented
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Router.self) var router: Router?
 
     @Binding var group: GroupRoom
-    @State private var viewRouter = Router()
+    @State private var router = Router()
     @State private var tracks: [Track] = []
     @State private var isLoading: Bool = true
+    @State private var clearQueueConfirmation: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -118,6 +118,7 @@ struct QueueScreen: View {
                     }
                     .onMove(perform: move)
                 }
+                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
@@ -126,7 +127,8 @@ struct QueueScreen: View {
                         #if !targetEnvironment(macCatalyst)
                         if UIDevice.current.userInterfaceIdiom == .pad, isPresented {
                             Button {
-                                router?.inspectorSheet = nil
+//                                router?.inspectorSheet = nil
+                                dismiss()
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                             }
@@ -192,15 +194,21 @@ struct QueueScreen: View {
                         }
                     }
 
-                    ToolbarItem(placement: .destructiveAction) {
+                    ToolbarItemGroup(placement: .bottomBar) {
                         Button {
                             Task {
-                                try await sonosService.clearQueue(group.coordinatorRoom.ip)
-                                tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                                router.presentedSheet = .newPlaylist(group: group)
                             }
+                        } label: {
+                            Text("Save")
+                        }
+                        .disabled(tracks.isEmpty)
+                        Button(role: .destructive) {
+                            clearQueueConfirmation.toggle()
                         } label: {
                             Text("Clear")
                         }
+                        .disabled(tracks.isEmpty)
                     }
                 }.task(id: group) {
                     isLoading = true
@@ -234,6 +242,17 @@ struct QueueScreen: View {
         }
         .fontDesign(.rounded)
         .animation(.default, value: group.playbackService)
+        .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
+            Button {
+                Task {
+                    try await sonosService.clearQueue(group.coordinatorRoom.ip)
+                    tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Text("Clear Queue")
+                    .bold()
+            }
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {

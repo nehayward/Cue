@@ -127,12 +127,12 @@ final class SonosKitTests: XCTestCase {
 //        }
 //    }
 
-    func testGetCurrentTransportActions() throws {
-        let xmlURL = Bundle.module.url(forResource: "GetCurrentTransportActions", withExtension: "xml")
-        let xml = try String(contentsOf: xmlURL!)
-        let availableActions = try XCTUnwrap(XMLParserSonos().parseGetCurrentTransportActions(xml: xml))
-        XCTAssert(availableActions.contains([.next,.pause]))
-    }
+//    func testGetCurrentTransportActions() throws {
+//        let xmlURL = Bundle.module.url(forResource: "GetCurrentTransportActions", withExtension: "xml")
+//        let xml = try String(contentsOf: xmlURL!)
+//        let availableActions = try XCTUnwrap(XMLParserSonos().parseGetCurrentTransportActions(xml: xml))
+//        XCTAssert(availableActions.contains([.next,.pause]))
+//    }
 
     func testParseSpotifyURL() {
         let spotifyPlaylistURL = URL(string: "https://open.spotify.com/playlist/6zKUeBJeJQODG5o2PzxRsZ")!

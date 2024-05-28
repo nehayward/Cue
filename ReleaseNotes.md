@@ -1,6 +1,13 @@
 # 2024.27
 
 ## External
+
++ New Icon!
++ You can now easily manage and add songs to your playlists.
+
+# 2024.27
+
+## External
 + Custom Sleep Timers Added!: Now you can set personalized sleep timers to automatically stop playback after a specified duration.
 
 - Track Title Display Fix: Resolved an issue where the track title would not display if the album art was missing.

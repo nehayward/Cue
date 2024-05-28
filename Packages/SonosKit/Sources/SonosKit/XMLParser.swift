@@ -3,11 +3,6 @@ import SWXMLHash
 
 final class XMLParserSonos {
 
-    func unescape(xml: String) {
-        let unescaped = xml.unescaped
-        print(unescaped)
-    }
-
     func parse(xml: String) {
         let xml = XMLHash.parse(xml)
         let zones = xml["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
@@ -127,14 +122,15 @@ final class XMLParserSonos {
             )
         }
 
-        guard let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text,
-              let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
+        guard let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
+              !trackURI.isEmpty,
               let trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
         else {
             return .empty
         }
 
+        let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text ?? "Unknown"
         let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text
         let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text
         let albumArtist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:albumArtist"].element?.text
@@ -226,7 +222,7 @@ final class XMLParserSonos {
         }
 
         var sonosAlbumArtURL: URL? = nil
-        if let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].element?.text {
+        if let albumArtURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:albumArtURI"].all.first?.element?.text {
             let ip = preferredIPForTrackAlbumArt ?? IP
             sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
 
@@ -467,7 +463,7 @@ final class XMLParserSonos {
 
             let artist = item["dc:creator"].element?.text
             var sonosAlbumArtURL: URL?
-            if let albumArtURI = item["upnp:albumArtURI"].element?.text {
+            if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
                 let ip = preferredIPForTrackAlbumArt ?? IP
                 sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
 
@@ -573,7 +569,7 @@ final class XMLParserSonos {
             let albumID = item.element?.allAttributes["parentID"]?.text
 
             var sonosAlbumArtURL: URL?
-            if let albumArtURI = item["upnp:albumArtURI"].element?.text {
+            if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
                 sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")
             }
 
@@ -598,6 +594,177 @@ final class XMLParserSonos {
         }
 
         return searchResults
+    }
+
+    func parsePlaylists(IP: String, xml: String) -> [PlayableContent] {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
+        let resultsParsed = XMLHash.parse(resultXML)
+        guard let items = resultsParsed.children.first?.children else { return [] }
+
+        var searchResults: [PlayableContent] = []
+
+        for item in items {
+            guard let title = item["dc:title"].element?.text,
+                  let trackID = item["res"].element?.text,
+                  let type = item["upnp:class"].element?.text,
+                  let contentType = ContentType(type) else {
+                continue
+            }
+
+
+            var artist = ""
+
+            let album = item["upnp:album"].element?.text
+            let trackAlbumArtist = item["r:albumArtist"].element?.text
+            let creator = item["dc:creator"].element?.text
+            let albumID = item.element?.allAttributes["parentID"]?.text
+            var sonosAlbumArtURL: URL?
+            if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
+                sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")
+            }
+
+            var subtitle = ""
+            switch contentType {
+            case .album:
+                artist = creator ?? ""
+                subtitle = "\(artist)"
+            case .track:
+                artist = (trackAlbumArtist ?? creator) ?? ""
+                if let album {
+                    subtitle = "\(artist) • \(album)"
+                }
+            default:
+                break
+            }
+
+            let mediaContent = MediaContent(service: .library, id: trackID, type: contentType, location: nil)
+            let metadata = PlayableContentMetadata(artist: artist, album: album, albumID: albumID)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            searchResults.append(playableContent)
+        }
+
+        return searchResults
+    }
+
+    func parsePlaylistsTracks(IP: String, xml: String) -> [PlayableContent] {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
+        let resultsParsed = XMLHash.parse(resultXML)
+        guard let items = resultsParsed.children.first?.children else { return [] }
+
+        var searchResults: [PlayableContent] = []
+
+        for item in items {
+            guard let title = item["dc:title"].element?.text,
+                  var trackID = item["res"].element?.text,
+                  let type = item["upnp:class"].element?.text,
+                  let contentType = ContentType(type) else {
+                continue
+            }
+
+
+            var artist = ""
+
+            let album = item["upnp:album"].element?.text
+            let trackAlbumArtist = item["r:albumArtist"].element?.text
+            let creator = item["dc:creator"].element?.text
+            let albumID = item.element?.allAttributes["parentID"]?.text
+            var sonosAlbumArtURL: URL?
+            if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
+                sonosAlbumArtURL = URL(string: "http://\(IP):1400\(albumArtURI.unescaped)")
+            }
+
+            var subtitle = ""
+            switch contentType {
+            case .album:
+                artist = creator ?? ""
+                subtitle = "\(artist)"
+            case .track:
+                artist = (trackAlbumArtist ?? creator) ?? ""
+                if let album {
+                    subtitle = "\(artist) • \(album)"
+                }
+            default:
+                break
+            }
+
+            var musicService = MusicService.unknown
+            if let trackURI = item["res"].element?.text.removingPercentEncoding {
+                musicService = trackURI.contains("spotify") ? .spotify : .apple
+                if trackURI.contains("airplay") {
+                    musicService = .airplay
+                }
+
+                if trackURI.contains("x-file-cifs") {
+                    musicService = .library
+                }
+
+                // TODO: Parse with this for HiRes info
+//                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
+//                if protocolInfo.contains("x-sonos-http") {
+//                    musicService = .plex
+//                }
+
+                let tidalPattern = #/track\/(\d{7,9})/#
+                if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
+                    musicService = .tidal
+                    trackID = String(result.1)
+                }
+
+                switch musicService {
+                case .apple:
+                    let pattern = #/song:(\w*)/#
+                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                        trackID = String(result.1)
+                    } else {
+                        musicService = .unknown
+                    }
+                case .spotify:
+                    let pattern = #/track:(\w*)/#
+                    if let result = try? pattern.firstMatch(in: trackURI) {
+                        trackID = String(result.1)
+                    } else {
+                        musicService = .unknown
+                    }
+                case .airplay, .unknown:
+                    musicService = .unknown
+                case .library:
+                    trackID = item["res"].element?.text ?? ""
+                case .plex:
+                    // MARK: Verify
+                    trackID = item["res"].element?.text ?? ""
+                case .tidal:
+                    break
+                }
+            }
+
+            var trackDuration = Duration.zero
+            if let trackDurationString = item["res"].element?.attribute(by: "duration")?.text {
+                let trackDurationComponents = trackDurationString.components(separatedBy: ":")
+                if trackDurationComponents.count == 3,
+                   let hours = Int(trackDurationComponents[0]),
+                   let minutes = Int(trackDurationComponents[1]),
+                   let seconds = Int(trackDurationComponents[2])
+                {
+                    let totalMilliseconds = ((hours * 60 + minutes) * 60 + seconds) * 1000
+                    trackDuration = Duration.milliseconds(totalMilliseconds)
+                }
+            }
+
+            let mediaContent = MediaContent(service: musicService, id: trackID, type: contentType, location: nil)
+            let metadata = PlayableContentMetadata(duration: trackDuration, artist: artist, album: album, albumID: albumID)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            searchResults.append(playableContent)
+        }
+
+        return searchResults
+    }
+
+    func parseGetUpdateId(IP: String, xml: String) -> String {
+        let xmlParsed = XMLHash.parse(xml)
+        let updateID = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["UpdateID"].element?.text
+        return updateID ?? "0"
     }
 
     func parseDeviceInfo(xml: String) -> DeviceInfo? {

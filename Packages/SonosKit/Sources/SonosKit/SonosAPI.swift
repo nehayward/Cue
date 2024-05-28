@@ -920,10 +920,7 @@ final class SonosAPI: NSObject {
             return nil
         }
 
-        let xml = String(decoding: data, as: UTF8.self)
-        print(xml)
         guard let favoriteList = try? decoder.decode(FavoritesList.self, from: data) else { return nil }
-        print(favoriteList)
         return favoriteList
     }
     
@@ -968,7 +965,8 @@ final class SonosAPI: NSObject {
             return sonosAlbumArtURL
         }
 
-        print(favorite.imageUrl)
+        // MARK: Might need to reevaluate
+//        print(favorite.imageUrl)
         return URL(string: favorite.imageUrl)
     }
 

@@ -135,35 +135,68 @@ struct DeviceListMainView: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 24) {
-                    Spacer()
-                    if subscriptionService.subscription.isActive {
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.sheet(to: .scenes)
-                        } label: {
-                            Image(systemName: "wand.and.stars.inverse")
-                                .resizable()
-                                .foregroundStyle(.accent.gradient)
-                                .frame(width: 24, height: 24)
-                        }
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.sheet(to: .scenes)
+                    } label: {
+                        Image(systemName: "wand.and.stars.inverse")
+//                            .resizable()
+//                            .foregroundStyle(.accent.gradient)
+//                            .frame(width: 24, height: 24)
                     }
-
+                    Spacer()
                     Button{
                         HapticManager.shared.fireHaptic(.buttonPress)
                         router.sheet(to: .search())
                     } label: {
                         Image(systemName: "sparkle.magnifyingglass")
-                            .resizable()
-                            .foregroundStyle(.accent.gradient)
-                            .frame(width: 24, height: 24)
+//                            .resizable()
+//                            .foregroundStyle(.accent.gradient)
+//                            .frame(width: 24, height: 24)
+                    }
+                    Spacer()
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.sheet(to: .browse())
+                    } label: {
+                        Image(systemName: "music.note.house.fill")
+//                            .resizable()
+//                            .foregroundStyle(.accent.gradient)
+//                            .frame(width: 24, height: 24)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(.thinMaterial)
             }
+//            .safeAreaInset(edge: .bottom) {
+//                HStack(spacing: 24) {
+//                    Spacer()
+//                    if subscriptionService.subscription.isActive {
+//                        Button {
+//                            HapticManager.shared.fireHaptic(.buttonPress)
+//                            router.sheet(to: .scenes)
+//                        } label: {
+//                            Image(systemName: "wand.and.stars.inverse")
+//                                .resizable()
+//                                .foregroundStyle(.accent.gradient)
+//                                .frame(width: 24, height: 24)
+//                        }
+//                    }
+//
+//                    Button{
+//                        HapticManager.shared.fireHaptic(.buttonPress)
+//                        router.sheet(to: .search())
+//                    } label: {
+//                        Image(systemName: "sparkle.magnifyingglass")
+//                            .resizable()
+//                            .foregroundStyle(.accent.gradient)
+//                            .frame(width: 24, height: 24)
+//                    }
+//                }
+//                .padding()
+//                .frame(maxWidth: .infinity)
+//                .background(.thinMaterial)
+//            }
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .safeAreaInset(edge: .top) {

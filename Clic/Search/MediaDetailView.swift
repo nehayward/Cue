@@ -18,6 +18,7 @@ struct MediaDetailView: View {
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
     @State private var artworkURL: URL?
+    @State private var isLoaded: Bool = false
 
     var group: GroupRoom?
 
@@ -45,8 +46,8 @@ struct MediaDetailView: View {
             .listSectionSeparator(.hidden)
             .listRowBackground(Color.clear)
             HStack {
-                Text("\(playableContent.subtitle) • \(tracks.count.formatted()) Tracks •")
-                Text("\(Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +)).formatted(.time(pattern: .minuteSecond)))")
+                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")\(tracks.count.formatted()) Tracks •")
+                Text("\(Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +)).formatted(.time(pattern: .hourMinuteSecond)))")
             }
             .frame(maxWidth: .infinity)
             .fontDesign(.rounded)
@@ -78,19 +79,18 @@ struct MediaDetailView: View {
                                 .frame(width: 60, height: 60)
                         }
                         VStack(alignment: .leading) {
-                            HStack {
-                                Text(track.title)
-                                Spacer()
-                            }
+                            Text(track.title)
+                                .lineLimit(1)
                             Text(track.subtitle)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            if let duration = track.metadata?.duration, duration.components.seconds != 0 {
+                                Text(duration, format: .time(pattern: .minuteSecond))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                         Spacer()
-                        if let duration = track.metadata?.duration {
-                            Text(duration, format: .time(pattern: .minuteSecond))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                         Menu {
                             menu(content: track)
                         } label: {
@@ -102,10 +102,23 @@ struct MediaDetailView: View {
                     .contextMenu {
                         menu(content: track)
                     }
+
                 }
                 .listRowBackground(Color.clear)
+                .task(id: track.id) {
+                    //                    guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
+                    //                        return
+                    //                    }
+
+                    //                    track.artwork = nil
+                }
             }
-            if tracks.isEmpty {
+//            .if(playableContent.content.service == .library && playableContent.content.type == .playlist) { view in
+//                // We only apply this background color if shouldApplyBackground is true
+//                view.onMove(perform: move)
+//            }
+
+            if tracks.isEmpty, !isLoaded {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowSeparator(.hidden)
@@ -116,7 +129,7 @@ struct MediaDetailView: View {
         .listSectionSeparator(.hidden)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if tracks.isEmpty, playableContent.content.type != .track {
+                if !isLoaded {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
@@ -128,7 +141,7 @@ struct MediaDetailView: View {
                 }
             }
         }
-        .task {
+        .task(id: tracks) {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
             case (.album, .apple):
@@ -166,7 +179,7 @@ struct MediaDetailView: View {
                 self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
             case (.playlist, .library):
                 artworkURL = playableContent.artwork
-                self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
+                self.tracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
             case (.track, .library):
                 artworkURL = playableContent.artwork
                 guard let albumName = playableContent.metadata?.album,
@@ -191,6 +204,7 @@ struct MediaDetailView: View {
             default:
                 break
             }
+            isLoaded = true
         }
     }
 
@@ -200,11 +214,10 @@ struct MediaDetailView: View {
                 router.navigate(to: .groupDestination(content: content, position: position))
                 return
             }
-            
+
             playHistory.remove(content)
             playHistory.insert(content, at: 0)
 
-            router.dismiss = true
             await sonosService.queue(playable: content, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
@@ -223,9 +236,35 @@ struct MediaDetailView: View {
             } label: {
                 Label("Play Last", systemImage: "text.line.last.and.arrowtriangle.forward")
             }
+
+            if playableContent.content.type == .playlist, playableContent.content.service == .library {
+                Button(role: .destructive) {
+                    Task {
+                        guard let index = tracks.firstIndex(where: { $0 == content }) else { return }
+                        try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
+                        tracks.remove(at: index)
+                    }
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+            }
         }
     }
+
+    // TODO: Add later
+//    private func move(from source: IndexSet, to destination: Int) {
+//        // TODO: Fix swap positions
+//        tracks.move(fromOffsets: source, toOffset: destination)
+//
+//        Task {
+//            guard let sourceIndex = source.first else { return }
+//            try await sonosService.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex + 1, to: destination + 1)
+//        }
+//    }
+
 }
+
+
 
 //#Preview {
 //    // https://music.apple.com/us/playlist/dua-lipa-essentials/pl.ee7b1aea4b5f42d398e6cd3084f7396b

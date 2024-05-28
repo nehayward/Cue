@@ -281,6 +281,9 @@
 		E98F8FF92ACBAAD600C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E98F8FFA2ACBAB1000C85878 /* PreviousIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */; };
 		E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E992B6E82A645B6600FD6380 /* LargePlayerView.swift */; };
+		E99403D22C05817700D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
+		E99403D32C063CAC00D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
+		E99403D42C063CAD00D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
 		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */; };
@@ -294,13 +297,17 @@
 		E9A380682C00F27400D5349E /* Storage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380672C00F27400D5349E /* Storage.swift */; };
 		E9A380692C00FC8C00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
 		E9A3806A2C00FC8D00D5349E /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
-		E9A3806D2C01005400D5349E /* LibraryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806C2C01005400D5349E /* LibraryScreen.swift */; };
+		E9A3806D2C01005400D5349E /* BrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806C2C01005400D5349E /* BrowseScreen.swift */; };
 		E9A380702C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A380712C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */; };
 		E9A380742C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
 		E9A380752C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
 		E9A380762C01052800D5349E /* CoreFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A380732C01052800D5349E /* CoreFeatures.swift */; };
+		E9A3807B2C01217200D5349E /* BrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806C2C01005400D5349E /* BrowseScreen.swift */; };
+		E9A3807C2C01217200D5349E /* BrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3806C2C01005400D5349E /* BrowseScreen.swift */; };
+		E9A3807E2C02F91F00D5349E /* AddToPlaylistMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */; };
+		E9A380802C03EFC800D5349E /* ConditionalViewModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3807F2C03EFC800D5349E /* ConditionalViewModifier.swift */; };
 		E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
 		E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */; };
@@ -591,6 +598,7 @@
 		E98F8FF82ACBAAD600C85878 /* PreviousIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousIntent.swift; sourceTree = "<group>"; };
 		E99011392B69A0BC00D2DFF5 /* Clic-Mac.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Clic-Mac.plist"; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
+		E99403D12C05817700D20067 /* NewPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewPlaylistView.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
 		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
@@ -598,9 +606,11 @@
 		E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		E9A380612C00419100D5349E /* SleepTimerCustomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerCustomView.swift; sourceTree = "<group>"; };
 		E9A380672C00F27400D5349E /* Storage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Storage.swift; sourceTree = "<group>"; };
-		E9A3806C2C01005400D5349E /* LibraryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreen.swift; sourceTree = "<group>"; };
+		E9A3806C2C01005400D5349E /* BrowseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseScreen.swift; sourceTree = "<group>"; };
 		E9A3806F2C0100DA00D5349E /* InspectorDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorDestination.swift; sourceTree = "<group>"; };
 		E9A380732C01052800D5349E /* CoreFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreFeatures.swift; sourceTree = "<group>"; };
+		E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPlaylistMenu.swift; sourceTree = "<group>"; };
+		E9A3807F2C03EFC800D5349E /* ConditionalViewModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionalViewModifier.swift; sourceTree = "<group>"; };
 		E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerLargePlayerView.swift; sourceTree = "<group>"; };
 		E9A46FCF2B6840BC000D4094 /* WatchHapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHapticManager.swift; sourceTree = "<group>"; };
 		E9A6AAB52B3CCADA00C24B98 /* QueueListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueListView.swift; sourceTree = "<group>"; };
@@ -920,7 +930,8 @@
 		E9A3806B2C01004B00D5349E /* Library */ = {
 			isa = PBXGroup;
 			children = (
-				E9A3806C2C01005400D5349E /* LibraryScreen.swift */,
+				E9A3806C2C01005400D5349E /* BrowseScreen.swift */,
+				E99403D12C05817700D20067 /* NewPlaylistView.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -1033,6 +1044,7 @@
 				E9A3EC722B840263002517E3 /* ContainerLargePlayerView.swift */,
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */,
+				E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */,
 				E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */,
 				E9A380612C00419100D5349E /* SleepTimerCustomView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
@@ -1056,6 +1068,7 @@
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */,
 				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
+				E9A3807F2C03EFC800D5349E /* ConditionalViewModifier.swift */,
 				E9331B512AAE2013002D3CFD /* Debug */,
 				E9BDE57329E3396800D230A8 /* Assets.xcassets */,
 				E9BDE57529E3396800D230A8 /* Preview Content */,
@@ -1505,6 +1518,7 @@
 				E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */,
 				E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */,
 				E92B3E9F2B60249B00724FA1 /* Bundle+AppIcon.swift in Sources */,
+				E99403D32C063CAC00D20067 /* NewPlaylistView.swift in Sources */,
 				E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */,
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
@@ -1559,6 +1573,7 @@
 				E9A380752C01052800D5349E /* CoreFeatures.swift in Sources */,
 				E92B3EC72B60249B00724FA1 /* Environments.swift in Sources */,
 				E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */,
+				E9A3807B2C01217200D5349E /* BrowseScreen.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
 				E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */,
 				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
@@ -1615,6 +1630,7 @@
 				E97562E12B699B2400787E14 /* Bundle+AppIcon.swift in Sources */,
 				E97562E22B699B2400787E14 /* LiveActivity+Environment.swift in Sources */,
 				E97562E32B699B2400787E14 /* AppRegistry.swift in Sources */,
+				E99403D42C063CAD00D20067 /* NewPlaylistView.swift in Sources */,
 				E97562E42B699B2400787E14 /* LogScreen.swift in Sources */,
 				E97562E52B699B2400787E14 /* CreateLiveActivityIntent.swift in Sources */,
 				E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */,
@@ -1677,6 +1693,7 @@
 				E97563132B699B2400787E14 /* SpotifySearchView.swift in Sources */,
 				E97563142B699B2400787E14 /* ManageSceneScreen.swift in Sources */,
 				E97563152B699B2400787E14 /* MediaControlsView.swift in Sources */,
+				E9A3807C2C01217200D5349E /* BrowseScreen.swift in Sources */,
 				E97563162B699B2400787E14 /* NightModeIntent.swift in Sources */,
 				E97563172B699B2400787E14 /* PaywallButtonView.swift in Sources */,
 				E97563182B699B2400787E14 /* OSEnvironment.swift in Sources */,
@@ -1785,6 +1802,7 @@
 				E98527922A5E59B8009016C2 /* SetRelativeGroupVolumeIntent.swift in Sources */,
 				E985278F2A5E5955009016C2 /* SonosDeviceQuery.swift in Sources */,
 				E92DCB9C2B6445EC00A2C3B5 /* DropDestination+.swift in Sources */,
+				E9A380802C03EFC800D5349E /* ConditionalViewModifier.swift in Sources */,
 				E985278D2A5E0848009016C2 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E992B6EB2A645B8D00FD6380 /* LargePlayerView.swift in Sources */,
 				E98150DD2BED14610076E312 /* AlarmView.swift in Sources */,
@@ -1817,6 +1835,7 @@
 				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
+				E9A3807E2C02F91F00D5349E /* AddToPlaylistMenu.swift in Sources */,
 				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,
 				E98150D92BED143D0076E312 /* AlarmListView.swift in Sources */,
 				E9BF3ABC2B0E7CFC00AF57EA /* SpotifySearchView.swift in Sources */,
@@ -1824,7 +1843,7 @@
 				E9F20D5A2A69B3FD00C43F1E /* MediaControlsView.swift in Sources */,
 				E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */,
 				E9CF44F62B55C94C00D66181 /* PaywallButtonView.swift in Sources */,
-				E9A3806D2C01005400D5349E /* LibraryScreen.swift in Sources */,
+				E9A3806D2C01005400D5349E /* BrowseScreen.swift in Sources */,
 				E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */,
 				E9A46FD02B6840BC000D4094 /* WatchHapticManager.swift in Sources */,
 				E9A380622C00419100D5349E /* SleepTimerCustomView.swift in Sources */,
@@ -1847,6 +1866,7 @@
 				E9B135BF2B6B62B00096A14E /* MediaDetailView.swift in Sources */,
 				E9A380742C01052800D5349E /* CoreFeatures.swift in Sources */,
 				E97529262BF9B5C2006E871C /* TidalSearchView.swift in Sources */,
+				E99403D22C05817700D20067 /* NewPlaylistView.swift in Sources */,
 				E9BF3ABE2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift in Sources */,
 				E94A6A252AAACB49002E432C /* ArtworkView.swift in Sources */,
 				E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */,
@@ -2663,7 +2683,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2714,7 +2734,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
@@ -2922,7 +2942,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				ICON = "$(ICON)";
 				INFOPLIST_FILE = Clic/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Clic°";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(NAME)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";

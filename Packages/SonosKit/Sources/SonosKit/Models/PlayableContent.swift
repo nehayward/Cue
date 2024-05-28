@@ -61,6 +61,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return "x-rincon-cpcontainer:1004206calbum%2f\(id)"
         case (.artist, .tidal):
             return ""
+        case (.track, .unknown):
+            return id.encodeProgramURI
         default:
             assertionFailure("Failed")
             return ""
@@ -130,6 +132,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         case (.artist, .tidal):
             return """
 \(Self.defaultXMLNSHeader) id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.track, .unknown):
+            return """
+\(Self.defaultXMLNSHeader) id="\(id.encodeProgramURI)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         default:
             return ""

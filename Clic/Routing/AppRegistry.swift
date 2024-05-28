@@ -9,8 +9,8 @@ import SwiftUI
 @MainActor
 extension View {
     
-    func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>) -> some View {
-        sheet(item: sheetDestinations) { destination in
+    func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
+        sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
             Group {
                 switch destination {
                 case let .groupScreen(group):
@@ -96,6 +96,12 @@ extension View {
                     }
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
+                case let .browse(group: group):
+                    BrowseScreen(group: group)
+                case let .newPlaylist(group: group):
+                    NewPlaylistView(group: group)
+                case let .renamePlaylist(content: content):
+                    NewPlaylistView(playlist: content)
                 }
             }
             .withEnvironments()
@@ -165,6 +171,12 @@ extension View {
                     }
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
+                case let .browse(group: group):
+                    BrowseScreen(group: group)
+                case let .newPlaylist(group: group):
+                    NewPlaylistView(group: group)
+                case let .renamePlaylist(content: content):
+                    NewPlaylistView(playlist: content)
                 }
             }
             .withEnvironments()

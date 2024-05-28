@@ -60,4 +60,5 @@ final class IntegrationsTests: XCTestCase {
         try await sonosService.load(useCache: true)
         try await sonosService.listAlarms()
     }
+    
 }

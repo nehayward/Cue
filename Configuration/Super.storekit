@@ -107,9 +107,9 @@
             },
             {
               "eligibility" : [
-                "expired",
+                "new",
                 "existing",
-                "new"
+                "expired"
               ],
               "internalID" : "26B28BB5",
               "isStackable" : true,

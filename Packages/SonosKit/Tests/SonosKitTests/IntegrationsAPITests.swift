@@ -70,4 +70,9 @@ final class IntegrationsAPITests: XCTestCase {
     func testDeviceInfo() async throws {
         try await sonosAPI.deviceInfo(IP: theaterIP)
     }
+
+    func testGetPlaylist() async throws {
+        let playlists = try await sonosAPI.sonosPlaylists(IP: theaterIP)
+        print(playlists)
+    }
 }

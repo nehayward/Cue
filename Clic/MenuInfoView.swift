@@ -8,6 +8,7 @@ struct MenuInfoView: View {
     @State private var coreFeatures = CoreFeatures()
 
     var group: GroupRoom
+    @State private var playlists: [PlayableContent] = []
 
     var body: some View {
         Menu {
@@ -52,6 +53,7 @@ struct MenuInfoView: View {
                 }
 //                let playable = group.coordinatorRoom.track.toPlayable
 //                ShareLink(item: playable)
+                AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
             }
             Button {
                 router.sheet(to: .alarms(group: group))

@@ -275,7 +275,6 @@ public final class MusicSearchService {
         guard await requestMusicAuthorization() else { return nil }
 
         let albumID = MusicItemID(id)
-        print(id)
         var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         catalogResource.properties = [.tracks, .artists]
         let response2 = try await catalogResource.response()
@@ -302,7 +301,6 @@ public final class MusicSearchService {
         guard await requestMusicAuthorization() else { return nil }
 
         let albumID = MusicItemID(id)
-        print(id)
         var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: albumID)
         catalogResource.properties = [.albums, .topSongs]
         let response = try await catalogResource.response()

@@ -31,8 +31,6 @@ struct TidalSearchView: View {
                 }
             }
         }
-        .animation(.bouncy, value: filters)
-        .animation(.bouncy, value: tidalResults)
         .fontDesign(.rounded)
     }
 }

@@ -875,8 +875,8 @@ public final class SonosService {
 //            guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return nil }
 //            return tidalTrack.artwork
         case .plex:
-            print(track.artworkURL)
-            print(track)
+//            print(track.artworkURL)
+//            print(track)
             
             return nil
         case .airplay, .unknown, .library:
@@ -1297,21 +1297,6 @@ public final class SonosService {
         }
     }
 
-    // MARK: Library
-    public func playLibraryItem(on group: GroupRoom, ID: String, position: QueuePosition = .now) async {
-        let queueActive = group.playbackService == .queue
-
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-
-        await api.queueLibraryItem(ID: ID, IP: group.ip, position: position)
-
-        if position == .now, queueActive {
-            await next(ip: group.ip)
-        }
-    }
-
     // MARK: TODO add queueing for Apple Music
     public func queue(url: URL, group: GroupRoom, position: QueuePosition = .now) async {
         guard let content = api.parse(url: url) else {
@@ -1361,11 +1346,13 @@ public final class SonosService {
         case (.favorite, _):
             await playFavorite(on: group, favoriteID: playable.content.id)
         case (_, .library):
-            await playLibraryItem(on: group, ID: playable.content.id, position: position)
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.track, .plex):
             await queuePlayable(playable: playable, group: group, position: position)
             // MARK: - Tidal
         case (_, .tidal):
+            await queuePlayable(playable: playable, group: group, position: position)
+        case (.track, .unknown):
             await queuePlayable(playable: playable, group: group, position: position)
         default:
             break
@@ -1442,6 +1429,55 @@ public final class SonosService {
     public func refreshLibrary() async {
         guard let ip = prioritizedIP() else { return  }
         await api.refreshLibrary(IP: ip)
+    }
+
+    // MARK: - Sonos Playlists/Queue
+    public func sonosPlaylists() async -> [PlayableContent] {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return [] }
+        return await api.sonosPlaylists(IP: ip)
+    }
+
+    public func sonosPlaylistsTracks(for id: String) async -> [PlayableContent] {
+        guard let ip = prioritizedIP() else { return [] }
+        return await api.sonosPlaylistsTracks(IP: ip, id: id)
+    }
+
+    public func createPlaylist(title: String) async {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return }
+        return await api.createPlaylist(IP: ip, title: title)
+    }
+
+    public func delete(playlistID: String) async {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return }
+        return await api.removePlaylist(IP: ip, itemID: playlistID)
+    }
+
+    public func addToPlaylist(playlistID: String, playableContent: PlayableContent) async {
+        // MARK: Update use faster Sonos Devices if Available
+        guard let ip = prioritizedIP() else { return }
+        return await api.addToPlaylist(IP: ip, playlistID: playlistID, content: playableContent)
+    }
+
+    public func reorderPlaylist(playlistID: String, from: Int, to: Int) async throws {
+        guard let ip = prioritizedIP() else { return }
+        await api.reorderSavedQueue(IP: ip, from: from, to: to, savedQueueID: playlistID)
+    }
+
+    public func removeTrackFromPlaylist(playlistID: String, index: Int) async throws {
+        guard let ip = prioritizedIP() else { return }
+        await api.removeTrackFromSavedQueue(IP: ip, trackID: String(index), savedQueueID: playlistID)
+    }
+
+    public func saveQueue(ip: String, title: String) async throws {
+        await api.saveQueue(IP: ip, title: title)
+    }
+
+    public func renamePlaylist(existingPlaylist: PlayableContent, newName: String) async throws {
+        guard let ip = prioritizedIP() else { return }
+        await api.renamePlaylist(IP: ip, playlistID: existingPlaylist.id, oldName: existingPlaylist.title, newName: newName)
     }
 
     // MARK: - Alarms

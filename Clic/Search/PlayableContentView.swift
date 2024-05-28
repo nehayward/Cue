@@ -15,7 +15,8 @@ struct PlayableContentView: View {
     @Environment(AlertService.self) private var alertService: AlertService
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
-    
+    @State var playlists: [PlayableContent] = []
+
     var item: PlayableContent
     var group: GroupRoom?
 
@@ -89,6 +90,9 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
+        .task {
+            playlists = await sonosService.sonosPlaylists()
+        }
     }
 
 
@@ -117,6 +121,14 @@ struct PlayableContentView: View {
                     Text("View Playlist")
                 }
 
+                if item.content.service == .library {
+                    Button {
+                        router.presentedSheet = .renamePlaylist(content: item)
+                    } label: {
+                        Text("Rename")
+                    }
+
+                }
 // TODO: Add scene playlist
 //                NavigationLink(value: RouterDestination.createScene(content: item)) {
 //                    Label("Create Scene", systemImage: "bolt.fill")
@@ -155,6 +167,16 @@ struct PlayableContentView: View {
                     play(position: .end)
                 } label: {
                     Label("Play Last", systemImage: "text.line.last.and.arrowtriangle.forward")
+                }
+
+                Menu("Add to Playlist") {
+                    ForEach(playlists) { playlist in
+                        Button(playlist.title) {
+                            Task {
+                                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: item)
+                            }
+                        }
+                    }
                 }
             case .radio, .favorite:
                 Button {

@@ -75,6 +75,16 @@ struct LargePlayerView: View {
                         Spacer()
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
+                            router.sheet(to: .browse(group: group))
+                        } label: {
+                            Image(systemName: "music.note.house")
+                                .fontDesign(.rounded)
+                        }
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        Spacer()
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
                             router.presentedSheet = .search(group: group)
                         } label: {
                             Image(systemName: "sparkle.magnifyingglass")
@@ -158,7 +168,7 @@ struct LargePlayerView: View {
                         }
                     }
                     .frame(maxWidth: 300)
-                    .padding(.horizontal, 60)
+                    .padding(.horizontal, 38)
                 } else {
                     if group.rooms.count > 1 {
                         Button {

@@ -17,6 +17,9 @@ enum SheetDestination: Identifiable, Equatable {
     case searchAdd(adding: ContentToAdd)
     case alarms(group: GroupRoom? = nil)
     case customSleepTimer(group: GroupRoom)
+    case browse(group: GroupRoom? = nil)
+    case newPlaylist(group: GroupRoom? = nil)
+    case renamePlaylist(content: PlayableContent)
 
     var id: String {
         switch self {
@@ -50,6 +53,12 @@ enum SheetDestination: Identifiable, Equatable {
             "alarms"
         case .customSleepTimer:
             "customSleepTimer"
+        case .browse:
+            "browse"
+        case .newPlaylist:
+            "new.playlist"
+        case .renamePlaylist:
+            "rename.playlist"
         }
     }
 
