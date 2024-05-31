@@ -13,7 +13,7 @@ extension Array where Element == SpotifyImage {
     }
 
     public var thumbnail: URL? {
-        let largest = self.sorted(by: { $0.height ?? 0 < $1.height ?? 0 })
-        return URL(string: largest.first?.url ?? "")
+        let smallest = self.sorted(by: { $0.height ?? 0 < $1.height ?? 0 })
+        return URL(string: smallest.first?.url ?? "")
     }
 }

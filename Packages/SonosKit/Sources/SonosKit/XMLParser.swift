@@ -380,14 +380,13 @@ final class XMLParserSonos {
         return nil
     }
 
-    func parseQueue(IP: String, xml: String, preferredIPForTrackAlbumArt: String?) -> [Track] {
+    func parseQueue(IP: String, xml: String, preferredIPForTrackAlbumArt: String?) -> [PlayableContent] {
         let xmlParsed = XMLHash.parse(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
         let resultsParsed = XMLHash.parse(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
-        var tracks: [Track] = []
+        var tracks: [PlayableContent] = []
 
-   
         for item in items {
             guard let trackNumber = Int(item.element?.attribute(by: "id")?.text.components(separatedBy: "/").last ?? "")
             else {
@@ -491,21 +490,20 @@ final class XMLParserSonos {
                 emptyAlbum = album
             }
 
-            let track = Track(
-                trackID: trackID,
-                name: title,
-                artist: emptyArtist,
-                album: emptyAlbum,
-                musicService: musicService,
-                duration: trackDuration,
-                playbackPosition: .zero,
-                position: trackNumber,
-                sonosAlbumArtURL: sonosAlbumArtURL
-            )
-
-            tracks.append(track)
+            var subtitle = ""
+            subtitle = [emptyArtist, emptyAlbum].filter({ !$0.isEmpty }).joined(separator: " • ")
+            let mediaContent = MediaContent(service: musicService, id: trackID, type: .track, location: nil)
+            let metadata = PlayableContentMetadata(duration: Duration.milliseconds(trackDuration), artist: emptyArtist, album: emptyAlbum, position: trackNumber)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            tracks.append(playableContent)
         }
         return tracks
+    }
+
+    func parseQueueCount(IP: String, xml: String) -> Int? {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let queueCount = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["TotalMatches"].element?.text else { return nil }
+        return Int(queueCount)
     }
 
     func parseForCurrentValue(xml: String) throws -> Bool {

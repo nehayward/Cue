@@ -9,6 +9,7 @@ import MusicKit
 import MusicSearchKit
 import StoreKit
 import SwiftUI
+import TipKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -26,6 +27,7 @@ struct ClicApp: App {
     @State private var sonosService = SonosService.shared
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
+    @State private var playlistContainer = PlaylistContainer.shared
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
@@ -78,6 +80,7 @@ struct ClicApp: App {
             .environment(subscriptionService)
             .environment(alertService)
             .environment(musicSearchService)
+            .environment(playlistContainer)
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
@@ -105,6 +108,14 @@ struct ClicApp: App {
                     WidgetCenter.shared.reloadAllTimelines()
 #endif
                 }
+                
+                try? Tips.configure(
+                    [
+                        .displayFrequency(.immediate)
+                    ]
+                )
+                // MARK: For Debug
+//                Tips.showTipsForTesting([AppTip.self])
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)

@@ -4,23 +4,21 @@ import MusicSearchKit
 
 struct AddToPlaylistMenu: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Router.self) var router: Router
+    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
 
     var itemToAdd: PlayableContent
-    @State private var playlists: [PlayableContent] = []
 
     var body: some View {
-        Menu("Add to Playlist") {
-            ForEach(playlists) { playlist in
+        Menu {
+            ForEach(playlistsContainer.playlists) { playlist in
                 Button(playlist.title) {
                     Task {
                         await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
                     }
                 }
             }
-        }
-        .task {
-            playlists = await sonosService.sonosPlaylists()
+        } label: {
+            Label("Add to Playlist", systemImage: "plus")
         }
     }
 }

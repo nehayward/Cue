@@ -19,6 +19,10 @@
 		E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
+		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
+		E91976DF2C0A1B26000FA449 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DE2C0A1B26000FA449 /* NukeUI */; };
+		E91976E12C0A1B45000FA449 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E02C0A1B45000FA449 /* Defaults */; };
+		E91976E32C0A1B63000FA449 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E22C0A1B63000FA449 /* OrderedCollections */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
@@ -120,6 +124,8 @@
 		E93E49412BFB10E70064A979 /* TidalSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97529252BF9B5C2006E871C /* TidalSearchView.swift */; };
 		E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */; };
 		E940E7162AAFBD17004303CD /* FilterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E940E7152AAFBD17004303CD /* FilterView.swift */; };
+		E9411D432C07A90D00C527EE /* AddToPlaylistMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */; };
+		E9411D442C07A90D00C527EE /* AddToPlaylistMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */; };
 		E949E8EE2BDC4C75006D4556 /* ArtworkBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E949E8ED2BDC4C75006D4556 /* ArtworkBadgeView.swift */; };
 		E949E8EF2BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E949E8ED2BDC4C75006D4556 /* ArtworkBadgeView.swift */; };
 		E949E8F02BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E949E8ED2BDC4C75006D4556 /* ArtworkBadgeView.swift */; };
@@ -233,8 +239,7 @@
 		E97563362B699B2400787E14 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E97562D22B699B2400787E14 /* CloudStorage */; };
 		E97563382B699B2400787E14 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */; };
 		E97563392B699B2400787E14 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9BDE57329E3396800D230A8 /* Assets.xcassets */; };
-		E975633B2B699B2400787E14 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E97C0D412A325CC5005AB0E0 /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
 		E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97C0D472A325CC5005AB0E0 /* WidgetBundle.swift */; };
@@ -284,6 +289,13 @@
 		E99403D22C05817700D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
 		E99403D32C063CAC00D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
 		E99403D42C063CAD00D20067 /* NewPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D12C05817700D20067 /* NewPlaylistView.swift */; };
+		E99403D62C07796C00D20067 /* AppTips.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D52C07796C00D20067 /* AppTips.swift */; };
+		E99403D72C07796C00D20067 /* AppTips.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D52C07796C00D20067 /* AppTips.swift */; };
+		E99403D82C07796C00D20067 /* AppTips.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D52C07796C00D20067 /* AppTips.swift */; };
+		E99403DA2C0784E900D20067 /* PlaylistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D92C0784E900D20067 /* PlaylistContainer.swift */; };
+		E99403DB2C0784E900D20067 /* PlaylistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D92C0784E900D20067 /* PlaylistContainer.swift */; };
+		E99403DC2C0784E900D20067 /* PlaylistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D92C0784E900D20067 /* PlaylistContainer.swift */; };
+		E99403DE2C07945A00D20067 /* ThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403DD2C07945A00D20067 /* ThumbnailView.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
 		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */; };
@@ -428,13 +440,6 @@
 			remoteGlobalIDString = E97C0D402A325CC5005AB0E0;
 			remoteInfo = SonosWidgetExtension;
 		};
-		E97562CE2B699B2400787E14 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E92E47422B360C5C00DE6647;
-			remoteInfo = MusicQueue;
-		};
 		E97C0D522A325CC6005AB0E0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -465,7 +470,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				E975633B2B699B2400787E14 /* QueueAction.appex in Embed Foundation Extensions */,
 				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -599,6 +603,9 @@
 		E99011392B69A0BC00D2DFF5 /* Clic-Mac.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "Clic-Mac.plist"; sourceTree = "<group>"; };
 		E992B6E82A645B6600FD6380 /* LargePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargePlayerView.swift; sourceTree = "<group>"; };
 		E99403D12C05817700D20067 /* NewPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewPlaylistView.swift; sourceTree = "<group>"; };
+		E99403D52C07796C00D20067 /* AppTips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTips.swift; sourceTree = "<group>"; };
+		E99403D92C0784E900D20067 /* PlaylistContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistContainer.swift; sourceTree = "<group>"; };
+		E99403DD2C07945A00D20067 /* ThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailView.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
 		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
@@ -715,8 +722,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E91976E12C0A1B45000FA449 /* Defaults in Frameworks */,
+				E91976DF2C0A1B26000FA449 /* NukeUI in Frameworks */,
+				E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */,
 				E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */,
 				E92E47562B3647E200DE6647 /* SonosKit in Frameworks */,
+				E91976E32C0A1B63000FA449 /* OrderedCollections in Frameworks */,
 				E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -842,6 +853,7 @@
 			isa = PBXGroup;
 			children = (
 				E9B135BA2B6ADE690096A14E /* SearchScreen.swift */,
+				E99403D92C0784E900D20067 /* PlaylistContainer.swift */,
 				E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */,
 				E9B3476C2BF14BF300688851 /* ContentToAdd.swift */,
 				E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */,
@@ -1013,6 +1025,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E99403D52C07796C00D20067 /* AppTips.swift */,
 				E9A380672C00F27400D5349E /* Storage.swift */,
 				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
 				E9A380732C01052800D5349E /* CoreFeatures.swift */,
@@ -1110,6 +1123,7 @@
 				E987959C2A9667EC002C684A /* PlayerScreen.swift */,
 				E9C03B112A58721F00FB9118 /* PlayerView.swift */,
 				E919EC0C2A608FB300B6022C /* GroupScreen.swift */,
+				E99403DD2C07945A00D20067 /* ThumbnailView.swift */,
 				E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */,
 				E94F436F2A6DD7E900341D9E /* GroupVolumeControlScreen.swift */,
 				E9A46FCE2B684093000D4094 /* Managers */,
@@ -1249,6 +1263,10 @@
 			packageProductDependencies = (
 				E92E47552B3647E200DE6647 /* SonosKit */,
 				E9A6AAB72B3CCC9A00C24B98 /* VibesDS */,
+				E91976DC2C0A1B1E000FA449 /* CloudStorage */,
+				E91976DE2C0A1B26000FA449 /* NukeUI */,
+				E91976E02C0A1B45000FA449 /* Defaults */,
+				E91976E22C0A1B63000FA449 /* OrderedCollections */,
 			);
 			productName = MusicQueue;
 			productReference = E92E47432B360C5C00DE6647 /* QueueAction.appex */;
@@ -1268,7 +1286,6 @@
 			);
 			dependencies = (
 				E97562C92B699B2400787E14 /* PBXTargetDependency */,
-				E97562CD2B699B2400787E14 /* PBXTargetDependency */,
 			);
 			name = "Clic (Mac)";
 			packageProductDependencies = (
@@ -1393,7 +1410,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1510;
+				LastSwiftUpdateCheck = 1540;
 				LastUpgradeCheck = 1530;
 				TargetAttributes = {
 					E92E47422B360C5C00DE6647 = {
@@ -1433,12 +1450,12 @@
 			projectRoot = "";
 			targets = (
 				E9BDE56B29E3396700D230A8 /* Clic */,
-				E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */,
 				E97C0D402A325CC5005AB0E0 /* Widgets */,
+				E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */,
 				E9B12B522A5F31790008868C /* Widgets (Watch) */,
+				E97562C82B699B2400787E14 /* Clic (Mac) */,
 				E92E47422B360C5C00DE6647 /* QueueAction */,
 				E92B3E862B60249B00724FA1 /* Clic (Vision) */,
-				E97562C82B699B2400787E14 /* Clic (Mac) */,
 			);
 		};
 /* End PBXProject section */
@@ -1538,6 +1555,7 @@
 				E92B3EA92B60249B00724FA1 /* PlayHistoryView.swift in Sources */,
 				E92B3EAA2B60249B00724FA1 /* WidgetManager.swift in Sources */,
 				E9A380712C0100DA00D5349E /* InspectorDestination.swift in Sources */,
+				E9411D442C07A90D00C527EE /* AddToPlaylistMenu.swift in Sources */,
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
 				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
@@ -1559,6 +1577,7 @@
 				E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */,
 				E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */,
 				E9B135C12B6C1A860096A14E /* MediaDetailView.swift in Sources */,
+				E99403D72C07796C00D20067 /* AppTips.swift in Sources */,
 				E93E493C2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */,
 				E92DCB9F2B66FDF700A2C3B5 /* ContentArtworkView.swift in Sources */,
 				E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */,
@@ -1603,6 +1622,7 @@
 				E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
 				E92B3EDF2B60249B00724FA1 /* ClassicAppleMusicSearchView.swift in Sources */,
 				E949E8EF2BDC4CE6006D4556 /* ArtworkBadgeView.swift in Sources */,
+				E99403DB2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
 				E92B3EE02B60249B00724FA1 /* ArtworkView.swift in Sources */,
 				E92B3EE12B60249B00724FA1 /* OnboardView.swift in Sources */,
 				E9DCF6E42B7C730600899228 /* AppleMusicSearchScreen.swift in Sources */,
@@ -1643,6 +1663,7 @@
 				E97562EC2B699B2400787E14 /* WidgetManager.swift in Sources */,
 				E97562ED2B699B2400787E14 /* SearchSelection.swift in Sources */,
 				E97562EE2B699B2400787E14 /* SonosDeviceEntity.swift in Sources */,
+				E9411D432C07A90D00C527EE /* AddToPlaylistMenu.swift in Sources */,
 				E97562EF2B699B2400787E14 /* SpeechModeIntent.swift in Sources */,
 				E97562F02B699B2400787E14 /* ZoneView.swift in Sources */,
 				E97562F12B699B2400787E14 /* Router.swift in Sources */,
@@ -1667,6 +1688,8 @@
 				E97563012B699B2400787E14 /* SceneView.swift in Sources */,
 				E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */,
 				E9D49E312BC6ED6E0084185E /* ClicPaywall.swift in Sources */,
+				E99403D82C07796C00D20067 /* AppTips.swift in Sources */,
+				E99403DC2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
 				E97563022B699B2400787E14 /* UIApplication+Environment.swift in Sources */,
 				E97563032B699B2400787E14 /* RouterDestination.swift in Sources */,
 				E97563042B699B2400787E14 /* ReviewService.swift in Sources */,
@@ -1786,6 +1809,7 @@
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
 				E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */,
+				E99403DA2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
 				E9D38C512B5DADBB0025CC31 /* PlayHistoryView.swift in Sources */,
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
@@ -1819,6 +1843,7 @@
 				E9A380682C00F27400D5349E /* Storage.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */,
+				E99403D62C07796C00D20067 /* AppTips.swift in Sources */,
 				E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */,
 				E9B135BB2B6ADE690096A14E /* SearchScreen.swift in Sources */,
 				E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */,
@@ -1889,6 +1914,7 @@
 				E9D38C482B5D9EEB0025CC31 /* Router.swift in Sources */,
 				E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */,
 				E9855CB62ADC860A00FD7072 /* DeviceCellView.swift in Sources */,
+				E99403DE2C07945A00D20067 /* ThumbnailView.swift in Sources */,
 				E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */,
 				E9D38C492B5D9EEF0025CC31 /* SheetDestination.swift in Sources */,
 				E92E2D492AA6D38900D27DBC /* Popover.swift in Sources */,
@@ -1908,15 +1934,8 @@
 		};
 		E97562C92B699B2400787E14 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			platformFilter = ios;
 			target = E97C0D402A325CC5005AB0E0 /* Widgets */;
 			targetProxy = E97562CA2B699B2400787E14 /* PBXContainerItemProxy */;
-		};
-		E97562CD2B699B2400787E14 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			platformFilter = ios;
-			target = E92E47422B360C5C00DE6647 /* QueueAction */;
-			targetProxy = E97562CE2B699B2400787E14 /* PBXContainerItemProxy */;
 		};
 		E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1944,7 +1963,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = VisonAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -1997,7 +2016,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = VisonAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -2050,7 +2069,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = VisonAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -2110,7 +2129,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = QueueAction/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2146,7 +2165,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = QueueAction/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2181,7 +2200,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = QueueAction/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Queue;
+				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2209,7 +2228,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -2264,7 +2283,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -2319,7 +2338,7 @@
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "";
-				ASSETCATALOG_COMPILER_APPICON_NAME = "$(ICON)";
+				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Clic/Clic.entitlements;
@@ -3295,6 +3314,25 @@
 		E90F315F2BC48ADD00884EA5 /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Analytics;
+		};
+		E91976DC2C0A1B1E000FA449 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		E91976DE2C0A1B26000FA449 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		E91976E02C0A1B45000FA449 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		E91976E22C0A1B63000FA449 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
 		};
 		E92B3E8D2B60249B00724FA1 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;

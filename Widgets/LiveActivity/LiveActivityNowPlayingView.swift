@@ -61,6 +61,13 @@ struct LiveActivityNowPlayingView: View {
                             .aspectRatio(contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                             .frame(width: 48, height: 48)
+//                        // MARK: For Screenshots
+//                        #if DEBUG
+//                        .overlay {
+//                            Rectangle()
+//                                .foregroundStyle(.regularMaterial)
+//                        }
+//                        #endif
                     }
                     VStack(alignment: .leading) {
                         Text(context.state.trackName)

@@ -161,7 +161,7 @@ struct DeviceListMainView: View {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         router.sheet(to: .browse())
                     } label: {
-                        Image(systemName: "music.note.house.fill")
+                        Image(systemName: "music.note.house")
 //                            .resizable()
 //                            .foregroundStyle(.accent.gradient)
 //                            .frame(width: 24, height: 24)

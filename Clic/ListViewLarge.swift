@@ -149,25 +149,6 @@ struct ListViewLarge: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if subscriptionService.subscription.isActive {
-                HStack(spacing: 24) {
-                    Spacer()
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        router.sheet(to: .scenes)
-                    } label: {
-                        Image(systemName: "wand.and.stars.inverse")
-                            .resizable()
-                            .foregroundStyle(.accent.gradient)
-                            .frame(width: 24, height: 24)
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(.thinMaterial)
-            }
-        }
         .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 

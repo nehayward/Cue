@@ -13,9 +13,8 @@ struct PlayableContentView: View {
     @Environment(Router.self) private var router
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
-
+    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
-    @State var playlists: [PlayableContent] = []
 
     var item: PlayableContent
     var group: GroupRoom?
@@ -45,7 +44,7 @@ struct PlayableContentView: View {
             play()
         } label: {
             HStack {
-                ContentArtworkView(content: .constant(item))
+                ContentArtworkView(content: item)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 60, height: 60)
                 VStack(alignment: .leading) {
@@ -73,7 +72,7 @@ struct PlayableContentView: View {
             }
             .fontDesign(.rounded)
         }
-        // MARK: SwiftUI Issues
+        // MARK: Poor performance
 //        .swipeActions {
 //            if playHistory.contains(item) {
 //                Button(role: .destructive) {
@@ -90,9 +89,6 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
-        .task {
-            playlists = await sonosService.sonosPlaylists()
-        }
     }
 
 
@@ -108,20 +104,26 @@ struct PlayableContentView: View {
             switch item.content.type {
             case .artist:
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
-                    Label("View Artist", systemImage: "music.mic.circle.fill")
+                    Label("View Artist", systemImage: "music.mic")
                 }
             case .playlist:
                 Button {
                     play()
                 } label: {
-                    Text("Play Playlist")
+                    Text("Play")
                 }
+
+//                Button {
+//                    play(position: .front, replaceQueue: true)
+//                } label: {
+//                    Text("Queue")
+//                }
 
                 NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
-                    Text("View Playlist")
+                    Text("View")
                 }
 
-                if item.content.service == .library {
+                if item.content.service == .library, item.content.id.last?.isNumber ?? false {
                     Button {
                         router.presentedSheet = .renamePlaylist(content: item)
                     } label: {
@@ -137,12 +139,12 @@ struct PlayableContentView: View {
             case .album, .track:
                 if [.album, .track].contains(item.content.type) {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
-                        Label("View Album", systemImage: "rectangle.stack.fill")
+                        Label("View Album", systemImage: "smallcircle.circle.fill")
                     }
 
 
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
-                        Label("View Artist", systemImage: "music.mic.circle.fill")
+                        Label("View Artist", systemImage: "music.mic")
                     }
 
                     // TODO: Add scene playlist
@@ -169,15 +171,7 @@ struct PlayableContentView: View {
                     Label("Play Last", systemImage: "text.line.last.and.arrowtriangle.forward")
                 }
 
-                Menu("Add to Playlist") {
-                    ForEach(playlists) { playlist in
-                        Button(playlist.title) {
-                            Task {
-                                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: item)
-                            }
-                        }
-                    }
-                }
+                AddToPlaylistMenu(itemToAdd: item)
             case .radio, .favorite:
                 Button {
                     play()
@@ -188,7 +182,7 @@ struct PlayableContentView: View {
         }
     }
 
-    private func play(position: QueuePosition = .now) {
+    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
         if let add = adding?.add, add {
             adding?.content = item
             router.dismiss = true

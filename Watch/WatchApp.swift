@@ -93,6 +93,7 @@ struct WatchApp: App {
                     try? await sonosService.fetch(useCache: true)
                 }
             }
+           
             sonosService.monitorWatch(useCache: true)
         case .inactive:
             print("Inactive")

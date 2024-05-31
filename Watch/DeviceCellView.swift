@@ -43,7 +43,13 @@ struct DeviceCellView: View {
                                             }
                                     }
                                 }
-                                .transition(.scale)
+//                                // MARK: For Screenshots
+//                                #if DEBUG
+//                                .overlay {
+//                                    Rectangle()
+//                                        .foregroundStyle(.regularMaterial)
+//                                }
+//                                #endif
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .shadow(radius: 2)
                                 .frame(width: 40, height: 40)

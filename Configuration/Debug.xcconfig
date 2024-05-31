@@ -6,5 +6,5 @@ MAC_ENABLED = NO
 NAME = Clic°
 PRODUCT_NAME = Clic
 ICON = AppIcon
-ICON[sdk=xr*] = VisionAppIcon
 //ICON[sdk=macos*] = MacAppIcon
+ICON[sdk=xr*] = VisionAppIcon

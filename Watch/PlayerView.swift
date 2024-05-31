@@ -42,6 +42,13 @@ struct PlayerView: View {
                         }
                 }
             }
+//            // MARK: For Screenshots
+//            #if DEBUG
+//            .overlay {
+//                Rectangle()
+//                    .foregroundStyle(.regularMaterial)
+//            }
+//            #endif
             .overlay(alignment: .bottomTrailing) {
                 switch group.coordinatorRoom.track.musicService {
                 case .apple:

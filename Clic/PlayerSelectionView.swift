@@ -15,7 +15,6 @@ struct PlayerSelectionView: View {
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     @State var playableContent: PlayableContent?
-    @State var artworkURL: URL?
 
     var position: QueuePosition = .now
     var mediaContent: MediaContent?
@@ -25,11 +24,11 @@ struct PlayerSelectionView: View {
 
         VStack {
             HStack(alignment: .top) {
-                ContentArtworkView(content: $playableContent)
-                    .transition(.scale)
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 100, height: 100)
                 if let playableContent {
+                    ContentArtworkView(content: playableContent)
+                        .transition(.scale)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 100, height: 100)
                     VStack(alignment: .leading) {
                         Text(playableContent.title)
                         Text(playableContent.subtitle)
@@ -60,7 +59,7 @@ struct PlayerSelectionView: View {
                             }
                             if let mediaContent {
                                 // TODO: Need to get content, get rid of just using mediacontent
-//                                await sonosService.queue(content: mediaContent, group: group)
+                                //                                await sonosService.queue(content: mediaContent, group: group)
                             }
                             await sonosService.play(ip: group.ip)
                         }
@@ -76,10 +75,6 @@ struct PlayerSelectionView: View {
             .listRowSpacing(10)
         }
         .task {
-            if let mediaContent {
-                playableContent = await sonosService.getContent(from: mediaContent)
-                artworkURL =  await sonosService.getArtwork(from: mediaContent)
-            }
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)
         }

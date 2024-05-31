@@ -1,13 +1,23 @@
 import SwiftUI
 import SonosKit
 import VibesDS
+import CloudStorage
+import Defaults
+import NukeUI
+import MusicKit
+import OrderedCollections
 
 struct QueueListView: View {
-    @Environment(\.dismiss) private var dismiss
+    var sonosService: SonosService = .shared
 
-    @State var sonosService: SonosService
     @State var playableContent: PlayableContent? = nil
     @State var isQueueing: Bool = false
+
+//    @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
+//        didSet {
+//            playHistory = OrderedSet(playHistory.prefix(15))
+//        }
+//    }
 
     var viewModel: ViewModel
     var context: NSExtensionContext?
@@ -46,8 +56,9 @@ struct QueueListView: View {
                                 isQueueing = true
                                 impactFeedbackGenerator.impactOccurred()
                                 Task {
-                                    guard let url = playableContent.content.location else { return }
-                                    await sonosService.queue(url: url, group: group)
+//                                    playHistory.remove(playableContent)
+//                                    playHistory.insert(playableContent, at: 0)
+                                    await sonosService.queue(playable: playableContent, group: group, position: .now)
                                     await sonosService.play(ip: group.ip)
                                     self.context?.completeRequest(returningItems: [])
                                 }
@@ -66,10 +77,11 @@ struct QueueListView: View {
                         .foregroundStyle(.primary)
                         .swipeActions {
                             Button {
-                                dismiss()
+                                isQueueing = true
                                 Task {
-                                    guard let url = playableContent.content.location else { return }
-                                    await sonosService.queue(url: url, group: group, position: .next)
+//                                    playHistory.remove(playableContent)
+//                                    playHistory.insert(playableContent, at: 0)
+                                    await sonosService.queue(playable: playableContent, group: group, position: .next)
                                     self.context?.completeRequest(returningItems: [])
                                 }
                             } label: {
@@ -80,6 +92,16 @@ struct QueueListView: View {
                     }
                     .listRowSpacing(10)
                     .disabled(isQueueing)
+                }
+            }
+            .overlay {
+                if isQueueing {
+                    ProgressView()
+                        .background {
+                            Circle()
+                                .padding()
+                                .foregroundStyle(.thinMaterial)
+                        }
                 }
             }
             .toolbar {
@@ -107,10 +129,14 @@ struct QueueListView: View {
         }
         .overlay {
             if playableContent == nil, !viewModel.isLoading {
-                Text("Only Apple Music and Spotify Supported")
-                    .font(.title)
-                    .padding()
-                    .multilineTextAlignment(.center)
+                VStack {
+                    Text("Only Apple Music, Spotify, and Tidal Supported")
+                        .font(.title)
+                        .padding()
+                        .multilineTextAlignment(.center)
+                    Text("Album, Songs, and Public Playlists.")
+                        .multilineTextAlignment(.center)
+                }
             }
             if playableContent != nil, sonosService.groups.isEmpty {
                 Text("No system available")

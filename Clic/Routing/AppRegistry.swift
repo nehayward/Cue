@@ -68,20 +68,18 @@ extension View {
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
                 case let .artistDetail(content, group):
-                    Group {
-                        @State var router = Router()
-                        NavigationStack {
-                            ArtistDetailView(playableContent: content, group: group)
-                                .navigationBarTitleDisplayMode(.inline)
-                                .withAppRouter(router: router)
-                                .addDismiss {
-                                    sheetDestinations.wrappedValue = nil
-                                }
-                        }
-                        .environment(router)
-                        .scrollContentBackground(.hidden)
-                        .presentationBackground(.thinMaterial)
+                    @State var router = Router()
+                    NavigationStack {
+                        ArtistDetailView(playableContent: content, group: group)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .withAppRouter(router: router)
+                            .addDismiss {
+                                sheetDestinations.wrappedValue = nil
+                            }
                     }
+                    .environment(router)
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
                 case let .searchAdd(adding):
                     SearchScreen()
                         .environment(Router())
@@ -247,11 +245,12 @@ extension View {
             .environment(SubscriptionService.shared)
             .environment(AlertService.shared)
             .environment(MusicSearchService.shared)
+            .environment(PlaylistContainer.shared)
     }
 
     @ViewBuilder
-    func addDismiss(action: @escaping () -> Void) -> some View {
-        if [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom) {
+    func addDismiss(override: Bool = false, action: @escaping () -> Void) -> some View {
+        if override || [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom)  {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)

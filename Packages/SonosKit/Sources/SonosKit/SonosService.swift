@@ -922,22 +922,43 @@ public final class SonosService {
         switch (content.type, content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
+            if size == 100 {
+                return album.images.thumbnail
+            } else if size == 200, album.images.count > 2 {
+                let image = album.images[1]
+                return URL(string: image.url)
+            } else if size == 200 {
+                return album.images.thumbnail
+            }
             return album.images.biggestImageURL
         case (.track, .spotify):
-            guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-            return track.album.images.biggestImageURL
+            var imageURL: URL?
+            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+
+            if size == 100 {
+                return spotifyTrack.album.images.thumbnail
+            } else if size == 200, spotifyTrack.album.images.count > 2 {
+                let image = spotifyTrack.album.images[1]
+                imageURL = URL(string: image.url)
+            } else if let artworkString = spotifyTrack.album.images.first?.url {
+                imageURL = URL(string: artworkString)
+            }
+
+            return imageURL
         case (.playlist, .spotify):
             guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
             return playlist.images.biggestImageURL
         case (.track, .apple):
-            guard let song: Song = try? await musicSearch.lookup(id: content.id) else { return nil }
-            return song.artwork?.url(width: 500, height: 500)
+//            guard let song: Song = try? await musicSearch.lookup(id: content.id) else { return nil }
+//            return song.artwork?.url(width: size, height: size)
+            guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
+            return URL(string: track.artworkURL)
         case (.album, .apple):
             guard let album: Album = try? await musicSearch.lookup(id: content.id) else { return nil }
-            return album.artwork?.url(width: 500, height: 500)
+            return album.artwork?.url(width: size, height: size)
         case (.playlist, .apple):
             guard let playlist: Playlist = try? await musicSearch.lookup(id: content.id) else { return nil }
-            return playlist.artwork?.url(width: 500, height: 500)
+            return playlist.artwork?.url(width: size, height: size)
         default:
             return nil
         }
@@ -1171,6 +1192,8 @@ public final class SonosService {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
+        try? await Task.sleep(for: .milliseconds(200))
+        try? await updateGroups(from: [group])
     }
 
     public func getFavoriteList() async {
@@ -1290,9 +1313,10 @@ public final class SonosService {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
 
-        await api.queuePlayable(playableContent: playable, IP: group.coordinatorRoom.ip, position: position)
+        let count = await api.getQueueCount(IP: group.ip)
+        await api.queuePlayable(playableContent: playable, IP: group.ip, position: position)
 
-        if position == .now, queueActive, playable.content.type != .playlist {
+        if position == .now, queueActive, playable.content.type != .playlist, let count, count > 0 {
             await next(ip: group.ip)
         }
     }
@@ -1332,13 +1356,13 @@ public final class SonosService {
         case (.album, .spotify):
             await queuePlayable(playable: playable, group: group, position: position)
         case (.artist, .spotify):
-            await queueSpotifyArtistTopTracks(id: playable.content.id, group: group)
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.playlist, .spotify):
             await queuePlayable(playable: playable, group: group, position: position)
         case (.track, .apple):
             await queueAppleSong(id: playable.content.id, group: group, position: position)
         case (.album, .apple):
-            await queueAppleAlbum(id: playable.content.id, group: group, position: position)
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.artist, .apple):
             break
         case (.playlist, .apple):
@@ -1357,9 +1381,11 @@ public final class SonosService {
         default:
             break
         }
+        try? await Task.sleep(for: .milliseconds(200))
+        try? await updateGroups(from: [group])
     }
 
-    public func getQueue(ip: String) async -> [Track] {
+    public func getQueue(ip: String) async -> [PlayableContent] {
         await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP() )
     }
 

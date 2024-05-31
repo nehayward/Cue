@@ -12,6 +12,7 @@ struct MediaDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
+    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
 
     @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
@@ -43,38 +44,55 @@ struct MediaDetailView: View {
                 .frame(width: 300, height: 300)
             }
             .frame(maxWidth: .infinity)
-            .listSectionSeparator(.hidden)
+            .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-            HStack {
-                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")\(tracks.count.formatted()) Tracks •")
-                Text("\(Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +)).formatted(.time(pattern: .hourMinuteSecond)))")
+            HStack(spacing: 0) {
+                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")\(tracks.count.formatted()) Tracks\(totalDuration.components.seconds > 0 ? " • " : "")")
+                if totalDuration.components.seconds > 0  {
+                    Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                }
             }
             .frame(maxWidth: .infinity)
             .fontDesign(.rounded)
             .listRowBackground(Color.clear)
-            Button {
-                play(content: playableContent)
-            } label: {
-                Label("Queue All", systemImage: "play.fill")
-            }
-            .ignoresSafeArea(.container, edges: .bottom)
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(
-                .ultraThinMaterial,
-                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-            )
-            .padding(.vertical)
-            .ignoresSafeArea()
-            .bold()
             .listRowSeparator(.hidden)
+
+            HStack {
+                Button {
+                    play(content: playableContent)
+                } label: {
+                    Label("Queue All", systemImage: "play.fill")
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+                .padding(.vertical)
+                .ignoresSafeArea()
+                .bold()
+            }
+            .frame(maxWidth: .infinity)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .overlay(alignment: .trailing) {
+                Menu {
+                    menu(content: playableContent)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(maxWidth: 40, maxHeight: .infinity)
+                        .background(.clear)
+                }
+            }
+
             ForEach(tracks) { track in
                 Button {
                     play(content: track)
                 } label: {
                     HStack {
                         if playableContent.content.type == .playlist {
-                            ContentArtworkView(content: .constant(track))
+                            ContentArtworkView(content: track)
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 60, height: 60)
                         }
@@ -102,7 +120,6 @@ struct MediaDetailView: View {
                     .contextMenu {
                         menu(content: track)
                     }
-
                 }
                 .listRowBackground(Color.clear)
                 .task(id: track.id) {
@@ -208,7 +225,7 @@ struct MediaDetailView: View {
         }
     }
 
-    private func play(content: PlayableContent, position: QueuePosition = .now) {
+    private func play(content: PlayableContent, position: QueuePosition = .now, replaceQueue: Bool = false) {
         Task {
             guard let group = group else {
                 router.navigate(to: .groupDestination(content: content, position: position))
@@ -218,6 +235,11 @@ struct MediaDetailView: View {
             playHistory.remove(content)
             playHistory.insert(content, at: 0)
 
+            if replaceQueue {
+                try? await sonosService.clearQueue(group.ip)
+            }
+            HapticManager.shared.fireHaptic(.buttonPress)
+            await sonosService.setPlayMode(group.ip, mode: [.normal])
             await sonosService.queue(playable: content, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
@@ -248,9 +270,21 @@ struct MediaDetailView: View {
                     Label("Remove", systemImage: "trash")
                 }
             }
+
+//            if content.content.type == .album {
+//                Button {
+//                    play(content: content, position: .front, replaceQueue: true)
+//                } label: {
+//                    Text("Replace Queue")
+//                }
+//            }
         }
     }
 
+    private var totalDuration: Duration {
+        Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
+    }
+    
     // TODO: Add later
 //    private func move(from source: IndexSet, to destination: Int) {
 //        // TODO: Fix swap positions

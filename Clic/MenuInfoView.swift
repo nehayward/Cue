@@ -5,6 +5,8 @@ import MusicSearchKit
 struct MenuInfoView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
+    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
+
     @State private var coreFeatures = CoreFeatures()
 
     var group: GroupRoom
@@ -34,7 +36,7 @@ struct MenuInfoView: View {
                     }
                 }
             }
-            if coreFeatures.nowPlaying {
+            if coreFeatures.nowPlaying, !group.TVMode {
                 Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
                     Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                 }
@@ -53,7 +55,9 @@ struct MenuInfoView: View {
                 }
 //                let playable = group.coordinatorRoom.track.toPlayable
 //                ShareLink(item: playable)
-                AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                if !group.TVMode {
+                    AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                }
             }
             Button {
                 router.sheet(to: .alarms(group: group))
@@ -77,6 +81,9 @@ struct MenuInfoView: View {
         } label: {
             Image(systemName: "ellipsis")
                 .padding(.vertical)
+        }
+        .task {
+            playlistsContainer.playlists = await sonosService.sonosPlaylists()
         }
     }
 }

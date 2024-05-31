@@ -9,7 +9,6 @@ import NukeUI
 import VibesDS
 
 struct ArtistDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
 
@@ -334,9 +333,6 @@ struct ArtistDetailView: View {
             default:
                 break
             }
-        }
-        .onChange(of: router?.dismiss) {
-            dismiss()
         }
     }
 }

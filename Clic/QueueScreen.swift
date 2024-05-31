@@ -10,137 +10,105 @@ struct QueueScreen: View {
 
     @Binding var group: GroupRoom
     @State private var router = Router()
-    @State private var tracks: [Track] = []
+    @State private var tracks: [PlayableContent] = []
     @State private var isLoading: Bool = true
     @State private var clearQueueConfirmation: Bool = false
+    @State private var playlists: [PlayableContent] = []
 
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
-                    ForEach(tracks) { track in
-                        HStack {
-                            LazyImage(url: track.artworkURL) { state in
-                                if let image = state.image {
-                                    image.resizable().aspectRatio(contentMode: .fit)
-                                } else {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.ultraThinMaterial)
-                                        .shadow(radius: 2)
-                                }
+                    ForEach(tracks, id: \.trackID) { track in
+                        Button {
+                            dismiss()
+                            Task {
+                                guard let position = track.metadata?.position else { return }
+                                await sonosService.seek(trackNumber: position, on: group)
+                                await sonosService.play(ip: group.coordinatorRoom.ip)
                             }
-                            .processors([.resize(width: 60)])
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .shadow(radius: 2)
-                            .frame(width: 60, height: 60)
-                            .overlay(alignment: .bottomTrailing) {
-                                switch track.musicService {
-                                case .apple:
-                                    Image(systemName: "apple.logo")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .spotify:
-                                    Image(.spotifyLogo)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .airplay, .unknown:
-                                    EmptyView()
-                                        .padding([.trailing, .bottom], 4)
-                                case .library:
-                                    Image(systemName: "books.vertical.fill")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .plex:
-                                    Image(.plex)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                case .tidal:
-                                    MediaSearchService.tidal.icon
-                                        .foregroundStyle(.white.gradient)
-                                        .frame(width: 16, height: 16)
-                                        .padding([.trailing, .bottom], 4)
-                                }
-                            }
-                            .task(id: track.id) {
-                                guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
-                                    return
-                                }
-                                track.downloadedArtworkURL = artworkURL
-                            }
-
-                            Button {
-                                dismiss()
-                                Task {
-                                    await sonosService.seek(trackNumber: track.position, on: group)
-                                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                                }
-                            } label: {
+                        } label: {
+                            HStack {
+                                ContentArtworkView(content: track)
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 60, height: 60)
                                 VStack(alignment: .leading) {
-//                                    Text(track.artworkURL?.absoluteString ?? "--")
-//                                        .textSelection(.enabled)
-//                                    Text(track.position, format: .number) // MARK: Debug Only
-                                    Text(track.name)
+                                    Text(track.title)
                                         .lineLimit(1)
-                                    Text(track.artist)
-                                        .lineLimit(1)
-                                        .font(.caption)
+                                    Text(track.subtitle)
                                         .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    if let duration = track.metadata?.duration, duration.components.seconds != 0 {
+                                        Text(duration, format: .time(pattern: .minuteSecond))
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                Spacer()
+                                Menu {
+                                    menu(content: track)
+                                } label: {
+                                    Image(systemName: "ellipsis")
+                                        .frame(maxWidth: 40, maxHeight: .infinity)
+                                        .background(.clear)
                                 }
                             }
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    tracks.remove(at: track.position - 1)
-                                    Task {
-                                        try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: track.position)
-                                        tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
-                                    }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                            .contextMenu {
+                                menu(content: track)
                             }
                         }
-                        .id(track.id)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                guard let position = track.metadata?.position else { return }
+                                tracks.remove(at: position - 1)
+                                Task {
+                                    try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+                                    tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+
                         .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
-                        .draggable(track.toPlayable)
+                        .bold(isTrackPlaying(for: track))
+                        .draggable(track)
                     }
                     .onMove(perform: move)
                 }
-                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+                .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
+                    Task {
+                        self.tracks = await sonosService.getQueue(ip: group.ip)
+                    }
+                })
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
                 .toolbar {
                     ToolbarItemGroup(placement: .navigation) {
-                        #if !targetEnvironment(macCatalyst)
+#if !targetEnvironment(macCatalyst)
                         if UIDevice.current.userInterfaceIdiom == .pad, isPresented {
                             Button {
-//                                router?.inspectorSheet = nil
+                                //                                router?.inspectorSheet = nil
                                 dismiss()
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                             }
                         }
-                        #endif
+#endif
 
                         VStack(alignment: .leading) {
                             Text("Queue")
                                 .bold()
-                            Text(tracks.count, format: .number)
-                                .contentTransition(.numericText())
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 0) {
+                                Text(tracks.count, format: .number)
+                                    .contentTransition(.numericText())
+                                Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
+                                if totalDuration.components.seconds > 0  {
+                                    Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                                }
+                            }
+                            .foregroundStyle(.secondary)
                         }
                     }
 
@@ -158,7 +126,8 @@ struct QueueScreen: View {
                                 self.tracks = await sonosService.getQueue(ip: group.ip)
                                 try? await Task.sleep(for: .milliseconds(200))
                                 withAnimation {
-                                    proxy.scrollTo(group.coordinatorRoom.track.id)
+                                    let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
+                                    proxy.scrollTo(id)
                                 }
                             }
                         } label: {
@@ -216,7 +185,8 @@ struct QueueScreen: View {
                     group.playMode = await sonosService.playMode(ip: group.ip)
                     isLoading = false
                     withAnimation {
-                        proxy.scrollTo(group.coordinatorRoom.track.id)
+                        let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
+                        proxy.scrollTo(id)
                     }
                 }
                 .animation(.spring, value: tracks)
@@ -253,20 +223,64 @@ struct QueueScreen: View {
                     .bold()
             }
         }
+        .environment(router)
+        .task {
+            playlists = await sonosService.sonosPlaylists()
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {
         // TODO: Fix swap positions
         tracks.move(fromOffsets: source, toOffset: destination)
+        guard let sourceIndex = source.first else { return }
 
         Task {
-            guard let sourceIndex = source.first else { return }
             try await sonosService.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
+            tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
         }
     }
 
-    private func isTrackPlaying(for track: Track) -> Bool {
-        group.coordinatorRoom.track.position == track.position && group.playbackService == .queue
+    private func isTrackPlaying(for song: PlayableContent) -> Bool {
+        guard let position = song.metadata?.position else { return false }
+        return group.coordinatorRoom.track.position == position && group.playbackService == .queue
+    }
+
+    private var totalDuration: Duration {
+        Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
+    }
+
+    @MainActor
+    private func menu(content: PlayableContent) -> some View {
+        VStack {
+            if content.content.service != .unknown {
+                AddToPlaylistMenu(itemToAdd: content)
+
+                Button {
+                    router.sheet(to: .mediaDetail(content: content, group: group))
+                } label: {
+                    Label("View Album", systemImage: "smallcircle.circle.fill")
+                }
+
+                Button {
+                    router.sheet(to: .artistDetail(content: content, group: group))
+                } label: {
+                    Label("View Artist", systemImage: "music.mic")
+                }
+            }
+            //                let playable = group.coordinatorRoom.track.toPlayable
+            //                ShareLink(item: playable)
+
+            Button(role: .destructive) {
+                guard let position = content.metadata?.position else { return }
+                tracks.remove(at: position - 1)
+                Task {
+                    try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+                    tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 }
 

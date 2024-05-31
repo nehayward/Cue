@@ -213,20 +213,18 @@ struct LargePlayerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(group.nameWithCount)
         .toolbar {
-            if !group.TVMode {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
-                        Text(date, style: .timer)
-                            .contentTransition(.numericText(countsDown: true))
-                            .animation(.spring, value: date)
-                            .monospacedDigit()
-                            .bold()
-                            .id(refreshID)
-                    }
-                    MenuInfoView(group: group)
-                        .tint(.primary)
+            ToolbarItemGroup(placement: .primaryAction) {
+                if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
+                    Text(date, style: .timer)
+                        .contentTransition(.numericText(countsDown: true))
+                        .animation(.spring, value: date)
+                        .monospacedDigit()
+                        .bold()
                         .id(refreshID)
                 }
+                MenuInfoView(group: group)
+                    .tint(.primary)
+                    .id(refreshID)
             }
         }
         .dropDestinationPlay(on: group)

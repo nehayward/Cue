@@ -1,9 +1,17 @@
-# 2024.27
+# 2024.28
 
 ## External
 
 + New Icon!
 + You can now easily manage and add songs to your playlists.
++ Improved Queueing (Should be instant now).
++ Added hint for how to switch search.
++ Add sleep timers when in TV mode.
+
+## Internal
+- Queue uses PlayableContent now.
+- Added simple get Queue count API
+- Reduced size of spotify images
 
 # 2024.27
 

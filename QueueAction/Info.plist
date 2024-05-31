@@ -22,10 +22,10 @@
 				SUBQUERY (
 				$extensionItem.attachments,
 				$attachment,
-				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
-				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url"
-				).@count >= 1
-				).@count > 0
+				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.plain-text&quot;
+				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.url&quot;
+				).@count &gt;= 1
+				).@count &gt; 0
 			</string>
 			<key>NSExtensionServiceAllowsFinderPreviewItem</key>
 			<true/>

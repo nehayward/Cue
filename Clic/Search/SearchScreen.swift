@@ -16,6 +16,7 @@ struct SearchScreen: View {
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
     @Environment(Router.self) private var router: Router
+    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -103,6 +104,8 @@ struct SearchScreen: View {
                         }
                         await musicSearchService.search(for: musicSearchSelection)
                         suggestion = nil
+
+                        playlistsContainer.playlists = await sonosService.sonosPlaylists()
                     }
                     .animation(.bouncy, value: musicSearchService.appleResults)
                     .animation(.bouncy, value: musicSearchService.spotifyResults)
@@ -200,6 +203,7 @@ struct SearchScreen: View {
                                 }
                                 .labelStyle(.iconOnly)
                             }
+                            .popoverTip(AppTip.mediaService)
                         }
                         .padding([.vertical, .trailing])
                         .background {

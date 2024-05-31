@@ -26,9 +26,9 @@ struct ContainerLargePlayerView: View {
                                     }
                                 } label: {
                                     Image(systemName: "hifispeaker")
+                                        .tint(.primary)
                                 }
                                 .withPopoverDestinations(popoverDestination: $router.popover)
-                                .tint(.primary)
                                 .id(refreshID)
                                 
                                 Button {
@@ -41,8 +41,21 @@ struct ContainerLargePlayerView: View {
                                     }
                                 } label: {
                                     Image(systemName: "sparkle.magnifyingglass")
+                                        .tint(.primary)
                                 }
-                                .tint(.primary)
+                                .id(refreshID)
+
+                                Button {
+                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                                        router.sheet(to: .browse(group: sonosService.sorted[group]))
+                                    }
+                                } label: {
+                                    Image(systemName: "music.note.house")
+                                        .fontDesign(.rounded)
+                                        .tint(.primary)
+                                        .imageScale(.large)
+                                }
+                                .buttonStyle(.plain)
                                 .id(refreshID)
 
 

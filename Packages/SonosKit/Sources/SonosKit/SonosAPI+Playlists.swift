@@ -92,7 +92,7 @@ extension SonosAPI {
             "InstanceID": 0,
             "ObjectID": "SQ:" + objectID,
             "UpdateID": updateID,
-            "EnqueuedURI": content.id,
+            "EnqueuedURI": content.uri,
             "EnqueuedURIMetaData": content.URIMetadata,
             "AddAtIndex": Double(4294967295)
         ]

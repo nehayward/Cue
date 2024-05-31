@@ -12,46 +12,50 @@ struct NewPlaylistView: View {
     @FocusState private var isPlaylistNameFocused: Bool
 
     var body: some View {
-        Form {
-            TextField("Name", text: $playlistName)
-                .focused($isPlaylistNameFocused)
-            if let playlist {
-                Button {
-                    Task {
-                        try? await sonosService.renamePlaylist(existingPlaylist: playlist, newName: playlistName)
-                        dismiss()
-                    }
-                } label: {
-                    Text("Update")
-                        .frame(maxWidth: .infinity)
-                        .bold()
-                        .fontDesign(.rounded)
-                }
-                .buttonStyle(.borderedProminent)
-                .listRowBackground(Color.clear)
-                .padding(.vertical)
-                .disabled(playlistName == playlist.title)
-            } else {
-                Button {
-                    Task {
-                        if let group {
-                            try? await sonosService.saveQueue(ip: group.ip, title: playlistName)
-                        } else {
-                            await sonosService.createPlaylist(title: playlistName)
+        NavigationStack {
+            Form {
+                TextField("Name", text: $playlistName)
+                    .focused($isPlaylistNameFocused)
+                if let playlist {
+                    Button {
+                        Task {
+                            try? await sonosService.renamePlaylist(existingPlaylist: playlist, newName: playlistName)
+                            dismiss()
                         }
-                        dismiss()
+                    } label: {
+                        Text("Update")
+                            .frame(maxWidth: .infinity)
+                            .bold()
+                            .fontDesign(.rounded)
                     }
-                } label: {
-                    Text("Create")
-                        .frame(maxWidth: .infinity)
-                        .bold()
-                        .fontDesign(.rounded)
+                    .buttonStyle(.borderedProminent)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical)
+                    .disabled(playlistName == playlist.title)
+                } else {
+                    Button {
+                        Task {
+                            if let group {
+                                try? await sonosService.saveQueue(ip: group.ip, title: playlistName)
+                            } else {
+                                await sonosService.createPlaylist(title: playlistName)
+                            }
+                            dismiss()
+                        }
+                    } label: {
+                        Text("Create")
+                            .frame(maxWidth: .infinity)
+                            .bold()
+                            .fontDesign(.rounded)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical)
+                    .disabled(playlistName.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .listRowBackground(Color.clear)
-                .padding(.vertical)
-                .disabled(playlistName.isEmpty)
             }
+            .addDismiss(override: UIDevice.current.userInterfaceIdiom == .mac, action: dismiss.callAsFunction)
+            .navigationTitle(playlist != nil ? "Rename" : "New Playlist")
         }
         .scrollContentBackground(.hidden)
         .presentationDetents([.fraction(0.3)])
@@ -62,7 +66,6 @@ struct NewPlaylistView: View {
                 playlistName = playlist.title
             }
         }
-        .addDismiss(action: dismiss.callAsFunction)
     }
 }
 
