@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E92E47422B360C5C00DE6647"
-               BuildableName = "QueueAction.appex"
-               BlueprintName = "QueueAction"
+               BuildableName = "PlayAction.appex"
+               BlueprintName = "PlayAction"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
