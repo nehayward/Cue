@@ -21,6 +21,8 @@ struct MediaDetailView: View {
     @State private var artworkURL: URL?
     @State private var isLoaded: Bool = false
 
+    private let musicSearchService = MusicSearchService()
+
     var group: GroupRoom?
 
     var body: some View {
@@ -158,7 +160,7 @@ struct MediaDetailView: View {
                 }
             }
         }
-        .task(id: tracks) {
+        .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
             case (.album, .apple):
@@ -174,6 +176,8 @@ struct MediaDetailView: View {
                 artworkURL = playlist.artwork?.url(width: 800, height: 800)
                 guard let tracks = playlist.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
+            case (.userPlaylist, .apple):
+                self.tracks = await musicSearchService.tracksForUserPlaylists(id: playableContent.id)
             case (.playlist, .spotify):
                 guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
                 guard let items = playlist.tracks.items else { return }

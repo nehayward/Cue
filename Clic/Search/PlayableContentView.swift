@@ -25,7 +25,7 @@ struct PlayableContentView: View {
             content
         } else {
             switch item.content.type {
-            case .playlist, .album:
+            case .playlist, .album, .userPlaylist:
                 NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
                     content
                 }
@@ -34,6 +34,8 @@ struct PlayableContentView: View {
                     content
                 }
             case .track, .favorite, .radio:
+                content
+            case .libraryTrack:
                 content
             }
         }
@@ -106,7 +108,7 @@ struct PlayableContentView: View {
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
                     Label("View Artist", systemImage: "music.mic")
                 }
-            case .playlist:
+            case .playlist, .userPlaylist:
                 Button {
                     play()
                 } label: {
@@ -136,7 +138,7 @@ struct PlayableContentView: View {
 //                    Label("Create Scene", systemImage: "bolt.fill")
 //                }
 
-            case .album, .track:
+            case .album, .track, .libraryTrack:
                 if [.album, .track].contains(item.content.type) {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
@@ -200,11 +202,5 @@ struct PlayableContentView: View {
             await sonosService.queue(playable: item, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
-    }
-}
-
-extension UIApplication {
-    func endEditing() {
-        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

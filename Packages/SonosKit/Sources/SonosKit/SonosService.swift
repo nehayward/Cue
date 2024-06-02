@@ -1361,6 +1361,8 @@ public final class SonosService {
             await queuePlayable(playable: playable, group: group, position: position)
         case (.track, .apple):
             await queueAppleSong(id: playable.content.id, group: group, position: position)
+        case (.libraryTrack, .apple):
+            await queuePlayable(playable: playable, group: group, position: position)
         case (.album, .apple):
             await queuePlayable(playable: playable, group: group, position: position)
         case (.artist, .apple):

@@ -41,6 +41,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(id)?sid=12&amp;flags=44&amp;sn=3"
         case (.track, .apple):
             return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;flags=8224&amp;sn=5"
+        case (.libraryTrack, .apple):
+            // TODO: Not working, need to figure out how to get ID
+            return "x-sonos-http:librarytrack%3ai.\(id).mp3?sid=204&amp;flags=8232&amp;sn=4"
         case (.album, .apple):
             return "x-rincon-cpcontainer:1004206calbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
         case (.playlist, .apple):
@@ -95,6 +98,11 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return """
 \(Self.defaultXMLNSHeader) id="10032020song%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
 """
+//        case (.libraryTrack, .apple):
+//            let libraryID = intToBase64UrlSafe(Int64("\(id)")!)
+//            return """
+//\(Self.defaultXMLNSHeader) id="10032028librarytrack%3ai.\(libraryID)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+//"""
         case (.album, .apple):
             return """
 \(Self.defaultXMLNSHeader) id="1004206calbum%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
@@ -180,6 +188,22 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         }
     }
 
+    private func intToBase64UrlSafe(_ number: Int64) -> String {
+        // Convert integer to bytes
+        var bigEndianNumber = number.bigEndian
+        let numberData = Data(bytes: &bigEndianNumber, count: MemoryLayout.size(ofValue: bigEndianNumber))
+
+        // Base64 encode the bytes
+        let base64String = numberData.base64EncodedString()
+
+        // Make the base64 string URL-safe and remove padding
+        let base64UrlSafeString = base64String
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+
+        return base64UrlSafeString
+    }
 }
 
 extension PlayableContent: Transferable {

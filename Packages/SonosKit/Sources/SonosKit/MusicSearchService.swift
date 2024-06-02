@@ -18,6 +18,7 @@ public final class MusicSearchService {
     public var plexAuthorization: AppleMusicAuthorization = .denied
 
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
+    private let apple = AppleMusicAPI()
     private let plex = PlexAPI()
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI()
@@ -158,12 +159,6 @@ public final class MusicSearchService {
         }
     }
 
-//    public func search(query: String, service: MusicSearchService) -> [MediaContent] {
-//
-//
-//        return []
-//    }
-
     public func search(song: String, artist: String, album: String) async -> [ItunesResult] {
         await appleMusicSearchAPI.search(for: "\(song) \(artist) \(album)")
     }
@@ -257,7 +252,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.songs.map(\.toPlayable))
         playableContent.append(contentsOf: results.albums.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
-        playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
+        playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: true) })
 
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
@@ -278,13 +273,6 @@ public final class MusicSearchService {
         var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         catalogResource.properties = [.tracks, .artists]
         let response2 = try await catalogResource.response()
-        print(response2)
-//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
-//
-//        print(searchResponse)
-//
-//        print(searchResponse.songs)
-//        print(searchResponse.artists)
         return response2.items.first
     }
 
@@ -313,6 +301,24 @@ public final class MusicSearchService {
 //        print(searchResponse.artists)
         return response.items.first
     }
+
+    public func usersApplePlaylists() async -> [PlayableContent] {
+        guard let playlists = try? await apple.getUserPlaylists() else { return [] }
+        return playlists.map { $0.toPlayable(isUserPlaylist: true) }
+    }
+
+    public func tracksForUserPlaylists(id: String) async -> [PlayableContent] {
+        guard let playlist = try? await apple.lookupUsersPlaylist(id: id) else { return [] }
+        guard let tracks = try? await playlist.with([.tracks], preferredSource: .catalog).tracks else {
+            return []
+        }
+        return tracks.map(\.toPlayableLibraryTrack)
+    }
+
+//    public func getTrackForApplePlaylists(id: String) async -> PlayableContent {
+//        guard let playlists = try? await apple.lookupUsersPlaylist(id: id) else { return [] }
+//        return playlists.map(\.toPlayable).first
+//    }
 
 //    public func myPlaylists() async throws -> [Playlist]? {
 //        guard await requestMusicAuthorization() else { return nil }

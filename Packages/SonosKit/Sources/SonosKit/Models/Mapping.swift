@@ -34,18 +34,73 @@ extension MusicKit.Track {
             durationSeconds = Duration.seconds(duration)
         }
 
+        var artworkURL = artwork?.url(width: 200, height: 200)
+
+        if let artworkURLFound = artworkURL,
+            let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
+            components.scheme?.lowercased() == "musickit" {
+            let pattern = "https%3A%2F%2F[^&]+"
+            if let regex = try? NSRegularExpression(pattern: pattern) {
+                let nsString = artworkURLFound.absoluteString as NSString
+                let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
+
+                if let match = results.first {
+                    let encodedUrl = nsString.substring(with: match.range)
+                    artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
+                }
+            }
+        }
+
         return PlayableContent(
             title: title,
             subtitle: artistName,
-            artwork: artwork?.url(width: 100, height: 100),
+            artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
+        )
+    }
+
+    public var toPlayableLibraryTrack: PlayableContent {
+        var durationSeconds: Duration?
+        if let duration {
+            durationSeconds = Duration.seconds(duration)
+        }
+
+        var artworkURL = artwork?.url(width: 200, height: 200)
+
+        if let artworkURLFound = artworkURL,
+            let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
+            components.scheme?.lowercased() == "musickit" {
+            let pattern = "https%3A%2F%2F[^&]+"
+            if let regex = try? NSRegularExpression(pattern: pattern) {
+                let nsString = artworkURLFound.absoluteString as NSString
+                let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
+
+                if let match = results.first {
+                    let encodedUrl = nsString.substring(with: match.range)
+                    artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
+                }
+            }
+        }
+
+        print(id)
+        print(isrc)
+        print(playParameters)
+        print(artwork)
+        
+
+        return PlayableContent(
+            title: title,
+            subtitle: artistName,
+            artwork: artworkURL,
+            content: MediaContent(service: .apple, id: id.description, type: .libraryTrack, location: url),
             metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
         )
     }
 }
 
 extension Playlist {
-    public var toPlayable: PlayableContent {
+    public func toPlayable(isUserPlaylist: Bool = false) ->  PlayableContent {
         var artworkURL = artwork?.url(width: 200, height: 200)
 
         if let artworkURLFound = artworkURL,
@@ -70,7 +125,7 @@ extension Playlist {
             content: MediaContent(
                 service: .apple,
                 id: id.description,
-                type: .playlist,
+                type: isUserPlaylist ? .userPlaylist : .playlist,
                 location: nil
             )
         )

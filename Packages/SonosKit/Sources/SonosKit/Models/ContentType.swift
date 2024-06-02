@@ -1,11 +1,14 @@
 
 public enum ContentType: Equatable, Codable {
-    case playlist
-    case artist
-    case album
     case track
+    case album
+    case artist
+    case playlist
     case favorite
     case radio
+
+    case libraryTrack
+    case userPlaylist
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -26,6 +29,10 @@ public enum ContentType: Equatable, Codable {
 
     public var title: String {
         switch self {
+        case .libraryTrack:
+            "Song"
+        case .userPlaylist:
+            "My Playlists"
         case .playlist:
             "Playlist"
         case .artist:

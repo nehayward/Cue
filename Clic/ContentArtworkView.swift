@@ -116,8 +116,8 @@ struct ContentArtworkView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .task(id: content.id) {
-                    if content.artwork != nil, !(content.artwork?.absoluteString ?? "").contains("get") {
-                        imageRequest = ImageRequest(url: content.artwork)
+                    if let url = content.artwork, !(content.artwork?.absoluteString ?? "").contains("get") {
+                        imageRequest = ImageRequest(urlRequest: URLRequest(url: url))
                         return
                     }
                     guard let artworkURL = await sonosService.getArtwork(from: content.content, size: 100) else {
