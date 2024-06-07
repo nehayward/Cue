@@ -7,12 +7,26 @@ import SonosKit
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemoteWidgetEntry {
         let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
-        return RemoteWidgetEntry(date: Date(), configuration: RemoteWidgetConfigurationIntent(), volume: 0, track: nil, activeSubscription: activeSubscription)
+        return RemoteWidgetEntry(
+            date: Date(),
+            configuration: RemoteWidgetConfigurationIntent(),
+            playableContent: nil,
+            volume: 0,
+            track: nil,
+            activeSubscription: activeSubscription
+        )
     }
 
     func snapshot(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> RemoteWidgetEntry {
         let activeSubscription = CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false
-        return RemoteWidgetEntry(date: Date(), configuration: configuration, volume: 0, track: nil, activeSubscription: activeSubscription)
+        return RemoteWidgetEntry(
+            date: Date(),
+            configuration: configuration,
+            playableContent: nil,
+            volume: 0,
+            track: nil,
+            activeSubscription: activeSubscription
+        )
     }
     
     func timeline(for configuration: RemoteWidgetConfigurationIntent, in context: Context) async -> Timeline<RemoteWidgetEntry> {
@@ -28,6 +42,7 @@ struct Provider: AppIntentTimelineProvider {
                 var entry = RemoteWidgetEntry(
                     date: .now,
                     configuration: configuration,
+                    playableContent: track?.toPlayable,
                     volume: volume,
                     track: track,
                     name: group.nameWithCount,
@@ -51,7 +66,14 @@ struct Provider: AppIntentTimelineProvider {
             }
         }
 
-        let entry = RemoteWidgetEntry(date: .now, configuration: configuration, volume: 0, track: nil, activeSubscription: activeSubscription)
+        let entry = RemoteWidgetEntry(
+            date: .now,
+            configuration: configuration,
+            playableContent: nil,
+            volume: 0,
+            track: nil,
+            activeSubscription: activeSubscription
+        )
         return Timeline(entries: [entry], policy: .atEnd)
     }
 }
@@ -59,11 +81,59 @@ struct Provider: AppIntentTimelineProvider {
 struct RemoteWidgetEntry: TimelineEntry {
     let date: Date
     let configuration: RemoteWidgetConfigurationIntent
+    let playableContent: PlayableContent?
     let volume: Double
     let track: Track?
     var name: String? = nil
     var TVSettings: TVSettings? = nil
     var activeSubscription = false
+
+    static func previewBarbie(_ active: Bool = true, service: MusicService = .apple) -> RemoteWidgetEntry { RemoteWidgetEntry(
+        date: .now,
+        configuration: RemoteWidgetConfigurationIntent(
+            room: SonosDeviceEntity(
+                id: "",
+                ip: "",
+                name: "Kitchen + 1"
+            )
+        ),
+        playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: service, id: "123", type: .track, location: nil)),
+        volume: 20,
+        track: Track(
+            trackID: "",
+            name: "Barbie",
+            artist: "Dua Lipa",
+            album: "Barbie",
+            musicService: service,
+            duration: 0,
+            playbackPosition: 0
+        ),
+        activeSubscription: active)
+    }
+
+    static func previewTheater(_ active: Bool = true, service: MusicService = .apple) -> RemoteWidgetEntry { RemoteWidgetEntry(
+        date: .now,
+        configuration: RemoteWidgetConfigurationIntent(
+            room: SonosDeviceEntity(
+                id: "",
+                ip: "",
+                name: "Theater"
+            )
+        ),
+        playableContent: nil,
+        volume: 20,
+        track: Track(
+            trackID: "",
+            name: "Barbie",
+            artist: "Dua Lipa",
+            album: "Barbie",
+            musicService: service,
+            duration: 0,
+            playbackPosition: 0
+        ),
+        TVSettings: .init(nightMode: true, dialogLevel: false, audioInputFormat: .dolbyDigital),
+        activeSubscription: active)
+    }
 }
 
 struct RemoteWidget: Widget {
@@ -71,7 +141,7 @@ struct RemoteWidget: Widget {
     @Environment(\.widgetFamily) var widgetFamily: WidgetFamily
 
     var families: [WidgetFamily] {
-        [.accessoryRectangular, .accessoryCircular, .systemSmall]
+        [.accessoryRectangular, .accessoryCircular, .systemSmall, .systemMedium]
     }
 
     var body: some WidgetConfiguration {
@@ -93,88 +163,30 @@ struct RemoteWidget: Widget {
         }
         .supportedFamilies(families)
         .configurationDisplayName("Remote")
-        .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system. Tap to start Live Activity.") 
-        .contentMarginsDisabled()
+        .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system. Tap to start Live Activity.")
     }
 }
 
 #Preview("Small", as: .systemSmall) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Kitchen",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: Track(
-            trackID: "",
-            name: "Barbie",
-            artist: "Dua Lipa",
-            album: "Barbie",
-            musicService: .apple,
-            duration: 0,
-            playbackPosition: 0
-        )
-    )
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Circle", as: .accessoryCircular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty
-    )
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Rectangle", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty
-    )
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Unlocked Rectangle", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty,
-        activeSubscription: true
-    )
+    RemoteWidgetEntry.previewBarbie()
 }

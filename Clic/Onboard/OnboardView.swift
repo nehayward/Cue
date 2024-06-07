@@ -29,9 +29,10 @@ struct OnboardView: View {
                 }
                 .padding()
                 .tag(1)
-                
-                ClicPaywall()
+                Text("Services")
                     .tag(2)
+                ClicPaywall()
+                    .tag(3)
                 //            PaywallView()
             }
             .animation(.bouncy, value: selectedTab)
@@ -60,5 +61,8 @@ struct OnboardView: View {
 }
 
 #Preview {
-    OnboardView()
+    Text("Onboard")
+        .sheet(isPresented: .constant(true)) {
+            OnboardView()
+        }
 }

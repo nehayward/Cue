@@ -17,18 +17,8 @@ struct RemoteWidgetEntryView : View {
                     RemoteWidgetRectangularView(entry: entry)
                 case .accessoryCircular:
                     RemoteWidgetAccessoryCircularView(entry: entry)
-                    // MARK: TODO
-//                case .systemMedium:
-//                    if let documentsDirectory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic") {
-//                        let fileURL = documentsDirectory.appendingPathComponent("test.png")
-//                        Text(fileURL.absoluteString)
-//                        if let data = try? Data(contentsOf: fileURL) {
-//                            Text("\(data.count)")
-//                            if let image =  UIImage(data: data) {
-//                                Image(uiImage: image)
-//                            }
-//                        }
-//                    }
+                case .systemMedium:
+                    RemoteWidgetMediumView(entry: entry)
                 default:
                     VStack(spacing: 0) {
                         Text(entry.name ?? room.name)
@@ -143,59 +133,23 @@ struct RemoteWidgetEntryView : View {
 #Preview("Small", as: .systemSmall) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Circle", as: .accessoryCircular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "", 
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty
-    )
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Rectangle", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty
-    )
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("Unlocked Rectangle", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(
-        date: .now,
-        configuration: RemoteWidgetConfigurationIntent(
-            room: SonosDeviceEntity(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 20
-            )
-        ),
-        volume: 20,
-        track: .empty
-    )
+    RemoteWidgetEntry.previewBarbie()
 }

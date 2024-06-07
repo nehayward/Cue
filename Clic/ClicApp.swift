@@ -44,8 +44,10 @@ struct ClicApp: App {
                             ContainerLargePlayerView(id: $selectedID)
                             DeviceListMainView()    
                         }
+#if !os(visionOS)
                         .withInspector(inspectorDestination: $router.inspectorSheet)
                         .ignoresSafeArea()
+#endif
 #if os(visionOS)
                         .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
                             Group {

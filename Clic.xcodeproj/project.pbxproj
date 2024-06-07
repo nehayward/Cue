@@ -14,6 +14,7 @@
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F31612BC4976800884EA5 /* PlayableContentView.swift */; };
 		E90F31652BC5999900884EA5 /* ClicPaywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90F31642BC5999900884EA5 /* ClicPaywall.swift */; };
+		E91272B82C120E7E0060A4B3 /* SpeakerSettingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */; };
 		E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E9146E8F2BE5593400056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
@@ -25,6 +26,12 @@
 		E91976E32C0A1B63000FA449 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E91976E22C0A1B63000FA449 /* OrderedCollections */; };
 		E919EC0E2A608FBB00B6022C /* GroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E919EC0C2A608FB300B6022C /* GroupScreen.swift */; };
 		E9249A652C0A6CCB00D8B920 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E9249A6A2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */; };
+		E9249A6B2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */; };
+		E9249A6C2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */; };
+		E9249A6E2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A6D2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift */; };
+		E9249A6F2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A6D2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift */; };
+		E9249A702C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9249A6D2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift */; };
 		E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9294B5A2B33A531009E1F45 /* Environments.swift */; };
 		E92B3E9D2B60249B00724FA1 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E92B3E9E2B60249B00724FA1 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
@@ -115,6 +122,8 @@
 		E92E47562B3647E200DE6647 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92E47552B3647E200DE6647 /* SonosKit */; };
 		E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */; };
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
+		E93739E32C125D3C00B64F74 /* SpeakerSettingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */; };
+		E93739E42C125D3D00B64F74 /* SpeakerSettingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */; };
 		E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E93AFA762B587F1800B20AC4 /* Defaults */; };
 		E93E493C2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */; };
 		E93E493D2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */; };
@@ -148,6 +157,7 @@
 		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
 		E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91E2AB65F3D000D596E /* VibesDS */; };
 		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
+		E9604DE12C0F6D7200A421D9 /* RemoteWidgetMediumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */; };
 		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
 		E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
 		E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
@@ -532,9 +542,12 @@
 		E90F315C2BC481E400884EA5 /* Analytics */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Analytics; sourceTree = SOURCE_ROOT; };
 		E90F31612BC4976800884EA5 /* PlayableContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayableContentView.swift; sourceTree = "<group>"; };
 		E90F31642BC5999900884EA5 /* ClicPaywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicPaywall.swift; sourceTree = "<group>"; };
+		E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSettingsListView.swift; sourceTree = "<group>"; };
 		E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearchView.swift; sourceTree = "<group>"; };
 		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
+		E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSettingsView.swift; sourceTree = "<group>"; };
+		E9249A6D2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSettingsMenuView.swift; sourceTree = "<group>"; };
 		E9294B5A2B33A531009E1F45 /* Environments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environments.swift; sourceTree = "<group>"; };
 		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92CABED2AB8FE24002A3D4D /* TVView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVView.swift; sourceTree = "<group>"; };
@@ -569,6 +582,7 @@
 		E959B9192AB506A4000D596E /* Clic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clic.entitlements; sourceTree = "<group>"; };
 		E959B91A2AB506AD000D596E /* Clic (Watch).entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Clic (Watch).entitlements"; sourceTree = "<group>"; };
 		E959B91D2AB65EC3000D596E /* VibesDS */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VibesDS; path = Packages/VibesDS; sourceTree = "<group>"; };
+		E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetMediumView.swift; sourceTree = "<group>"; };
 		E960ED462AC46769003E3732 /* SubscriptionKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SubscriptionKit; path = Packages/SubscriptionKit; sourceTree = "<group>"; };
 		E960ED4D2AC4CE6B003E3732 /* Widgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Widgets.entitlements; sourceTree = "<group>"; };
 		E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+AppIcon.swift"; sourceTree = "<group>"; };
@@ -815,6 +829,23 @@
 			path = Paywall;
 			sourceTree = "<group>";
 		};
+		E91272B62C120E670060A4B3 /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
+				E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */,
+			);
+			path = Preferences;
+			sourceTree = "<group>";
+		};
+		E9249A682C0CF90A00D8B920 /* SpeakerSettings */ = {
+			isa = PBXGroup;
+			children = (
+				E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */,
+			);
+			path = SpeakerSettings;
+			sourceTree = "<group>";
+		};
 		E92DCBA12B67020A00A2C3B5 /* Vision */ = {
 			isa = PBXGroup;
 			children = (
@@ -1042,7 +1073,7 @@
 				E92D6EEE2B46634800E49AC8 /* Track+.swift */,
 				E9294B5A2B33A531009E1F45 /* Environments.swift */,
 				E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */,
-				E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */,
+				E91272B62C120E670060A4B3 /* Preferences */,
 				E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */,
 				E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
@@ -1065,6 +1096,7 @@
 				E992B6E82A645B6600FD6380 /* LargePlayerView.swift */,
 				E97DA8E42BEBCA9B004BB1F7 /* MenuInfoView.swift */,
 				E9A3807D2C02F91F00D5349E /* AddToPlaylistMenu.swift */,
+				E9249A6D2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift */,
 				E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */,
 				E9A380612C00419100D5349E /* SleepTimerCustomView.swift */,
 				E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */,
@@ -1074,6 +1106,7 @@
 				E92DCB9B2B6445EC00A2C3B5 /* DropDestination+.swift */,
 				E94F6B0F2A54D0F0000240A6 /* SceneBuilderScreen.swift */,
 				E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */,
+				E9249A682C0CF90A00D8B920 /* SpeakerSettings */,
 				E9A3806B2C01004B00D5349E /* Library */,
 				E960ED452AC38936003E3732 /* Search */,
 				E940E7152AAFBD17004303CD /* FilterView.swift */,
@@ -1185,6 +1218,7 @@
 			children = (
 				E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */,
 				E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */,
+				E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */,
 			);
 			path = RemoteWidgetViews;
 			sourceTree = "<group>";
@@ -1517,8 +1551,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9C889662BBFA6E8004C31DE /* Super.storekit in Resources */,
-				E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */,
 				E9684B6A2BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy in Resources */,
+				E9BDE57729E3396800D230A8 /* Preview Assets.xcassets in Resources */,
 				E9BDE57429E3396800D230A8 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1546,6 +1580,7 @@
 				E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */,
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
+				E93739E32C125D3C00B64F74 /* SpeakerSettingsListView.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
 				E98150DE2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E950E7D32B74185F0029415B /* SplitView.swift in Sources */,
@@ -1568,6 +1603,7 @@
 				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
 				E9A380642C00F14100D5349E /* SleepTimerCustomView.swift in Sources */,
 				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
+				E9249A6C2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E92B3EAD2B60249B00724FA1 /* ZoneView.swift in Sources */,
 				E92B3EAE2B60249B00724FA1 /* Router.swift in Sources */,
 				E98150DA2BED143E0076E312 /* AlarmListView.swift in Sources */,
@@ -1594,6 +1630,7 @@
 				E92B3EC22B60249B00724FA1 /* IntentError.swift in Sources */,
 				E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */,
 				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
+				E9249A702C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */,
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
 				E92DCBA02B66FE0D00A2C3B5 /* DropDestination+.swift in Sources */,
 				E9A380752C01052800D5349E /* CoreFeatures.swift in Sources */,
@@ -1699,6 +1736,7 @@
 				E99403D82C07796C00D20067 /* AppTips.swift in Sources */,
 				E99403DC2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
 				E97563022B699B2400787E14 /* UIApplication+Environment.swift in Sources */,
+				E9249A6F2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */,
 				E97563032B699B2400787E14 /* RouterDestination.swift in Sources */,
 				E97563042B699B2400787E14 /* ReviewService.swift in Sources */,
 				E9A3806A2C00FC8D00D5349E /* BetaFeatures.swift in Sources */,
@@ -1709,6 +1747,7 @@
 				E97563062B699B2400787E14 /* IntentError.swift in Sources */,
 				E97563072B699B2400787E14 /* LogView.swift in Sources */,
 				E97563082B699B2400787E14 /* AlertService.swift in Sources */,
+				E9249A6B2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E93E493F2BFB10E00064A979 /* PlexSearchView.swift in Sources */,
 				E97563092B699B2400787E14 /* SheetDestination.swift in Sources */,
 				E975630B2B699B2400787E14 /* Environments.swift in Sources */,
@@ -1725,6 +1764,7 @@
 				E97563132B699B2400787E14 /* SpotifySearchView.swift in Sources */,
 				E97563142B699B2400787E14 /* ManageSceneScreen.swift in Sources */,
 				E97563152B699B2400787E14 /* MediaControlsView.swift in Sources */,
+				E93739E42C125D3D00B64F74 /* SpeakerSettingsListView.swift in Sources */,
 				E9A3807C2C01217200D5349E /* BrowseScreen.swift in Sources */,
 				E97563162B699B2400787E14 /* NightModeIntent.swift in Sources */,
 				E97563172B699B2400787E14 /* PaywallButtonView.swift in Sources */,
@@ -1768,6 +1808,7 @@
 				E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */,
 				E9DE849A2A66F87C004C3947 /* RemoteWidgetRectangularView.swift in Sources */,
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
+				E9604DE12C0F6D7200A421D9 /* RemoteWidgetMediumView.swift in Sources */,
 				E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */,
 				E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */,
 				E9F600BA2B4DC4830039AAA6 /* LiveActivity+Environment.swift in Sources */,
@@ -1808,6 +1849,7 @@
 				E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */,
+				E91272B82C120E7E0060A4B3 /* SpeakerSettingsListView.swift in Sources */,
 				E9FDDC342B27BED4005D281E /* AppRegistry.swift in Sources */,
 				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
 				E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */,
@@ -1824,6 +1866,7 @@
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
 				E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */,
 				E9A380702C0100DA00D5349E /* InspectorDestination.swift in Sources */,
+				E9249A6E2C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */,
 				E9BF3AC02B0EBC9900AF57EA /* SearchSelection.swift in Sources */,
 				E985278E2A5E0864009016C2 /* SonosDeviceEntity.swift in Sources */,
 				E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */,
@@ -1849,6 +1892,7 @@
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
 				E93FE3F72AC1F8640061EADD /* UIApplication+Environment.swift in Sources */,
 				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
+				E9249A6A2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E9A380682C00F27400D5349E /* Storage.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */,

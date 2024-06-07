@@ -100,6 +100,13 @@ extension View {
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
                     NewPlaylistView(playlist: content)
+                case let .speakerSettings(room: room):
+                    NavigationStack {
+                        SpeakerSettingsView(room: room)
+                    }
+                    .presentationDetents([.medium, .large])
+                    .presentationBackground(.thinMaterial)
+                    .presentationCornerRadius(24)
                 }
             }
             .withEnvironments()
@@ -175,6 +182,8 @@ extension View {
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
                     NewPlaylistView(playlist: content)
+                default:
+                    EmptyView()
                 }
             }
             .withEnvironments()
@@ -211,6 +220,10 @@ extension View {
                 AlarmView(group: group, alarm: .newAlarm)
             case let .editAlarm(alarm):
                 AlarmView(edit: true, alarm: alarm)
+            case .speakerSettingsList:
+                SpeakerSettingsListView()
+            case let .speakerSettings(room: room):
+                SpeakerSettingsView(room: room)
             }
         }
     }

@@ -237,7 +237,19 @@ public final class SonosService {
             groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
             if groups[index].coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
                 print("Update device Info")
+                // MARK: Update all rooms Info.
                 groups[index].coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
+            }
+
+            for roomIndex in groups[index].rooms.indices {
+                if groups[index].rooms[roomIndex].info == nil, updateGroup.coordinatorRoom.state == .active {
+                    groups[index].rooms[roomIndex].info = await api.deviceInfo(IP: groups[index].rooms[roomIndex].ip)
+                }
+
+                guard !groups[index].rooms[roomIndex].settings.isSet else {
+                    continue
+                }
+                groups[index].rooms[roomIndex].settings = await getSpeakerSettings(room: groups[index].rooms[roomIndex])
             }
         }
 
@@ -626,6 +638,7 @@ public final class SonosService {
                         roomGroup.playbackService = playbackService
                     }
 
+                    // TODO: Move into playback
                     if roomGroup.playbackService == .tv {
                         roomGroup.tvSettings = try? await getTVSettings(ip: roomGroup.ip)
                     } else {
@@ -1506,6 +1519,82 @@ public final class SonosService {
     public func renamePlaylist(existingPlaylist: PlayableContent, newName: String) async throws {
         guard let ip = prioritizedIP() else { return }
         await api.renamePlaylist(IP: ip, playlistID: existingPlaylist.id, oldName: existingPlaylist.title, newName: newName)
+    }
+
+    // MARK: - Speaker Settings
+    public func getSpeakerSettings(room: Room) async -> SpeakerSettings {
+        async let bass = api.getBass(ipAddress: room.ip) ?? 0
+        async let treble = api.getTreble(ipAddress: room.ip) ?? 0
+        async let loudness = api.getLoudness(ipAddress: room.ip) ?? false
+        async let isTrueplayEnabled = api.getTrueplayEnabled(ipAddress: room.ip) ?? false
+
+        return SpeakerSettings(
+            isSet: true,
+            bass: await Double(bass),
+            treble: await Double(treble),
+            loudness: await loudness,
+            truePlay: await isTrueplayEnabled
+        )
+    }
+
+    public func setBass(room: Room) async {
+        await api.setBass(ipAddress: room.ip, bass: Int(room.settings.bass))
+    }
+
+    public func setTreble(room: Room) async {
+        await api.setTreble(ipAddress: room.ip, treble: Int(room.settings.treble))
+    }
+
+    public func setLoudness(room: Room) async {
+        await api.setLoudness(ipAddress: room.ip, enabled: room.settings.loudness)
+    }
+
+    public func getEQ(room: Room, eq: EQType) async -> Double {
+        await api.getEQValue(IP: room.ip, eq: eq) ?? 0.0
+    }
+
+    public func setEQ(room: Room, eq: EQType, value: Int) async {
+        await api.setEQValue(IP: room.ip, eq: eq, value: value)
+    }
+
+    public func resetEQ(room: Room) async {
+        await api.resetEQ(ipAddress: room.ip)
+    }
+
+    // MARK: Theater Settings
+    public func getTheaterSettings(room: Room) async -> TheaterSettings {
+        async let audioInputFormat = api.getAudioInputFormat(IP: room.ip)
+        async let dialogLevel = api.getDialogLevel(IP: room.ip)
+        async let nightMode = api.getNightMode(IP: room.ip)
+        async let subGain = api.getEQValue(IP: room.ip, eq: .subGain)
+        async let isSubEnabled = api.getEQValue(IP: room.ip, eq: .subEnable)
+        async let surroundMode = api.getEQValue(IP: room.ip, eq: .surroundMode)
+        async let musicSurroundLevel = api.getEQValue(IP: room.ip, eq: .musicSurroundLevel)
+        async let surroundLevel = api.getEQValue(IP: room.ip, eq: .surroundLevel)
+        async let surroundEnabled = api.getEQValue(IP: room.ip, eq: .surroundEnable)
+
+
+//        public var surroundLevel: Double = .zero
+//        public var musicSurroundLevel: Double = .zero
+//        public var isSurroundEnable: Bool = false
+//        public var surroundMode: Bool = false
+//        public var heightChannel: Double = .zero
+//
+//        public var subGain: Double = .zero
+//        public var isSubEnabled: Bool = false
+        
+        return TheaterSettings(
+            isSet: true,
+            nightMode: (try? await nightMode) ?? false,
+            dialogLevel: (try? await dialogLevel) ?? false,
+            audioInputFormat: (try? await audioInputFormat) ?? .unknown,
+            surroundLevel: await surroundLevel ?? 0.0,
+            musicSurroundLevel: await musicSurroundLevel ?? 0.0,
+            isSurroundEnable: await (surroundEnabled ?? 0) == 1 ? true : false,
+            surroundMode:  await surroundMode ?? 0.0,
+            subGain: await subGain ?? 0.0,
+            isSubEnabled: await (isSubEnabled ?? 0) == 1 ? true : false
+        )
     }
 
     // MARK: - Alarms

@@ -13,6 +13,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case alarms
     case addAlarm(group: GroupRoom? = nil)
     case editAlarm(alarm: Alarm)
+    case speakerSettingsList
+    case speakerSettings(room: Room)
 
     public var id: String {
         switch self {
@@ -34,6 +36,10 @@ public enum RouterDestination: Hashable, Identifiable {
             "addAlarm"
         case let .editAlarm(alarm):
             alarm.id
+        case .speakerSettingsList:
+            "speakerSettingsList"
+        case .speakerSettings:
+            "speaker.configuration"
         }
     }
 }

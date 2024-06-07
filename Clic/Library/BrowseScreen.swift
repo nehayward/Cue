@@ -68,9 +68,7 @@ struct BrowseScreen: View {
                         }
                     }
                 }
-                .addDismiss(override: true) {
-                    dismiss()
-                }
+                .addDismiss(override: UIDevice.current.userInterfaceIdiom == .mac, action: dismiss.callAsFunction)
             }
             .environment(router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet) {

@@ -8,7 +8,7 @@ import SwiftUI
 
 final class LiveActivityManager: LiveActivityManageable {    
     private let sonosService: SonosService
-    private let artworkManager: ArtworkManager = ArtworkManager()
+    private let artworkManager: ArtworkManager = .shared
 
     private var createTask: Task<Void,Error>? = nil
 
@@ -42,13 +42,14 @@ final class LiveActivityManager: LiveActivityManageable {
                 }
             }
 
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
-                                                                           artist: group.coordinatorRoom.track.artist,
-                                                                           volume: group.groupVolume,
-                                                                           name: group.nameWithCount,
-                                                                           update: type,
-                                                                           TVMode: group.TVMode,
-                                                                           TVSettings: tvSettings)
+            let contentState = ClicNowPlayingWidgetAttributes.ContentState(
+                playableContent: group.coordinatorRoom.track.toPlayable,
+                volume: group.groupVolume,
+                name: group.nameWithCount,
+                update: type,
+                TVMode: group.TVMode,
+                TVSettings: tvSettings
+            )
 
             let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
             await activity.update(activityContent)
@@ -72,8 +73,7 @@ final class LiveActivityManager: LiveActivityManageable {
 
                 let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
                                                                                             ip: group.coordinatorRoom.ip,
-                                                                                            name: group.nameWithCount,
-                                                                                            volume: group.groupVolume))
+                                                                                            name: group.nameWithCount))
 
                 var title = group.coordinatorRoom.track.name
                 var tvSettings: TVSettings?
@@ -84,12 +84,13 @@ final class LiveActivityManager: LiveActivityManageable {
                     }
                 }
 
-                let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
-                                                                               artist: group.coordinatorRoom.track.artist,
-                                                                               volume: group.groupVolume,
-                                                                               name: group.nameWithCount,
-                                                                               TVMode: group.TVMode,
-                                                                               TVSettings: tvSettings)
+                let contentState = ClicNowPlayingWidgetAttributes.ContentState(
+                    playableContent: group.coordinatorRoom.track.toPlayable,
+                    volume: group.groupVolume,
+                    name: group.nameWithCount,
+                    TVMode: group.TVMode,
+                    TVSettings: tvSettings
+                )
 
                 let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
 
@@ -116,8 +117,7 @@ final class LiveActivityManager: LiveActivityManageable {
 
         let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
                                                                                     ip: group.coordinatorRoom.ip,
-                                                                                    name: group.nameWithCount,
-                                                                                    volume: group.groupVolume))
+                                                                                    name: group.nameWithCount))
 
         // MARK: Rework have it be title and subtitle
         var title = group.coordinatorRoom.track.name
@@ -129,12 +129,13 @@ final class LiveActivityManager: LiveActivityManageable {
             }
         }
 
-        let contentState = ClicNowPlayingWidgetAttributes.ContentState(trackName: title,
-                                                                       artist: group.coordinatorRoom.track.artist,
-                                                                       volume: group.groupVolume,
-                                                                       name: group.nameWithCount,
-                                                                       TVMode: group.TVMode,
-                                                                       TVSettings: tvSettings)
+        let contentState = ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: group.coordinatorRoom.track.toPlayable,
+            volume: group.groupVolume,
+            name: group.nameWithCount,
+            TVMode: group.TVMode,
+            TVSettings: tvSettings
+        )
         
         let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: activities.isEmpty ? 0 : 1)
         guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {

@@ -20,6 +20,7 @@ enum SheetDestination: Identifiable, Equatable {
     case browse(group: GroupRoom? = nil)
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
+    case speakerSettings(room: Room)
 
     var id: String {
         switch self {
@@ -59,6 +60,8 @@ enum SheetDestination: Identifiable, Equatable {
             "new.playlist"
         case .renamePlaylist:
             "rename.playlist"
+        case .speakerSettings:
+            "speaker.configuration"
         }
     }
 

@@ -27,7 +27,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     }
 
     public var shareURL: URL {
-        guard let musicService = content.service.name else { return URL(string: "clic://")! }
+        // TODO: Check
+        #warning("DOULBE CHECK THIS")
+        guard content.service != .unknown else { return URL(string: "clic://")! }
+        guard let musicService = content.service.name?.lowercased() else { return  URL(string: "clic://")!  }
         return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
     }
 

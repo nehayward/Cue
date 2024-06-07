@@ -23,7 +23,7 @@ final class XMLParserSonos {
         let allRooms = zonesParsed.flatMap { zoneGroup in
             zoneGroup.zoneGroupMembers.compactMap {
                 if !$0.invisible {
-                    return Room(id: $0.UUID, ip: $0.location, name: $0.zoneName)
+                    return Room(id: $0.UUID, ip: $0.location, name: $0.zoneName, channelMap: $0.channelMap, satChannelMap: $0.satChannelMap)
                 } else {
                     return nil
                 }
@@ -523,6 +523,18 @@ final class XMLParserSonos {
         throw XMLParserSonosError.parsing
     }
 
+    func extractValue<T: LosslessStringConvertible>(from xmlData: Data, for tag: String) -> T? {
+        let xml = String(decoding: xmlData, as: UTF8.self)
+        let pattern = "<\(tag)>(.*?)</\(tag)>"
+        guard let range = xml.range(of: pattern, options: .regularExpression) else {
+            return nil
+        }
+        let valueString = String(xml[range])
+            .replacingOccurrences(of: "<\(tag)>", with: "")
+            .replacingOccurrences(of: "</\(tag)>", with: "")
+        return T(valueString)
+    }
+
     func parseForHTAudioIn(xml: String) throws -> AudioInputFormat {
         // Parse out CurrentValue
         let pattern = "<HTAudioIn>(.*?)</HTAudioIn>"
@@ -579,7 +591,7 @@ final class XMLParserSonos {
             case .track:
                 artist = (trackAlbumArtist ?? creator) ?? ""
                 if let album {
-                    subtitle = "\(artist) • \(album)"
+                    subtitle = [artist, album].joined(separator: " • ")
                 }
             default:
                 break
@@ -630,7 +642,7 @@ final class XMLParserSonos {
             case .track:
                 artist = (trackAlbumArtist ?? creator) ?? ""
                 if let album {
-                    subtitle = "\(artist) • \(album)"
+                    subtitle = [artist, album].joined(separator: " • ")
                 }
             default:
                 break

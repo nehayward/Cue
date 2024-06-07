@@ -22,6 +22,7 @@ public final class MusicSearchService {
     private let plex = PlexAPI()
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI()
+//    private let tune
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
@@ -30,6 +31,7 @@ public final class MusicSearchService {
     private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
     private var tidalSearchTask = Task<([PlayableContent])?, Never> { nil }
     private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
+    private var tuneInSearchTask = Task<([PlayableContent])?, Never> { nil }
 
     private let debounceDuration: Duration = .milliseconds(200)
 
@@ -40,6 +42,7 @@ public final class MusicSearchService {
     public var librarySearchResults: [PlayableContent] = []
     public var plexResults: [PlayableContent] = []
     public var tidalResults: [PlayableContent] = []
+    public var tuneInResults: [PlayableContent] = []
 
     public var newReleases: [SpotifyAlbumItem] = []
 
@@ -54,8 +57,8 @@ public final class MusicSearchService {
         librarySearchTask.cancel()
         plexSearchTask.cancel()
         tidalSearchTask.cancel()
+        tuneInSearchTask.cancel()
 
-        // Create a new task
         searchSuggestionTask = Task { [weak self] in
             // Delay execution to debounce
             guard let self else { return nil }
@@ -65,7 +68,6 @@ public final class MusicSearchService {
             return results
         }
 
-        // Create a new task
         appleSearchTask = Task { [weak self] in
             // Delay execution to debounce
             guard let self else { return nil }
@@ -118,6 +120,18 @@ public final class MusicSearchService {
             }
             return nil
         }
+
+        tuneInSearchTask = Task { [weak self] in
+            // Delay execution to debounce
+            guard let self else { return nil }
+            try? await Task.sleep(for: debounceDuration)
+            guard !Task.isCancelled else { return nil }
+            if provider == .tidal {
+                return await searchTidal(query: query)
+            }
+            return nil
+        }
+
 
         // Wait for the task to complete and return the result
         guard let results = await searchSuggestionTask.value else { return }
@@ -372,6 +386,16 @@ public final class MusicSearchService {
     }
 
     private func searchTidal(query: String) async -> [PlayableContent] {
+        var playableContent: [PlayableContent] = []
+        guard let results = await tidal.search(for: query) else { return playableContent }
+        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
+
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    }
+
+    private func searchTuneIn(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await tidal.search(for: query) else { return playableContent }
         playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))

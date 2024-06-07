@@ -113,7 +113,7 @@ struct NowPlayingWidgetViewMedium: View {
 } timeline: {
     NowPlayingEntry(date: .now,
                     configuration: .init(),
-                    info: NowPlayingEntry.Info(room: SonosDeviceEntity(id: "", ip: "", name: "Kitchen", volume: 0),
+                    info: NowPlayingEntry.Info(room: SonosDeviceEntity(id: "", ip: "", name: "Kitchen"),
                                                data: UIImage.barbie.jpegData(compressionQuality: 1),
                                                track: "Dance the Night (From The Barbie Album)",
                                                artist: "Dua Lipa")

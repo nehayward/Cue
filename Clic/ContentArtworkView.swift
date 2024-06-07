@@ -62,13 +62,9 @@ struct ContentArtworkView: View {
                                 .padding(size == 24 ? 16 : 4)
                                 .shadow(radius: 10)
                         case .spotify:
-                            Image(.spotifyLogo)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white.gradient)
+                            MusicService.spotify.icon
                                 .frame(width: size, height: size, alignment: .bottomTrailing)
                                 .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
                         case .library:
                             Image(systemName: "books.vertical.fill")
                                 .resizable()
@@ -78,10 +74,7 @@ struct ContentArtworkView: View {
                                 .padding(size == 24 ? 16 : 4)
                                 .shadow(radius: 10)
                         case .plex:
-                            Image(.plex)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white.gradient)
+                            MusicService.plex.icon
                                 .frame(width: size, height: size, alignment: .bottomTrailing)
                                 .padding(size == 24 ? 16 : 4)
                                 .shadow(radius: 10)

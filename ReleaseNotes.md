@@ -1,3 +1,16 @@
+# 2024.29
+
+## External
+
++ Add EQ controls for Speakers!
++ Add Medium Widget.
++ Customize search options.
+
+## Internal
+- Improve Live Activities.
+- Add channel map info.
+- Move icons to packages and reduced size.
+
 # 2024.28
 
 ## External

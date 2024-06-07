@@ -53,6 +53,12 @@ public final class ArtworkManager {
     }
 
     public func getImage(name: String) -> UIImage? {
+        #if DEBUG
+        print("HERE")
+        if name == "Kitchen + 1" {
+            return UIImage(named: "barbie")
+        }
+        #endif
         let fileURL = containerURL.appendingPathComponent("\(name).jpg")
         if let data = try? Data(contentsOf: fileURL) {
             return UIImage(data: data)

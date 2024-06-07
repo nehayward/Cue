@@ -22,6 +22,7 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
     @State private var betaFeatures = BetaFeatures()
+    @State private var coreFeatures = CoreFeatures()
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
@@ -119,48 +120,52 @@ struct SearchScreen: View {
                             FilterView(filters: $filters)
                             Spacer()
                             Menu {
-                                Button {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    musicSearchSelection = .spotify
-                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                } label: {
-                                    HStack {
-                                        Text("Spotify")
-                                        Image(.spotifyLogo)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .tag(MediaSearchService.spotify)
-                                            .frame(width: 24, height: 24)
+                                if coreFeatures.isEnabled(.spotify) {
+                                    Button {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        musicSearchSelection = .spotify
+                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                    } label: {
+                                        HStack {
+                                            Text("Spotify")
+                                            MusicService.spotify.icon
+                                                .tag(MediaSearchService.spotify)
+                                                .frame(width: 24, height: 24)
+                                        }
                                     }
+                                    .id(MediaSearchService.spotify)
                                 }
-                                .id(MediaSearchService.spotify)
 
-                                Button {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    musicSearchSelection = .apple
-                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                } label: {
-                                    HStack {
-                                        Text("Apple Music")
-                                        Image(systemName: "apple.logo")
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 24, height: 24)
+                                if coreFeatures.isEnabled(.apple) {
+                                    Button {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        musicSearchSelection = .apple
+                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                    } label: {
+                                        HStack {
+                                            Text("Apple Music")
+                                            Image(systemName: "apple.logo")
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 24, height: 24)
+                                        }
                                     }
+                                    .id(MediaSearchService.apple)
                                 }
-                                .id(MediaSearchService.apple)
 
-                                Button {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    musicSearchSelection = .library
-                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                } label: {
-                                    Label("Library", systemImage: "books.vertical.fill")
+                                if coreFeatures.isEnabled(.library) {
+                                    Button {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        musicSearchSelection = .library
+                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
+                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
+                                    } label: {
+                                        Label("Library", systemImage: "books.vertical.fill")
+                                    }
+                                    .id(MediaSearchService.library)
                                 }
-                                .id(MediaSearchService.library)
 
                                 // MARK: Hide feature until later
                                 //                                Button {
@@ -180,7 +185,7 @@ struct SearchScreen: View {
                                 //                                }
                                 //                                .id(MediaSearchService.plex)
 
-                                if betaFeatures.tidalFeature {
+                                if coreFeatures.isEnabled(.tidal) {
                                     Button {
                                         HapticManager.shared.fireHaptic(.buttonPress)
                                         musicSearchSelection = .tidal
@@ -194,6 +199,13 @@ struct SearchScreen: View {
                                         }
                                     }
                                     .id(MediaSearchService.tidal)
+                                }
+
+                                Button {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    router.presentedSheet = .settings
+                                } label: {
+                                    Text("Customize in Settings…")
                                 }
                             } label: {
                                 Label {
@@ -279,28 +291,26 @@ struct SearchScreen: View {
     private var iconForMusicService: some View {
         switch musicSearchSelection {
         case .spotify:
-            Image(.spotifyLogo)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            MusicService.spotify.image
+                .foregroundStyle(.thinMaterial)
                 .frame(width: 24, height: 24)
         case .apple:
             Image(systemName: "apple.logo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
                 .frame(width: 24, height: 24)
         case .library:
             Image(systemName: "books.vertical.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
                 .frame(width: 24, height: 24)
         case .plex:
-            Image(.plex)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            MusicService.plex.image
                 .frame(width: 24, height: 24)
-                .clipShape(Circle())
         case .tidal:
-            musicSearchSelection.icon
+            MusicService.tidal.image
                 .frame(width: 24, height: 24)
         }
     }

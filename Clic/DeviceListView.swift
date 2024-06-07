@@ -86,8 +86,26 @@ struct DeviceListMainView: View {
                 }
             }
             .overlay(alignment: .center) {
-                if sonosService.sorted.isEmpty, sonosService.parserError == nil {
+                if sonosService.sorted.isEmpty, sonosService.parserError == nil, !sonosService.systemState.notFound {
                     ProgressView()
+                }
+
+                if sonosService.systemState.notFound {
+                    ContentUnavailableView {
+                        Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
+                    } description: {
+                        Text("Please ensure you're connected to WiFi and have a Sonos system setup.")
+                    } actions: {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            sonosService.monitor()
+                        } label: {
+                            Text("Search")
+                        }
+                        .foregroundStyle(Color.accentColor.gradient)
+                        //                           .bold()
+                    }
+                    .background(.thinMaterial)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -103,21 +121,6 @@ struct DeviceListMainView: View {
                                 .bold()
                                 .imageScale(.large)
                                 .symbolEffect(.pulse.wholeSymbol)
-                                .padding()
-                                .background {
-                                    Capsule()
-                                        .foregroundStyle(.ultraThinMaterial)
-                                }
-                        }
-                        .transition(.scale)
-                    }
-
-                    if sonosService.systemState.notFound {
-                        Button {
-                            sonosService.monitor()
-                        } label: {
-                            Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
-                                .imageScale(.large)
                                 .padding()
                                 .background {
                                     Capsule()

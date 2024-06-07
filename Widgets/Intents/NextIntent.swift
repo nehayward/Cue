@@ -1,6 +1,9 @@
 import AppIntents
 import CloudStorage
 import SonosKit
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 struct NextIntent: AppIntent {
     static var title: LocalizedStringResource = "Next"
@@ -33,6 +36,10 @@ struct NextIntent: AppIntent {
         await Self.sonosService.next(ip: coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(250))
         await Self.liveActivityManager.refresh(type: .next)
+        
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
         return .result()
     }
 }

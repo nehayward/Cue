@@ -24,7 +24,7 @@ struct LiveActivityNowPlayingView: View {
     }
 
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 8) {
             HStack(spacing: 16) {
                 Text(context.state.name)
                     .font(.headline)
@@ -53,7 +53,7 @@ struct LiveActivityNowPlayingView: View {
                 .buttonBorderShape(.circle)
                 .tint(.primary)
             }
-            VStack(alignment: .leading) {
+            if context.state.TVSettings == nil {
                 HStack {
                     if let image = ArtworkManager.shared.getImage(name: context.state.name) {
                         Image(uiImage: image)
@@ -61,59 +61,64 @@ struct LiveActivityNowPlayingView: View {
                             .aspectRatio(contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                             .frame(width: 48, height: 48)
-//                        // MARK: For Screenshots
-//                        #if DEBUG
-//                        .overlay {
-//                            Rectangle()
-//                                .foregroundStyle(.regularMaterial)
-//                        }
-//                        #endif
+                            .overlay(alignment: .bottomTrailing) {
+                                context.state.playableContent.content.service.icon
+                                    .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                    .padding([.bottom, .trailing], 4)
+                            }
+                        //                        // MARK: For Screenshots
+                        //                        #if DEBUG
+                        //                        .overlay {
+                        //                            Rectangle()
+                        //                                .foregroundStyle(.regularMaterial)
+                        //                        }
+                        //                        #endif
                     }
                     VStack(alignment: .leading) {
-                        Text(context.state.trackName)
+                        Text(context.state.playableContent.title)
                             .lineLimit(1)
                             .bold()
                             .invalidatableContent()
-                            .id(context.state.trackName)
-                            .transition(updateTransition)
-                        Text(context.state.artist)
+                            .id(context.state.playableContent.title )
+                        Text(context.state.playableContent.subtitle)
                             .lineLimit(1)
                             .foregroundStyle(.secondary)
                             .invalidatableContent()
-                            .id(context.state.artist)
-                            .transition(updateTransition)
+                            .id(context.state.playableContent.subtitle)
                     }
                     .lineLimit(0, reservesSpace: true)
                     Spacer()
                 }
             }
-            .frame(maxHeight: 48)
-            if !isCompact {
-                HStack(spacing: 32) {
-                    if let settings = context.state.TVSettings {
-                        Group {
-                            Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
-                                Label("Night Mode", systemImage: "moon.zzz.fill")
-                            }
-                            .labelStyle(.iconOnly)
-                            .symbolRenderingMode(.hierarchical)
-                            .toggleStyle(.button)
-                            .frame(width: 48, height: 32)
-                            .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
-                            .padding(.bottom, 12)
-
-                            Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
-                                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                            }
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
-                            .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
-                            .frame(width: 48, height: 32)
-                            .padding(.bottom, 12)
+            if let settings = context.state.TVSettings {
+                Text(settings.audioInputFormat.description)
+                HStack(spacing: 24) {
+                    Group {
+                        Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                            Label("Night Mode", systemImage: "moon.zzz.fill")
                         }
-                        .tint(.teal)
-                    } else {
+                        .labelStyle(.iconOnly)
+                        .symbolRenderingMode(.hierarchical)
+                        .toggleStyle(.button)
+                        .frame(width: 48, height: 32)
+                        .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
+                        .padding(.bottom, 12)
+
+                        Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                        }
+                        .symbolRenderingMode(.hierarchical)
+                        .labelStyle(.iconOnly)
+                        .toggleStyle(.button)
+                        .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
+                        .frame(width: 48, height: 32)
+                        .padding(.bottom, 12)
+                    }
+                    .tint(.teal)
+                }
+            } else {
+                if !isCompact {
+                    HStack(spacing: 32) {
                         Group {
                             Button(intent: PreviousIntent(room: context.attributes.room)) {
                                 Image(systemName: "backward.end.fill")
@@ -131,8 +136,10 @@ struct LiveActivityNowPlayingView: View {
                         .tint(.primary)
                         .buttonStyle(.liveActivity)
                     }
+                    .frame(maxHeight: 20)
                 }
-                .frame(maxHeight: 40)
+            }
+            if !isCompact {
                 HStack {
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
                         Image(systemName: "minus")
@@ -167,25 +174,37 @@ struct LiveActivityNowPlayingView: View {
 
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym", volume: 10))
+        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym"))
     }
 }
 
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
-                                                    artist: "Dua Lipa",
-                                                    volume: 39,
-                                                    name: "Kitchen + Gym",
-                                                    TVMode: false)
+        ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            volume: 39,
+            name: "Kitchen + 1",
+            TVMode: false
+        )
     }
 
     fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night",
-                                                    artist: "Dua Lipa",
-                                                    volume: 50,
-                                                    name: "Kitchen + 1",
-                                                    TVMode: false)
+        ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            volume: 50,
+            name: "Kitchen + 1",
+            TVMode: false
+        )
+    }
+
+    fileprivate static var theater: ClicNowPlayingWidgetAttributes.ContentState {
+        ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            volume: 50,
+            name: "Kitchen + 1",
+            TVMode: true,
+            TVSettings: .init(nightMode: false, dialogLevel: true, audioInputFormat: .dolbyAtmosDDPlus)
+        )
     }
 }
 
@@ -193,6 +212,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
     LiveActivityNowPlayingWidget()
 } contentStates: {
     ClicNowPlayingWidgetAttributes.ContentState.testing
+    ClicNowPlayingWidgetAttributes.ContentState.theater
 }
 
 #Preview("Lock Screen 2", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {

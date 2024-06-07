@@ -94,101 +94,129 @@ struct PreferenceScreen: View {
                 }
 
                 Section {
-                    Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
+                    LabeledContent("System") {
+                        Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
+                    }
+                    NavigationLink(value: RouterDestination.speakerSettingsList) {
+                        Label("Speaker Settings", systemImage: "hifispeaker")
+                            .foregroundStyle(.primary)
+                    }
+                    NavigationLink(value: RouterDestination.alarms) {
+                        Label("Alarms", systemImage: "alarm")
+                            .foregroundStyle(.primary)
+                    }
                     Button {
                         Task {
                             await sonosService.refreshLibrary()
                         }
                     } label: {
-                        Label("Refresh Library", systemImage: "arrow.clockwise.square.fill")
+                        Label("Refresh Library", systemImage: "arrow.clockwise.circle")
                     }
 
-                    NavigationLink(value: RouterDestination.alarms) {
-                        Label("Alarms", systemImage: "alarm.fill")
-                            .foregroundStyle(.primary)
-                    }
                 } header: {
                     Text("Sonos System")
                 }
-
                 Section {
-                    Toggle(isOn: $betaFeatures.tidalFeature) {
-                        HStack {
-                            MediaSearchService.tidal.icon
-                                .frame(width: 24, height: 24)
-                            VStack(alignment: .leading) {
-                                Text(MediaSearchService.tidal.title)
-                                Text("Search and play songs, albums, and artists (requires Tidal authorization in the Sonos app).")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    NavigationLink {
+                        List {
+                            Section {
+                                ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                    // MARK: Add Plex Later
+                                    if service != .plex {
+                                        Toggle(isOn: coreFeatures.enabledServices(service)) {
+                                            Label {
+                                                Text(service.title)
+                                            } icon: {
+                                                service.image
+                                                    .foregroundStyle(.foreground)
+                                                    .frame(width: 24, height: 24)
+                                            }
+                                        }
+                                        .tint(.accent)
+                                    }
+                                }
+                            } footer: {
+                                Text("Requires authorization in the Sonos app.")
                             }
+                            Toggle(isOn: $coreFeatures.nowPlaying) {
+                                HStack {
+                                    Image(.nowPlayingAppIcon)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 24, height: 24)
+                                    VStack(alignment: .leading) {
+                                        Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
+                                        Text("Add option to open current track in the Now Playing app.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .tint(.accent)
+                        }
+                        .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        LabeledContent {
+                            ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                // MARK: Add Plex Later
+                                if coreFeatures.enabledServices(service).wrappedValue, service != .plex {
+                                    service.image
+                                        .foregroundStyle(.foreground)
+                                        .frame(width: 20, height: 20)
+                                }
+                            }
+                        } label: {
+                            Text("Services")
                         }
                     }
-                    .tint(.accent)
-                    .onChange(of: betaFeatures.tidalFeature) {
-                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
-                    }
-                } header: {
-                    Text("Beta Features")
-                } footer: {
-                    Text("Requires Clic Super Subscription")
-                }
-                .disabled(!subscriptionService.subscription.isActive)
-
-                Section {
-                    Toggle(isOn: $coreFeatures.nowPlaying) {
-                        HStack {
-                            Image(.nowPlayingAppIcon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 24, height: 24)
-                            VStack(alignment: .leading) {
-                                Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
-                                Text("Add option to open current track in the Now Playing app.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .tint(.accent)
-                } header: {
-                    Text("Services")
-                }
-
-                Section {
                     NavigationLink(value: RouterDestination.manageScenes) {
-                        Text("Scenes")
+                        LabeledContent("Scenes") {
+                            Text("Manage scenes")
+                        }
                     }
-                } footer: {
-                    Text("Manage scenes")
-                }
-
-                // TODO: Add next release
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                    Section {
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
                         Toggle(isOn: $isCompact) {
-                            Text("Compact")
-                            Text("Removes volumes controls and overall size of Live Activites")
+                            Text("Compact Live Activities")
+                            Text("Removes volumes controls and reduces size of Live Activities")
                         }
                         .tint(.accent)
-                    } header: {
-                        Text("Live Activities")
                     }
+
+                    if UIDevice.current.userInterfaceIdiom == .phone {
+                        Toggle(isOn: $autoLaunchNowPlaying) {
+                            Text("Auto launch to Group/Room playing on watch")
+                            Text("Instantly jump to the group currently playing.")
+                        }
+                        .tint(.accent)
+                    }
+#endif
                 }
 
-                if UIDevice.current.userInterfaceIdiom == .phone {
-                    Section {
-                        Toggle(isOn: $autoLaunchNowPlaying) {
-                            Text("Auto Launch Group")
-                        }
-                        .tint(.accent)
-                    } header: {
-                        Text("Watch")
-                    } footer: {
-                        Text("Instantly jump to the group currently playing.")
-                    }
-                }
+
+//                Section {
+//                    Toggle(isOn: $betaFeatures.tidalFeature) {
+//                        HStack {
+//                            MediaSearchService.tidal.icon
+//                                .frame(width: 24, height: 24)
+//                            VStack(alignment: .leading) {
+//                                Text(MediaSearchService.tidal.title)
+//                                Text("Search and play songs, albums, and artists (requires Tidal authorization in the Sonos app).")
+//                                    .font(.caption)
+//                                    .foregroundStyle(.secondary)
+//                            }
+//                        }
+//                    }
+//                    .tint(.accent)
+//                    .onChange(of: betaFeatures.tidalFeature) {
+//                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
+//                    }
+//                } header: {
+//                    Text("Beta 👾")
+//                } footer: {
+//                    Text("Requires Subscription")
+//                }
+//                .disabled(!subscriptionService.subscription.isActive)
 
                 // MARK: Disable until fixed later for app review.
                 //                Section {
@@ -238,7 +266,6 @@ struct PreferenceScreen: View {
                 //                    Text("Customize")
                 //                }
                 //                .disabled(!subscriptionService.subscription.isActive)
-#endif
                 Section {
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Link("Support hi@clic.dance", destination: URL(string: message)!)
@@ -273,8 +300,11 @@ struct PreferenceScreen: View {
 
 
 #Preview {
-    PreferenceScreen()
-        .environment(SonosService.shared)
-        .environment(SubscriptionService.shared)
-}
+    Text("Preference")
+        .sheet(isPresented:.constant(true)) {
+            PreferenceScreen()
+                .environment(SonosService.shared)
+                .environment(SubscriptionService.shared)
+        }
 
+}

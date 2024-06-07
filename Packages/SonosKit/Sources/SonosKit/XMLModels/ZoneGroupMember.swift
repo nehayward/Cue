@@ -5,6 +5,8 @@ public struct ZoneGroupMember: XMLObjectDeserialization {
     public let UUID: String
     public let location: String
     public let zoneName: String
+    public let channelMap: String?
+    public let satChannelMap: String?
     public let invisible: Bool
     public let info: String
     public var wirelessMode: Int
@@ -21,6 +23,8 @@ public struct ZoneGroupMember: XMLObjectDeserialization {
             UUID: node.value(ofAttribute: "UUID"),
             location: node.value(ofAttribute: "Location"),
             zoneName: node.value(ofAttribute: "ZoneName"),
+            channelMap: node.value(ofAttribute: "ChannelMapSet"),
+            satChannelMap: node.value(ofAttribute: "HTSatChanMapSet"),
             invisible: node.value(ofAttribute: "Invisible") ?? false,
             info: node.value(ofAttribute: "MoreInfo"),
             wirelessMode: node.value(ofAttribute: "WirelessMode"),

@@ -8,8 +8,7 @@ import VibesDS
 
 struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        var trackName: String
-        var artist: String
+        var playableContent: PlayableContent
         var volume: Double
         var name: String
         var update: UpdateType = .refresh
@@ -35,22 +34,27 @@ struct LiveActivityNowPlayingWidget: Widget {
                                         .aspectRatio(contentMode: .fit)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                         .frame(width: 48, height: 48)
+                                        .overlay(alignment: .bottomTrailing) {
+                                            context.state.playableContent.content.service.icon
+                                                .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                                .padding([.bottom, .trailing], 2)
+                                        }
                                 }
                                 VStack(alignment: .leading) {
-                                    Text(context.state.trackName)
+                                    Text(context.state.playableContent.title)
                                         .lineLimit(0)
                                         .bold()
                                         .invalidatableContent()
-                                        .id(context.state.trackName)
+                                        .id(context.state.playableContent.title)
                                         .transition(updateTransition(context: context))
-                                    Text(context.state.artist)
+                                    Text(context.state.playableContent.subtitle)
                                         .lineLimit(0)
                                         .foregroundStyle(.secondary)
                                         .invalidatableContent()
-                                        .id(context.state.artist)
+                                        .id(context.state.playableContent.subtitle)
                                         .transition(updateTransition(context: context))
                                 }
-                                if context.state.TVSettings != nil || context.state.trackName == "Nothing playing" {
+                                if context.state.TVSettings != nil || context.state.playableContent.title == "" {
 
                                 } else {
                                     Spacer()
@@ -143,6 +147,12 @@ struct LiveActivityNowPlayingWidget: Widget {
                         .aspectRatio(contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                         .frame(width: 20, height: 20)
+                        .overlay(alignment: .bottomTrailing) {
+                            context.state.playableContent.content.service.icon
+                                .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                .padding([.bottom, .trailing], 1)
+
+                        }
                 }
             } minimal: {
                 Image(systemName: "hifispeaker.fill")
@@ -164,18 +174,21 @@ struct LiveActivityNowPlayingWidget: Widget {
 
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen", volume: 10))
+        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen"))
     }
 }
 
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(trackName: "Dance the Night (From The Barbie Album)",
-                                                    artist: "Dua Lipa",
-                                                    volume: 39,
-                                                    name: "Kitchen + 1",
-                                                    TVMode: false)
+        ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            volume: 39,
+            name: "Kitchen + 1",
+            TVMode: false
+        )
      }
+
+    
 }
 
 #Preview("Content View", as: .dynamicIsland(.expanded), using: ClicNowPlayingWidgetAttributes.preview) {

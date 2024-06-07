@@ -59,6 +59,34 @@ extension SonosAPI {
         }
     }
 
+    func getEQValue(IP: String, eq: EQType) async -> Double? {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EQType": eq.rawValue,
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return nil }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+            return nil
+        }
+        guard let value: Double = xmlParser.extractValue(from: data, for: "CurrentValue") else { return nil }
+        return value
+    }
+
+    func setEQValue(IP: String, eq: EQType, value: Int) async  {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "EQType": eq.rawValue,
+            "DesiredValue": value
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetEQ", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            print("Failed with \(httpResponse.statusCode)")
+        }
+    }
+
     func getAudioInputFormat(IP: String) async throws -> AudioInputFormat {
         guard let (data, response) = try await sendSoapRequest(ip: IP, action: "GetZoneInfo", arguments: [:], endpoint: "DeviceProperties") else { return .unknown }
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {

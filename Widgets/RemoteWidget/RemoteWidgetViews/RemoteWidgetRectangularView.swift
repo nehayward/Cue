@@ -30,6 +30,7 @@ struct RemoteWidgetRectangularView: View {
             }
             .buttonStyle(.plain)
             .invalidatableContent()
+            .containerBackground(.bar, for: .widget)
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)
@@ -41,11 +42,11 @@ struct RemoteWidgetRectangularView: View {
 #Preview("Active Subscription", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry.previewBarbie()
 }
 
 #Preview("No Subscription", as: .accessoryRectangular) {
     RemoteWidget()
 } timeline: {
-    RemoteWidgetEntry(date: .now, configuration: RemoteWidgetConfigurationIntent(room: SonosDeviceEntity(id: "", ip: "", name: "Garage", volume: 20)), volume: 20, track: Track(trackID: "", name: "Barbie", artist: "Dua Lipa", album: "Barbie", musicService: .apple, duration: 0, playbackPosition: 0))
+    RemoteWidgetEntry.previewBarbie()
 }

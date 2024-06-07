@@ -358,7 +358,7 @@ final class SonosAPI: NSObject {
                     if !$0.invisible {
                         let components = URLComponents(string: $0.location)
                         if let ip = components?.host {
-                            return Room(id: $0.UUID, ip: ip, name: $0.zoneName)
+                            return Room(id: $0.UUID, ip: ip, name: $0.zoneName, channelMap: $0.channelMap, satChannelMap: $0.satChannelMap)
                         }
                     }
                     return nil

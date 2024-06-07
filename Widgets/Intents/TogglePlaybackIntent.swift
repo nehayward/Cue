@@ -1,7 +1,9 @@
 import AppIntents
 import CloudStorage
 import SonosKit
-
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 struct TogglePlaybackIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Toggle Playback"
     static var description: IntentDescription = "This will toggle the playback of Sonos speaker"
@@ -30,10 +32,12 @@ struct TogglePlaybackIntent: LiveActivityIntent {
         guard let coordinatorGroup = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
-        
         await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
         await Self.liveActivityManager.createActivity(id: room.id)
         await Self.liveActivityManager.refresh(type: .refresh)
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
         return .result()
     }
 }

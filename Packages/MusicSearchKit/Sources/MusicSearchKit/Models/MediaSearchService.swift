@@ -1,6 +1,6 @@
 import SwiftUI
 
-public enum MediaSearchService: String, Sendable, Codable {
+public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case apple
     case library
     case plex
@@ -28,5 +28,31 @@ public enum MediaSearchService: String, Sendable, Codable {
             .renderingMode(.template)
             .resizable()
             .aspectRatio(contentMode: .fit)
+    }
+
+    @ViewBuilder
+    public var image: some View {
+        switch self {
+        case .apple:
+            SwiftUI.Image(systemName: "apple.logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .spotify:
+            SwiftUI.Image(.spotify)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .library:
+            SwiftUI.Image(systemName: "books.vertical.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .plex:
+            SwiftUI.Image(.plex)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .tidal:
+            SwiftUI.Image(.tidal)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        }
     }
 }

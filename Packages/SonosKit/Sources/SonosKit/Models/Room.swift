@@ -9,7 +9,8 @@ public final class Room: Identifiable, @unchecked Sendable {
     public let id: String
     public let ip: String
     public let name: String
-
+    public let channelMap: String?
+    public let satChannelMap: String?
     public var volume: Double = 0
     public var isMuted: Bool = false
     public var isPlaying: Bool = false
@@ -32,10 +33,24 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
 
+    // MARK: Settings
+    public var settings = SpeakerSettings(isSet: false)
+    public var theaterSettings = TheaterSettings(isSet: false)
+
+    public var isSoundbar: Bool {
+        let keywords = ["Ray", "Beam", "Playbar", "Arc"]
+        if let info {
+            return keywords.contains(where: info.modelName.contains)
+        }
+        return false
+    }
+
     public init(
         id: String,
         ip: String,
         name: String,
+        channelMap: String? = nil,
+        satChannelMap: String? = nil,
         track: Track = .empty,
         state: RoomState = .active,
         battery: Battery? = nil,
@@ -49,11 +64,14 @@ public final class Room: Identifiable, @unchecked Sendable {
         voiceConfigState: Int = 0,
         micEnabled: Bool = false,
         airPlayEnabled: Bool = false,
-        invisible: Bool = false
+        invisible: Bool = false,
+        info: DeviceInfo? = nil
     ) {
         self.id = id
         self.ip = ip
         self.name = name
+        self.channelMap = channelMap
+        self.satChannelMap = satChannelMap
         self.track = track
         self.state = state
         self.battery = battery
@@ -68,6 +86,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.micEnabled = micEnabled
         self.airPlayEnabled = airPlayEnabled
         self.invisible = invisible
+        self.info = info
     }
 
     @MainActor
@@ -105,6 +124,6 @@ extension Room: CustomStringConvertible {
 extension Room {
     public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
     public static let gym = Room(id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
-    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"))
+    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"), info: .init(modelName: "Arc", modelNumber: "", seriesID: "", manufacturer: ""))
     public static let garage_kitchen_display = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Kitchen")
 }

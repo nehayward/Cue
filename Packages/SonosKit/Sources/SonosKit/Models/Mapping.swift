@@ -6,7 +6,7 @@ extension Track {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: name,
-            subtitle: "\(artist) • \(album)",
+            subtitle: [artist, album].filter({ !$0.isEmpty }).joined(separator: " • "),
             artwork: artworkURL,
             content: MediaContent(service: musicService, id: trackID.description, type: .track, location: metadata?.openInURL),
             metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album)
@@ -82,13 +82,6 @@ extension MusicKit.Track {
                 }
             }
         }
-
-        print(id)
-        print(isrc)
-        print(playParameters)
-        print(artwork)
-        
-
         return PlayableContent(
             title: title,
             subtitle: artistName,

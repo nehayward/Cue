@@ -171,13 +171,13 @@ struct SceneBuilderScreen: View {
                 if sonosService.sortedRooms.isEmpty {
                     try? await sonosService.load(useCache: true)
                     rooms = sonosService.sortedRooms.map {
-                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
                         room.volume = $0.volume
                         return room
                     }
                 } else {
                     rooms = sonosService.sortedRooms.map {
-                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name)
+                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
                         room.volume = $0.volume
                         return room
                     }
