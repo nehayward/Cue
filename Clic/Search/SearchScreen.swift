@@ -84,6 +84,8 @@ struct SearchScreen: View {
                                 PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters, group: group)
                             case .tidal:
                                 TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters, group: group)
+                            case .tuneIn:
+                                Text("Tune In")
                             }
                         }
                     }
@@ -120,87 +122,24 @@ struct SearchScreen: View {
                             FilterView(filters: $filters)
                             Spacer()
                             Menu {
-                                if coreFeatures.isEnabled(.spotify) {
-                                    Button {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchSelection = .spotify
-                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                    } label: {
-                                        HStack {
-                                            Text("Spotify")
-                                            MusicService.spotify.icon
-                                                .tag(MediaSearchService.spotify)
-                                                .frame(width: 24, height: 24)
+                                ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                    if ![MediaSearchService.plex, MediaSearchService.tuneIn].contains(service) {
+                                        Button {
+                                            HapticManager.shared.fireHaptic(.buttonPress)
+                                            musicSearchSelection = service
+                                            Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
+                                            Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
+                                        } label: {
+                                            HStack {
+                                                Text(service.title)
+                                                service.image
+                                                    .tag(service)
+                                                    .frame(width: 24, height: 24)
+                                            }
                                         }
+                                        .id(service)
                                     }
-                                    .id(MediaSearchService.spotify)
                                 }
-
-                                if coreFeatures.isEnabled(.apple) {
-                                    Button {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchSelection = .apple
-                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                    } label: {
-                                        HStack {
-                                            Text("Apple Music")
-                                            Image(systemName: "apple.logo")
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(width: 24, height: 24)
-                                        }
-                                    }
-                                    .id(MediaSearchService.apple)
-                                }
-
-                                if coreFeatures.isEnabled(.library) {
-                                    Button {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchSelection = .library
-                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                    } label: {
-                                        Label("Library", systemImage: "books.vertical.fill")
-                                    }
-                                    .id(MediaSearchService.library)
-                                }
-
-                                // MARK: Hide feature until later
-                                //                                Button {
-                                //                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                //                                    musicSearchSelection = .plex
-                                //                                    Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                //                                    Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                //                                } label: {
-                                //                                    HStack {
-                                //                                        Text(MediaSearchService.plex.title)
-                                //                                        Image(.plex)
-                                //                                            .resizable()
-                                //                                            .aspectRatio(contentMode: .fit)
-                                //                                            .frame(width: 24, height: 24)
-                                //                                            .clipShape(Circle())
-                                //                                    }
-                                //                                }
-                                //                                .id(MediaSearchService.plex)
-
-                                if coreFeatures.isEnabled(.tidal) {
-                                    Button {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchSelection = .tidal
-                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": musicSearchSelection.rawValue])
-                                        Analytics.shared.setSelection(metadata: ["MusicService": musicSearchSelection.rawValue])
-                                    } label: {
-                                        HStack {
-                                            Text(MediaSearchService.tidal.title)
-                                            MediaSearchService.tidal.icon
-                                                .frame(width: 24, height: 24)
-                                        }
-                                    }
-                                    .id(MediaSearchService.tidal)
-                                }
-
                                 Button {
                                     HapticManager.shared.fireHaptic(.buttonPress)
                                     router.presentedSheet = .settings
@@ -312,6 +251,10 @@ struct SearchScreen: View {
         case .tidal:
             MusicService.tidal.image
                 .frame(width: 24, height: 24)
+        case .tuneIn:
+            MediaSearchService.tuneIn.image
+                .frame(width: 24, height: 24)
+
         }
     }
 }

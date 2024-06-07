@@ -2,6 +2,7 @@ import SwiftUI
 import SonosKit
 
 struct SpeakerSettingsView: View {
+    @Environment(\.dismiss) var dismiss
     @Environment(SonosService.self) var sonosService
 
     @State var room: Room
@@ -162,6 +163,9 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .surroundLevel, value: Int(room.theaterSettings.surroundLevel))
                             }
                         }
+                        #if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.surroundLevel)
+                        #endif
                     }
 
                     VStack {
@@ -187,6 +191,9 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .musicSurroundLevel, value: Int(room.theaterSettings.musicSurroundLevel))
                             }
                         }
+                        #if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.musicSurroundLevel)
+                        #endif
                     }
                     VStack(alignment: .leading) {
                         Text("Music Playback")
@@ -235,6 +242,9 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .heightChannelLevel, value: Int(room.theaterSettings.heightChannel))
                             }
                         }
+                        #if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.heightChannel)
+                        #endif
                     }
                 } footer: {
                     Text("This setting is used when playing spatial audio with height channels, like Dolby Atmos. It adjusts the volume of the height channels to account for ceiling height. For high ceilings, a higher setting (+10) is recommended. Many users prefer +5 to +10 for a more noticeable height effect, regardless of ceiling height.")
@@ -317,6 +327,7 @@ struct SpeakerSettingsView: View {
         .listStyle(.insetGrouped)
         .headerProminence(.increased)
         .fontDesign(.rounded)
+        .addDismiss(action: dismiss.callAsFunction)
     }
 }
 

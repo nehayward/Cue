@@ -6,6 +6,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case plex
     case spotify
     case tidal
+    case tuneIn
 
     public var title: String {
         switch self {
@@ -19,6 +20,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Plex"
         case .tidal:
             "Tidal"
+        case .tuneIn:
+            "TuneIn"
         }
     }
 
@@ -51,6 +54,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .tidal:
             SwiftUI.Image(.tidal)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .tuneIn:
+            SwiftUI.Image(.tuneIn)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         }

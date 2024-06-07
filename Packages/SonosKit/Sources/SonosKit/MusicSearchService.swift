@@ -22,7 +22,7 @@ public final class MusicSearchService {
     private let plex = PlexAPI()
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI()
-//    private let tune
+    private let tuneInAPI = TuneInAPI()
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
@@ -127,7 +127,7 @@ public final class MusicSearchService {
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
             if provider == .tidal {
-                return await searchTidal(query: query)
+                return await searchTuneIn(query: query)
             }
             return nil
         }
@@ -153,6 +153,9 @@ public final class MusicSearchService {
         case .tidal:
             guard let tidalResults = await tidalSearchTask.value else { return }
             self.tidalResults = tidalResults
+        case .tuneIn:
+            guard let tuneInResults = await tuneInSearchTask.value else { return }
+            self.tuneInResults = tuneInResults
         }
     }
 
@@ -397,10 +400,8 @@ public final class MusicSearchService {
 
     private func searchTuneIn(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
-        guard let results = await tidal.search(for: query) else { return playableContent }
-        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
+        guard let results = await tuneInAPI.search(for: query) else { return playableContent }
+//        playableContent.append(contentsOf: results)
 
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }

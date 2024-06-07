@@ -1,10 +1,8 @@
-VERSION_NUMBER = 2024.20
-BUILD_NUMBER = 18
+VERSION_NUMBER = 2024.29.1
+BUILD_NUMBER = 68
 BUNDLE_ID = com.nick.Clic
 //BUNDLE_ID = com.nick.clic.debug
 MAC_ENABLED = NO
 NAME = Clic°
 PRODUCT_NAME = Clic
 ICON = AppIcon
-//ICON[sdk=macos*] = MacAppIcon
-ICON[sdk=xr*] = VisionAppIcon

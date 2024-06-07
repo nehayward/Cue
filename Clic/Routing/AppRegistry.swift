@@ -235,11 +235,19 @@ extension View {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):
                     SearchScreen(group: group)
+                    #if targetEnvironment(macCatalyst)
+                        .inspectorColumnWidth(500)
+                    #else
                         .inspectorColumnWidth(400)
+                    #endif
                 case let .queue(group):
                     QueueScreen(group: group)
+                    #if targetEnvironment(macCatalyst)
+                        .inspectorColumnWidth(500)
+                    #else
                         .inspectorColumnWidth(400)
-                default:
+                    #endif
+                    default:
                     EmptyView()
                         .onAppear {
                             inspectorDestination.wrappedValue = nil
