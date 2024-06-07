@@ -52,42 +52,9 @@ struct ContentArtworkView: View {
                 .shadow(radius: 2)
                 .overlay(alignment: .bottomTrailing) {
                     Group {
-                        switch content.content.service {
-                        case .apple:
-                            Image(systemName: "apple.logo")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white.gradient)
-                                .frame(width: size, height: size, alignment: .bottomTrailing)
-                                .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
-                        case .spotify:
-                            MusicService.spotify.icon
-                                .frame(width: size, height: size, alignment: .bottomTrailing)
-                                .padding(size == 24 ? 16 : 4)
-                        case .library:
-                            Image(systemName: "books.vertical.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white.gradient)
-                                .frame(width: size, height: size, alignment: .bottomTrailing)
-                                .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
-                        case .plex:
-                            MusicService.plex.icon
-                                .frame(width: size, height: size, alignment: .bottomTrailing)
-                                .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
-                        case .airplay, .unknown:
-                            EmptyView()
-                                .padding([.trailing, .bottom], 12)
-                        case .tidal:
-                            MediaSearchService.tidal.icon
-                                .foregroundStyle(.white.gradient)
-                                .frame(width: size, height: size, alignment: .bottomTrailing)
-                                .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
-                        }
+                        content.content.service.icon
+                            .frame(width: size, height: size, alignment: .bottomTrailing)
+                            .padding(size == 24 ? 16 : 4)
 
                         if content.content.type == .favorite {
                             Image(systemName: "star.fill")

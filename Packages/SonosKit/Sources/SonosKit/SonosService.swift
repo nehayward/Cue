@@ -892,6 +892,8 @@ public final class SonosService {
 //            print(track)
             
             return nil
+        case .tuneIn:
+            return nil
         case .airplay, .unknown, .library:
             return nil
         }
@@ -922,6 +924,10 @@ public final class SonosService {
         case .tidal:
             guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return (nil, nil) }
             return (Track.Metadata(ISRC: nil, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
+        case .tuneIn:
+            guard let stationID = track.metadata?.stationID, let tuneInTrack = await musicSearch.lookupTuneInStation(id: stationID) else { return (nil, nil) }
+//            return (Track.Metadata(ISRC: nil, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
+            return (nil, nil)
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkString = await musicSearch.search(song: track.name, artist: track.artist, album: track.album).first?.artworkURL else { return (nil, nil) }

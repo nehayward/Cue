@@ -18,56 +18,18 @@ struct ArtworkBadgeView: View {
                 .padding(size == 24 ? 16 : 4)
                 .shadow(radius: 10)
         } else {
-            switch group.coordinatorRoom.track.musicService {
-            case .apple:
-                Image(systemName: "apple.logo")
+            if group.playbackService == .radio {
+                Image(systemName: "radio.fill")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.white.gradient)
                     .frame(width: size, height: size, alignment: .bottomTrailing)
                     .padding(size == 24 ? 16 : 4)
                     .shadow(radius: 10)
-            case .spotify:
-                MusicService.spotify.icon
+            } else {
+                group.coordinatorRoom.track.musicService.icon
                     .frame(width: size, height: size, alignment: .bottomTrailing)
                     .padding(size == 24 ? 16 : 4)
-                    .shadow(radius: 10)
-            case .library:
-                Image(systemName: "books.vertical.fill")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.white.gradient)
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
-                    .shadow(radius: 10)
-            case .airplay:
-                Image(systemName: "airplayaudio")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.white.gradient)
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
-                    .shadow(radius: 10)
-            case .unknown:
-                if group.playbackService == .radio {
-                    Image(systemName: "radio.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: size, height: size, alignment: .bottomTrailing)
-                        .padding(size == 24 ? 16 : 4)
-                        .shadow(radius: 10)
-                }
-            case .plex:
-                MusicService.plex.icon
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
-            case .tidal:
-                MediaSearchService.tidal.icon
-                    .foregroundStyle(.white.gradient)
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
-                    .shadow(radius: 10)
             }
         }
     }

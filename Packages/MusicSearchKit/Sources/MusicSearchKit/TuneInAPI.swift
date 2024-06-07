@@ -9,7 +9,7 @@ public final class TuneInAPI {
         self.session = session
     }
 
-    public func search(for query: String, limit: Int = 10) async -> TuneInResults? {
+    public func search(for query: String, limit: Int = 10) async -> [TuneInStation] {
         var searchURL = URL(string: "https://opml.radiotime.com/search.ashx")!
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "query", value: query)
@@ -19,11 +19,34 @@ public final class TuneInAPI {
 
         let request = URLRequest(url: searchURL)
         guard let (data, _) = try? await session.data(for: request) else {
+            return []
+        }
+
+        print(String(decoding: data, as: UTF8.self))
+        return parser.parseStations(xmlData: data)
+
+//        do {
+//            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
+//            return spotifySearch
+//        } catch {
+//            return nil
+//        }
+    }
+
+    public func lookupStation(for stationID: String) async -> TuneInStation? {
+        var searchURL = URL(string: "https://opml.radiotime.com/describe.ashx")!
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "id", value: stationID)
+        ]
+        searchURL.append(queryItems: queryItems)
+        let request = URLRequest(url: searchURL)
+        guard let (data, _) = try? await session.data(for: request) else {
             return nil
         }
 
         print(String(decoding: data, as: UTF8.self))
-        return parser.parseXML(xmlData: data)
+
+        return nil
 
 //        do {
 //            let spotifySearch: SpotifyResult = try await loadAuthorized(url)

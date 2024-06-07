@@ -85,7 +85,7 @@ struct SearchScreen: View {
                             case .tidal:
                                 TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters, group: group)
                             case .tuneIn:
-                                Text("Tune In")
+                                TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters, group: group)
                             }
                         }
                     }

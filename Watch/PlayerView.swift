@@ -50,48 +50,10 @@ struct PlayerView: View {
 //            }
 //            #endif
             .overlay(alignment: .bottomTrailing) {
-                switch group.coordinatorRoom.track.musicService {
-                case .apple:
-                    Image(systemName: "apple.logo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 10, height: 10)
-                        .padding([.trailing, .bottom], 4)
-                        .shadow(radius: 10)
-                case .spotify:
-                    Image(.spotifyLogo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 10, height: 10)
-                        .padding([.trailing, .bottom], 4)
-                        .shadow(radius: 10)
-                case .airplay, .unknown:
-                    EmptyView()
-                        .padding([.trailing, .bottom], 12)
-                case .library:
-                    Image(systemName: "books.vertical.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 10, height: 10)
-                        .padding([.trailing, .bottom], 4)
-                        .shadow(radius: 10)
-                case .plex:
-                    Image(.plex)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 10, height: 10)
-                        .padding([.trailing, .bottom], 4)
-                case .tidal:
-                    MediaSearchService.tidal.icon
-                        .foregroundStyle(.white.gradient)
-                        .frame(width: 10, height: 10)
-                        .padding([.trailing, .bottom], 4)
-                        .shadow(radius: 10)
-                }
+                group.coordinatorRoom.track.musicService.icon
+                    .frame(width: 10, height: 10)
+                    .padding([.trailing, .bottom], 4)
+                    .shadow(radius: 10)
             }
             .cornerRadius(12)
             .shadow(radius: 10)

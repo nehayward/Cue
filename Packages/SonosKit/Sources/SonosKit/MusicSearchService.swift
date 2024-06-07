@@ -22,7 +22,7 @@ public final class MusicSearchService {
     private let plex = PlexAPI()
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI()
-    private let tuneInAPI = TuneInAPI()
+    private let tuneIn = TuneInAPI()
     private let sonosService = SonosService.shared
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
@@ -398,12 +398,16 @@ public final class MusicSearchService {
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
 
+    // TODO: TuneIn
     private func searchTuneIn(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
-        guard let results = await tuneInAPI.search(for: query) else { return playableContent }
-//        playableContent.append(contentsOf: results)
-
+        let results = await tuneIn.search(for: query)
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    }
+
+    public func lookupTuneInStation(id: String) async -> String? {
+        guard let song = await tuneIn.lookupStation(for: id) else { return nil }
+        return nil
     }
 
     func sortContentByMatchAndPopularity(playableContent: [PlayableContent], query: String) -> [PlayableContent] {

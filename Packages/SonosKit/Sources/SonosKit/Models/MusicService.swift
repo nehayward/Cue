@@ -7,6 +7,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case library
     case plex
     case tidal
+    case tuneIn
     case unknown
 
     public init?(service: String) {
@@ -67,13 +68,22 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            case .airplay, .unknown:
-                EmptyView()
             case .tidal:
                 SwiftUI.Image(.tidal)
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
+            case .tuneIn:
+                SwiftUI.Image(.tuneIn)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .airplay:
+                SwiftUI.Image(systemName: "airplayaudio")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .unknown:
+                EmptyView()
             }
         }
         #if !os(watchOS)
@@ -108,6 +118,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             EmptyView()
         case .tidal:
             SwiftUI.Image(.tidal)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .tuneIn:
+            SwiftUI.Image(.tuneIn)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         }

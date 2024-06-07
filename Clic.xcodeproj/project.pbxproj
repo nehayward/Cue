@@ -124,6 +124,7 @@
 		E9331B552AAE20B9002D3CFD /* DebugScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9331B522AAE20A7002D3CFD /* DebugScreen.swift */; };
 		E93739E32C125D3C00B64F74 /* SpeakerSettingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */; };
 		E93739E42C125D3D00B64F74 /* SpeakerSettingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */; };
+		E93739E62C13900800B64F74 /* TuneInSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93739E52C13900800B64F74 /* TuneInSearchView.swift */; };
 		E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E93AFA762B587F1800B20AC4 /* Defaults */; };
 		E93E493C2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */; };
 		E93E493D2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */; };
@@ -564,6 +565,7 @@
 		E92E47572B36530000DE6647 /* PlayAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlayAction.entitlements; sourceTree = "<group>"; };
 		E9331B4F2AAE2010002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
 		E9331B522AAE20A7002D3CFD /* DebugScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScreen.swift; sourceTree = "<group>"; };
+		E93739E52C13900800B64F74 /* TuneInSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuneInSearchView.swift; sourceTree = "<group>"; };
 		E93AFA752B587E5000B20AC4 /* Defaults */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Defaults; path = Packages/Defaults; sourceTree = "<group>"; };
 		E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIApplication+Environment.swift"; sourceTree = "<group>"; };
 		E940E7152AAFBD17004303CD /* FilterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterView.swift; sourceTree = "<group>"; };
@@ -903,6 +905,7 @@
 				E9BF3ABF2B0EBC9900AF57EA /* SearchSelection.swift */,
 				E9D38C502B5DADBB0025CC31 /* PlayHistoryView.swift */,
 				E97529252BF9B5C2006E871C /* TidalSearchView.swift */,
+				E93739E52C13900800B64F74 /* TuneInSearchView.swift */,
 				E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */,
 				E9BC83762B7022CC0088BF1F /* FavoritesView.swift */,
 				E94B098D2ACCFF99009E89B9 /* SearchHistoryView.swift */,
@@ -1886,6 +1889,7 @@
 				E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */,
 				E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */,
+				E93739E62C13900800B64F74 /* TuneInSearchView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
 				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,

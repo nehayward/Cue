@@ -112,13 +112,21 @@ final class XMLParserSonos {
             let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text
             let contentType = ContentType(xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text ?? "")
 
+            var metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: contentType, stationID: nil)
+            var musicService: MusicService = .unknown
+
+            if xml.lowercased().contains("tunein") {
+                musicService = .tuneIn
+                metadata.stationID = parseStationID(from: xml)
+            }
+
             return Track(
                 trackID: trackURI ?? "",
                 name: title,
                 artist: artist,
                 album: album,
-                musicService: .unknown,
-                metadata: Track.Metadata(ISRC: nil, openInURL: nil, contentType: contentType)
+                musicService: musicService,
+                metadata: metadata
             )
         }
 
@@ -174,12 +182,18 @@ final class XMLParserSonos {
         }
 
         var musicService: MusicService = trackURI.contains("spotify") ? .spotify : .apple
+        var metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: nil, stationID: nil)
+
         if trackURI.contains("airplay") {
             musicService = .airplay
         }
 
         if trackURI.contains("x-file-cifs") {
             musicService = .library
+        }
+
+        if name.lowercased().contains("tunein") {
+            musicService = .tuneIn
         }
 
         // TODO: Add hi res icon
@@ -210,15 +224,16 @@ final class XMLParserSonos {
             } else {
                 musicService = .unknown
             }
-        case .airplay, .unknown:
-            break
         case .library:
             trackID = trackURI
         case .plex:
             trackID = trackURI
+        case .tuneIn:
+            metadata.stationID = parseStationID(from: trackURI)
         case .tidal:
             break
-//            trackID = trackURI
+        case .airplay, .unknown:
+            break
         }
 
         var sonosAlbumArtURL: URL? = nil
@@ -238,7 +253,22 @@ final class XMLParserSonos {
             }
         }
 
-        return Track(trackID: trackID, name: name, artist: albumArtist ?? (artist ?? ""), album: album ?? "", musicService: musicService, duration: trackDuration, playbackPosition: playbackPosition, position: Int(trackNumber) ?? 0, sonosAlbumArtURL: sonosAlbumArtURL)
+        return Track(
+            trackID: trackID,
+            name: name,
+            artist: albumArtist ?? (
+                artist ?? ""
+            ),
+            album: album ?? "",
+            musicService: musicService,
+            duration: trackDuration,
+            playbackPosition: playbackPosition,
+            position: Int(
+                trackNumber
+            ) ?? 0,
+            sonosAlbumArtURL: sonosAlbumArtURL,
+            metadata: metadata
+        )
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
@@ -455,7 +485,7 @@ final class XMLParserSonos {
                 case .plex:
                     // MARK: Verify
                     trackID = item["res"].element?.text ?? ""
-                case .tidal:
+                case .tidal, .tuneIn:
                     break
                 }
             }
@@ -737,7 +767,7 @@ final class XMLParserSonos {
                     } else {
                         musicService = .unknown
                     }
-                case .airplay, .unknown:
+                case .airplay, .unknown, .tuneIn:
                     musicService = .unknown
                 case .library:
                     trackID = item["res"].element?.text ?? ""
@@ -931,6 +961,24 @@ final class XMLParserSonos {
             return (information, "", "")
         }
         return (foundTitle, foundAlbum, foundArtist)
+    }
+
+    private func parseStationID(from input: String) -> String? {
+        // Define the pattern for the station ID (adjust the pattern as needed)
+        let pattern = #"stationId=(\w+)"#
+
+        // Create a regular expression object
+        let regex = try? NSRegularExpression(pattern: pattern, options: [])
+
+        // Search for matches
+        if let match = regex?.firstMatch(in: input, options: [], range: NSRange(location: 0, length: input.utf16.count)) {
+            if let range = Range(match.range(at: 1), in: input) {
+                // Extract the station ID
+                return String(input[range])
+            }
+        }
+
+        return nil
     }
 }
 
