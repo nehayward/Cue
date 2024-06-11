@@ -1143,6 +1143,7 @@ public final class SonosService {
         await api.mediaInfo(ipAddress: ip)
     }
 
+    // MARK: TV
     public func getTVSettings(ip: String) async throws -> TVSettings {
         let audioInputFormat = try await api.getAudioInputFormat(IP: ip)
         let dialogLevel = try await api.getDialogLevel(IP: ip)
@@ -1156,6 +1157,11 @@ public final class SonosService {
 
     public func setNightMode(_ IP: String, enabled: Bool) async throws {
         try await api.setNightMode(IP: IP, enabled: enabled)
+    }
+
+    public func tvInput(group: GroupRoom) async {
+        guard let firstSoundBar = group.rooms.first(where: \.isSoundbar) else { return }
+        await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
 
     public func togglePlayback(ip: String) async {

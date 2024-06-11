@@ -5,13 +5,10 @@ import MusicSearchKit
 struct MenuInfoView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
-    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
-
     @State private var coreFeatures = CoreFeatures()
 
     var group: GroupRoom
-    @State private var playlists: [PlayableContent] = []
-
+    
     var body: some View {
         Menu {
             Group {
@@ -71,6 +68,18 @@ struct MenuInfoView: View {
                 }
 
                 SpeakerSettingsMenuView(group: group)
+
+                if !group.rooms.filter(\.isSoundbar).isEmpty {
+                    if group.tvSettings == nil {
+                        Button {
+                            Task {
+                                await sonosService.tvInput(group: group)
+                            }
+                        } label: {
+                            Label("Switch to TV Input", systemImage: "tv")
+                        }
+                    }
+                }
 
                 ControlGroup {
                     if let isCrossfaded = group.isCrossfaded {

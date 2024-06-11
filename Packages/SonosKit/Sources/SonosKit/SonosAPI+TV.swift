@@ -96,4 +96,19 @@ extension SonosAPI {
         let xml = String(decoding: data, as: UTF8.self)
         return try XMLParserSonos().parseForHTAudioIn(xml: xml)
     }
+
+
+    func tvInput(IP: String, ID: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "CurrentURI": "x-sonos-htastream:\(ID):spdif",
+            "CurrentURIMetaData": "",
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
 }

@@ -15,6 +15,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case editAlarm(alarm: Alarm)
     case speakerSettingsList
     case speakerSettings(room: Room)
+    case playableContentList(group: GroupRoom? = nil, contentType: ContentType)
 
     public var id: String {
         switch self {
@@ -40,6 +41,8 @@ public enum RouterDestination: Hashable, Identifiable {
             "speakerSettingsList"
         case .speakerSettings:
             "speaker.configuration"
+        case .playableContentList(_, _):
+            "playableContentList"
         }
     }
 }

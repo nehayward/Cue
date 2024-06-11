@@ -172,6 +172,16 @@
 		E9705DDD2C0A5CCA005CE79A /* ApplePlaylistsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9705DDB2C0A5C27005CE79A /* ApplePlaylistsScreen.swift */; };
 		E9705DDE2C0A5CCB005CE79A /* ApplePlaylistsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9705DDB2C0A5C27005CE79A /* ApplePlaylistsScreen.swift */; };
 		E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
+		E97416A82C14074C00700859 /* PlayableContentList.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A72C14074C00700859 /* PlayableContentList.swift */; };
+		E97416AA2C14F18800700859 /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
+		E97416AB2C14FB9300700859 /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
+		E97416AC2C14FB9400700859 /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
+		E97416AD2C16A9E000700859 /* PlayableContentList.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A72C14074C00700859 /* PlayableContentList.swift */; };
+		E97416AE2C16A9E100700859 /* PlayableContentList.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A72C14074C00700859 /* PlayableContentList.swift */; };
+		E97416AF2C16AA3600700859 /* LibraryBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */; };
+		E97416B02C16AA3700700859 /* LibraryBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */; };
+		E97416B12C16AA4E00700859 /* TuneInSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93739E52C13900800B64F74 /* TuneInSearchView.swift */; };
+		E97416B22C16AA4E00700859 /* TuneInSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93739E52C13900800B64F74 /* TuneInSearchView.swift */; };
 		E97529262BF9B5C2006E871C /* TidalSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97529252BF9B5C2006E871C /* TidalSearchView.swift */; };
 		E97562DF2B699B2400787E14 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */; };
 		E97562E02B699B2400787E14 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
@@ -310,6 +320,7 @@
 		E99403DB2C0784E900D20067 /* PlaylistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D92C0784E900D20067 /* PlaylistContainer.swift */; };
 		E99403DC2C0784E900D20067 /* PlaylistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403D92C0784E900D20067 /* PlaylistContainer.swift */; };
 		E99403DE2C07945A00D20067 /* ThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99403DD2C07945A00D20067 /* ThumbnailView.swift */; };
+		E995363D2C13A23300F5E244 /* LibraryBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */; };
 		E99908F92B1E9A7C008EF9EE /* ManageSceneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */; };
 		E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */; };
 		E99CC9F42B7AB56A00B42A7A /* AppleMusicSearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */; };
@@ -594,6 +605,8 @@
 		E9705DD92C0A5592005CE79A /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
 		E9705DDB2C0A5C27005CE79A /* ApplePlaylistsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplePlaylistsScreen.swift; sourceTree = "<group>"; };
 		E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceQuery.swift; sourceTree = "<group>"; };
+		E97416A72C14074C00700859 /* PlayableContentList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayableContentList.swift; sourceTree = "<group>"; };
+		E97416A92C14F18800700859 /* PlayHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayHistoryService.swift; sourceTree = "<group>"; };
 		E97529252BF9B5C2006E871C /* TidalSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalSearchView.swift; sourceTree = "<group>"; };
 		E97563432B699B2400787E14 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E97C0D412A325CC5005AB0E0 /* Widgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = Widgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -627,6 +640,7 @@
 		E99403D52C07796C00D20067 /* AppTips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTips.swift; sourceTree = "<group>"; };
 		E99403D92C0784E900D20067 /* PlaylistContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistContainer.swift; sourceTree = "<group>"; };
 		E99403DD2C07945A00D20067 /* ThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailView.swift; sourceTree = "<group>"; };
+		E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryBrowseScreen.swift; sourceTree = "<group>"; };
 		E99908F82B1E9A7C008EF9EE /* ManageSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageSceneScreen.swift; sourceTree = "<group>"; };
 		E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayGroupScreen.swift; sourceTree = "<group>"; };
 		E99CC9F32B7AB56A00B42A7A /* AppleMusicSearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicSearchScreen.swift; sourceTree = "<group>"; };
@@ -984,6 +998,8 @@
 			children = (
 				E9A3806C2C01005400D5349E /* BrowseScreen.swift */,
 				E9705DDB2C0A5C27005CE79A /* ApplePlaylistsScreen.swift */,
+				E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */,
+				E97416A72C14074C00700859 /* PlayableContentList.swift */,
 				E99403D12C05817700D20067 /* NewPlaylistView.swift */,
 			);
 			path = Library;
@@ -1066,6 +1082,7 @@
 				E959B9192AB506A4000D596E /* Clic.entitlements */,
 				E9F3D44C2A02C2780042F208 /* Info.plist */,
 				E9BDE56F29E3396700D230A8 /* ClicApp.swift */,
+				E97416A92C14F18800700859 /* PlayHistoryService.swift */,
 				E99403D52C07796C00D20067 /* AppTips.swift */,
 				E9A380672C00F27400D5349E /* Storage.swift */,
 				E9C327412BFD0A7400075606 /* BetaFeatures.swift */,
@@ -1604,6 +1621,7 @@
 				E92B3EAB2B60249B00724FA1 /* SearchSelection.swift in Sources */,
 				E92B3EAC2B60249B00724FA1 /* SonosDeviceEntity.swift in Sources */,
 				E97DA8E92BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
+				E97416AB2C14FB9300700859 /* PlayHistoryService.swift in Sources */,
 				E9A380642C00F14100D5349E /* SleepTimerCustomView.swift in Sources */,
 				E9A3EC742B84028F002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E9249A6C2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
@@ -1622,10 +1640,12 @@
 				E92B3EBA2B60249B00724FA1 /* SearchHistoryView.swift in Sources */,
 				E92B3EBB2B60249B00724FA1 /* SceneButton.swift in Sources */,
 				E92B3EBC2B60249B00724FA1 /* LiveActivityManager.swift in Sources */,
+				E97416AF2C16AA3600700859 /* LibraryBrowseScreen.swift in Sources */,
 				E9B135C12B6C1A860096A14E /* MediaDetailView.swift in Sources */,
 				E99403D72C07796C00D20067 /* AppTips.swift in Sources */,
 				E93E493C2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */,
 				E92DCB9F2B66FDF700A2C3B5 /* ContentArtworkView.swift in Sources */,
+				E97416B22C16AA4E00700859 /* TuneInSearchView.swift in Sources */,
 				E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */,
 				E92B3EBE2B60249B00724FA1 /* UIApplication+Environment.swift in Sources */,
 				E92B3EBF2B60249B00724FA1 /* RouterDestination.swift in Sources */,
@@ -1642,6 +1662,7 @@
 				E9A3807B2C01217200D5349E /* BrowseScreen.swift in Sources */,
 				E92B3EC82B60249B00724FA1 /* GroupVolumeControlView.swift in Sources */,
 				E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */,
+				E97416AD2C16A9E000700859 /* PlayableContentList.swift in Sources */,
 				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
 				E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */,
 				E9B135C02B6C1A860096A14E /* SearchScreen.swift in Sources */,
@@ -1721,6 +1742,7 @@
 				E97562F52B699B2400787E14 /* SetRelativeGroupVolumeIntent.swift in Sources */,
 				E97562F72B699B2400787E14 /* SonosDeviceQuery.swift in Sources */,
 				E97562F92B699B2400787E14 /* DropDestination+.swift in Sources */,
+				E97416AE2C16A9E100700859 /* PlayableContentList.swift in Sources */,
 				E97562FA2B699B2400787E14 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97562FB2B699B2400787E14 /* LargePlayerView.swift in Sources */,
 				E97562FC2B699B2400787E14 /* VolumeControlView.swift in Sources */,
@@ -1732,9 +1754,11 @@
 				E97562FE2B699B2400787E14 /* SearchHistoryView.swift in Sources */,
 				E9A3EC752B840290002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E97562FF2B699B2400787E14 /* SceneButton.swift in Sources */,
+				E97416B12C16AA4E00700859 /* TuneInSearchView.swift in Sources */,
 				E97563002B699B2400787E14 /* LiveActivityManager.swift in Sources */,
 				E97563012B699B2400787E14 /* SceneView.swift in Sources */,
 				E9A380722C0100DA00D5349E /* InspectorDestination.swift in Sources */,
+				E97416AC2C14FB9400700859 /* PlayHistoryService.swift in Sources */,
 				E9D49E312BC6ED6E0084185E /* ClicPaywall.swift in Sources */,
 				E99403D82C07796C00D20067 /* AppTips.swift in Sources */,
 				E99403DC2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
@@ -1750,6 +1774,7 @@
 				E97563062B699B2400787E14 /* IntentError.swift in Sources */,
 				E97563072B699B2400787E14 /* LogView.swift in Sources */,
 				E97563082B699B2400787E14 /* AlertService.swift in Sources */,
+				E97416B02C16AA3700700859 /* LibraryBrowseScreen.swift in Sources */,
 				E9249A6B2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E93E493F2BFB10E00064A979 /* PlexSearchView.swift in Sources */,
 				E97563092B699B2400787E14 /* SheetDestination.swift in Sources */,
@@ -1891,6 +1916,7 @@
 				E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */,
 				E93739E62C13900800B64F74 /* TuneInSearchView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
+				E97416A82C14074C00700859 /* PlayableContentList.swift in Sources */,
 				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
 				E98527942A5E5C90009016C2 /* LiveActivityManager.swift in Sources */,
 				E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */,
@@ -1918,6 +1944,7 @@
 				E99A0ED02B4BBB16001CA27E /* PlayGroupScreen.swift in Sources */,
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
+				E995363D2C13A23300F5E244 /* LibraryBrowseScreen.swift in Sources */,
 				E9A3807E2C02F91F00D5349E /* AddToPlaylistMenu.swift in Sources */,
 				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,
 				E98150D92BED143D0076E312 /* AlarmListView.swift in Sources */,
@@ -1953,6 +1980,7 @@
 				E9BF3ABE2B0EBB8000AF57EA /* ClassicAppleMusicSearchView.swift in Sources */,
 				E94A6A252AAACB49002E432C /* ArtworkView.swift in Sources */,
 				E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */,
+				E97416AA2C14F18800700859 /* PlayHistoryService.swift in Sources */,
 				E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

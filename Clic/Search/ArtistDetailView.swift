@@ -11,8 +11,7 @@ import VibesDS
 struct ArtistDetailView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
-
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []

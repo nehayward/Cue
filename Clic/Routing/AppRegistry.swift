@@ -224,6 +224,21 @@ extension View {
                 SpeakerSettingsListView()
             case let .speakerSettings(room: room):
                 SpeakerSettingsView(room: room)
+            case let .playableContentList(group: group, contentType: contentType):
+                let title = switch contentType {
+                case .track:
+                    "Songs"
+                case .album:
+                    "Albums"
+                case .artist:
+                    "Artists"
+                case .playlist:
+                    "Playlists"
+                default:
+                    ""
+                }
+                PlayableContentList(group: group, type: contentType)
+                    .navigationTitle(title)
             }
         }
     }
@@ -267,6 +282,7 @@ extension View {
             .environment(AlertService.shared)
             .environment(MusicSearchService.shared)
             .environment(PlaylistContainer.shared)
+            .environment(PlayHistoryService.shared)
     }
 
     @ViewBuilder

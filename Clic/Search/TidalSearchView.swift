@@ -10,7 +10,6 @@ struct TidalSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
     @Environment(Router.self) var router: Router
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
 
     var tidalResults: [PlayableContent]
     @Binding var filters: [FilterSelection]

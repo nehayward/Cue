@@ -48,7 +48,8 @@ struct NewPlaylistView: View {
                             .bold()
                             .fontDesign(.rounded)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
+                    .tint(.accent)
                     .listRowBackground(Color.clear)
                     .padding(.vertical)
                     .disabled(playlistName.isEmpty)

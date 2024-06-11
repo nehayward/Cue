@@ -13,8 +13,7 @@ struct MediaDetailView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
-
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
@@ -230,14 +229,14 @@ struct MediaDetailView: View {
     }
 
     private func play(content: PlayableContent, position: QueuePosition = .now, replaceQueue: Bool = false) {
-        Task {
+        Task { @MainActor in
             guard let group = group else {
                 router.navigate(to: .groupDestination(content: content, position: position))
                 return
             }
 
-            playHistory.remove(content)
-            playHistory.insert(content, at: 0)
+            playHistoryService.history.remove(content)
+            playHistoryService.history.insert(content, at: 0)
 
             if replaceQueue {
                 try? await sonosService.clearQueue(group.ip)

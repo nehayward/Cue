@@ -28,6 +28,7 @@ struct ClicApp: App {
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
     @State private var playlistContainer = PlaylistContainer.shared
+    @State private var playHistoryService = PlayHistoryService()
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
@@ -83,6 +84,7 @@ struct ClicApp: App {
             .environment(alertService)
             .environment(musicSearchService)
             .environment(playlistContainer)
+            .environment(playHistoryService)
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {

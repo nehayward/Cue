@@ -10,8 +10,6 @@ struct SpotifySearchView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(Router.self) var router: Router
 
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
-
     @Binding var spotifyResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 

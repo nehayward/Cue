@@ -1,3 +1,15 @@
+# 2024.30
+
+## External
+
++ Add Line In Switch for TV
++ Added empty playlist state.
+
+## Internal
+- Ground work for browse library
+- Made PlayHistory Environment variable
+- Ground work for TuneIn
+
 # 2024.29
 
 ## External

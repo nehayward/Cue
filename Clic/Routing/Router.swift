@@ -9,7 +9,8 @@ import SonosKit
     
     var path: [RouterDestination] = []
     var selection: RouterDestination?
-    @MainActor var presentedSheet: SheetDestination?
+    var presentedSheet: SheetDestination?
+    
     @MainActor var inspectorSheet: InspectorDestination?
     @MainActor var popover: SheetDestination?
 
@@ -26,7 +27,6 @@ import SonosKit
         path.append(to)
     }
 
-    @MainActor
     func sheet(to: SheetDestination?) {
         presentedSheet = to
     }

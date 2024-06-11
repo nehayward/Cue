@@ -18,43 +18,40 @@ struct BrowseScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
+    @State private var browseService = BrowseService.shared
     @State private var router = Router()
     @State private var alertService = AlertService()
+    @State private var isLoaded: Bool = false
 
-    @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
-        didSet {
-            playHistory = OrderedSet(playHistory.prefix(15))
-        }
-    }
     var group: GroupRoom? = nil
-
-    @State private var playlists: [PlayableContent] = []
-    @State private var applePlaylists: [PlayableContent] = []
 
     var body: some View {
 //        TabView {
-//            ApplePlaylistsScreen(group: group)
+//            LibraryBrowseScreen(group: group)
+//                .environment(browseService)
 
+//            ApplePlaylistsScreen(group: group)
             NavigationStack(path: $router.path) {
                 List {
-                    ForEach(playlists) { item in
+                    ForEach(browseService.playlists) { item in
                         VStack {
                             PlayableContentView(item: item, group: group)
                                 .swipeActions(edge: .trailing) {
                                     Button("Delete", role: .destructive) {
                                         Task {
                                             await sonosService.delete(playlistID: item.id)
-                                            playlists.removeAll { $0.id == item.id }
+                                            browseService.playlists.removeAll { $0.id == item.id }
                                         }
                                     }
                                 }
                         }
                     }
                 }
-                .animation(.bouncy, value: playlists)
-                .fontDesign(.rounded)
+                .animation(.bouncy, value: browseService.playlists)
                 .task {
-                    playlists = await sonosService.sonosPlaylists()
+                    isLoaded = false
+                    await browseService.updatePlaylists()
+                    isLoaded = true
                 }
                 .withAppRouter(router: router)
                 .listStyle(.inset)
@@ -69,11 +66,28 @@ struct BrowseScreen: View {
                     }
                 }
                 .addDismiss(override: UIDevice.current.userInterfaceIdiom == .mac, action: dismiss.callAsFunction)
+                .overlay {
+                    if browseService.playlists.isEmpty, isLoaded {
+                        ContentUnavailableView {
+                            Text("No Playlists")
+                        } actions: {
+                            Button {
+                                router.presentedSheet = .newPlaylist()
+                            } label: {
+                                Text("Create a playlist to get started")
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.accent)
+                            .padding()
+                        }
+                    }
+                }
+                .fontDesign(.rounded)
             }
             .environment(router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
                 Task {
-                    playlists = await sonosService.sonosPlaylists()
+                    await browseService.updatePlaylists()
                 }
             }
 //        }

@@ -10,25 +10,24 @@ struct PlayHistoryView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @Environment(GroupRoom.self) var group: GroupRoom?
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
     @Binding var filters: [FilterSelection]
     @State private var clearHistoryConfirmation: Bool = false
 
     var body: some View {
         Section {
             if filters.filter(\.isFiltered).isEmpty {
-                ForEach(playHistory) { item in
+                ForEach(playHistoryService.history.prefix(10)) { item in
                     PlayableContentView(item: item, group: group)
                 }
             } else {
-                ForEach(playHistory) { item in
+                ForEach(playHistoryService.history.prefix(10)) { item in
                     if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
                         PlayableContentView(item: item, group: group)
                     }
                 }
             }
-
         } header: {
             HStack {
                 Label {
@@ -37,7 +36,7 @@ struct PlayHistoryView: View {
                     Image(systemName: "clock.arrow.circlepath")
                 }
                 Spacer()
-                if !playHistory.isEmpty {
+                if !playHistoryService.history.isEmpty {
                     Button {
                         clearHistoryConfirmation.toggle()
                     } label: {
@@ -50,7 +49,7 @@ struct PlayHistoryView: View {
             }
             .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
                 Button {
-                    playHistory.removeAll()
+                    playHistoryService.history.removeAll()
                 } label: {
                     Text("Remove Play History")
                     .bold()

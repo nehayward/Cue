@@ -9,8 +9,7 @@ import NukeUI
 struct ClassicAppleMusicSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
-
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @Binding var results: [ItunesResult]
     @Binding var filters: [FilterSelection]
@@ -42,8 +41,8 @@ struct ClassicAppleMusicSearchView: View {
                         return
                     }
                     
-                    playHistory.remove(content)
-                    playHistory.insert(content, at: 0)
+                    playHistoryService.history.remove(content)
+                    playHistoryService.history.insert(content, at: 0)
 
                     router.dismiss = true
                     await sonosService.queueAppleSong(id: "\(result.trackID)", group: group)

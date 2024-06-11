@@ -11,8 +11,7 @@ struct PlayerSelectionView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
     @Environment(AlertService.self) private var alertService: AlertService
-
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @State var playableContent: PlayableContent?
 
@@ -50,8 +49,8 @@ struct PlayerSelectionView: View {
                         dismiss()
                         Task {
                             if let playableContent {
-                                playHistory.remove(playableContent)
-                                playHistory.insert(playableContent, at: 0)
+                                playHistoryService.history.remove(playableContent)
+                                playHistoryService.history.insert(playableContent, at: 0)
                                 alertService.showAlertContent(with: playableContent)
                                 await sonosService.queue(playable: playableContent, group: group, position: position)
                                 await sonosService.play(ip: group.ip)

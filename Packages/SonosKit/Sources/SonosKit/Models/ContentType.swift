@@ -1,5 +1,7 @@
 
-public enum ContentType: Equatable, Codable {
+public enum ContentType: Equatable, Codable, Hashable, Identifiable {
+    public var id: String { title }
+
     case track
     case album
     case artist

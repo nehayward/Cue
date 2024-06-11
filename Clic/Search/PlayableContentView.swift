@@ -14,7 +14,7 @@ struct PlayableContentView: View {
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     var item: PlayableContent
     var group: GroupRoom?
@@ -64,7 +64,7 @@ struct PlayableContentView: View {
                             menu
                         } label: {
                             Image(systemName: "ellipsis")
-                                .frame(maxWidth: 40, maxHeight: .infinity)
+                                .frame(maxWidth: 40, maxHeight: .infinity, alignment: .trailing)
                                 .background(.clear)
                         }
                     }
@@ -74,16 +74,15 @@ struct PlayableContentView: View {
             }
             .fontDesign(.rounded)
         }
-        // MARK: Poor performance
-//        .swipeActions {
-//            if playHistory.contains(item) {
-//                Button(role: .destructive) {
-//                    playHistory.remove(item)
-//                } label: {
-//                    Label("Remove from History", systemImage: "trash")
-//                }
-//            }
-//        }
+        .swipeActions {
+            if playHistoryService.history.contains(item) {
+                Button(role: .destructive) {
+                    playHistoryService.history.remove(item)
+                } label: {
+                    Label("Remove from History", systemImage: "trash")
+                }
+            }
+        }
         .contentShape(.contextMenuPreview, Capsule())
         .contextMenu {
             if adding == nil {
@@ -96,9 +95,9 @@ struct PlayableContentView: View {
 
     private var menu: some View {
         VStack {
-            if playHistory.contains(item) {
+            if playHistoryService.history.contains(item) {
                 Button(role: .destructive) {
-                    playHistory.remove(item)
+                    playHistoryService.history.remove(item)
                 } label: {
                     Label("Remove from History", systemImage: "trash")
                 }
@@ -127,7 +126,7 @@ struct PlayableContentView: View {
 
                 if item.content.service == .library, item.content.id.last?.isNumber ?? false {
                     Button {
-                        router.presentedSheet = .renamePlaylist(content: item)
+                        router.sheet(to: .renamePlaylist(content: item))
                     } label: {
                         Text("Rename")
                     }
@@ -190,13 +189,13 @@ struct PlayableContentView: View {
             router.dismiss = true
             return
         }
-        Task {
+        Task { @MainActor in
             guard let group = group else {
                 router.navigate(to: .groupDestination(content: item, position: position))
                 return
             }
-            playHistory.remove(item)
-            playHistory.insert(item, at: 0)
+            playHistoryService.history.remove(item)
+            playHistoryService.history.insert(item, at: 0)
             alertService.showAlertContent(with: item)
             HapticManager.shared.fireHaptic(.buttonPress)
             await sonosService.queue(playable: item, group: group, position: position)

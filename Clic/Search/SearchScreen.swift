@@ -17,6 +17,7 @@ struct SearchScreen: View {
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
     @Environment(Router.self) private var router: Router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
+    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -28,12 +29,6 @@ struct SearchScreen: View {
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
-
-    @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
-        didSet {
-            playHistory = OrderedSet(playHistory.prefix(15))
-        }
-    }
 
     var group: GroupRoom?
 
@@ -63,7 +58,7 @@ struct SearchScreen: View {
                             }
                         }
 
-                        if !playHistory.isEmpty, musicSearchService.query.isEmpty {
+                        if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
                             PlayHistoryView(filters: $filters)
                         }
 
@@ -110,6 +105,7 @@ struct SearchScreen: View {
 
                         playlistsContainer.playlists = await sonosService.sonosPlaylists()
                     }
+                    .animation(.bouncy, value: playHistoryService.history)
                     .animation(.bouncy, value: musicSearchService.appleResults)
                     .animation(.bouncy, value: musicSearchService.spotifyResults)
                     .animation(.bouncy, value: musicSearchService.librarySearchResults)

@@ -20,16 +20,10 @@ struct ApplePlaylistsScreen: View {
 
     @State private var router = Router()
     @State private var alertService = AlertService()
-
-    @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
-        didSet {
-            playHistory = OrderedSet(playHistory.prefix(15))
-        }
-    }
-    var group: GroupRoom? = nil
-
     @State private var playlists: [PlayableContent] = []
     @State private var applePlaylists: [PlayableContent] = []
+
+    var group: GroupRoom? = nil
 
     var body: some View {
         NavigationStack(path: $router.path) {

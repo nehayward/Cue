@@ -13,8 +13,6 @@ struct AppleMusicSearchScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
 
-    @CloudStorage(CloudKeys.playHistory) var playHistory: OrderedSet<PlayableContent> = []
-
     var appleSearchResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 

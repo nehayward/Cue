@@ -124,6 +124,41 @@ extension SonosAPI {
         }
     }
 
+    func getLibraryItems(IP: String, type: ContentType) async -> [PlayableContent] {
+        let objectID = switch type {
+        case .artist:
+            "A:ALBUMARTIST"
+        case .track:
+            "A:TRACKS:"
+        case .album:
+            "A:ALBUM"
+        case .playlist:
+            "SQ:"
+        default:
+            ""
+        }
+
+        let arguments: [String: Any] = [
+            "ObjectID": objectID,
+            "BrowseFlag": "BrowseDirectChildren",
+            "Filter": "*",
+            "StartingIndex": 0,
+            "RequestedCount": 0,
+            "SortCriteria": ""
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
+            return []
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        return xmlParser.parseLibrarySearch(IP: IP, xml: xml)
+    }
+
     func refreshLibrary(IP: String) async {
         let arguments: [String: Any] = [
             "AlbumArtistDisplayOption": ""
