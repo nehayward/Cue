@@ -70,6 +70,7 @@ struct PlayerSelectionView: View {
                     VolumeControlView(group: $group, touchDelay: 0.05)
                 }
                 .foregroundStyle(.primary)
+                .listRowBackground(Rectangle().foregroundColor(.clear).background(Material.bar))
             }
             .listRowSpacing(10)
         }

@@ -31,27 +31,34 @@ struct LargePlayerView: View {
             if group.TVMode {
                 TVModeView()
             }  else {
-                Text(group.coordinatorRoom.track.name)
+                if let stationName = group.coordinatorRoom.track.metadata?.stationName {
+                    Text(stationName)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .fontDesign(.rounded)
+                        .frame(maxWidth: .infinity)
+                        .lineLimit(1, reservesSpace: true)
+                }
+
+                Text(group.coordinatorRoom.track.song)
+                    .lineLimit(1, reservesSpace: true)
                     .bold()
                     .multilineTextAlignment(.center)
                     .fontDesign(.rounded)
-            }
 
-            Text(group.coordinatorRoom.track.artist)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, isExpanded ? 20 : 40)
-                .fontDesign(.rounded)
-                .frame(maxWidth: .infinity)
-                .lineLimit(0, reservesSpace: true)
+                Text(group.coordinatorRoom.track.artist)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, isExpanded ? 20 : 40)
+                    .fontDesign(.rounded)
+                    .frame(maxWidth: .infinity)
+                    .lineLimit(1, reservesSpace: true)
 
-//            Text(group.coordinatorRoom.track.artworkURL?.absoluteString ?? "")
-
-            if !group.TVMode {
                 playbackView()
                 Spacer()
                 mediaControlsView()
             }
+
             Spacer(minLength: 40)
             VStack {
                 GroupVolumeControlView(group: $group, isExpanded: $isExpanded)

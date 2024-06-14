@@ -12,7 +12,7 @@ struct RemoteWidgetRectangularView: View {
                     Text(entry.name ?? room.name)
                         .font(.caption)
                     if let track = entry.track {
-                        Text(track.name)
+                        Text(track.song)
                         Text(track.artist)
                             .foregroundStyle(.secondary)
                     }

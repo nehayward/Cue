@@ -58,8 +58,10 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .tuneIn:
             SwiftUI.Image(.tuneIn)
+                .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
         }
     }
 }

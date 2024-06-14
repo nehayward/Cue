@@ -7,7 +7,7 @@ struct ZoneView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text(group.coordinatorRoom.track.name)
+            Text(group.coordinatorRoom.track.song)
                 .foregroundStyle(.primary)
                 .tint(.primary)
                 .lineLimit(1, reservesSpace: true)

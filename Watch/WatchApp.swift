@@ -33,37 +33,6 @@ struct WatchApp: App {
                     }
                     #endif
                 }
-
-            //                .overlay(alignment: .top) {
-            //                    VStack(spacing: 0) {
-            //                        Text("\(ip ?? "")")
-            //                            .fontDesign(.rounded)
-            //                            .fontWidth(.compressed)
-            //                            .font(.caption2)
-            //                            .foregroundStyle(Color.accentColor.gradient)
-            //                            .background(.thickMaterial)
-            //                            .clipShape(Capsule())
-            //                            .ignoresSafeArea(edges: .top)
-            //                        Text("\(sonosService.lastKnownIP)")
-            //                            .fontDesign(.rounded)
-            //                            .fontWidth(.compressed)
-            //                            .font(.caption2)
-            //                            .foregroundStyle(Color.accentColor.gradient)
-            //                            .background(.thickMaterial)
-            //                            .clipShape(Capsule())
-            //                            .ignoresSafeArea(edges: .top)
-            //                    }
-            //                }
-            
-            //                .overlay(alignment: .top) {
-            //                    Text(sonosService.lastKnownIP)
-            //                        .padding()
-            //                        .background {
-            //                            Capsule()
-            //                                .foregroundStyle(.thinMaterial)
-            //                        }
-            //                }
-            
         }
         .onChange(of: scenePhase) {
             handleScenePhase(scenePhase)
@@ -74,6 +43,7 @@ struct WatchApp: App {
     private func handleScenePhase(_ scenePhase: ScenePhase) {
         switch scenePhase {
         case .active:
+            sonosService.monitor()
             if autoLaunchNowPlaying {
                 Task {
                     try? await sonosService.updateGroupsCheckPlayback()
@@ -87,20 +57,19 @@ struct WatchApp: App {
                     }
                 }
             }
-
+            
             if sonosService.selectedGroup != nil {
                 Task {
-                    try? await sonosService.fetch(useCache: true)
+                    try? await sonosService.load(useCache: true)
                 }
             }
-           
-            sonosService.monitorWatch(useCache: true)
         case .inactive:
             print("Inactive")
         case .background:
             print("Background")
             Task {
                 sonosService.sonosPulse.cancel()
+                sonosService.watcher.cancel()
             }
         @unknown default:
             break

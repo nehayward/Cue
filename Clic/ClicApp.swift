@@ -243,7 +243,7 @@ struct ClicApp: App {
                     return
                 }
                 Task {
-                    try await sonosService.fetch(useCache: true)
+                    try await sonosService.load(useCache: true)
                     if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
                             if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
@@ -285,7 +285,7 @@ struct ClicApp: App {
                     return
                 }
                 Task {
-                    try await sonosService.fetch(useCache: true)
+                    try await sonosService.load(useCache: true)
                     _ = navigateToGroup()
                 }
             }
@@ -330,7 +330,7 @@ struct ClicApp: App {
                     return
                 }
                 Task {
-                    try await sonosService.fetch(useCache: true)
+                    try await sonosService.load(useCache: true)
                     if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
                             if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {

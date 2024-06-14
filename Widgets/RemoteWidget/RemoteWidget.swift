@@ -36,8 +36,11 @@ struct Provider: AppIntentTimelineProvider {
             if let group = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id),
                 let volume = try? await SonosService.shared.getGroupVolume(ip: group.ip) {
 
-                let track = await SonosService.shared.getTrack(ip: group.ip)
+                let track = await SonosService.shared.getTrackDetails(ip: group.ip)
                 let playbackService = await SonosService.shared.playbackService(ip: group.ip)
+                if let artworkURL = track?.artworkURL {
+                    await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL)
+                }
 
                 var entry = RemoteWidgetEntry(
                     date: .now,

@@ -2,13 +2,24 @@
 
 ## External
 
++ Add TuneIn Support!
 + Add Line In Switch for TV
 + Added empty playlist state.
++ Add Icons for filters
++ Improve queueing
++ Energy and performance improvements 
+- Fix Apple Playlists not showing up in Search.
+- Fix Live Activity TV audio format display.
 
 ## Internal
 - Ground work for browse library
 - Made PlayHistory Environment variable
 - Ground work for TuneIn
+- Fixed Queue when queue is not active, not properly playing first song
+- Use Load for watch now
+- Remove fetch
+- Add symbol names for Filters
+- Fix PlayerSelection Background
 
 # 2024.29
 

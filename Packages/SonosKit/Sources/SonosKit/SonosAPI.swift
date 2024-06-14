@@ -836,6 +836,20 @@ final class SonosAPI: NSObject {
         }
     }
 
+    func setAVTransportContent(playableContent: PlayableContent, IP: String) async {
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "CurrentURI": playableContent.uri,
+            "CurrentURIMetaData": playableContent.URIMetadata,
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
     func crossfade(IP: String) async -> Bool? {
         let arguments: [String: Any] = ["InstanceID": 0]
 

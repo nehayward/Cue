@@ -122,7 +122,7 @@ struct PreferenceScreen: View {
                             Section {
                                 ForEach(MediaSearchService.allCases, id: \.self) { service in
                                     // MARK: Add Plex Later
-                                    if ![MediaSearchService.plex, MediaSearchService.tuneIn].contains(service) {
+                                    if ![MediaSearchService.plex].contains(service) {
                                         Toggle(isOn: coreFeatures.enabledServices(service)) {
                                             Label {
                                                 Text(service.title)
@@ -159,7 +159,7 @@ struct PreferenceScreen: View {
                         LabeledContent {
                             ForEach(MediaSearchService.allCases, id: \.self) { service in
                                 // MARK: Add Plex Later
-                                if coreFeatures.enabledServices(service).wrappedValue, ![MediaSearchService.plex, MediaSearchService.tuneIn].contains(service) {
+                                if coreFeatures.enabledServices(service).wrappedValue, ![MediaSearchService.plex].contains(service) {
                                     service.image
                                         .foregroundStyle(.foreground)
                                         .frame(width: 20, height: 20)

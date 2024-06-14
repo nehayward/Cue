@@ -23,6 +23,19 @@ enum Filter: String, CaseIterable {
             return .playlist
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .songs:
+            return "music.note"
+        case .albums:
+            return "smallcircle.circle.fill"
+        case .artist:
+            return "music.mic"
+        case .playlists:
+            return "rectangle.stack.badge.play"
+        }
+    }
 }
 
 @Observable
@@ -59,22 +72,19 @@ struct FilterView: View {
         ScrollView(.horizontal) {
             HStack {
                 ForEach($filters) { $filter in
-                    Toggle(filter.filter.title, isOn: $filter.isFiltered)
-                        .toggleStyle(.button)
-                        .clipShape(Capsule())
-                        .background {
-                            if filter.isFiltered {
-                                Capsule()
-                                    .foregroundStyle(.accent.gradient)
-                            } else {
-                                Capsule()
-                                    .foregroundStyle(.background)
-                            }
+                    Toggle(isOn: $filter.isFiltered) {
+                        HStack {
+                            Image(systemName: filter.filter.symbol)
+                            Text(filter.filter.title)
                         }
-                        .foregroundStyle(filter.isFiltered ? Color.black.gradient : Color.accentColor.gradient)
-                        .onChange(of: filter) {
-                            HapticManager.shared.fireHaptic(.selection)
-                        }
+                    }
+                    .toggleStyle(.button)
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .foregroundStyle(filter.isFiltered ? .accent : .secondary)
+                    .onChange(of: filter) {
+                        HapticManager.shared.fireHaptic(.selection)
+                    }
                 }
             }
             .scrollTargetLayout()

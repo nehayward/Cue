@@ -119,12 +119,18 @@ struct SearchScreen: View {
                             Spacer()
                             Menu {
                                 ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                    if ![MediaSearchService.plex, MediaSearchService.tuneIn].contains(service) {
+                                    if ![MediaSearchService.plex].contains(service) {
                                         Button {
                                             HapticManager.shared.fireHaptic(.buttonPress)
                                             musicSearchSelection = service
                                             Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
                                             Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
+
+                                            if service == .tuneIn {
+                                                for filter in filters {
+                                                    filter.isFiltered = false
+                                                }
+                                            }
                                         } label: {
                                             HStack {
                                                 Text(service.title)

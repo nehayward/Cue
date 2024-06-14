@@ -54,9 +54,9 @@ struct LiveActivityNowPlayingWidget: Widget {
                                         .id(context.state.playableContent.subtitle)
                                         .transition(updateTransition(context: context))
                                 }
-                                if context.state.TVSettings != nil || context.state.playableContent.title == "" {
-
-                                } else {
+                                if let settings = context.state.TVSettings {
+                                    Text(settings.audioInputFormat.description)
+                                } else if context.state.playableContent.title == "" {
                                     Spacer()
                                 }
                             }

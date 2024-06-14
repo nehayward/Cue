@@ -60,9 +60,9 @@ struct DeviceCellView: View {
                                             .shadow(radius: 10)
                                 }
                                 VStack(alignment: .leading) {
-                                    Text(group.coordinatorRoom.track.name)
+                                    Text(group.coordinatorRoom.track.song)
                                         .lineLimit(1, reservesSpace: true)
-                                        .redacted(reason: group.coordinatorRoom.track.name.isEmpty ? .placeholder : [])
+                                        .redacted(reason: group.coordinatorRoom.track.song.isEmpty ? .placeholder : [])
                                     Text(group.coordinatorRoom.track.artist)
                                         .lineLimit(1, reservesSpace: true)
                                         .font(.caption)

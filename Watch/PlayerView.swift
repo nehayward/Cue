@@ -75,7 +75,7 @@ struct PlayerView: View {
                     popOver.isShowing = !isIdle
                 }
             })
-            Text(group.coordinatorRoom.track.name)
+            Text(group.coordinatorRoom.track.song)
                 .bold()
                 .lineLimit(1)
             Text(group.coordinatorRoom.track.artist)
@@ -130,7 +130,6 @@ struct PlayerView: View {
                     WKInterfaceDevice.current().play(.click)
                     Task {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
-                        try? await sonosService.fetch(useCache: true)
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")

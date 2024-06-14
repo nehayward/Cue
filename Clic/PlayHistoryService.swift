@@ -10,12 +10,15 @@ import SwiftUI
 final class PlayHistoryService: ObservableObject {
     static var shared = PlayHistoryService()
 
-    var history: OrderedSet<PlayableContent> {
+    @ObservationIgnored var history: OrderedSet<PlayableContent> {
         get {
+            access(keyPath: \.history)
             return _playHistory
         }
         set {
-            _playHistory = newValue
+            withMutation(keyPath: \.history) {
+                _playHistory = newValue
+            }
         }
     }
 

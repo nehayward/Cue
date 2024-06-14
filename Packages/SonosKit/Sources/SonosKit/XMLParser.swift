@@ -144,7 +144,6 @@ final class XMLParserSonos {
         let albumArtist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:albumArtist"].element?.text
 
         let contentType = ContentType(xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:class"].element?.text ?? "")
-
         let releaseDate = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:releaseDate"].element?.text
 
         var playbackPosition = TimeInterval.zero
@@ -192,7 +191,7 @@ final class XMLParserSonos {
             musicService = .library
         }
 
-        if name.lowercased().contains("tunein") {
+        if xml.lowercased().contains("tunein") {
             musicService = .tuneIn
         }
 
@@ -229,7 +228,7 @@ final class XMLParserSonos {
         case .plex:
             trackID = trackURI
         case .tuneIn:
-            metadata.stationID = parseStationID(from: trackURI)
+            metadata.stationID = parseStationID(from: xml)
         case .tidal:
             break
         case .airplay, .unknown:
@@ -977,7 +976,6 @@ final class XMLParserSonos {
                 return String(input[range])
             }
         }
-
         return nil
     }
 }

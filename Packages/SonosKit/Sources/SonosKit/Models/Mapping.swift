@@ -5,7 +5,7 @@ import MusicSearchKit
 extension Track {
     public var toPlayable: PlayableContent {
         PlayableContent(
-            title: name,
+            title: song,
             subtitle: [artist, album].filter({ !$0.isEmpty }).joined(separator: " • "),
             artwork: artworkURL,
             content: MediaContent(service: musicService, id: trackID.description, type: .track, location: metadata?.openInURL),
@@ -374,6 +374,28 @@ extension TidalArtistResource {
                 id: id,
                 type: .artist,
                 location: URL(string: tidalUrl ?? "")
+            )
+        )
+    }
+}
+
+extension TuneInStation {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: [stationInfo?.song, stationInfo?.artist].compactMap{
+                $0
+            }.filter({ !$0.isEmpty }).joined(separator: " • "),
+            artwork: imageURL,
+            content: .init(
+                service: .tuneIn,
+                id: id,
+                type: .radio,
+                location: url
+            ),
+            metadata: .init(
+                artist: stationInfo?.artist,
+                album: stationInfo?.album
             )
         )
     }

@@ -33,13 +33,9 @@ final class LiveActivityManager: LiveActivityManageable {
                 await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
             }
 
-            var title = group.coordinatorRoom.track.name
             var tvSettings: TVSettings?
             if group.TVMode {
                 tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
-                if let settings = tvSettings {
-                    title = settings.audioInputFormat.description
-                }
             }
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(
@@ -75,13 +71,10 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                             ip: group.coordinatorRoom.ip,
                                                                                             name: group.nameWithCount))
 
-                var title = group.coordinatorRoom.track.name
+
                 var tvSettings: TVSettings?
                 if group.TVMode {
                     tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
-                    if let settings = tvSettings {
-                        title = settings.audioInputFormat.description
-                    }
                 }
 
                 let contentState = ClicNowPlayingWidgetAttributes.ContentState(
@@ -119,14 +112,9 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                     ip: group.coordinatorRoom.ip,
                                                                                     name: group.nameWithCount))
 
-        // MARK: Rework have it be title and subtitle
-        var title = group.coordinatorRoom.track.name
         var tvSettings: TVSettings?
         if group.TVMode {
             tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
-            if let settings = tvSettings {
-                title = settings.audioInputFormat.description
-            }
         }
 
         let contentState = ClicNowPlayingWidgetAttributes.ContentState(

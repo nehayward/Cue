@@ -71,6 +71,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return ""
         case (.track, .unknown):
             return id.encodeProgramURI
+        case (.radio, .tuneIn):
+            return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
         default:
             assertionFailure("Failed")
             return ""
@@ -146,6 +148,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return """
 \(Self.defaultXMLNSHeader) id="\(id.encodeProgramURI)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
+        case (.radio, .tuneIn):
+            return """
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON85255_X_#Svc85255-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
         default:
             return ""
         }
@@ -206,6 +212,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             .trimmingCharacters(in: CharacterSet(charactersIn: "="))
 
         return base64UrlSafeString
+    }
+
+    public static func == (lhs: PlayableContent, rhs: PlayableContent) -> Bool {
+        lhs.content == rhs.content
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(content)
     }
 }
 

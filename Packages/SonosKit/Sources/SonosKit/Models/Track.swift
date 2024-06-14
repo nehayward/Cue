@@ -13,6 +13,8 @@ public final class Track: Identifiable, Sendable {
     /// The name of the track.
     public var name: String
 
+    public var song: String { metadata?.song ?? name }
+
     /// The artist of the track.
     public var artist: String
 
@@ -99,10 +101,9 @@ public final class Track: Identifiable, Sendable {
 
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
-        lhs.id == rhs.id &&
+        lhs.trackID == rhs.trackID &&
         lhs.name == rhs.name &&
-        lhs.position == rhs.position &&
-        lhs.artworkURL == rhs.artworkURL
+        lhs.position == rhs.position
     }
 
     public func hash(into hasher: inout Hasher) {

@@ -126,7 +126,7 @@ public final class MusicSearchService {
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
-            if provider == .tidal {
+            if provider == .tuneIn {
                 return await searchTuneIn(query: query)
             }
             return nil
@@ -134,8 +134,11 @@ public final class MusicSearchService {
 
 
         // Wait for the task to complete and return the result
-        guard let results = await searchSuggestionTask.value else { return }
-        suggestions = results.0
+        if let results = await searchSuggestionTask.value {
+            if provider != .tuneIn {
+                suggestions = results.0
+            }
+        }
 
         switch provider {
         case .apple:
@@ -155,6 +158,7 @@ public final class MusicSearchService {
             self.tidalResults = tidalResults
         case .tuneIn:
             guard let tuneInResults = await tuneInSearchTask.value else { return }
+            suggestions.removeAll()
             self.tuneInResults = tuneInResults
         }
     }
@@ -269,7 +273,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.songs.map(\.toPlayable))
         playableContent.append(contentsOf: results.albums.map(\.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
-        playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: true) })
+        playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
 
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
@@ -398,16 +402,15 @@ public final class MusicSearchService {
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
 
-    // TODO: TuneIn
+    // MARK: - TuneIn
     private func searchTuneIn(query: String) async -> [PlayableContent] {
-        var playableContent: [PlayableContent] = []
         let results = await tuneIn.search(for: query)
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+        let playableContent = results.map(\.toPlayable)
+        return playableContent
     }
 
-    public func lookupTuneInStation(id: String) async -> String? {
-        guard let song = await tuneIn.lookupStation(for: id) else { return nil }
-        return nil
+    public func lookupTuneInStation(id: String) async -> TuneInStation? {
+        await tuneIn.lookupStation(for: id)
     }
 
     func sortContentByMatchAndPopularity(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
