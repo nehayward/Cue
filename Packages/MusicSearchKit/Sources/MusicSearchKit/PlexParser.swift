@@ -55,7 +55,7 @@ public final class PlexParser {
                 PlexPlaylist(
                     title: track.element!.attribute(by: "title")!.text,
                     ratingKey: track.element!.attribute(by: "ratingKey")!.text,
-                    imageURL: baseURL?.appending(path: track.element!.attribute(by: "thumb")!.text),
+                    imageURL: baseURL?.appending(path: track.element?.attribute(by: "thumb")?.text ?? ""),
                     id: "\(clientID)%3A3%3A\(track.element!.attribute(by: "ratingKey")!.text)"
                 )
             }

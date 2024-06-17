@@ -249,6 +249,7 @@ struct SearchScreen: View {
                 .frame(width: 24, height: 24)
         case .plex:
             MusicService.plex.image
+                .foregroundStyle(.orange.gradient)
                 .frame(width: 24, height: 24)
         case .tidal:
             MusicService.tidal.image

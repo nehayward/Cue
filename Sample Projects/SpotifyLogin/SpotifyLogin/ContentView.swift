@@ -23,7 +23,7 @@ struct ContentView: View {
                 Task {
                     do {
                         if #available(iOS 17.4, *) {
-                            let urlWithToken = try await webAuthenticationSession.authenticate(using: simple.authorize(), callback: .customScheme("a"), preferredBrowserSession: .ephemeral, additionalHeaderFields: [:])
+                            let urlWithToken = try await webAuthenticationSession.authenticate(using: simple.authorize(), callback: .customScheme("testing"), preferredBrowserSession: .ephemeral, additionalHeaderFields: [:])
                             print(urlWithToken)
 
                         } else {

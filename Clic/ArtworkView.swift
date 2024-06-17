@@ -7,12 +7,13 @@ struct ArtworkView: View {
     @Binding var group: GroupRoom
     @State private var size: Double = 24
     @State private var alarmRunning: Bool = false
+    @State var imageRequest: ImageRequest?
 
     private var placeholderSize: Double { size == 24 ? 100 : 42 }
 
     var body: some View {
         GeometryReader { proxy in
-            LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
+            LazyImage(request: imageRequest) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -62,6 +63,14 @@ struct ArtworkView: View {
             .animation(.spring, value: group.coordinatorRoom.track.trackID)
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
+            }
+            .task(id: group.coordinatorRoom.track.id) {
+                guard let url = group.coordinatorRoom.track.artworkURL else { return }
+                var request = URLRequest(url: url)
+                if group.coordinatorRoom.track.toPlayable.content.service == .plex {
+                    request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+                }
+                imageRequest = ImageRequest(urlRequest: request)
             }
         }
     }

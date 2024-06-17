@@ -293,6 +293,33 @@ extension PlexAlbum {
     }
 }
 
+extension PlexMetadata {
+    public var toPlayable: PlayableContent {
+        return PlayableContent(
+            title: title,
+            subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
+            artwork: thumbImageURL,
+            content: .init(
+                service: .plex,
+                id: sonosID!,
+                type: ContentType(type)!,
+                location: nil
+            ),
+            metadata: .init(
+                duration: Duration.milliseconds(duration),
+                popularity: ratingCount,
+                artist: parentKey,
+                artistID: parentKey,
+                album: parentKey,
+                albumID: nil,
+                isrc: nil,
+                position: nil,
+                plexRatingKey: ratingKey
+            )
+        )
+    }
+}
+
 extension PlexArtist {
     public var toPlayable: PlayableContent {
         PlayableContent(

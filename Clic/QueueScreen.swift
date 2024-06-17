@@ -69,7 +69,6 @@ struct QueueScreen: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
-
                         .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
                         .bold(isTrackPlaying(for: track))
                         .draggable(track)

@@ -17,16 +17,12 @@ struct PlexSearchView: View {
     var group: GroupRoom?
 
     var body: some View {
-        Group {
+        ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
-                ForEach(plexResults) { item in
-                    PlayableContentView(item: item, group: group)
-                }
+                PlayableContentView(item: item, group: group)
             } else {
-                ForEach(plexResults) { item in
-                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item, group: group)
-                    }
+                if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
+                    PlayableContentView(item: item, group: group)
                 }
             }
         }

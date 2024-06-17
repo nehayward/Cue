@@ -826,6 +826,21 @@ public final class SonosService {
                 ),
                 imageURL
             )
+        case .plex:
+            guard let plexSong = await musicSearch.lookupPlexSong(with: track.trackID) else {
+                return (nil, nil)
+            }
+            return (
+                Track.Metadata(
+                    ISRC: nil,
+                    openInURL: nil,
+                    contentType: .track,
+                    song: nil,
+                    album: plexSong.metadata?.album,
+                    artist: plexSong.metadata?.artist
+                ),
+                plexSong.artwork
+            )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -879,6 +894,8 @@ public final class SonosService {
         case (.playlist, .apple):
             guard let playlist: Playlist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return playlist.artwork?.url(width: size, height: size)
+        case (.track, .plex):
+            return await musicSearch.lookupPlexSong(with: content.id)?.artwork
         default:
             return nil
         }
@@ -1306,7 +1323,7 @@ public final class SonosService {
             await playFavorite(on: group, favoriteID: playable.content.id)
         case (_, .library):
             await queuePlayable(playable: playable, group: group, position: position)
-        case (.track, .plex):
+        case (_, .plex):
             await queuePlayable(playable: playable, group: group, position: position)
             // MARK: - Tidal
         case (_, .tidal):

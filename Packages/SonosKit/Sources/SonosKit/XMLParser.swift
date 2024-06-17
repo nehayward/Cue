@@ -194,6 +194,10 @@ final class XMLParserSonos {
         if xml.lowercased().contains("tunein") {
             musicService = .tuneIn
         }
+        
+        if trackURI.contains("%3a3%3") {
+            musicService = .plex
+        }
 
         // TODO: Add hi res icon
 //        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
@@ -226,7 +230,10 @@ final class XMLParserSonos {
         case .library:
             trackID = trackURI
         case .plex:
-            trackID = trackURI
+            let pattern = #/:3:(\d+):/#
+            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                trackID = String(result.1)
+            }
         case .tuneIn:
             metadata.stationID = parseStationID(from: xml)
         case .tidal:
@@ -451,10 +458,10 @@ final class XMLParserSonos {
                 }
 
                 // TODO: Parse with this for HiRes info
-//                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
-//                if protocolInfo.contains("x-sonos-http") {
-//                    musicService = .plex
-//                }
+//                prin(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
+                if trackURI.contains(":3:") {
+                    musicService = .plex
+                }
 
                 let tidalPattern = #/track\/(\d{7,9})/#
                 if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
@@ -482,8 +489,10 @@ final class XMLParserSonos {
                 case .library:
                     trackID = item["res"].element?.text ?? ""
                 case .plex:
-                    // MARK: Verify
-                    trackID = item["res"].element?.text ?? ""
+                    let pattern = #/:3:(\d+):/#
+                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                        trackID = String(result.1)
+                    }
                 case .tidal, .tuneIn:
                     break
                 }
@@ -741,9 +750,11 @@ final class XMLParserSonos {
 
                 // TODO: Parse with this for HiRes info
 //                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
-//                if protocolInfo.contains("x-sonos-http") {
-//                    musicService = .plex
-//                }
+
+                // MarkLook for Client ID
+                if trackURI.contains("x-sonos-http") {
+                    musicService = .plex
+                }
 
                 let tidalPattern = #/track\/(\d{7,9})/#
                 if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {

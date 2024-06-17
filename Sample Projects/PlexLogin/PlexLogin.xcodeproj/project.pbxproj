@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E941143A2C1BFC44007A155E /* Plex.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94114392C1BFC44007A155E /* Plex.swift */; };
+		E941143C2C1BFF4A007A155E /* Web.swift in Sources */ = {isa = PBXBuildFile; fileRef = E941143B2C1BFF4A007A155E /* Web.swift */; };
+		E941143F2C1C036C007A155E /* PlexKit in Frameworks */ = {isa = PBXBuildFile; productRef = E941143E2C1C036C007A155E /* PlexKit */; };
 		E9E447FE2BF503D400E1C9F2 /* PlexLoginApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E447FD2BF503D400E1C9F2 /* PlexLoginApp.swift */; };
 		E9E448002BF503D400E1C9F2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E447FF2BF503D400E1C9F2 /* ContentView.swift */; };
 		E9E448022BF503D600E1C9F2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9E448012BF503D600E1C9F2 /* Assets.xcassets */; };
@@ -14,6 +17,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E94114392C1BFC44007A155E /* Plex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Plex.swift; sourceTree = "<group>"; };
+		E941143B2C1BFF4A007A155E /* Web.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Web.swift; sourceTree = "<group>"; };
 		E9E0E6672BF69AB1008C9E63 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E9E447FA2BF503D400E1C9F2 /* PlexLogin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PlexLogin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9E447FD2BF503D400E1C9F2 /* PlexLoginApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexLoginApp.swift; sourceTree = "<group>"; };
@@ -27,6 +32,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E941143F2C1C036C007A155E /* PlexKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,6 +61,8 @@
 				E9E0E6672BF69AB1008C9E63 /* Info.plist */,
 				E9E447FD2BF503D400E1C9F2 /* PlexLoginApp.swift */,
 				E9E447FF2BF503D400E1C9F2 /* ContentView.swift */,
+				E94114392C1BFC44007A155E /* Plex.swift */,
+				E941143B2C1BFF4A007A155E /* Web.swift */,
 				E9E448012BF503D600E1C9F2 /* Assets.xcassets */,
 				E9E448032BF503D600E1C9F2 /* Preview Content */,
 			);
@@ -85,6 +93,9 @@
 			dependencies = (
 			);
 			name = PlexLogin;
+			packageProductDependencies = (
+				E941143E2C1C036C007A155E /* PlexKit */,
+			);
 			productName = PlexLogin;
 			productReference = E9E447FA2BF503D400E1C9F2 /* PlexLogin.app */;
 			productType = "com.apple.product-type.application";
@@ -113,6 +124,9 @@
 				Base,
 			);
 			mainGroup = E9E447F12BF503D400E1C9F2;
+			packageReferences = (
+				E941143D2C1C036B007A155E /* XCRemoteSwiftPackageReference "PlexKit" */,
+			);
 			productRefGroup = E9E447FB2BF503D400E1C9F2 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -141,6 +155,8 @@
 			files = (
 				E9E448002BF503D400E1C9F2 /* ContentView.swift in Sources */,
 				E9E447FE2BF503D400E1C9F2 /* PlexLoginApp.swift in Sources */,
+				E941143C2C1BFF4A007A155E /* Web.swift in Sources */,
+				E941143A2C1BFC44007A155E /* Plex.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -348,6 +364,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E941143D2C1C036B007A155E /* XCRemoteSwiftPackageReference "PlexKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/lcharlick/PlexKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E941143E2C1C036C007A155E /* PlexKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E941143D2C1C036B007A155E /* XCRemoteSwiftPackageReference "PlexKit" */;
+			productName = PlexKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E9E447F22BF503D400E1C9F2 /* Project object */;
 }

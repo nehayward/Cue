@@ -1,0 +1,1288 @@
+{
+  "MediaContainer": {
+    "size": 25,
+    "allowSync": true,
+    "art": "/library/metadata/1695/art/1718046527",
+    "grandparentRatingKey": 1695,
+    "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+    "grandparentTitle": "Dua Lipa",
+    "identifier": "com.plexapp.plugins.library",
+    "key": "1708",
+    "librarySectionID": 3,
+    "librarySectionTitle": "Music",
+    "librarySectionUUID": "dcd777dd-21f6-4368-ad8f-e71e21bd6884",
+    "mediaTagPrefix": "/system/bundle/media/flags/",
+    "mediaTagVersion": 1698157769,
+    "nocache": true,
+    "parentIndex": 1,
+    "parentTitle": "Dua Lipa",
+    "parentYear": 2017,
+    "summary": "With the confidence and determination of a seasoned vet, English-Albanian singer/songwriter Dua Lipa crafted a delightful collection of catchy pop gems where the songs only serve to highlight her vocal prowess. Lithe enough to avoid production overkill and containing just enough substance to nourish, Dua Lipa arrived after years of studio time and six big singles (three of which became U.K. Top 40 hits). The album is front-loaded with those highlights, creating a rush of dancefloor intensity with \"Hotter Than Hell,\" \"Be the One,\" \"Blow Your Mind (Mwah),\" and the duet with Miguel, \"Lost in Your Light.\" The second half of the LP shines an extra spotlight on Lipa's voice, which, to some extent, can echo the control and power of Adele and Sia. \"Garden\" is a sweeping, soulful number that does just that, combining the dramatics of a slow-burning Sia ballad with Adele's delivery. \"No Goodbyes\" is another emotional journey, one of the handful of absolutely yearning and pained confessions from Lipa's broken heart. The acoustic R&B \"Thinking 'Bout You\" smolders, a lovelorn lament that finds Lipa exhausting her chemical outlets in an attempt to forget a past romance. In a similar vein, \"New Rules\" is all house-inflected shine, a cautionary list that cleverly warns \"if you're under him, you're not over him.\" In addition to Miguel, a pair of other guests contribute additional highlights. The MNEK-produced kiss-off \"IDGAF\" is a cheeky, Ed Sheeran-esque singalong that provides a perfect anthem for anyone who has ever been burned by love. \"Homesick\" -- written by Chris Martin -- could be a direct sequel to Coldplay's 2016 single \"Everglow.\" The delicate ballad reveals Lipa's vulnerability and softness, the defenses of studio production stripped away, leaving only Lipa, Martin, and a twinkling piano. Such exposure isn't found elsewhere on the rest of the album, which is mostly concerned with self-empowerment and Lipa's refreshingly defiant attitude. It's moments like this one that strike such a satisfying balance on Dua Lipa, an excellent first effort from a budding pop star. ~ Neil Z. Yeung",
+    "thumb": "/library/metadata/1708/thumb/1714748922",
+    "title1": "Dua Lipa",
+    "title2": "Dua Lipa",
+    "viewGroup": "track",
+    "viewMode": 65593,
+    "Metadata": [
+      {
+        "ratingKey": "1709",
+        "key": "/library/metadata/1709",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb12403c6402908f9c0f",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Genesis",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 1,
+        "parentIndex": 1,
+        "ratingCount": 202831,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 205766,
+        "addedAt": 1714748912,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4317,
+            "duration": 205766,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4360,
+                "key": "/library/parts/4360/1714748324/file.mp3",
+                "duration": 205766,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/01 Genesis.mp3",
+                "size": 9540821,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1710",
+        "key": "/library/metadata/1710",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb12403c6402908f9c12",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Lost in Your Light",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Dua Lipa feat. Miguel",
+        "summary": "",
+        "index": 2,
+        "parentIndex": 1,
+        "ratingCount": 10204,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 203807,
+        "addedAt": 1714748912,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4318,
+            "duration": 203807,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4361,
+                "key": "/library/parts/4361/1714748314/file.mp3",
+                "duration": 203807,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/02 Lost In Your Light (feat. Miguel).mp3",
+                "size": 9462499,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1711",
+        "key": "/library/metadata/1711",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f59f403c6402904a1b53",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Hotter Than Hell",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 3,
+        "parentIndex": 1,
+        "ratingCount": 340540,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 188003,
+        "addedAt": 1714748912,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4319,
+            "duration": 188003,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4362,
+                "key": "/library/parts/4362/1714748314/file.mp3",
+                "duration": 188003,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/03 Hotter Than Hell.mp3",
+                "size": 8830218,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1712",
+        "key": "/library/metadata/1712",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f0af403c6402900c6d09",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Be the One",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 4,
+        "parentIndex": 1,
+        "ratingCount": 435499,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 202945,
+        "addedAt": 1714748913,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4320,
+            "duration": 202945,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4363,
+                "key": "/library/parts/4363/1714748319/file.mp3",
+                "duration": 202945,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/04 Be The One.mp3",
+                "size": 9427978,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1713",
+        "key": "/library/metadata/1713",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa4d3",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "IDGAF",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 5,
+        "parentIndex": 1,
+        "ratingCount": 688092,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 217991,
+        "addedAt": 1714748913,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4321,
+            "duration": 217991,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4364,
+                "key": "/library/parts/4364/1714748314/file.mp3",
+                "duration": 217991,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/05 IDGAF.mp3",
+                "size": 10029865,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1714",
+        "key": "/library/metadata/1714",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f757403c6402905fd15c",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Blow Your Mind (Mwah)",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 6,
+        "parentIndex": 1,
+        "ratingCount": 470328,
+        "viewCount": 5,
+        "skipCount": 2,
+        "lastViewedAt": 1718396366,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 178625,
+        "addedAt": 1714748913,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4322,
+            "duration": 178625,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4365,
+                "key": "/library/parts/4365/1714748319/file.mp3",
+                "duration": 178625,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/06 Blow Your Mind (Mwah).mp3",
+                "size": 8455178,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1715",
+        "key": "/library/metadata/1715",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa4fe",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Garden",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 7,
+        "parentIndex": 1,
+        "ratingCount": 136600,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 227996,
+        "addedAt": 1714748913,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4323,
+            "duration": 227996,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4366,
+                "key": "/library/parts/4366/1714748326/file.mp3",
+                "duration": 227996,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/07 Garden.mp3",
+                "size": 10430001,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1716",
+        "key": "/library/metadata/1716",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa29e",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "No Goodbyes",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 8,
+        "parentIndex": 1,
+        "ratingCount": 165526,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 216111,
+        "addedAt": 1714748913,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4324,
+            "duration": 216111,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4367,
+                "key": "/library/parts/4367/1714748321/file.mp3",
+                "duration": 216111,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/08 No Goodbyes.mp3",
+                "size": 9954610,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1717",
+        "key": "/library/metadata/1717",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f9cf403c6402907fc3ee",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Thinking ’Bout You",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 9,
+        "parentIndex": 1,
+        "ratingCount": 191097,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 171990,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4325,
+            "duration": 171990,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4368,
+                "key": "/library/parts/4368/1714748315/file.mp3",
+                "duration": 171990,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/09 Thinking 'Bout You.mp3",
+                "size": 8189740,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1718",
+        "key": "/library/metadata/1718",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb14403c6402908fb18c",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "New Rules",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 10,
+        "parentIndex": 1,
+        "ratingCount": 906198,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 209371,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4326,
+            "duration": 209371,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4369,
+                "key": "/library/parts/4369/1714748317/file.mp3",
+                "duration": 209371,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/10 New Rules.mp3",
+                "size": 9685019,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1719",
+        "key": "/library/metadata/1719",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908f9ef0",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Begging",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 11,
+        "parentIndex": 1,
+        "ratingCount": 173026,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 194142,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4327,
+            "duration": 194142,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4370,
+                "key": "/library/parts/4370/1714748329/file.mp3",
+                "duration": 194142,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/11 Begging.mp3",
+                "size": 9075853,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1720",
+        "key": "/library/metadata/1720",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa0c8",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Homesick",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 12,
+        "parentIndex": 1,
+        "ratingCount": 211764,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 230530,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4328,
+            "duration": 230530,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4371,
+                "key": "/library/parts/4371/1714748322/file.mp3",
+                "duration": 230530,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/12 Homesick.mp3",
+                "size": 10531340,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1721",
+        "key": "/library/metadata/1721",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa589",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Dreams",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 13,
+        "parentIndex": 1,
+        "ratingCount": 113178,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 220290,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4329,
+            "duration": 220290,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4372,
+                "key": "/library/parts/4372/1714748317/file.mp3",
+                "duration": 220290,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/13 Dreams.mp3",
+                "size": 10121764,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1722",
+        "key": "/library/metadata/1722",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f84a403c6402906bfaa0",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Room for 2",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 14,
+        "parentIndex": 1,
+        "ratingCount": 146842,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 208718,
+        "addedAt": 1714748914,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4330,
+            "duration": 208718,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4373,
+                "key": "/library/parts/4373/1714748324/file.mp3",
+                "duration": 208718,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/14 Room For 2.mp3",
+                "size": 9658876,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1723",
+        "key": "/library/metadata/1723",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb77403c64029094a3d6",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "New Love",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 15,
+        "parentIndex": 1,
+        "ratingCount": 146499,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 271960,
+        "addedAt": 1714748915,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4331,
+            "duration": 271960,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4374,
+                "key": "/library/parts/4374/1714748324/file.mp3",
+                "duration": 271960,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/15 New Love.mp3",
+                "size": 12188574,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1724",
+        "key": "/library/metadata/1724",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fb13403c6402908fa39b",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Bad Together",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 16,
+        "parentIndex": 1,
+        "ratingCount": 117783,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 238863,
+        "addedAt": 1714748915,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4332,
+            "duration": 238863,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4375,
+                "key": "/library/parts/4375/1714748324/file.mp3",
+                "duration": 238863,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/16 Bad Together.mp3",
+                "size": 10864743,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1725",
+        "key": "/library/metadata/1725",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f304403c6402902926b0",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Last Dance",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 17,
+        "parentIndex": 1,
+        "ratingCount": 180966,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 229015,
+        "addedAt": 1714748915,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4333,
+            "duration": 229015,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4376,
+                "key": "/library/parts/4376/1714748320/file.mp3",
+                "duration": 229015,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/17 Last Dance.mp3",
+                "size": 10470786,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1726",
+        "key": "/library/metadata/1726",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d080632403c640290260c4c",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Want To",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 18,
+        "parentIndex": 1,
+        "ratingCount": 141508,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 211853,
+        "addedAt": 1714748915,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4334,
+            "duration": 211853,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4377,
+                "key": "/library/parts/4377/1714748319/file.mp3",
+                "duration": 211853,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/18 Want To.mp3",
+                "size": 9784286,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1727",
+        "key": "/library/metadata/1727",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d080632403c640290261154",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Running",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 19,
+        "parentIndex": 1,
+        "ratingCount": 55205,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 221988,
+        "addedAt": 1714748915,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4335,
+            "duration": 221988,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4378,
+                "key": "/library/parts/4378/1714748321/file.mp3",
+                "duration": 221988,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/19 Running.mp3",
+                "size": 10189656,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1728",
+        "key": "/library/metadata/1728",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d080632403c64029026105a",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Kiss and Make Up",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Dua Lipa & BLACKPINK",
+        "summary": "",
+        "index": 20,
+        "parentIndex": 1,
+        "ratingCount": 412973,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 189204,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4336,
+            "duration": 189204,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4379,
+                "key": "/library/parts/4379/1714748325/file.mp3",
+                "duration": 189204,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/20 Kiss and Make Up.mp3",
+                "size": 8878536,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1729",
+        "key": "/library/metadata/1729",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d0802f6403c640290fa3617",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "One Kiss",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Calvin Harris & Dua Lipa",
+        "summary": "",
+        "index": 21,
+        "parentIndex": 1,
+        "ratingCount": 50072,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 214883,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4337,
+            "duration": 214883,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4380,
+                "key": "/library/parts/4380/1714748315/file.mp3",
+                "duration": 214883,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/21 One Kiss.mp3",
+                "size": 9905526,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1730",
+        "key": "/library/metadata/1730",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d080632403c640290260d84",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Electricity",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Silk City & Dua Lipa",
+        "summary": "",
+        "index": 22,
+        "parentIndex": 1,
+        "ratingCount": 19495,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 238210,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4338,
+            "duration": 238210,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4381,
+                "key": "/library/parts/4381/1714748323/file.mp3",
+                "duration": 238210,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/22 Electricity.mp3",
+                "size": 10838546,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1731",
+        "key": "/library/metadata/1731",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07fa28403c6402908473b2",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "Scared to Be Lonely",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Martin Garrix & Dua Lipa",
+        "summary": "",
+        "index": 23,
+        "parentIndex": 1,
+        "ratingCount": 468845,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 220917,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4339,
+            "duration": 220917,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4382,
+                "key": "/library/parts/4382/1714748326/file.mp3",
+                "duration": 220917,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/23 Scared to Be Lonely.mp3",
+                "size": 10147024,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1732",
+        "key": "/library/metadata/1732",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d07f8ad403c640290709fa4",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "No Lie",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "originalTitle": "Sean Paul feat. Dua Lipa",
+        "summary": "",
+        "index": 24,
+        "parentIndex": 1,
+        "ratingCount": 449098,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 221204,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4340,
+            "duration": 221204,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4383,
+                "key": "/library/parts/4383/1714748322/file.mp3",
+                "duration": 221204,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/24 No Lie.mp3",
+                "size": 10158484,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "ratingKey": "1733",
+        "key": "/library/metadata/1733",
+        "parentRatingKey": "1708",
+        "grandparentRatingKey": "1695",
+        "guid": "plex://track/5d080632403c640290260e9f",
+        "parentGuid": "plex://album/5d07ca52403c640290d1b023",
+        "grandparentGuid": "plex://artist/5d07beda403c6402906e3809",
+        "parentStudio": "URBAN",
+        "type": "track",
+        "title": "New Rules (live)",
+        "grandparentKey": "/library/metadata/1695",
+        "parentKey": "/library/metadata/1708",
+        "grandparentTitle": "Dua Lipa",
+        "parentTitle": "Dua Lipa",
+        "summary": "",
+        "index": 25,
+        "parentIndex": 1,
+        "ratingCount": 4225,
+        "parentYear": 2017,
+        "thumb": "/library/metadata/1708/thumb/1714748922",
+        "art": "/library/metadata/1695/art/1718046527",
+        "parentThumb": "/library/metadata/1708/thumb/1714748922",
+        "grandparentThumb": "/library/metadata/1695/thumb/1718046527",
+        "grandparentArt": "/library/metadata/1695/art/1718046527",
+        "duration": 275147,
+        "addedAt": 1714748916,
+        "updatedAt": 1716065749,
+        "Media": [
+          {
+            "id": 4341,
+            "duration": 275147,
+            "bitrate": 320,
+            "audioChannels": 2,
+            "audioCodec": "mp3",
+            "container": "mp3",
+            "Part": [
+              {
+                "id": 4384,
+                "key": "/library/parts/4384/1714748321/file.mp3",
+                "duration": 275147,
+                "file": "/volume1/haywardhome/Music/Dua Lipa/Dua Lipa - Dua Lipa (Complete Edition)/25 New Rules (Live).mp3",
+                "size": 12316086,
+                "container": "mp3",
+                "hasThumbnail": "1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

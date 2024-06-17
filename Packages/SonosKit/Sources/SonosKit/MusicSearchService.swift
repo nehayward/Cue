@@ -381,6 +381,17 @@ public final class MusicSearchService {
         return artist.toPlayable
     }
 
+    private func searchTidal(query: String) async -> [PlayableContent] {
+        var playableContent: [PlayableContent] = []
+        guard let results = await tidal.search(for: query) else { return playableContent }
+        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
+
+        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    }
+
+    // MARK: - PLex
     private func searchPlex(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await plex.search(for: query) else { return playableContent }
@@ -392,15 +403,27 @@ public final class MusicSearchService {
         return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
     }
 
-    private func searchTidal(query: String) async -> [PlayableContent] {
-        var playableContent: [PlayableContent] = []
-        guard let results = await tidal.search(for: query) else { return playableContent }
-        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
-
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+    public func lookupPlexSong(with id: String) async -> PlayableContent? {
+        guard let result = await plex.lookupPlexSong(key: id) else { return nil }
+        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        return playableContent.first
     }
+
+    public func lookupPlexAlbumSongs(id: String) async -> [PlayableContent] {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
+        guard let result = await plex.lookupAlbum(key: key) else { return [] }
+        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        return playableContent
+    }
+
+    public func lookupPlexPlaylists(id: String) async -> [PlayableContent] {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
+        guard let result = await plex.lookupPlaylists(key: key) else { return [] }
+        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        return playableContent
+    }
+
+    // TODO: Add remaining Info
 
     // MARK: - TuneIn
     private func searchTuneIn(query: String) async -> [PlayableContent] {

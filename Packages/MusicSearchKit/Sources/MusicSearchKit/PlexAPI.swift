@@ -6,20 +6,21 @@ public final class PlexAPI {
     private let decoder: JSONDecoder
     private let parser = PlexParser()
 
-    private var token: String?
-    public var baseURL: URL?
-    
+    // TODO: Get ClientID And Token for Auth
+    private var token: String? = "tQyfzbax4jz8rsdkUdfG"
+    private var clientID: String = "baff30cefb83c207ba740a1f7d11620e21833bf8"
+    private var baseURL: URL?
+
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-//    http://192.168.4.252:32400/hubs/search
         let ip = "192.168.4.252"
-//        baseURL = URL(string: "http://\(ip):32400")
-        baseURL = URL(string: "https://71-212-125-185.42dfacfa0ca64618a33a62367204b13d.plex.direct:20891")
+        baseURL = URL(string: "http://\(ip):32400")
     }
 
     public func search(for query: String, limit: Int = 10) async -> PlexResults? {
+        guard let token else { return nil }
+
         guard var search = baseURL?.appending(path: "hubs/search") else { return nil }
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "query", value: query),
@@ -30,7 +31,7 @@ public final class PlexAPI {
         var request = URLRequest(url: search)
         request.httpMethod = "GET"
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
-        request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil
@@ -38,329 +39,218 @@ public final class PlexAPI {
 
         print(String(decoding: data, as: UTF8.self))
         return parser.parseXML(xmlData: data, baseURL: baseURL!)
-
-//        do {
-//            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
-//            return spotifySearch
-//        } catch {
-//            return nil
-//        }
     }
 
+    public func playlists() async -> PlexLibraryItem? {
+        guard let token else { return nil }
+        guard var playlistsURL = baseURL?.appending(path: "playlists") else { return nil }
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "playlistType", value: "audio")
+        ]
+        playlistsURL.append(queryItems: queryItems)
+
+        var request = URLRequest(url: playlistsURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
+            return PlexLibraryItem(
+                size: container.size,
+                allowSync: container.allowSync,
+                art: container.art,
+                grandparentRatingKey: container.grandparentRatingKey,
+                grandparentThumb: container.grandparentThumb,
+                grandparentTitle: container.grandparentTitle,
+                identifier: container.identifier,
+                key: container.key,
+                librarySectionID: container.librarySectionID,
+                librarySectionTitle: container.librarySectionTitle,
+                librarySectionUUID: container.librarySectionUUID,
+                mediaTagPrefix: container.mediaTagPrefix,
+                mediaTagVersion: container.mediaTagVersion,
+                nocache: container.nocache,
+                parentIndex: container.parentIndex,
+                parentTitle: container.parentTitle,
+                parentYear: container.parentYear,
+                summary: container.summary,
+                thumb: container.thumb,
+                title1: container.title1,
+                title2: container.title2,
+                viewGroup: container.viewGroup,
+                viewMode: container.viewMode,
+                metadata: enrichMetadata(metadata: container.metadata)
+            )
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    public func lookupPlexSong(key: String) async -> PlexSongItem? {
+        guard let token else { return nil }
+        guard let songURL = baseURL?.appending(path: "library/metadata/\(key)") else { return nil }
+        var request = URLRequest(url: songURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let mediaContainer = try decoder.decode(PlexContainer<PlexSongItem>.self, from: data).mediaContainer
+            return PlexSongItem(
+                size: mediaContainer.size,
+                allowSync: mediaContainer.allowSync,
+                librarySectionID: mediaContainer.librarySectionID,
+                librarySectionTitle: mediaContainer.librarySectionTitle,
+                metadata: enrichMetadata(metadata: mediaContainer.metadata)
+            )
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    public func lookupAlbum(key: String) async -> PlexLibraryItem? {
+        guard let token else { return nil }
+        guard let albumURL = baseURL?.appending(path: "library/metadata/\(key)/children") else { return nil }
+        var request = URLRequest(url: albumURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
+            return PlexLibraryItem(
+                size: container.size,
+                allowSync: container.allowSync,
+                art: container.art,
+                grandparentRatingKey: container.grandparentRatingKey,
+                grandparentThumb: container.grandparentThumb,
+                grandparentTitle: container.grandparentTitle,
+                identifier: container.identifier,
+                key: container.key,
+                librarySectionID: container.librarySectionID,
+                librarySectionTitle: container.librarySectionTitle,
+                librarySectionUUID: container.librarySectionUUID,
+                mediaTagPrefix: container.mediaTagPrefix,
+                mediaTagVersion: container.mediaTagVersion,
+                nocache: container.nocache,
+                parentIndex: container.parentIndex,
+                parentTitle: container.parentTitle,
+                parentYear: container.parentYear,
+                summary: container.summary,
+                thumb: container.thumb,
+                title1: container.title1,
+                title2: container.title2,
+                viewGroup: container.viewGroup,
+                viewMode: container.viewMode,
+                metadata: enrichMetadata(metadata: container.metadata)
+            )
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    public func lookupPlaylists(key: String) async -> PlexPlaylistItem? {
+        guard let token else { return nil }
+        guard let albumURL = baseURL?.appending(path: "playlists/\(key)/items") else { return nil }
+        var request = URLRequest(url: albumURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let mediaContainer = try decoder.decode(PlexContainer<PlexPlaylistItem>.self, from: data).mediaContainer
+            return PlexPlaylistItem(
+                size: mediaContainer.size,
+                ratingKey: mediaContainer.ratingKey,
+                duration: mediaContainer.duration,
+                title: mediaContainer.title,
+                metadata: enrichMetadata(
+                    metadata: mediaContainer.metadata
+                )
+            )
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    public func lookupArtist(key: String) async -> PlexLibraryItem? {
+        guard let token else { return nil }
+        guard let artistURL = baseURL?.appending(path: "library/metadata/\(key)/children") else { return nil }
+        var request = URLRequest(url: artistURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return nil
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
+            return PlexLibraryItem(
+                size: container.size,
+                allowSync: container.allowSync,
+                art: container.art,
+                grandparentRatingKey: container.grandparentRatingKey,
+                grandparentThumb: container.grandparentThumb,
+                grandparentTitle: container.grandparentTitle,
+                identifier: container.identifier,
+                key: container.key,
+                librarySectionID: container.librarySectionID,
+                librarySectionTitle: container.librarySectionTitle,
+                librarySectionUUID: container.librarySectionUUID,
+                mediaTagPrefix: container.mediaTagPrefix,
+                mediaTagVersion: container.mediaTagVersion,
+                nocache: container.nocache,
+                parentIndex: container.parentIndex,
+                parentTitle: container.parentTitle,
+                parentYear: container.parentYear,
+                summary: container.summary,
+                thumb: container.thumb,
+                title1: container.title1,
+                title2: container.title2,
+                viewGroup: container.viewGroup,
+                viewMode: container.viewMode,
+                metadata: enrichMetadata(metadata: container.metadata)
+            )
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    private func enrichMetadata(metadata: [PlexMetadata]) -> [PlexMetadata] {
+        metadata.map { item in
+            var updatedItem = item
+            updatedItem.sonosID = "\(clientID)%3A3%3A\(item.ratingKey)"
+            updatedItem.thumbImageURL = baseURL?.appending(path: item.thumb)
+            return updatedItem
+        }
+    }
 }
-
-//    private func login(username: String, password: String) {
-//
-//    }
-
-//    public func search() {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/search"
-//        components.queryItems = [
-//            URLQueryItem(name: "q", value: query),
-//            URLQueryItem(name: "type", value: types.map(\.rawValue).joined(separator: ",")),
-//            URLQueryItem(name: "limit", value: "\(limit)")
-//        ]
-////    http://192.168.4.252:32400/search
-//    }
-//
-//    public func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/search"
-//        components.queryItems = [
-//            URLQueryItem(name: "q", value: query),
-//            URLQueryItem(name: "type", value: types.map(\.rawValue).joined(separator: ",")),
-//            URLQueryItem(name: "limit", value: "\(limit)")
-//        ]
-//
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
-//            return spotifySearch
-//        } catch {
-//            return nil
-//        }
-//    }
-//
-//    public func searchSong(for query: String, limit: Int = 25) async -> SpotifyResult? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/search"
-//        components.queryItems = [
-//            URLQueryItem(name: "q", value: query),
-//            URLQueryItem(name: "type", value: "track"),
-//            URLQueryItem(name: "limit", value: "\(limit)")
-//        ]
-//
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
-//            return spotifySearch
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func newReleases() async -> SpotifyResult? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/browse/new-releases"
-//
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
-//            return spotifySearch
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func lookupTrack(id: String) async -> SpotifyTrackItem? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/tracks/\(id)"
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifyTrack: SpotifyTrackItem = try await loadAuthorized(url)
-//            return spotifyTrack
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func playlist(id: String) async -> SpotifyPlaylistItems? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/playlists/\(id)"
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifyPlaylist: SpotifyPlaylistItems = try await loadAuthorized(url)
-//            return spotifyPlaylist
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func album(id: String) async -> SpotifyAlbumItem? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/albums/\(id)"
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let album: SpotifyAlbumItem = try await loadAuthorized(url)
-//            return album
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func albumDetails(id: String) async -> SpotifyAlbumDetails? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/albums/\(id)"
-//        components.queryItems = [
-////            URLQueryItem(name: "market", value: ""),
-//            URLQueryItem(name: "limit", value: "50")
-//        ]
-//
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifyAlbum: SpotifyAlbumDetails = try await loadAuthorized(url)
-//            return spotifyAlbum
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func artist(id: String) async -> SpotifyArtistsItems? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/artists/\(id)"
-//        components.queryItems = [
-////            URLQueryItem(name: "market", value: ""),
-//        ]
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let artist: SpotifyArtistsItems = try await loadAuthorized(url)
-//            return artist
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    public func artistTopTracks(id: String) async -> [SpotifyTrackItem] {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/artists/\(id)/top-tracks"
-//        components.queryItems = [
-////            URLQueryItem(name: "market", value: ""),
-//            URLQueryItem(name: "limit", value: "50")
-//        ]
-//
-//        guard let url = components.url else { return [] }
-////
-//        do {
-//            let spotifyArtistTopTracks: SpotifyArtistTopTracks = try await loadAuthorized(url)
-//            return spotifyArtistTopTracks.tracks
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return []
-//        }
-//    }
-//
-//    public func artistAlbums(id: String) async -> SpotifyArtistAlbums? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/artists/\(id)/albums"
-//        components.queryItems = [
-////            URLQueryItem(name: "market", value: ""),
-//            URLQueryItem(name: "limit", value: "50")
-//        ]
-//
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let tracks: SpotifyArtistAlbums = try await loadAuthorized(url)
-//            return tracks
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    func getToken() async -> SpotifyTokenResponse? {
-//        guard let URL = URL(string: "https://accounts.spotify.com/api/token") else { return nil }
-//        var request = URLRequest(url: URL)
-//        request.httpMethod = "POST"
-//        request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-//        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
-//
-//        guard let (data, _) = try? await session.data(for: request) else {
-//            return nil
-//        }
-//
-//        do {
-//            let spotifySearch = try decoder.decode(SpotifyTokenResponse.self, from: data)
-//            return spotifySearch
-//        } catch {
-//            logger.error("\(error.localizedDescription)")
-//            return nil
-//        }
-//    }
-//
-//    // MARK: Token
-//
-//    private var currentToken: Token?
-//    private var refreshTask: Task<Token, Error>?
-//
-//    enum AuthError: Error {
-//        case missingToken
-//        case invalidToken
-//    }
-//
-//    func loadAuthorized<T: Decodable>(_ url: URL, allowRetry: Bool = true) async throws -> T {
-//        let request = try await authorizedRequest(from: url)
-//        let (data, urlResponse) = try await session.data(for: request)
-//
-//        // check the http status code and refresh + retry if we received 401 Unauthorized
-//        if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
-//            if allowRetry {
-//                _ = try await refreshToken()
-//                return try await loadAuthorized(url, allowRetry: false)
-//            }
-//
-//            throw AuthError.invalidToken
-//        }
-//
-//        do {
-//            let response = try decoder.decode(T.self, from: data)
-//            return response
-//        } catch {
-//            logger.error("Failed to decode ⚠️")
-//            assertionFailure(String(decoding: data, as: UTF8.self))
-//            throw error
-//        }
-//    }
-//
-//    private func authorizedRequest(from url: URL) async throws -> URLRequest {
-//        var urlRequest = URLRequest(url: url)
-//        let token = try await validToken()
-//        urlRequest.setValue("Bearer \(token.id)", forHTTPHeaderField: "Authorization")
-//        return urlRequest
-//    }
-//
-//    func validToken() async throws -> Token {
-//        if let handle = refreshTask {
-//            return try await handle.value
-//        }
-//
-//        guard let token = currentToken else {
-//            return try await refreshToken()
-////            throw AuthError.missingToken
-//        }
-//
-//        if token.isValid {
-//            return token
-//        }
-//
-//        return try await refreshToken()
-//    }
-//
-//    func refreshToken() async throws -> Token {
-//        if let refreshTask = refreshTask {
-//            return try await refreshTask.value
-//        }
-//
-//        let task = Task { () throws -> Token in
-//            defer { refreshTask = nil }
-//
-//            // Normally you'd make a network call here. Could look like this:
-//            guard let response = await getToken() else {
-//                throw AuthError.missingToken
-//            }
-//
-//            let newToken = Token(validUntil: Date.now.addingTimeInterval(TimeInterval(response.expiresIn)), id: response.accessToken)
-//            currentToken = newToken
-//            return newToken
-//        }
-//
-//        self.refreshTask = task
-//        return try await task.value
-//    }
-//}
-//
-//extension SpotifyAPI {
-//    struct Token {
-//        let validUntil: Date
-//        let id: String
-//        var isValid: Bool { Date.now < validUntil }
-//    }
-//}

@@ -76,21 +76,37 @@ struct ContentArtworkView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .task(id: content.id) {
+                    // TODO: Clean this up.
                     if let url = content.artwork, !(content.artwork?.absoluteString ?? "").contains("get") {
-                        imageRequest = ImageRequest(urlRequest: URLRequest(url: url))
+                        var request = URLRequest(url: url)
+                        if content.content.service == .plex {
+                            request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+                        }
+                        imageRequest = ImageRequest(urlRequest: request)
                         return
                     }
                     guard let artworkURL = await sonosService.getArtwork(from: content.content, size: 100) else {
                         // TODO: Add for Plex maybe abstract this
 //                        if content.content.service == .plex {
+//                            let urlRequest = URLRequest(url: artworkURL)
 //                            request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+//                            imageRequest = ImageRequest(url: )
 //                        }
-                        if content.artwork != nil {
-                            imageRequest = ImageRequest(url: content.artwork)
+                        if let artworkURL = content.artwork {
+                            var request = URLRequest(url: artworkURL)
+                            if content.content.service == .plex {
+                                request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+                            }
+                            imageRequest = ImageRequest(urlRequest: request)
                         }
                         return
                     }
-                    imageRequest = ImageRequest(url: artworkURL)
+                    
+                    var request = URLRequest(url: artworkURL)
+                    if content.content.service == .plex {
+                        request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
+                    }
+                    imageRequest = ImageRequest(urlRequest: request)
                 }
             }
         }

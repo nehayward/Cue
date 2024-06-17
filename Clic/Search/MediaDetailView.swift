@@ -160,6 +160,7 @@ struct MediaDetailView: View {
             }
         }
         .task {
+            // TODO: Refactor into MusicService
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
             case (.album, .apple):
@@ -221,6 +222,10 @@ struct MediaDetailView: View {
                     self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
                     playableContent = album
                 }
+            case (.album, .plex):
+                self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: playableContent.content.id)
+            case (.playlist, .plex):
+                self.tracks = await MusicSearchService().lookupPlexPlaylists(id: playableContent.content.id)
             default:
                 break
             }
