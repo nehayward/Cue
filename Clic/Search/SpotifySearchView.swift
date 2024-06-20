@@ -16,21 +16,38 @@ struct SpotifySearchView: View {
     var group: GroupRoom?
 
     var body: some View {
+        let filteredResults = filters.filter(\.isFiltered).isEmpty ?
+        spotifyResults :
+        spotifyResults.filter { item in
+            filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type)
+        }
+
         Group {
-            if filters.filter(\.isFiltered).isEmpty {
-                ForEach(spotifyResults) { item in
-                    PlayableContentView(item: item, group: group)
-                }
-            } else {
-                ForEach(spotifyResults) { item in
-                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item, group: group)
-                    }
-                }
+            ForEach(filteredResults) { item in
+                PlayableContentView(item: item)
+                    .transition(.slide)
             }
         }
         .animation(.bouncy, value: filters)
         .animation(.bouncy, value: spotifyResults)
         .fontDesign(.rounded)
+
+
+//        Group {
+//            if filters.filter(\.isFiltered).isEmpty {
+//                ForEach(spotifyResults) { item in
+//                    PlayableContentView(item: item)
+//                }
+//            } else {
+//                ForEach(spotifyResults) { item in
+//                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
+//                        PlayableContentView(item: item)
+//                    }
+//                }
+//            }
+//        }
+//        .animation(.bouncy, value: filters)
+//        .animation(.bouncy, value: spotifyResults)
+//        .fontDesign(.rounded)
     }
 }

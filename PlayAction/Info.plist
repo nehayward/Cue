@@ -22,8 +22,8 @@
 				SUBQUERY (
 				$extensionItem.attachments,
 				$attachment,
-				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.plain-text&quot;
-				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.url&quot;
+				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
+				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url"
 				).@count &gt;= 1
 				).@count &gt; 0
 			</string>
@@ -36,8 +36,6 @@
 		<string>com.apple.ui-services</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ActionViewController</string>
-		<key></key>
-		<string></string>
 	</dict>
 </dict>
 </plist>

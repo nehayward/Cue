@@ -1,3 +1,17 @@
+# 2024.31
+
+## External
+
++ Added Radio to Spotify and Apple Music, you can now start a station for an artist.
++ Added MiniPlayer to Search and other views to control playback and skip songs.
++ Improve Play Action in share sheet.
++ Fixed an issue where you couldn't dismiss a view when trying to add a a song to an alarm.
+
+## Internal
+
++ Add SelectGroup View
++ Add SelectedGroupService, now and env for selected group.
+
 # 2024.30
 
 ## External

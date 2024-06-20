@@ -298,18 +298,11 @@ struct ClicApp: App {
                 }
             }
 
-            if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init) {
+            if components.host?.lowercased() == "play", let paths = components.string?.split(separator: "/").map(String.init), let url = components.url {
                 if paths.count < 3 {
                     return
                 }
-                guard let service = MusicService(service: paths[2]),
-                      let type = ContentType(paths[3])
-                else { return }
-                let id = paths[4]
-
-                let media = MediaContent(service: service, id: id, type: type, location: nil)
-                // TODO: Convert to Playable Content
-                router.sheet(to: .playMedia(content: media))
+                router.sheet(to: .playMedia(url: url))
             }
 
             if components.host?.lowercased() == "group", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {

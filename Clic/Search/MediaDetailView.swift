@@ -14,15 +14,14 @@ struct MediaDetailView: View {
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-
+    @Environment(GroupRoom.self) private var group: GroupRoom?
+    
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
     @State private var artworkURL: URL?
     @State private var isLoaded: Bool = false
 
     private let musicSearchService = MusicSearchService()
-
-    var group: GroupRoom?
 
     var body: some View {
         List {
@@ -32,6 +31,7 @@ struct MediaDetailView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fit)
+                            .transition(.opacity)
                     } else if state.isLoading {
                         RoundedRectangle(cornerRadius: 4)
                             .aspectRatio(contentMode: .fit)
@@ -42,11 +42,20 @@ struct MediaDetailView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .shadow(radius: 2)
                 .scaledToFit()
-                .frame(width: 300, height: 300)
+                .frame(idealWidth: 320, idealHeight: 320)
+                .overlay(alignment: .bottomTrailing) {
+                    playableContent.content.service.icon
+                        .frame(width: 24, height: 24, alignment: .trailing)
+                        .padding([.bottom, .trailing])
+                }
+                // TODO: Add back for plex, need to handle image size changes
+//                ContentArtworkView(content: playableContent)
+//                    .frame(idealWidth: 320, idealHeight: 320)
             }
             .frame(maxWidth: .infinity)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
+
             HStack(spacing: 0) {
                 Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")\(tracks.count.formatted()) Tracks\(totalDuration.components.seconds > 0 ? " • " : "")")
                 if totalDuration.components.seconds > 0  {
@@ -63,16 +72,13 @@ struct MediaDetailView: View {
                     play(content: playableContent)
                 } label: {
                     Label("Queue All", systemImage: "play.fill")
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundStyle(.foreground)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .center)
-                .background(
-                    .ultraThinMaterial,
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                )
-                .padding(.vertical)
-                .ignoresSafeArea()
                 .bold()
+                .buttonStyle(.bordered)
+                .tint(.accent)
             }
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
@@ -84,6 +90,8 @@ struct MediaDetailView: View {
                     Image(systemName: "ellipsis")
                         .frame(maxWidth: 40, maxHeight: .infinity)
                         .background(.clear)
+                        .bold()
+                        .foregroundStyle(.foreground)
                 }
             }
 
@@ -116,6 +124,7 @@ struct MediaDetailView: View {
                             Image(systemName: "ellipsis")
                                 .frame(maxWidth: 40, maxHeight: .infinity)
                                 .background(.clear)
+                                .foregroundStyle(.foreground)
                         }
                     }
                     .contextMenu {
@@ -143,8 +152,9 @@ struct MediaDetailView: View {
                     .listRowBackground(Color.clear)
             }
         }
-        .listStyle(.inset)
-        .listSectionSeparator(.hidden)
+        .listStyle(.plain)
+        .contentMargins(.bottom, 80, for: .scrollContent)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 if !isLoaded {

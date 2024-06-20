@@ -9,7 +9,7 @@ enum SheetDestination: Identifiable, Equatable {
     case sceneSearchAdd(adding: ContentToAdd)
     case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
-    case playMedia(content: MediaContent)
+    case playMedia(url: URL)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case createScene(content: PlayableContent? = nil)
@@ -21,6 +21,7 @@ enum SheetDestination: Identifiable, Equatable {
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
+    case selectGroup(selectedGroupService: SelectedGroupService)
 
     var id: String {
         switch self {
@@ -62,6 +63,8 @@ enum SheetDestination: Identifiable, Equatable {
             "rename.playlist"
         case .speakerSettings:
             "speaker.configuration"
+        case .selectGroup:
+            "selectGroup"
         }
     }
 

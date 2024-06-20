@@ -154,7 +154,7 @@ struct DeviceListMainView: View {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         router.sheet(to: .search())
                     } label: {
-                        Image(systemName: "sparkle.magnifyingglass")
+                        Image(systemName: "magnifyingglass")
 //                            .resizable()
 //                            .foregroundStyle(.accent.gradient)
 //                            .frame(width: 24, height: 24)
@@ -257,4 +257,8 @@ struct DeviceListMainView: View {
         .environment(SubscriptionService.shared)
         .environment(AlertService.shared)
         .environment(Router())
+        .task {
+            try? await SonosService.shared.updateGroups()
+            try? await SonosService.shared.load(useCache: true)
+        }
 }

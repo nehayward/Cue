@@ -30,7 +30,7 @@ struct ApplePlaylistsScreen: View {
             List {
                 ForEach(playlists) { item in
                     VStack {
-                        PlayableContentView(item: item, group: group)
+                        PlayableContentView(item: item)
 //                            .swipeActions(edge: .trailing) {
 //                                Button("Delete", role: .destructive) {
 //                                    Task {

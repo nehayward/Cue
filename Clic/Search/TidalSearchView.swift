@@ -14,18 +14,16 @@ struct TidalSearchView: View {
     var tidalResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
-    var group: GroupRoom?
-
     var body: some View {
         Group {
             if filters.filter(\.isFiltered).isEmpty {
                 ForEach(tidalResults) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             } else {
                 ForEach(tidalResults) { item in
                     if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item, group: group)
+                        PlayableContentView(item: item)
                     }
                 }
             }

@@ -94,7 +94,6 @@ struct FilterView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
-        .contentMargins(.leading, 20, for: .scrollContent)
         .mask(
             HStack(spacing: 0) {
                 // Left gradient
@@ -116,7 +115,9 @@ struct FilterView: View {
                    )
                    .frame(width: 20)
             }
+            .padding(.leading, -15)
          )
+        .scrollClipDisabled()
     }
 }
 

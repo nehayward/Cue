@@ -4,10 +4,17 @@ extension SonosAPI {
     func parse(url: URL) -> MediaContent? {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
 
+        if let scheme = components.scheme, scheme == "clic" {
+            let paths = components.path.split(separator: "/").map(String.init)
+            guard paths.count > 2, let service = MusicService(service: paths[0]), let type = ContentType(paths[1]) else { return nil }
+            let id = paths[2]
+            return MediaContent(service: service, id: id, type: type, location: nil)
+        }
+
         let content: MediaContent? = switch components.host {
         case let .some(host) where host.contains("spotify"):
             handleSpotify(url: url, path: components.path)
-        case let .some(host) where host.contains("music"):
+        case let .some(host) where host.contains("apple"):
             handleMusic(url: url, path: components.path, query: components.query)
         case let .some(host) where host.contains("tidal"):
             parseTidal(url: url, path: components.path)

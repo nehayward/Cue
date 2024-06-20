@@ -13,7 +13,8 @@ import TipKit
 struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
-    @Environment(MusicSearchService.self) var musicSearchService
+    @Environment(MusicSearchService.self) private var musicSearchService
+    @Environment(SelectedGroupService.self) private var selectedGroupService
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -22,8 +23,6 @@ struct BrowseScreen: View {
     @State private var router = Router()
     @State private var alertService = AlertService()
     @State private var isLoaded: Bool = false
-
-    var group: GroupRoom? = nil
 
     var body: some View {
 //        TabView {
@@ -35,7 +34,7 @@ struct BrowseScreen: View {
                 List {
                     ForEach(browseService.playlists) { item in
                         VStack {
-                            PlayableContentView(item: item, group: group)
+                            PlayableContentView(item: item)
                                 .swipeActions(edge: .trailing) {
                                     Button("Delete", role: .destructive) {
                                         Task {
@@ -54,7 +53,7 @@ struct BrowseScreen: View {
                     isLoaded = true
                 }
                 .withAppRouter(router: router)
-                .listStyle(.inset)
+                .listStyle(.plain)
                 .navigationTitle("Library")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -83,6 +82,7 @@ struct BrowseScreen: View {
                     }
                 }
                 .fontDesign(.rounded)
+                .contentMargins(.bottom, 80, for: .scrollContent)
             }
             .environment(router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
@@ -90,6 +90,10 @@ struct BrowseScreen: View {
                     await browseService.updatePlaylists()
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                MiniPlayerView()
+            }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
 //        }
     }
 

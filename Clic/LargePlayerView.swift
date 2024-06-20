@@ -94,7 +94,7 @@ struct LargePlayerView: View {
                             HapticManager.shared.fireHaptic(.buttonPress)
                             router.presentedSheet = .search(group: group)
                         } label: {
-                            Image(systemName: "sparkle.magnifyingglass")
+                            Image(systemName: "magnifyingglass")
                                 .symbolRenderingMode(.hierarchical)
                                 .fontDesign(.rounded)
                         }
@@ -340,6 +340,7 @@ struct LargePlayerView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
+            .disabled(!group.availableActions.contains(.next))
         }
         .frame(maxWidth: 300)
         .padding(.horizontal, 80)

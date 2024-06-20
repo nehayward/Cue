@@ -15,8 +15,7 @@ struct PlayableContentList: View {
 
     @State var isLoading: Bool = false
     @State var navigationTitle: String = ""
-
-    var group: GroupRoom?
+    
     var type: ContentType
 
     var body: some View {
@@ -24,19 +23,19 @@ struct PlayableContentList: View {
             switch type {
             case .track:
                 ForEach(browseService.songs) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             case .album:
                 ForEach(browseService.albums) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             case .artist:
                 ForEach(browseService.artists) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             case .playlist:
                 ForEach(browseService.playlists) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             default:
                 EmptyView()

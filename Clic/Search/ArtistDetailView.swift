@@ -12,14 +12,12 @@ struct ArtistDetailView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
+    @Environment(SelectedGroupService.self) private var selectedGroupService
 
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
     @State private var albums: [PlayableContent] = []
-
     @State private var artworkURL: URL?
-
-    var group: GroupRoom?
 
     var body: some View {
         List {
@@ -46,10 +44,35 @@ struct ArtistDetailView: View {
                 .listRowBackground(Color.clear)
             }
 
+            if [.spotify, .apple].contains(playableContent.content.service) {
+                HStack {
+                    Button {
+                        Task {
+                            guard let group = selectedGroupService.group else {
+                                router?.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
+                                return
+                            }
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            await sonosService.startRadio(content: playableContent, group: group)
+                        }
+                    } label: {
+                        Label("Start Radio \(Image(systemName: "radio"))", systemImage: "play.fill")
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .foregroundStyle(.foreground)
+                    }
+                    .bold()
+                    .buttonStyle(.bordered)
+                    .tint(.accent)
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
+            
             Section("Top Tracks") {
                 ForEach(tracks) { track in
-                    PlayableContentView(item: track, group: group)
-                        .listRowBackground(Color.clear)
+                    PlayableContentView(item: track)
                 }
 
                 if tracks.isEmpty {
@@ -62,8 +85,7 @@ struct ArtistDetailView: View {
 
             Section("Albums") {
                 ForEach(albums) { album in
-                    PlayableContentView(item: album, group: group)
-                        .listRowBackground(Color.clear)
+                    PlayableContentView(item: album)
                 }
                 if tracks.isEmpty {
                     ProgressView()
@@ -106,10 +128,11 @@ struct ArtistDetailView: View {
             //                .frame(maxWidth: .infinity, alignment: .center)
             //            }
         }
-        .listStyle(.inset)
+        .listStyle(.plain)
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
+        .contentMargins(.bottom, 80, for: .scrollContent)
         .task {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {

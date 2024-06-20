@@ -9,22 +9,31 @@ import SwiftUI
 struct FavoritesView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
-    @Environment(GroupRoom.self) var group: GroupRoom?
 
     var body: some View {
         Group {
             if let favorites = sonosService.favorites, !favorites.items.isEmpty {
-                Section {
-                    ForEach(favorites.items) { item in
-                        PlayableContentView(item: item.toPlayable, group: group)
-                    }
-                } header: {
-                    Label {
-                        Text("Favorites")
-                    } icon: {
-                        Image(systemName: "text.badge.star")
-                    }
+                Text("Favorites")
+                    .foregroundStyle(.secondary)
+                    .listRowSeparator(.hidden)
+                    .fontDesign(.rounded)
+                    .bold()
+                ForEach(favorites.items.prefix(10)) { item in
+                    PlayableContentView(item: item.toPlayable)
                 }
+
+                NavigationLink {
+                    List {
+                        ForEach(favorites.items) { item in
+                            PlayableContentView(item: item.toPlayable)
+                        }
+                    }
+                    .contentMargins(.bottom, 80, for: .scrollContent)
+                    .navigationTitle("Favorites")
+                } label: {
+                    Text("Show All")
+                }
+                .listRowSeparator(.hidden)
             }
         }
         .task {

@@ -49,8 +49,10 @@ struct QueueScreen: View {
                                     menu(content: track)
                                 } label: {
                                     Image(systemName: "ellipsis")
-                                        .frame(maxWidth: 40, maxHeight: .infinity)
+                                        .frame(maxWidth: 40, maxHeight: .infinity, alignment: .trailing)
                                         .background(.clear)
+                                        .tint(.primary)
+                                        .bold()
                                 }
                             }
                             .contextMenu {

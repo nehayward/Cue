@@ -12,13 +12,7 @@ struct QueueListView: View {
 
     @State var playableContent: PlayableContent? = nil
     @State var isQueueing: Bool = false
-
-//    @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = [] {
-//        didSet {
-//            playHistory = OrderedSet(playHistory.prefix(15))
-//        }
-//    }
-
+    @State private var playHistoryService = PlayHistoryService()
     var viewModel: ViewModel
     var context: NSExtensionContext?
 
@@ -34,16 +28,22 @@ struct QueueListView: View {
                             image
                                 .resizable()
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(alignment: .bottomTrailing) {
+                                    playableContent.content.service.icon
+                                        .frame(width: 16)
+                                        .padding([.bottom, .trailing], 4)
+                                }
                         } placeholder: {
-                            ProgressView() // Displays a progress indicator while the image is loading
+                            ProgressView()
                         }
                         .transition(.scale)
-                        .aspectRatio(contentMode: .fill) // Maintains the aspect ratio of the image
+                        .aspectRatio(contentMode: .fill)
                         .frame(width: 100, height: 100)
                         VStack(alignment: .leading) {
                             Text(playableContent.title)
-                            Text(playableContent.subtitle)
+                            Text("\(playableContent.content.type.title)\(playableContent.subtitle.isEmpty ? "" : " • \(playableContent.subtitle)")")
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fontDesign(.rounded)
@@ -56,8 +56,8 @@ struct QueueListView: View {
                                 isQueueing = true
                                 impactFeedbackGenerator.impactOccurred()
                                 Task {
-//                                    playHistory.remove(playableContent)
-//                                    playHistory.insert(playableContent, at: 0)
+                                    playHistoryService.history.remove(playableContent)
+                                    playHistoryService.history.insert(playableContent, at: 0)
                                     await sonosService.queue(playable: playableContent, group: group, position: .now)
                                     await sonosService.play(ip: group.ip)
                                     self.context?.completeRequest(returningItems: [])
@@ -79,8 +79,8 @@ struct QueueListView: View {
                             Button {
                                 isQueueing = true
                                 Task {
-//                                    playHistory.remove(playableContent)
-//                                    playHistory.insert(playableContent, at: 0)
+                                    //                                    playHistory.remove(playableContent)
+                                    //                                    playHistory.insert(playableContent, at: 0)
                                     await sonosService.queue(playable: playableContent, group: group, position: .next)
                                     self.context?.completeRequest(returningItems: [])
                                 }

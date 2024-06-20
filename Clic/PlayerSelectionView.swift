@@ -12,9 +12,11 @@ struct PlayerSelectionView: View {
     @Environment(Router.self) private var router: Router?
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
+    @Environment(SelectedGroupService.self) private var selectedGroupService
 
     @State var playableContent: PlayableContent?
 
+    var urlScheme: URL?
     var position: QueuePosition = .now
     var mediaContent: MediaContent?
 
@@ -45,6 +47,7 @@ struct PlayerSelectionView: View {
             List ($sonosService.sorted) { $group in
                 VStack(alignment: .leading) {
                     Button {
+                        selectedGroupService.group = group
                         HapticManager.shared.fireHaptic(.buttonPress)
                         dismiss()
                         Task {
@@ -55,10 +58,6 @@ struct PlayerSelectionView: View {
                                 await sonosService.queue(playable: playableContent, group: group, position: position)
                                 await sonosService.play(ip: group.ip)
                                 return
-                            }
-                            if let mediaContent {
-                                // TODO: Need to get content, get rid of just using mediacontent
-                                //                                await sonosService.queue(content: mediaContent, group: group)
                             }
                             await sonosService.play(ip: group.ip)
                         }
@@ -74,7 +73,11 @@ struct PlayerSelectionView: View {
             }
             .listRowSpacing(10)
         }
+        .navigationBarTitleDisplayMode(.inline)
         .task {
+            if playableContent == nil, let url = urlScheme {
+                playableContent = await sonosService.getContent(from: url)
+            }
             try? await sonosService.updateGroups()
             try? await sonosService.load(useCache: true)
         }

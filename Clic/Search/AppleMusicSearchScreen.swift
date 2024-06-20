@@ -22,12 +22,12 @@ struct AppleMusicSearchScreen: View {
         Group {
             if filters.filter(\.isFiltered).isEmpty {
                 ForEach(appleSearchResults) { item in
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             } else {
                 ForEach(appleSearchResults) { item in
                     if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item, group: group)
+                        PlayableContentView(item: item)
                     }
                 }
             }

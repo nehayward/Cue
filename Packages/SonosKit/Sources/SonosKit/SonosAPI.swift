@@ -693,6 +693,22 @@ final class SonosAPI: NSObject {
         }
     }
 
+    func startRadio(playableContent: PlayableContent, IP: String) async {
+        guard let radioURI = playableContent.uriRadio, let URIMetadataRadio = playableContent.URIMetadataRadio else { return }
+
+        let arguments: [String: Any] = [
+            "InstanceID": 0,
+            "CurrentURI": radioURI,
+            "CurrentURIMetaData": URIMetadataRadio,
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
     func getCurrentTransportActions(IP: String) async -> AvailableActions? {
         let arguments: [String: Any] = ["InstanceID": 0]
 

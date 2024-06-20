@@ -503,7 +503,9 @@ public final class SonosService {
                     //                        return
                     //                    }
                     if let playbackService = await playbackService(ip: roomGroup.ip) {
-                        roomGroup.playbackService = playbackService
+                        Task { @MainActor in
+                            roomGroup.playbackService = playbackService
+                        }
                     }
 
                     // TODO: Move into playback
@@ -859,7 +861,7 @@ public final class SonosService {
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
             if size == 100 {
                 return album.images.thumbnail
-            } else if size == 200, album.images.count > 2 {
+            } else if size > 100, album.images.count > 2 {
                 let image = album.images[1]
                 return URL(string: image.url)
             } else if size == 200 {
@@ -872,7 +874,7 @@ public final class SonosService {
 
             if size == 100 {
                 return spotifyTrack.album.images.thumbnail
-            } else if size == 200, spotifyTrack.album.images.count > 2 {
+            } else if size > 100, spotifyTrack.album.images.count > 2 {
                 let image = spotifyTrack.album.images[1]
                 imageURL = URL(string: image.url)
             } else if let artworkString = spotifyTrack.album.images.first?.url {
@@ -935,31 +937,6 @@ public final class SonosService {
             return nil
         }
     }
-
-    public func getContent(from content: MediaContent) async -> PlayableContent? {
-        switch content.type {
-        case .playlist:
-            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
-            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, artwork: URL(string: playlist.images.first?.url ?? ""), content: content)
-        case .track:
-            if content.service == .spotify {
-                guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-                return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", artwork: URL(string: track.album.images.first?.url ?? ""), content: content)
-            }
-
-            if content.service == .apple {
-                guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
-                return PlayableContent(title: track.trackName, subtitle: track.artistName, artwork: URL(string: track.artworkURL), content: content)
-            }
-        case .album:
-            guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
-            return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", artwork: URL(string: album.images.first?.url ?? ""), content: content)
-        default:
-            break
-        }
-        return nil
-    }
-
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { group in
@@ -1353,6 +1330,11 @@ public final class SonosService {
 
     public func reorderQueue(_ group: GroupRoom, from: Int, to: Int) async throws {
         await api.reorderQueue(group: group, from: from, to: to)
+    }
+
+    public func startRadio(content: PlayableContent, group: GroupRoom) async {
+        await api.startRadio(playableContent: content, IP: group.ip)
+        await api.play(ipAddress: group.ip)
     }
 
     public func getGroupCoordinatorWithRoom(roomID: String) async -> GroupRoom? {

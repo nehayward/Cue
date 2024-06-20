@@ -14,7 +14,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         switch service {
         case "spotify":
             self = .spotify
-        case "apple":
+        case "apple", "music":
             self = .apple
         case "library":
             self = .library
@@ -41,6 +41,23 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "tidal"
         default:
             nil
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .apple:
+            "Apple Music"
+        case .spotify:
+            "Spotify"
+        case .library:
+            "Library"
+        case .plex:
+            "Plex"
+        case .tidal:
+            "Tidal"
+        default:
+            ""
         }
     }
 

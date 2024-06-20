@@ -15,30 +15,33 @@ struct PlayableContentView: View {
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
+    @Environment(SelectedGroupService.self) private var selectedGroupService
 
     var item: PlayableContent
-    var group: GroupRoom?
 
     var body: some View {
-        // MARK: Adding Content View
-        if let add = adding?.add, add {
-            content
-        } else {
-            switch item.content.type {
-            case .playlist, .album, .userPlaylist:
-                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
+        Group {
+            if let add = adding?.add, add {
+                content
+            } else {
+                switch item.content.type {
+                case .playlist, .album, .userPlaylist:
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                        content
+                    }
+                case .artist:
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                        content
+                    }
+                case .track, .favorite, .radio:
+                    content
+                case .libraryTrack:
                     content
                 }
-            case .artist:
-                NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
-                    content
-                }
-            case .track, .favorite, .radio:
-                content
-            case .libraryTrack:
-                content
             }
         }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden, edges: .all)
     }
 
     private var content: some View {
@@ -104,8 +107,20 @@ struct PlayableContentView: View {
             }
             switch item.content.type {
             case .artist:
-                NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
+                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                     Label("View Artist", systemImage: "music.mic")
+                }
+
+                if [.apple, .spotify].contains(item.content.service) {
+                    Button {
+                        guard let group = selectedGroupService.group else { return }
+                        Task {
+                            await HapticManager.shared.fireHaptic(.buttonPress)
+                            await sonosService.startRadio(content: item, group: group)
+                        }
+                    } label: {
+                        Label("Start Radio", systemImage: "radio.fill")
+                    }
                 }
             case .playlist, .userPlaylist:
                 Button {
@@ -120,7 +135,7 @@ struct PlayableContentView: View {
 //                    Text("Queue")
 //                }
 
-                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
+                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                     Text("View")
                 }
 
@@ -139,12 +154,12 @@ struct PlayableContentView: View {
 
             case .album, .track, .libraryTrack:
                 if [.album, .track].contains(item.content.type) {
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: group)) {
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
                     }
 
 
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: group)) {
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                         Label("View Artist", systemImage: "music.mic")
                     }
 
@@ -190,7 +205,7 @@ struct PlayableContentView: View {
             return
         }
         Task { @MainActor in
-            guard let group = group else {
+            guard let group = selectedGroupService.group else {
                 router.navigate(to: .groupDestination(content: item, position: position))
                 return
             }

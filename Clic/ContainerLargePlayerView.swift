@@ -40,7 +40,7 @@ struct ContainerLargePlayerView: View {
                                         }
                                     }
                                 } label: {
-                                    Image(systemName: "sparkle.magnifyingglass")
+                                    Image(systemName: "magnifyingglass")
                                         .tint(.primary)
                                 }
                                 .id(refreshID)

@@ -33,20 +33,22 @@ extension View {
                 case let .search(group):
                     SearchScreen(group: group)
                         .environment(Router())
+                        .environment(SelectedGroupService(group: group))
                     // MARK: Add back later maybe
 //                        .environment(Router.search)
                 case let .sceneSearchAdd(adding):
                     SearchScreen()
                         .environment(Router())
                         .environment(adding)
+                        .environment(SelectedGroupService())
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
                 case let .playContent(content):
                     PlayerSelectionView(playableContent: content)
-                case let .playMedia(content):
+                case let .playMedia(url):
                     NavigationStack {
-                        PlayerSelectionView(mediaContent: content)
+                        PlayerSelectionView(urlScheme: url)
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
@@ -58,8 +60,7 @@ extension View {
                     SceneView()
                 case let .mediaDetail(content, group):
                     NavigationStack {
-                        MediaDetailView(playableContent: content, group: group)
-                            .environment(Router())
+                        MediaDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
@@ -67,23 +68,36 @@ extension View {
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
+                    .safeAreaInset(edge: .bottom) {
+                        MiniPlayerView()
+                    }
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .environment(Router())
+                    .environment(SelectedGroupService(group: group))
                 case let .artistDetail(content, group):
                     @State var router = Router()
                     NavigationStack {
-                        ArtistDetailView(playableContent: content, group: group)
+                        ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter(router: router)
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
+
                     }
-                    .environment(router)
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
+                    .safeAreaInset(edge: .bottom) {
+                        MiniPlayerView()
+                    }
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .environment(router)
+                    .environment(SelectedGroupService(group: group))
                 case let .searchAdd(adding):
                     SearchScreen()
                         .environment(Router())
                         .environment(adding)
+                        .environment(SelectedGroupService())
                 case let .alarms(group):
                     Group {
                         @State var router = Router()
@@ -95,7 +109,8 @@ extension View {
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
                 case let .browse(group: group):
-                    BrowseScreen(group: group)
+                    BrowseScreen()
+                        .environment(SelectedGroupService(group: group))
                 case let .newPlaylist(group: group):
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
@@ -107,6 +122,12 @@ extension View {
                     .presentationDetents([.medium, .large])
                     .presentationBackground(.thinMaterial)
                     .presentationCornerRadius(24)
+                case let .selectGroup(selectedGroupService: selectedGroupService):
+                    SelectGroupView()
+                        .presentationDetents([.medium, .large])
+                        .presentationBackground(.thinMaterial)
+                        .presentationCornerRadius(24)
+                        .environment(selectedGroupService)
                 }
             }
             .withEnvironments()
@@ -127,18 +148,20 @@ extension View {
                 case let .search(group):
                     SearchScreen(group: group)
                         .environment(Router())
+                        .environment(SelectedGroupService(group: group))
                 case let .sceneSearchAdd(adding):
                     SearchScreen()
                         .environment(Router())
                         .environment(adding)
+                        .environment(SelectedGroupService())
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
                 case let .playContent(content):
                     PlayerSelectionView(playableContent: content)
-                case let .playMedia(content):
+                case let .playMedia(url):
                     NavigationStack {
-                        PlayerSelectionView(mediaContent: content)
+                        PlayerSelectionView(urlScheme: url)
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
@@ -150,7 +173,8 @@ extension View {
                     SceneView()
                 case let .mediaDetail(content, group):
                     NavigationStack {
-                        MediaDetailView(playableContent: content, group: group)
+                        MediaDetailView(playableContent: content)
+                            .environment(group)
                             .environment(Router())
                             .navigationBarTitleDisplayMode(.inline)
                     }
@@ -159,17 +183,23 @@ extension View {
                 case let .artistDetail(content, group):
                     @State var router = Router()
                     NavigationStack(path: $router.path) {
-                        ArtistDetailView(playableContent: content, group: group)
+                        ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter(router: router)
-                            .environment(router)
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
+                    .safeAreaInset(edge: .bottom) {
+                        MiniPlayerView()
+                    }
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .environment(router)
+                    .environment(SelectedGroupService(group: group))
                 case let .searchAdd(adding):
                     SearchScreen()
                         .environment(adding)
                         .environment(Router())
+                        .environment(SelectedGroupService())
                 case .alarms:
                     NavigationStack {
                         AlarmListView()
@@ -177,7 +207,8 @@ extension View {
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
                 case let .browse(group: group):
-                    BrowseScreen(group: group)
+                    BrowseScreen()
+                        .environment(SelectedGroupService(group: group))
                 case let .newPlaylist(group: group):
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
@@ -209,9 +240,11 @@ extension View {
             case .manageScenes:
                 ManageSceneScreen()
             case let .mediaDetail(content, group):
-                MediaDetailView(playableContent: content, group: group)
+                MediaDetailView(playableContent: content)
+                    .environment(group)
             case let .artistDetail(content, group):
-                ArtistDetailView(playableContent: content, group: group)
+                ArtistDetailView(playableContent: content)
+                    .environment(SelectedGroupService(group: group))
             case let .createScene(content):
                 SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
             case .alarms:
@@ -237,8 +270,9 @@ extension View {
                 default:
                     ""
                 }
-                PlayableContentList(group: group, type: contentType)
+                PlayableContentList(type: contentType)
                     .navigationTitle(title)
+                    .environment(group)
             }
         }
     }
@@ -255,6 +289,7 @@ extension View {
                     #else
                         .inspectorColumnWidth(400)
                     #endif
+                        .environment(SelectedGroupService(group: group))
                 case let .queue(group):
                     QueueScreen(group: group)
                     #if targetEnvironment(macCatalyst)

@@ -10,7 +10,7 @@ struct AppleMusicPermissionsView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("Improved Search", systemImage: "sparkle.magnifyingglass")
+            Label("Improved Search", systemImage: "magnifyingglass")
         } description: {
             Text("Enhance search with search suggestions.")
         } actions: {

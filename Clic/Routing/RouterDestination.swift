@@ -45,4 +45,42 @@ public enum RouterDestination: Hashable, Identifiable {
             "playableContentList"
         }
     }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        switch self {
+        case let .player(groupID):
+            hasher.combine(groupID)
+        case let .groupDestination(content, position):
+            hasher.combine(content.content.id)
+            hasher.combine(position)
+        case .manageScenes:
+            hasher.combine("manageScenes")
+        case let .mediaDetail(content, group):
+            hasher.combine(content.id)
+            hasher.combine(group?.id)
+        case let .artistDetail(content, group):
+            hasher.combine(content.id)
+            hasher.combine(group?.id)
+        case let .createScene(content):
+            hasher.combine(content?.id ?? "scene")
+        case .alarms:
+            hasher.combine("alarms")
+        case let .addAlarm(group):
+            hasher.combine(group?.id)
+        case let .editAlarm(alarm):
+            hasher.combine(alarm.id)
+        case .speakerSettingsList:
+            hasher.combine("speakerSettingsList")
+        case let .speakerSettings(room):
+            hasher.combine(room.id)
+        case let .playableContentList(group, contentType):
+            hasher.combine(group?.id)
+            hasher.combine(contentType)
+        }
+    }
+
+    public static func == (lhs: RouterDestination, rhs: RouterDestination) -> Bool {
+        lhs.id == rhs.id
+    }
 }

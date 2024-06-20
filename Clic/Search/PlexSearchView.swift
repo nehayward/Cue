@@ -14,15 +14,13 @@ struct PlexSearchView: View {
     var plexResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
-    var group: GroupRoom?
-
     var body: some View {
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
-                PlayableContentView(item: item, group: group)
+                PlayableContentView(item: item)
             } else {
                 if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                    PlayableContentView(item: item, group: group)
+                    PlayableContentView(item: item)
                 }
             }
         }

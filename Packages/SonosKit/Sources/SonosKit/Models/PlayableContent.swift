@@ -197,21 +197,30 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         }
     }
 
-    private func intToBase64UrlSafe(_ number: Int64) -> String {
-        // Convert integer to bytes
-        var bigEndianNumber = number.bigEndian
-        let numberData = Data(bytes: &bigEndianNumber, count: MemoryLayout.size(ofValue: bigEndianNumber))
+    public var uriRadio: String? {
+        switch (content.type, content.service) {
+        case (.artist, .spotify):
+            "x-sonosapi-radio:spotify%3aartistRadio%3a\(content.id)?sid=12&amp;flags=8300&amp;sn=1"
+        case (.artist, .apple):
+            "x-sonosapi-radio:radio%3ara.\(content.id)?sid=204&amp;flags=0&amp;sn=41"
+        default:
+            nil
+        }
+    }
 
-        // Base64 encode the bytes
-        let base64String = numberData.base64EncodedString()
-
-        // Make the base64 string URL-safe and remove padding
-        let base64UrlSafeString = base64String
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
-
-        return base64UrlSafeString
+    public var URIMetadataRadio: String? {
+        switch (content.type, content.service) {
+        case (.artist, .spotify):
+            """
+\(Self.defaultXMLNSHeader) id="100c206cspotify%3aartistRadio%3a\(id)" &gt;&lt;dc:title&gt;\(title) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+"""
+        case (.artist, .apple):
+            """
+\(Self.defaultXMLNSHeader) id="000c0000radio%3ara.\(id)" &gt;&lt;dc:title&gt;\(title) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+"""
+        default:
+            nil
+        }
     }
 
     public static func == (lhs: PlayableContent, rhs: PlayableContent) -> Bool {

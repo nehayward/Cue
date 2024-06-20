@@ -85,7 +85,7 @@ struct ContentArtworkView: View {
                         imageRequest = ImageRequest(urlRequest: request)
                         return
                     }
-                    guard let artworkURL = await sonosService.getArtwork(from: content.content, size: 100) else {
+                    guard let artworkURL = await sonosService.getArtwork(from: content.content, size: size == 16 ? 100 : 320) else {
                         // TODO: Add for Plex maybe abstract this
 //                        if content.content.service == .plex {
 //                            let urlRequest = URLRequest(url: artworkURL)
