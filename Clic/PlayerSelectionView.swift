@@ -10,9 +10,8 @@ struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
-    @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
 
     @State var playableContent: PlayableContent?
 
@@ -47,16 +46,17 @@ struct PlayerSelectionView: View {
             List ($sonosService.sorted) { $group in
                 VStack(alignment: .leading) {
                     Button {
-                        selectedGroupService.group = group
+                        selectedGroupService?.group = group
                         HapticManager.shared.fireHaptic(.buttonPress)
                         dismiss()
                         Task {
                             if let playableContent {
                                 playHistoryService.history.remove(playableContent)
                                 playHistoryService.history.insert(playableContent, at: 0)
-                                alertService.showAlertContent(with: playableContent)
                                 await sonosService.queue(playable: playableContent, group: group, position: position)
                                 await sonosService.play(ip: group.ip)
+                                try? await Task.sleep(for: .milliseconds(100))
+                                try? await sonosService.updateGroups(from: [group])
                                 return
                             }
                             await sonosService.play(ip: group.ip)

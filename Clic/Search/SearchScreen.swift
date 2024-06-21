@@ -18,7 +18,7 @@ struct SearchScreen: View {
     @Environment(Router.self) private var router: Router
     @Environment(PlaylistContainer.self) private var playlistsContainer
     @Environment(PlayHistoryService.self) private var playHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
@@ -31,8 +31,6 @@ struct SearchScreen: View {
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
-
-    @State var group: GroupRoom?
 
     var body: some View {
         @Bindable var router = router
@@ -126,10 +124,8 @@ struct SearchScreen: View {
                 .presentationDragIndicator(.hidden)
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
-                .listRowBackground(Color.clear)
                 .foregroundStyle(.primary)
                 .environment(router)
-                .environment(group)
                 .environment(musicSearchService)
                 .environment(alertService)
                 .onChange(of: router.dismiss) {
@@ -161,7 +157,6 @@ struct SearchScreen: View {
                 showKeyboard()
             }
         }
-        .environment(group)
         .environment(selectedGroupService)
     }
 
@@ -261,7 +256,7 @@ struct SearchScreen: View {
 }
 
 #Preview {
-    SearchScreen(group: nil)
+    SearchScreen()
         .environment(SonosService.shared)
 }
 

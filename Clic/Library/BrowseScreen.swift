@@ -33,17 +33,15 @@ struct BrowseScreen: View {
             NavigationStack(path: $router.path) {
                 List {
                     ForEach(browseService.playlists) { item in
-                        VStack {
-                            PlayableContentView(item: item)
-                                .swipeActions(edge: .trailing) {
-                                    Button("Delete", role: .destructive) {
-                                        Task {
-                                            await sonosService.delete(playlistID: item.id)
-                                            browseService.playlists.removeAll { $0.id == item.id }
-                                        }
+                        PlayableContentView(item: item)
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete", role: .destructive) {
+                                    Task {
+                                        await sonosService.delete(playlistID: item.id)
+                                        browseService.playlists.removeAll { $0.id == item.id }
                                     }
                                 }
-                        }
+                            }
                     }
                 }
                 .animation(.bouncy, value: browseService.playlists)
@@ -85,6 +83,7 @@ struct BrowseScreen: View {
                 .contentMargins(.bottom, 80, for: .scrollContent)
             }
             .environment(router)
+            .environment(selectedGroupService)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
                 Task {
                     await browseService.updatePlaylists()

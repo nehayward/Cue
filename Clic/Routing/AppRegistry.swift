@@ -31,7 +31,7 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
-                    SearchScreen(group: group)
+                    SearchScreen()
                         .environment(Router())
                         .environment(SelectedGroupService(group: group))
                     // MARK: Add back later maybe
@@ -146,7 +146,7 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
-                    SearchScreen(group: group)
+                    SearchScreen()
                         .environment(Router())
                         .environment(SelectedGroupService(group: group))
                 case let .sceneSearchAdd(adding):
@@ -283,7 +283,7 @@ extension View {
             Group {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):
-                    SearchScreen(group: group)
+                    SearchScreen()
                     #if targetEnvironment(macCatalyst)
                         .inspectorColumnWidth(500)
                     #else

@@ -209,12 +209,23 @@ struct PlayableContentView: View {
                 router.navigate(to: .groupDestination(content: item, position: position))
                 return
             }
+            hideKeyboard()
             playHistoryService.history.remove(item)
             playHistoryService.history.insert(item, at: 0)
             alertService.showAlertContent(with: item)
             HapticManager.shared.fireHaptic(.buttonPress)
             await sonosService.queue(playable: item, group: group, position: position)
             await sonosService.play(ip: group.coordinatorRoom.ip)
+            try? await Task.sleep(for: .milliseconds(100))
+            try? await sonosService.updateGroups(from: [group])
         }
     }
 }
+
+#if canImport(UIKit)
+extension View {
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+#endif
