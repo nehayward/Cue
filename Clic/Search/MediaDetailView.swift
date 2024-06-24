@@ -14,8 +14,8 @@ struct MediaDetailView: View {
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-    @Environment(GroupRoom.self) private var group: GroupRoom?
-    
+    @Environment(SelectedGroupService.self) private var selectedGroupService
+
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
     @State private var artworkURL: URL?
@@ -95,55 +95,9 @@ struct MediaDetailView: View {
                 }
             }
 
-            ForEach(tracks) { track in
-                Button {
-                    play(content: track)
-                } label: {
-                    HStack {
-                        if playableContent.content.type == .playlist {
-                            ContentArtworkView(content: track)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 60, height: 60)
-                        }
-                        VStack(alignment: .leading) {
-                            Text(track.title)
-                                .lineLimit(1)
-                            Text(track.subtitle)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            if let duration = track.metadata?.duration, duration.components.seconds != 0 {
-                                Text(duration, format: .time(pattern: .minuteSecond))
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        Spacer()
-                        Menu {
-                            menu(content: track)
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .frame(maxWidth: 40, maxHeight: .infinity)
-                                .background(.clear)
-                                .foregroundStyle(.foreground)
-                        }
-                    }
-                    .contextMenu {
-                        menu(content: track)
-                    }
-                }
-                .listRowBackground(Color.clear)
-                .task(id: track.id) {
-                    //                    guard let artworkURL = await sonosService.getArtwork(from: track, size: 200) else {
-                    //                        return
-                    //                    }
-
-                    //                    track.artwork = nil
-                }
+            ForEach(tracks) { item in
+                PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album)
             }
-//            .if(playableContent.content.service == .library && playableContent.content.type == .playlist) { view in
-//                // We only apply this background color if shouldApplyBackground is true
-//                view.onMove(perform: move)
-//            }
 
             if tracks.isEmpty, !isLoaded {
                 ProgressView()
@@ -245,7 +199,7 @@ struct MediaDetailView: View {
 
     private func play(content: PlayableContent, position: QueuePosition = .now, replaceQueue: Bool = false) {
         Task { @MainActor in
-            guard let group = group else {
+            guard let group = selectedGroupService.group else {
                 router.navigate(to: .groupDestination(content: content, position: position))
                 return
             }

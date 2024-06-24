@@ -12,7 +12,7 @@ struct ArtistDetailView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []

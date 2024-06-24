@@ -12,20 +12,20 @@ struct FavoritesView: View {
 
     var body: some View {
         Group {
-            if let favorites = sonosService.favorites, !favorites.items.isEmpty {
+            if !sonosService.favorites.isEmpty {
                 Text("Favorites")
                     .foregroundStyle(.secondary)
                     .listRowSeparator(.hidden)
                     .fontDesign(.rounded)
                     .bold()
-                ForEach(favorites.items.prefix(10)) { item in
-                    PlayableContentView(item: item.toPlayable)
+                ForEach(sonosService.favorites.prefix(5)) { item in
+                    PlayableContentView(item: item)
                 }
 
                 NavigationLink {
                     List {
-                        ForEach(favorites.items) { item in
-                            PlayableContentView(item: item.toPlayable)
+                        ForEach(sonosService.favorites) { item in
+                            PlayableContentView(item: item)
                         }
                     }
                     .contentMargins(.bottom, 80, for: .scrollContent)

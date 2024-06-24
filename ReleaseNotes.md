@@ -2,6 +2,19 @@
 
 ## External
 
++ Add replace queue option and queue next.
++ Improved favorites.
+
+## Internal
+
++ Fix Artwork not getting removed
++ Disable play button when not able to play
+
+
+# 2024.31
+
+## External
+
 + Added Radio to Spotify and Apple Music, you can now start a station for an artist.
 + Added MiniPlayer to Search and other views to control playback and skip songs.
 + Improve Play Action in share sheet.

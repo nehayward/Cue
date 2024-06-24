@@ -15,6 +15,7 @@ public struct SpotifyAlbumItem: Decodable, Identifiable, Sendable {
 }
 
 public struct SpotifyAlbumDetails: Decodable, Sendable {
+    public let href: String
     public let name: String
     public let id: String
     public let releaseDate: String

@@ -114,7 +114,6 @@ struct SearchScreen: View {
                     .animation(.bouncy, value: filters)
                     .animation(.interactiveSpring, value: searchCompletionTapped)
                     .addDismiss(override: contentToAdd != nil, action: dismiss.callAsFunction)
-
                 }
                 .keyboardType(.asciiCapable)
                 .autocorrectionDisabled()

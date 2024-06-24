@@ -131,7 +131,7 @@ extension Album {
             title: title,
             subtitle: artistName,
             artwork: artwork?.url(width: 100, height: 100),
-            content: MediaContent(service: .apple, id: id.description, type: .album, location: nil)
+            content: MediaContent(service: .apple, id: id.description, type: .album, location: url)
         )
     }
 }
@@ -143,7 +143,7 @@ extension Artist {
             title: name,
             subtitle: "",
             artwork: artwork?.url(width: 100, height: 100),
-            content: MediaContent(service: .apple, id: id.description, type: .artist, location: nil)
+            content: MediaContent(service: .apple, id: id.description, type: .artist, location: url)
         )
     }
 }
@@ -160,7 +160,7 @@ extension SpotifyTrackItem {
                 service: .spotify,
                 id: id,
                 type: .track,
-                location: nil
+                location: URL(string: href)
             ),
             metadata: PlayableContentMetadata(
                 duration: Duration.seconds(
@@ -181,7 +181,7 @@ extension SpotifyAlbumItem {
             title: name,
             subtitle: artists.first?.name ?? "",
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
         )
     }
 }
@@ -192,7 +192,7 @@ extension SpotifyArtistAlbums.AlbumItem {
             title: name,
             subtitle: releaseDate,
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
         )
     }
 }
@@ -203,7 +203,7 @@ extension SpotifyAlbumDetails {
             title: name,
             subtitle: releaseDate,
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
         )
     }
 }
@@ -214,7 +214,7 @@ extension SpotifyAlbumTrackItems {
             title: name,
             subtitle: allArtists,
             artwork: artwork,
-            content: MediaContent(service: .spotify, id: id, type: .track, location: nil),
+            content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: href)),
             metadata: .init(duration: Duration.milliseconds(durationMs))
         )
     }
@@ -226,7 +226,7 @@ extension SpotifyPlaylistItems {
             title: name,
             subtitle: owner.displayName,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .playlist, location: nil)
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: href))
         )
     }
 }
@@ -237,7 +237,7 @@ extension SpotifyArtistsItems {
             title: name,
             subtitle: "",
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .artist, location: nil),
+            content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: href)),
             metadata: .init(popularity: popularity)
         )
     }

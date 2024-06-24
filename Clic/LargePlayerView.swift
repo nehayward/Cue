@@ -327,6 +327,8 @@ struct LargePlayerView: View {
             .buttonStyle(.plain)
             .keyboardShortcut(.space, modifiers: []) 
             .id(group.coordinatorID)
+            .disabled(!group.availableActions.contains(.play))
+
             Spacer()
             Button {
                 Task {

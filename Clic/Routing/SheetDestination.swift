@@ -21,7 +21,7 @@ enum SheetDestination: Identifiable, Equatable {
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
-    case selectGroup(selectedGroupService: SelectedGroupService)
+    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async -> Void)? = nil)
 
     var id: String {
         switch self {

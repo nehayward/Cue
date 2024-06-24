@@ -811,6 +811,99 @@ final class XMLParserSonos {
         return searchResults
     }
 
+    func parseFavorites(IP: String, xml: String) -> [PlayableContent] {
+        let xmlParsed = XMLHash.parse(xml)
+        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
+        let resultsParsed = XMLHash.parse(resultXML)
+        guard let items = resultsParsed.children.first?.children else { return [] }
+
+        var searchResults: [PlayableContent] = []
+
+        for item in items {
+            guard let title = item["dc:title"].element?.text,
+                  let trackID = item["res"].element?.text,
+                  let type = item["upnp:class"].element?.text,
+                  let contentType = ContentType(type),
+                  let type = item["r:type"].element?.text, type != "shortcut" else {
+                continue
+            }
+
+            var sonosAlbumArtURL: URL?
+            if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
+                sonosAlbumArtURL = URL(string: albumArtURI)
+            }
+
+            //                    trackID = item["res"].element?.text ?? ""
+
+
+//            var musicService = MusicService.unknown
+//            if let trackURI = item["res"].element?.text.removingPercentEncoding {
+//                musicService = trackURI.contains("spotify") ? .spotify : .apple
+//                if trackURI.contains("airplay") {
+//                    musicService = .airplay
+//                }
+//
+//                if trackURI.contains("x-file-cifs") {
+//                    musicService = .library
+//                }
+//
+//                // TODO: Parse with this for HiRes info
+////                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
+//
+//                // MarkLook for Client ID
+//                if trackURI.contains("x-sonos-http") {
+//                    musicService = .plex
+//                }
+//
+//                let tidalPattern = #/track\/(\d{7,9})/#
+//                if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
+//                    musicService = .tidal
+//                    trackID = String(result.1)
+//                }
+//
+//                switch musicService {
+//                case .apple:
+//                    let pattern = #/song:(\w*)/#
+//                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+//                        trackID = String(result.1)
+//                    } else {
+//                        musicService = .unknown
+//                    }
+//                case .spotify:
+//                    let pattern = #/track:(\w*)/#
+//                    if let result = try? pattern.firstMatch(in: trackURI) {
+//                        trackID = String(result.1)
+//                    } else {
+//                        musicService = .unknown
+//                    }
+//                case .airplay, .unknown, .tuneIn:
+//                    musicService = .unknown
+//                    trackID = item["res"].element?.text ?? ""
+//                case .library:
+//                    trackID = item["res"].element?.text ?? ""
+//                case .plex:
+//                    // MARK: Verify
+//                    trackID = item["res"].element?.text ?? ""
+//                case .tidal:
+//                    break
+//                }
+//            }
+
+            var subtitle: String = ""
+            if let description = item["r:description"].element?.text {
+                subtitle = description
+            }
+            let uriMetadata = item["r:resMD"].element?.text.encodeProgramURI
+            let isRadioStation = (uriMetadata?.contains("audioBroadcast") ?? uriMetadata?.contains("radio")) ?? false
+            let mediaContent = MediaContent(service: .unknown, id: trackID.encodeProgramURI, type: contentType, location: nil)
+            let metadata = PlayableContentMetadata(URIMetadata: uriMetadata, radioStation: isRadioStation)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            searchResults.append(playableContent)
+        }
+
+        return searchResults
+    }
+
     func parseGetUpdateId(IP: String, xml: String) -> String {
         let xmlParsed = XMLHash.parse(xml)
         let updateID = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["UpdateID"].element?.text

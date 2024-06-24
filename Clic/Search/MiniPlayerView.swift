@@ -12,78 +12,86 @@ struct MiniPlayerView: View {
         Group {
             if let groupID = selectedGroupService.group?.coordinatorID, let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
                 let group = sonosService.sorted[groupIndex]
-                HStack {
-                    ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
-                        .frame(width: 40, height: 40)
-                        .animation(.bouncy, value: group.coordinatorRoom.track.trackID)
-                    VStack(alignment: .leading) {
-                        Text(group.nameWithCount)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
-                            .transition(.slide)
-                    }
-                    .fontDesign(.rounded)
-                    .lineLimit(1, reservesSpace: true)
-
-                    Spacer()
-                    if group.coordinatorRoom.track != .empty {
-                        Button {
-                            Task {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                await sonosService.next(ip: group.ip)
-                            }
-                        } label: {
-                            Image(systemName: "forward.fill")
-                                .padding(4)
+                Button {
+                    router.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
+                } label: {
+                    HStack {
+                        ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
+                            .frame(width: 40, height: 40)
+                            .animation(.bouncy, value: group.coordinatorRoom.track.trackID)
+                            .id(group.coordinatorRoom.track.id)
+                        VStack(alignment: .leading) {
+                            Text(group.nameWithCount)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+                                .transition(.slide)
                         }
-                        .buttonBorderShape(.circle)
-                        .disabled(!group.availableActions.contains(.next))
+                        .fontDesign(.rounded)
+                        .lineLimit(1, reservesSpace: true)
+                        .foregroundStyle(.primary)
+                        .tint(.primary)
 
-                        Button {
-                            Task {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                if group.coordinatorRoom.isPlaying {
-                                    group.coordinatorRoom.isPlaying = false
-                                    await sonosService.pause(ip: group.coordinatorRoom.ip)
+                        Spacer()
+                        if group.coordinatorRoom.track != .empty {
+                            Button {
+                                Task {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    await sonosService.next(ip: group.ip)
+                                }
+                            } label: {
+                                Image(systemName: "forward.fill")
+                                    .padding(4)
+                            }
+                            .buttonBorderShape(.circle)
+                            .disabled(!group.availableActions.contains(.next))
+
+                            Button {
+                                Task {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    if group.coordinatorRoom.isPlaying {
+                                        group.coordinatorRoom.isPlaying = false
+                                        await sonosService.pause(ip: group.coordinatorRoom.ip)
+                                    } else {
+                                        group.coordinatorRoom.isPlaying = true
+                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                                    }
+                                }
+                            } label: {
+                                if group.coordinatorRoom.track.duration > 0 {
+                                    Gauge(
+                                        value: group.coordinatorRoom.track.playbackPosition,
+                                        in: 0...group.coordinatorRoom.track.duration,
+                                        label: {
+
+                                        },
+                                        currentValueLabel: {
+                                            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                                .renderingMode(.template)
+                                                .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
+                                                .contentTransition(.symbolEffect(.automatic))
+
+                                        }
+                                    )
+                                    .tint(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
+                                    .gaugeStyle(.accessoryCircularCapacity)
+                                    .animation(.smooth, value: group.coordinatorRoom.track.playbackPosition)
+                                    .scaleEffect(0.5)
+                                    .frame(width: 20, height: 40, alignment: .center)
                                 } else {
-                                    group.coordinatorRoom.isPlaying = true
-                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                    Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                                        .renderingMode(.template)
+                                        .foregroundColor(.accent)
+                                        .contentTransition(.symbolEffect(.automatic))
+                                        .frame(width: 20, height: 40, alignment: .center)
                                 }
                             }
-                        } label: {
-                            if group.coordinatorRoom.track.duration > 0 {
-                                Gauge(
-                                    value: group.coordinatorRoom.track.playbackPosition,
-                                    in: 0...group.coordinatorRoom.track.duration,
-                                    label: {
-
-                                    },
-                                    currentValueLabel: {
-                                        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                            .renderingMode(.template)
-                                            .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
-                                            .contentTransition(.symbolEffect(.automatic))
-
-                                    }
-                                )
-                                .tint(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
-                                .gaugeStyle(.accessoryCircularCapacity)
-                                .animation(.smooth, value: group.coordinatorRoom.track.playbackPosition)
-                                .scaleEffect(0.5)
-                                .frame(width: 20, height: 40, alignment: .center)
-                            } else {
-                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                                    .renderingMode(.template)
-                                    .foregroundColor(.accent)
-                                    .contentTransition(.symbolEffect(.automatic))
-                                    .frame(width: 20, height: 40, alignment: .center)
-                            }
+                            .buttonStyle(.plain)
+                            .buttonBorderShape(.circle)
                         }
-                        .buttonStyle(.plain)
-                        .buttonBorderShape(.circle)
                     }
                 }
+                .transition(.push(from: .bottom))
             } else {
                 Button {
                     router.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
@@ -92,12 +100,13 @@ struct MiniPlayerView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.accent)
-                .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             }
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .animation(.bouncy.delay(0.2), value: selectedGroupService.group)
         // MARK: Debug Only
 //        .task {
 //            try? await SonosService.shared.updateGroups()

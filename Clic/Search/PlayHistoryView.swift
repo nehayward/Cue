@@ -32,41 +32,8 @@ struct PlayHistoryView: View {
         .fontDesign(.rounded)
 
         if !playHistoryService.history.isEmpty {
-            NavigationLink {
-                List {
-                    ForEach(playHistoryService.history) { item in
-                        if filters.filter(\.isFiltered).isEmpty {
-                            PlayableContentView(item: item)
-                        } else {
-                            if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                                PlayableContentView(item: item)
-                            }
-                        }
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .destructiveAction) {
-                        if !playHistoryService.history.isEmpty {
-                            Button(role: .destructive) {
-                                clearHistoryConfirmation.toggle()
-                            } label: {
-                                Text("Remove All")
-                            }
-                        }
-                    }
-                }
-                .contentMargins(.bottom, 80, for: .scrollContent)
-                .navigationTitle("Play History")
-                .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
-                    Button {
-                        playHistoryService.history.removeAll()
-                    } label: {
-                        Text("Remove Play History")
-                            .bold()
-                    }
-                }
-            } label: {
-                Text("Show All")
+            NavigationLink(value: RouterDestination.fullPlayHistoryList) {
+                Text("Show all")
             }
         }
     }

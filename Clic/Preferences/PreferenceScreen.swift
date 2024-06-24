@@ -269,6 +269,7 @@ struct PreferenceScreen: View {
                 Section {
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Link("Support hi@clic.dance", destination: URL(string: message)!)
+                        .tint(.accent)
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")

@@ -18,7 +18,6 @@ struct MediaControlsView: View {
             }
             .buttonStyle(.borderless)
 
-            if group.coordinatorRoom.track != .empty {
                 Button {
                     Task {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -61,7 +60,7 @@ struct MediaControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .buttonBorderShape(.circle)
-            }
+                .disabled(!group.availableActions.contains(.play))
         }
     }
 }

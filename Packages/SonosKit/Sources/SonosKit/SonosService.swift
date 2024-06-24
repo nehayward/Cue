@@ -32,7 +32,7 @@ public final class SonosService {
 
     public var ID: String? = nil
     public var groups: [GroupRoom] = []
-    public var favorites: FavoritesList?
+    public var favorites: [PlayableContent] = []
     public var zones: OrderedDictionary<String, GroupRoom> = [:]
 
     public var rooms: [Room] = []
@@ -362,6 +362,10 @@ public final class SonosService {
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
 
+                    if let awaitedActions = await availableActions {
+                        roomGroup.availableActions = awaitedActions
+                    }
+
                     guard let awaitedTrack = await track else {
                         return
                     }
@@ -383,10 +387,6 @@ public final class SonosService {
                         roomGroup.coordinatorRoom.isPlaying = false
                     default:
                         break
-                    }
-
-                    if let awaitedActions = await availableActions {
-                        roomGroup.availableActions = awaitedActions
                     }
 
                     if roomGroup.coordinatorRoom.track == awaitedTrack {
@@ -1222,13 +1222,13 @@ public final class SonosService {
         }
     }
 
-    public func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
-        if playable.content.type == .radio {
+    private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
+        if let station = playable.metadata?.radioStation, station || playable.content.type == .radio {
             await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
         }
 
-        if playable.content.type == .playlist {
+        if replaceQueue {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
 
@@ -1248,71 +1248,9 @@ public final class SonosService {
         }
     }
 
-    // MARK: TODO add queueing for Apple Music
-    public func queue(url: URL, group: GroupRoom, position: QueuePosition = .now) async {
-        guard let content = api.parse(url: url) else {
-            // Throw
-            // TODO: Add better error
-            return
-        }
-
-        switch (content.type, content.service) {
-        case (.album, .spotify):
-            await queueSpotifyAlbum(id: content.id, group: group, position: position)
-        case (.track, .spotify):
-            await queueSpotifyTrack(id: content.id, group: group, position: position)
-        case (.playlist, .spotify):
-            await queueSpotifyPlaylist(id: content.id, group: group)
-        case (.track, .apple):
-            await queueAppleSong(id: content.id, group: group, position: position)
-        case (.album, .apple):
-            await queueAppleAlbum(id: content.id, group: group, position: position)
-        case (.playlist, .apple):
-            await queueApplePlaylist(id: content.id, group: group)
-        case (.favorite, _):
-            await playFavorite(on: group, favoriteID: content.id)
-        default:
-            return
-        }
-    }
-
-    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now) async {
-        switch (playable.content.type, playable.content.service) {
-        case (.track, .spotify):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.album, .spotify):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.artist, .spotify):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.playlist, .spotify):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.track, .apple):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.libraryTrack, .apple):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.album, .apple):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.artist, .apple):
-            break
-        case (.playlist, .apple):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.favorite, _):
-            await playFavorite(on: group, favoriteID: playable.content.id)
-        case (_, .library):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (_, .plex):
-            await queuePlayable(playable: playable, group: group, position: position)
-            // MARK: - Tidal
-        case (_, .tidal):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.track, .unknown):
-            await queuePlayable(playable: playable, group: group, position: position)
-        case (.radio, .tuneIn):
-            await queuePlayable(playable: playable, group: group, position: position)
-        default:
-            break
-        }
-        try? await Task.sleep(for: .milliseconds(200))
+    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
+        await queuePlayable(playable: playable, group: group, position: position, replaceQueue: replaceQueue)
+        try? await Task.sleep(for: .milliseconds(150))
         try? await updateGroups(from: [group])
     }
 

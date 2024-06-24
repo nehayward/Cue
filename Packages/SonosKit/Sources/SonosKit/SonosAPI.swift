@@ -959,20 +959,28 @@ final class SonosAPI: NSObject {
         return ""
     }
 
-    func getFavorites(for IP: String) async -> FavoritesList? {
-        let houseHoldID = await getHouseHoldID(for: IP)
-        guard let url = URL(string: "https://\(IP):1443/api/v1/households/\(houseHoldID)/favorites") else { return nil }
-        var request = URLRequest(url: url)
-        request.addValue("00aa27d9-e053-4de9-864a-09eeda033099", forHTTPHeaderField: "X-Sonos-Api-Key")
-        request.httpMethod = "GET"
+    // MARK: - Favorites
+    func getFavorites(for IP: String) async ->  [PlayableContent] {
+        let objectID = "FV:2"
+        let arguments: [String: Any] = [
+            "ObjectID": objectID,
+            "BrowseFlag": "BrowseDirectChildren",
+            "Filter": "*",
+            "StartingIndex": 0,
+            "RequestedCount": 0,
+            "SortCriteria": ""
+        ]
 
-        guard let (data, response) = try? await insecure.data(for: request), let httpResponse = response as? HTTPURLResponse, 200..<300 ~= httpResponse.statusCode else {
-            logger.error("\(IP) Failed to \(#function)")
-            return nil
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
+            return []
         }
 
-        guard let favoriteList = try? decoder.decode(FavoritesList.self, from: data) else { return nil }
-        return favoriteList
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        return xmlParser.parseFavorites(IP: IP, xml: xml)
     }
     
 
@@ -1091,87 +1099,6 @@ final class SonosAPI: NSObject {
         }
         return nil
     }
-
-    // MARK: Remove
-//    func generateMetadata(uri: String, title: String?, region: String) -> (uri: String, metadata: String) {
-//        var meta = "<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" xmlns:r=\"urn:schemas-rinconnetworks-com:metadata-1-0/\" xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"><item id=\"##SPOTIFYURI##\" ##PARENTID##restricted=\"true\"><dc:title>##RESOURCETITLE##</dc:title><upnp:class>##SPOTIFYTYPE##</upnp:class><desc id=\"cdudn\" nameSpace=\"urn:schemas-rinconnetworks-com:metadata-1-0/\">##REGION##</desc></item></DIDL-Lite>"
-//
-//        let parts = uri.components(separatedBy: ":")
-//        let spotifyUri = uri.replacingOccurrences(of: ":", with: "%3a")
-//
-//        if parts[0] == "radio" || parts[0] == "x-sonosapi-stream" {
-//               let radioTitle = title ?? "TuneIn Radio"
-//               if parts[0] == "radio" {
-//                   let metadata = meta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "F00092020" + parts[1])
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: radioTitle)
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.item.audioItem.audioBroadcast")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "parentID=\"L\" ")
-//                       .replacingOccurrences(of: "##REGION##", with: "SA_RINCON65031_")
-//                   return ("x-sonosapi-stream:\(parts[1])?sid=254&flags=8224&sn=0", metadata)
-//               } else {
-//                   let itemId = parts[1].components(separatedBy: "?")[0]
-//                   let metadata = meta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "F00092020" + itemId)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: radioTitle)
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.item.audioItem.audioBroadcast")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "parentID=\"R:0/0\" ")
-//                       .replacingOccurrences(of: "##REGION##", with: "SA_RINCON65031_")
-//                   return (uri, metadata)
-//               }
-//           } else {
-//               var modifiedMeta = meta.replacingOccurrences(of: "##REGION##", with: "SA_RINCON\(region)_X_#Svc\(region)-0-Token")
-//               if uri.hasPrefix("spotify:track:") { // Just one track
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "00032020" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: "")
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.item.audioItem.musicTrack")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "")
-//                   return ("x-sonos-spotify:\(spotifyUri)", metadata)
-//               } else if uri.hasPrefix("spotify:album:") { // Album
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "0004206c" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: "")
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.container.album.musicAlbum")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "")
-//                   return ("x-rincon-cpcontainer:0004206c\(spotifyUri)", metadata)
-//               } else if uri.hasPrefix("spotify:artistTopTracks:") { // Artist top tracks
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "000e206c" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: "")
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.container.playlistContainer")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "")
-//                   return ("x-rincon-cpcontainer:000e206c\(spotifyUri)", metadata)
-//               } else if uri.hasPrefix("spotify:playlist:") { // Playlist
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "1006206c" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: "")
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.container.album.playlistContainer")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "")
-//                   return ("x-rincon-cpcontainer:1006206c\(spotifyUri)", metadata)
-//               } else if uri.hasPrefix("spotify:user:") {
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "10062a6c" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: "User playlist")
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.container.playlistContainer")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "parentID=\"10082664playlists\" ")
-//                   return ("x-rincon-cpcontainer:10062a6c\(spotifyUri)?sid=9&flags=10860&sn=7", metadata)
-//               } else if uri.hasPrefix("spotify:artistRadio:") { // Artist radio
-//                   let spotifyTitle = title ?? "Artist Radio"
-//                   let parentId = spotifyUri.replacingOccurrences(of: "artistRadio", with: "artist")
-//                   let metadata = modifiedMeta
-//                       .replacingOccurrences(of: "##SPOTIFYURI##", with: "100c206c" + spotifyUri)
-//                       .replacingOccurrences(of: "##RESOURCETITLE##", with: spotifyTitle)
-//                       .replacingOccurrences(of: "##SPOTIFYTYPE##", with: "object.item.audioItem.audioBroadcast.#artistRadio")
-//                       .replacingOccurrences(of: "##PARENTID##", with: "parentID=\"10052064\(parentId)\" ")
-//                   return ("x-sonosapi-radio:\(spotifyUri)?sid=12&flags=8300&sn=5", metadata)
-//               } else {
-//                   return (uri, "")
-//               }
-//           }
-//    }
-
-
 }
 
 extension SonosAPI: URLSessionDelegate {

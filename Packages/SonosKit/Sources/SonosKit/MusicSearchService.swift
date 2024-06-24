@@ -60,7 +60,6 @@ public final class MusicSearchService {
         tuneInSearchTask.cancel()
 
         searchSuggestionTask = Task { [weak self] in
-            // Delay execution to debounce
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
@@ -69,22 +68,25 @@ public final class MusicSearchService {
         }
 
         appleSearchTask = Task { [weak self] in
-            // Delay execution to debounce
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
-            let results = await searchAppleMusic(query: query)
-            return results
+            if provider == .apple {
+                let results = await searchAppleMusic(query: query)
+                return results
+            }
+            return nil
         }
 
-        // Create a new task
         spotifySearchTask = Task { [weak self] in
-            // Delay execution to debounce
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
-            let results = await searchSpotify(query: query)
-            return results
+            if provider == .spotify {
+                let results = await searchSpotify(query: query)
+                return results
+            }
+            return nil
         }
 
         librarySearchTask = Task { [weak self] in
@@ -169,7 +171,6 @@ public final class MusicSearchService {
         guard await requestMusicAuthorization() else { return ([], []) }
 
         var request = MusicCatalogSearchSuggestionsRequest(term: query, includingTopResultsOfTypes: [Song.self, Album.self, Artist.self, Playlist.self])
-//        var request = MusicCatalogSearchSuggestionsRequest(term: query, includingTopResultsOfTypes: [Song.self])
         request.limit = 10
         do {
             let response = try await request.response()
@@ -434,6 +435,80 @@ public final class MusicSearchService {
 
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
         await tuneIn.lookupStation(for: id)
+    }
+
+    // TODO: Update for Media Details
+    // MARK: Album/Playlist Lookup
+    public func albumPlaylistLookup(from playableContent: PlayableContent) async -> (PlayableContent, [PlayableContent]) {
+        switch (playableContent.content.type, playableContent.content.service) {
+        case (.album, .apple):
+            guard let album: Album = try? await lookup(id: playableContent.content.id),
+                  let tracks = album.tracks else {
+                    return (playableContent, [])
+            }
+            return (album.toPlayable, tracks.map(\.toPlayable))
+
+//        case (.album, .spotify):
+//            guard let albumDetails = await spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
+//            self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
+//        case (.playlist, .apple):
+//            guard let playlist: Playlist = try? await lookup(id: playableContent.content.id) else { return }
+//            artworkURL = playlist.artwork?.url(width: 600, height: 600)
+//            guard let tracks = playlist.tracks else { return }
+//            self.tracks = tracks.map(\.toPlayable)
+//        case (.userPlaylist, .apple):
+//            self.tracks = await tracksForUserPlaylists(id: playableContent.id)
+//        case (.playlist, .spotify):
+//            guard let playlist: SpotifyPlaylistItems = await spotifyPlaylistLookup(id: playableContent.content.id) else { return }
+//            guard let items = playlist.tracks.items else { return }
+//            self.tracks = items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
+//        case (.track, .apple):
+//            guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
+//            guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
+//            artworkURL = album.artwork?.url(width: 600, height: 600)
+//            playableContent = album.toPlayable
+//            guard let tracks = album.tracks else { return }
+//            self.tracks = tracks.map(\.toPlayable)
+//        case (.track, .spotify):
+//            guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id) else { return }
+//            guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: song.album.id) else { return }
+//            playableContent = albumDetails.toPlayable
+//            artworkURL = albumDetails.images.biggestImageURL
+//            self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
+//        case (.album, .library):
+//            artworkURL = playableContent.artwork
+//            self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
+//        case (.playlist, .library):
+//            artworkURL = playableContent.artwork
+//            self.tracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
+//        case (.track, .library):
+//            artworkURL = playableContent.artwork
+//            guard let albumName = playableContent.metadata?.album,
+//                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+//
+//            self.tracks = await sonosService.libraryAlbum(name: albumName)
+//            guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
+//            playableContent = albumPlayable
+//        case (.album, .tidal):
+//            self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: playableContent.content.id)
+//        case (.track, .tidal):
+//            if let albumID = playableContent.metadata?.albumID {
+//                guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
+//                self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
+//                playableContent = album
+//            } else {
+//                guard let albumID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
+//                guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
+//                self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
+//                playableContent = album
+//            }
+//        case (.album, .plex):
+//            self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: playableContent.content.id)
+//        case (.playlist, .plex):
+//            self.tracks = await MusicSearchService().lookupPlexPlaylists(id: playableContent.content.id)
+        default:
+            return (playableContent, [])
+        }
     }
 
     func sortContentByMatchAndPopularity(playableContent: [PlayableContent], query: String) -> [PlayableContent] {

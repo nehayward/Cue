@@ -65,7 +65,10 @@ struct ArtworkView: View {
                 alarmRunning = new
             }
             .task(id: group.coordinatorRoom.track.id) {
-                guard let url = group.coordinatorRoom.track.artworkURL else { return }
+                guard let url = group.coordinatorRoom.track.artworkURL else {
+                    imageRequest = nil
+                    return
+                }
                 var request = URLRequest(url: url)
                 if group.coordinatorRoom.track.toPlayable.content.service == .plex {
                     request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")

@@ -14,7 +14,7 @@ struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
-    @Environment(SelectedGroupService.self) private var selectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -83,7 +83,6 @@ struct BrowseScreen: View {
                 .contentMargins(.bottom, 80, for: .scrollContent)
             }
             .environment(router)
-            .environment(selectedGroupService)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
                 Task {
                     await browseService.updatePlaylists()

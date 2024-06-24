@@ -13,8 +13,18 @@ struct SelectGroupView: View {
 
     @State private var filter: String = ""
 
+    var onSelection: ((GroupRoom) async -> Void)? = nil
+
     var body: some View {
         List {
+            if onSelection != nil {
+                Text("Select Group To Play")
+                    .bold()
+                    .font(.title)
+                    .multilineTextAlignment(.center)
+                    .listRowBackground(Color.clear)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
             TextField("Filter", text: $filter)
             ForEach(filteredAndSortedGroups) { group in
                 VStack(alignment: .leading) {
@@ -24,6 +34,9 @@ struct SelectGroupView: View {
                             dismiss()
                         }
                         selectedGroupService.group = group
+                        Task {
+                            await onSelection?(group)
+                        }
                     } label: {
                         Text(group.nameWithCount)
                     }

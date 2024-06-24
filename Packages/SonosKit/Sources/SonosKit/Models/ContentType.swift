@@ -24,6 +24,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             self = .track
         case let str where str.contains("audiobroadcast"), let str where str.contains("radio"):
             self = .radio
+        case let str where str.contains("favorite"):
+            self = .favorite
         default:
             return nil
         }

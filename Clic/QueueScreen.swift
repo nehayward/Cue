@@ -23,6 +23,7 @@ struct QueueScreen: View {
                         Button {
                             dismiss()
                             Task {
+                                HapticManager.shared.fireHaptic(.buttonPress)
                                 guard let position = track.metadata?.position else { return }
                                 await sonosService.seek(trackNumber: position, on: group)
                                 await sonosService.play(ip: group.coordinatorRoom.ip)
@@ -279,7 +280,7 @@ struct QueueScreen: View {
                     tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
                 }
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Remove", systemImage: "trash")
             }
         }
     }

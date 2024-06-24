@@ -76,6 +76,11 @@ struct ContentArtworkView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .task(id: content.id) {
+                    guard !content.id.isEmpty else {
+                        imageRequest = nil
+                        return
+                    }
+
                     // TODO: Clean this up.
                     if let url = content.artwork, !(content.artwork?.absoluteString ?? "").contains("get") {
                         var request = URLRequest(url: url)

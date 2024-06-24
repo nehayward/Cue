@@ -10,6 +10,8 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     public let isrc: String?
     public var position: Int?
     public var plexRatingKey: String?
+    public var URIMetadata: String?
+    public var radioStation: Bool?
 
     init(
         duration: Duration? = nil,
@@ -20,7 +22,9 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         albumID: String? = nil,
         isrc: String? = nil,
         position: Int? = nil,
-        plexRatingKey: String? = nil
+        plexRatingKey: String? = nil,
+        URIMetadata: String? = nil,
+        radioStation: Bool? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -31,5 +35,7 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         self.isrc = isrc
         self.position = position
         self.plexRatingKey = plexRatingKey
+        self.URIMetadata = URIMetadata
+        self.radioStation = radioStation
     }
 }

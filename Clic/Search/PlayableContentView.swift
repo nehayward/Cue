@@ -15,9 +15,10 @@ struct PlayableContentView: View {
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     var item: PlayableContent
+    var hideArtwork: Bool = false
 
     var body: some View {
         Group {
@@ -46,18 +47,28 @@ struct PlayableContentView: View {
 
     private var content: some View {
         Button {
-            play()
+            play(replaceQueue: item.content.type == .playlist)
         } label: {
             HStack {
-                ContentArtworkView(content: item)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 60)
+                if !hideArtwork {
+                    ContentArtworkView(content: item)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 60, height: 60)
+                }
                 VStack(alignment: .leading) {
                     Text(item.title)
                         .lineLimit(1)
-                    Text("\(item.content.type.title)\(item.subtitle.isEmpty ? "" : " • \(item.subtitle)")")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 0) {
+                        Text("\(item.content.type.title)\(item.subtitle.isEmpty ? "" : " • \(item.subtitle)")")
+
+                        // MARK: Add back when you normalize duration to seconds
+//                        if let duration = item.metadata?.duration, duration.components.seconds != 0 {
+//                            Text(" • ")
+//                            Text(duration, format: .time(pattern: .minuteSecond))
+//                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
                 Spacer()
                 switch item.content.type {
@@ -105,6 +116,7 @@ struct PlayableContentView: View {
                     Label("Remove from History", systemImage: "trash")
                 }
             }
+            OpenInServiceView(item: item)
             switch item.content.type {
             case .artist:
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
@@ -123,29 +135,32 @@ struct PlayableContentView: View {
                     }
                 }
             case .playlist, .userPlaylist:
-                Button {
-                    play()
-                } label: {
-                    Text("Play")
-                }
+                ControlGroup {
+                    Button {
+                        play(replaceQueue: true)
+                    } label: {
+                        Label("Replace Queue", systemImage: "play.fill")
+                    }
 
-//                Button {
-//                    play(position: .front, replaceQueue: true)
-//                } label: {
-//                    Text("Queue")
-//                }
+                    Button {
+                        play(position: .next)
+                    } label: {
+                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
+                    }
 
-                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
-                    Text("View")
+                    Button {
+                        play(position: .end)
+                    } label: {
+                        Label("Play Last", systemImage: "text.append")
+                    }
                 }
 
                 if item.content.service == .library, item.content.id.last?.isNumber ?? false {
                     Button {
                         router.sheet(to: .renamePlaylist(content: item))
                     } label: {
-                        Text("Rename")
+                        Label("Rename", systemImage: "textformat")
                     }
-
                 }
 // TODO: Add scene playlist
 //                NavigationLink(value: RouterDestination.createScene(content: item)) {
@@ -155,12 +170,12 @@ struct PlayableContentView: View {
             case .album, .track, .libraryTrack:
                 if [.album, .track].contains(item.content.type) {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
-                        Label("View Album", systemImage: "smallcircle.circle.fill")
+                        Label("Album", systemImage: "smallcircle.circle.fill")
                     }
 
 
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                        Label("View Artist", systemImage: "music.mic")
+                        Label("Artist", systemImage: "music.mic")
                     }
 
                     // TODO: Add scene playlist
@@ -169,22 +184,26 @@ struct PlayableContentView: View {
 //                    }
                 }
 
-                Button {
-                    play()
-                } label: {
-                    Label("Play Now", systemImage: "play.fill")
-                }
+                ControlGroup {
+                    if item.content.type == .album {
+                        Button {
+                            play(replaceQueue: true)
+                        } label: {
+                            Label("Replace Queue", systemImage: "text.line.last.and.arrowtriangle.forward")
+                        }
+                    }
 
-                Button {
-                    play(position: .next)
-                } label: {
-                    Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
-                }
+                    Button {
+                        play(position: .next)
+                    } label: {
+                        Label("Play Next", systemImage: "text.badge.plus")
+                    }
 
-                Button {
-                    play(position: .end)
-                } label: {
-                    Label("Play Last", systemImage: "text.line.last.and.arrowtriangle.forward")
+                    Button {
+                        play(position: .end)
+                    } label: {
+                        Label("Play Last", systemImage: "text.append")
+                    }
                 }
 
                 AddToPlaylistMenu(itemToAdd: item)
@@ -205,19 +224,19 @@ struct PlayableContentView: View {
             return
         }
         Task { @MainActor in
+            hideKeyboard()
+            let queueSong: ((GroupRoom) async -> Void) = { group in
+                playHistoryService.history.remove(item)
+                playHistoryService.history.insert(item, at: 0)
+                HapticManager.shared.fireHaptic(.buttonPress)
+                await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            }
             guard let group = selectedGroupService.group else {
-                router.navigate(to: .groupDestination(content: item, position: position))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
                 return
             }
-            hideKeyboard()
-            playHistoryService.history.remove(item)
-            playHistoryService.history.insert(item, at: 0)
-            alertService.showAlertContent(with: item)
-            HapticManager.shared.fireHaptic(.buttonPress)
-            await sonosService.queue(playable: item, group: group, position: position)
-            await sonosService.play(ip: group.coordinatorRoom.ip)
-            try? await Task.sleep(for: .milliseconds(100))
-            try? await sonosService.updateGroups(from: [group])
+            await queueSong(group)
         }
     }
 }

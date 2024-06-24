@@ -8,7 +8,6 @@ import SwiftUI
 
 @MainActor
 extension View {
-    
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
         sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
             Group {
@@ -31,16 +30,22 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+
                     SearchScreen()
-                        .environment(Router())
-                        .environment(SelectedGroupService(group: group))
+                        .environment(router)
+                        .environment(selectedGroupService)
                     // MARK: Add back later maybe
 //                        .environment(Router.search)
                 case let .sceneSearchAdd(adding):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService()
+
                     SearchScreen()
-                        .environment(Router())
                         .environment(adding)
-                        .environment(SelectedGroupService())
+                        .environment(router)
+                        .environment(selectedGroupService)
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -59,31 +64,16 @@ extension View {
                 case .scenes:
                     SceneView()
                 case let .mediaDetail(content, group):
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    @State var router = Router()
+
                     NavigationStack {
                         MediaDetailView(playableContent: content)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .addDismiss {
-                                sheetDestinations.wrappedValue = nil
-                            }
-                    }
-                    .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
-                    .safeAreaInset(edge: .bottom) {
-                        MiniPlayerView()
-                    }
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                    .environment(Router())
-                    .environment(SelectedGroupService(group: group))
-                case let .artistDetail(content, group):
-                    @State var router = Router()
-                    NavigationStack {
-                        ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter(router: router)
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
-
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
@@ -92,12 +82,36 @@ extension View {
                     }
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
-                    .environment(SelectedGroupService(group: group))
+                    .environment(selectedGroupService)
+                case let .artistDetail(content, group):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+
+                    NavigationStack {
+                        ArtistDetailView(playableContent: content)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .withAppRouter(router: router)
+                            .addDismiss {
+                                sheetDestinations.wrappedValue = nil
+                            }
+                    }
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
+                    .safeAreaInset(edge: .bottom) {
+                        MiniPlayerView()
+                    }
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .environment(router)
+                    .environment(selectedGroupService)
+
                 case let .searchAdd(adding):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService()
+
                     SearchScreen()
-                        .environment(Router())
                         .environment(adding)
-                        .environment(SelectedGroupService())
+                        .environment(router)
+                        .environment(selectedGroupService)
                 case let .alarms(group):
                     Group {
                         @State var router = Router()
@@ -109,8 +123,9 @@ extension View {
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
                 case let .browse(group: group):
+                    @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
-                        .environment(SelectedGroupService(group: group))
+                        .environment(selectedGroupService)
                 case let .newPlaylist(group: group):
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
@@ -122,8 +137,8 @@ extension View {
                     .presentationDetents([.medium, .large])
                     .presentationBackground(.thinMaterial)
                     .presentationCornerRadius(24)
-                case let .selectGroup(selectedGroupService: selectedGroupService):
-                    SelectGroupView()
+                case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection):
+                    SelectGroupView(onSelection: onSelection)
                         .presentationDetents([.medium, .large])
                         .presentationBackground(.thinMaterial)
                         .presentationCornerRadius(24)
@@ -134,7 +149,7 @@ extension View {
         }
     }
 
-    func withPopoverDestinations(popoverDestination: Binding<SheetDestination?>)  -> some View {
+    func withPopoverDestinations(popoverDestination: Binding<SheetDestination?>) -> some View {
         popover(item: popoverDestination) { destination in
             Group {
                 switch destination {
@@ -146,17 +161,26 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+
                     SearchScreen()
-                        .environment(Router())
-                        .environment(SelectedGroupService(group: group))
+                        .environment(router)
+                        .environment(selectedGroupService)
                 case let .sceneSearchAdd(adding):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService()
+
                     SearchScreen()
-                        .environment(Router())
                         .environment(adding)
-                        .environment(SelectedGroupService())
+                        .environment(router)
+                        .environment(selectedGroupService)
                 case let .queue(group):
+                    @State var selectedGroupService = SelectedGroupService(group: group.wrappedValue)
+
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
+                        .environment(selectedGroupService)
                 case let .playContent(content):
                     PlayerSelectionView(playableContent: content)
                 case let .playMedia(url):
@@ -172,16 +196,23 @@ extension View {
                 case .scenes:
                     SceneView()
                 case let .mediaDetail(content, group):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+
                     NavigationStack {
                         MediaDetailView(playableContent: content)
-                            .environment(group)
-                            .environment(Router())
                             .navigationBarTitleDisplayMode(.inline)
+                            .withAppRouter(router: router)
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
+                    .environment(router)
+                    .environment(selectedGroupService)
+
                 case let .artistDetail(content, group):
                     @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+
                     NavigationStack(path: $router.path) {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
@@ -194,12 +225,15 @@ extension View {
                     }
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
-                    .environment(SelectedGroupService(group: group))
+                    .environment(selectedGroupService)
                 case let .searchAdd(adding):
+                    @State var router = Router()
+                    @State var selectedGroupService = SelectedGroupService()
+
                     SearchScreen()
                         .environment(adding)
-                        .environment(Router())
-                        .environment(SelectedGroupService())
+                        .environment(router)
+                        .environment(selectedGroupService)
                 case .alarms:
                     NavigationStack {
                         AlarmListView()
@@ -207,8 +241,9 @@ extension View {
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
                 case let .browse(group: group):
+                    @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
-                        .environment(SelectedGroupService(group: group))
+                        .environment(selectedGroupService)
                 case let .newPlaylist(group: group):
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
@@ -241,10 +276,8 @@ extension View {
                 ManageSceneScreen()
             case let .mediaDetail(content, group):
                 MediaDetailView(playableContent: content)
-                    .environment(group)
             case let .artistDetail(content, group):
                 ArtistDetailView(playableContent: content)
-                    .environment(SelectedGroupService(group: group))
             case let .createScene(content):
                 SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
             case .alarms:
@@ -273,13 +306,15 @@ extension View {
                 PlayableContentList(type: contentType)
                     .navigationTitle(title)
                     .environment(group)
+            case .fullPlayHistoryList:
+                PlayHistoryFullView()
             }
         }
     }
 
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
         #if !os(visionOS)
-        inspector(isPresented: .constant(inspectorDestination.wrappedValue  != nil)) {
+        inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
             Group {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):

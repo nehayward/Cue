@@ -12,32 +12,7 @@ struct MenuInfoView: View {
     var body: some View {
         Menu {
             Group {
-                if let openInURL = group.coordinatorRoom.track.metadata?.openInURL {
-                    if group.coordinatorRoom.track.musicService == .apple {
-                        Link(destination: openInURL) {
-                            Label("Open in Apple Music…", systemImage: "apple.logo")
-                        }
-                    }
-                    if group.coordinatorRoom.track.musicService == .spotify {
-                        Link(destination: openInURL) {
-                            Label {
-                                Text("Open in Spotify…")
-                            } icon: {
-                                MusicService.spotify.image
-                            }
-                        }
-                    }
-
-                    if group.coordinatorRoom.track.musicService == .tidal {
-                        Link(destination: openInURL) {
-                            Label {
-                                Text("Open in Tidal…")
-                            } icon: {
-                                MediaSearchService.tidal.icon
-                            }
-                        }
-                    }
-                }
+                OpenInServiceView(item:  group.coordinatorRoom.track.toPlayable)
                 if coreFeatures.nowPlaying, !group.TVMode {
                     Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
                         Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
