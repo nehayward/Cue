@@ -98,7 +98,6 @@ struct QueueScreen: View {
                             }
                         }
 #endif
-
                         VStack(alignment: .leading) {
                             Text("Queue")
                                 .bold()
@@ -181,7 +180,8 @@ struct QueueScreen: View {
                         }
                         .disabled(tracks.isEmpty)
                     }
-                }.task(id: group) {
+                }.task(id: group.coordinatorRoom.track.trackID) {
+                    try? await Task.sleep(for: .milliseconds(300))
                     isLoading = true
                     self.tracks = await sonosService.getQueue(ip: group.ip)
                     group.playMode = await sonosService.playMode(ip: group.ip)

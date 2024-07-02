@@ -37,6 +37,20 @@ struct MediaDetailView: View {
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(.ultraThinMaterial)
                             .shadow(radius: 2)
+                            .frame(maxWidth: .infinity, minHeight: 300)
+                    } else {
+                        Rectangle()
+                            .foregroundStyle(.accent.gradient.secondary)
+                            .aspectRatio(contentMode: .fit)
+                            .overlay {
+                                if state.error != nil {
+                                    Image(systemName: "music.note")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .foregroundStyle(.regularMaterial)
+                                        .frame(width: 100, height: 100)
+                                }
+                            }
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -52,7 +66,7 @@ struct MediaDetailView: View {
 //                ContentArtworkView(content: playableContent)
 //                    .frame(idealWidth: 320, idealHeight: 320)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 300)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
 
@@ -69,9 +83,21 @@ struct MediaDetailView: View {
 
             HStack {
                 Button {
-                    play(content: playableContent)
+                    play(content: playableContent, replaceQueue: true)
                 } label: {
-                    Label("Queue All", systemImage: "play.fill")
+                    Text("Replace")
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .foregroundStyle(.foreground)
+                }
+                .bold()
+                .buttonStyle(.bordered)
+                .tint(.accent)
+
+                Button {
+                    play(content: playableContent, position: .next)
+                } label: {
+                    Text("Play Next")
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .foregroundStyle(.foreground)
@@ -83,20 +109,20 @@ struct MediaDetailView: View {
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
-            .overlay(alignment: .trailing) {
-                Menu {
-                    menu(content: playableContent)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(maxWidth: 40, maxHeight: .infinity)
-                        .background(.clear)
-                        .bold()
-                        .foregroundStyle(.foreground)
-                }
-            }
 
             ForEach(tracks) { item in
                 PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            Task {
+                                guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
+                                try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
+                                tracks.remove(at: index)
+                            }
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                    }
             }
 
             if tracks.isEmpty, !isLoaded {
@@ -122,6 +148,18 @@ struct MediaDetailView: View {
                         .bold()
                 }
             }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    PlayableMenuView(item: playableContent)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(maxWidth: 40, maxHeight: .infinity)
+                        .background(.clear)
+                        .bold()
+                        .foregroundStyle(.foreground)
+                }
+            }
         }
         .task {
             // TODO: Refactor into MusicService
@@ -132,6 +170,9 @@ struct MediaDetailView: View {
                 artworkURL = album.artwork?.url(width: 800, height: 800)
                 guard let tracks = album.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
+            case (.libraryAlbum, .apple):
+                artworkURL = playableContent.artwork
+                self.tracks = await AppleMusicBrowseService.shared.albumLookup(id: playableContent.id)
             case (.album, .spotify):
                 guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
                 self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
@@ -140,8 +181,9 @@ struct MediaDetailView: View {
                 artworkURL = playlist.artwork?.url(width: 800, height: 800)
                 guard let tracks = playlist.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
-            case (.userPlaylist, .apple):
-                self.tracks = await musicSearchService.tracksForUserPlaylists(id: playableContent.id)
+            case (.libraryPlaylist, .apple):
+                artworkURL = playableContent.artwork
+                self.tracks = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id)
             case (.playlist, .spotify):
                 guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
                 guard let items = playlist.tracks.items else { return }
@@ -212,44 +254,8 @@ struct MediaDetailView: View {
             }
             HapticManager.shared.fireHaptic(.buttonPress)
             await sonosService.setPlayMode(group.ip, mode: [.normal])
-            await sonosService.queue(playable: content, group: group, position: position)
+            await sonosService.queue(playable: content, group: group, position: position, replaceQueue: replaceQueue)
             await sonosService.play(ip: group.coordinatorRoom.ip)
-        }
-    }
-
-    private func menu(content: PlayableContent) -> some View {
-        VStack {
-            Button {
-                play(content: content, position: .next)
-            } label: {
-                Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
-            }
-
-            Button {
-                play(content: content, position: .end)
-            } label: {
-                Label("Play Last", systemImage: "text.line.last.and.arrowtriangle.forward")
-            }
-
-            if playableContent.content.type == .playlist, playableContent.content.service == .library {
-                Button(role: .destructive) {
-                    Task {
-                        guard let index = tracks.firstIndex(where: { $0 == content }) else { return }
-                        try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
-                        tracks.remove(at: index)
-                    }
-                } label: {
-                    Label("Remove", systemImage: "trash")
-                }
-            }
-
-//            if content.content.type == .album {
-//                Button {
-//                    play(content: content, position: .front, replaceQueue: true)
-//                } label: {
-//                    Text("Replace Queue")
-//                }
-//            }
         }
     }
 

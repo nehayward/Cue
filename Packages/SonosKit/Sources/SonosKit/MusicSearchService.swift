@@ -324,34 +324,7 @@ public final class MusicSearchService {
         return response.items.first
     }
 
-    public func usersApplePlaylists() async -> [PlayableContent] {
-        guard let playlists = try? await apple.getUserPlaylists() else { return [] }
-        return playlists.map { $0.toPlayable(isUserPlaylist: true) }
-    }
-
-    public func tracksForUserPlaylists(id: String) async -> [PlayableContent] {
-        guard let playlist = try? await apple.lookupUsersPlaylist(id: id) else { return [] }
-        guard let tracks = try? await playlist.with([.tracks], preferredSource: .catalog).tracks else {
-            return []
-        }
-        return tracks.map(\.toPlayableLibraryTrack)
-    }
-
-//    public func getTrackForApplePlaylists(id: String) async -> PlayableContent {
-//        guard let playlists = try? await apple.lookupUsersPlaylist(id: id) else { return [] }
-//        return playlists.map(\.toPlayable).first
-//    }
-
-//    public func myPlaylists() async throws -> [Playlist]? {
-//        guard await requestMusicAuthorization() else { return nil }
-//        var request = MusicLibraryRequest<Playlist>()
-//        request.sort(by: \.lastPlayedDate, ascending: false)
-//        let response = try await request.response()
-//        return response.items
-//    }
-
     // MARK: Tidal
-
     public func lookupTidalTrack(with id: String) async -> PlayableContent? {
         guard let song = await tidal.track(with: id) else { return nil }
         return song.toPlayable

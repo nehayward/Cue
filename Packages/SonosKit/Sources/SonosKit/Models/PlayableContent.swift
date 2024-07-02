@@ -45,8 +45,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         case (.track, .apple):
             return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;flags=8224&amp;sn=5"
         case (.libraryTrack, .apple):
-            // TODO: Not working, need to figure out how to get ID
-            return "x-sonos-http:librarytrack%3ai.\(id).mp3?sid=204&amp;flags=8232&amp;sn=4"
+            return "x-sonos-http:librarytrack%3a\(id).mp3?sid=204&amp;flags=8232&amp;sn=4"
+        case (.libraryAlbum, .apple):
+            return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
         case (.album, .apple):
             return "x-rincon-cpcontainer:1004206calbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
         case (.playlist, .apple):
@@ -73,6 +74,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return id.encodeProgramURI
         case (.radio, .tuneIn):
             return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
+        case (.libraryPlaylist, .apple):
+            return "x-rincon-cpcontainer:1006206clibraryplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
         default:
             assertionFailure("Failed")
             return ""
@@ -103,11 +106,18 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return """
 \(Self.defaultXMLNSHeader) id="10032020song%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
 """
-//        case (.libraryTrack, .apple):
-//            let libraryID = intToBase64UrlSafe(Int64("\(id)")!)
-//            return """
-//\(Self.defaultXMLNSHeader) id="10032028librarytrack%3ai.\(libraryID)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
-//"""
+        case (.libraryTrack, .apple):
+            return """
+\(Self.defaultXMLNSHeader) id="10032028librarytrack%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+"""
+        case (.libraryAlbum, .apple):
+            return """
+\(Self.defaultXMLNSHeader) id="1004206clibraryalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+"""
+        case (.libraryPlaylist, .apple):
+            return """
+\(Self.defaultXMLNSHeader) id="1006206clibraryplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+"""
         case (.album, .apple):
             return """
 \(Self.defaultXMLNSHeader) id="1004206calbum%3a\(id)" &gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
@@ -228,11 +238,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     }
 
     public static func == (lhs: PlayableContent, rhs: PlayableContent) -> Bool {
-        lhs.content == rhs.content
+        lhs.content == rhs.content && lhs.title == rhs.title
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(content)
+        hasher.combine(title)
     }
 }
 

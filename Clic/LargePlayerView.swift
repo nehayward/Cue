@@ -2,6 +2,7 @@ import NukeUI
 import SwiftUI
 import SonosKit
 import VibesDS
+import Glur
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -206,16 +207,15 @@ struct LargePlayerView: View {
             sonosService.selectedGroup = nil
         }
         .background {
-            ZStack {
-                ArtworkView(group: $group)
-                    .aspectRatio(contentMode: .fill)
-                    .scaleEffect(2)
-                    .blur(radius: 50)
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .ignoresSafeArea()
-            }
+            ArtworkView(group: $group)
+                .aspectRatio(contentMode: .fill)
+                .scaleEffect(1.5)
+                .blur(radius: 50)
+                .overlay {
+                    Rectangle()
+                        .foregroundStyle(.thinMaterial)
+                }
+                .ignoresSafeArea()
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(group.nameWithCount)
@@ -327,7 +327,6 @@ struct LargePlayerView: View {
             .buttonStyle(.plain)
             .keyboardShortcut(.space, modifiers: []) 
             .id(group.coordinatorID)
-            .disabled(!group.availableActions.contains(.play))
 
             Spacer()
             Button {

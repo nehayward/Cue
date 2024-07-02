@@ -1,7 +1,9 @@
-# 2024.31
+# 2024.32
 
 ## External
 
++ Add User Apple Playlists and User Recently Played
++ Browse Sonos Library! (Artists, Album, Songs, Saved Playlists)
 + Add replace queue option and queue next.
 + Improved favorites.
 
@@ -9,6 +11,7 @@
 
 + Fix Artwork not getting removed
 + Disable play button when not able to play
++ Added Glur, might replace with alternative
 
 
 # 2024.31

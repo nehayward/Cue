@@ -11,66 +11,68 @@ struct ContainerLargePlayerView: View {
     @State var refreshID = UUID()
 
     var body: some View {
-        Group {
-            @Bindable var sonosService = sonosService
-            @Bindable var router = router
+        @Bindable var sonosService = sonosService
+        @Bindable var router = router
 
+        Group {
             if let id, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 LargePlayerView(group: $sonosService.sorted[group])
-                    .toolbar {
-                        ToolbarItemGroup(placement: .primaryAction) {
-                            if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision {
-                                Button {
-                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        router.popover = .groupScreen(group: sonosService.sorted[group])
-                                    }
-                                } label: {
-                                    Image(systemName: "hifispeaker")
-                                        .tint(.primary)
-                                }
-                                .withPopoverDestinations(popoverDestination: $router.popover)
-                                .id(refreshID)
-                                
-                                Button {
-                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
-                                            router.inspectorSheet = .search(group: sonosService.sorted[group])
-                                        } else {
-                                            router.inspectorSheet = nil
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "magnifyingglass")
-                                        .tint(.primary)
-                                }
-                                .id(refreshID)
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision {
+                    Button {
+                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            router.popover = .groupScreen(group: sonosService.sorted[group])
+                        }
+                    } label: {
+                        Image(systemName: "hifispeaker")
+                            .tint(.primary)
+                    }
+                    .withPopoverDestinations(popoverDestination: $router.popover)
+                    .id(refreshID)
 
-                                Button {
-                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        router.sheet(to: .browse(group: sonosService.sorted[group]))
-                                    }
-                                } label: {
-                                    Image(systemName: "music.note.house")
-                                        .tint(.primary)
-                                }
-                                .id(refreshID)
-
-                                Button {
-                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        if router.inspectorSheet != .queue(group: $sonosService.sorted[group]) {
-                                            router.inspectorSheet = .queue(group: $sonosService.sorted[group])
-                                        } else {
-                                            router.inspectorSheet = nil
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "list.bullet")
-                                        .tint(.primary)
-                                }
-                                .id(refreshID)
+                    Button {
+                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
+                                router.inspectorSheet = .search(group: sonosService.sorted[group])
+                            } else {
+                                router.inspectorSheet = nil
                             }
                         }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .tint(.primary)
                     }
+                    .id(refreshID)
+
+                    Button {
+                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            router.sheet(to: .browse(group: sonosService.sorted[group]))
+                        } else {
+                            router.sheet(to: .browse(group: nil))
+                        }
+                    } label: {
+                        Image(systemName: "music.note.house")
+                            .tint(.primary)
+                    }
+                    .id(refreshID)
+
+                    Button {
+                        if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            if router.inspectorSheet != .queue(group: $sonosService.sorted[group]) {
+                                router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                            } else {
+                                router.inspectorSheet = nil
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .tint(.primary)
+                    }
+                    .id(refreshID)
+                }
             }
         }
         .ignoresSafeArea(.keyboard)

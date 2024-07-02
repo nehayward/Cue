@@ -1,5 +1,5 @@
 {
-  "originHash" : "a6d5c7cdfebb6162a478ab019d07e8159f89c5396f43b1401be2ae443e75fe37",
+  "originHash" : "eb83f4b7f1d33bd74bb7e184b785d392616c39eead49ac4fed94e577c55620b5",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "35700218d35579df091974b6e7765db94c83448b",
         "version" : "0.4.0"
+      }
+    },
+    {
+      "identity" : "glur",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/joogps/Glur",
+      "state" : {
+        "revision" : "9e00ff79da318f2c78b749b1027e54a9d4de2e33",
+        "version" : "1.0.4"
       }
     },
     {

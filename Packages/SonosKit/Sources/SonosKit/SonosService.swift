@@ -748,7 +748,9 @@ public final class SonosService {
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {
         switch track.musicService  {
         case .apple:
-            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else { return nil }
+            guard let artworkString = await musicSearch.appleLookup(id: track.trackID)?.artworkURL(with: "\(size)"), let url = URL(string: artworkString) else {
+                return nil
+            }
             return url
         case .spotify:
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
@@ -930,6 +932,9 @@ public final class SonosService {
         case (.album, .tidal):
             guard let playableContent = await musicSearch.lookupTidalAlbum(with: content.id) else { return nil }
             return playableContent
+        case (_, .tuneIn):
+            guard let tuneInStation = await musicSearch.lookupTuneInStation(id: content.id) else { return nil }
+            return tuneInStation.toPlayable
 //        case (.playlist, .tidal):
 //            guard let playlist: Playlist = try? await musicSearch.(with: content.id) else { return nil }
 //            return PlayableContent(title: playlist.name, subtitle: playlist.curatorName ?? "", artwork: playlist.artwork?.url(width: 500, height: 500), content: content)
@@ -1223,7 +1228,7 @@ public final class SonosService {
     }
 
     private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async {
-        if let station = playable.metadata?.radioStation, station || playable.content.type == .radio {
+        if playable.content.type == .radio || playable.metadata?.radioStation != nil {
             await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
         }
@@ -1303,8 +1308,9 @@ public final class SonosService {
         async let tracks = api.librarySearch(IP: ip, query: query, filter: .track)
         async let artist = api.librarySearch(IP: ip, query: query, filter: .artist)
         async let albums = api.librarySearch(IP: ip, query: query, filter: .album)
+        async let playlist = api.librarySearch(IP: ip, query: query, filter: .playlist)
         // TODO: Prioritize by query
-        let playableContent = await tracks + artist + albums
+        let playableContent = await tracks + artist + albums + playlist
         return playableContent
     }
 

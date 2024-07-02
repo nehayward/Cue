@@ -18,6 +18,8 @@ extension SonosAPI {
             handleMusic(url: url, path: components.path, query: components.query)
         case let .some(host) where host.contains("tidal"):
             parseTidal(url: url, path: components.path)
+        case let .some(host) where host.contains("tunein"):
+            parseTuneIn(components: components)
         default:
             nil
         }
@@ -46,5 +48,11 @@ extension SonosAPI {
         let paths = path.split(separator: "/").map(String.init)
         guard paths.count > 2, let type = ContentType(paths[1]), let id = paths.last else { return nil }
         return MediaContent(service: .tidal, id: id, type: type, location: url)
+    }
+
+    private func parseTuneIn(components: URLComponents) -> MediaContent? {
+        let paths = components.path.split(separator: "/").map(String.init)
+        guard let pathID = paths.last, let id = pathID.components(separatedBy: "-").last else { return nil }
+        return MediaContent(service: .tuneIn, id: id, type: .radio, location: components.url)
     }
 }

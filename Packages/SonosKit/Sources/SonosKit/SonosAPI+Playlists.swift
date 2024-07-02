@@ -24,8 +24,9 @@ extension SonosAPI {
     }
 
     func sonosPlaylistsTracks(IP: String, id: String) async -> [PlayableContent] {
-        guard let objectID = id.components(separatedBy: "#").last else { return [] }
-
+        guard let objectID = id.components(separatedBy: "#").last else {
+            return []
+        }
         let arguments: [String: Any] = [
             "ObjectID": "SQ:" + objectID,
             "BrowseFlag": "BrowseDirectChildren",

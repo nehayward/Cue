@@ -24,7 +24,6 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
-    @State private var betaFeatures = BetaFeatures()
     @State private var coreFeatures = CoreFeatures()
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
@@ -209,7 +208,7 @@ struct SearchScreen: View {
                 Spacer()
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
-                        if ![MediaSearchService.plex].contains(service) {
+                        if coreFeatures.enabledServices(service).wrappedValue, ![MediaSearchService.plex].contains(service)  {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 musicSearchSelection = service

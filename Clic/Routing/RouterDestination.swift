@@ -2,6 +2,7 @@ import Foundation
 import MusicSearchKit
 import SonosKit
 import SwiftUI
+import OrderedCollections
 
 public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
@@ -16,36 +17,119 @@ public enum RouterDestination: Hashable, Identifiable {
     case speakerSettingsList
     case speakerSettings(room: Room)
     case playableContentList(group: GroupRoom? = nil, contentType: ContentType)
+    case playableLibraryList(items: Binding<OrderedSet<PlayableContent>>, action: (() async -> Void))
+    case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
 
     public var id: String {
         switch self {
         case let .player(groupID):
-            groupID
+            return groupID
         case let .groupDestination(content, _):
-            content.content.id
+            return content.content.id
         case .manageScenes:
-            "manageScenes"
+            return "manageScenes"
         case let .mediaDetail(content, _):
-            content.id
+            return content.id
         case let .artistDetail(content, _):
-            content.id
+            return content.id
         case let .createScene(content):
-            content?.id ?? "scene"
+            return content?.id ?? "scene"
         case .alarms:
-            "alarms"
+            return "alarms"
         case .addAlarm:
-            "addAlarm"
+            return "addAlarm"
         case let .editAlarm(alarm):
-            alarm.id
+            return alarm.id
         case .speakerSettingsList:
-            "speakerSettingsList"
+            return "speakerSettingsList"
         case .speakerSettings:
-            "speaker.configuration"
+            return "speaker.configuration"
         case .playableContentList(_, _):
-            "playableContentList"
+            return "playableContentList"
         case .fullPlayHistoryList:
-            "fullPlayHistoryList"
+            return "fullPlayHistoryList"
+        case .playableLibraryList(items: _, action: _):
+            return "playableLibraryList"
+        case .playableGridScreen(title: _, items: _, action: _):
+            return "playableGridScreen"
+        }
+    }
+
+    public static func ==(lhs: RouterDestination, rhs: RouterDestination) -> Bool {
+        switch (lhs, rhs) {
+        case let (.player(groupID1), .player(groupID2)):
+            return groupID1 == groupID2
+        case let (.groupDestination(content1, position1), .groupDestination(content2, position2)):
+            return content1 == content2 && position1 == position2
+        case (.manageScenes, .manageScenes):
+            return true
+        case let (.createScene(content1), .createScene(content2)):
+            return content1 == content2
+        case let (.mediaDetail(content1, group1), .mediaDetail(content2, group2)):
+            return content1 == content2 && group1 == group2
+        case let (.artistDetail(content1, group1), .artistDetail(content2, group2)):
+            return content1 == content2 && group1 == group2
+        case (.alarms, .alarms):
+            return true
+        case let (.addAlarm(group1), .addAlarm(group2)):
+            return group1 == group2
+        case let (.editAlarm(alarm1), .editAlarm(alarm2)):
+            return alarm1 == alarm2
+        case (.speakerSettingsList, .speakerSettingsList):
+            return true
+        case let (.speakerSettings(room1), .speakerSettings(room2)):
+            return room1 == room2
+        case let (.playableContentList(group1, contentType1), .playableContentList(group2, contentType2)):
+            return group1 == group2 && contentType1 == contentType2
+        case let (.playableLibraryList(items1, _), .playableLibraryList(items2, _)):
+            return items1.wrappedValue == items2.wrappedValue
+        case let (.playableGridScreen(_, items1, _), .playableGridScreen(_, items2, _)):
+            return items1.wrappedValue == items2.wrappedValue
+
+        case (.fullPlayHistoryList, .fullPlayHistoryList):
+            return true
+        default:
+            return false
+        }
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        switch self {
+        case let .player(groupID):
+            hasher.combine(groupID)
+        case let .groupDestination(content, position):
+            hasher.combine(content)
+            hasher.combine(position)
+        case .manageScenes:
+            hasher.combine("manageScenes")
+        case let .mediaDetail(content, group):
+            hasher.combine(content)
+            hasher.combine(group)
+        case let .artistDetail(content, group):
+            hasher.combine(content)
+            hasher.combine(group)
+        case let .createScene(content):
+            hasher.combine(content?.id ?? "scene")
+        case .alarms:
+            hasher.combine("alarms")
+        case .addAlarm:
+            hasher.combine("addAlarm")
+        case let .editAlarm(alarm):
+            hasher.combine(alarm)
+        case .speakerSettingsList:
+            hasher.combine("speakerSettingsList")
+        case let .speakerSettings(room):
+            hasher.combine(room)
+        case let .playableContentList(group, contentType):
+            hasher.combine(group)
+            hasher.combine(contentType)
+        case let .playableLibraryList(items, _):
+            hasher.combine(items.wrappedValue)
+        case let .playableGridScreen(_, items, _):
+            hasher.combine(items.wrappedValue)
+        case .fullPlayHistoryList:
+            hasher.combine("fullPlayHistoryList")
         }
     }
 }

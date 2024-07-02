@@ -26,7 +26,7 @@ struct PlayableContentView: View {
                 content
             } else {
                 switch item.content.type {
-                case .playlist, .album, .userPlaylist:
+                case .playlist, .album, .libraryPlaylist, .libraryAlbum:
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                         content
                     }
@@ -75,7 +75,7 @@ struct PlayableContentView: View {
                 case .track, .favorite:
                     if adding == nil {
                         Menu {
-                            menu
+                            PlayableMenuView(item: item)
                         } label: {
                             Image(systemName: "ellipsis")
                                 .frame(maxWidth: 40, maxHeight: .infinity, alignment: .trailing)
@@ -100,121 +100,10 @@ struct PlayableContentView: View {
         .contentShape(.contextMenuPreview, Capsule())
         .contextMenu {
             if adding == nil {
-                menu
+                PlayableMenuView(item: item)
             }
         }
         .draggable(item)
-    }
-
-
-    private var menu: some View {
-        VStack {
-            if playHistoryService.history.contains(item) {
-                Button(role: .destructive) {
-                    playHistoryService.history.remove(item)
-                } label: {
-                    Label("Remove from History", systemImage: "trash")
-                }
-            }
-            OpenInServiceView(item: item)
-            switch item.content.type {
-            case .artist:
-                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                    Label("View Artist", systemImage: "music.mic")
-                }
-
-                if [.apple, .spotify].contains(item.content.service) {
-                    Button {
-                        guard let group = selectedGroupService.group else { return }
-                        Task {
-                            await HapticManager.shared.fireHaptic(.buttonPress)
-                            await sonosService.startRadio(content: item, group: group)
-                        }
-                    } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
-                    }
-                }
-            case .playlist, .userPlaylist:
-                ControlGroup {
-                    Button {
-                        play(replaceQueue: true)
-                    } label: {
-                        Label("Replace Queue", systemImage: "play.fill")
-                    }
-
-                    Button {
-                        play(position: .next)
-                    } label: {
-                        Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
-                    }
-
-                    Button {
-                        play(position: .end)
-                    } label: {
-                        Label("Play Last", systemImage: "text.append")
-                    }
-                }
-
-                if item.content.service == .library, item.content.id.last?.isNumber ?? false {
-                    Button {
-                        router.sheet(to: .renamePlaylist(content: item))
-                    } label: {
-                        Label("Rename", systemImage: "textformat")
-                    }
-                }
-// TODO: Add scene playlist
-//                NavigationLink(value: RouterDestination.createScene(content: item)) {
-//                    Label("Create Scene", systemImage: "bolt.fill")
-//                }
-
-            case .album, .track, .libraryTrack:
-                if [.album, .track].contains(item.content.type) {
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
-                        Label("Album", systemImage: "smallcircle.circle.fill")
-                    }
-
-
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                        Label("Artist", systemImage: "music.mic")
-                    }
-
-                    // TODO: Add scene playlist
-//                    NavigationLink(value: RouterDestination.createScene(content: item)) {
-//                        Label("Create Scene", systemImage: "bolt.fill")
-//                    }
-                }
-
-                ControlGroup {
-                    if item.content.type == .album {
-                        Button {
-                            play(replaceQueue: true)
-                        } label: {
-                            Label("Replace Queue", systemImage: "text.line.last.and.arrowtriangle.forward")
-                        }
-                    }
-
-                    Button {
-                        play(position: .next)
-                    } label: {
-                        Label("Play Next", systemImage: "text.badge.plus")
-                    }
-
-                    Button {
-                        play(position: .end)
-                    } label: {
-                        Label("Play Last", systemImage: "text.append")
-                    }
-                }
-
-                AddToPlaylistMenu(itemToAdd: item)
-            case .radio, .favorite:
-                Button {
-                    play()
-                } label: {
-                    Label("Play", systemImage: "play.fill")
-                }
-            }
-        }
     }
 
     private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
@@ -240,11 +129,3 @@ struct PlayableContentView: View {
         }
     }
 }
-
-#if canImport(UIKit)
-extension View {
-    func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-}
-#endif

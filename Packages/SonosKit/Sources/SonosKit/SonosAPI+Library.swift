@@ -124,7 +124,7 @@ extension SonosAPI {
         }
     }
 
-    func getLibraryItems(IP: String, type: ContentType) async -> [PlayableContent] {
+    func getLibraryItems(IP: String, type: ContentType, offset: Int = 0, requestedCount: Int = 0) async -> [PlayableContent] {
         let objectID = switch type {
         case .artist:
             "A:ALBUMARTIST"
@@ -142,8 +142,8 @@ extension SonosAPI {
             "ObjectID": objectID,
             "BrowseFlag": "BrowseDirectChildren",
             "Filter": "*",
-            "StartingIndex": 0,
-            "RequestedCount": 0,
+            "StartingIndex": offset,
+            "RequestedCount": requestedCount,
             "SortCriteria": ""
         ]
 

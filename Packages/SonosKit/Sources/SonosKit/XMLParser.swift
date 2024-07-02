@@ -199,6 +199,10 @@ final class XMLParserSonos {
             musicService = .plex
         }
 
+        if trackURI.contains("librarytrack") {
+            musicService = .apple
+        }
+
         // TODO: Add hi res icon
 //        print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
         var trackID = ""
@@ -211,8 +215,13 @@ final class XMLParserSonos {
         switch musicService {
         case .apple:
             let pattern = #/song:(\w*)/#
-            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+            let libraryTrackPattern = #/librarytrack:(.*?)\?/#
+
+            let trackURIRemovePercent = trackURI.removingPercentEncoding
+            if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                 trackID = String(result.1)
+            } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
+                trackID = String(libraryResult.1)
             } else {
                 musicService = .unknown
             }
@@ -472,8 +481,13 @@ final class XMLParserSonos {
                 switch musicService {
                 case .apple:
                     let pattern = #/song:(\w*)/#
-                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                    let libraryTrackPattern = #/librarytrack:(.*?)\?/#
+
+                    let trackURIRemovePercent = trackURI.removingPercentEncoding
+                    if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                         trackID = String(result.1)
+                    } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
+                        trackID = String(libraryResult.1)
                     } else {
                         musicService = .unknown
                     }
@@ -765,8 +779,13 @@ final class XMLParserSonos {
                 switch musicService {
                 case .apple:
                     let pattern = #/song:(\w*)/#
-                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
+                    let libraryTrackPattern = #/librarytrack:(.*?)\?/#
+
+                    let trackURIRemovePercent = trackURI.removingPercentEncoding
+                    if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                         trackID = String(result.1)
+                    } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
+                        trackID = String(libraryResult.1)
                     } else {
                         musicService = .unknown
                     }

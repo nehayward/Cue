@@ -308,6 +308,11 @@ extension View {
                     .environment(group)
             case .fullPlayHistoryList:
                 PlayHistoryFullView()
+            case let .playableLibraryList(items: items, action: action):
+                PlayableLibraryList(items: items, action: action)
+            case let .playableGridScreen(title: title, items: items, action: action):
+                PlayableGridScreen(items: items, action: action)
+                    .navigationTitle(title)
             }
         }
     }
@@ -353,6 +358,8 @@ extension View {
             .environment(MusicSearchService.shared)
             .environment(PlaylistContainer.shared)
             .environment(PlayHistoryService.shared)
+            .environment(AppleMusicBrowseService.shared)
+            .environment(LibraryBrowseService.shared)
     }
 
     @ViewBuilder

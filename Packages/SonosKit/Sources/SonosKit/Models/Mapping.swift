@@ -118,7 +118,24 @@ extension Playlist {
             content: MediaContent(
                 service: .apple,
                 id: id.description,
-                type: isUserPlaylist ? .userPlaylist : .playlist,
+                type: isUserPlaylist ? .libraryPlaylist : .playlist,
+                location: nil
+            )
+        )
+    }
+}
+
+extension AppleLibraryItem {
+    public var toPlayable: PlayableContent? {
+        guard let contentType = ContentType(type) else { return nil }
+        return PlayableContent(
+            title: attributes.name,
+            subtitle: "",
+            artwork: attributes.artwork?.urlWithSize(width: 400, height: 400),
+            content: MediaContent(
+                service: .apple,
+                id: id.description,
+                type: contentType,
                 location: nil
             )
         )

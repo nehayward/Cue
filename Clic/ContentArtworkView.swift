@@ -8,6 +8,7 @@ struct ContentArtworkView: View {
     @Environment(SonosService.self) var sonosService
 
     var content: PlayableContent
+    var showMusicSource: Bool = true
     @State var imageRequest: ImageRequest?
     @State var size: Double = 24
 
@@ -36,6 +37,9 @@ struct ContentArtworkView: View {
                                             .scaledToFit()
                                             .foregroundStyle(.regularMaterial)
                                             .frame(width: 24, height: 24)
+                                            .transaction { transaction in
+                                                transaction.animation = nil
+                                            }
                                     }
                                 }
                         }
@@ -51,19 +55,24 @@ struct ContentArtworkView: View {
                 .clipShape(content.content.type == .artist ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
                 .shadow(radius: 2)
                 .overlay(alignment: .bottomTrailing) {
-                    Group {
-                        content.content.service.icon
-                            .frame(width: size, height: size, alignment: .bottomTrailing)
-                            .padding(size == 24 ? 16 : 4)
-
-                        if content.content.type == .favorite {
-                            Image(systemName: "star.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white.gradient)
+                    if showMusicSource {
+                        Group {
+                            content.content.service.icon
                                 .frame(width: size, height: size, alignment: .bottomTrailing)
                                 .padding(size == 24 ? 16 : 4)
-                                .shadow(radius: 10)
+
+                            if content.content.type == .favorite {
+                                Image(systemName: "star.fill")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white.gradient)
+                                    .frame(width: size, height: size, alignment: .bottomTrailing)
+                                    .padding(size == 24 ? 16 : 4)
+                                    .shadow(radius: 10)
+                            }
+                        }
+                        .transaction { transaction in
+                            transaction.disablesAnimations = true
                         }
                     }
                 }

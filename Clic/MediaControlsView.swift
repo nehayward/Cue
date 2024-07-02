@@ -60,7 +60,6 @@ struct MediaControlsView: View {
                 }
                 .buttonStyle(.plain)
                 .buttonBorderShape(.circle)
-                .disabled(!group.availableActions.contains(.play))
         }
     }
 }

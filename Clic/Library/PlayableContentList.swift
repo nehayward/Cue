@@ -11,7 +11,8 @@ import VibesDS
 struct PlayableContentList: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
-    @Environment(BrowseService.self) var browseService
+    @Environment(LibraryBrowseService.self) var browseService
+    @Environment(Router.self) var router
 
     @State var isLoading: Bool = false
     @State var navigationTitle: String = ""
@@ -36,10 +37,38 @@ struct PlayableContentList: View {
             case .playlist:
                 ForEach(browseService.playlists) { item in
                     PlayableContentView(item: item)
+                        .swipeActions(edge: .trailing) {
+                            Button("Delete", role: .destructive) {
+                                Task {
+                                    await sonosService.delete(playlistID: item.id)
+                                    browseService.playlists.removeAll { $0.id == item.id }
+                                }
+                            }
+                        }
                 }
             default:
                 EmptyView()
             }
+
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowBackground(Color.clear)
+                .opacity(0.01)
+                .task {
+                    switch type {
+                    case .track:
+                        await browseService.updateSongs(offset: browseService.songs.count - 1)
+                    case .album:
+                        await browseService.updateAlbum(offset: browseService.albums.count - 1)
+                    case .artist:
+                        await browseService.updateArtists(offset: browseService.artists.count - 1)
+                    case .playlist:
+                        await browseService.updatePlaylists()
+                    default:
+                        break
+                    }
+                }
+                .listRowSeparator(.hidden)
         }
         .foregroundStyle(.foreground)
         .listStyle(.plain)
@@ -66,5 +95,35 @@ struct PlayableContentList: View {
                     .background(.thickMaterial)
             }
         }
+        .animation(.bouncy, value: browseService.playlists)
+        .toolbar {
+            if type == .playlist {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        router.presentedSheet = .newPlaylist()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+        }
+        .overlay {
+            if browseService.playlists.isEmpty, !isLoading {
+                ContentUnavailableView {
+                    Text("No Playlists")
+                } actions: {
+                    Button {
+                        router.presentedSheet = .newPlaylist()
+                    } label: {
+                        Text("Create a playlist to get started")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.accent)
+                    .padding()
+                }
+            }
+        }
+        .fontDesign(.rounded)
+        .contentMargins(.bottom, 80, for: .scrollContent)
     }
 }

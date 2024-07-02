@@ -16,14 +16,14 @@ final class SonosAPI: NSObject {
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 3
+        configuration.timeoutIntervalForRequest = 5
         return URLSession(configuration: configuration)
     }()
 
     private lazy var insecureSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 3
+        configuration.timeoutIntervalForRequest = 5
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
 
