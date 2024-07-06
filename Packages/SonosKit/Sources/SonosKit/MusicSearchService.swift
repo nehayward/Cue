@@ -325,7 +325,7 @@ public final class MusicSearchService {
     }
 
     public func appleLibraryLookup(id: String) async -> AppleLibraryContainer? {
-        await try? apple.librarySong(id: id)
+        try? await apple.librarySong(id: id)
     }
 
     // MARK: Tidal
