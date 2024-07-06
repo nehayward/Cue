@@ -45,7 +45,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
         case (.track, .apple):
             return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;flags=8224&amp;sn=5"
         case (.libraryTrack, .apple):
-            return "x-sonos-http:librarytrack%3a\(id).mp3?sid=204&amp;flags=8232&amp;sn=4"
+            return "x-sonos-http:librarytrack%3a\(id)?sid=204&amp;flags=8232&amp;sn=4"
         case (.libraryAlbum, .apple):
             return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
         case (.album, .apple):

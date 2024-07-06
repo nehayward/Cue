@@ -127,6 +127,22 @@ public final class AppleMusicAPI {
             return nil
         }
     }
+
+    public func librarySong(id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/songs/\(id)")!
+        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            return nil
+        }
+    }
     // MARK: TODO
 //    /// Possible types: Heavy rotation, recently added, and recently played resources.
 //    public enum MusicHistoryEndpoints {

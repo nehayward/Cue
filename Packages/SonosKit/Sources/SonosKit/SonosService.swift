@@ -803,6 +803,11 @@ public final class SonosService {
             return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify), contentType: .track), imageURL)
         case .apple:
             var imageURL: URL? = nil
+            if track.toPlayable.content.type == .libraryTrack {
+                guard let appleTrack = await musicSearch.appleLibraryLookup(id: track.trackID) else { return (nil, nil) }
+                imageURL = appleTrack.data.first?.attributes.artwork?.urlWithSize(width: 500, height: 500)
+                return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.data.first?.href ?? ""), contentType: .libraryTrack), imageURL)
+            }
             guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL), contentType: .track), imageURL)

@@ -467,6 +467,10 @@
 		E9F600C82B50DDF10039AAA6 /* ListViewLarge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */; };
 		E9F600CA2B5256A60039AAA6 /* PlayerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */; };
 		E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F600CC2B53A2B80039AAA6 /* OnboardView.swift */; };
+		E9F665332C35AA20002980AC /* View+Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92AB89E2C34903800881D71 /* View+Keyboard.swift */; };
+		E9F665342C35AA21002980AC /* View+Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92AB89E2C34903800881D71 /* View+Keyboard.swift */; };
+		E9F665352C35AA2A002980AC /* PlayableMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92AB89C2C348C1400881D71 /* PlayableMenuView.swift */; };
+		E9F665362C35AA2B002980AC /* PlayableMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92AB89C2C348C1400881D71 /* PlayableMenuView.swift */; };
 		E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF442AE2257E00EFE380 /* Keyboard.swift */; };
 		E9F7BF482AE2DCA800EFE380 /* OSEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F7BF472AE2DCA800EFE380 /* OSEnvironment.swift */; };
 		E9FDDC302B238216005D281E /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC2F2B238216005D281E /* Router.swift */; };
@@ -1685,6 +1689,7 @@
 				E92B3EB42B60249B00724FA1 /* SonosDeviceQuery.swift in Sources */,
 				E92B3EB62B60249B00724FA1 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E92B3EB72B60249B00724FA1 /* LargePlayerView.swift in Sources */,
+				E9F665342C35AA21002980AC /* View+Keyboard.swift in Sources */,
 				E92B3EB82B60249B00724FA1 /* VolumeControlView.swift in Sources */,
 				E92B3EB92B60249B00724FA1 /* PlayerSelectionView.swift in Sources */,
 				E950E7CF2B70AFF30029415B /* FavoritesView.swift in Sources */,
@@ -1697,6 +1702,7 @@
 				E99403D72C07796C00D20067 /* AppTips.swift in Sources */,
 				E93E493C2BFB10CF0064A979 /* MailViewRepresentable.swift in Sources */,
 				E92DCB9F2B66FDF700A2C3B5 /* ContentArtworkView.swift in Sources */,
+				E9F665352C35AA2A002980AC /* PlayableMenuView.swift in Sources */,
 				E97416B22C16AA4E00700859 /* TuneInSearchView.swift in Sources */,
 				E92B3EBD2B60249B00724FA1 /* SceneView.swift in Sources */,
 				E92B3EBE2B60249B00724FA1 /* UIApplication+Environment.swift in Sources */,
@@ -1777,6 +1783,7 @@
 				E99403D42C063CAD00D20067 /* NewPlaylistView.swift in Sources */,
 				E97562E42B699B2400787E14 /* LogScreen.swift in Sources */,
 				E97562E52B699B2400787E14 /* CreateLiveActivityIntent.swift in Sources */,
+				E9F665362C35AA2B002980AC /* PlayableMenuView.swift in Sources */,
 				E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */,
 				E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */,
 				E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */,
@@ -1805,6 +1812,7 @@
 				E97562FB2B699B2400787E14 /* LargePlayerView.swift in Sources */,
 				E97562FC2B699B2400787E14 /* VolumeControlView.swift in Sources */,
 				E97DA8E82BEBF7ED004BB1F7 /* MenuInfoView.swift in Sources */,
+				E9F665332C35AA20002980AC /* View+Keyboard.swift in Sources */,
 				E98150DF2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E97562FD2B699B2400787E14 /* PlayerSelectionView.swift in Sources */,
 				E9A380762C01052800D5349E /* CoreFeatures.swift in Sources */,

@@ -544,7 +544,7 @@ final class XMLParserSonos {
 
             var subtitle = ""
             subtitle = [emptyArtist, emptyAlbum].filter({ !$0.isEmpty }).joined(separator: " • ")
-            let mediaContent = MediaContent(service: musicService, id: trackID, type: .track, location: nil)
+            let mediaContent = MediaContent(service: musicService, id: trackID, type: trackID.contains("i.") ? .libraryTrack : .track, location: nil)
             let metadata = PlayableContentMetadata(duration: Duration.milliseconds(trackDuration), artist: emptyArtist, album: emptyAlbum, position: trackNumber)
             let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             tracks.append(playableContent)

@@ -8,7 +8,7 @@ extension Track {
             title: song,
             subtitle: [artist, album].filter({ !$0.isEmpty }).joined(separator: " • "),
             artwork: artworkURL,
-            content: MediaContent(service: musicService, id: trackID.description, type: .track, location: metadata?.openInURL),
+            content: MediaContent(service: musicService, id: trackID.description, type: trackID.contains("i.") ? .libraryTrack : .track, location: metadata?.openInURL),
             metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album)
         )
     }

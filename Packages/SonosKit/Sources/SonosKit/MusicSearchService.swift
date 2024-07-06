@@ -324,6 +324,10 @@ public final class MusicSearchService {
         return response.items.first
     }
 
+    public func appleLibraryLookup(id: String) async -> AppleLibraryContainer? {
+        await try? apple.librarySong(id: id)
+    }
+
     // MARK: Tidal
     public func lookupTidalTrack(with id: String) async -> PlayableContent? {
         guard let song = await tidal.track(with: id) else { return nil }
