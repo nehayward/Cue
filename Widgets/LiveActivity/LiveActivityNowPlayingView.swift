@@ -88,6 +88,20 @@ struct LiveActivityNowPlayingView: View {
                     }
                     .lineLimit(0, reservesSpace: true)
                     Spacer()
+                    if isCompact {
+                        Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
+                            Image(systemName: "playpause.fill")
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonBorderShape(.circle)
+                        .tint(.primary)
+                        Button(intent: NextIntent(room: context.attributes.room)) {
+                            Image(systemName: "forward.fill")
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonBorderShape(.circle)
+                        .tint(.primary)
+                    }
                 }
             }
             if let settings = context.state.TVSettings {
@@ -118,10 +132,10 @@ struct LiveActivityNowPlayingView: View {
                 }
             } else {
                 if !isCompact {
-                    HStack(spacing: 32) {
+                    HStack(spacing: 24) {
                         Group {
                             Button(intent: PreviousIntent(room: context.attributes.room)) {
-                                Image(systemName: "backward.end.fill")
+                                Image(systemName: "backward.fill")
                                     .frame(width: 24, height: 24)
                             }
                             Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
@@ -129,7 +143,7 @@ struct LiveActivityNowPlayingView: View {
                                     .frame(width: 32, height: 32)
                             }
                             Button(intent: NextIntent(room: context.attributes.room)) {
-                                Image(systemName: "forward.end.fill")
+                                Image(systemName: "forward.fill")
                                     .frame(width: 24, height: 24)
                             }
                         }

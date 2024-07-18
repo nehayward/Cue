@@ -69,6 +69,27 @@ struct AppleLibraryBrowseScreen: View {
                     }
 
                     HStack {
+                        Text("Recently Added")
+                            .font(.title)
+                        Spacer()
+                        NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Added", items: $appleMusicBrowseService.usersRecentsAdded, action: { offset in
+                            await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: offset)
+                        })) {
+                            Text("Show all \(Image(systemName: "chevron.right"))")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical)
+
+                    if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
+                            ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(5)) { item in
+                                PlayableCardView(item: item)
+                            }
+                        }
+                    }
+
+                    HStack {
                         Text("Albums")
                             .font(.title)
                         Spacer()
@@ -109,6 +130,7 @@ struct AppleLibraryBrowseScreen: View {
         isLoading = true
         await appleMusicBrowseService.updateUsersApplePlaylists()
         await appleMusicBrowseService.updateUsersRecentPlayed()
+        await appleMusicBrowseService.updateUsersRecentAddedTracks()
 //        await appleMusicBrowseService.updateUsersAppleAlbums()
 //        await appleMusicBrowseService.updateUsersAppleArtists()
         isLoading = false

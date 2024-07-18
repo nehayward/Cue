@@ -1,3 +1,17 @@
+# 2024.33
+
+## External
+
++ Fixed an issue where "Open in Apple Music" wasn't showing. Thanks Shawn!
++ Fixed Height Settings not being updated in Speaker settings.
++ Fixed and issue with some playlist not playing. i.e Bob Marley & The Wailers
+
++ Improve Live Activity compact view
++ Add Recently Added for Apple Music
++ Adjust Sub for any speaker, not just sound bars.
+
+## Internal
+
 # 2024.32
 
 ## External

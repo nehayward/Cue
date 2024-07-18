@@ -195,6 +195,14 @@ struct MediaDetailView: View {
                 playableContent = album.toPlayable
                 guard let tracks = album.tracks else { return }
                 self.tracks = tracks.map(\.toPlayable)
+            case (.libraryTrack, .apple):
+                guard let catalogSong = await MusicSearchService().appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
+                guard let song: Song = try? await MusicSearchService().lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
+                guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
+                artworkURL = album.artwork?.url(width: 800, height: 800)
+                playableContent = album.toPlayable
+                guard let tracks = album.tracks else { return }
+                self.tracks = tracks.map(\.toPlayable)
             case (.track, .spotify):
                 guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id) else { return }
                 guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: song.album.id) else { return }

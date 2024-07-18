@@ -20,7 +20,7 @@ public enum EQType: String {
         case .musicSurroundLevel:
             -15...15
         case .subGain:
-            -10...10
+            -15...15
         case .surroundEnable:
             0...1
         case .subEnable:

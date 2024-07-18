@@ -21,6 +21,13 @@ public struct SceneListView: View {
                             try? await sonosService.runScene(scene)
                         }
                     }
+                    .contextMenu {
+                        Button("Remove", role: .destructive) {
+                            scenes.removeAll { sceneSearch in
+                                sceneSearch.id == scene.id
+                            }
+                        }
+                    }
                 }
             }
             .scrollTargetLayout()

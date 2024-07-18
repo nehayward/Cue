@@ -405,6 +405,9 @@
 		E9C03B122A58721F00FB9118 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B112A58721F00FB9118 /* PlayerView.swift */; };
 		E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B172A5A196200FB9118 /* NextIntent.swift */; };
+		E9C119F02C39E16D00EE5EBF /* SpotifyBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */; };
+		E9C119F22C39E56E00EE5EBF /* SpotifyBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */; };
+		E9C119F32C39E56F00EE5EBF /* SpotifyBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */; };
 		E9C14BD52C20BCC2002AE74E /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
 		E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */; };
 		E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
@@ -724,6 +727,7 @@
 		E9C03B112A58721F00FB9118 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosDeviceEntity.swift; sourceTree = "<group>"; };
 		E9C03B172A5A196200FB9118 /* NextIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextIntent.swift; sourceTree = "<group>"; };
+		E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyBrowseScreen.swift; sourceTree = "<group>"; };
 		E9C14BD42C20B64D002AE74E /* PlayAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlayAction.entitlements; sourceTree = "<group>"; };
 		E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		E9C327412BFD0A7400075606 /* BetaFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeatures.swift; sourceTree = "<group>"; };
@@ -1039,6 +1043,7 @@
 			children = (
 				E9A3806C2C01005400D5349E /* BrowseScreen.swift */,
 				E9705DDB2C0A5C27005CE79A /* AppleLibraryBrowseScreen.swift */,
+				E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */,
 				E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */,
 				E9CCD08E2C31E84F00C58BD3 /* PlayableGridScreen.swift */,
 				E97416A72C14074C00700859 /* PlayableContentList.swift */,
@@ -1662,6 +1667,7 @@
 				E99CC9F82B7AC18500B42A7A /* AppleMusicPermissionView.swift in Sources */,
 				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
 				E9D49E712BC9D7700084185E /* ClicApp.swift in Sources */,
+				E9C119F22C39E56E00EE5EBF /* SpotifyBrowseScreen.swift in Sources */,
 				E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */,
 				E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */,
 				E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */,
@@ -1846,6 +1852,7 @@
 				E97416B02C16AA3700700859 /* LibraryBrowseScreen.swift in Sources */,
 				E9249A6B2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E93E493F2BFB10E00064A979 /* PlexSearchView.swift in Sources */,
+				E9C119F32C39E56F00EE5EBF /* SpotifyBrowseScreen.swift in Sources */,
 				E97563092B699B2400787E14 /* SheetDestination.swift in Sources */,
 				E975630B2B699B2400787E14 /* Environments.swift in Sources */,
 				E975630C2B699B2400787E14 /* GroupVolumeControlView.swift in Sources */,
@@ -2018,6 +2025,7 @@
 				E9F7BF452AE2257E00EFE380 /* Keyboard.swift in Sources */,
 				E98248CB2AF04026008927EF /* RefreshIntent.swift in Sources */,
 				E995363D2C13A23300F5E244 /* LibraryBrowseScreen.swift in Sources */,
+				E9C119F02C39E16D00EE5EBF /* SpotifyBrowseScreen.swift in Sources */,
 				E9702AE02C27D4AF003EB277 /* OpenInServiceView.swift in Sources */,
 				E9A3807E2C02F91F00D5349E /* AddToPlaylistMenu.swift in Sources */,
 				E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */,

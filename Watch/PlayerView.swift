@@ -88,7 +88,7 @@ struct PlayerView: View {
                         await sonosService.previous(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Image(systemName: "backward.end.fill")
+                    Image(systemName: "backward.fill")
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())
@@ -132,7 +132,7 @@ struct PlayerView: View {
                         await sonosService.next(ip: group.coordinatorRoom.ip)
                     }
                 } label: {
-                    Image(systemName: "forward.end.fill")
+                    Image(systemName: "forward.fill")
                 }
                 .controlSize(.mini)
                 .clipShape(Circle())

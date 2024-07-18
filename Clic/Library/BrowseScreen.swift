@@ -29,6 +29,9 @@ struct BrowseScreen: View {
             switch musicSearchSelection {
             case .apple:
                 AppleLibraryBrowseScreen()
+                // TODO: Next release
+//            case .spotify:
+////                SpotifyBrowseScreen()
             case .library:
                 LibraryBrowseScreen()
             default:
@@ -40,6 +43,10 @@ struct BrowseScreen: View {
         }
         .contentMargins(.bottom, 80, for: .scrollContent)
         .onAppear {
+//            if ![MediaSearchService.library, MediaSearchService.apple, .spotify].contains(musicSearchSelection) {
+//                musicSearchSelection = .library
+//            }
+
             if ![MediaSearchService.library, MediaSearchService.apple].contains(musicSearchSelection) {
                 musicSearchSelection = .library
             }
@@ -48,6 +55,7 @@ struct BrowseScreen: View {
             VStack {
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
+                        // MARK: Add Spotify
                         if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library].contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)

@@ -208,9 +208,10 @@ struct LargePlayerView: View {
         }
         .background {
             ArtworkView(group: $group)
+                .saturation(1.2)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.5)
-                .blur(radius: 50)
+                .blur(radius: 60)
                 .overlay {
                     Rectangle()
                         .foregroundStyle(.thinMaterial)
@@ -297,12 +298,12 @@ struct LargePlayerView: View {
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
                 }
             } label: {
-                Image(systemName: "backward.end.fill")
+                Image(systemName: "backward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 24, height: 24)
+                    .frame(width: 32, height: 32)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.liveActivity)
             .disabled(!group.availableActions.contains(.previous))
             
             Spacer()
@@ -324,7 +325,7 @@ struct LargePlayerView: View {
                     .frame(width: 32, height: 32)
 
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.liveActivity)
             .keyboardShortcut(.space, modifiers: []) 
             .id(group.coordinatorID)
 
@@ -335,16 +336,16 @@ struct LargePlayerView: View {
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
             } label: {
-                Image(systemName: "forward.end.fill")
+                Image(systemName: "forward.fill")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 24, height: 24)
+                    .frame(width: 32, height: 32)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.liveActivity)
             .disabled(!group.availableActions.contains(.next))
         }
         .frame(maxWidth: 300)
-        .padding(.horizontal, 80)
+        .padding(.horizontal, 60)
     }
 
     private func TVModeView() -> some View {

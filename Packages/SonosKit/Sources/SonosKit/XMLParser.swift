@@ -221,7 +221,12 @@ final class XMLParserSonos {
             if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                 trackID = String(result.1)
             } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
-                trackID = String(libraryResult.1)
+                let libraryTrackID = String(libraryResult.1)
+                if let dotRange = libraryTrackID.range(of: ".", options: .backwards), libraryTrackID.filter({ $0 == "." }).count > 1 {
+                    trackID = String(libraryTrackID[..<dotRange.lowerBound])
+                } else {
+                    trackID = libraryTrackID
+                }
             } else {
                 musicService = .unknown
             }
@@ -487,7 +492,12 @@ final class XMLParserSonos {
                     if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                         trackID = String(result.1)
                     } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
-                        trackID = String(libraryResult.1)
+                        let libraryTrackID = String(libraryResult.1)
+                        if let dotRange = libraryTrackID.range(of: ".", options: .backwards), libraryTrackID.filter({ $0 == "." }).count > 1 {
+                            trackID = String(libraryTrackID[..<dotRange.lowerBound])
+                        } else {
+                            trackID = libraryTrackID
+                        }
                     } else {
                         musicService = .unknown
                     }
@@ -785,7 +795,12 @@ final class XMLParserSonos {
                     if let trackURIRemovePercent, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
                         trackID = String(result.1)
                     } else if let trackURIRemovePercent, let libraryResult = try? libraryTrackPattern.firstMatch(in: trackURIRemovePercent) {
-                        trackID = String(libraryResult.1)
+                        let libraryTrackID = String(libraryResult.1)
+                        if let dotRange = libraryTrackID.range(of: ".", options: .backwards), libraryTrackID.filter({ $0 == "." }).count > 1 {
+                            trackID = String(libraryTrackID[..<dotRange.lowerBound])
+                        } else {
+                            trackID = libraryTrackID
+                        }
                     } else {
                         musicService = .unknown
                     }
@@ -1146,5 +1161,11 @@ extension String {
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")
+    }
+
+    var metaDataTitle: String {
+        let xml = self
+        return xml
+            .replacingOccurrences(of: "&", with: "&amp;amp;")
     }
 }

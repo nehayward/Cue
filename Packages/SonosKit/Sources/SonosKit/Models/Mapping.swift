@@ -119,7 +119,7 @@ extension Playlist {
                 service: .apple,
                 id: id.description,
                 type: isUserPlaylist ? .libraryPlaylist : .playlist,
-                location: nil
+                location: url
             )
         )
     }

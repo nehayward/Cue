@@ -250,7 +250,9 @@ struct SpeakerSettingsView: View {
                     Text("This setting is used when playing spatial audio with height channels, like Dolby Atmos. It adjusts the volume of the height channels to account for ceiling height. For high ceilings, a higher setting (+10) is recommended. Many users prefer +5 to +10 for a more noticeable height effect, regardless of ceiling height.")
                 }
                 .listSectionSpacing(12)
+            }
 
+            if room.subs.count > 0 {
                 Section {
                     Toggle(isOn: $room.theaterSettings.isSubEnabled) {
                         Text("Sub")
@@ -261,7 +263,6 @@ struct SpeakerSettingsView: View {
                             }
                         }
                     }
-
                     VStack {
                         LabeledContent {
                             Text(room.theaterSettings.subGain, format: .number)
@@ -283,6 +284,9 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .subGain, value: Int(room.theaterSettings.subGain))
                             }
                         }
+                        #if !os(visionOS)
+                        .sensoryFeedback(.impact, trigger: room.theaterSettings.heightChannel)
+                        #endif
                     }
                 }
             }

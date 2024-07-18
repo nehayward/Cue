@@ -11,6 +11,12 @@ public struct AppleLibraryItem: Codable {
     public let href: String
     public let type: String
     public let attributes: Attributes
+    public let relationships: Relationships?
+
+    public var songURL: URL? {
+        return URL(string: "https://music.apple.com/us/song/\(id)")
+    }
+    
 }
 
 extension AppleLibraryItem {
@@ -42,5 +48,9 @@ extension AppleLibraryItem {
         public let catalogID: String?
         public let id: String
         public let kind: String
+    }
+
+    public struct Relationships: Codable {
+        public let catalog: AppleLibraryContainer
     }
 }

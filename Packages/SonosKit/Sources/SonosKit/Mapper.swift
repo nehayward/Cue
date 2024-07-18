@@ -2,7 +2,20 @@ import Foundation
 
 extension ZoneGroup {
     var toGroup: GroupRoom? {
-        let rooms = zoneGroupMembers.compactMap(\.toRoom)
+        let speakerSubs = zoneGroupMembers.filter { $0.zoneName.lowercased().contains("sub") }
+        let subs: [Sub] = speakerSubs.map {
+            var ip: String = ""
+            let pattern = #"http://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):"#
+            if let range = $0.location.range(of: pattern, options: .regularExpression) {
+                let match = String($0.location[range])
+                // Remove the "http://" and ":" parts
+                let ipAddress = match.replacingOccurrences(of: "http://", with: "").replacingOccurrences(of: ":", with: "")
+                ip = ipAddress
+            }
+            return Sub(name: $0.zoneName, ip: ip)
+        }
+
+        let rooms = zoneGroupMembers.compactMap { $0.toRoom(speakerSubs: subs)}
         if rooms.isEmpty {
             return nil
         }
@@ -18,10 +31,24 @@ extension ZoneGroup {
 }
 
 extension ZoneGroupMember {
-    var toRoom: Room? {
+    func toRoom(speakerSubs: [Sub]) ->  Room? {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
+        let theaterSubs = satellites.filter { $0.zoneName.lowercased().contains("sub")}
+
+        let subs: [Sub] = theaterSubs.map {
+            var ip: String = ""
+            let pattern = #"http://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):"#
+            if let range = $0.location.range(of: pattern, options: .regularExpression) {
+                let match = String($0.location[range])
+                // Remove the "http://" and ":" parts
+                let ipAddress = match.replacingOccurrences(of: "http://", with: "").replacingOccurrences(of: ":", with: "")
+                ip = ipAddress
+            }
+            return Sub(name: $0.zoneName, ip: ip)
+        }
+
         return Room(
             id: UUID,
             ip: ip,
@@ -38,7 +65,8 @@ extension ZoneGroupMember {
             voiceConfigState: voiceConfigState,
             micEnabled: micEnabled,
             airPlayEnabled: airPlayEnabled,
-            invisible: invisible
+            invisible: invisible,
+            subs: speakerSubs + subs
         )
     }
 

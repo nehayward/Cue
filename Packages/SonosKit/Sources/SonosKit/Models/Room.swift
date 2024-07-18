@@ -32,6 +32,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var info: DeviceInfo? = nil
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
+    public var subs: [Sub] = []
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)
@@ -65,6 +66,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         micEnabled: Bool = false,
         airPlayEnabled: Bool = false,
         invisible: Bool = false,
+        subs: [Sub] = [],
         info: DeviceInfo? = nil
     ) {
         self.id = id
@@ -86,6 +88,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.micEnabled = micEnabled
         self.airPlayEnabled = airPlayEnabled
         self.invisible = invisible
+        self.subs = subs
         self.info = info
     }
 

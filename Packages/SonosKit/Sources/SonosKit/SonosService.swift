@@ -804,9 +804,12 @@ public final class SonosService {
         case .apple:
             var imageURL: URL? = nil
             if track.toPlayable.content.type == .libraryTrack {
-                guard let appleTrack = await musicSearch.appleLibraryLookup(id: track.trackID) else { return (nil, nil) }
+                // TODO: Do 2 Searches, need to see if it's a catalog item.
+                guard let appleTrack = await musicSearch.appleLibraryLookup(id: track.trackID) else {
+                    return (nil, nil)
+                }
                 imageURL = appleTrack.data.first?.attributes.artwork?.urlWithSize(width: 500, height: 500)
-                return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.data.first?.href ?? ""), contentType: .libraryTrack), imageURL)
+                return (Track.Metadata(ISRC: nil, openInURL: appleTrack.data.first?.songURL, contentType: .libraryTrack), imageURL)
             }
             guard let appleTrack = await musicSearch.appleLookup(id: track.trackID) else { return (nil, nil) }
             imageURL = URL(string: appleTrack.artworkURL(with: "\(size)"))
@@ -893,10 +896,13 @@ public final class SonosService {
             guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
             return playlist.images.biggestImageURL
         case (.track, .apple):
-//            guard let song: Song = try? await musicSearch.lookup(id: content.id) else { return nil }
-//            return song.artwork?.url(width: size, height: size)
             guard let track = await musicSearch.appleLookup(id: content.id) else { return nil }
             return URL(string: track.artworkURL)
+        case (.libraryTrack, .apple):
+            guard let track = await musicSearch.appleLibraryLookup(id: content.id) else {
+                return nil
+            }
+            return track.data.first?.attributes.artwork?.urlWithSize(width: size, height: size)
         case (.album, .apple):
             guard let album: Album = try? await musicSearch.lookup(id: content.id) else { return nil }
             return album.artwork?.url(width: size, height: size)
@@ -906,6 +912,7 @@ public final class SonosService {
         case (.track, .plex):
             return await musicSearch.lookupPlexSong(with: content.id)?.artwork
         default:
+            print(content)
             return nil
         }
     }
@@ -1442,17 +1449,8 @@ public final class SonosService {
         async let musicSurroundLevel = api.getEQValue(IP: room.ip, eq: .musicSurroundLevel)
         async let surroundLevel = api.getEQValue(IP: room.ip, eq: .surroundLevel)
         async let surroundEnabled = api.getEQValue(IP: room.ip, eq: .surroundEnable)
+        async let heightLevel = api.getEQValue(IP: room.ip, eq: .heightChannelLevel)
 
-
-//        public var surroundLevel: Double = .zero
-//        public var musicSurroundLevel: Double = .zero
-//        public var isSurroundEnable: Bool = false
-//        public var surroundMode: Bool = false
-//        public var heightChannel: Double = .zero
-//
-//        public var subGain: Double = .zero
-//        public var isSubEnabled: Bool = false
-        
         return TheaterSettings(
             isSet: true,
             nightMode: (try? await nightMode) ?? false,
@@ -1462,6 +1460,7 @@ public final class SonosService {
             musicSurroundLevel: await musicSurroundLevel ?? 0.0,
             isSurroundEnable: await (surroundEnabled ?? 0) == 1 ? true : false,
             surroundMode:  await surroundMode ?? 0.0,
+            heightChannel: await heightLevel ?? 0.0,
             subGain: await subGain ?? 0.0,
             isSubEnabled: await (isSubEnabled ?? 0) == 1 ? true : false
         )

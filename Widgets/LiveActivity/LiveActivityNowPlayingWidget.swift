@@ -25,6 +25,8 @@ struct LiveActivityNowPlayingWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
+                    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) var isCompact: Bool = false
+
                     VStack {
                         Link(destination: URL(string: "clic://device?id=\(context.attributes.room.id)")!) {
                             HStack {
@@ -61,25 +63,27 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 }
                             }
                         }
-                        HStack {
-                            Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-                                Image(systemName: "minus")
-                                    .bold()
+                        if !isCompact {
+                            HStack {
+                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
+                                    Image(systemName: "minus")
+                                        .bold()
+                                }
+                                .tint(.primary)
+                                .buttonStyle(.liveActivity)
+                                VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
+                                    .foregroundStyle(.teal)
+                                    .invalidatableContent()
+                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
+                                    Image(systemName: "plus")
+                                        .bold()
+                                }
+                                .tint(.primary)
+                                .buttonStyle(.liveActivity)
                             }
-                            .tint(.primary)
-                            .buttonStyle(.liveActivity)
-                            VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
-                                .foregroundStyle(.teal)
-                                .invalidatableContent()
-                            Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-                                Image(systemName: "plus")
-                                    .bold()
-                            }
-                            .tint(.primary)
-                            .buttonStyle(.liveActivity)
+                            .frame(maxWidth: 240)
+                            .frame(height: 12)
                         }
-                        .frame(maxWidth: 240)
-                        .frame(height: 12)
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
@@ -103,14 +107,15 @@ struct LiveActivityNowPlayingWidget: Widget {
                             .frame(width: 32, height: 32)
                         } else {
                             Button(intent: PreviousIntent(room: context.attributes.room)) {
-                                Image(systemName: "backward.end.fill")
+                                Image(systemName: "backward.fill")
                             }
                             Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
                                 Image(systemName: "playpause.fill")
                                     .imageScale(.large)
                             }
                             Button(intent: NextIntent(room: context.attributes.room)) {
-                                Image(systemName: "forward.end.fill")
+                                Image(systemName: "forward.fill")
+                                    .frame(width: 24, height: 24)
                             }
                         }
                     }
@@ -131,6 +136,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 .bold()
                         }
                     }
+                    .padding(.top, 4)
                 }
             } compactLeading: {
                 if context.state.TVSettings != nil {

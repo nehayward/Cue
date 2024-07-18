@@ -50,6 +50,11 @@ struct LibraryBrowseScreen: View {
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .playlist)) {
                     Label("Saved Playlists", systemImage: "rectangle.stack.badge.play")
                 }
+                if !browseService.playlists.isEmpty {
+                    ForEach(browseService.playlists.prefix(5)) { item in
+                        PlayableContentView(item: item)
+                    }
+                }
             }
             .withAppRouter(router: router)
             .listStyle(.inset)

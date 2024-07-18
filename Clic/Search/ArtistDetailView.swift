@@ -162,6 +162,15 @@ struct ArtistDetailView: View {
                 self.albums = albums.map(\.toPlayable)
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
+            case (.libraryTrack, .apple):
+                guard let catalogSong = await MusicSearchService().appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
+                guard let song: Song = try? await MusicSearchService().lookup(id: id), let artistID = song.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
+                self.tracks = topTracks.map(\.toPlayable)
+                self.albums = albums.map(\.toPlayable)
+                artworkURL = artist.artwork?.url(width: 500, height: 500)
+                playableContent = artist.toPlayable
             case (.track, .spotify):
                 guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
                 async let artist = MusicSearchService().spotifyArtist(id: artistID)

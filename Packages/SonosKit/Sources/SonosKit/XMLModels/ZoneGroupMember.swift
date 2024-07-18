@@ -17,8 +17,15 @@ public struct ZoneGroupMember: XMLObjectDeserialization {
     public var voiceConfigState: Int
     public var micEnabled: Bool
     public var airPlayEnabled: Bool
+    public var satellites: [ZoneGroupMember]
 
     public static func deserialize(_ node: XMLIndexer) throws -> ZoneGroupMember {
+        let satellites: [ZoneGroupMember] = try node.filterChildren { elem, index in
+            elem.name == "Satellite"
+        }.children.map {
+            try $0.value()
+        }
+
         return try ZoneGroupMember(
             UUID: node.value(ofAttribute: "UUID"),
             location: node.value(ofAttribute: "Location"),
@@ -34,7 +41,8 @@ public struct ZoneGroupMember: XMLObjectDeserialization {
             ethernetEnabled: node.value(ofAttribute: "EthLink"),
             voiceConfigState: node.value(ofAttribute: "VoiceConfigState"),
             micEnabled: node.value(ofAttribute: "MicEnabled"),
-            airPlayEnabled: node.value(ofAttribute: "AirPlayEnabled")
+            airPlayEnabled: node.value(ofAttribute: "AirPlayEnabled"),
+            satellites: satellites
         )
     }
 }

@@ -16,7 +16,7 @@ public final class AppleMusicBrowseService {
     public var userAlbums: OrderedSet<PlayableContent> = []
     public var userPlaylists: OrderedSet<PlayableContent> = []
     public var usersRecents: OrderedSet<PlayableContent> = []
-    public var usersRecentsTracks: OrderedSet<PlayableContent> = []
+    public var usersRecentsAdded: OrderedSet<PlayableContent> = []
 
     var offsets: [String: Int] = [:]
 
@@ -58,11 +58,11 @@ public final class AppleMusicBrowseService {
         }
     }
 
-    public func updateUsersRecentPlayedTracks(offset: Int = 0) async {
-        guard let container = try? await apple.lookupUsersRecentPlayedTracks() else { return }
+    public func updateUsersRecentAddedTracks(offset: Int = 0) async {
+        guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
         for newUsersRecentsTrack in newUsersRecentsTracks {
-            usersRecentsTracks.updateOrAppend(newUsersRecentsTrack)
+            usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
         }
     }
 
