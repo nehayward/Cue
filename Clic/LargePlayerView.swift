@@ -202,6 +202,9 @@ struct LargePlayerView: View {
         .padding()
         .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
+            if group.rooms.count < 2 {
+                isExpanded = false
+            }
         }
         .onDisappear {
             sonosService.selectedGroup = nil
@@ -215,6 +218,8 @@ struct LargePlayerView: View {
                 .overlay {
                     Rectangle()
                         .foregroundStyle(.thinMaterial)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
                 }
                 .ignoresSafeArea()
         }

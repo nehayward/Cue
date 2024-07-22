@@ -15,11 +15,14 @@ struct PlayHistoryView: View {
     @State private var clearHistoryConfirmation: Bool = false
 
     var body: some View {
-        Text("Play History")
-            .foregroundStyle(.secondary)
-            .listRowSeparator(.hidden)
-            .fontDesign(.rounded)
-            .bold()
+        NavigationLink(value: RouterDestination.fullPlayHistoryList) {
+            Text("Play History")
+        }
+        .listRowSeparator(.hidden)
+        .foregroundStyle(.secondary)
+        .fontDesign(.rounded)
+        .bold()
+        
         ForEach(playHistoryService.history.prefix(5)) { item in
             if filters.filter(\.isFiltered).isEmpty {
                 PlayableContentView(item: item)
@@ -30,11 +33,5 @@ struct PlayHistoryView: View {
             }
         }
         .fontDesign(.rounded)
-
-        if !playHistoryService.history.isEmpty {
-            NavigationLink(value: RouterDestination.fullPlayHistoryList) {
-                Text("Show all")
-            }
-        }
     }
 }

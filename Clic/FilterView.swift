@@ -75,7 +75,9 @@ struct FilterView: View {
                     Toggle(isOn: $filter.isFiltered) {
                         HStack {
                             Image(systemName: filter.filter.symbol)
-                            Text(filter.filter.title)
+                            if filter.isFiltered {
+                                Text(filter.filter.title)
+                            }
                         }
                     }
                     .toggleStyle(.button)

@@ -55,6 +55,7 @@ struct VolumeControlView: View {
                 .animation(.spring.speed(2), value: group.groupVolume)
                 .frame(width: 38, alignment: .trailing)
                 .fontDesign(.rounded)
+                .bold()
         }
         .font(.caption)
         .fontDesign(.rounded)
@@ -65,7 +66,6 @@ struct VolumeControlView: View {
     private func updateVolume(volume: Double) {
         volumeTask?.cancel()
         volumeTask = Task {
-            try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             if volume.isZero {

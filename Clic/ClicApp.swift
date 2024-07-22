@@ -34,6 +34,7 @@ struct ClicApp: App {
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @State var selectedID: String?
+    @State private var previousCount: Int = 0
 
     var body: some Scene {
         WindowGroup {
@@ -141,6 +142,15 @@ struct ClicApp: App {
                     router.inspectorSheet = .queue(group: $sonosService.sorted[group])
                 }
             }
+        }
+        .onChange(of: sonosService.groups) { old, new in
+            if sonosService.rooms.count == previousCount {
+                return
+            }
+
+            Analytics.shared.track(.numberOfDevices, with: ["Device Count" : sonosService.rooms.count,
+                                                            "Subscriber": subscriptionService.subscription.isActive])
+            previousCount = sonosService.rooms.count
         }
         .commands {
             SidebarCommands()

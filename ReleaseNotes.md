@@ -1,3 +1,16 @@
+# 2024.34
+
+## External
+
++ Improved Volume Control, even more responsive.
++ Remove duration from queue screen
++ Improve MiniPlayer
++ Adjust Music Filtering
+
+## Internal
+
++ Add analytics for number of devices
+
 # 2024.33
 
 ## External

@@ -7,6 +7,7 @@ public enum AnalyticEvents: String {
     case subscribed
     case createdScene
     case selectedMusicService
+    case numberOfDevices
 
     var name: String { self.rawValue }
 }

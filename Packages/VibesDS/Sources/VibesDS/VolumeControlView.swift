@@ -45,7 +45,6 @@ public struct VolumeControlView: View {
     private func updateVolume(volume: Double) {
         volumeTask?.cancel()
         volumeTask = Task {
-            try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
             updatedVolume?(volume)
         }

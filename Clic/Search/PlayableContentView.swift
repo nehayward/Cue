@@ -43,6 +43,7 @@ struct PlayableContentView: View {
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
+        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: trailingInset))
     }
 
     private var content: some View {
@@ -72,13 +73,13 @@ struct PlayableContentView: View {
                 }
                 Spacer()
                 switch item.content.type {
-                case .track, .favorite:
+                case .track, .favorite, .libraryTrack:
                     if adding == nil {
                         Menu {
                             PlayableMenuView(item: item)
                         } label: {
                             Image(systemName: "ellipsis")
-                                .frame(maxWidth: 40, maxHeight: .infinity, alignment: .trailing)
+                                .frame(maxWidth: 50, maxHeight: .infinity)
                                 .background(.clear)
                         }
                     }
@@ -126,6 +127,15 @@ struct PlayableContentView: View {
                 return
             }
             await queueSong(group)
+        }
+    }
+
+    private var trailingInset: Double {
+        switch item.content.type {
+        case .track, .favorite, .libraryTrack:
+            return 0
+        default:
+            return 20
         }
     }
 }

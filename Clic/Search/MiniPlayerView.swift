@@ -37,18 +37,6 @@ struct MiniPlayerView: View {
                             Button {
                                 Task {
                                     HapticManager.shared.fireHaptic(.buttonPress)
-                                    await sonosService.next(ip: group.ip)
-                                }
-                            } label: {
-                                Image(systemName: "forward.fill")
-                                    .padding(4)
-                            }
-                            .buttonBorderShape(.circle)
-                            .disabled(!group.availableActions.contains(.next))
-
-                            Button {
-                                Task {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
                                     if group.coordinatorRoom.isPlaying {
                                         group.coordinatorRoom.isPlaying = false
                                         await sonosService.pause(ip: group.coordinatorRoom.ip)
@@ -88,6 +76,18 @@ struct MiniPlayerView: View {
                             }
                             .buttonStyle(.plain)
                             .buttonBorderShape(.circle)
+                            Button {
+                                Task {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    await sonosService.next(ip: group.ip)
+                                }
+                            } label: {
+                                Image(systemName: "forward.fill")
+                                    .padding(4)
+                            }
+                            .buttonBorderShape(.circle)
+                            .disabled(!group.availableActions.contains(.next))
+
                         }
                     }
                 }

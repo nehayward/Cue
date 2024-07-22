@@ -53,6 +53,7 @@ struct RoomVolumeView: View {
                 .animation(.spring.speed(2), value: room.volume)
                 .frame(width: 38, alignment: .trailing)
                 .fontDesign(.rounded)
+                .bold()
         }
         .font(.caption)
         .fontDesign(.rounded)
@@ -63,7 +64,6 @@ struct RoomVolumeView: View {
     private func updateVolume(volume: Double) {
         volumeTask?.cancel()
         volumeTask = Task {
-            try? await Task.sleep(for: .milliseconds(100))
             try Task.checkCancellation()
             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(volume))
             updatedVolume?()

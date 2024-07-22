@@ -13,15 +13,6 @@ struct FavoritesView: View {
     var body: some View {
         Group {
             if !sonosService.favorites.isEmpty {
-                Text("Favorites")
-                    .foregroundStyle(.secondary)
-                    .listRowSeparator(.hidden)
-                    .fontDesign(.rounded)
-                    .bold()
-                ForEach(sonosService.favorites.prefix(5)) { item in
-                    PlayableContentView(item: item)
-                }
-
                 NavigationLink {
                     List {
                         ForEach(sonosService.favorites) { item in
@@ -31,9 +22,17 @@ struct FavoritesView: View {
                     .contentMargins(.bottom, 80, for: .scrollContent)
                     .navigationTitle("Favorites")
                 } label: {
-                    Text("Show All")
+                    Text("Favorites")
+                        .foregroundStyle(.secondary)
+                        .listRowSeparator(.hidden)
+                        .fontDesign(.rounded)
+                        .bold()
                 }
                 .listRowSeparator(.hidden)
+
+                ForEach(sonosService.favorites.prefix(5)) { item in
+                    PlayableContentView(item: item)
+                }
             }
         }
         .task {

@@ -16,7 +16,7 @@ struct BrowseScreen: View {
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
-    @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
+    @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
     @State private var router = Router()
@@ -26,7 +26,7 @@ struct BrowseScreen: View {
 
     var body: some View {
         Group {
-            switch musicSearchSelection {
+            switch browseMediaService {
             case .apple:
                 AppleLibraryBrowseScreen()
                 // TODO: Next release
@@ -42,15 +42,6 @@ struct BrowseScreen: View {
             }
         }
         .contentMargins(.bottom, 80, for: .scrollContent)
-        .onAppear {
-//            if ![MediaSearchService.library, MediaSearchService.apple, .spotify].contains(musicSearchSelection) {
-//                musicSearchSelection = .library
-//            }
-
-            if ![MediaSearchService.library, MediaSearchService.apple].contains(musicSearchSelection) {
-                musicSearchSelection = .library
-            }
-        }
         .safeAreaInset(edge: .bottom) {
             VStack {
                 Menu {
@@ -59,7 +50,7 @@ struct BrowseScreen: View {
                         if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library].contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
-                                musicSearchSelection = service
+                                browseMediaService = service
                             } label: {
                                 HStack {
                                     Text(service.title)
@@ -76,7 +67,7 @@ struct BrowseScreen: View {
                         Text("Customize in Settings…")
                     }
                 } label: {
-                    musicSearchSelection.image
+                    browseMediaService.image
                         .frame(width: 24, height: 24)
                 }
                 .popoverTip(AppTip.mediaService)

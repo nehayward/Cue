@@ -39,18 +39,13 @@ struct QueueScreen: View {
                                     Text(track.subtitle)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
-                                    if let duration = track.metadata?.duration, duration.components.seconds != 0 {
-                                        Text(duration, format: .time(pattern: .minuteSecond))
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
-                                    }
                                 }
                                 Spacer()
                                 Menu {
                                     menu(content: track)
                                 } label: {
                                     Image(systemName: "ellipsis")
-                                        .frame(maxWidth: 40, maxHeight: .infinity, alignment: .trailing)
+                                        .frame(maxWidth: 50, maxHeight: .infinity)
                                         .background(.clear)
                                         .tint(.primary)
                                         .bold()
@@ -73,6 +68,7 @@ struct QueueScreen: View {
                             }
                         }
                         .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
                         .bold(isTrackPlaying(for: track))
                         .draggable(track)
                     }

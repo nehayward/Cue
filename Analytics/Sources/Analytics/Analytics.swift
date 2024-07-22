@@ -12,7 +12,7 @@ final public class Analytics {
         self.mixpanel = mixpanel
     }
 
-    public func track(_ event: AnalyticEvents, with metadata: [String: String] = [:]) {
+    public func track(_ event: AnalyticEvents, with metadata: [String: MixpanelType] = [:]) {
         mixpanel?.track(event: event.name, properties: metadata)
         #if DEBUG
         mixpanel?.flush()
