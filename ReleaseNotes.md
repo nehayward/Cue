@@ -6,6 +6,7 @@
 + Remove duration from queue screen
 + Improve MiniPlayer
 + Adjust Music Filtering
++ Improve Queue
 
 ## Internal
 

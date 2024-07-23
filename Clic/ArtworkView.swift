@@ -19,12 +19,16 @@ struct ArtworkView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .transition(.opacity)
-                } else {
+                } else if state.isLoading {
                     Rectangle()
-                        .foregroundStyle(group.coordinatorRoom.track.artworkURL == nil ? AnyShapeStyle(.accent.gradient.secondary) : AnyShapeStyle(.primary))
                         .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.ultraThinMaterial)
                         .shadow(radius: 2)
                         .transition(.opacity)
+                } else {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient.secondary)
+                        .aspectRatio(contentMode: .fit)
                         .overlay {
                             if group.coordinatorRoom.track.artworkURL == nil {
                                 Image(systemName: "music.note")

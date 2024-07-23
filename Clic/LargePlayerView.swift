@@ -246,6 +246,7 @@ struct LargePlayerView: View {
         .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
+            group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
         }
         .onChange(of: scenePhase) {
             if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {

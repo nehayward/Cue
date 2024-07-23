@@ -33,6 +33,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
     public var subs: [Sub] = []
+    public var queue: [PlayableContent] = []
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)
