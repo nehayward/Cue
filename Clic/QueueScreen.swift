@@ -12,9 +12,10 @@ struct QueueScreen: View {
     @State private var router = Router()
     @State private var isLoading: Bool = true
     @State private var clearQueueConfirmation: Bool = false
+    @State private var selectedGroupService = SelectedGroupService()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List {
                     ForEach(group.coordinatorRoom.queue, id: \.trackID) { track in
@@ -77,6 +78,7 @@ struct QueueScreen: View {
                         group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
                     }
                 })
+                .withAppRouter(router: router)
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
@@ -219,6 +221,10 @@ struct QueueScreen: View {
             }
         }
         .environment(router)
+        .environment(selectedGroupService)
+        .onAppear {
+            selectedGroupService.group = group
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {
@@ -248,19 +254,17 @@ struct QueueScreen: View {
                 AddToPlaylistMenu(itemToAdd: content)
 
                 Button {
-                    router.sheet(to: .mediaDetail(content: content, group: group))
+                    router.navigate(to: .mediaDetail(content: content, group: group))
                 } label: {
                     Label("View Album", systemImage: "smallcircle.circle.fill")
                 }
 
                 Button {
-                    router.sheet(to: .artistDetail(content: content, group: group))
+                    router.navigate(to: .artistDetail(content: content, group: group))
                 } label: {
                     Label("View Artist", systemImage: "music.mic")
                 }
             }
-            //                let playable = group.coordinatorRoom.track.toPlayable
-            //                ShareLink(item: playable)
 
             Button(role: .destructive) {
                 guard let position = content.metadata?.position else { return }

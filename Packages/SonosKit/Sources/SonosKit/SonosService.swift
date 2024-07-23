@@ -1129,7 +1129,7 @@ public final class SonosService {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
         }
         await api.seek(trackNumber: trackNumber, IP: group.coordinatorRoom.ip)
-        try? await Task.sleep(for: .milliseconds(200))
+        try? await Task.sleep(for: .milliseconds(80))
         try? await updateGroups(from: [group])
     }
 

@@ -46,7 +46,7 @@ public final class AppleMusicAPI {
     public func getUserAlbums(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums?offset=\(offset)")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums?offset=\(offset)&limit=25")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -99,7 +99,7 @@ public final class AppleMusicAPI {
     public func lookupUsersRecentPlayed(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/recent/played?offset=\(offset)")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/recent/played?offset=\(offset)&limit=10")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -115,14 +115,14 @@ public final class AppleMusicAPI {
     public func lookupUsersRecentAddedTracks(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/recently-added?offset=\(offset)")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/recently-added?offset=\(offset)&limit=25")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
 
         do {
-            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
-            return appleUserPlaylistContainer
+            let recentlyAddedTracks = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return recentlyAddedTracks
         } catch {
             return nil
         }
