@@ -146,6 +146,7 @@ extension View {
                 }
             }
             .withEnvironments()
+            .frame(minWidth: 800, minHeight: 800)
         }
     }
 

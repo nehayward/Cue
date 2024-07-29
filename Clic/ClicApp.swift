@@ -55,8 +55,12 @@ struct ClicApp: App {
                             Group {
                                 switch router.inspectorSheet {
                                 case let .search(group):
-                                    SearchScreen(group: group)
-                                        .environment(Router())
+                                    @State var router = Router()
+                                    @State var selectedGroupService = SelectedGroupService(group: group)
+
+                                    SearchScreen()
+                                        .environment(router)
+                                        .environment(selectedGroupService)
                                 case let .queue(group):
                                     QueueScreen(group: group)
                                 default:

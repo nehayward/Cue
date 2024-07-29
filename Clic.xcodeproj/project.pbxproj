@@ -410,6 +410,7 @@
 		E9C119F22C39E56E00EE5EBF /* SpotifyBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */; };
 		E9C119F32C39E56F00EE5EBF /* SpotifyBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */; };
 		E9C14BD52C20BCC2002AE74E /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
+		E9C2C4382C580FE000ABC177 /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E9C2C4372C580FE000ABC177 /* Glur */; };
 		E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */; };
 		E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
 		E9C6883D2C519FE000A81A8E /* PlexBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */; };
@@ -790,6 +791,7 @@
 			files = (
 				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
 				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
+				E9C2C4382C580FE000ABC177 /* Glur in Frameworks */,
 				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
 				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
 				E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */,
@@ -1373,6 +1375,7 @@
 				E92B3E9A2B60249B00724FA1 /* NukeUI */,
 				E92B3E9B2B60249B00724FA1 /* Defaults */,
 				E9D49E4D2BC9D21B0084185E /* Analytics */,
+				E9C2C4372C580FE000ABC177 /* Glur */,
 			);
 			productName = Sonos;
 			productReference = E92B3EFB2B60249B00724FA1 /* Clic.app */;
@@ -3682,6 +3685,11 @@
 		E9C03B0E2A586F7E00FB9118 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		E9C2C4372C580FE000ABC177 /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
 		};
 		E9D49E4D2BC9D21B0084185E /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;
