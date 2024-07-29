@@ -18,6 +18,7 @@
 		E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E9146E8F2BE5593400056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
 		E9146E902BE5593500056149 /* LibrarySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */; };
+		E9166D6C2C503E8200E2BED7 /* PlexBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */; };
 		E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E918F9722B619ACE00FC2A09 /* SpeechModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
@@ -411,6 +412,11 @@
 		E9C14BD52C20BCC2002AE74E /* PlayHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97416A92C14F18800700859 /* PlayHistoryService.swift */; };
 		E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */; };
 		E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C327412BFD0A7400075606 /* BetaFeatures.swift */; };
+		E9C6883D2C519FE000A81A8E /* PlexBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */; };
+		E9C6883E2C519FE200A81A8E /* PlexBrowseScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */; };
+		E9C688412C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */; };
+		E9C688422C52AB2000A81A8E /* PlexAuthorizationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */; };
+		E9C688432C52AB2100A81A8E /* PlexAuthorizationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */; };
 		E9C7CAF82BE2FC1000C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
 		E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
 		E9C7CAFB2BE2FC5200C59311 /* NewReleasesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */; };
@@ -588,6 +594,7 @@
 		E90F31642BC5999900884EA5 /* ClicPaywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicPaywall.swift; sourceTree = "<group>"; };
 		E91272B72C120E7E0060A4B3 /* SpeakerSettingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSettingsListView.swift; sourceTree = "<group>"; };
 		E9146E8D2BE5568E00056149 /* LibrarySearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySearchView.swift; sourceTree = "<group>"; };
+		E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexBrowseScreen.swift; sourceTree = "<group>"; };
 		E918F9702B61970800FC2A09 /* SpeechModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechModeIntent.swift; sourceTree = "<group>"; };
 		E919EC0C2A608FB300B6022C /* GroupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupScreen.swift; sourceTree = "<group>"; };
 		E9249A692C0CF91A00D8B920 /* SpeakerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerSettingsView.swift; sourceTree = "<group>"; };
@@ -731,6 +738,7 @@
 		E9C14BD42C20B64D002AE74E /* PlayAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlayAction.entitlements; sourceTree = "<group>"; };
 		E9C3273F2BFBBA8500075606 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		E9C327412BFD0A7400075606 /* BetaFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeatures.swift; sourceTree = "<group>"; };
+		E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexAuthorizationFlowView.swift; sourceTree = "<group>"; };
 		E9C7CAF72BE2FC1000C59311 /* NewReleasesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewReleasesView.swift; sourceTree = "<group>"; };
 		E9C889652BBFA6E8004C31DE /* Super.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Super.storekit; sourceTree = "<group>"; };
 		E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionDetailScreen.swift; sourceTree = "<group>"; };
@@ -1043,6 +1051,7 @@
 			children = (
 				E9A3806C2C01005400D5349E /* BrowseScreen.swift */,
 				E9705DDB2C0A5C27005CE79A /* AppleLibraryBrowseScreen.swift */,
+				E9166D6B2C503E8200E2BED7 /* PlexBrowseScreen.swift */,
 				E9C119EF2C39E16D00EE5EBF /* SpotifyBrowseScreen.swift */,
 				E995363C2C13A23300F5E244 /* LibraryBrowseScreen.swift */,
 				E9CCD08E2C31E84F00C58BD3 /* PlayableGridScreen.swift */,
@@ -1192,6 +1201,7 @@
 				E9F600B82B4DC3230039AAA6 /* LiveActivity+Environment.swift */,
 				E93FE3F62AC1F8640061EADD /* UIApplication+Environment.swift */,
 				E99A0ECF2B4BBB16001CA27E /* PlayGroupScreen.swift */,
+				E9C6883F2C52AB0100A81A8E /* Authorization */,
 				E9F7BF442AE2257E00EFE380 /* Keyboard.swift */,
 				E9A3807F2C03EFC800D5349E /* ConditionalViewModifier.swift */,
 				E9331B512AAE2013002D3CFD /* Debug */,
@@ -1262,6 +1272,14 @@
 				E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */,
 			);
 			path = Queries;
+			sourceTree = "<group>";
+		};
+		E9C6883F2C52AB0100A81A8E /* Authorization */ = {
+			isa = PBXGroup;
+			children = (
+				E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */,
+			);
+			path = Authorization;
 			sourceTree = "<group>";
 		};
 		E9D38C432B5D9E750025CC31 /* Navigation */ = {
@@ -1716,6 +1734,7 @@
 				E92B3EC02B60249B00724FA1 /* ReviewService.swift in Sources */,
 				E92B3EC22B60249B00724FA1 /* IntentError.swift in Sources */,
 				E92B3EC32B60249B00724FA1 /* LogView.swift in Sources */,
+				E9C6883E2C519FE200A81A8E /* PlexBrowseScreen.swift in Sources */,
 				E92B3EC42B60249B00724FA1 /* AlertService.swift in Sources */,
 				E9249A702C0CFCDF00D8B920 /* SpeakerSettingsMenuView.swift in Sources */,
 				E92B3EC52B60249B00724FA1 /* SheetDestination.swift in Sources */,
@@ -1741,6 +1760,7 @@
 				E92B3ED32B60249B00724FA1 /* OSEnvironment.swift in Sources */,
 				E92B3ED42B60249B00724FA1 /* TogglePlaybackIntent.swift in Sources */,
 				E93E493E2BFB10DF0064A979 /* PlexSearchView.swift in Sources */,
+				E9C688422C52AB2000A81A8E /* PlexAuthorizationFlowView.swift in Sources */,
 				E9705DDD2C0A5CCA005CE79A /* AppleLibraryBrowseScreen.swift in Sources */,
 				E92B3ED52B60249B00724FA1 /* DebugView.swift in Sources */,
 				E92B3ED62B60249B00724FA1 /* DeviceNameView.swift in Sources */,
@@ -1793,6 +1813,7 @@
 				E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */,
 				E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */,
 				E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */,
+				E9C688432C52AB2100A81A8E /* PlexAuthorizationFlowView.swift in Sources */,
 				E97562E92B699B2400787E14 /* TVModeViewCell.swift in Sources */,
 				E9CCD0862C2F506200C58BD3 /* PlayableLibraryList.swift in Sources */,
 				E9CCD0952C31ECEC00C58BD3 /* PlayableGridScreen.swift in Sources */,
@@ -1802,6 +1823,7 @@
 				E97562EC2B699B2400787E14 /* WidgetManager.swift in Sources */,
 				E97562ED2B699B2400787E14 /* SearchSelection.swift in Sources */,
 				E97562EE2B699B2400787E14 /* SonosDeviceEntity.swift in Sources */,
+				E9C6883D2C519FE000A81A8E /* PlexBrowseScreen.swift in Sources */,
 				E9411D432C07A90D00C527EE /* AddToPlaylistMenu.swift in Sources */,
 				E97562EF2B699B2400787E14 /* SpeechModeIntent.swift in Sources */,
 				E97562F02B699B2400787E14 /* ZoneView.swift in Sources */,
@@ -2015,6 +2037,7 @@
 				E9D856292A9FBB020024B192 /* AlertService.swift in Sources */,
 				E9705DDC2C0A5C27005CE79A /* AppleLibraryBrowseScreen.swift in Sources */,
 				E9FDDC322B27BD20005D281E /* SheetDestination.swift in Sources */,
+				E9C688412C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift in Sources */,
 				E9294B5B2B33A531009E1F45 /* Environments.swift in Sources */,
 				E94F436E2A69DE7B00341D9E /* GroupVolumeControlView.swift in Sources */,
 				E9CCD0892C3105BB00C58BD3 /* PlayableCardView.swift in Sources */,
@@ -2064,6 +2087,7 @@
 				E98ED5ED2C2608F4000F42F0 /* PlayHistoryFullView.swift in Sources */,
 				E99403D22C05817700D20067 /* NewPlaylistView.swift in Sources */,
 				E94A6A252AAACB49002E432C /* ArtworkView.swift in Sources */,
+				E9166D6C2C503E8200E2BED7 /* PlexBrowseScreen.swift in Sources */,
 				E9F600CD2B53A2B80039AAA6 /* OnboardView.swift in Sources */,
 				E97416AA2C14F18800700859 /* PlayHistoryService.swift in Sources */,
 				E9331B502AAE2010002D3CFD /* DebugScreen.swift in Sources */,

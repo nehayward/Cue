@@ -15,7 +15,20 @@ public final class MusicSearchService {
     }
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
-    public var plexAuthorization: AppleMusicAuthorization = .denied
+    
+    @MainActor
+    public var isPlexAuthorized: Bool {
+        plex.isAuthorized
+    }
+
+    @MainActor
+    public var plexServerID: String? {
+        get {
+            plex.serverID
+        } set {
+            plex.serverID = newValue
+        }
+    }
 
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let apple = AppleMusicAPI()
@@ -33,7 +46,7 @@ public final class MusicSearchService {
     private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
     private var tuneInSearchTask = Task<([PlayableContent])?, Never> { nil }
 
-    private let debounceDuration: Duration = .milliseconds(200)
+    private let debounceDuration: Duration = .milliseconds(150)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
 
@@ -294,8 +307,8 @@ public final class MusicSearchService {
         let albumID = MusicItemID(id)
         var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
         catalogResource.properties = [.tracks, .artists]
-        let response2 = try await catalogResource.response()
-        return response2.items.first
+        let response = try await catalogResource.response()
+        return response.items.first
     }
 
     public func lookup(id: String) async throws -> Playlist? {
@@ -315,12 +328,6 @@ public final class MusicSearchService {
         catalogResource.properties = [.albums, .topSongs]
         let response = try await catalogResource.response()
         print(response)
-//        let request =  MusicCatalogSearchRequest(term: "wekend", types: [Album.self])
-//
-//        print(searchResponse)
-//
-//        print(searchResponse.songs)
-//        print(searchResponse.artists)
         return response.items.first
     }
 
@@ -395,16 +402,50 @@ public final class MusicSearchService {
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
-        guard let result = await plex.lookupPlexSong(key: id) else { return nil }
+        guard let result = await plex.lookupPlexSong(key: id) else {
+            return nil
+        }
         let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
         return playableContent.first
     }
 
+    public func lookupPlexAlbum(id: String) async -> PlayableContent? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        guard let result = await plex.lookupAlbum(key: key) else {
+            return nil
+        }
+        return result.toPlayable
+    }
+
     public func lookupPlexAlbumSongs(id: String) async -> [PlayableContent] {
         guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
-        guard let result = await plex.lookupAlbum(key: key) else { return [] }
-        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        guard let result = await plex.lookupAlbumTracks(key: key), let metadata = result.metadata else {
+            return []
+        }
+        let playableContent: [PlayableContent] = metadata.map(\.toPlayable)
         return playableContent
+    }
+
+    public func lookupPlexArtistAlbums(id: String) async -> [PlayableContent] {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
+        guard let result = await plex.lookupArtistAlbums(key: key), let metadata = result.metadata else {
+            return []
+        }
+        let playableContent: [PlayableContent] = metadata.map(\.toPlayable)
+        return playableContent
+    }
+
+    public func lookupPlexArtist(id: String) async -> PlayableContent? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+        guard let result = await plex.lookupArtist(key: key) else {
+            return nil
+        }
+        return result.toPlayable
+    }
+
+    public func getPlexServers() async -> [PlexServer] {
+        let plexServers = await plex.getPlexServers()
+        return plexServers
     }
 
     public func lookupPlexPlaylists(id: String) async -> [PlayableContent] {

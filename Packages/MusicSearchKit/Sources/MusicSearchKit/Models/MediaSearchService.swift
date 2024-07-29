@@ -64,4 +64,37 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .foregroundStyle(.foreground)
         }
     }
+
+    @ViewBuilder
+    public var iconForMusicService: some View {
+        switch self {
+        case .apple:
+            Image(systemName: "apple.logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
+        case .spotify:
+            SwiftUI.Image(.spotify)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .library:
+            Image(systemName: "books.vertical.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
+        case .plex:
+            SwiftUI.Image(.plex)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.orange.gradient)
+        case .tidal:
+            SwiftUI.Image(.tidal)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.foreground)
+        case .tuneIn:
+            MediaSearchService.tuneIn.image
+        }
+    }
 }

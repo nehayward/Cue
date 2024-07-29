@@ -24,6 +24,8 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
+    var closeInspector: (() -> Void)? = nil
+
     @State private var coreFeatures = CoreFeatures()
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
@@ -34,119 +36,114 @@ struct SearchScreen: View {
     var body: some View {
         @Bindable var router = router
 
-        Group {
-            switch appleMusicAuthorized {
-            case .authorized:
-                @Bindable var musicSearchService = musicSearchService
-                NavigationStack(path: $router.path) {
-                    List {
-                        filterView
-                        if !searchCompletionTapped {
-                            ForEach(musicSearchService.suggestions) { suggestion in
-                                Button {
-                                    musicSearchService.query = suggestion.searchTerm
-                                    self.suggestion = suggestion.searchTerm
-                                    searchCompletionTapped = true
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "magnifyingglass")
-                                        Text(suggestion.displayTerm)
-                                        Spacer()
-                                    }
-                                    .foregroundStyle(.accent)
-                                }
+
+        @Bindable var musicSearchService = musicSearchService
+        NavigationStack(path: $router.path) {
+            List {
+                filterView
+                if !searchCompletionTapped {
+                    ForEach(musicSearchService.suggestions) { suggestion in
+                        Button {
+                            musicSearchService.query = suggestion.searchTerm
+                            self.suggestion = suggestion.searchTerm
+                            searchCompletionTapped = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                Text(suggestion.displayTerm)
+                                Spacer()
                             }
-                        }
-
-                        if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
-                            PlayHistoryView(filters: $filters)
-                        }
-
-                        if musicSearchService.query.isEmpty, contentToAdd == nil {
-                            FavoritesView()
-                        }
-
-                        if !musicSearchService.query.isEmpty {
-                            switch musicSearchSelection {
-                            case .spotify:
-                                SpotifySearchView(spotifyResults: $musicSearchService.spotifyResults, filters: $filters)
-                            case .apple:
-                                AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
-                            case .library:
-                                LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
-                            case .plex:
-                                PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters)
-                            case .tidal:
-                                TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
-                            case .tuneIn:
-                                TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
-                            }
+                            .foregroundStyle(.accent)
                         }
                     }
-                    .ignoresSafeArea(.keyboard)
-                    .contentMargins(.bottom, 80, for: .scrollContent)
-                    .searchable(
-                        text: $musicSearchService.query,
-                        isPresented: $searchFieldIsPresented,
-                        placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: "Searching \(musicSearchSelection.title)"
-                    )
-                    .navigationBarTitleDisplayMode(.inline)
-                    .navigationTitle(contentToAdd == nil ? "Search" : "Adding to Alarm")
-                    .withAppRouter(router: router)
-                    .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-                    .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
-                        if suggestion == nil {
-                            searchCompletionTapped = false
-                        }
-                        await musicSearchService.search(for: musicSearchSelection)
-                        suggestion = nil
+                }
 
-                        playlistsContainer.playlists = await sonosService.sonosPlaylists()
-                    }
-                    .animation(.bouncy, value: playHistoryService.history)
-                    .animation(.bouncy, value: musicSearchService.appleResults)
-                    .animation(.bouncy, value: musicSearchService.spotifyResults)
-                    .animation(.bouncy, value: musicSearchService.librarySearchResults)
-                    .animation(.bouncy, value: musicSearchService.tidalResults)
-                    .animation(.bouncy, value: musicSearchService.plexResults)
-                    .animation(.bouncy, value: filters)
-                    .animation(.interactiveSpring, value: searchCompletionTapped)
-                    .addDismiss(override: contentToAdd != nil, action: dismiss.callAsFunction)
+                if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
+                    PlayHistoryView(filters: $filters)
                 }
-                .keyboardType(.asciiCapable)
-                .autocorrectionDisabled()
-#if !os(visionOS)
-                .scrollDismissesKeyboard(.immediately)
-#endif
-                .presentationDragIndicator(.hidden)
-                .scrollContentBackground(.hidden)
-                .listStyle(.plain)
-                .foregroundStyle(.primary)
-                .environment(router)
-                .environment(musicSearchService)
-                .environment(alertService)
-                .onChange(of: router.dismiss) {
-                    dismiss()
+
+                if musicSearchService.query.isEmpty, contentToAdd == nil {
+                    FavoritesView()
                 }
-                .safeAreaInset(edge: .bottom) {
-                    if contentToAdd == nil {
-                        MiniPlayerView()
+
+                if !musicSearchService.query.isEmpty {
+                    switch musicSearchSelection {
+                    case .spotify:
+                        SpotifySearchView(spotifyResults: $musicSearchService.spotifyResults, filters: $filters)
+                    case .apple:
+                        AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
+                    case .library:
+                        LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
+                    case .plex:
+                        PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters)
+                    case .tidal:
+                        TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
+                    case .tuneIn:
+                        TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
                     }
                 }
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-            case .notDetermined, .denied:
-                AppleMusicPermissionsView()
-                    .environment(musicSearchService)
-                    .addDismiss(action: dismiss.callAsFunction)
+            }
+            .ignoresSafeArea(.keyboard)
+            .contentMargins(.bottom, 80, for: .scrollContent)
+            .searchable(
+                text: $musicSearchService.query,
+                isPresented: $searchFieldIsPresented,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Searching \(musicSearchSelection.title)"
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(contentToAdd == nil ? "Search" : "Adding to Alarm")
+            .withAppRouter(router: router)
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+            .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
+                if suggestion == nil {
+                    searchCompletionTapped = false
+                }
+                await musicSearchService.search(for: musicSearchSelection)
+                suggestion = nil
+
+                playlistsContainer.playlists = await sonosService.sonosPlaylists()
+            }
+            // MARK: Bring back
+            .animation(.bouncy, value: playHistoryService.history)
+            .animation(.bouncy, value: musicSearchService.appleResults)
+            .animation(.bouncy, value: musicSearchService.spotifyResults)
+            .animation(.bouncy, value: musicSearchService.librarySearchResults)
+            .animation(.bouncy, value: musicSearchService.tidalResults)
+            .animation(.bouncy, value: musicSearchService.plexResults)
+            .animation(.bouncy, value: filters)
+            .animation(.interactiveSpring, value: searchCompletionTapped)
+            .addDismiss(override: contentToAdd != nil) {
+                dismiss()
+                closeInspector?()
             }
         }
+        .keyboardType(.asciiCapable)
+        .autocorrectionDisabled()
+#if !os(visionOS)
+        .scrollDismissesKeyboard(.immediately)
+#endif
+        .presentationDragIndicator(.hidden)
+        .scrollContentBackground(.hidden)
+        .listStyle(.plain)
+        .foregroundStyle(.primary)
+        .environment(router)
+        .environment(musicSearchService)
+        .environment(alertService)
+        .onChange(of: router.dismiss) {
+            dismiss()
+        }
+        .safeAreaInset(edge: .bottom) {
+            if contentToAdd == nil {
+                MiniPlayerView()
+            }
+        }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             searchFieldIsPresented = true
             musicSearchService.query = ""
 
             if musicSearchService.query.isEmpty {
-                appleMusicAuthorized = musicSearchService.getMusicAuthorization()
                 Task {
                     await sonosService.getFavoriteList()
                 }
@@ -167,39 +164,6 @@ struct SearchScreen: View {
         }
     }
 
-    @ViewBuilder
-    private var iconForMusicService: some View {
-        switch musicSearchSelection {
-        case .spotify:
-            MusicService.spotify.image
-                .foregroundStyle(.thinMaterial)
-                .frame(width: 24, height: 24)
-        case .apple:
-            Image(systemName: "apple.logo")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
-                .frame(width: 24, height: 24)
-        case .library:
-            Image(systemName: "books.vertical.fill")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
-                .frame(width: 24, height: 24)
-        case .plex:
-            MusicService.plex.image
-                .foregroundStyle(.orange.gradient)
-                .frame(width: 24, height: 24)
-        case .tidal:
-            MusicService.tidal.image
-                .frame(width: 24, height: 24)
-        case .tuneIn:
-            MediaSearchService.tuneIn.image
-                .frame(width: 24, height: 24)
-
-        }
-    }
-
     @MainActor
     private var filterView: some View {
         VStack(spacing: 0) {
@@ -208,7 +172,7 @@ struct SearchScreen: View {
                 Spacer()
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
-                        if coreFeatures.enabledServices(service).wrappedValue, ![MediaSearchService.plex].contains(service)  {
+                        if coreFeatures.enabledServices(service).wrappedValue {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 musicSearchSelection = service
@@ -241,9 +205,12 @@ struct SearchScreen: View {
                     Label {
                         Text(musicSearchSelection.title)
                     } icon: {
-                        iconForMusicService
+                        musicSearchSelection
+                            .iconForMusicService
+                            .frame(width: 24, height: 24)
                     }
                     .labelStyle(.iconOnly)
+                    .frame(width: 24, height: 24)
                 }
                 .popoverTip(AppTip.mediaService)
             }

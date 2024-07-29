@@ -83,7 +83,7 @@ struct MediaDetailView: View {
 
             HStack {
                 Button {
-                    play(content: playableContent, replaceQueue: true)
+                    play(replaceQueue: true)
                 } label: {
                     Text("Replace")
                         .padding()
@@ -95,7 +95,7 @@ struct MediaDetailView: View {
                 .tint(.accent)
 
                 Button {
-                    play(content: playableContent, position: .next)
+                    play(position: .next)
                 } label: {
                     Text("Play Next")
                         .padding()
@@ -123,6 +123,7 @@ struct MediaDetailView: View {
                             Label("Remove", systemImage: "trash")
                         }
                     }
+                    .disabled(!(item.metadata?.isPlayable ?? true))
             }
 
             if tracks.isEmpty, !isLoaded {
@@ -230,11 +231,26 @@ struct MediaDetailView: View {
                     guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
                     self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
                     playableContent = album
+                    artworkURL = playableContent.artwork
                 } else {
                     guard let albumID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
                     guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
                     self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
                     playableContent = album
+                    artworkURL = playableContent.artwork
+                }
+                // MARK: Plex
+            case (.track, .plex):
+                if let albumID = playableContent.metadata?.albumID {
+                    guard let album = await MusicSearchService().lookupPlexAlbum(id: albumID) else { return }
+                    playableContent = album
+                    self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: albumID)
+                } else {
+                    guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
+                          let albumID = await MusicSearchService().lookupPlexSong(with: id)?.metadata?.albumID,
+                          let album = await MusicSearchService().lookupPlexAlbum(id: albumID) else { return }
+                    playableContent = album
+                    self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: albumID)
                 }
             case (.album, .plex):
                 self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: playableContent.content.id)
@@ -247,23 +263,22 @@ struct MediaDetailView: View {
         }
     }
 
-    private func play(content: PlayableContent, position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
         Task { @MainActor in
+            hideKeyboard()
+            let queueSong: ((GroupRoom) async -> Void) = { group in
+                playHistoryService.history.remove(playableContent)
+                playHistoryService.history.insert(playableContent, at: 0)
+                HapticManager.shared.fireHaptic(.buttonPress)
+                await sonosService.setPlayMode(group.ip, mode: [.normal])
+                await sonosService.queue(playable: playableContent, group: group, position: position, replaceQueue: replaceQueue)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            }
             guard let group = selectedGroupService.group else {
-                router.navigate(to: .groupDestination(content: content, position: position))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
                 return
             }
-
-            playHistoryService.history.remove(content)
-            playHistoryService.history.insert(content, at: 0)
-
-            if replaceQueue {
-                try? await sonosService.clearQueue(group.ip)
-            }
-            HapticManager.shared.fireHaptic(.buttonPress)
-            await sonosService.setPlayMode(group.ip, mode: [.normal])
-            await sonosService.queue(playable: content, group: group, position: position, replaceQueue: replaceQueue)
-            await sonosService.play(ip: group.coordinatorRoom.ip)
+            await queueSong(group)
         }
     }
 

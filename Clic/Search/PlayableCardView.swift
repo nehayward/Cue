@@ -62,7 +62,7 @@ struct PlayableCardView: View {
 
     private var content: some View {
         ContentArtworkView(content: item, showMusicSource: false)
-            .aspectRatio(contentMode: .fill)
+            .aspectRatio(contentMode: .fit)
             .glur(radius: 30, // The total radius of the blur effect when fully applied.
                   offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
                   interpolation: 0.3, // The distance from the offset to where the effect is fully applied, relative to the view's size.

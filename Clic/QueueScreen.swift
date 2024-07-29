@@ -5,9 +5,8 @@ import SwiftUI
 
 struct QueueScreen: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(\.isPresented) var isPresented
     @Environment(SonosService.self) var sonosService: SonosService
-
+    var closeInspector: (() -> Void)? = nil
     @Binding var group: GroupRoom
     @State private var router = Router()
     @State private var isLoading: Bool = true
@@ -84,16 +83,6 @@ struct QueueScreen: View {
                 .listStyle(.plain)
                 .toolbar {
                     ToolbarItemGroup(placement: .navigation) {
-#if !targetEnvironment(macCatalyst)
-                        if UIDevice.current.userInterfaceIdiom == .pad, isPresented {
-                            Button {
-                                //                                router?.inspectorSheet = nil
-                                dismiss()
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                            }
-                        }
-#endif
                         VStack(alignment: .leading) {
                             Text("Queue")
                                 .bold()
@@ -187,6 +176,10 @@ struct QueueScreen: View {
                     isLoading = false
                 }
                 .animation(.spring, value: group.coordinatorRoom.queue)
+                .addDismiss {
+                    dismiss()
+                    closeInspector?()
+                }
             }
         }
         .presentationBackground(.thinMaterial)

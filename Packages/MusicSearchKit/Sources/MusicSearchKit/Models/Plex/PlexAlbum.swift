@@ -7,6 +7,7 @@ public struct PlexAlbum {
     public var thumb: String
     public var art: String
     public var ratingKey: String // Used to play on Sonos
+    public var parentRatingKey: String // Album Key
     public var imageURL: URL?
     public var id: String
 }

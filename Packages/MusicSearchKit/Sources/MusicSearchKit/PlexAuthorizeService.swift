@@ -1,52 +1,13 @@
 import Foundation
-import SwiftUI
-import SafariServices
 import AuthenticationServices
 
-struct SFSafariViewWrapper: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: UIViewControllerRepresentableContext<Self>) -> SFSafariViewController {
-        return SFSafariViewController(url: url)
-    }
-
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: UIViewControllerRepresentableContext<SFSafariViewWrapper>) {
-        return
-    }
-}
-
-struct SafariViewTest: View {
-    @MainActor
-    private let plexAuthenticator = PlexAuthenticator()
-
-    var body: some View {
-        VStack {
-            Button("Authenticate with Plex") {
-                plexAuthenticator.authenticate()
-            }
-            Text(plexAuthenticator.authToken ?? "")
-        }
-    }
-}
-
-
-struct PinResponse: Codable {
-    let id: Int
-    let code: String
-    let product: String
-    let trusted: Bool
-    let qr: String
-    let clientIdentifier: String
-    let expiresIn: Int
-    let createdAt: String
-    let expiresAt: String
-    let authToken: String?
-}
-
 @MainActor
-final class PlexAuthenticator: NSObject, ASWebAuthenticationPresentationContextProviding {
+public final class PlexAuthenticator: NSObject {
     private var clientID = UUID().uuidString
     private var pollTask: Task<Void, Error>?
+    private var session: ASWebAuthenticationSession?
+
+    public static var shared = PlexAuthenticator()
 
     public var authToken: String? {
         get {
@@ -57,37 +18,38 @@ final class PlexAuthenticator: NSObject, ASWebAuthenticationPresentationContextP
         }
     }
 
-    var session: ASWebAuthenticationSession?
-
-    private var completion: ((Bool) -> Void)?
-
-    func authenticate(with clientID: String) async {
+#if os(iOS) || os(macOS)
+    private func authenticate(with clientID: String) async {
         guard let code = await startMonitor() else { return }
         let authURL = URL(string: "https://app.plex.tv/auth/#?clientID=\(clientID)&code=\(code)")!
-        session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: nil) { callbackURL, error in
-            print("DONE-------")
+        session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: nil) { [weak self] callbackURL, error in
+            if error != nil {
+                self?.pollTask?.cancel()
+            }
         }
         session?.presentationContextProvider = self
         session?.start()
     }
 
-    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return UIApplication.shared.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    public func authenticate() {
+        Task {
+            await authenticate(with: clientID)
+        }
     }
+#endif
 
     func startMonitor() async -> String? {
         let request = createPin()
-        guard let (data, response) = try? await URLSession.shared.data(for: request) else {
+        guard let (data, _) = try? await URLSession.shared.data(for: request) else {
             return nil
         }
-
         let pinResponse = try! JSONDecoder().decode(PinResponse.self, from: data)
         print(pinResponse.clientIdentifier)
         pollForAuthToken(id: pinResponse.id.description)
         return pinResponse.code
     }
 
-    func createPin() -> URLRequest {
+    private func createPin() -> URLRequest {
         let url = URL(string: "https://plex.tv/api/v2/pins?strong=1")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -101,7 +63,7 @@ final class PlexAuthenticator: NSObject, ASWebAuthenticationPresentationContextP
         return request
     }
 
-    func fetchPin(id: String) async throws -> PinResponse? {
+    private func fetchPin(id: String) async throws -> PinResponse? {
         let url = URL(string: "https://plex.tv/api/v2/pins/\(id)")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -124,7 +86,7 @@ final class PlexAuthenticator: NSObject, ASWebAuthenticationPresentationContextP
         return pinResponse
     }
 
-    func pollForAuthToken(id: String, interval: TimeInterval = 5.0) {
+    private func pollForAuthToken(id: String) {
         pollTask = Task {
             while true {
                 do {
@@ -141,10 +103,24 @@ final class PlexAuthenticator: NSObject, ASWebAuthenticationPresentationContextP
         }
     }
 
-    func authenticate() {
-        Task {
-            await authenticate(with: clientID)
-        }
+    private struct PinResponse: Codable {
+        let id: Int
+        let code: String
+        let product: String
+        let trusted: Bool
+        let qr: String
+        let clientIdentifier: String
+        let expiresIn: Int
+        let createdAt: String
+        let expiresAt: String
+        let authToken: String?
     }
 }
 
+#if os(iOS) || os(macOS)
+extension PlexAuthenticator: ASWebAuthenticationPresentationContextProviding {
+    public nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return UIApplication.shared.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    }
+}
+#endif

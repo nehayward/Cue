@@ -323,7 +323,9 @@ extension View {
             Group {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):
-                    SearchScreen()
+                    SearchScreen {
+                        inspectorDestination.wrappedValue = nil
+                    }
                     #if targetEnvironment(macCatalyst)
                         .inspectorColumnWidth(500)
                     #else
@@ -331,7 +333,9 @@ extension View {
                     #endif
                         .environment(SelectedGroupService(group: group))
                 case let .queue(group):
-                    QueueScreen(group: group)
+                    QueueScreen(closeInspector: {
+                        inspectorDestination.wrappedValue = nil
+                    }, group: group)
                     #if targetEnvironment(macCatalyst)
                         .inspectorColumnWidth(500)
                     #else
@@ -359,6 +363,7 @@ extension View {
             .environment(PlaylistContainer.shared)
             .environment(PlayHistoryService.shared)
             .environment(AppleMusicBrowseService.shared)
+            .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
     }
 
@@ -368,6 +373,7 @@ extension View {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
+                        .tint(.primary)
                         .labelStyle(.iconOnly)
                         .keyboardShortcut(.escape, modifiers: [])
                 }

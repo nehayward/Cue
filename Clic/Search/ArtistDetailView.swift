@@ -18,6 +18,8 @@ struct ArtistDetailView: View {
     @State private var tracks: [PlayableContent] = []
     @State private var albums: [PlayableContent] = []
     @State private var artworkURL: URL?
+    @State private var isLoading: Bool = false
+
 
     var body: some View {
         List {
@@ -69,17 +71,39 @@ struct ArtistDetailView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             }
-            
-            Section("Top Tracks") {
-                ForEach(tracks) { track in
-                    PlayableContentView(item: track)
-                }
 
-                if tracks.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+            // TODO: Add Later
+//            if [.plex].contains(playableContent.content.service) {
+//                HStack {
+//                    Button {
+//                        Task {
+//                            guard let group = selectedGroupService.group else {
+//                                router?.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
+//                                return
+//                            }
+//                            HapticManager.shared.fireHaptic(.buttonPress)
+//                            await sonosService.startRadio(content: playableContent, group: group)
+//                        }
+//                    } label: {
+//                        Label("Popular Tracks", systemImage: "play.fill")
+//                            .padding()
+//                            .frame(maxWidth: .infinity, alignment: .center)
+//                            .foregroundStyle(.foreground)
+//                    }
+//                    .bold()
+//                    .buttonStyle(.bordered)
+//                    .tint(.accent)
+//                }
+//                .frame(maxWidth: .infinity)
+//                .listRowBackground(Color.clear)
+//                .listRowSeparator(.hidden)
+//            }
+
+            if !tracks.isEmpty {
+                Section("Top Tracks") {
+                    ForEach(tracks) { track in
+                        PlayableContentView(item: track)
+                    }
                 }
             }
 
@@ -87,7 +111,7 @@ struct ArtistDetailView: View {
                 ForEach(albums) { album in
                     PlayableContentView(item: album)
                 }
-                if tracks.isEmpty {
+                if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
@@ -134,6 +158,7 @@ struct ArtistDetailView: View {
         .headerProminence(.increased)
         .contentMargins(.bottom, 80, for: .scrollContent)
         .task {
+            isLoading = true
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
             case (.artist, .apple):
@@ -194,7 +219,8 @@ struct ArtistDetailView: View {
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
             case (.album, .spotify):
-                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
+                guard let song = await MusicSearchService().spotifyAlbumLookup(id: playableContent.content.id),
+                      let artistID = song.artists.first?.id else { return }
                 async let artist = MusicSearchService().spotifyArtist(id: artistID)
                 async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: artistID)
                 async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: artistID)
@@ -361,9 +387,49 @@ struct ArtistDetailView: View {
 
                 albums = artistAlbumsAwait
                 self.tracks = artistTopTracksAwait
+
+            // MARK: Plex
+            case (.track, .plex):
+                if let artistID = playableContent.metadata?.artistID {
+                    let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
+                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+                    self.albums = albums
+                    if let artist {
+                        self.playableContent = artist
+                        artworkURL = playableContent.artwork
+                    }
+                } else {
+                    guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
+                          let artistID = await MusicSearchService().lookupPlexSong(with: id)?.metadata?.artistID else { return }
+                    let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
+                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+
+                    self.albums = albums
+                    if let artist {
+                        self.playableContent = artist
+                        artworkURL = playableContent.artwork
+                    }
+                }
+            case (.album, .plex):
+                artworkURL = nil
+                artworkURL = playableContent.artwork
+                guard let artistID = playableContent.metadata?.artistID else { return }
+                let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
+                self.albums = albums
+                if let artistID = playableContent.metadata?.artistID {
+                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+                    if let artist {
+                        self.playableContent = artist
+                        artworkURL = playableContent.artwork
+                    }
+                }
+            case (.artist, .plex):
+                let albums = await MusicSearchService().lookupPlexArtistAlbums(id: playableContent.content.id)
+                self.albums = albums
             default:
                 break
             }
+            isLoading = false
         }
     }
 }

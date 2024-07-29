@@ -13,4 +13,9 @@ public struct TidalTrackResource: Codable {
     public let numberOfVideos: Int?
     public let copyright: String?
     public let tidalUrl: String
+    public let mediaMetadata: MediaMetadata
+
+    public struct MediaMetadata: Codable {
+        public let tags: [String]
+    }
 }

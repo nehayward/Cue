@@ -7,11 +7,13 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     public let artistID: String?
     public let album: String?
     public let albumID: String?
+    public let albumYear: Date?
     public let isrc: String?
     public var position: Int?
-    public var plexRatingKey: String?
+    public var audioCodec: String?
     public var URIMetadata: String?
     public var radioStation: Bool?
+    public var isPlayable: Bool? // A song might not be released so it's not playable.
 
     init(
         duration: Duration? = nil,
@@ -20,11 +22,13 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         artistID: String? = nil,
         album: String? = nil,
         albumID: String? = nil,
+        albumYear: Date? = nil,
         isrc: String? = nil,
         position: Int? = nil,
-        plexRatingKey: String? = nil,
+        audioCodec: String? = nil,
         URIMetadata: String? = nil,
-        radioStation: Bool? = nil
+        radioStation: Bool? = nil,
+        isPlayable: Bool = true
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -32,10 +36,12 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         self.artistID = artistID
         self.album = album
         self.albumID = albumID
+        self.albumYear = albumYear
         self.isrc = isrc
         self.position = position
-        self.plexRatingKey = plexRatingKey
+        self.audioCodec = audioCodec
         self.URIMetadata = URIMetadata
         self.radioStation = radioStation
+        self.isPlayable = isPlayable
     }
 }

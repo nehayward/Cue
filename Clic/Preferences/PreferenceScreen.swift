@@ -11,19 +11,19 @@ import RevenueCatUI
 import MessageUI
 
 struct PreferenceScreen: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
-    @State private var betaFeatures = BetaFeatures()
+    @Environment(SonosService.self) var sonosService
+    @Environment(SubscriptionService.self) var subscriptionService
+    @Environment(MusicSearchService.self) var musicSearchService
+
     @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
 
-    @AppStorage("AppIcon") var selectedAppIcon = "Default"
+    @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
 
     @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
 
@@ -121,23 +121,45 @@ struct PreferenceScreen: View {
                         List {
                             Section {
                                 ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                    // MARK: Add Plex Later
-                                    if ![MediaSearchService.plex].contains(service) {
-                                        Toggle(isOn: coreFeatures.enabledServices(service)) {
-                                            Label {
-                                                Text(service.title)
-                                            } icon: {
-                                                service.image
-                                                    .foregroundStyle(.foreground)
-                                                    .frame(width: 24, height: 24)
-                                            }
+                                    Toggle(isOn: coreFeatures.enabledServices(service)) {
+                                        Label {
+                                            Text(service.title)
+                                        } icon: {
+                                            service.iconForMusicService
+                                                .frame(width: 24, height: 24)
                                         }
-                                        .tint(.accent)
                                     }
+                                    .tint(.accent)
                                 }
+                            } header:  {
+                                Text("Supported Services")
                             } footer: {
                                 Text("Requires authorization in the Sonos app.")
                             }
+
+                            Section {
+                                Label {
+                                    HStack {
+                                        Text(MediaSearchService.plex.title)
+                                        Spacer()
+                                        if musicSearchService.isPlexAuthorized {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.green.gradient)
+                                        } else {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.red.gradient.secondary)
+                                        }
+                                    }
+                                } icon: {
+                                    MediaSearchService.plex.iconForMusicService
+                                        .frame(width: 20, height: 20)
+                                }
+                            } header:  {
+                                Text("Personalized Services")
+                            } footer: {
+                                Text("Requires authorization in the **Sonos app** and **Clic**")
+                            }
+
                             Toggle(isOn: $coreFeatures.nowPlaying) {
                                 HStack {
                                     Image(.nowPlayingAppIcon)
@@ -158,10 +180,8 @@ struct PreferenceScreen: View {
                     } label: {
                         LabeledContent {
                             ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                // MARK: Add Plex Later
-                                if coreFeatures.enabledServices(service).wrappedValue, ![MediaSearchService.plex].contains(service) {
-                                    service.image
-                                        .foregroundStyle(.foreground)
+                                if coreFeatures.enabledServices(service).wrappedValue {
+                                    service.iconForMusicService
                                         .frame(width: 20, height: 20)
                                 }
                             }

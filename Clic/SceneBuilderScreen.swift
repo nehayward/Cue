@@ -14,7 +14,6 @@ struct SceneBuilderScreen: View {
     @State var selections = Set<String>()
     @State var sceneName: String = ""
     @State var rooms: [Room] = []
-    @State var id: String?
     @State var router = Router()
 
     @State var playableContent: PlayableContent?
@@ -145,7 +144,6 @@ struct SceneBuilderScreen: View {
                         let newScene = SonosScene(name: sceneName, rooms: sceneRooms, playableContent: playableContent)
                         scenes.append(newScene)
                         Analytics.shared.track(.createdScene)
-                        sheetDestination = nil
                         dismiss()
                     } label: {
                         Text("Create Scene")
@@ -192,12 +190,6 @@ struct SceneBuilderScreen: View {
             .task {
                 guard OSEnvironment.isPreviews else { return }
                 sonosService.monitor()
-            }
-            .task {
-                try? await Task.sleep(for: .milliseconds(500))
-                let id = await sonosService.getHouseID()
-                print(id)
-                self.id = id
             }
         }
         .onAppear {

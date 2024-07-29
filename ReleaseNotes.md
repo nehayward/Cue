@@ -2,15 +2,25 @@
 
 ## External
 
-+ Improved Volume Control, even more responsive.
-+ Remove duration from queue screen
-+ Improve MiniPlayer
-+ Adjust Music Filtering
-+ Improve Queue
+New Features
+- Plex Support!: You can now integrate and enjoy your Plex library directly within the app.
+
+Enhancements
+- Improved Volume Control: Volume adjustments are now even more responsive, providing a smoother user experience.
+- Enhanced MiniPlayer: The MiniPlayer has been optimized for better performance and usability.
+- Music Filtering Adjustments
+- Queue Improvements: We've made several updates to improve the overall functionality and stability of the queue.
+- Duration Removal from Queue Screen: The duration has been removed from the queue screen for a cleaner look.
+
+Bug Fixes
+- Queue Dismissal in Portrait Mode: Fixed an issue where the queue couldn't be dismissed in portrait mode. Thanks, Alex, for the feedback!
+- Tidal NowPlaying Fix: Resolved an issue preventing Tidal from opening in the NowPlaying view.
+- Unreleased Tracks Fix: Fixed a bug where unreleased tracks were incorrectly shown as playable.
 
 ## Internal
 
 + Add analytics for number of devices
++ Remove dependency on URLRequest
 
 # 2024.33
 

@@ -72,7 +72,6 @@ public final class TidalAPI {
         components.host = "openapi.tidal.com"
         components.path = "/tracks/\(id)"
         components.queryItems = [
-            URLQueryItem(name: "limit", value: "100"),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
         ]
 

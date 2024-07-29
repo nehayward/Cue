@@ -773,10 +773,10 @@ public final class SonosService {
 //            guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return nil }
 //            return tidalTrack.artwork
         case .plex:
-//            print(track.artworkURL)
-//            print(track)
-            
-            return nil
+            guard let id = track.trackID.removingPercentEncoding?.components(separatedBy: ":").last, let plexSong = await musicSearch.lookupPlexSong(with: id) else {
+                return nil
+            }
+            return plexSong.artwork
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library:
@@ -816,7 +816,7 @@ public final class SonosService {
             return (Track.Metadata(ISRC: nil, openInURL: URL(string: appleTrack.trackViewURL), contentType: .track), imageURL)
         case .tidal:
             guard let tidalTrack = await musicSearch.lookupTidalTrack(with: track.trackID) else { return (nil, nil) }
-            return (Track.Metadata(ISRC: nil, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
+            return (Track.Metadata(ISRC: tidalTrack.metadata?.isrc, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
         case .tuneIn:
             guard let stationID = track.metadata?.stationID, let tuneInTrack = await musicSearch.lookupTuneInStation(id: stationID) else { return (nil, nil) }
             var imageURL = tuneInTrack.imageURL
@@ -839,7 +839,8 @@ public final class SonosService {
                 imageURL
             )
         case .plex:
-            guard let plexSong = await musicSearch.lookupPlexSong(with: track.trackID) else {
+            guard let id = track.trackID.removingPercentEncoding?.components(separatedBy: ":").last,
+                  let plexSong = await musicSearch.lookupPlexSong(with: id) else {
                 return (nil, nil)
             }
             return (
@@ -910,7 +911,8 @@ public final class SonosService {
             guard let playlist: Playlist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return playlist.artwork?.url(width: size, height: size)
         case (.track, .plex):
-            return await musicSearch.lookupPlexSong(with: content.id)?.artwork
+            guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
+            return await musicSearch.lookupPlexSong(with: id)?.artwork
         default:
             print(content)
             return nil

@@ -56,7 +56,13 @@ extension MusicKit.Track {
             subtitle: artistName,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
-            metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
+            metadata: PlayableContentMetadata(
+                duration: durationSeconds,
+                artist: artistName,
+                album: albumTitle,
+                isrc: isrc,
+                isPlayable: playParameters != nil
+            )
         )
     }
 
@@ -198,7 +204,10 @@ extension SpotifyAlbumItem {
             title: name,
             subtitle: artists.first?.name ?? "",
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href)),
+            metadata: .init(
+                artistID: artists.first?.id
+            )
         )
     }
 }
@@ -282,13 +291,23 @@ extension PlexTrack {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: artist,
+            subtitle: [artist, audioCodec.uppercased()].compactMap{ $0 }.joined(separator: " • "),
             artwork: imageURL,
             content: .init(
                 service: .plex,
                 id: id,
                 type: .track,
                 location: nil
+            ),
+            metadata: .init(
+                duration: Duration.milliseconds(duration),
+                popularity: nil,
+                artist: artist,
+                artistID: grandparentRatingKey,
+                album: album,
+                albumID: parentRatingKey,
+                albumYear: nil,
+                audioCodec: audioCodec
             )
         )
     }
@@ -305,6 +324,37 @@ extension PlexAlbum {
                 id: id,
                 type: .album,
                 location: nil
+            ),
+            metadata: .init(
+                popularity: nil,
+                artist: artist,
+                artistID: parentRatingKey,
+                albumYear: nil
+            )
+        )
+    }
+}
+
+extension PlexLibraryItem {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: parentTitle,
+            subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
+            artwork: thumbImageURL,
+            content: .init(
+                service: .plex,
+                id: sonosID!,
+                type: .album,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: nil,
+                artist: grandparentTitle,
+                artistID: grandparentRatingKey?.description,
+                album: parentTitle,
+                albumID: key,
+                albumYear: nil,
+                audioCodec: nil
             )
         )
     }
@@ -312,9 +362,34 @@ extension PlexAlbum {
 
 extension PlexMetadata {
     public var toPlayable: PlayableContent {
+        var artist: String?
+        var artistID: String?
+        var album: String?
+        var albumID: String?
+        var albumYear: Date?
+        var audioCodec: String?
+
+        switch type {
+        case "track":
+            artist = grandparentTitle
+            artistID = grandparentRatingKey
+            album = parentTitle
+            albumID = parentRatingKey
+            audioCodec = media?.first?.audioCodec
+        case "album":
+            artist = parentTitle
+            artistID = parentRatingKey
+        case "playlist":
+            break
+        case "artist":
+            break
+        default:
+            break
+        }
+       
         return PlayableContent(
             title: title,
-            subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist, parentYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
             artwork: thumbImageURL,
             content: .init(
                 service: .plex,
@@ -323,15 +398,31 @@ extension PlexMetadata {
                 location: nil
             ),
             metadata: .init(
-                duration: Duration.milliseconds(duration),
+                duration: Duration.milliseconds(duration ?? 0),
                 popularity: ratingCount,
-                artist: parentKey,
-                artistID: parentKey,
-                album: parentKey,
-                albumID: nil,
-                isrc: nil,
-                position: nil,
-                plexRatingKey: ratingKey
+                artist: artist,
+                artistID: artistID,
+                album: album,
+                albumID: albumID,
+                albumYear: albumYear,
+                audioCodec: audioCodec
+            )
+        )
+    }
+}
+
+
+extension PlexUserPlaylist {
+    public var toPlayable: PlayableContent {
+        return PlayableContent(
+            title: title,
+            subtitle: "",
+            artwork: thumbImageURL,
+            content: .init(
+                service: .plex,
+                id: sonosID!,
+                type: .playlist,
+                location: nil
             )
         )
     }
@@ -383,7 +474,17 @@ extension TidalTrackResource {
                 type: .track,
                 location: URL(string: tidalUrl)
             ),
-            metadata: .init(duration: Duration.seconds(duration), artist: artist?.name, artistID: artist?.id, album: album.title, albumID: album.id, isrc: isrc)
+            metadata: .init(
+                duration: Duration.seconds(
+                    duration
+                ),
+                artist: artist?.name,
+                artistID: artist?.id,
+                album: album.title,
+                albumID: album.id,
+                isrc: isrc,
+                audioCodec: mediaMetadata.tags.last?.uppercased()
+            )
         )
     }
 }

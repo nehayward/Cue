@@ -58,7 +58,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 }
                                 if let settings = context.state.TVSettings {
                                     Text(settings.audioInputFormat.description)
-                                } else if context.state.playableContent.title == "" {
+                                } else {
                                     Spacer()
                                 }
                             }

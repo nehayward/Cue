@@ -29,9 +29,11 @@ struct BrowseScreen: View {
             switch browseMediaService {
             case .apple:
                 AppleLibraryBrowseScreen()
-                // TODO: Next release
-//            case .spotify:
-////                SpotifyBrowseScreen()
+            case .plex:
+                PlexBrowseScreen()
+            case .spotify:
+                Text("Coming Soon…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .library:
                 LibraryBrowseScreen()
             default:
@@ -47,7 +49,7 @@ struct BrowseScreen: View {
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
                         // MARK: Add Spotify
-                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library].contains(service) {
+                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex, .spotify].contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 browseMediaService = service
@@ -67,7 +69,7 @@ struct BrowseScreen: View {
                         Text("Customize in Settings…")
                     }
                 } label: {
-                    browseMediaService.image
+                    browseMediaService.iconForMusicService
                         .frame(width: 24, height: 24)
                 }
                 .popoverTip(AppTip.mediaService)
@@ -79,64 +81,6 @@ struct BrowseScreen: View {
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        //            NavigationStack(path: $router.path) {
-        //                List {
-        //                    ForEach(browseService.playlists) { item in
-        //                        PlayableContentView(item: item)
-        //                            .swipeActions(edge: .trailing) {
-        //                                Button("Delete", role: .destructive) {
-        //                                    Task {
-        //                                        await sonosService.delete(playlistID: item.id)
-        //                                        browseService.playlists.removeAll { $0.id == item.id }
-        //                                    }
-        //                                }
-        //                            }
-        //                    }
-        //                }
-        //                .animation(.bouncy, value: browseService.playlists)
-        //                .task {
-        //                    isLoaded = false
-        //                    await browseService.updatePlaylists()
-        //                    isLoaded = true
-        //                }
-        //                .withAppRouter(router: router)
-        //                .listStyle(.plain)
-        //                .navigationTitle("Library")
-        //                .toolbar {
-        //                    ToolbarItem(placement: .confirmationAction) {
-        //                        Button {
-        //                            router.presentedSheet = .newPlaylist()
-        //                        } label: {
-        //                            Image(systemName: "plus")
-        //                        }
-        //                    }
-        //                }
-        //                .addDismiss(override: UIDevice.current.userInterfaceIdiom == .mac, action: dismiss.callAsFunction)
-        //                .overlay {
-        //                    if browseService.playlists.isEmpty, isLoaded {
-        //                        ContentUnavailableView {
-        //                            Text("No Playlists")
-        //                        } actions: {
-        //                            Button {
-        //                                router.presentedSheet = .newPlaylist()
-        //                            } label: {
-        //                                Text("Create a playlist to get started")
-        //                            }
-        //                            .buttonStyle(.bordered)
-        //                            .tint(.accent)
-        //                            .padding()
-        //                        }
-        //                    }
-        //                }
-        //                .fontDesign(.rounded)
-        //                .contentMargins(.bottom, 80, for: .scrollContent)
-        //            }
-        //            .environment(router)
-        //            .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
-        //                Task {
-        //                    await browseService.updatePlaylists()
-        //                }
-        //            }
     }
 
 

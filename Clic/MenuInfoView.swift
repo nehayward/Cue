@@ -18,7 +18,7 @@ struct MenuInfoView: View {
                         Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                     }
                 }
-                if [.spotify, .apple, .library, .tidal].contains(group.coordinatorRoom.track.musicService) {
+                if [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) {
                     Button {
                         router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {

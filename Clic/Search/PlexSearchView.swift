@@ -6,15 +6,15 @@ import SwiftUI
 import SonosKit
 
 struct PlexSearchView: View {
-    @Environment(MusicSearchService.self) var musicSearchService
-    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(\.dismiss) var dismiss
+    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
     var plexResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var body: some View {
+        PlexAuthorizationFlowView()
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
                 PlayableContentView(item: item)

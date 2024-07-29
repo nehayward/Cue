@@ -57,9 +57,6 @@ struct GroupScreen: View {
                         : nil
                     )
                 }
-                SceneListView()
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
@@ -96,6 +93,9 @@ struct GroupScreen: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack {
+                    SceneListView()
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
                     Text("All")
                         .bold()
                     HStack(alignment: .center) {

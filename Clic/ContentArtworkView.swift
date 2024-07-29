@@ -84,34 +84,19 @@ struct ContentArtworkView: View {
 
                 // TODO: Clean this up.
                 if let url = content.artwork, !(content.artwork?.absoluteString ?? "").contains("get") {
-                    var request = URLRequest(url: url)
-                    if content.content.service == .plex {
-                        request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-                    }
+                    let request = URLRequest(url: url)
                     imageRequest = ImageRequest(urlRequest: request)
                     return
                 }
                 guard let artworkURL = await sonosService.getArtwork(from: content.content, size: size == 16 ? 100 : 320) else {
-                    // TODO: Add for Plex maybe abstract this
-                    //                        if content.content.service == .plex {
-                    //                            let urlRequest = URLRequest(url: artworkURL)
-                    //                            request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-                    //                            imageRequest = ImageRequest(url: )
-                    //                        }
                     if let artworkURL = content.artwork {
-                        var request = URLRequest(url: artworkURL)
-                        if content.content.service == .plex {
-                            request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-                        }
+                        let request = URLRequest(url: artworkURL)
                         imageRequest = ImageRequest(urlRequest: request)
                     }
                     return
                 }
 
-                var request = URLRequest(url: artworkURL)
-                if content.content.service == .plex {
-                    request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-                }
+                let request = URLRequest(url: artworkURL)
                 imageRequest = ImageRequest(urlRequest: request)
             }
         }

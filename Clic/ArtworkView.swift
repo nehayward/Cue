@@ -69,10 +69,7 @@ struct ArtworkView: View {
                     imageRequest = nil
                     return
                 }
-                var request = URLRequest(url: url)
-                if group.coordinatorRoom.track.toPlayable.content.service == .plex {
-                    request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-                }
+                let request = URLRequest(url: url)
                 imageRequest = ImageRequest(urlRequest: request)
             }
         }

@@ -73,10 +73,6 @@ struct ThumbnailView: View {
                 return
             }
             guard let artworkURL = await sonosService.getArtwork(from: content.content, size: 100) else {
-                // TODO: Add for Plex maybe abstract this
-//                        if content.content.service == .plex {
-//                            request.addValue("3zy3EmAvq8dmHdhfCd9z", forHTTPHeaderField: "X-Plex-Token")
-//                        }
                 imageRequest = ImageRequest(url: content.artwork)
                 return
             }

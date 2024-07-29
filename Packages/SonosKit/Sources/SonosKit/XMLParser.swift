@@ -244,9 +244,15 @@ final class XMLParserSonos {
         case .library:
             trackID = trackURI
         case .plex:
-            let pattern = #/:3:(\d+):/#
-            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
-                trackID = String(result.1)
+            let pattern = "([^:]+:\\d+:\\d+)"
+            if let trackURIRemovePercent = trackURI.removingPercentEncoding, let regex = try? NSRegularExpression(pattern: pattern) {
+                let results = regex.matches(in: trackURIRemovePercent, range: NSRange(trackURIRemovePercent.startIndex..., in: trackURIRemovePercent))
+
+                if let match = results.first {
+                    if let range = Range(match.range, in: trackURIRemovePercent),  let extractedString = String(trackURIRemovePercent[range]).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) {
+                        trackID = extractedString
+                    }
+                }
             }
         case .tuneIn:
             metadata.stationID = parseStationID(from: xml)
@@ -513,9 +519,14 @@ final class XMLParserSonos {
                 case .library:
                     trackID = item["res"].element?.text ?? ""
                 case .plex:
-                    let pattern = #/:3:(\d+):/#
-                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
-                        trackID = String(result.1)
+                    let pattern = "([^:]+:\\d+:\\d+)"
+                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let regex = try? NSRegularExpression(pattern: pattern) {
+                        let results = regex.matches(in: trackURIRemovePercent, range: NSRange(trackURIRemovePercent.startIndex..., in: trackURIRemovePercent))
+                        if let match = results.first {
+                            if let range = Range(match.range, in: trackURIRemovePercent),  let extractedString = String(trackURIRemovePercent[range]).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) {
+                                trackID = extractedString
+                            }
+                        }
                     }
                 case .tidal, .tuneIn:
                     break
