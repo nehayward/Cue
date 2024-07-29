@@ -49,7 +49,7 @@ struct BrowseScreen: View {
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
                         // MARK: Add Spotify
-                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex, .spotify].contains(service) {
+                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex].contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 browseMediaService = service

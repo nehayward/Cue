@@ -8,7 +8,7 @@ New Features
 Enhancements
 - Improved Volume Control: Volume adjustments are now even more responsive, providing a smoother user experience.
 - Enhanced MiniPlayer: The MiniPlayer has been optimized for better performance and usability.
-- Music Filtering Adjustments
+- Music Filtering Adjustments: Music filtering has been fine-tuned to provide more accurate results.
 - Queue Improvements: We've made several updates to improve the overall functionality and stability of the queue.
 - Duration Removal from Queue Screen: The duration has been removed from the queue screen for a cleaner look.
 
