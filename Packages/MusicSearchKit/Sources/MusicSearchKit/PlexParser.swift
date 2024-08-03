@@ -4,7 +4,7 @@ import SWXMLHash
 public final class PlexParser {
     func parseXML(xmlData: Data, plexServer: PlexServer) -> PlexResults? {
         let xml = XMLHash.parse(xmlData)
-        guard let accessToken = plexServer.accessToken else { return nil }
+        guard let accessToken = plexServer.accessToken, let id = plexServer.clientIdentifier else { return nil }
 
         let tracks: [PlexTrack] = xml["MediaContainer"]["Hub"].all.filter { $0.element?.attribute(by: "type")?.text == "track" }.flatMap { hub in
             hub["Track"].all.compactMap { track in
@@ -41,7 +41,7 @@ public final class PlexParser {
                     parentRatingKey: parentRatingKey,
                     grandparentRatingKey: grandparentRatingKey,
                     imageURL: imageURL,
-                    id: "\(plexServer.clientIdentifier)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)"
                 )
             }
         }
@@ -71,7 +71,7 @@ public final class PlexParser {
                     ratingKey: ratingKey,
                     parentRatingKey: parentRatingKey,
                     imageURL: imageURL,
-                    id: "\(plexServer.clientIdentifier)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)"
                 )
             }
         }
@@ -92,7 +92,7 @@ public final class PlexParser {
                     name: name,
                     ratingKey: ratingKey,
                     imageURL: imageURL,
-                    id: "\(plexServer.clientIdentifier)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)"
                 )
             }
         }
@@ -113,7 +113,7 @@ public final class PlexParser {
                     title: title,
                     ratingKey: ratingKey,
                     imageURL: imageURL,
-                    id: "\(plexServer.clientIdentifier)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)"
                 )
             }
         }

@@ -44,11 +44,7 @@ struct MailViewRepresentable: UIViewControllerRepresentable {
                 mailComposer.setMessageBody(body, isHTML: false)
             }
             // Attach zipped log files
-            do {
-                mailComposer.addAttachmentData(try! Data(contentsOf: zip()!), mimeType: "application/zip", fileName: logFilesDirectory.lastPathComponent)
-            } catch {
-                print(error.localizedDescription)
-            }
+            mailComposer.addAttachmentData(try! Data(contentsOf: zip()!), mimeType: "application/zip", fileName: logFilesDirectory.lastPathComponent)
         } else {
             print("Cannot send email")
         }

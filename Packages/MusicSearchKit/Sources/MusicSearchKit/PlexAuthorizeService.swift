@@ -1,11 +1,14 @@
 import Foundation
 import AuthenticationServices
 
-@MainActor
+
+@Observable
 public final class PlexAuthenticator: NSObject {
-    private var clientID = UUID().uuidString
-    private var pollTask: Task<Void, Error>?
-    private var session: ASWebAuthenticationSession?
+    public var authorizationURL: URL?
+    @ObservationIgnored private var clientID = UUID().uuidString
+    @ObservationIgnored private var pinID: String?
+    @ObservationIgnored private var pollTask: Task<Void, Error>?
+    @ObservationIgnored private var session: ASWebAuthenticationSession?
 
     public static var shared = PlexAuthenticator()
 
@@ -19,13 +22,13 @@ public final class PlexAuthenticator: NSObject {
     }
 
 #if os(iOS) || os(macOS) || os(visionOS)
+    @MainActor
     private func authenticate(with clientID: String) async {
         guard let code = await startMonitor() else { return }
         let authURL = URL(string: "https://app.plex.tv/auth/#?clientID=\(clientID)&code=\(code)")!
-        session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: nil) { [weak self] callbackURL, error in
-            if error != nil {
-                self?.pollTask?.cancel()
-            }
+        authorizationURL = authURL
+        session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: nil) { callbackURL, error in
+
         }
         session?.presentationContextProvider = self
         session?.start()
@@ -33,6 +36,8 @@ public final class PlexAuthenticator: NSObject {
 
     public func authenticate() {
         Task {
+            authToken = nil
+            authorizationURL = nil
             await authenticate(with: clientID)
         }
     }
@@ -44,9 +49,20 @@ public final class PlexAuthenticator: NSObject {
             return nil
         }
         let pinResponse = try! JSONDecoder().decode(PinResponse.self, from: data)
-        print(pinResponse.clientIdentifier)
+        pinID = pinResponse.id.description
         pollForAuthToken(id: pinResponse.id.description)
         return pinResponse.code
+    }
+
+    public func restartMonitor() {
+        if let pinID {
+            pollForAuthToken(id: pinID)
+        }
+    }
+
+    public func stopMonitor() {
+        authorizationURL = nil
+        pollTask?.cancel()
     }
 
     private func createPin() -> URLRequest {
@@ -87,6 +103,7 @@ public final class PlexAuthenticator: NSObject {
     }
 
     private func pollForAuthToken(id: String) {
+        pollTask?.cancel()
         pollTask = Task {
             while true {
                 do {

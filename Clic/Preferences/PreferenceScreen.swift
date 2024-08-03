@@ -138,21 +138,25 @@ struct PreferenceScreen: View {
                             }
 
                             Section {
-                                Label {
-                                    HStack {
-                                        Text(MediaSearchService.plex.title)
-                                        Spacer()
-                                        if musicSearchService.isPlexAuthorized {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundStyle(.green.gradient)
-                                        } else {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundStyle(.red.gradient.secondary)
+                                Button {
+                                    router.presentedSheet = .plexManagement
+                                } label: {
+                                    Label {
+                                        HStack {
+                                            Text(MediaSearchService.plex.title)
+                                            Spacer()
+                                            if musicSearchService.isPlexAuthorized {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundStyle(.green.gradient)
+                                            } else {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .foregroundStyle(.red.gradient.secondary)
+                                            }
                                         }
+                                    } icon: {
+                                        MediaSearchService.plex.iconForMusicService
+                                            .frame(width: 20, height: 20)
                                     }
-                                } icon: {
-                                    MediaSearchService.plex.iconForMusicService
-                                        .frame(width: 20, height: 20)
                                 }
                             } header:  {
                                 Text("Personalized Services")

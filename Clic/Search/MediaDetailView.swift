@@ -15,13 +15,14 @@ struct MediaDetailView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService
+    @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
 
     @State var playableContent: PlayableContent
-    @State private var tracks: [PlayableContent] = []
+    @State private var tracks: OrderedSet<PlayableContent> = []
     @State private var artworkURL: URL?
     @State private var isLoaded: Bool = false
-
-    private let musicSearchService = MusicSearchService()
+    @State private var size: Int?
+    @State private var duration: Duration?
 
     var body: some View {
         List {
@@ -71,9 +72,19 @@ struct MediaDetailView: View {
             .listRowBackground(Color.clear)
 
             HStack(spacing: 0) {
-                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")\(tracks.count.formatted()) Tracks\(totalDuration.components.seconds > 0 ? " • " : "")")
-                if totalDuration.components.seconds > 0  {
-                    Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")")
+                if let size {
+                    Text(size, format: .number)
+                } else {
+                    Text("\(tracks.count.formatted())")
+                }
+                Text(" Tracks")
+                if let duration {
+                    Text(" • \(duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                } else {
+                    if totalDuration.components.seconds > 0  {
+                        Text(" • \(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -124,6 +135,13 @@ struct MediaDetailView: View {
                         }
                     }
                     .disabled(!(item.metadata?.isPlayable ?? true))
+                    .task {
+                        if tracks.firstIndex(of: item) ?? 0 >= tracks.count - 1 {
+                            Task {
+                                await updateTracks(offset: tracks.count)
+                            }
+                        }
+                    }
             }
 
             if tracks.isEmpty, !isLoaded {
@@ -133,21 +151,17 @@ struct MediaDetailView: View {
                     .listRowBackground(Color.clear)
             }
         }
+        .task {
+            await updateTracks()
+        }
         .listStyle(.plain)
         .contentMargins(.bottom, 80, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if !isLoaded {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else {
-                    Text(playableContent.title)
-                        .fontDesign(.rounded)
-                        .bold()
-                }
+                Text(playableContent.title)
+                    .fontDesign(.rounded)
+                    .bold()
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -161,105 +175,6 @@ struct MediaDetailView: View {
                         .foregroundStyle(.foreground)
                 }
             }
-        }
-        .task {
-            // TODO: Refactor into MusicService
-            artworkURL = playableContent.artwork
-            switch (playableContent.content.type, playableContent.content.service) {
-            case (.album, .apple):
-                guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
-                artworkURL = album.artwork?.url(width: 800, height: 800)
-                guard let tracks = album.tracks else { return }
-                self.tracks = tracks.map(\.toPlayable)
-            case (.libraryAlbum, .apple):
-                artworkURL = playableContent.artwork
-                self.tracks = await AppleMusicBrowseService.shared.albumLookup(id: playableContent.id)
-            case (.album, .spotify):
-                guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
-                self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
-            case (.playlist, .apple):
-                guard let playlist: Playlist = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
-                artworkURL = playlist.artwork?.url(width: 800, height: 800)
-                guard let tracks = playlist.tracks else { return }
-                self.tracks = tracks.map(\.toPlayable)
-            case (.libraryPlaylist, .apple):
-                artworkURL = playableContent.artwork
-                self.tracks = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id)
-            case (.playlist, .spotify):
-                guard let playlist: SpotifyPlaylistItems = await MusicSearchService().spotifyPlaylistLookup(id: playableContent.content.id) else { return }
-                guard let items = playlist.tracks.items else { return }
-                self.tracks = items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
-            case (.track, .apple):
-                guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
-                guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
-                artworkURL = album.artwork?.url(width: 800, height: 800)
-                playableContent = album.toPlayable
-                guard let tracks = album.tracks else { return }
-                self.tracks = tracks.map(\.toPlayable)
-            case (.libraryTrack, .apple):
-                guard let catalogSong = await MusicSearchService().appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
-                guard let song: Song = try? await MusicSearchService().lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
-                guard let album: Album = try? await MusicSearchService().lookup(id: albumID) else { return }
-                artworkURL = album.artwork?.url(width: 800, height: 800)
-                playableContent = album.toPlayable
-                guard let tracks = album.tracks else { return }
-                self.tracks = tracks.map(\.toPlayable)
-            case (.track, .spotify):
-                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id) else { return }
-                guard let albumDetails = await MusicSearchService().spotifyAlbumTracksLookup(id: song.album.id) else { return }
-                playableContent = albumDetails.toPlayable
-                artworkURL = albumDetails.images.biggestImageURL
-                self.tracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
-            case (.album, .library):
-                artworkURL = playableContent.artwork
-                self.tracks = await sonosService.libraryLookup(ID: playableContent.id)
-            case (.playlist, .library):
-                artworkURL = playableContent.artwork
-                self.tracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
-            case (.track, .library):
-                artworkURL = playableContent.artwork
-                guard let albumName = playableContent.metadata?.album,
-                      let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
-
-                self.tracks = await sonosService.libraryAlbum(name: albumName)
-                guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
-                playableContent = albumPlayable
-            case (.album, .tidal):
-                self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: playableContent.content.id)
-            case (.track, .tidal):
-                if let albumID = playableContent.metadata?.albumID {
-                    guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
-                    self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
-                    playableContent = album
-                    artworkURL = playableContent.artwork
-                } else {
-                    guard let albumID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
-                    guard let album = await MusicSearchService().lookupTidalAlbum(with: albumID) else { return }
-                    self.tracks = await MusicSearchService().lookupTidalAlbumTracks(id: albumID)
-                    playableContent = album
-                    artworkURL = playableContent.artwork
-                }
-                // MARK: Plex
-            case (.track, .plex):
-                if let albumID = playableContent.metadata?.albumID {
-                    guard let album = await MusicSearchService().lookupPlexAlbum(id: albumID) else { return }
-                    playableContent = album
-                    self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: albumID)
-                } else {
-                    guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
-                          let albumID = await MusicSearchService().lookupPlexSong(with: id)?.metadata?.albumID,
-                          let album = await MusicSearchService().lookupPlexAlbum(id: albumID) else { return }
-                    playableContent = album
-                    self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: albumID)
-                }
-            case (.album, .plex):
-                self.tracks = await MusicSearchService().lookupPlexAlbumSongs(id: playableContent.content.id)
-            case (.playlist, .plex):
-                self.tracks = await MusicSearchService().lookupPlexPlaylists(id: playableContent.content.id)
-            default:
-                break
-            }
-            isLoaded = true
         }
     }
 
@@ -285,7 +200,112 @@ struct MediaDetailView: View {
     private var totalDuration: Duration {
         Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
     }
-    
+
+    private func updateTracks(offset: Int = 0) async {
+        isLoaded = false
+        var newTracks: [PlayableContent] = []
+        // TODO: Refactor into MusicService
+        artworkURL = playableContent.artwork
+        switch (playableContent.content.type, playableContent.content.service) {
+        case (.album, .apple):
+            guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
+            artworkURL = album.artwork?.url(width: 800, height: 800)
+            guard let tracks = album.tracks else { return }
+            newTracks = tracks.map(\.toPlayable)
+        case (.libraryAlbum, .apple):
+            artworkURL = playableContent.artwork
+            newTracks = await AppleMusicBrowseService.shared.albumLookup(id: playableContent.id)
+        case (.album, .spotify):
+            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
+            newTracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
+        case (.playlist, .apple):
+            guard let playlist: Playlist = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
+            artworkURL = playlist.artwork?.url(width: 800, height: 800)
+            guard let tracks = playlist.tracks else { return }
+            newTracks = tracks.map(\.toPlayable)
+        case (.libraryPlaylist, .apple):
+            artworkURL = playableContent.artwork
+            newTracks = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id)
+        case (.playlist, .spotify):
+            guard let playlist: SpotifyPlaylistItems = await musicSearchService.spotifyPlaylistLookup(id: playableContent.content.id) else { return }
+            guard let items = playlist.tracks.items else { return }
+            newTracks = items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
+        case (.track, .apple):
+            guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
+            guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
+            artworkURL = album.artwork?.url(width: 800, height: 800)
+            playableContent = album.toPlayable
+            guard let tracks = album.tracks else { return }
+            newTracks = tracks.map(\.toPlayable)
+        case (.libraryTrack, .apple):
+            guard let catalogSong = await musicSearchService.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
+            guard let song: Song = try? await musicSearchService.lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
+            guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
+            artworkURL = album.artwork?.url(width: 800, height: 800)
+            playableContent = album.toPlayable
+            guard let tracks = album.tracks else { return }
+            newTracks = tracks.map(\.toPlayable)
+        case (.track, .spotify):
+            guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
+            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: song.album.id) else { return }
+            playableContent = albumDetails.toPlayable
+            artworkURL = albumDetails.images.biggestImageURL
+            newTracks = albumDetails.tracks.items.map { $0.toPlayable(artwork: albumDetails.images.thumbnail) }
+        case (.album, .library):
+            artworkURL = playableContent.artwork
+            newTracks = await sonosService.libraryLookup(ID: playableContent.id)
+        case (.playlist, .library):
+            artworkURL = playableContent.artwork
+            newTracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
+        case (.track, .library):
+            artworkURL = playableContent.artwork
+            guard let albumName = playableContent.metadata?.album,
+                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+
+            newTracks = await sonosService.libraryAlbum(name: albumName)
+            guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
+            playableContent = albumPlayable
+        case (.album, .tidal):
+            newTracks = await musicSearchService.lookupTidalAlbumTracks(id: playableContent.content.id)
+        case (.track, .tidal):
+            if let albumID = playableContent.metadata?.albumID {
+                guard let album = await musicSearchService.lookupTidalAlbum(with: albumID) else { return }
+                newTracks = await musicSearchService.lookupTidalAlbumTracks(id: albumID)
+                playableContent = album
+                artworkURL = playableContent.artwork
+            } else {
+                guard let albumID = await musicSearchService.lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
+                guard let album = await musicSearchService.lookupTidalAlbum(with: albumID) else { return }
+                newTracks = await musicSearchService.lookupTidalAlbumTracks(id: albumID)
+                playableContent = album
+                artworkURL = playableContent.artwork
+            }
+            // MARK: Plex
+        case (.track, .plex):
+            if let albumID = playableContent.metadata?.albumID {
+                guard let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
+                playableContent = album
+                newTracks = await musicSearchService.lookupPlexAlbumSongs(id: albumID)
+            } else {
+                guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
+                      let albumID = await musicSearchService.lookupPlexSong(with: id)?.metadata?.albumID,
+                      let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
+                playableContent = album
+                newTracks = await musicSearchService.lookupPlexAlbumSongs(id: albumID)
+            }
+        case (.album, .plex):
+            newTracks = await musicSearchService.lookupPlexAlbumSongs(id: playableContent.content.id)
+        case (.playlist, .plex):
+            (size, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
+        default:
+            break
+        }
+        for newTrack in newTracks {
+            tracks.updateOrAppend(newTrack)
+        }
+        isLoaded = true
+    }
+
     // TODO: Add later
 //    private func move(from source: IndexSet, to destination: Int) {
 //        // TODO: Fix swap positions

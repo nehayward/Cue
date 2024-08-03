@@ -10,7 +10,6 @@ import VibesDS
 
 struct PlayableLibraryList: View {
     @Environment(SonosService.self) private var sonosService
-    @Environment(LibraryBrowseService.self) var browseService
 
     @State private var isLoading: Bool = false
 

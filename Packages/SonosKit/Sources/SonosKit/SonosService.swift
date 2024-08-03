@@ -952,6 +952,19 @@ public final class SonosService {
 //        case (.playlist, .tidal):
 //            guard let playlist: Playlist = try? await musicSearch.(with: content.id) else { return nil }
 //            return PlayableContent(title: playlist.name, subtitle: playlist.curatorName ?? "", artwork: playlist.artwork?.url(width: 500, height: 500), content: content)
+        case (.track, .plex):
+            guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last,
+                  let track = await musicSearch.lookupPlexSong(with: id) else { return nil }
+            return track
+        case (.album, .plex):
+            guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last,
+                  let album = await musicSearch.lookupPlexAlbum(id: id) else { return nil }
+            return album
+        case (.playlist, .plex):
+            return nil
+//            guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
+////                  let playlist = await musicSearch.lookuple(id: id) else { return nil }
+//            return album
         default:
             return nil
         }

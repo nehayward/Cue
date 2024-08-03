@@ -443,16 +443,35 @@ public final class MusicSearchService {
         return result.toPlayable
     }
 
+    // TODO: Lookup playlist for drag and drop
+//    public func lookupPlexPlaylist(id: String) async -> (Int?, PlayableContent?, Duration?) {
+//        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,
+//              let result = await plex.lookupPlaylist(key: key, offset: offset) else { return (nil, [], nil) }
+//
+//        var duration: Duration?
+//        if let totalDuration = result.duration, totalDuration > 0 {
+//            duration = Duration.seconds(totalDuration)
+//        }
+//
+//        return (result.totalSize ?? result.size, playableContent, duration)
+//    }
+
+    public func lookupPlexPlaylists(id: String, offset: Int = 0) async -> (Int?, [PlayableContent], Duration?) {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,
+              let result = await plex.lookupPlaylist(key: key, offset: offset) else { return (nil, [], nil) }
+
+        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        var duration: Duration?
+        if let totalDuration = result.duration, totalDuration > 0 {
+            duration = Duration.seconds(totalDuration)
+        }
+
+        return (result.totalSize ?? result.size, playableContent, duration)
+    }
+
     public func getPlexServers() async -> [PlexServer] {
         let plexServers = await plex.getPlexServers()
         return plexServers
-    }
-
-    public func lookupPlexPlaylists(id: String) async -> [PlayableContent] {
-        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
-        guard let result = await plex.lookupPlaylists(key: key) else { return [] }
-        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
-        return playableContent
     }
 
     // TODO: Add remaining Info

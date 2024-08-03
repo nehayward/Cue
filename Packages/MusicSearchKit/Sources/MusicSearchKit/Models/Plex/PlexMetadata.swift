@@ -24,7 +24,7 @@ public struct PlexMetadata: Codable {
     public let ratingCount: Int?
     public let parentYear: Int?
     public let year: Int?
-    public let thumb: String
+    public let thumb: String?
     public let art: String?
     public let parentThumb: String?
     public let duration: Int?

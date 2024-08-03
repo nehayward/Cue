@@ -36,10 +36,10 @@ struct PlexBrowseScreen: View {
                             }
                         } header: {
                             HStack {
-                                Text("Playlists")
+                                Text("Playlists (\(plexBrowseService.userPlaylists.count))")
                                 Spacer()
-                                NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { _ in
-                                    await plexBrowseService.updateUserPlaylists()
+                                NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
+                                    await plexBrowseService.updateUserPlaylists(offset: offset)
                                 })) {
                                     Text("Show all \(Image(systemName: "chevron.right"))")
                                 }

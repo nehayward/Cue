@@ -1,5 +1,5 @@
 {
-  "originHash" : "eb83f4b7f1d33bd74bb7e184b785d392616c39eead49ac4fed94e577c55620b5",
+  "originHash" : "3a6144c34872721159f9248dce7ed44d09922c5bf6f8041f9aa9472a873bc132",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -53,6 +53,15 @@
       "state" : {
         "revision" : "3d2dc41a01f9e49d84f0a3925fb858bed64f702d",
         "version" : "1.1.2"
+      }
+    },
+    {
+      "identity" : "swiftybeaver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftyBeaver/SwiftyBeaver.git",
+      "state" : {
+        "revision" : "8cba041db09596183331d123f337d0eb2e6e8e91",
+        "version" : "2.1.1"
       }
     },
     {

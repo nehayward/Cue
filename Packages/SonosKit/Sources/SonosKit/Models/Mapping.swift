@@ -183,7 +183,7 @@ extension SpotifyTrackItem {
                 service: .spotify,
                 id: id,
                 type: .track,
-                location: URL(string: href)
+                location: URL(string: externalUrls.spotify)
             ),
             metadata: PlayableContentMetadata(
                 duration: Duration.seconds(
@@ -204,7 +204,7 @@ extension SpotifyAlbumItem {
             title: name,
             subtitle: artists.first?.name ?? "",
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href)),
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify)),
             metadata: .init(
                 artistID: artists.first?.id
             )
@@ -218,7 +218,7 @@ extension SpotifyArtistAlbums.AlbumItem {
             title: name,
             subtitle: releaseDate,
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
     }
 }
@@ -229,7 +229,7 @@ extension SpotifyAlbumDetails {
             title: name,
             subtitle: releaseDate,
             artwork: URL(string: images.first?.url ?? ""),
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: href))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
     }
 }
@@ -240,7 +240,7 @@ extension SpotifyAlbumTrackItems {
             title: name,
             subtitle: allArtists,
             artwork: artwork,
-            content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: href)),
+            content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls.spotify)),
             metadata: .init(duration: Duration.milliseconds(durationMs))
         )
     }
@@ -252,7 +252,7 @@ extension SpotifyPlaylistItems {
             title: name,
             subtitle: owner.displayName,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: href))
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify))
         )
     }
 }
@@ -263,7 +263,7 @@ extension SpotifyArtistsItems {
             title: name,
             subtitle: "",
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: href)),
+            content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: externalUrls.spotify)),
             metadata: .init(popularity: popularity)
         )
     }
@@ -289,9 +289,13 @@ extension Favorite {
 // MARK: Plex
 extension PlexTrack {
     public var toPlayable: PlayableContent {
-        PlayableContent(
+        var trackDuration: Duration? = nil
+        if let duration {
+            trackDuration = Duration.milliseconds(duration)
+        }
+        return PlayableContent(
             title: title,
-            subtitle: [artist, audioCodec.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
             artwork: imageURL,
             content: .init(
                 service: .plex,
@@ -300,7 +304,7 @@ extension PlexTrack {
                 location: nil
             ),
             metadata: .init(
-                duration: Duration.milliseconds(duration),
+                duration: trackDuration,
                 popularity: nil,
                 artist: artist,
                 artistID: grandparentRatingKey,

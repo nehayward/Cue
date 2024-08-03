@@ -22,6 +22,7 @@ enum SheetDestination: Identifiable, Equatable {
     case renamePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async -> Void)? = nil)
+    case plexManagement
 
     var id: String {
         switch self {
@@ -65,6 +66,8 @@ enum SheetDestination: Identifiable, Equatable {
             "speaker.configuration"
         case .selectGroup:
             "selectGroup"
+        case .plexManagement:
+            "plexManagement"
         }
     }
 

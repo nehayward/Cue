@@ -19,18 +19,17 @@ public struct PlexLibraryItem: Codable {
     public let parentTitle: String
     public let parentYear: Int?
     public let summary: String?
-    public let thumb: String
+    public let thumb: String?
     public let title1: String
     public let title2: String
     public let viewGroup: String
-    public let viewMode: Int
     public let metadata: [PlexMetadata]?
     
     public var sonosID: String?
     public var thumbImageURL: URL?
 
     enum CodingKeys: String, CodingKey {
-        case size, allowSync, art, grandparentRatingKey, grandparentThumb, grandparentTitle, identifier, key, librarySectionID, librarySectionTitle, librarySectionUUID, mediaTagPrefix, mediaTagVersion, nocache, parentIndex, parentTitle, parentYear, summary, thumb, title1, title2, viewGroup, viewMode
+        case size, allowSync, art, grandparentRatingKey, grandparentThumb, grandparentTitle, identifier, key, librarySectionID, librarySectionTitle, librarySectionUUID, mediaTagPrefix, mediaTagVersion, nocache, parentIndex, parentTitle, parentYear, summary, thumb, title1, title2, viewGroup
         case metadata = "Metadata"
     }
 }

@@ -143,6 +143,8 @@ extension View {
                         .presentationBackground(.thinMaterial)
                         .presentationCornerRadius(24)
                         .environment(selectedGroupService)
+                case .plexManagement:
+                    PlexManagementView()
                 }
             }
             .withEnvironments()
@@ -275,9 +277,9 @@ extension View {
                 PlayerSelectionView(playableContent: content, position: position)
             case .manageScenes:
                 ManageSceneScreen()
-            case let .mediaDetail(content, group):
+            case let .mediaDetail(content, _):
                 MediaDetailView(playableContent: content)
-            case let .artistDetail(content, group):
+            case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
             case let .createScene(content):
                 SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)

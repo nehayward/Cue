@@ -162,6 +162,8 @@
 		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
 		E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91E2AB65F3D000D596E /* VibesDS */; };
 		E959B9212AB6B12D000D596E /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9202AB6B12D000D596E /* VibesDS */; };
+		E95D66CE2C5ACAAC009385AF /* PlexManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E974A42C593D0800AE82AF /* PlexManagementView.swift */; };
+		E95D66CF2C5ACAAC009385AF /* PlexManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E974A42C593D0800AE82AF /* PlexManagementView.swift */; };
 		E9604DE12C0F6D7200A421D9 /* RemoteWidgetMediumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */; };
 		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
 		E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
@@ -387,6 +389,9 @@
 		E9B347702BF2B73200688851 /* ContentToAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3476C2BF14BF300688851 /* ContentToAdd.swift */; };
 		E9B347712BF2B73300688851 /* ContentToAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3476C2BF14BF300688851 /* ContentToAdd.swift */; };
 		E9B3EDD02A4F855B00F9D70C /* SceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */; };
+		E9BBEA262C58A8AA00C9E81C /* LoggerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BBEA252C58A8AA00C9E81C /* LoggerView.swift */; };
+		E9BBEA272C593A2A00C9E81C /* LoggerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BBEA252C58A8AA00C9E81C /* LoggerView.swift */; };
+		E9BBEA282C593A2A00C9E81C /* LoggerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BBEA252C58A8AA00C9E81C /* LoggerView.swift */; };
 		E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BC83762B7022CC0088BF1F /* FavoritesView.swift */; };
 		E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */; };
 		E9BDE57029E3396700D230A8 /* ClicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE56F29E3396700D230A8 /* ClicApp.swift */; };
@@ -463,6 +468,7 @@
 		E9DE84A02A673321004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9DE84A12A6734EA004C3947 /* LiveActivityNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */; };
 		E9E2C21C2AE99415009C823C /* RoomVolumeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */; };
+		E9E974A52C593D0800AE82AF /* PlexManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E974A42C593D0800AE82AF /* PlexManagementView.swift */; };
 		E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE31852ADF82F000F71303 /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
@@ -716,6 +722,7 @@
 		E9B2A35F2AE9D30E00ADA8D9 /* SceneButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneButton.swift; sourceTree = "<group>"; };
 		E9B3476C2BF14BF300688851 /* ContentToAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentToAdd.swift; sourceTree = "<group>"; };
 		E9B3EDCF2A4F855B00F9D70C /* SceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneView.swift; sourceTree = "<group>"; };
+		E9BBEA252C58A8AA00C9E81C /* LoggerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggerView.swift; sourceTree = "<group>"; };
 		E9BC83762B7022CC0088BF1F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
@@ -766,6 +773,7 @@
 		E9DE849D2A6707E1004C3947 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9DE849F2A673321004C3947 /* LiveActivityNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityNowPlayingView.swift; sourceTree = "<group>"; };
 		E9E2C21B2AE99415009C823C /* RoomVolumeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomVolumeView.swift; sourceTree = "<group>"; };
+		E9E974A42C593D0800AE82AF /* PlexManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlexManagementView.swift; sourceTree = "<group>"; };
 		E9EE31832ADF82B000F71303 /* IntentError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentError.swift; sourceTree = "<group>"; };
 		E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVModeViewCell.swift; sourceTree = "<group>"; };
 		E9F20D592A69B3FD00C43F1E /* MediaControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaControlsView.swift; sourceTree = "<group>"; };
@@ -939,6 +947,7 @@
 			isa = PBXGroup;
 			children = (
 				E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */,
+				E9BBEA252C58A8AA00C9E81C /* LoggerView.swift */,
 				E98CE0092B2FF3FB002E5A96 /* LogView.swift */,
 				E95498A72AA52EF8007848A7 /* DebugView.swift */,
 				E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */,
@@ -1280,6 +1289,7 @@
 			isa = PBXGroup;
 			children = (
 				E9C688402C52AB0D00A81A8E /* PlexAuthorizationFlowView.swift */,
+				E9E974A42C593D0800AE82AF /* PlexManagementView.swift */,
 			);
 			path = Authorization;
 			sourceTree = "<group>";
@@ -1677,6 +1687,7 @@
 				E97DA8E72BEBF7E6004BB1F7 /* TimerMenuView.swift in Sources */,
 				E92B3EA02B60249B00724FA1 /* LiveActivity+Environment.swift in Sources */,
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
+				E95D66CE2C5ACAAC009385AF /* PlexManagementView.swift in Sources */,
 				E93739E32C125D3C00B64F74 /* SpeakerSettingsListView.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
 				E98150DE2BED146A0076E312 /* AlarmView.swift in Sources */,
@@ -1755,6 +1766,7 @@
 				E9B135C02B6C1A860096A14E /* SearchScreen.swift in Sources */,
 				E92B3ECC2B60249B00724FA1 /* RefreshIntent.swift in Sources */,
 				E92B3ECE2B60249B00724FA1 /* RoomVolumeView.swift in Sources */,
+				E9BBEA282C593A2A00C9E81C /* LoggerView.swift in Sources */,
 				E92B3ECF2B60249B00724FA1 /* SpotifySearchView.swift in Sources */,
 				E92B3ED02B60249B00724FA1 /* ManageSceneScreen.swift in Sources */,
 				E92B3ED12B60249B00724FA1 /* MediaControlsView.swift in Sources */,
@@ -1815,6 +1827,7 @@
 				E9F665362C35AA2B002980AC /* PlayableMenuView.swift in Sources */,
 				E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */,
 				E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */,
+				E9BBEA272C593A2A00C9E81C /* LoggerView.swift in Sources */,
 				E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */,
 				E9C688432C52AB2100A81A8E /* PlexAuthorizationFlowView.swift in Sources */,
 				E97562E92B699B2400787E14 /* TVModeViewCell.swift in Sources */,
@@ -1914,6 +1927,7 @@
 				E97563242B699B2400787E14 /* LiveActivityNowPlayingView.swift in Sources */,
 				E950E7D42B7418610029415B /* SplitView.swift in Sources */,
 				E9CAEC4F2C22162E00F9C725 /* SelectGroupView.swift in Sources */,
+				E95D66CF2C5ACAAC009385AF /* PlexManagementView.swift in Sources */,
 				E97563252B699B2400787E14 /* ClicApp.swift in Sources */,
 				E9BD06052BC3283800C8D275 /* SubscriptionDetailScreen.swift in Sources */,
 				E9B135C32B6C1A880096A14E /* MediaDetailView.swift in Sources */,
@@ -2019,6 +2033,7 @@
 				E9A3EC732B84028E002517E3 /* ContainerLargePlayerView.swift in Sources */,
 				E9C327402BFBBA8500075606 /* MiniPlayerView.swift in Sources */,
 				E93739E62C13900800B64F74 /* TuneInSearchView.swift in Sources */,
+				E9BBEA262C58A8AA00C9E81C /* LoggerView.swift in Sources */,
 				E94B098E2ACCFF99009E89B9 /* SearchHistoryView.swift in Sources */,
 				E97416A82C14074C00700859 /* PlayableContentList.swift in Sources */,
 				E9B2A3602AE9D30E00ADA8D9 /* SceneButton.swift in Sources */,
@@ -2028,6 +2043,7 @@
 				E9F600B72B4CFB420039AAA6 /* RouterDestination.swift in Sources */,
 				E9249A6A2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
 				E9A380682C00F27400D5349E /* Storage.swift in Sources */,
+				E9E974A52C593D0800AE82AF /* PlexManagementView.swift in Sources */,
 				E9BF3AC22B100B7A00AF57EA /* ReviewService.swift in Sources */,
 				E9C327422BFD0A7400075606 /* BetaFeatures.swift in Sources */,
 				E99403D62C07796C00D20067 /* AppTips.swift in Sources */,
