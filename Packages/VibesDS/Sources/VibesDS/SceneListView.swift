@@ -3,13 +3,18 @@ import SwiftUI
 import SonosKit
 
 public struct SceneListView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(\.dismiss) var dismiss
+    @Environment(SonosService.self) var sonosService
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    
+    private let sceneActivated: (SonosScene) -> ()
 
-    public init(scenes: [SonosScene]? = nil) {
+    public init(scenes: [SonosScene]? = nil, sceneActivated: @escaping (SonosScene) -> ()) {
         if let scenes {
             self.scenes = scenes
         }
+
+        self.sceneActivated = sceneActivated
     }
 
     public var body: some View {
@@ -17,10 +22,14 @@ public struct SceneListView: View {
             HStack {
                 ForEach(scenes) { scene in
                     SceneButton(scene: scene) {
+                        sceneActivated(scene)
+                        dismiss()
                         Task {
                             try? await sonosService.runScene(scene)
                         }
                     }
+                    #if !os(watchOS)
+                    .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
                         Button("Remove", role: .destructive) {
                             scenes.removeAll { sceneSearch in
@@ -28,6 +37,7 @@ public struct SceneListView: View {
                             }
                         }
                     }
+                    #endif
                 }
             }
             .scrollTargetLayout()

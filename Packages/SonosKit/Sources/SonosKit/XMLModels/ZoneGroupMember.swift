@@ -38,7 +38,7 @@ public struct ZoneGroupMember: XMLObjectDeserialization {
             wirelessLeafOnly: node.value(ofAttribute: "WirelessLeafOnly"),
             behindWifiExtender: node.value(ofAttribute: "BehindWifiExtender"),
             wifiEnabled: node.value(ofAttribute: "WifiEnabled"),
-            ethernetEnabled: node.value(ofAttribute: "EthLink"),
+            ethernetEnabled: node.value(ofAttribute: "EthLink") ?? false,
             voiceConfigState: node.value(ofAttribute: "VoiceConfigState"),
             micEnabled: node.value(ofAttribute: "MicEnabled"),
             airPlayEnabled: node.value(ofAttribute: "AirPlayEnabled"),

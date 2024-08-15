@@ -21,7 +21,7 @@ struct PlexAuthorizationFlowView: View {
                     VStack {
                         Text("Authorize Plex")
                             .frame(maxWidth: .infinity)
-                        Text("Please use the Plex account on your existing Sonos")
+                        Text("Please use the Plex account on your existing Sonos and have remote access enabled.")
                             .foregroundStyle(.secondary)
                     }
                 }

@@ -5,6 +5,7 @@ import VibesDS
 
 struct GroupScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(AlertService.self) var alertService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
 
@@ -26,7 +27,7 @@ struct GroupScreen: View {
         @Bindable var sonosService = sonosService
         NavigationStack(path: $path) {
             List {
-                ForEach($sonosService.sortedRooms) { $room in
+                ForEach($sonosService.sortedRooms.filter { $0.state.wrappedValue == .active } ) { $room in
                     VStack {
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
@@ -60,7 +61,7 @@ struct GroupScreen: View {
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
-                    SceneBuilderScreen(group: .constant(foundGroup), sheetDestination: $sheetDestination, selections: ids)
+                    SceneBuilderScreen(group: .constant(foundGroup), selections: ids)
                 }
             }
             .listRowSpacing(10)
@@ -93,9 +94,11 @@ struct GroupScreen: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack {
-                    SceneListView()
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    SceneListView { scene in
+                        alertService.showAlert(with: "Running \(scene.name)")
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
                     Text("All")
                         .bold()
                     HStack(alignment: .center) {
@@ -119,6 +122,7 @@ struct GroupScreen: View {
                             }
                         }
                     }
+                    .frame(height: 32)
                 }
                 .padding()
                 .background {
@@ -140,6 +144,9 @@ struct GroupScreen: View {
             guard let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
             group = foundGroup
             selections = Set(foundGroup.rooms.map { $0.id })
+        }
+        .task {
+            try? await sonosService.load(useCache: true)
         }
     }
 
@@ -170,14 +177,10 @@ struct GroupScreen: View {
     }
 }
 
-//#Preview {
-//    Text("HERE")
-//        .sheet(isPresented: .constant(true)) {
-//            GroupScreen(sheetDestination: .constant(nil), viewModel: GroupScreenViewModel(groupCoordinatorID: GroupRoom.garage.coordinatorID, sonosService: SonosService()))
-//                .environment(SonosService())
-//                .onAppear {
-//                    let thumbImage = UIImage()
-//                    UISlider.appearance().setThumbImage(thumbImage, for: .normal)
-//                }
-//        }
-//}
+#Preview {
+    Text("HERE")
+        .sheet(isPresented: .constant(true)) {
+            GroupScreen(coordinatorID: GroupRoom.gym.coordinatorID, sheetDestination: .constant(nil))
+                .withEnvironments()
+        }
+}

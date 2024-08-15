@@ -61,3 +61,12 @@ public final class Alert: Equatable {
         lhs.text != rhs.text
     }
 }
+
+extension View {
+    func withAlert() -> some View {
+        return safeAreaInset(edge: .top) {
+            PillView()
+                .opacity(AlertService.shared.alert.isShowing ? 1 : 0)
+        }
+    }
+}

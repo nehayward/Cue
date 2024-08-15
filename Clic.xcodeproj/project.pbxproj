@@ -43,7 +43,7 @@
 		E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
 		E92B3EA22B60249B00724FA1 /* LogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */; };
 		E92B3EA32B60249B00724FA1 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
-		E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
+		E92B3EA42B60249B00724FA1 /* DeviceListMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListMainView.swift */; };
 		E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E92B3EA62B60249B00724FA1 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
 		E92B3EA72B60249B00724FA1 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
@@ -166,7 +166,7 @@
 		E95D66CF2C5ACAAC009385AF /* PlexManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E974A42C593D0800AE82AF /* PlexManagementView.swift */; };
 		E9604DE12C0F6D7200A421D9 /* RemoteWidgetMediumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */; };
 		E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = E960ED492AC4969F003E3732 /* SubscriptionKit */; };
-		E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
+		E96385F62AD8E19F005411BF /* DeviceListMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListMainView.swift */; };
 		E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = E96385FB2AD8E346005411BF /* RevenueCatUI */; settings = {ATTRIBUTES = (Required, ); }; };
 		E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96385FD2AD8E654005411BF /* Bundle+AppIcon.swift */; };
@@ -199,7 +199,7 @@
 		E97562E32B699B2400787E14 /* AppRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDDC332B27BED4005D281E /* AppRegistry.swift */; };
 		E97562E42B699B2400787E14 /* LogScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98CE0072B2FB0D7002E5A96 /* LogScreen.swift */; };
 		E97562E52B699B2400787E14 /* CreateLiveActivityIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E47122B33F42C00DE6647 /* CreateLiveActivityIntent.swift */; };
-		E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListView.swift */; };
+		E97562E62B699B2400787E14 /* DeviceListMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BDE57129E3396700D230A8 /* DeviceListMainView.swift */; };
 		E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */; };
 		E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95498A92AA5334B007848A7 /* DebugEmbedTest.swift */; };
 		E97562E92B699B2400787E14 /* TVModeViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */; };
@@ -369,6 +369,9 @@
 		E9A6AAB82B3CCC9A00C24B98 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = E9A6AAB72B3CCC9A00C24B98 /* VibesDS */; };
 		E9A6D7072AFABF96009B9C78 /* QueueScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A6D7052AFABF7D009B9C78 /* QueueScreen.swift */; };
 		E9A94C7A2C24838E00282864 /* SelectedGroupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A94C792C24838E00282864 /* SelectedGroupService.swift */; };
+		E9B096212C6D1988008F74E1 /* HouseholdScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E969FD9D2C6D151B005F0362 /* HouseholdScreen.swift */; };
+		E9B096222C6D198A008F74E1 /* HouseholdScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E969FD9D2C6D151B005F0362 /* HouseholdScreen.swift */; };
+		E9B096232C6D198B008F74E1 /* HouseholdScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E969FD9D2C6D151B005F0362 /* HouseholdScreen.swift */; };
 		E9B12B4A2A5F2E3D0008868C /* RemoteWidgetEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B12B482A5F2DC70008868C /* RemoteWidgetEntryView.swift */; };
 		E9B12B542A5F31790008868C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D422A325CC5005AB0E0 /* WidgetKit.framework */; };
 		E9B12B552A5F31790008868C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97C0D442A325CC5005AB0E0 /* SwiftUI.framework */; };
@@ -649,6 +652,7 @@
 		E96396332A3B700900518A17 /* MusicSearchKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = MusicSearchKit; path = Packages/MusicSearchKit; sourceTree = "<group>"; };
 		E96396362A3B8F5200518A17 /* ZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneView.swift; sourceTree = "<group>"; };
 		E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E969FD9D2C6D151B005F0362 /* HouseholdScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdScreen.swift; sourceTree = "<group>"; };
 		E9702ADF2C27D4AF003EB277 /* OpenInServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInServiceView.swift; sourceTree = "<group>"; };
 		E9705DD92C0A5592005CE79A /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
 		E9705DDB2C0A5C27005CE79A /* AppleLibraryBrowseScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleLibraryBrowseScreen.swift; sourceTree = "<group>"; };
@@ -726,7 +730,7 @@
 		E9BC83762B7022CC0088BF1F /* FavoritesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesView.swift; sourceTree = "<group>"; };
 		E9BDE56C29E3396700D230A8 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9BDE56F29E3396700D230A8 /* ClicApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClicApp.swift; sourceTree = "<group>"; };
-		E9BDE57129E3396700D230A8 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
+		E9BDE57129E3396700D230A8 /* DeviceListMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListMainView.swift; sourceTree = "<group>"; };
 		E9BDE57329E3396800D230A8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9BDE57629E3396800D230A8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E9BF3ABB2B0E7CFC00AF57EA /* SpotifySearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifySearchView.swift; sourceTree = "<group>"; };
@@ -1166,7 +1170,8 @@
 				E94FA6DE2BF648F7001F9811 /* MailViewRepresentable.swift */,
 				E9C889682BBFAA5B004C31DE /* SubscriptionDetailScreen.swift */,
 				E9BF3AC12B100B7A00AF57EA /* ReviewService.swift */,
-				E9BDE57129E3396700D230A8 /* DeviceListView.swift */,
+				E9BDE57129E3396700D230A8 /* DeviceListMainView.swift */,
+				E969FD9D2C6D151B005F0362 /* HouseholdScreen.swift */,
 				E9F600C72B50DDF10039AAA6 /* ListViewLarge.swift */,
 				E982AEA82ABA027500709FC0 /* DeviceNameView.swift */,
 				E9EE620C2A94102A00FC1826 /* TVModeViewCell.swift */,
@@ -1697,7 +1702,7 @@
 				E92B3EA32B60249B00724FA1 /* CreateLiveActivityIntent.swift in Sources */,
 				E9CCD0872C2F506300C58BD3 /* PlayableLibraryList.swift in Sources */,
 				E99CC9F82B7AC18500B42A7A /* AppleMusicPermissionView.swift in Sources */,
-				E92B3EA42B60249B00724FA1 /* DeviceListView.swift in Sources */,
+				E92B3EA42B60249B00724FA1 /* DeviceListMainView.swift in Sources */,
 				E9D49E712BC9D7700084185E /* ClicApp.swift in Sources */,
 				E9C119F22C39E56E00EE5EBF /* SpotifyBrowseScreen.swift in Sources */,
 				E92B3EA52B60249B00724FA1 /* PreferenceScreen.swift in Sources */,
@@ -1762,6 +1767,7 @@
 				E92B3EC92B60249B00724FA1 /* ListViewLarge.swift in Sources */,
 				E97416AD2C16A9E000700859 /* PlayableContentList.swift in Sources */,
 				E92B3ECA2B60249B00724FA1 /* PlayGroupScreen.swift in Sources */,
+				E9B096232C6D198B008F74E1 /* HouseholdScreen.swift in Sources */,
 				E92B3ECB2B60249B00724FA1 /* Keyboard.swift in Sources */,
 				E9B135C02B6C1A860096A14E /* SearchScreen.swift in Sources */,
 				E92B3ECC2B60249B00724FA1 /* RefreshIntent.swift in Sources */,
@@ -1825,7 +1831,7 @@
 				E97562E42B699B2400787E14 /* LogScreen.swift in Sources */,
 				E97562E52B699B2400787E14 /* CreateLiveActivityIntent.swift in Sources */,
 				E9F665362C35AA2B002980AC /* PlayableMenuView.swift in Sources */,
-				E97562E62B699B2400787E14 /* DeviceListView.swift in Sources */,
+				E97562E62B699B2400787E14 /* DeviceListMainView.swift in Sources */,
 				E97562E72B699B2400787E14 /* PreferenceScreen.swift in Sources */,
 				E9BBEA272C593A2A00C9E81C /* LoggerView.swift in Sources */,
 				E97562E82B699B2400787E14 /* DebugEmbedTest.swift in Sources */,
@@ -1886,6 +1892,7 @@
 				E97563062B699B2400787E14 /* IntentError.swift in Sources */,
 				E97563072B699B2400787E14 /* LogView.swift in Sources */,
 				E97563082B699B2400787E14 /* AlertService.swift in Sources */,
+				E9B096222C6D198A008F74E1 /* HouseholdScreen.swift in Sources */,
 				E9CCD0912C31ECB800C58BD3 /* PlayableCardView.swift in Sources */,
 				E97416B02C16AA3700700859 /* LibraryBrowseScreen.swift in Sources */,
 				E9249A6B2C0CF91A00D8B920 /* SpeakerSettingsView.swift in Sources */,
@@ -1999,13 +2006,14 @@
 				E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */,
 				E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */,
 				E9B3476D2BF14BF300688851 /* ContentToAdd.swift in Sources */,
-				E96385F62AD8E19F005411BF /* DeviceListView.swift in Sources */,
+				E96385F62AD8E19F005411BF /* DeviceListMainView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
 				E95498AA2AA5334B007848A7 /* DebugEmbedTest.swift in Sources */,
 				E9EE620D2A94102B00FC1826 /* TVModeViewCell.swift in Sources */,
 				E9BC83772B7022CC0088BF1F /* FavoritesView.swift in Sources */,
 				E99403DA2C0784E900D20067 /* PlaylistContainer.swift in Sources */,
 				E94F6B102A54D0F0000240A6 /* SceneBuilderScreen.swift in Sources */,
+				E9B096212C6D1988008F74E1 /* HouseholdScreen.swift in Sources */,
 				E9D38C512B5DADBB0025CC31 /* PlayHistoryView.swift in Sources */,
 				E9F600BC2B4DCB560039AAA6 /* WidgetManager.swift in Sources */,
 				E90F31622BC4976800884EA5 /* PlayableContentView.swift in Sources */,

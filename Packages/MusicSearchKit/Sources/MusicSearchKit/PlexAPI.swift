@@ -76,6 +76,7 @@ public final class PlexAPI {
         guard let plexServer = await getPlexServer() else {
             return []
         }
+        logger.info(plexServer)
 
         guard var playlistsURL = plexServer.baseURL?.appending(path: "playlists") else { return [] }
         let queryItems: [URLQueryItem] = [
@@ -88,7 +89,7 @@ public final class PlexAPI {
         }
 
         var playlists = playlistContainer.mediaContainer.metadata
-        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let token = authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
 
         for index in playlists.indices {
             playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
@@ -100,7 +101,7 @@ public final class PlexAPI {
     }
 
     public func albums() async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
+        guard let token = authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
@@ -155,7 +156,7 @@ public final class PlexAPI {
     }
 
     public func lookupPlexSong(key: String) async -> PlexSongItem? {
-        guard let token = await authenticator.authToken, let plexServer = await getPlexServer() else {
+        guard let token = authenticator.authToken, let plexServer = await getPlexServer() else {
             return nil
         }
 
@@ -188,7 +189,7 @@ public final class PlexAPI {
     }
 
     public func lookupAlbum(key: String) async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
+        guard let token = authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer(), let id = plexServer.clientIdentifier else {
             return nil
         }
@@ -244,7 +245,7 @@ public final class PlexAPI {
     }
 
     public func lookupAlbumTracks(key: String) async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
+        guard let token = authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
@@ -340,7 +341,7 @@ public final class PlexAPI {
         }
 
         guard var artist = playlistContainer.mediaContainer.metadata.first,
-              let token = await authenticator.authToken else { return nil }
+              let token = authenticator.authToken else { return nil }
 
         artist.sonosID = "\(id)%3A3%3A\(artist.ratingKey)"
         if let thumb = artist.thumb {
@@ -389,6 +390,7 @@ public final class PlexAPI {
         guard let plexServers: [PlexServer] = await loadAuthorized(resourceURL) else {
             return []
         }
+        logger.info(plexServers)
         return plexServers
     }
 
@@ -460,7 +462,7 @@ public final class PlexAPI {
     }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {
-        guard let token = await authenticator.authToken else { return nil }
+        guard let token = authenticator.authToken else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -484,7 +486,8 @@ public final class PlexAPI {
             }
             return nil
         }
-
+        let xml = String(decoding: data, as: UTF8.self)
+        logger.info("\(xml)")
         do {
             let response = try decoder.decode(T.self, from: data)
             return response
@@ -496,7 +499,7 @@ public final class PlexAPI {
     }
 
     private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
-        guard let token = await authenticator.authToken, 
+        guard let token = authenticator.authToken,
                 let plexServer = await getPlexServer(),
                 let clientID = plexServer.clientIdentifier,
                 let metadata else { return [] }

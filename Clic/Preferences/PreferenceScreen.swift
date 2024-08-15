@@ -97,6 +97,10 @@ struct PreferenceScreen: View {
                     LabeledContent("System") {
                         Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
                     }
+                    NavigationLink(value: RouterDestination.houseHold) {
+                        Label("Households", systemImage: "house")
+                            .foregroundStyle(.primary)
+                    }
                     NavigationLink(value: RouterDestination.speakerSettingsList) {
                         Label("Speaker Settings", systemImage: "hifispeaker")
                             .foregroundStyle(.primary)
@@ -317,6 +321,7 @@ struct PreferenceScreen: View {
             }
             .fontDesign(.rounded)
         }
+        .withAlert()
         .task {
             try? await subscriptionService.checkSubscription()
         }

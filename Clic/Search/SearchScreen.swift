@@ -26,6 +26,7 @@ struct SearchScreen: View {
 
     var closeInspector: (() -> Void)? = nil
 
+    var isAlarmSearch: Bool = false
     @State private var coreFeatures = CoreFeatures()
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
@@ -62,7 +63,7 @@ struct SearchScreen: View {
                     PlayHistoryView(filters: $filters)
                 }
 
-                if musicSearchService.query.isEmpty, contentToAdd == nil {
+                if musicSearchService.query.isEmpty, !isAlarmSearch {
                     FavoritesView()
                 }
 
@@ -92,7 +93,7 @@ struct SearchScreen: View {
                 prompt: "Searching \(musicSearchSelection.title)"
             )
             .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle(contentToAdd == nil ? "Search" : "Adding to Alarm")
+            .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
             .withAppRouter(router: router)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {

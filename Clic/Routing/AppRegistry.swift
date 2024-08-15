@@ -57,9 +57,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case let .createScene(content):
+                case let .createScene:
                     NavigationStack {
-                        SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
+                        SceneBuilderScreen()
                     }
                 case .scenes:
                     SceneView()
@@ -108,7 +108,7 @@ extension View {
                     @State var router = Router()
                     @State var selectedGroupService = SelectedGroupService()
 
-                    SearchScreen()
+                    SearchScreen(isAlarmSearch: true)
                         .environment(adding)
                         .environment(router)
                         .environment(selectedGroupService)
@@ -192,9 +192,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case let .createScene(content):
+                case .createScene:
                     NavigationStack {
-                        SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
+                        SceneBuilderScreen()
                     }
                 case .scenes:
                     SceneView()
@@ -233,7 +233,7 @@ extension View {
                     @State var router = Router()
                     @State var selectedGroupService = SelectedGroupService()
 
-                    SearchScreen()
+                    SearchScreen(isAlarmSearch: true)
                         .environment(adding)
                         .environment(router)
                         .environment(selectedGroupService)
@@ -281,8 +281,8 @@ extension View {
                 MediaDetailView(playableContent: content)
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
-            case let .createScene(content):
-                SceneBuilderScreen(sheetDestination: .constant(nil), playableContent: content)
+            case .createScene:
+                SceneBuilderScreen()
             case .alarms:
                 AlarmListView()
             case let .addAlarm(group):
@@ -316,6 +316,8 @@ extension View {
             case let .playableGridScreen(title: title, items: items, action: action):
                 PlayableGridScreen(items: items, action: action)
                     .navigationTitle(title)
+            case .houseHold:
+                HouseholdScreen()
             }
         }
     }

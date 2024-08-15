@@ -12,7 +12,7 @@ enum InspectorDestination: Identifiable, Equatable {
     case playMedia(content: MediaContent)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
-    case createScene(content: PlayableContent? = nil)
+    case createScene
     case scenes
     case searchAdd(adding: ContentToAdd)
     case alarms(group: GroupRoom? = nil)

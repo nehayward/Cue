@@ -48,6 +48,15 @@ public final class SonosService {
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
     public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
+    public var preferredHouseHold: String? { 
+        get {
+            sonosSystemDiscoverService.preferredHouseHold
+        }
+        set {
+            sonosSystemDiscoverService.preferredHouseHold = newValue
+        }
+    }
+
     public var parserError: String?
 
     @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
@@ -65,8 +74,8 @@ public final class SonosService {
 
     public var system: System?
 
-    public var primaryHouseID: String? { sonosSystemDiscoverService.houseHoldIDs.first }
-    public var houseIDs: Set<String> { sonosSystemDiscoverService.houseHoldIDs }
+//    public var primaryHouseID: String? { sonosSystemDiscoverService.houseHoldIDs.first }
+//    public var houseIDs: Set<String> { sonosSystemDiscoverService.houseHoldIDs }
 
     public var sorted: [GroupRoom] {
         get {
@@ -605,6 +614,28 @@ public final class SonosService {
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let groups = try await api.getGroups(ipAddress: ip)
         return groups
+    }
+
+    @MainActor
+    public func getGroupsFast() async throws -> [GroupRoom] {
+        let ips = try await sonosSystemDiscoverService.getAllIPs()
+
+        return try await withThrowingTaskGroup(of: [GroupRoom].self, returning: [GroupRoom].self) { taskGroup in
+            for ip in ips {
+                taskGroup.addTask { [weak self] in
+                    guard let self else { return [] }
+                    return try await api.getGroups(ipAddress: ip)
+                }
+            }
+
+            // Return the first successful result
+            if let firstGroups = try await taskGroup.next() {
+                return firstGroups
+            }
+
+            // If no tasks succeeded, return an empty array
+            return []
+        }
     }
 
     @MainActor
@@ -1323,9 +1354,39 @@ public final class SonosService {
     }
 
     public func getHouseID() async -> String? {
-        // MARK: Update use faster Sonos Devices if Available
         guard let ip = prioritizedIP() else { return nil }
         return await api.getHouseHoldID(for: ip)
+    }
+
+    public func getHouseID(for ip: String) async -> String? {
+        return await api.getHouseHoldID(for: ip)
+    }
+
+    public func getAllHouseholdsIPs() async -> Set<String> {
+        guard let ips = try? await sonosSystemDiscoverService.getAllIPs() else { return [] }
+
+        var householdMap = [String: String]()
+        var savedIPs = Set<String>()
+        
+        await withTaskGroup(of: (String, String).self) { taskGroup in
+            for ip in ips {
+                taskGroup.addTask { [weak self] in
+                    guard let self else { return ("", "") }
+                    let householdID = await self.api.getHouseHoldID(for: ip)
+                    return (householdID, ip)
+                }
+            }
+
+            for await (householdID, ip) in taskGroup {
+                if householdMap[householdID] == nil {
+                    householdMap[householdID] = ip
+                    savedIPs.insert(ip)
+                }
+            }
+        }
+
+        print(householdMap)
+        return savedIPs
     }
 
     public func librarySearch(query: String) async -> [PlayableContent] {

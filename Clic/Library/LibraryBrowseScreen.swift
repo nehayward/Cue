@@ -59,6 +59,7 @@ struct LibraryBrowseScreen: View {
             .withAppRouter(router: router)
             .listStyle(.inset)
             .navigationTitle("Music Library")
+            .navigationBarTitleDisplayMode(.inline)
             .fontDesign(.rounded)
             .addDismiss(action: dismiss.callAsFunction)
             .task {

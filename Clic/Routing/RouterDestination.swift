@@ -8,7 +8,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
     case groupDestination(content: PlayableContent, position: QueuePosition = .now)
     case manageScenes
-    case createScene(content: PlayableContent? = nil)
+    case createScene
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case alarms
@@ -20,6 +20,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case playableLibraryList(items: Binding<OrderedSet<PlayableContent>>, action: (() async -> Void))
     case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
+    case houseHold
 
     public var id: String {
         switch self {
@@ -33,8 +34,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content.id
         case let .artistDetail(content, _):
             return content.id
-        case let .createScene(content):
-            return content?.id ?? "scene"
+        case .createScene:
+            return "scene"
         case .alarms:
             return "alarms"
         case .addAlarm:
@@ -53,6 +54,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "playableLibraryList"
         case .playableGridScreen(title: _, items: _, action: _):
             return "playableGridScreen"
+        case .houseHold:
+            return "houseHold"
         }
     }
 
@@ -64,8 +67,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return content1 == content2 && position1 == position2
         case (.manageScenes, .manageScenes):
             return true
-        case let (.createScene(content1), .createScene(content2)):
-            return content1 == content2
+        case (.createScene, .createScene):
+            return true
         case let (.mediaDetail(content1, group1), .mediaDetail(content2, group2)):
             return content1 == content2 && group1 == group2
         case let (.artistDetail(content1, group1), .artistDetail(content2, group2)):
@@ -109,8 +112,8 @@ public enum RouterDestination: Hashable, Identifiable {
         case let .artistDetail(content, group):
             hasher.combine(content)
             hasher.combine(group)
-        case let .createScene(content):
-            hasher.combine(content?.id ?? "scene")
+        case .createScene:
+            hasher.combine("scene")
         case .alarms:
             hasher.combine("alarms")
         case .addAlarm:
@@ -130,6 +133,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine(items.wrappedValue)
         case .fullPlayHistoryList:
             hasher.combine("fullPlayHistoryList")
+        case .houseHold:
+            hasher.combine("houseHolds")
         }
     }
 }

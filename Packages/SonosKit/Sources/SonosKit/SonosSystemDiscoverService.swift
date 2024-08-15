@@ -30,43 +30,103 @@ class SonosStorageIP: ObservableObject {
 @Observable
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
-    var houseHoldIDs: Set<String> = []
     var currentWakes: Set<String> = []
+    var preferredHouseHold: String? {
+        get {
+            UserDefaults.standard.string(forKey: "clic.household")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "clic.household")
+        }
+    }
 
     @ObservationIgnored var sonosStorageIP = SonosStorageIP()
+    @ObservationIgnored private var api = SonosAPI()
     @ObservationIgnored private var browser: NWBrowser?
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
     @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
 
     private var permissionsDenied: Bool = false
-
-//    var lastKnownIP: String {
-//        get {
-//            UserDefaults.standard.string(forKey: "sonos.ip") ?? ""
-//        }
-//        set {
-//            UserDefaults.standard.set(newValue, forKey: "sonos.ip")
-//        }
-//    }
+    private var connections: [NWConnection?] = []
+    private var allIPs: Set<String> = []
 
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
 
-    func startBrowsing() {
+    @MainActor
+    func getFirstIP(useCache: Bool) async throws -> String {
+        if useCache && !sonosStorageIP.sonosIP.isEmpty {
+            return sonosStorageIP.sonosIP
+        }
+
+        defer {
+            isSearching = false
+        }
+        isSearching = true
+
+        startBrowseAll()
+        let task = Task {
+            let startTime = Date.now
+            try? await Task.sleep(for: .milliseconds(200))
+            while allIPs.count != connections.count {
+                if permissionsDenied {
+                    throw SonosServiceError.permissionDenied
+                }
+                if Date.now > startTime.addingTimeInterval(8) {
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            return allIPs
+        }
+
+        let ips = try await task.value
+        let (ip, _) = try await withThrowingTaskGroup(of: (String, String).self, returning: (String, String).self) { taskGroup in
+            for ip in ips {
+                taskGroup.addTask { [weak self] in
+                    guard let self = self else { return ("", "") }
+                    let id = await api.getHouseHoldID(for: ip)
+                    return (ip, id)
+                }
+            }
+
+            while let (ip, id) = try await taskGroup.next() {
+                if let preferredHouseHold = preferredHouseHold, preferredHouseHold != id {
+                    continue
+                }
+                sonosStorageIP.sonosIP = ip
+                preferredHouseHold = id
+                return (ip, id)
+            }
+            
+            guard let ip = ips.first else {
+                return ("", "")
+            }
+
+            // MARK: Preferred not found
+            return (ip, "")
+        }
+
+        if ip.isEmpty {
+            throw SonosServiceError.sonosSystemNotFound
+        }
+
+        return ip
+    }
+
+    func startQuickBrowse() {
         stopBrowsing()
         print("Search")
         let params = NWParameters()
-        params.includePeerToPeer = true
         params.requiredInterfaceType = .wifi
-        params.acceptLocalOnly = true
         params.allowFastOpen = true
 
-        let browser = NWBrowser(for: .bonjourWithTXTRecord(type: sonosBonjourServiceType, domain: nil), using: params)
+        let browser = NWBrowser(for: .bonjour(type: sonosBonjourServiceType, domain: nil), using: params)
         self.browser = browser
-        browser.browseResultsChangedHandler = { [weak self] results, changed in
+        browser.browseResultsChangedHandler = { [weak self] services, changed in
             guard let self else { return }
-            changeHandler(results)
+            changeHandler(services, changed)
         }
 
         browser.stateUpdateHandler = { [weak self] newState in
@@ -82,70 +142,110 @@ final class SonosSystemDiscoverService {
         browser = nil
     }
 
-    @MainActor
-    func getFirstIP(useCache: Bool) async throws -> String {
-        if useCache && !sonosStorageIP.sonosIP.isEmpty {
-            return sonosStorageIP.sonosIP
-        }
-        defer {
-            isSearching = false
-        }
-        isSearching = true
 
-        lastKnownIP = ""
-        startBrowsing()
+    @MainActor
+    func getAllIPs() async throws -> [String] {
+        startBrowseAll()
         let task = Task {
             let date = Date.now
-            while lastKnownIP.isEmpty {
+            try? await Task.sleep(for: .milliseconds(200))
+            while allIPs.count != connections.count {
                 if permissionsDenied {
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(8) {
+                if Date.now > date.addingTimeInterval(1) {
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(100))
             }
-
-            if lastKnownIP.isEmpty {
-                throw SonosServiceError.sonosSystemNotFound
-            }
-
-            sonosStorageIP.sonosIP = lastKnownIP
-            return lastKnownIP
+            return allIPs
         }
-        let ip = try await task.value
-        return ip
+        let ips = try await task.value
+        return Array(ips)
     }
 
-    private func changeHandler(_ results: Set<NWBrowser.Result>) {
+    func startBrowseAll() {
+        stopBrowsing()
+        allIPs.removeAll()
+        connections.removeAll()
+        print("Search All")
+        let params = NWParameters()
+        params.requiredInterfaceType = .wifi
+        params.allowFastOpen = true
+
+        let browser = NWBrowser(for: .bonjour(type: sonosBonjourServiceType, domain: nil), using: params)
+        self.browser = browser
+        browser.browseResultsChangedHandler = { [weak self] services, changed in
+            guard let self else { return }
+            changeHandlerAll(services, changed)
+        }
+
+        browser.stateUpdateHandler = { [weak self] newState in
+            guard let self else { return }
+            stateHandler(newState)
+        }
+
+        browser.start(queue: .main)
+    }
+
+    private func changeHandler(_ services: Set<NWBrowser.Result>, _ changes: Set<NWBrowser.Result.Change>) {
         defer {
             stopBrowsing()
         }
 
-        guard let firstResult = results.first else {
-            logger.error("Nothing found")
-            return
+        for service in services {
+            var netConnection: NWConnection?
+
+            if case let .service(name, type, domain, interface) = service.endpoint {
+                netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
+                netConnection?.stateUpdateHandler = { newState in
+                    switch newState {
+                    case .ready:
+                        guard let currentPath = netConnection?.currentPath,
+                              let endpoint = currentPath.remoteEndpoint else { return }
+
+                        if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
+                            self.lastKnownIP = ip
+                            return
+                        }
+
+                    default:
+                        break
+                    }
+                }
+            }
+            netConnection?.start(queue: .global())
+            connections.append(netConnection)
         }
-        guard case let .bonjour(txtRecord) = firstResult.metadata, let location = txtRecord.dictionary["location"] else {
-            logger.error("No TXTRecord found")
-            print("No Record")
-            return
-        }
-        
-        if let houseID = txtRecord.dictionary["mhhid"] {
-            houseHoldIDs.insert(houseID)
+    }
+
+    private func changeHandlerAll(_ services: Set<NWBrowser.Result>, _ changes: Set<NWBrowser.Result.Change>) {
+        defer {
+            stopBrowsing()
         }
 
-        print("Found Sonos Device: \(location)")
-        logger.trace("Found Sonos Device: \(location,  align: .right(columns: 10))")
-        let components = URLComponents(string: location)
-        guard let ip = components?.host else {
-            return
-        }
+        for service in services {
+            var netConnection: NWConnection?
 
-        print("Found IP for Sonos device, \(ip)")
-        logger.trace("Found IP for Sonos device, \(ip,  align: .right(columns: 10))")
-        lastKnownIP = ip
+            if case let .service(name, type, domain, interface) = service.endpoint {
+                netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
+                netConnection?.stateUpdateHandler = { newState in
+                    switch newState {
+                    case .ready:
+                        guard let currentPath = netConnection?.currentPath,
+                              let endpoint = currentPath.remoteEndpoint else { return }
+
+                        if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
+                            self.allIPs.insert(ip)
+                        }
+                    default:
+                        break
+                    }
+                }
+            }
+            netConnection?.start(queue: .global())
+            connections.append(netConnection)
+        }
     }
 
     private func stateHandler(_ newState: NWBrowser.State) {
@@ -157,7 +257,7 @@ final class SonosSystemDiscoverService {
         case let .failed(error):
             logger.trace("Browser failed with error: \(error)")
             self.browser?.cancel()
-            self.startBrowsing()
+            self.startQuickBrowse()
         case let .waiting(error):
             print(error.errorCode)
             if let description = error.errorUserInfo["NSDescription"] as? String, description == "PolicyDenied" {
@@ -203,3 +303,4 @@ final class SonosSystemDiscoverService {
         })
     }
 }
+

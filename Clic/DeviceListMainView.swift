@@ -7,10 +7,10 @@ import RevenueCat
 import RevenueCatUI
 
 struct DeviceListMainView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
-    @Environment(AlertService.self) var alertService: AlertService
-    @Environment(Router.self) var router: Router
+    @Environment(SonosService.self) var sonosService
+    @Environment(SubscriptionService.self) var subscriptionService
+    @Environment(AlertService.self) var alertService
+    @Environment(Router.self) var router
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
@@ -204,10 +204,6 @@ struct DeviceListMainView: View {
         }
         .safeAreaInset(edge: .top) {
             VStack {
-                if alertService.alert.isShowing {
-                    PillView()
-                }
-
                 if !sonosService.networkMonitorService.isConnected {
                     Label("Can't find System, Connect to Wi-Fi", systemImage: "wifi.slash")
                         .padding()
@@ -236,6 +232,7 @@ struct DeviceListMainView: View {
                 }
             }
         }
+        .withAlert()
         .animation(.spring, value: sonosService.isSearching)
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemState.notFound)

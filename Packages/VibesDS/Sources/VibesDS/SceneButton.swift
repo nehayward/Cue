@@ -29,7 +29,7 @@ struct SceneButtonForegroundColor: ViewModifier {
 #if os(watchOS)
         return content.foregroundStyle(.fill)
 #else
-        return content.foregroundStyle(.ultraThickMaterial)
+        return content.foregroundStyle(.fill)
 #endif
     }
 }
@@ -113,7 +113,7 @@ public struct SceneButton: View {
             }
         }
         .buttonBorderShape(.capsule)
-        .background(.thinMaterial)
+        .background(.background)
         .clipShape(Capsule())
     }
 }

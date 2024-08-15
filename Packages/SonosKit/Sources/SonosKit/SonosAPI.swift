@@ -16,7 +16,7 @@ final class SonosAPI: NSObject {
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 5
+        configuration.timeoutIntervalForRequest = 10
         return URLSession(configuration: configuration)
     }()
 
@@ -951,7 +951,7 @@ final class SonosAPI: NSObject {
 
     func getHouseHoldID(for IP: String) async -> String {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [:], endpoint: "ZoneGroupTopology") {
-            guard let xmlString = String(data: data, encoding: .utf8) else { return "" }
+            let xmlString = String(decoding: data, as: UTF8.self)
             let houseID = xmlParser.parseHouseID(xml: xmlString)
             return houseID
         }

@@ -1,4 +1,13 @@
-# 2024.34
+# 2024.36
+
+## External
+
+- Now supports S1!
+- Supports multiple households.
+
+## Internal
+
+# 2024.35
 
 ## External
 
