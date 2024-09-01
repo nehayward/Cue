@@ -79,6 +79,8 @@ struct ClicApp: App {
                         }
 #endif
                     }
+                    .withAlert()
+                    .animation(.spring, value: alertService.alert.isShowing)
                 } else {
                     DeviceListMainView()
                 }
@@ -454,7 +456,7 @@ extension ToolbarDelegate: NSToolbarDelegate {
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if itemIdentifier == .preferences {
-            let barItem = UIBarButtonItem(image: UIImage(systemName: "slider.vertical.3"), style: .plain, target: self, action: #selector(prefs(_:)))
+            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
             let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
             item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
             item.toolTip = NSLocalizedString("Preferences", comment: "")

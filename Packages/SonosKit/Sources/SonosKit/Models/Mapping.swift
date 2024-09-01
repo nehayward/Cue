@@ -22,7 +22,12 @@ extension Song {
             subtitle: artistName,
             artwork: artwork?.url(width: 100, height: 100),
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
-            metadata: PlayableContentMetadata(artist: artistName, album: albumTitle, isrc: isrc)
+            metadata: PlayableContentMetadata(
+                artist: artistName,
+                album: albumTitle,
+                isrc: isrc,
+                isExplicit: contentRating == .explicit
+            )
         )
     }
 }
@@ -61,7 +66,8 @@ extension MusicKit.Track {
                 artist: artistName,
                 album: albumTitle,
                 isrc: isrc,
-                isPlayable: playParameters != nil
+                isPlayable: playParameters != nil,
+                isExplicit: contentRating == .explicit
             )
         )
     }
@@ -131,18 +137,65 @@ extension Playlist {
     }
 }
 
-extension AppleLibraryItem {
-    public var toPlayable: PlayableContent? {
-        guard let contentType = ContentType(type) else { return nil }
+extension AppleLibraryPlaylist {
+    public var toPlayable: PlayableContent {
         return PlayableContent(
             title: attributes.name,
             subtitle: "",
-            artwork: attributes.artwork?.urlWithSize(width: 400, height: 400),
+            artwork: attributes.artwork.urlWithSize(width: 200, height: 200),
+            content: MediaContent(
+                service: .apple,
+                id: id.description,
+                type: .libraryPlaylist,
+                location: nil
+            )
+        )
+    }
+}
+
+extension AppleLibraryItem {
+    public var toPlayable: PlayableContent? {
+        guard let contentType = ContentType(type) else { return nil }
+        var trackDuration: Duration? = nil
+        if let duration = attributes.durationInMillis {
+            trackDuration = Duration.milliseconds(duration)
+        }
+    
+        return PlayableContent(
+            title: attributes.name,
+            subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            artwork: attributes.artwork?.urlWithSize(width: 300, height: 300),
             content: MediaContent(
                 service: .apple,
                 id: id.description,
                 type: contentType,
                 location: nil
+            ),
+            metadata: .init(
+                duration: trackDuration,
+                popularity: 50,
+                artist: attributes.artistName,
+                isExplicit: attributes.contentRating == "explicit"
+            )
+        )
+    }
+}
+
+extension AppleLibraryAlbum {
+    public var toPlayable: PlayableContent? {
+        return PlayableContent(
+            title: attributes.name,
+            subtitle: "\(attributes.artistName ?? "")",
+            artwork: attributes.artwork?.urlWithSize(width: 100, height: 100),
+            content: MediaContent(
+                service: .apple,
+                id: id.description,
+                type: .libraryAlbum,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: 50,
+                artist: attributes.artistName
             )
         )
     }
@@ -152,9 +205,10 @@ extension Album {
    public var toPlayable: PlayableContent {
         PlayableContent(
             title: title,
-            subtitle: artistName,
+            subtitle: artistName + " • \(releaseDate?.formatted(.dateTime.year()) ?? "")",
             artwork: artwork?.url(width: 100, height: 100),
-            content: MediaContent(service: .apple, id: id.description, type: .album, location: url)
+            content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
+            metadata: PlayableContentMetadata(isExplicit: contentRating == .explicit)
         )
     }
 }
@@ -171,6 +225,24 @@ extension Artist {
     }
 }
 
+extension AppleLibraryArtist {
+    public var toPlayable: PlayableContent? {
+        return PlayableContent(
+            title: attributes.name,
+            subtitle: "",
+            artwork: nil,
+            content: MediaContent(
+                service: .apple,
+                id: id.description,
+                type: .libraryArtist,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: 50
+            )
+        )
+    }
+}
 
 // MARK: - Spotify Music Mapping
 extension SpotifyTrackItem {
@@ -192,7 +264,8 @@ extension SpotifyTrackItem {
                 popularity: popularity,
                 artist: artists.first?.name,
                 album: album.name,
-                isrc: externalIds.isrc
+                isrc: externalIds.isrc,
+                isExplicit: explicit
             )
         )
     }
@@ -202,7 +275,7 @@ extension SpotifyAlbumItem {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: name,
-            subtitle: artists.first?.name ?? "",
+            subtitle: [artists.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
             artwork: URL(string: images.first?.url ?? ""),
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify)),
             metadata: .init(
@@ -216,7 +289,7 @@ extension SpotifyArtistAlbums.AlbumItem {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: name,
-            subtitle: releaseDate,
+            subtitle: releaseDateFormatted ?? "",
             artwork: URL(string: images.first?.url ?? ""),
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
@@ -227,7 +300,7 @@ extension SpotifyAlbumDetails {
     public var toPlayable: PlayableContent {
         PlayableContent(
             title: name,
-            subtitle: releaseDate,
+            subtitle: releaseDateFormatted ?? "",
             artwork: URL(string: images.first?.url ?? ""),
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
@@ -487,7 +560,8 @@ extension TidalTrackResource {
                 album: album.title,
                 albumID: album.id,
                 isrc: isrc,
-                audioCodec: mediaMetadata.tags.last?.uppercased()
+                audioCodec: mediaMetadata.tags?.last?.uppercased(),
+                isExplicit: isExplicit
             )
         )
     }
@@ -499,15 +573,24 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: artists.first?.name ?? "",
-            artwork: URL(string: imageCover?.first(where: { $0.width == $0.height })?.url ?? ""),
+            subtitle: [artist?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            artwork: imageCover?.thumbnail,
             content: .init(
                 service: .tidal,
                 id: id,
                 type: .album,
                 location: URL(string: tidalUrl)
             ),
-            metadata: .init(duration: Duration.seconds(duration), artist: artist?.name, artistID: artist?.id, album: title, albumID: id)
+            metadata: .init(
+                duration: Duration.seconds(
+                    duration
+                ),
+                artist: artist?.name,
+                artistID: artist?.id,
+                album: title,
+                albumID: id,
+                isExplicit: isExplicit
+            )
         )
     }
 }

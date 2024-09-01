@@ -15,19 +15,20 @@ struct TidalSearchView: View {
     @Binding var filters: [FilterSelection]
 
     var body: some View {
+        let filteredResults = filters.filter(\.isFiltered).isEmpty ?
+        tidalResults :
+        tidalResults.filter { item in
+            filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
+        }
+
         Group {
-            if filters.filter(\.isFiltered).isEmpty {
-                ForEach(tidalResults) { item in
-                    PlayableContentView(item: item)
-                }
-            } else {
-                ForEach(tidalResults) { item in
-                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item)
-                    }
-                }
+            ForEach(filteredResults) { item in
+                PlayableContentView(item: item)
+                    .transition(.slide)
             }
         }
+        .animation(.bouncy, value: filters)
+        .animation(.bouncy, value: tidalResults)
         .fontDesign(.rounded)
     }
 }

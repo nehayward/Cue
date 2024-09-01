@@ -40,6 +40,7 @@ public struct Tracks: Decodable, Sendable {
 
 public struct SpotifyPlaylistsFullContainer: Decodable, Sendable {
     public let items: [SpotifyPlaylistItemContainer]
+    public let total: Int
 }
 
 public struct SpotifyPlaylistItemContainer: Decodable, Sendable {

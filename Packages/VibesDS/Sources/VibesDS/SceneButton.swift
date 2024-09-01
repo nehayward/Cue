@@ -109,7 +109,7 @@ public struct SceneButton: View {
         .animation(started ? .snappy : nil, value: started)
         .task {
             if let content = scene.playableContent {
-                artworkURL = await SonosService.shared.getArtwork(from: content.content)
+                artworkURL = await SonosService.shared.getArtwork(from: content)
             }
         }
         .buttonBorderShape(.capsule)

@@ -72,7 +72,8 @@ struct ThumbnailView: View {
                 imageRequest = ImageRequest(url: content.artwork)
                 return
             }
-            guard let artworkURL = await sonosService.getArtwork(from: content.content, size: 100) else {
+            
+            guard let artworkURL = await sonosService.getArtwork(from: content, size: 100) else {
                 imageRequest = ImageRequest(url: content.artwork)
                 return
             }

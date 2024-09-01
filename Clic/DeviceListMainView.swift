@@ -81,7 +81,7 @@ struct DeviceListMainView: View {
                     Button {
                         router.presentedSheet = .settings
                     } label: {
-                        Image(systemName: "slider.vertical.3")
+                        Image(systemName: "switch.2")
                     }
                 }
             }

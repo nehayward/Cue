@@ -246,6 +246,7 @@ public final class TidalAPI {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
+            print(error)
             print("Failed to decode ⚠️")
             print(String(decoding: data, as: UTF8.self))
             assertionFailure(String(decoding: data, as: UTF8.self))

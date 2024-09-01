@@ -35,7 +35,7 @@ struct DeviceListView: View {
                     Button {
                         router.sheet(to: .preferences)
                     } label: {
-                        Image(systemName: "slider.vertical.3")
+                        Image(systemName: "switch.2")
                     }
                 }
                 

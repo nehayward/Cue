@@ -14,7 +14,7 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
     public let durationInMiliSeconds: Int
     public let trackViewURL: String
     public var artworkURL: String {
-        artworkUrl100.replacingOccurrences(of: "100", with: "1000")
+        artworkUrl100.replacingOccurrences(of: "100", with: "100")
     }
     
     public func artworkURL(with size: String) -> String {

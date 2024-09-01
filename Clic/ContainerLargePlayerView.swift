@@ -49,9 +49,11 @@ struct ContainerLargePlayerView: View {
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                            router.sheet(to: .browse(group: sonosService.sorted[group]))
-                        } else {
-                            router.sheet(to: .browse(group: nil))
+                            if router.inspectorSheet != .browse(group: sonosService.sorted[group]) {
+                                router.inspectorSheet = .browse(group: sonosService.sorted[group])
+                            } else {
+                                router.inspectorSheet = nil
+                            }
                         }
                     } label: {
                         Image(systemName: "music.note.house")

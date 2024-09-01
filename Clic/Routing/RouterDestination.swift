@@ -17,7 +17,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case speakerSettingsList
     case speakerSettings(room: Room)
     case playableContentList(group: GroupRoom? = nil, contentType: ContentType)
-    case playableLibraryList(items: Binding<OrderedSet<PlayableContent>>, action: (() async -> Void))
+    case playableLibraryList(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
     case houseHold
@@ -50,7 +50,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return "playableContentList"
         case .fullPlayHistoryList:
             return "fullPlayHistoryList"
-        case .playableLibraryList(items: _, action: _):
+        case .playableLibraryList(title: _, items: _, action: _):
             return "playableLibraryList"
         case .playableGridScreen(title: _, items: _, action: _):
             return "playableGridScreen"
@@ -85,7 +85,7 @@ public enum RouterDestination: Hashable, Identifiable {
             return room1 == room2
         case let (.playableContentList(group1, contentType1), .playableContentList(group2, contentType2)):
             return group1 == group2 && contentType1 == contentType2
-        case let (.playableLibraryList(items1, _), .playableLibraryList(items2, _)):
+        case let (.playableLibraryList(_, items1, _), .playableLibraryList(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
         case let (.playableGridScreen(_, items1, _), .playableGridScreen(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
@@ -127,7 +127,7 @@ public enum RouterDestination: Hashable, Identifiable {
         case let .playableContentList(group, contentType):
             hasher.combine(group)
             hasher.combine(contentType)
-        case let .playableLibraryList(items, _):
+        case let .playableLibraryList(_, items, _):
             hasher.combine(items.wrappedValue)
         case let .playableGridScreen(_, items, _):
             hasher.combine(items.wrappedValue)

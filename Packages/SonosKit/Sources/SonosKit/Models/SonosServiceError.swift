@@ -5,4 +5,6 @@ enum SonosServiceError: Error {
     case permissionDenied
     case cancelled
     case parseError(String)
+    case timeout
+    case serviceUnavailable
 }

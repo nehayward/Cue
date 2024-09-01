@@ -31,7 +31,7 @@ struct PlayableCardView: View {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                         content
                     }
-                case .artist:
+                case .artist, .libraryArtist:
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                         content
                     }
@@ -61,7 +61,7 @@ struct PlayableCardView: View {
     }
 
     private var content: some View {
-        ContentArtworkView(content: item, showMusicSource: false)
+        ContentArtworkView(content: item, showMusicSource: false, preferredSize: 300)
             .aspectRatio(contentMode: .fit)
             .glur(radius: 30, // The total radius of the blur effect when fully applied.
                   offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.

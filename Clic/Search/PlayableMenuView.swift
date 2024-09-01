@@ -26,12 +26,12 @@ struct PlayableMenuView: View {
             }
             OpenInServiceView(item: item)
             switch item.content.type {
-            case .artist:
+            case .artist, .libraryArtist:
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                     Label("View Artist", systemImage: "music.mic")
                 }
 
-                if [.apple, .spotify].contains(item.content.service) {
+                if [.spotify, .apple].contains(item.content.service) && item.content.type != .libraryArtist {
                     Button {
                         guard let group = selectedGroupService.group else { return }
                         Task {
@@ -119,6 +119,16 @@ struct PlayableMenuView: View {
                 }
 
                 AddToPlaylistMenu(itemToAdd: item)
+                
+                if item.content.service == .apple {
+                    Button {
+                        Task {
+                            try await AppleMusicAPI().favoriteSong(songId: item.id)
+                        }
+                    } label: {
+                        Label("Favorite", systemImage: "play.fill")
+                    }
+                }
             case .radio, .favorite:
                 Button {
                     play()

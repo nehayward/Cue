@@ -1,4 +1,14 @@
 {
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
   "identifier" : "DE3117CA",
   "nonRenewingSubscriptions" : [
 
@@ -95,8 +105,8 @@
           "codeOffers" : [
             {
               "eligibility" : [
-                "existing",
-                "new"
+                "new",
+                "existing"
               ],
               "internalID" : "71E29779",
               "isStackable" : true,
@@ -107,9 +117,9 @@
             },
             {
               "eligibility" : [
-                "new",
                 "existing",
-                "expired"
+                "expired",
+                "new"
               ],
               "internalID" : "26B28BB5",
               "isStackable" : true,
@@ -140,7 +150,10 @@
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Annual Super",
           "subscriptionGroupID" : "21368046",
-          "type" : "RecurringSubscription"
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         },
         {
           "adHocOffers" : [
@@ -182,13 +195,16 @@
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Monthly Super",
           "subscriptionGroupID" : "21368046",
-          "type" : "RecurringSubscription"
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         }
       ]
     }
   ],
   "version" : {
-    "major" : 3,
+    "major" : 4,
     "minor" : 0
   }
 }

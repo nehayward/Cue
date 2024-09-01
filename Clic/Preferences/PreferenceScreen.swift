@@ -309,6 +309,7 @@ struct PreferenceScreen: View {
                 }
             }
             .navigationTitle("Preferences")
+            .navigationBarTitleDisplayMode(.inline)
             .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
             //            .sheet(isPresented: $showSubscriptions) {
             //                SubscriptionDetailScreen()

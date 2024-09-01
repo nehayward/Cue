@@ -169,7 +169,7 @@ struct SearchScreen: View {
     private var filterView: some View {
         VStack(spacing: 0) {
             HStack {
-                FilterView(filters: $filters)
+                FilterView(selectedService: $musicSearchSelection, filters: $filters)
                 Spacer()
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in

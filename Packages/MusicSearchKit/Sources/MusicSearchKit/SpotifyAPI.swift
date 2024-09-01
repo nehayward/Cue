@@ -105,6 +105,26 @@ public final class SpotifyAPI {
             return nil
         }
     }
+    
+    public func playlistTracks(id: String, offset: Int = 0, limit: Int = 50) async -> (SpotifyPlaylistsFullContainer?) {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(id)/tracks"
+        components.queryItems = [
+            .init(name: "offset", value: "\(offset)"),
+            .init(name: "limit", value: "\(limit)")
+        ]
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifyPlaylist: SpotifyPlaylistsFullContainer = try await loadAuthorized(url)
+            return spotifyPlaylist
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
 
     public func album(id: String) async -> SpotifyAlbumItem? {
         var components = URLComponents()
@@ -209,7 +229,9 @@ public final class SpotifyAPI {
         var request = URLRequest(url: URL)
         request.httpMethod = "POST"
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
+        // MARK: Might need to revert back
+//        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
+        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil

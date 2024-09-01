@@ -1,9 +1,12 @@
 import NukeUI
 import SwiftUI
 import SonosKit
+import MusicSearchKit
 
 struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(AlertService.self) var alertService
+    
     @Binding var group: GroupRoom
     @State private var size: Double = 24
     @State private var alarmRunning: Bool = false
@@ -71,6 +74,17 @@ struct ArtworkView: View {
                 }
                 let request = URLRequest(url: url)
                 imageRequest = ImageRequest(urlRequest: request)
+            }
+            .onTapGesture(count: 2) {
+#if !targetEnvironment(macCatalyst)
+                if group.coordinatorRoom.track.toPlayable.content.service == .apple {
+                    Task {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        alertService.showAlert(with: "Added to Library", imageName: "star.fill")
+                        try await AppleMusicAPI().favoriteSong(songId: group.coordinatorRoom.track.toPlayable.content.id)
+                    }
+                }
+#endif
             }
         }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import Collections
 import Observation
 import os
 
@@ -33,7 +34,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
     public var subs: [Sub] = []
-    public var queue: [PlayableContent] = []
+    public var queue: OrderedSet<PlayableContent> = []
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)

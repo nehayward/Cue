@@ -24,6 +24,10 @@ public struct SpotifyArtistAlbums: Decodable {
         public let totalTracks: Int
         public let type: String
         public let uri: String
+        
+        public var releaseDateFormatted: String? {
+            return releaseDate.components(separatedBy: "-").first
+        }
 
 //        public struct Artist: Codable {
 //            let externalUrls: ExternalUrls

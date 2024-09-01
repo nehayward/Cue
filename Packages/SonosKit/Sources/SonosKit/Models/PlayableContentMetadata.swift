@@ -14,6 +14,7 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     public var URIMetadata: String?
     public var radioStation: Bool?
     public var isPlayable: Bool? // A song might not be released so it's not playable.
+    public var isExplicit: Bool?
 
     init(
         duration: Duration? = nil,
@@ -28,7 +29,8 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         audioCodec: String? = nil,
         URIMetadata: String? = nil,
         radioStation: Bool? = nil,
-        isPlayable: Bool = true
+        isPlayable: Bool = true,
+        isExplicit: Bool = false
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -43,5 +45,6 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         self.URIMetadata = URIMetadata
         self.radioStation = radioStation
         self.isPlayable = isPlayable
+        self.isExplicit = isExplicit
     }
 }

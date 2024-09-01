@@ -41,6 +41,8 @@ public final class SonosService {
     @ObservationIgnored public lazy var networkMonitorService = NetworkMonitorService()
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
+    
+    @MainActor
     @ObservationIgnored private lazy var musicSearch = MusicSearchService()
     @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
 
@@ -897,8 +899,8 @@ public final class SonosService {
         }
     }
 
-    public func getArtwork(from content: MediaContent, size: Int = 500) async -> URL? {
-        switch (content.type, content.service) {
+    public func getArtwork(from content: PlayableContent, size: Int = 500) async -> URL? {
+        switch (content.content.type, content.content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
             if size == 100 {
@@ -941,6 +943,10 @@ public final class SonosService {
         case (.playlist, .apple):
             guard let playlist: Playlist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return playlist.artwork?.url(width: size, height: size)
+        case (.libraryArtist, .apple):
+            return await musicSearch.appleLibraryArtistArtwork(name: content.title)
+        case (.artist, .library):
+            return await musicSearch.appleLibraryArtistArtwork(name: content.title)
         case (.track, .plex):
             guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
             return await musicSearch.lookupPlexSong(with: id)?.artwork

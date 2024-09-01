@@ -13,9 +13,10 @@ public struct TidalTrackResource: Codable {
     public let numberOfVideos: Int?
     public let copyright: String?
     public let tidalUrl: String
-    public let mediaMetadata: MediaMetadata
-
-    public struct MediaMetadata: Codable {
-        public let tags: [String]
+    public let mediaMetadata: TidalMediaMetadata
+    public let properties: TidalProperties?
+    
+    public var isExplicit: Bool {
+        properties?.content?.contains("explicit") ?? false
     }
 }

@@ -19,7 +19,7 @@ struct SpotifySearchView: View {
         let filteredResults = filters.filter(\.isFiltered).isEmpty ?
         spotifyResults :
         spotifyResults.filter { item in
-            filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type)
+            filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
         }
 
         Group {
@@ -31,23 +31,5 @@ struct SpotifySearchView: View {
         .animation(.bouncy, value: filters)
         .animation(.bouncy, value: spotifyResults)
         .fontDesign(.rounded)
-
-
-//        Group {
-//            if filters.filter(\.isFiltered).isEmpty {
-//                ForEach(spotifyResults) { item in
-//                    PlayableContentView(item: item)
-//                }
-//            } else {
-//                ForEach(spotifyResults) { item in
-//                    if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-//                        PlayableContentView(item: item)
-//                    }
-//                }
-//            }
-//        }
-//        .animation(.bouncy, value: filters)
-//        .animation(.bouncy, value: spotifyResults)
-//        .fontDesign(.rounded)
     }
 }

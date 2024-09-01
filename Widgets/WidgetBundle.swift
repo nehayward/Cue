@@ -8,5 +8,8 @@ struct SonosWidgetBundle: WidgetBundle {
         #if canImport(ActivityKit)
         LiveActivityNowPlayingWidget()
         #endif
+        if #available(iOSApplicationExtension 18.0, *) {
+            RemoteControlWidget()
+        }
     }
 }

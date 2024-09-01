@@ -11,32 +11,31 @@ public struct AppleLibraryItem: Codable {
     public let href: String
     public let type: String
     public let attributes: Attributes
-    public let relationships: Relationships?
 
     public var songURL: URL? {
         return URL(string: "https://music.apple.com/us/song/\(id)")
     }
-    
 }
 
 extension AppleLibraryItem {
     public struct Attributes: Codable {
         public let name: String
-        public let artwork: Artwork?
+        public let artwork: AppleLibraryArtwork?
         public let playParams: PlayParameters?
-//        public let isPubic: Bool
-//        public let dateAdded: Date
-//        public let lastModifiedDate: Date
-    }
-
-    public struct Artwork: Codable {
-        public let url: URL?
-        public func urlWithSize(width: Int, height: Int) -> URL? {
-            guard let url = url?.absoluteString.removingPercentEncoding else { return nil }
-            let widthPlaceholder = "{w}"
-            let heightPlaceholder = "{h}"
-            return URL(string: url.replacingOccurrences(of: widthPlaceholder, with: "\(width)")
-                .replacingOccurrences(of: heightPlaceholder, with: "\(height)"))
+        
+        public let albumName: String?
+        public let genreNames: [String]?
+        public let trackNumber: Int?
+        public let durationInMillis: Int?
+        public let releaseDate: String?
+        public let artistName: String?
+        public let contentRating: String?
+        
+        public var releaseDateFormatted: String? {
+            if let releaseDate {
+                return releaseDate.components(separatedBy: "-").first
+            }
+            return nil
         }
     }
 

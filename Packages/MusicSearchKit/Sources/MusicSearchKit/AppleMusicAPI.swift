@@ -4,11 +4,36 @@ import MusicKit
 public final class AppleMusicAPI {
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let decoder: JSONDecoder
+    private var storeFront: String?
 
     public init(decoder: JSONDecoder = JSONDecoder()) {
         self.decoder = decoder
     }
+    
+    public func getStoreFront() async -> String? {
+        guard await requestMusicAuthorization() else { return nil }
 
+        let storeFrontURL = URL(string: "https://api.music.apple.com/v1/me/storefront")!
+        let request = MusicDataRequest(urlRequest: .init(url: storeFrontURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        return nil
+    }
+    
+    public func favoriteSong(songId: String) async throws {
+#if !targetEnvironment(macCatalyst)
+        let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songId))
+        let response = try await request.response()
+        
+        if let song = response.items.first {
+            try await MusicLibrary.shared.add(song)
+            print("Song added to library successfully")
+        } else {
+            print("Song not found")
+        }
+#endif
+    }
+    
     public func getUserPlaylists(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
@@ -26,10 +51,10 @@ public final class AppleMusicAPI {
         }
     }
 
-    public func getUserArtists() async throws -> [AppleLibraryItem] {
+    public func getUserArtists(offset: Int = 0) async throws -> [AppleLibraryItem] {
         guard await requestMusicAuthorization() else { return [] }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/artists?extend=attributes")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/artists?limit=100&offset=\(offset)&extend=attributes")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return [] }
@@ -66,9 +91,23 @@ public final class AppleMusicAPI {
         return response.items.first
     }
 
-    public func lookupUsersLibraryPlaylist(id: String) async throws -> AppleLibraryContainer? {
+    public func lookupUsersLibraryPlaylist(id: String, offset: Int) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)/tracks")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)/tracks?offset=\(offset)")!
+        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            return nil
+        }
+    }
+
+    public func lookupUsersLibraryAlbum(id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums/\(id)/tracks")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -81,9 +120,9 @@ public final class AppleMusicAPI {
         }
     }
 
-    public func lookupUsersLibraryAlbum(id: String) async throws -> AppleLibraryContainer? {
+    public func userLibraryAlbum(id: String) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums/\(id)/tracks")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/albums/\(id)")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -126,6 +165,39 @@ public final class AppleMusicAPI {
         } catch {
             return nil
         }
+    }
+    
+    public func lookupUsersNew(offset: Int = 0) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/for-you?offset=\(offset)&limit=25")!
+        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let recentlyAddedTracks = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return recentlyAddedTracks
+        } catch {
+            return nil
+        }
+    }
+    
+    public func lookupUsersStations(offset: Int = 0) async throws -> AppleLibraryContainer? {
+//        guard await requestMusicAuthorization() else { return nil }
+//
+//        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/for-you?offset=\(offset)&limit=25")!
+//        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+//        let response = try? await request.response()
+//        guard let data = response?.data else { return nil }
+//
+//        do {
+//            let recentlyAddedTracks = try decoder.decode(AppleLibraryContainer.self, from: data)
+//            return recentlyAddedTracks
+//        } catch {
+//            return nil
+//        }
+        return nil
     }
 
     public func librarySong(id: String) async throws -> AppleLibraryContainer? {
@@ -179,6 +251,83 @@ public final class AppleMusicAPI {
             let albumContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return albumContainer
         } catch {
+            return nil
+        }
+    }
+    
+    public func libraryArtistLookup(id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let artistURL = URL(string: "https://api.music.apple.com/v1/me/library/artists/\(id)/catalog")!
+        let request = MusicDataRequest(urlRequest: .init(url: artistURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let libraryContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return libraryContainer
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+    
+    public func libraryArtistArtwork(artistName: String) async throws -> URL? {
+        guard await requestMusicAuthorization() else { return nil }
+        let request = MusicLibraryRequest<Artist>()
+        let response = try await request.response()
+
+        if let artist = response.items.first(where: { $0.name.lowercased() == artistName.lowercased() }) {
+            if let artwork = artist.artwork {
+                return artwork.url(width: 300, height: 300)
+            } else {
+                print("No artwork found for this artist")
+            }
+        } else {
+            print("Artist not found in the user's library")
+        }
+        return nil
+    }
+    
+    public func artistArtwork(for name: String) async -> URL? {
+        guard await requestMusicAuthorization() else { return nil }
+        var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
+        request.includeTopResults = true
+        request.limit = 2
+        guard let results = try? await request.response() else { return nil }
+        return results.artists.first?.artwork?.url(width: 100, height: 100)
+    }
+    
+    public func libraryArtistAlbums(id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let artistURL = URL(string: "https://api.music.apple.com/v1/me/library/artists/\(id)/albums")!
+        let request = MusicDataRequest(urlRequest: .init(url: artistURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let libraryContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return libraryContainer
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+    
+    public func libarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let librarySongURL = URL(string: "https://api.music.apple.com/v1/me/library/search?term=\(term)&types=library-albums,library-artists,library-playlists,library-songs&limit=25")!
+        let request = MusicDataRequest(urlRequest: .init(url: librarySongURL))
+        let response = try? await request.response()
+        
+        guard let data = response?.data else { return nil }
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibrarySearchContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            print(error)
             return nil
         }
     }

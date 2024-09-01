@@ -12,6 +12,7 @@ enum InspectorDestination: Identifiable, Equatable {
     case playMedia(content: MediaContent)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
+    case browse(group: GroupRoom? = nil)
     case createScene
     case scenes
     case searchAdd(adding: ContentToAdd)
@@ -20,6 +21,8 @@ enum InspectorDestination: Identifiable, Equatable {
 
     var id: String {
         switch self {
+        case let .browse(group: group):
+            "browse"
         case .settings:
             "settings"
         case .paywall:

@@ -55,8 +55,9 @@ struct NewPlaylistView: View {
                     .disabled(playlistName.isEmpty)
                 }
             }
-            .addDismiss(override: UIDevice.current.userInterfaceIdiom == .mac, action: dismiss.callAsFunction)
+            .addDismiss(override: true, action: dismiss.callAsFunction)
             .navigationTitle(playlist != nil ? "Rename" : "New Playlist")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .scrollContentBackground(.hidden)
         .presentationDetents([.fraction(0.3)])

@@ -57,7 +57,7 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case let .createScene:
+                case .createScene:
                     NavigationStack {
                         SceneBuilderScreen()
                     }
@@ -311,8 +311,9 @@ extension View {
                     .environment(group)
             case .fullPlayHistoryList:
                 PlayHistoryFullView()
-            case let .playableLibraryList(items: items, action: action):
-                PlayableLibraryList(items: items, action: action)
+            case let .playableLibraryList(title: title, items: items, action: action):
+                PlayableList(items: items, action: action)
+                    .navigationTitle(title)
             case let .playableGridScreen(title: title, items: items, action: action):
                 PlayableGridScreen(items: items, action: action)
                     .navigationTitle(title)
@@ -323,7 +324,7 @@ extension View {
     }
 
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
-        #if !os(visionOS)
+#if !os(visionOS)
         inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
             Group {
                 switch inspectorDestination.wrappedValue {
@@ -331,22 +332,33 @@ extension View {
                     SearchScreen {
                         inspectorDestination.wrappedValue = nil
                     }
-                    #if targetEnvironment(macCatalyst)
-                        .inspectorColumnWidth(500)
-                    #else
-                        .inspectorColumnWidth(400)
-                    #endif
-                        .environment(SelectedGroupService(group: group))
+#if targetEnvironment(macCatalyst)
+                    .inspectorColumnWidth(500)
+#else
+                    .inspectorColumnWidth(400)
+#endif
+                    .environment(SelectedGroupService(group: group))
                 case let .queue(group):
                     QueueScreen(closeInspector: {
                         inspectorDestination.wrappedValue = nil
                     }, group: group)
-                    #if targetEnvironment(macCatalyst)
-                        .inspectorColumnWidth(500)
-                    #else
-                        .inspectorColumnWidth(400)
-                    #endif
-                    default:
+#if targetEnvironment(macCatalyst)
+                    .inspectorColumnWidth(500)
+#else
+                    .inspectorColumnWidth(400)
+#endif
+                case let .browse(group):
+                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    BrowseScreen {
+                        inspectorDestination.wrappedValue = nil
+                    }
+                    .environment(selectedGroupService)
+#if targetEnvironment(macCatalyst)
+                    .inspectorColumnWidth(500)
+#else
+                    .inspectorColumnWidth(400)
+#endif
+                default:
                     EmptyView()
                         .onAppear {
                             inspectorDestination.wrappedValue = nil
@@ -355,9 +367,9 @@ extension View {
             }
             .withEnvironments()
         }
-        #else
+#else
         return self
-        #endif
+#endif
     }
 
     func withEnvironments() -> some View {

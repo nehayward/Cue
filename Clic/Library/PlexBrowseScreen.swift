@@ -12,7 +12,6 @@ import TipKit
 import AuthenticationServices
 
 struct PlexBrowseScreen: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(PlexBrowseService.self) private var plexBrowseService
@@ -59,7 +58,6 @@ struct PlexBrowseScreen: View {
             .task(id: musicSearchService.plexServerID) {
                 await updatePlexBrowseService()
             }
-            .addDismiss(action: dismiss.callAsFunction)
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {

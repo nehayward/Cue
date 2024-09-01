@@ -46,7 +46,7 @@ struct ArtistDetailView: View {
                 .listRowBackground(Color.clear)
             }
 
-            if [.spotify, .apple].contains(playableContent.content.service) {
+            if [.spotify, .apple].contains(playableContent.content.service) && playableContent.content.type != .libraryArtist {
                 HStack {
                     Button {
                         Task {
@@ -167,6 +167,13 @@ struct ArtistDetailView: View {
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
+            case (.libraryArtist, .apple):
+                if let url = await MusicSearchService().appleLibraryArtistArtwork(name: playableContent.title) {
+                    artworkURL = url
+                }
+                if let albums = await MusicSearchService().appleLibraryArtistAlbumLookup(id: playableContent.content.id) {
+                    self.albums = albums.data.compactMap(\.toPlayable)
+                }
             case (.artist, .spotify):
                 async let artist = MusicSearchService().spotifyArtist(id: playableContent.content.id)
                 async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: playableContent.content.id)

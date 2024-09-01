@@ -11,7 +11,6 @@ import Defaults
 import TipKit
 
 struct LibraryBrowseScreen: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(LibraryBrowseService.self) var browseService
@@ -61,7 +60,6 @@ struct LibraryBrowseScreen: View {
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)
             .fontDesign(.rounded)
-            .addDismiss(action: dismiss.callAsFunction)
             .task {
                 await browseService.updatePlaylists()
             }

@@ -1,3 +1,15 @@
+# 2024.37
+
+## External
+
++ Add local apple music library search
++ Add explicit label
++ Add Control Center Widget
++ Add new icon.
+- Fixed issue where not all songs would show in playlists
+
+## Internal
+
 # 2024.36
 
 ## External

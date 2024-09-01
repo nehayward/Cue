@@ -22,8 +22,8 @@ public final class AppleMusicBrowseService {
 
     public init() { }
 
-    public func updateUsersAppleArtists(offset: Int? = 0) async {
-        guard let playlists = try? await apple.getUserArtists() else { return }
+    public func updateUsersAppleArtists(offset: Int = 0) async {
+        guard let playlists = try? await apple.getUserArtists(offset: offset) else { return }
         let newUserArtists = playlists.compactMap(\.toPlayable)
         for newUserArtist in newUserArtists {
             userArtists.updateOrAppend(newUserArtist)
@@ -65,10 +65,21 @@ public final class AppleMusicBrowseService {
             usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
         }
     }
+    
+    public func updateUsersNew(offset: Int = 0) async {
+        guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset) else { return }
+        let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
+        for newUsersRecentsTrack in newUsersRecentsTracks {
+            usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
+        }
+    }
 
-    public func tracksForUserPlaylists(id: String) async -> [PlayableContent] {
-        guard let container = try? await apple.lookupUsersLibraryPlaylist(id: id) else { return [] }
-        return container.data.compactMap(\.toPlayable)
+    public func tracksForUserPlaylists(id: String, offset: Int) async -> ([PlayableContent], total: Int) {
+        guard let container = try? await apple.lookupUsersLibraryPlaylist(id: id, offset: offset) else {
+            return ([], 0)
+        }
+//        print(container.meta)
+        return (container.data.compactMap(\.toPlayable), container.meta?.total ?? 0)
     }
 
     public func albumLookup(id: String) async -> [PlayableContent] {

@@ -11,7 +11,15 @@ public struct SpotifyAlbumItem: Decodable, Identifiable, Sendable {
     public let images: [SpotifyImage]
     public let type: String
     public let uri: String
+    public let releaseDate: String?
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
+    
+    public var releaseDateFormatted: String? {
+        if let releaseDate {
+            return releaseDate.components(separatedBy: "-").first
+        }
+        return nil
+    }
 }
 
 public struct SpotifyAlbumDetails: Decodable, Sendable {
@@ -22,6 +30,10 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
     public let releaseDate: String
     public let images: [SpotifyImage]
     public let tracks: SpotifyAlbumTracks
+    
+    public var releaseDateFormatted: String? {
+        return releaseDate.components(separatedBy: "-").first
+    }
 }
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {

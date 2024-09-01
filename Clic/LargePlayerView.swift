@@ -1,5 +1,6 @@
 import NukeUI
 import SwiftUI
+import Collections
 import SonosKit
 import VibesDS
 import Glur
@@ -213,7 +214,7 @@ struct LargePlayerView: View {
             ArtworkView(group: $group)
                 .saturation(1.2)
                 .aspectRatio(contentMode: .fill)
-                .scaleEffect(1.5)
+                .scaleEffect(1.3)
                 .blur(radius: 60)
                 .overlay {
                     Rectangle()
@@ -246,7 +247,7 @@ struct LargePlayerView: View {
         .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
-            group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
+            group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
         }
         .onChange(of: scenePhase) {
             if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {

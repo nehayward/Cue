@@ -8,42 +8,35 @@ import MusicKit
 import NukeUI
 import VibesDS
 
-struct PlayableLibraryList: View {
+struct PlayableList: View {
     @Environment(SonosService.self) private var sonosService
 
     @State private var isLoading: Bool = false
 
     @Binding var items: OrderedSet<PlayableContent>
-    var action: (() async -> ())? = nil
+    var action: ((Int) async -> ())? = nil
 
     var body: some View {
         List {
-            if !items.isEmpty {
-                ForEach(items) { item in
-                    PlayableContentView(item: item)
-                }
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowBackground(Color.clear)
-                    .opacity(0.01)
+            ForEach(items) { item in
+                PlayableContentView(item: item)
                     .task {
-                        await action?()
+                        if items.firstIndex(of: item) ?? 0 >= items.count / 2 {
+                            Task {
+                                await action?(items.count)
+                            }
+                        }
                     }
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowBackground(Color.clear)
             }
         }
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .task {
             isLoading = true
-            await action?()
+            await action?(0)
             isLoading = false
-        }
-        .overlay {
-            if isLoading {
+        }.overlay {
+            if isLoading, items.isEmpty {
                 ProgressView()
                     .padding()
                     .background(.thickMaterial)

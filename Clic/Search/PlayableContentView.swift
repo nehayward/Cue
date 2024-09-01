@@ -30,7 +30,7 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                         content
                     }
-                case .artist:
+                case .artist, .libraryArtist:
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                         content
                     }
@@ -57,10 +57,16 @@ struct PlayableContentView: View {
                         .frame(width: 60, height: 60)
                 }
                 VStack(alignment: .leading) {
-                    Text(item.title)
-                        .lineLimit(1)
+                    HStack {
+                        Text(item.title)
+                            .lineLimit(1)
+                        if let isExplicit = item.metadata?.isExplicit, isExplicit {
+                            Image(systemName: "e.square.fill")
+                        }
+                    }
                     HStack(spacing: 0) {
                         Text("\(item.content.type.title)\(item.subtitle.isEmpty ? "" : " • \(item.subtitle)")")
+                            .truncationMode(.head)
 
                         // MARK: Add back when you normalize duration to seconds
 //                        if let duration = item.metadata?.duration, duration.components.seconds != 0 {

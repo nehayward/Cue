@@ -18,6 +18,8 @@ struct BrowseScreen: View {
 
     @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
+    
+    var closeInspector: (() -> Void)? = nil
 
     @State private var router = Router()
     @State private var alertService = AlertService()
@@ -81,6 +83,10 @@ struct BrowseScreen: View {
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .addDismiss {
+            dismiss()
+            closeInspector?()
+        }
     }
 
 

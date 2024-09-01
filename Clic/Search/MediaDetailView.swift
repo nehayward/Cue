@@ -38,7 +38,6 @@ struct MediaDetailView: View {
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(.ultraThinMaterial)
                             .shadow(radius: 2)
-                            .frame(maxWidth: .infinity, minHeight: 300)
                     } else {
                         Rectangle()
                             .foregroundStyle(.accent.gradient.secondary)
@@ -54,10 +53,10 @@ struct MediaDetailView: View {
                             }
                     }
                 }
+                .transition(.opacity)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .shadow(radius: 2)
                 .scaledToFit()
-                .frame(idealWidth: 320, idealHeight: 320)
                 .overlay(alignment: .bottomTrailing) {
                     playableContent.content.service.icon
                         .frame(width: 24, height: 24, alignment: .trailing)
@@ -71,19 +70,21 @@ struct MediaDetailView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
 
-            HStack(spacing: 0) {
-                Text("\(playableContent.subtitle)\(playableContent.subtitle.isEmpty ? "" : " • ")")
-                if let size {
-                    Text(size, format: .number)
-                } else {
-                    Text("\(tracks.count.formatted())")
-                }
-                Text(" Tracks")
-                if let duration {
-                    Text(" • \(duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
-                } else {
-                    if totalDuration.components.seconds > 0  {
-                        Text(" • \(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+            VStack {
+                Text("\(playableContent.subtitle)")
+                HStack(spacing: 0) {
+                    if let size {
+                        Text(size, format: .number)
+                    } else {
+                        Text("\(tracks.count.formatted())")
+                    }
+                    Text(" Tracks")
+                    if let duration {
+                        Text(" • \(duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                    } else {
+                        if totalDuration.components.seconds > 0  {
+                            Text(" • \(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
+                        }
                     }
                 }
             }
@@ -162,6 +163,7 @@ struct MediaDetailView: View {
                 Text(playableContent.title)
                     .fontDesign(.rounded)
                     .bold()
+                    .multilineTextAlignment(.center)
             }
 
             ToolbarItem(placement: .topBarTrailing) {
@@ -214,6 +216,9 @@ struct MediaDetailView: View {
             newTracks = tracks.map(\.toPlayable)
         case (.libraryAlbum, .apple):
             artworkURL = playableContent.artwork
+            if let album = await musicSearchService.appleLibraryAlbum(id: playableContent.id) {
+                artworkURL = album.data.first?.attributes.artwork?.urlWithSize(width: 500, height: 500)
+            }
             newTracks = await AppleMusicBrowseService.shared.albumLookup(id: playableContent.id)
         case (.album, .spotify):
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
@@ -225,11 +230,13 @@ struct MediaDetailView: View {
             newTracks = tracks.map(\.toPlayable)
         case (.libraryPlaylist, .apple):
             artworkURL = playableContent.artwork
-            newTracks = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id)
+            let (tracks, playlistCount) = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id, offset: offset)
+            newTracks = tracks
+            size = playlistCount
         case (.playlist, .spotify):
-            guard let playlist: SpotifyPlaylistItems = await musicSearchService.spotifyPlaylistLookup(id: playableContent.content.id) else { return }
-            guard let items = playlist.tracks.items else { return }
-            newTracks = items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
+            guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
+            size = playlist.total
+            newTracks = playlist.items.map { $0.track.toPlayable(artwork: $0.track.album?.images.thumbnail)}
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }

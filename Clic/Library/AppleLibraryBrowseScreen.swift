@@ -11,96 +11,107 @@ import Defaults
 import TipKit
 
 struct AppleLibraryBrowseScreen: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-
+    
     @State private var router = Router()
     @State private var isLoading = true
-
+    
+    private var numberOfItemsInGrid: Int {
+#if targetEnvironment(macCatalyst)
+        return 3
+#endif
+        return 4
+    }
+    
     var body: some View {
         @Bindable var appleMusicBrowseService = appleMusicBrowseService
         NavigationStack(path: $router.path) {
             ScrollView {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 12) {
+                    NavigationLink(value: RouterDestination.playableLibraryList(title: "Artists", items: $appleMusicBrowseService.userArtists, action: { offset in
+                        await appleMusicBrowseService.updateUsersAppleArtists(offset: offset)
+                    })) {
+                        HStack {
+                            Label("Artists", systemImage: "music.mic")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            
+                            Text("Show all \(Image(systemName: "chevron.right"))")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    NavigationLink(value: RouterDestination.playableLibraryList(title: "Albums", items: $appleMusicBrowseService.userAlbums, action: { offset in
+                        await appleMusicBrowseService.updateUsersAppleAlbums()
+                    })) {
+                        HStack {
+                            Label("Albums", systemImage: "smallcircle.circle.fill")
+                            Spacer()
+                            Text("Show all \(Image(systemName: "chevron.right"))")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
                     Section {
                         if !appleMusicBrowseService.userPlaylists.isEmpty {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                                ForEach(appleMusicBrowseService.userPlaylists.prefix(4)) { item in
+                                ForEach(appleMusicBrowseService.userPlaylists.prefix(numberOfItemsInGrid)) { item in
                                     PlayableCardView(item: item)
                                 }
                             }
                         }
                     } header: {
-                        HStack {
-                            Text("Playlists")
-                            Spacer()
-                            NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
-                                await appleMusicBrowseService.updateUsersApplePlaylists()
-                            })) {
+                        NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
+                            await appleMusicBrowseService.updateUsersApplePlaylists()
+                        })) {
+                            HStack {
+                                Text("Playlists")
+                                Spacer()
                                 Text("Show all \(Image(systemName: "chevron.right"))")
                             }
                         }
                         .foregroundStyle(.secondary)
                         .padding(.vertical)
                     }
-
-                    HStack {
-                        Text("Recently Played")
-                        Spacer()
-                        NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Played", items: $appleMusicBrowseService.usersRecents, action: { offset in
-                            await appleMusicBrowseService.updateUsersRecentPlayed(offset: offset)
-                        })) {
+                    
+                    
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Played", items: $appleMusicBrowseService.usersRecents, action: { offset in
+                        await appleMusicBrowseService.updateUsersRecentPlayed(offset: offset)
+                    })) {
+                        HStack {
+                            Text("Recently Played")
+                            Spacer()
                             Text("Show all \(Image(systemName: "chevron.right"))")
                         }
                     }
                     .foregroundStyle(.secondary)
                     .padding(.vertical)
-
+                    
                     if !appleMusicBrowseService.usersRecents.isEmpty {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                            ForEach(appleMusicBrowseService.usersRecents.prefix(4)) { item in
+                            ForEach(appleMusicBrowseService.usersRecents.prefix(numberOfItemsInGrid)) { item in
                                 PlayableCardView(item: item)
                             }
                         }
                     }
-
-                    HStack {
-                        Text("Recently Added")
-                        Spacer()
-                        NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Added", items: $appleMusicBrowseService.usersRecentsAdded, action: { offset in
-                            await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: offset)
-                        })) {
+                    
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Added", items: $appleMusicBrowseService.usersRecentsAdded, action: { offset in
+                        await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: offset)
+                    })) {
+                        HStack {
+                            Text("Recently Added")
+                            Spacer()
                             Text("Show all \(Image(systemName: "chevron.right"))")
                         }
                     }
                     .foregroundStyle(.secondary)
                     .padding(.vertical)
-
+                    
                     if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                            ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(4)) { item in
-                                PlayableCardView(item: item)
-                            }
-                        }
-                    }
-
-                    HStack {
-                        Text("Albums")
-                        Spacer()
-                        NavigationLink(value: RouterDestination.playableGridScreen(title: "Albums", items: $appleMusicBrowseService.userAlbums, action: { offset in
-                            await appleMusicBrowseService.updateUsersAppleAlbums()
-                        })) {
-                            Text("Show all \(Image(systemName: "chevron.right"))")
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical)
-
-                    if !appleMusicBrowseService.userAlbums.isEmpty {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                            ForEach(appleMusicBrowseService.userAlbums.prefix(4)) { item in
+                            ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(numberOfItemsInGrid)) { item in
                                 PlayableCardView(item: item)
                             }
                         }
@@ -116,7 +127,6 @@ struct AppleLibraryBrowseScreen: View {
             .task {
                 await updateAppleMusicBrowseService()
             }
-            .addDismiss(action: dismiss.callAsFunction)
         }
         .overlay {
             if isLoading {
@@ -132,7 +142,7 @@ struct AppleLibraryBrowseScreen: View {
             }
         }
     }
-
+    
     @MainActor
     private func updateAppleMusicBrowseService() async {
         isLoading = true
@@ -140,6 +150,7 @@ struct AppleLibraryBrowseScreen: View {
         await appleMusicBrowseService.updateUsersRecentPlayed()
         await appleMusicBrowseService.updateUsersRecentAddedTracks()
         await appleMusicBrowseService.updateUsersAppleAlbums()
+        await appleMusicBrowseService.updateUsersAppleArtists()
         isLoading = false
     }
 }

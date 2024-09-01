@@ -12,6 +12,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     case libraryTrack
     case libraryPlaylist
     case libraryAlbum
+    case libraryArtist
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -21,6 +22,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             self = .libraryPlaylist
         case let str where str.contains("library-album"):
             self = .libraryAlbum
+        case let str where str.contains("library-artist"):
+            self = .libraryArtist
         case let str where str.contains("playlist"):
             self = .playlist
         case let str where str.contains("album"):
@@ -40,7 +43,9 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
 
     public var title: String {
         switch self {
-        case .libraryTrack, .track:
+        case .libraryTrack:
+            "Library Song"
+        case .track:
             "Song"
         case .libraryPlaylist:
             "My Playlists"
@@ -48,8 +53,12 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Playlist"
         case .artist:
             "Artist"
-        case .album, .libraryAlbum:
+        case .libraryArtist:
+            "Library Artist"
+        case .album:
             "Album"
+        case .libraryAlbum:
+            "Library Album"
         case .favorite:
             "Favorite"
         case .radio:

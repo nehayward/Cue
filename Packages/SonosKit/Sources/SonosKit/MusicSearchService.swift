@@ -2,6 +2,7 @@ import Foundation
 import MusicKit
 import MusicSearchKit
 
+@MainActor
 @Observable
 public final class MusicSearchService {
     public static var shared = MusicSearchService()
@@ -66,6 +67,7 @@ public final class MusicSearchService {
 
         // Cancel the previous task if it exists
         searchSuggestionTask.cancel()
+        appleSearchTask.cancel()
         spotifySearchTask.cancel()
         librarySearchTask.cancel()
         plexSearchTask.cancel()
@@ -85,7 +87,7 @@ public final class MusicSearchService {
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
             if provider == .apple {
-                let results = await searchAppleMusic(query: query)
+                let results = await searchApple(query: query)
                 return results
             }
             return nil
@@ -109,7 +111,7 @@ public final class MusicSearchService {
             guard !Task.isCancelled else { return nil }
             if provider == .library {
                 let playableContent = await sonosService.librarySearch(query: query)
-                return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+                return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
             }
             return nil
         }
@@ -221,6 +223,10 @@ public final class MusicSearchService {
     public func spotifyPlaylistLookup(id: String) async -> SpotifyPlaylistItems? {
         await spotifySearchAPI.playlist(id: id)
     }
+    
+    public func spotifyPlaylistTracks(id: String, offset: Int = 0) async -> SpotifyPlaylistsFullContainer? {
+        await spotifySearchAPI.playlistTracks(id: id, offset: offset)
+    }
 
     public func spotifyAlbumLookup(id: String) async -> SpotifyAlbumItem? {
         await spotifySearchAPI.album(id: id)
@@ -263,7 +269,7 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: tracks.map(\.toPlayable))
         }
 
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {
@@ -277,10 +283,11 @@ public final class MusicSearchService {
     }
 
     public func searchAppleMusic(query: String) async -> [PlayableContent] {
+        if query.count < 1 { return [] }
         guard await requestMusicAuthorization() else { return [] }
         var playableContent: [PlayableContent] = []
         var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self, Playlist.self, Artist.self])
-        request.includeTopResults = true
+        request.includeTopResults = false
         request.limit = 20
         guard let results = try? await request.response() else { return [] }
 
@@ -289,7 +296,48 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
 
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+    }
+    
+    public func searchLibraryAppleMusic(query: String) async -> [PlayableContent] {
+        if query.count < 1 { return [] }
+        guard await requestMusicAuthorization() else { return [] }
+        let container = try? await apple.libarySearch(term: query)
+        var playableContent: [PlayableContent] = []
+        
+        if let songs = container?.results.librarySongs {
+            playableContent.append(contentsOf: songs.data.compactMap(\.toPlayable))
+        }
+        
+        if let albums = container?.results.libraryAlbums {
+            playableContent.append(contentsOf: albums.data.compactMap(\.toPlayable))
+        }
+        
+        if let artists = container?.results.libraryArtists {
+            playableContent.append(contentsOf: artists.data.compactMap(\.toPlayable))
+        }
+        
+        if let playlists = container?.results.libraryPlaylists {
+            playableContent.append(contentsOf: playlists.data.compactMap(\.toPlayable))
+        }
+        
+
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+    }
+    
+    public func searchApple(query: String) async -> [PlayableContent] {
+        if query.count < 1 { return [] }
+        
+        async let libraryResults = searchLibraryAppleMusic(query: query)
+        async let appleMusicResults = searchAppleMusic(query: query)
+        
+        let (libResults, appleResults) = await (libraryResults, appleMusicResults)
+        
+        var playableContent: [PlayableContent] = []
+        playableContent.append(contentsOf: libResults)
+        playableContent.append(contentsOf: appleResults)
+
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookup(id: String) async throws -> Song? {
@@ -327,7 +375,6 @@ public final class MusicSearchService {
         var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: albumID)
         catalogResource.properties = [.albums, .topSongs]
         let response = try await catalogResource.response()
-        print(response)
         return response.items.first
     }
 
@@ -346,7 +393,25 @@ public final class MusicSearchService {
            return try? await apple.librarySong(id: id)
         }
     }
-
+    
+    public func appleLibraryAlbum(id: String) async -> AppleLibraryContainer? {
+        guard let container = try? await apple.userLibraryAlbum(id: id) else { return nil }
+        return container
+    }
+    
+    public func appleLibraryArtistLookup(id: String) async -> AppleLibraryContainer? {
+        let container = try? await apple.libraryArtistLookup(id: id)
+        return container
+    }
+    
+    public func appleLibraryArtistArtwork(name: String) async -> URL? {
+        await apple.artistArtwork(for: name)
+    }
+    
+    public func appleLibraryArtistAlbumLookup(id: String) async -> AppleLibraryContainer? {
+        let container = try? await apple.libraryArtistAlbums(id: id)
+        return container
+    }
 
     // MARK: Tidal
     public func lookupTidalTrack(with id: String) async -> PlayableContent? {
@@ -386,7 +451,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
         playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
 
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     // MARK: - PLex
@@ -398,7 +463,7 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByMatchAndPopularity(playableContent: playableContent, query: query)
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
@@ -561,47 +626,91 @@ public final class MusicSearchService {
         }
     }
 
-    func sortContentByMatchAndPopularity(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        return playableContent.sorted { item1, item2 in
-            // Function to calculate a "fuzzy match score" based on how many characters in the query match characters in the title, in sequence
-            func fuzzyMatchScore(source: String, query: String) -> Int {
-                let lowerSource = source.lowercased()
-                let lowerQuery = query.lowercased()
-                var score = 0
-                var index = lowerSource.startIndex
-
-                // Increment score for each character in query that matches in sequence in the source
-                for char in lowerQuery {
-                    if let foundIndex = lowerSource[index...].firstIndex(of: char) {
-                        score += 1
-                        index = lowerSource.index(after: foundIndex) // Move index to right after the found character
-                    }
+    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
+        let lowerQuery = query.lowercased()
+        
+        // Create a dictionary to store unique items and their scores
+        var uniqueItems: [String: (PlayableContent, Double)] = [:]
+        
+        // Calculate scores and store unique items
+        for item in playableContent {
+            let score = intelligentSearchScore(item: item, query: lowerQuery)
+            let key = "\(item.id)-\(item.title)-\(item.subtitle)" // Create a unique key
+            
+            if let existingItem = uniqueItems[key] {
+                // If item already exists, keep the one with the higher score
+                if score > existingItem.1 {
+                    uniqueItems[key] = (item, score)
                 }
-
-                return score
+            } else {
+                uniqueItems[key] = (item, score)
             }
-
-            // Calculate match scores for both items
-            let matchScore1 = fuzzyMatchScore(source: item1.title, query: query)
-            let matchScore2 = fuzzyMatchScore(source: item2.title, query: query)
-
-            // Primary sort by match score (descending)
-            if matchScore1 != matchScore2 {
-                return matchScore1 > matchScore2
-            }
-
-            // Secondary sort by popularity (descending); handle nil popularity by assigning a low default
-            let popularity1 = item1.metadata?.popularity ?? -1
-            let popularity2 = item2.metadata?.popularity ?? -1
-            if popularity1 != popularity2 {
-                return popularity1 > popularity2
-            }
-
-            // Tertiary sort by title (alphabetically)
-            return item1.title.lowercased() < item2.title.lowercased()
         }
+        
+        // Sort the unique items
+        let sortedItems = uniqueItems.values.sorted { (item1, item2) in
+            let (content1, score1) = item1
+            let (content2, score2) = item2
+            
+            // Primary sort by intelligent search score (descending)
+            if score1 != score2 {
+                return score1 > score2
+            }
+            
+            // Secondary sort by title (alphabetically)
+            return content1.title.localizedCaseInsensitiveCompare(content2.title) == .orderedAscending
+        }
+        
+        // Return the sorted and deduplicated content
+        return sortedItems.map { $0.0 }
+    }
+    
+    func intelligentSearchScore(item: PlayableContent, query: String) -> Double {
+        let titleScore = fuzzyMatchScore(source: item.title, query: query)
+        let subtitleScore = fuzzyMatchScore(source: item.subtitle, query: query)
+        let popularityScore = Double(item.metadata?.popularity ?? 0)
+        let isInLibrary = item.content.type == .libraryArtist ? 1.0 : 0.0
+        
+        // Normalize scores
+        let maxTitleScore = Double(query.count) // Maximum possible title score
+        let maxSubtitleScore = Double(query.count) // Maximum possible subtitle score
+        let maxPopularity: Double = 100 // Adjust based on your popularity scale
+        
+        let normalizedTitleScore = Double(titleScore) / maxTitleScore
+        let normalizedSubtitleScore = Double(subtitleScore) / maxSubtitleScore
+        let normalizedPopularity = min(popularityScore / maxPopularity, 1.0)
+        
+        // Weighting factors
+        let titleWeight = 0.25
+        let subtitleWeight = 0.10
+        let popularityWeight = 0.40
+        let libraryWeight = 0.25
+        
+        // Calculate weighted score
+        let weightedScore =
+            normalizedTitleScore * titleWeight +
+            normalizedSubtitleScore * subtitleWeight +
+            normalizedPopularity * popularityWeight +
+            isInLibrary * libraryWeight
+        
+        return weightedScore
     }
 
+    func fuzzyMatchScore(source: String, query: String) -> Int {
+        let lowerSource = source.lowercased()
+        var score = 0
+        var sourceIndex = lowerSource.startIndex
+        
+        for queryChar in query {
+            if let foundIndex = lowerSource[sourceIndex...].firstIndex(of: queryChar) {
+                score += 1
+                sourceIndex = lowerSource.index(after: foundIndex)
+            }
+        }
+        
+        return score
+    }
+    
     public func requestMusicAuthorization() async -> Bool {
         let status = await MusicAuthorization.request()
 

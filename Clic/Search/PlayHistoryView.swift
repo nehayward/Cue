@@ -27,7 +27,7 @@ struct PlayHistoryView: View {
             if filters.filter(\.isFiltered).isEmpty {
                 PlayableContentView(item: item)
             } else {
-                if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
+                if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
                     PlayableContentView(item: item)
                 }
             }

@@ -12,4 +12,17 @@ public struct TidalAlbumResource: Codable {
     public let numberOfVideos: Int?
     public let copyright: String?
     public let tidalUrl: String
+    public let properties: TidalProperties?
+    public let mediaMetadata: TidalMediaMetadata?
+    
+    public var isExplicit: Bool {
+        properties?.content?.contains("explicit") ?? false
+    }
+    
+    public var releaseDateFormatted: String? {
+        if let releaseDate {
+            return releaseDate.components(separatedBy: "-").first
+        }
+        return nil
+    }
 }

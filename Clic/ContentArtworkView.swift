@@ -10,7 +10,7 @@ struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
     @State var imageRequest: ImageRequest?
-    @State var size: Double = 24
+    var preferredSize: Int = 180
 
     var body: some View {
         Group {
@@ -43,6 +43,7 @@ struct ContentArtworkView: View {
                             }
                     }
                 }
+                .priority(.veryHigh)
             }
             // MARK: For Screenshots
             //                #if DEBUG
@@ -88,7 +89,7 @@ struct ContentArtworkView: View {
                     imageRequest = ImageRequest(urlRequest: request)
                     return
                 }
-                guard let artworkURL = await sonosService.getArtwork(from: content.content, size: size == 16 ? 100 : 320) else {
+                guard let artworkURL = await sonosService.getArtwork(from: content, size: preferredSize) else {
                     if let artworkURL = content.artwork {
                         let request = URLRequest(url: artworkURL)
                         imageRequest = ImageRequest(urlRequest: request)

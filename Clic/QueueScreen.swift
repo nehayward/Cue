@@ -2,6 +2,7 @@ import MusicSearchKit
 import NukeUI
 import SonosKit
 import SwiftUI
+import Collections
 
 struct QueueScreen: View {
     @Environment(\.dismiss) var dismiss
@@ -17,7 +18,7 @@ struct QueueScreen: View {
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List {
-                    ForEach(group.coordinatorRoom.queue, id: \.trackID) { track in
+                    ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
                         Button {
                             dismiss()
                             Task {
@@ -59,7 +60,7 @@ struct QueueScreen: View {
                                 group.coordinatorRoom.queue.remove(at: position - 1)
                                 Task {
                                     try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                                    group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                                    group.coordinatorRoom.queue =  OrderedSet(await sonosService.getQueue(ip: group.ip))
                                 }
                             } label: {
                                 Label("Delete", systemImage: "trash")
@@ -74,7 +75,7 @@ struct QueueScreen: View {
                 }
                 .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
                     Task {
-                        group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
+                        group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
                     }
                 })
                 .withAppRouter(router: router)
@@ -109,7 +110,7 @@ struct QueueScreen: View {
                             Task {
                                 group.playMode = currentPlayMode
                                 await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
-                                group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
+                                group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                                 try? await Task.sleep(for: .milliseconds(100))
                                 withAnimation {
                                     let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
@@ -140,7 +141,7 @@ struct QueueScreen: View {
                             Task {
                                 group.playMode = currentPlayMode
                                 await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
-                                group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
+                                group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                             }
                         } label: {
                             Image(systemName: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
@@ -172,7 +173,7 @@ struct QueueScreen: View {
                     group.playMode = await sonosService.playMode(ip: group.ip)
                     let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
                     proxy.scrollTo(id)
-                    self.group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.ip)
+                    self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                     isLoading = false
                 }
                 .animation(.spring, value: group.coordinatorRoom.queue)
@@ -206,7 +207,7 @@ struct QueueScreen: View {
             Button {
                 Task {
                     try await sonosService.clearQueue(group.coordinatorRoom.ip)
-                    group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                    group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                 }
             } label: {
                 Text("Clear Queue")
@@ -222,12 +223,12 @@ struct QueueScreen: View {
 
     private func move(from source: IndexSet, to destination: Int) {
         // TODO: Fix swap positions
-        group.coordinatorRoom.queue.move(fromOffsets: source, toOffset: destination)
+        group.coordinatorRoom.queue.elements.move(fromOffsets: source, toOffset: destination)
         guard let sourceIndex = source.first else { return }
 
         Task {
             try await sonosService.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
-            group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+            group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
         }
     }
 
@@ -264,7 +265,7 @@ struct QueueScreen: View {
                 group.coordinatorRoom.queue.remove(at: position - 1)
                 Task {
                     try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queue = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
+                    group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                 }
             } label: {
                 Label("Remove", systemImage: "trash")

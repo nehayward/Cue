@@ -25,19 +25,20 @@ struct AppleMusicSearchScreen: View {
         Group {
             switch appleMusicAuthorized {
             case .authorized:
+                let filteredResults = filters.filter(\.isFiltered).isEmpty ?
+                appleSearchResults :
+                appleSearchResults.filter { item in
+                    filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
+                }
+
                 Group {
-                    if filters.filter(\.isFiltered).isEmpty {
-                        ForEach(appleSearchResults) { item in
-                            PlayableContentView(item: item)
-                        }
-                    } else {
-                        ForEach(appleSearchResults) { item in
-                            if filters.filter(\.isFiltered).map(\.filter.toContentType).contains(item.content.type) {
-                                PlayableContentView(item: item)
-                            }
-                        }
+                    ForEach(filteredResults) { item in
+                        PlayableContentView(item: item)
+                            .transition(.slide)
                     }
                 }
+                .animation(.bouncy, value: filters)
+                .animation(.bouncy, value: appleSearchResults)
                 .fontDesign(.rounded)
             case .notDetermined, .denied:
                 AppleMusicPermissionsView()

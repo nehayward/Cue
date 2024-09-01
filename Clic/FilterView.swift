@@ -1,26 +1,30 @@
 import SwiftUI
 import SonosKit
+import MusicSearchKit
 
 enum Filter: String, CaseIterable {
     case artist
     case songs
     case albums
     case playlists
+    case library
 
     var title: String {
         self.rawValue.capitalized
     }
 
-    var toContentType: ContentType {
+    var toContentType: [ContentType] {
         switch self {
         case .artist:
-            return .artist
+            return [.artist, .libraryArtist]
         case .songs:
-            return .track
+            return [.track, .libraryTrack]
         case .albums:
-            return .album
+            return [.album, .libraryAlbum]
         case .playlists:
-            return .playlist
+            return [.playlist, .libraryPlaylist]
+        case .library:
+            return [.libraryAlbum, .libraryTrack, .libraryArtist, .libraryPlaylist]
         }
     }
 
@@ -34,6 +38,8 @@ enum Filter: String, CaseIterable {
             return "music.mic"
         case .playlists:
             return "rectangle.stack.badge.play"
+        case .library:
+            return "books.vertical.fill"
         }
     }
 }
@@ -59,34 +65,25 @@ final class FilterSelection: Hashable, Identifiable {
     static var albums = FilterSelection(filter: .albums, isFiltered: false)
     static var playlists = FilterSelection(filter: .playlists, isFiltered: false)
     static var artist = FilterSelection(filter: .artist, isFiltered: false)
+    static var library = FilterSelection(filter: .library, isFiltered: false)
 
     static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist]
+    static var appleFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist, .library]
     static var alarmFilters: [FilterSelection] = [.albums, .playlists]
 }
 
 struct FilterView: View {
     @Environment(SonosService.self) var sonosService: SonosService
+    @Binding var selectedService: MediaSearchService
     @Binding var filters: [FilterSelection]
+    
+    @Namespace private var animation
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack {
+            HStack(spacing: 8) {
                 ForEach($filters) { $filter in
-                    Toggle(isOn: $filter.isFiltered) {
-                        HStack {
-                            Image(systemName: filter.filter.symbol)
-                            if filter.isFiltered {
-                                Text(filter.filter.title)
-                            }
-                        }
-                    }
-                    .toggleStyle(.button)
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .foregroundStyle(filter.isFiltered ? .accent : .secondary)
-                    .onChange(of: filter) {
-                        HapticManager.shared.fireHaptic(.selection)
-                    }
+                    FilterButton(filter: $filter, animation: animation)
                 }
             }
             .scrollTargetLayout()
@@ -96,35 +93,74 @@ struct FilterView: View {
         .scrollTargetBehavior(.viewAligned)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
+        .task(id: selectedService) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                if selectedService == .apple {
+                    filters = FilterSelection.appleFilters
+                } else {
+                    filters = FilterSelection.defaultFilters
+                }
+            }
+        }
         .mask(
             HStack(spacing: 0) {
-                // Left gradient
-                LinearGradient(gradient:
-                   Gradient(
-                       colors: [Color.black.opacity(0), Color.black]),
-                       startPoint: .leading, endPoint: .trailing
-                   )
-                   .frame(width: 20)
-
-                // Middle
+                LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0), Color.black]),
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 20)
                 Rectangle().fill(Color.black)
-
-                // Right gradient
-                LinearGradient(gradient:
-                   Gradient(
-                       colors: [Color.black, Color.black.opacity(0)]),
-                       startPoint: .leading, endPoint: .trailing
-                   )
-                   .frame(width: 20)
+                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 20)
             }
             .padding(.leading, -15)
-         )
+        )
         .scrollClipDisabled()
+    }
+}
+
+struct FilterButton: View {
+    @Binding var filter: FilterSelection
+    let animation: Namespace.ID
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                filter.isFiltered.toggle()
+            }
+            HapticManager.shared.fireHaptic(.selection)
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: filter.filter.symbol)
+                    .imageScale(.medium)
+                if filter.isFiltered {
+                    Text(filter.filter.title)
+                        .transition(.opacity)
+                        .matchedGeometryEffect(id: "filterText\(filter.filter.rawValue)", in: animation)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(filter.isFiltered ? Color.accentColor : Color.secondary.opacity(0.2))
+                    .matchedGeometryEffect(id: "filterBackground\(filter.filter.rawValue)", in: animation)
+            )
+            .foregroundColor(filter.isFiltered ? .white : .secondary)
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isHovered ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }
 
 #Preview {
     FilterView(
+        selectedService: .constant(MediaSearchService.apple),
         filters: .constant(
             [
                 FilterSelection(

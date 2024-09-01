@@ -14,6 +14,7 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let externalIds: SpotifyExternalIDS
     public let type: String
     public let uri: String
+    public let explicit: Bool
     public let popularity: Int
     public let durationMs: Int
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
