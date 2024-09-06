@@ -2,7 +2,7 @@ import AppIntents
 import CloudStorage
 import SonosKit
 
-struct NightModeIntent: AppIntent {
+struct NightModeIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Night Mode"
     static var description: IntentDescription = "Toggle night mode for TV"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

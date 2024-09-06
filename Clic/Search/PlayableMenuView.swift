@@ -147,18 +147,21 @@ struct PlayableMenuView: View {
         }
         Task { @MainActor in
             hideKeyboard()
-            let queueSong: ((GroupRoom) async -> Void) = { group in
-                playHistoryService.history.remove(item)
-                playHistoryService.history.insert(item, at: 0)
-                HapticManager.shared.fireHaptic(.buttonPress)
-                await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
-                await sonosService.play(ip: group.coordinatorRoom.ip)
+            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+                do {
+                    try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
+                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                    playHistoryService.history.remove(item)
+                    playHistoryService.history.insert(item, at: 0)
+                } catch {
+                    alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+                }
             }
             guard let group = selectedGroupService.group else {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
                 return
             }
-            await queueSong(group)
+            try await queueSong(group)
         }
     }
 }

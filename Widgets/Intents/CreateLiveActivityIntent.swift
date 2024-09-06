@@ -10,6 +10,8 @@ struct CreateLiveActivityIntent: LiveActivityIntent, ControlConfigurationIntent 
     static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity?
+    
+    
 
     init(room: SonosDeviceEntity) {
         self.room = room

@@ -15,6 +15,7 @@ struct PlayerScreen: View {
                 GroupVolumeControlScreen(group: $group)
             }
             QueueScreen(group: $group)
+            PlayHistoryView(group: $group)
         }
         .containerBackground(.accent.gradient, for: .navigation)
     }

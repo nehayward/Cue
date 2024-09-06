@@ -28,7 +28,21 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
 
     private var privateTVSettings: TVSettings? = nil
     public var playMode: PlayMode = .normal
-    public var isMuted: Bool = false
+    public var isMuted: Bool {
+        get {
+            return lock.withLock {
+                return privateIsMuted
+            }
+        }
+        set {
+            lock.withLock {
+                DispatchQueue.main.async { [weak self] in
+                    self?.privateIsMuted = newValue
+                }
+            }
+        }
+    }
+    private var privateIsMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
     public var playbackService: PlaybackService = .unknown

@@ -82,7 +82,7 @@ public final class Alert: Equatable {
 
 extension View {
     func withAlert() -> some View {
-        return safeAreaInset(edge: .top) {
+        return overlay(alignment: .top) {
             PillView()
         }
     }

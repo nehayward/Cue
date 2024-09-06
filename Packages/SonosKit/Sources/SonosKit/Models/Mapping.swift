@@ -7,6 +7,7 @@ extension Track {
         PlayableContent(
             title: song,
             subtitle: [artist, album].filter({ !$0.isEmpty }).joined(separator: " • "),
+            thumbnail: artworkURL,
             artwork: artworkURL,
             content: MediaContent(service: musicService, id: trackID.description, type: trackID.contains("i.") ? .libraryTrack : .track, location: metadata?.openInURL),
             metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album)
@@ -20,7 +21,8 @@ extension Song {
         PlayableContent(
             title: title,
             subtitle: artistName,
-            artwork: artwork?.url(width: 100, height: 100),
+            thumbnail: artwork?.url(width: 100, height: 100),
+            artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
             metadata: PlayableContentMetadata(
                 artist: artistName,
@@ -34,31 +36,40 @@ extension Song {
 
 extension MusicKit.Track {
     public var toPlayable: PlayableContent {
-        var durationSeconds: Duration?
-        if let duration {
-            durationSeconds = Duration.seconds(duration)
-        }
+        let durationSeconds = duration.map { Duration.seconds($0) }
 
-        var artworkURL = artwork?.url(width: 200, height: 200)
+        var artworkURL = artwork?.url(width: 600, height: 600)
+        var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        if let artworkURLFound = artworkURL,
-            let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
-            components.scheme?.lowercased() == "musickit" {
-            let pattern = "https%3A%2F%2F[^&]+"
-            if let regex = try? NSRegularExpression(pattern: pattern) {
-                let nsString = artworkURLFound.absoluteString as NSString
-                let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
+        let pattern = "https%3A%2F%2F[^&]+"
+        let regex = try? NSRegularExpression(pattern: pattern)
 
-                if let match = results.first {
-                    let encodedUrl = nsString.substring(with: match.range)
-                    artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
-                }
+        func processURL(_ url: URL?) -> URL? {
+            guard let url = url,
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+                  components.scheme?.lowercased() == "musickit",
+                  let regex = regex else {
+                return url
             }
+
+            let nsString = url.absoluteString as NSString
+            let range = NSRange(location: 0, length: nsString.length)
+            
+            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
+                return url
+            }
+
+            let encodedUrl = nsString.substring(with: match.range)
+            return URL(string: encodedUrl.removingPercentEncoding ?? "")
         }
+
+        artworkURL = processURL(artworkURL)
+        thumbnailURL = processURL(thumbnailURL)
 
         return PlayableContent(
             title: title,
             subtitle: artistName,
+            thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
             metadata: PlayableContentMetadata(
@@ -73,30 +84,40 @@ extension MusicKit.Track {
     }
 
     public var toPlayableLibraryTrack: PlayableContent {
-        var durationSeconds: Duration?
-        if let duration {
-            durationSeconds = Duration.seconds(duration)
-        }
+        let durationSeconds = duration.map { Duration.seconds($0) }
 
-        var artworkURL = artwork?.url(width: 200, height: 200)
+        var artworkURL = artwork?.url(width: 600, height: 600)
+        var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        if let artworkURLFound = artworkURL,
-            let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
-            components.scheme?.lowercased() == "musickit" {
-            let pattern = "https%3A%2F%2F[^&]+"
-            if let regex = try? NSRegularExpression(pattern: pattern) {
-                let nsString = artworkURLFound.absoluteString as NSString
-                let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
+        let pattern = "https%3A%2F%2F[^&]+"
+        let regex = try? NSRegularExpression(pattern: pattern)
 
-                if let match = results.first {
-                    let encodedUrl = nsString.substring(with: match.range)
-                    artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
-                }
+        func processURL(_ url: URL?) -> URL? {
+            guard let url = url,
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+                  components.scheme?.lowercased() == "musickit",
+                  let regex = regex else {
+                return url
             }
+
+            let nsString = url.absoluteString as NSString
+            let range = NSRange(location: 0, length: nsString.length)
+            
+            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
+                return url
+            }
+
+            let encodedUrl = nsString.substring(with: match.range)
+            return URL(string: encodedUrl.removingPercentEncoding ?? "")
         }
+
+        artworkURL = processURL(artworkURL)
+        thumbnailURL = processURL(thumbnailURL)
+
         return PlayableContent(
             title: title,
             subtitle: artistName,
+            thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .libraryTrack, location: url),
             metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
@@ -106,26 +127,39 @@ extension MusicKit.Track {
 
 extension Playlist {
     public func toPlayable(isUserPlaylist: Bool = false) ->  PlayableContent {
-        var artworkURL = artwork?.url(width: 200, height: 200)
+        var artworkURL = artwork?.url(width: 600, height: 600)
+        var thumbnailURL = artwork?.url(width: 100, height: 100)
 
-        if let artworkURLFound = artworkURL,
-            let components = URLComponents(url: artworkURLFound, resolvingAgainstBaseURL: true),
-            components.scheme?.lowercased() == "musickit" {
-            let pattern = "https%3A%2F%2F[^&]+"
-            if let regex = try? NSRegularExpression(pattern: pattern) {
-                let nsString = artworkURLFound.absoluteString as NSString
-                let results = regex.matches(in: artworkURLFound.absoluteString, range: NSRange(location: 0, length: nsString.length))
+        let pattern = "https%3A%2F%2F[^&]+"
+        let regex = try? NSRegularExpression(pattern: pattern)
 
-                if let match = results.first {
-                    let encodedUrl = nsString.substring(with: match.range)
-                    artworkURL = URL(string: encodedUrl.removingPercentEncoding ?? "")
-                }
+        func processURL(_ url: URL?) -> URL? {
+            guard let url = url,
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+                  components.scheme?.lowercased() == "musickit",
+                  let regex = regex else {
+                return url
             }
+
+            let nsString = url.absoluteString as NSString
+            let range = NSRange(location: 0, length: nsString.length)
+            
+            guard let match = regex.firstMatch(in: url.absoluteString, range: range) else {
+                return url
+            }
+
+            let encodedUrl = nsString.substring(with: match.range)
+            return URL(string: encodedUrl.removingPercentEncoding ?? "")
         }
+
+        artworkURL = processURL(artworkURL)
+        thumbnailURL = processURL(thumbnailURL)
+
 
         return PlayableContent(
             title: name,
             subtitle: curatorName ?? "",
+            thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(
                 service: .apple,
@@ -142,7 +176,8 @@ extension AppleLibraryPlaylist {
         return PlayableContent(
             title: attributes.name,
             subtitle: "",
-            artwork: attributes.artwork.urlWithSize(width: 200, height: 200),
+            thumbnail: attributes.artwork.urlWithSize(width: 100, height: 100),
+            artwork: attributes.artwork.urlWithSize(width: 600, height: 600),
             content: MediaContent(
                 service: .apple,
                 id: id.description,
@@ -164,7 +199,8 @@ extension AppleLibraryItem {
         return PlayableContent(
             title: attributes.name,
             subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
-            artwork: attributes.artwork?.urlWithSize(width: 300, height: 300),
+            thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
+            artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
             content: MediaContent(
                 service: .apple,
                 id: id.description,
@@ -186,7 +222,8 @@ extension AppleLibraryAlbum {
         return PlayableContent(
             title: attributes.name,
             subtitle: "\(attributes.artistName ?? "")",
-            artwork: attributes.artwork?.urlWithSize(width: 100, height: 100),
+            thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
+            artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
             content: MediaContent(
                 service: .apple,
                 id: id.description,
@@ -206,7 +243,8 @@ extension Album {
         PlayableContent(
             title: title,
             subtitle: artistName + " • \(releaseDate?.formatted(.dateTime.year()) ?? "")",
-            artwork: artwork?.url(width: 100, height: 100),
+            thumbnail: artwork?.url(width: 100, height: 100),
+            artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
             metadata: PlayableContentMetadata(isExplicit: contentRating == .explicit)
         )
@@ -219,7 +257,8 @@ extension Artist {
         PlayableContent(
             title: name,
             subtitle: "",
-            artwork: artwork?.url(width: 100, height: 100),
+            thumbnail: artwork?.url(width: 100, height: 100),
+            artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .artist, location: url)
         )
     }
@@ -230,6 +269,7 @@ extension AppleLibraryArtist {
         return PlayableContent(
             title: attributes.name,
             subtitle: "",
+            thumbnail: nil,
             artwork: nil,
             content: MediaContent(
                 service: .apple,
@@ -250,7 +290,8 @@ extension SpotifyTrackItem {
         PlayableContent(
             title: name,
             subtitle: allArtists,
-            artwork: URL(string: album.images.first?.url ?? ""),
+            thumbnail: album.images.thumbnail,
+            artwork: album.images.biggestImageURL,
             content: MediaContent(
                 service: .spotify,
                 id: id,
@@ -276,7 +317,8 @@ extension SpotifyAlbumItem {
         PlayableContent(
             title: name,
             subtitle: [artists.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
-            artwork: URL(string: images.first?.url ?? ""),
+            thumbnail: images.thumbnail,
+            artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify)),
             metadata: .init(
                 artistID: artists.first?.id
@@ -290,7 +332,8 @@ extension SpotifyArtistAlbums.AlbumItem {
         PlayableContent(
             title: name,
             subtitle: releaseDateFormatted ?? "",
-            artwork: URL(string: images.first?.url ?? ""),
+            thumbnail: images.thumbnail,
+            artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
     }
@@ -301,17 +344,19 @@ extension SpotifyAlbumDetails {
         PlayableContent(
             title: name,
             subtitle: releaseDateFormatted ?? "",
-            artwork: URL(string: images.first?.url ?? ""),
+            thumbnail: images.thumbnail,
+            artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
         )
     }
 }
 
 extension SpotifyAlbumTrackItems {
-    public func toPlayable(artwork: URL?) -> PlayableContent {
+    public func toPlayable(thumbnail: URL?, artwork: URL?) -> PlayableContent {
         PlayableContent(
             title: name,
             subtitle: allArtists,
+            thumbnail: thumbnail,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls.spotify)),
             metadata: .init(duration: Duration.milliseconds(durationMs))
@@ -324,6 +369,7 @@ extension SpotifyPlaylistItems {
         PlayableContent(
             title: name,
             subtitle: owner.displayName,
+            thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify))
         )
@@ -335,6 +381,7 @@ extension SpotifyArtistsItems {
         PlayableContent(
             title: name,
             subtitle: "",
+            thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: externalUrls.spotify)),
             metadata: .init(popularity: popularity)
@@ -348,6 +395,7 @@ extension Favorite {
         PlayableContent(
             title: name,
             subtitle: description,
+            thumbnail: SonosService.shared.favoriteImageURL(favorite: self),
             artwork: SonosService.shared.favoriteImageURL(favorite: self),
             content: .init(
                 service: .unknown,
@@ -369,6 +417,8 @@ extension PlexTrack {
         return PlayableContent(
             title: title,
             subtitle: [artist, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            // TODO: Add Thumbnail
+            thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
                 service: .plex,
@@ -395,6 +445,7 @@ extension PlexAlbum {
         PlayableContent(
             title: title,
             subtitle: "\(artist) • \(year)",
+            thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
                 service: .plex,
@@ -417,6 +468,7 @@ extension PlexLibraryItem {
         PlayableContent(
             title: parentTitle,
             subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
+            thumbnail: thumbImageURL,
             artwork: thumbImageURL,
             content: .init(
                 service: .plex,
@@ -443,7 +495,6 @@ extension PlexMetadata {
         var artistID: String?
         var album: String?
         var albumID: String?
-        var albumYear: Date?
         var audioCodec: String?
 
         switch type {
@@ -467,6 +518,7 @@ extension PlexMetadata {
         return PlayableContent(
             title: title,
             subtitle: [artist, parentYear?.description, audioCodec?.uppercased()].compactMap{ $0 }.joined(separator: " • "),
+            thumbnail: thumbImageURL,
             artwork: thumbImageURL,
             content: .init(
                 service: .plex,
@@ -481,7 +533,6 @@ extension PlexMetadata {
                 artistID: artistID,
                 album: album,
                 albumID: albumID,
-                albumYear: albumYear,
                 audioCodec: audioCodec
             )
         )
@@ -494,6 +545,7 @@ extension PlexUserPlaylist {
         return PlayableContent(
             title: title,
             subtitle: "",
+            thumbnail: thumbImageURL,
             artwork: thumbImageURL,
             content: .init(
                 service: .plex,
@@ -510,6 +562,7 @@ extension PlexArtist {
         PlayableContent(
             title: name,
             subtitle: "",
+            thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
                 service: .plex,
@@ -526,6 +579,7 @@ extension PlexPlaylist {
         PlayableContent(
             title: title,
             subtitle: "",
+            thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
                 service: .plex,
@@ -544,7 +598,8 @@ extension TidalTrackResource {
         return PlayableContent(
             title: title,
             subtitle: artists.first?.name ?? "",
-            artwork: URL(string: album.imageCover.first(where: { $0.width == $0.height })?.url ?? ""),
+            thumbnail: URL(string: album.imageCover.first(where: { $0.width == $0.height })?.url ?? ""),
+            artwork: URL(string: album.imageCover.last(where: { $0.width == $0.height })?.url ?? ""),
             content: .init(
                 service: .tidal,
                 id: id,
@@ -574,6 +629,7 @@ extension TidalAlbumResource {
         return PlayableContent(
             title: title,
             subtitle: [artist?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.thumbnail,
             content: .init(
                 service: .tidal,
@@ -600,7 +656,8 @@ extension TidalArtistResource {
         PlayableContent(
             title: name,
             subtitle: "",
-            artwork: URL(string: picture.first(where: { $0.width == $0.height })?.url ?? ""),
+            thumbnail: URL(string: picture.first(where: { $0.width == $0.height })?.url ?? ""),
+            artwork: URL(string: picture.last(where: { $0.width == $0.height })?.url ?? ""),
             content: .init(
                 service: .tidal,
                 id: id,
@@ -618,6 +675,7 @@ extension TuneInStation {
             subtitle: [stationInfo?.song, stationInfo?.artist].compactMap{
                 $0
             }.filter({ !$0.isEmpty }).joined(separator: " • "),
+            thumbnail: imageURL,
             artwork: imageURL,
             content: .init(
                 service: .tuneIn,

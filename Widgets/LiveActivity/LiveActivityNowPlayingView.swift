@@ -7,7 +7,6 @@ import VibesDS
 
 struct LiveActivityNowPlayingView: View {
     @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
-    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
@@ -79,12 +78,14 @@ struct LiveActivityNowPlayingView: View {
                             .lineLimit(1)
                             .bold()
                             .invalidatableContent()
-                            .id(context.state.playableContent.title )
+                            .id(context.state.playableContent.title)
+                            .transition(updateTransition)
                         Text(context.state.playableContent.subtitle)
                             .lineLimit(1)
                             .foregroundStyle(.secondary)
                             .invalidatableContent()
                             .id(context.state.playableContent.subtitle)
+                            .transition(updateTransition)
                     }
                     .lineLimit(0, reservesSpace: true)
                     Spacer()
@@ -184,60 +185,5 @@ struct LiveActivityNowPlayingView: View {
         .background(.background.opacity(0.4))
         .widgetURL(URL(string: "clic://device?id=\(context.attributes.room.id)"))
     }
-}
-
-extension ClicNowPlayingWidgetAttributes {
-    fileprivate static var preview: ClicNowPlayingWidgetAttributes {
-        ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Gym"))
-    }
-}
-
-extension ClicNowPlayingWidgetAttributes.ContentState {
-    fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
-            volume: 39,
-            name: "Kitchen + 1",
-            TVMode: false
-        )
-    }
-
-    fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
-            volume: 50,
-            name: "Kitchen + 1",
-            TVMode: false
-        )
-    }
-
-    fileprivate static var theater: ClicNowPlayingWidgetAttributes.ContentState {
-        ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
-            volume: 50,
-            name: "Kitchen + 1",
-            TVMode: true,
-            TVSettings: .init(nightMode: false, dialogLevel: true, audioInputFormat: .dolbyAtmosDDPlus)
-        )
-    }
-}
-
-#Preview("Lock Screen", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
-    LiveActivityNowPlayingWidget()
-} contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing
-    ClicNowPlayingWidgetAttributes.ContentState.theater
-}
-
-#Preview("Lock Screen 2", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
-    LiveActivityNowPlayingWidget()
-} contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing2
-}
-
-#Preview("Lock Screen Compact", as: .content, using: ClicNowPlayingWidgetAttributes.preview) {
-    LiveActivityNowPlayingWidget()
-} contentStates: {
-    ClicNowPlayingWidgetAttributes.ContentState.testing2
 }
 #endif

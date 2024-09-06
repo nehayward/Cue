@@ -13,7 +13,7 @@ struct SelectGroupView: View {
 
     @State private var filter: String = ""
 
-    var onSelection: ((GroupRoom) async -> Void)? = nil
+    var onSelection: ((GroupRoom) async throws -> Void)? = nil
 
     var body: some View {
         List {
@@ -35,7 +35,7 @@ struct SelectGroupView: View {
                         }
                         selectedGroupService.group = group
                         Task {
-                            await onSelection?(group)
+                            try await onSelection?(group)
                         }
                     } label: {
                         Text(group.nameWithCount)

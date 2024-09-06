@@ -2,7 +2,7 @@ import AppIntents
 import CloudStorage
 import SonosKit
 
-struct PreviousIntent: AppIntent {
+struct PreviousIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Previous"
     static var description: IntentDescription = "Go to the previous song in queue if available."
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

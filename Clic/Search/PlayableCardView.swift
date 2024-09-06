@@ -1,7 +1,6 @@
 import CloudStorage
 import MusicSearchKit
 import Defaults
-import NukeUI
 import MusicKit
 import OrderedCollections
 import SwiftUI
@@ -105,6 +104,7 @@ struct PlayableCardView: View {
         item: .init(
             title: "Radical Optimism",
             subtitle: "Dua Lipa",
+            thumbnail: nil,
             artwork: URL(
                 string: "https://i.scdn.co/image/ab67616d00001e02361debc2873b3aa493304b6d"
             ),
@@ -126,6 +126,7 @@ struct PlayableCardView: View {
         item: .init(
             title: "30",
             subtitle: "Adele",
+            thumbnail: nil,
             artwork: URL(
                 string: "https://i.scdn.co/image/ab67616d00001e02c6b577e4c4a6d326354a89f7"
             ),

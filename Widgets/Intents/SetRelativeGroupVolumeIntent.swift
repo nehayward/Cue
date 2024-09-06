@@ -6,7 +6,7 @@ import SonosKit
 import WidgetKit
 #endif
 
-struct SetRelativeGroupVolumeIntent: AppIntent {
+struct SetRelativeGroupVolumeIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Set Relative Volume"
     static var description: IntentDescription = "Increase or decrease volume, example: +2 or -2"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

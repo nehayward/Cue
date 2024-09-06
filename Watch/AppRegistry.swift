@@ -43,5 +43,6 @@ extension View {
     func withEnvironments() -> some View {
         environment(SonosService.shared)
             .environment(Popover.shared)
+            .environment(PlayHistoryService.shared)
     }
 }

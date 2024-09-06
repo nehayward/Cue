@@ -30,7 +30,7 @@ struct PlayHistoryFullView: View {
                 }
             }
         }
-        .contentMargins(.bottom, 80, for: .scrollContent)
+        .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle("Play History")
         .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
             Button {

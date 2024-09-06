@@ -45,7 +45,7 @@ struct BrowseScreen: View {
                 }
             }
         }
-        .contentMargins(.bottom, 80, for: .scrollContent)
+        .contentMargins(.bottom, 120, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
             VStack {
                 Menu {

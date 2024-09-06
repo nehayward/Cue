@@ -202,7 +202,14 @@ struct DeviceListMainView: View {
 //            }
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .safeAreaInset(edge: .top) {
+        .withAlert()
+        .animation(.spring, value: sonosService.isSearching)
+        .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
+        .animation(.spring, value: sonosService.systemState.notFound)
+        .animation(.spring, value: sonosService.systemState.permissionDenied)
+        .animation(.spring, value: alertService.alert.isShowing)
+        .animation(.interactiveSpring, value: sonosService.sorted)
+        .overlay(alignment: .top) {
             VStack {
                 if !sonosService.networkMonitorService.isConnected {
                     Label("Can't find System, Connect to Wi-Fi", systemImage: "wifi.slash")
@@ -232,13 +239,6 @@ struct DeviceListMainView: View {
                 }
             }
         }
-        .withAlert()
-        .animation(.spring, value: sonosService.isSearching)
-        .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
-        .animation(.spring, value: sonosService.systemState.notFound)
-        .animation(.spring, value: sonosService.systemState.permissionDenied)
-        .animation(.spring, value: alertService.alert.isShowing)
-        .animation(.interactiveSpring, value: sonosService.sorted)
     }
 
     private func enabled(group: GroupRoom) -> Bool {

@@ -16,11 +16,14 @@ struct PreferenceScreen: View {
     @Environment(SonosService.self) var sonosService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(MusicSearchService.self) var musicSearchService
+    @Environment(AlertService.self) var alertService
+
 
     @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
+    @State private var refreshSonosLibrary = false
 
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
@@ -109,14 +112,19 @@ struct PreferenceScreen: View {
                         Label("Alarms", systemImage: "alarm")
                             .foregroundStyle(.primary)
                     }
+                    
                     Button {
                         Task {
+                            alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise.circle")
                             await sonosService.refreshLibrary()
                         }
                     } label: {
-                        Label("Refresh Library", systemImage: "arrow.clockwise.circle")
+                        Label {
+                            Text("Refresh Sonos Library")
+                        } icon: {
+                            Image(systemName: "arrow.clockwise.circle")
+                        }
                     }
-
                 } header: {
                     Text("Sonos System")
                 }
@@ -323,6 +331,7 @@ struct PreferenceScreen: View {
             .fontDesign(.rounded)
         }
         .withAlert()
+        .animation(.spring, value: alertService.alert.isShowing)
         .task {
             try? await subscriptionService.checkSubscription()
         }

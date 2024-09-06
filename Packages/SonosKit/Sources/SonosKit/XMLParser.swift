@@ -567,7 +567,7 @@ final class XMLParserSonos {
             subtitle = [emptyArtist, emptyAlbum].filter({ !$0.isEmpty }).joined(separator: " • ")
             let mediaContent = MediaContent(service: musicService, id: trackID, type: trackID.contains("i.") ? .libraryTrack : .track, location: nil)
             let metadata = PlayableContentMetadata(duration: Duration.milliseconds(trackDuration), artist: emptyArtist, album: emptyAlbum, position: trackNumber)
-            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             tracks.append(playableContent)
         }
         return tracks
@@ -672,7 +672,7 @@ final class XMLParserSonos {
 
             let mediaContent = MediaContent(service: .library, id: trackID, type: contentType, location: nil)
             let metadata = PlayableContentMetadata(artist: artist, album: album, albumID: albumID)
-            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             searchResults.append(playableContent)
         }
 
@@ -723,7 +723,7 @@ final class XMLParserSonos {
 
             let mediaContent = MediaContent(service: .library, id: trackID, type: contentType, location: nil)
             let metadata = PlayableContentMetadata(artist: artist, album: album, albumID: albumID)
-            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             searchResults.append(playableContent)
         }
 
@@ -849,7 +849,7 @@ final class XMLParserSonos {
 
             let mediaContent = MediaContent(service: musicService, id: trackID, type: contentType, location: nil)
             let metadata = PlayableContentMetadata(duration: trackDuration, artist: artist, album: album, albumID: albumID)
-            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             searchResults.append(playableContent)
         }
 
@@ -942,7 +942,7 @@ final class XMLParserSonos {
             let isRadioStation = (uriMetadata?.contains("audioBroadcast") ?? uriMetadata?.contains("radio")) ?? false
             let mediaContent = MediaContent(service: .unknown, id: trackID.encodeProgramURI, type: contentType, location: nil)
             let metadata = PlayableContentMetadata(URIMetadata: uriMetadata, radioStation: isRadioStation)
-            let playableContent = PlayableContent(title: title, subtitle: subtitle, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
+            let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             searchResults.append(playableContent)
         }
 
@@ -1038,6 +1038,7 @@ final class XMLParserSonos {
             return PlayableContent(
                 title: "Sonos Chime",
                 subtitle: "",
+                thumbnail: nil,
                 artwork: nil,
                 content: MediaContent(
                     service: .unknown,
@@ -1064,6 +1065,7 @@ final class XMLParserSonos {
         return PlayableContent(
             title: name,
             subtitle: "",
+            thumbnail: nil,
             artwork: nil,
             content: MediaContent(
                 service: .unknown,

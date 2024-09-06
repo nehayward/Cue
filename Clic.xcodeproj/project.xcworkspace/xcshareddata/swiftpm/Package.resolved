@@ -1,5 +1,5 @@
 {
-  "originHash" : "3a6144c34872721159f9248dce7ed44d09922c5bf6f8041f9aa9472a873bc132",
+  "originHash" : "1628a30dd77ad30a791681b31063799c6ae868a70aa8168727c5e8fdac5119c1",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "7d55b964114a3d4a76791227cdc28577617596db",
-        "version" : "4.43.2"
+        "revision" : "1085af5662b47167c23bfa10ace372342c79452f",
+        "version" : "5.3.2"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections/",
       "state" : {
-        "revision" : "3d2dc41a01f9e49d84f0a3925fb858bed64f702d",
-        "version" : "1.1.2"
+        "revision" : "9bf03ff58ce34478e66aaee630e491823326fd06",
+        "version" : "1.1.3"
       }
     },
     {

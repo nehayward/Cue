@@ -7,7 +7,7 @@ enum IntentError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case let .message(message): return "Error: \(message)"
-        case .general: return "My general error"
+        case .general: return "Failed"
         }
     }
 }

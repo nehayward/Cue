@@ -1,14 +1,35 @@
 # 2024.37
 
+## App Store
+
+New Features:
++ Apple Music Library Search: Added support for searching your local Apple Music library.
++ Apple Watch Live Activity: Interactive controls for playback.
++ Explicit Content Label: Added explicit content labels for easier identification.
++ Remote Control Center Widget: Added a new widget for quick access to remote controls.
++ Launch Control Center Widget: Added a dedicated widget for launching app.
++ New App Icon: Updated the app with a fresh new icon.
++ Play History on Watch App: Added play history view to the Apple Watch app.
+
+Improvements:
+• Playlist Fix: Resolved an issue where some songs were not appearing in playlists.
+• Enhanced Error Handling: Improved error handling for a smoother and more reliable user experience.
+
 ## External
 
 + Add local apple music library search
++ Add live activity for apple watch.
 + Add explicit label
-+ Add Control Center Widget
++ Add Remote Control Center Widget
++ Add Launch Control Center Widget
 + Add new icon.
++ Add play history to watch app.
 - Fixed issue where not all songs would show in playlists
+- Better error handling
 
 ## Internal
+
+- Cache images to disk.
 
 # 2024.36
 

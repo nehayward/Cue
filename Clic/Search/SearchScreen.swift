@@ -85,7 +85,7 @@ struct SearchScreen: View {
                 }
             }
             .ignoresSafeArea(.keyboard)
-            .contentMargins(.bottom, 80, for: .scrollContent)
+            .contentMargins(.bottom, 120, for: .scrollContent)
             .searchable(
                 text: $musicSearchService.query,
                 isPresented: $searchFieldIsPresented,
@@ -119,6 +119,8 @@ struct SearchScreen: View {
                 closeInspector?()
             }
         }
+        .withAlert()
+        .animation(.spring, value: alertService.alert.isShowing)
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
 #if !os(visionOS)

@@ -21,7 +21,7 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
 struct LiveActivityNowPlayingWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ClicNowPlayingWidgetAttributes.self) { context in
-            LiveActivityNowPlayingView(context: context)
+            LiveActivityNowPlaying(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
@@ -164,6 +164,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                 Image(systemName: "hifispeaker.fill")
             }
         }
+        .supplementalActivityFamiliesBackDeployment()
     }
 
     private func updateTransition(context: ActivityViewContext<ClicNowPlayingWidgetAttributes>) -> AnyTransition {
@@ -178,6 +179,17 @@ struct LiveActivityNowPlayingWidget: Widget {
     }
 }
 
+extension WidgetConfiguration {
+    func supplementalActivityFamiliesBackDeployment() -> some WidgetConfiguration {
+        if #available(iOS 18.0, *) {
+            return self.supplementalActivityFamilies([.small])
+        } else {
+            return self
+        }
+    }
+}
+
+
 extension ClicNowPlayingWidgetAttributes {
     fileprivate static var preview: ClicNowPlayingWidgetAttributes {
         ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: "", ip: "1298212", name: "Kitchen"))
@@ -187,7 +199,7 @@ extension ClicNowPlayingWidgetAttributes {
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
             volume: 39,
             name: "Kitchen + 1",
             TVMode: false

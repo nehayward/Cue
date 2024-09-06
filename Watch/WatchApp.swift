@@ -1,4 +1,5 @@
 import Observation
+import Nuke
 import SwiftUI
 import SonosKit
 import WidgetKit
@@ -32,6 +33,7 @@ struct WatchApp: App {
                         activeSubscription = true
                     }
                     #endif
+                    configureNuke()
                 }
         }
         .onChange(of: scenePhase) {
@@ -74,5 +76,21 @@ struct WatchApp: App {
         @unknown default:
             break
         }
+    }
+    
+    private func configureNuke() {
+        let pipeline = ImagePipeline {
+            $0.imageCache = ImageCache.shared
+            $0.dataCache = try? DataCache(name: "com.clic.imageCache")
+            $0.dataCachePolicy = .automatic
+            let dataLoader: DataLoader = {
+                let config = URLSessionConfiguration.default
+                config.urlCache = nil
+                return DataLoader(configuration: config)
+            }()
+
+            $0.dataLoader = dataLoader
+        }
+        ImagePipeline.shared = pipeline
     }
 }

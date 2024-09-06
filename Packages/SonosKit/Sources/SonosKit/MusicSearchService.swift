@@ -368,6 +368,52 @@ public final class MusicSearchService {
         return response.items.first
     }
 
+    public func getTracksFromPlaylist(id: String) async throws -> [MusicKit.Track] {
+        let playlistID = MusicItemID(id)
+        var playlistRequest = MusicCatalogResourceRequest<Playlist>(matching: \.id, equalTo: playlistID)
+        playlistRequest.properties = [.tracks]
+        
+        let result = try await playlistRequest.response()
+        guard let first = result.items.first else {
+            throw NSError(domain: "PlaylistError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Playlist not found"])
+        }
+        
+        let withTracks = try await first.with(.tracks)
+        
+        guard let startingTracks = withTracks.tracks else {
+            throw NSError(domain: "PlaylistError", code: 2, userInfo: [NSLocalizedDescriptionKey: "No tracks found in playlist"])
+        }
+        
+        return try await getAllTracksFromPlaylist(startingTracks: startingTracks)
+    }
+
+    func getAllTracksFromPlaylist(startingTracks: MusicItemCollection<MusicKit.Track>) async throws -> [MusicKit.Track] {
+        return try await withThrowingTaskGroup(of: [MusicKit.Track].self) { group in
+            var allTracks: [MusicKit.Track] = []
+            
+            func processNextBatch(_ tracks: MusicItemCollection<MusicKit.Track>) async throws {
+                group.addTask {
+                    return Array(tracks)
+                }
+                
+                if tracks.hasNextBatch {
+                    if let nextBatch = try await tracks.nextBatch() {
+                        try await processNextBatch(nextBatch)
+                    }
+                }
+            }
+            
+            try await processNextBatch(startingTracks)
+            
+            for try await tracks in group {
+                allTracks.append(contentsOf: tracks)
+            }
+            
+            return allTracks
+        }
+    }
+
+
     public func lookup(id: String) async throws -> Artist? {
         guard await requestMusicAuthorization() else { return nil }
 

@@ -1,80 +1,39 @@
 import NukeUI
+import Collections
 import SwiftUI
-import WatchKit
 import MusicSearchKit
 import SonosKit
 
 struct PlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Popover.self) var popOver: Popover
-
+    
     @Binding var group: GroupRoom
     @State private var isIdle: Bool = true
     @State private var showGroup: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-
+    
     var body: some View {
         VStack(spacing: 4) {
-            LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .transition(.opacity)
-                } else if state.isLoading {
-                    Rectangle()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
-                        .shadow(radius: 2)
-                        .transition(.opacity)
-                } else {
-                    Rectangle()
-                        .foregroundStyle(.accent.gradient.secondary)
-                        .aspectRatio(contentMode: .fit)
-                        .overlay {
-                            if group.coordinatorRoom.track.artworkURL == nil {
-                                Image(systemName: "music.note")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.regularMaterial)
-                                    .frame(width: 42, height: 42)
-                            }
-                        }
-                }
-            }
-//            // MARK: For Screenshots
-//            #if DEBUG
-//            .overlay {
-//                Rectangle()
-//                    .foregroundStyle(.regularMaterial)
-//            }
-//            #endif
-            .overlay(alignment: .bottomTrailing) {
-                group.coordinatorRoom.track.musicService.icon
-                    .frame(width: 10, height: 10)
-                    .padding([.trailing, .bottom], 4)
-                    .shadow(radius: 10)
-            }
-            .cornerRadius(12)
-            .shadow(radius: 10)
-            .focusable()
-            .digitalCrownRotation(detent: $group.groupVolume,
-                                  from: 0,
-                                  through: 100,
-                                  by: 2,
-                                  sensitivity: .low,
-                                  isContinuous: false,
-                                  isHapticFeedbackEnabled: true,
-                                  onChange: { crownEvent in
-                isIdle = false
-                popOver.isShowing = !isIdle
-                popOver.text = String(format: "%.0f", group.groupVolume)
-            }, onIdle: {
-                isIdle = true
-                withAnimation {
+            ThumbnailView(content: group.coordinatorRoom.track.toPlayable)
+                .focusable()
+                .digitalCrownRotation(detent: $group.groupVolume,
+                                      from: 0,
+                                      through: 100,
+                                      by: 2,
+                                      sensitivity: .low,
+                                      isContinuous: false,
+                                      isHapticFeedbackEnabled: true,
+                                      onChange: { crownEvent in
+                    isIdle = false
                     popOver.isShowing = !isIdle
-                }
-            })
+                    popOver.text = String(format: "%.0f", group.groupVolume)
+                }, onIdle: {
+                    isIdle = true
+                    withAnimation {
+                        popOver.isShowing = !isIdle
+                    }
+                })
             Text(group.coordinatorRoom.track.song)
                 .bold()
                 .lineLimit(1)
@@ -112,7 +71,7 @@ struct PlayerView: View {
                             value: group.coordinatorRoom.track.playbackPosition,
                             in: 0...group.coordinatorRoom.track.duration,
                             label: {
-
+                                
                             },
                             currentValueLabel: {
                                 EmptyView()
@@ -188,15 +147,11 @@ struct PlayerView: View {
 //            }
 //        }
         .navigationTitle(group.nameWithCount)
-        .task {
-            guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" else { return }
-                sonosService.monitor()
-            let track = Track(trackID: "", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .airplay, duration: 60, playbackPosition: .zero)
-            track.downloadedArtworkURL = await sonosService.getArtwork(from: track)
-            group.coordinatorRoom.track = track
-        }
         .animation(.spring, value: popOver.isShowing)
         .animation(.spring, value: group.coordinatorRoom.track.artworkURL)
+        .task {
+            self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+        }
     }
 }
 
@@ -205,6 +160,6 @@ struct PlayerView: View {
         PlayerView(group: .constant(.garage))
             .environment(SonosService())
             .environment(Popover())
-
+        
     }
 }

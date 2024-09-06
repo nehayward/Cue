@@ -128,7 +128,7 @@ public struct SceneButton: View {
                         name: "Living Room",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
-                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
                     )
             ) {
                 print("HERE")
@@ -154,7 +154,7 @@ public struct SceneButton: View {
                         name: "Theater + Kitchen",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
-                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
                     )
             ) {
                 print("HERE")
@@ -167,7 +167,7 @@ public struct SceneButton: View {
                         name: "Living Room",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
-                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
                     )
             ) {
                 print("HERE")

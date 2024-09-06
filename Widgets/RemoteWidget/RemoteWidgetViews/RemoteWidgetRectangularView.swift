@@ -31,6 +31,8 @@ struct RemoteWidgetRectangularView: View {
             .buttonStyle(.plain)
             .invalidatableContent()
             .containerBackground(.bar, for: .widget)
+            .disabled(entry.configuration.launchSpeaker ?? false)
+            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

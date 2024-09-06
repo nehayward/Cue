@@ -5,7 +5,7 @@ import SonosKit
 import WidgetKit
 #endif
 
-struct NextIntent: AppIntent {
+struct NextIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Next"
     static var description: IntentDescription = "Go to the next song in queue if available."
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

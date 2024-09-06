@@ -19,7 +19,7 @@ struct FavoritesView: View {
                             PlayableContentView(item: item)
                         }
                     }
-                    .contentMargins(.bottom, 80, for: .scrollContent)
+                    .contentMargins(.bottom, 120, for: .scrollContent)
                     .navigationTitle("Favorites")
                 } label: {
                     Text("Favorites")

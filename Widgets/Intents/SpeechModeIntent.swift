@@ -2,7 +2,7 @@ import AppIntents
 import CloudStorage
 import SonosKit
 
-struct SpeechEnhancementIntent: AppIntent {
+struct SpeechEnhancementIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Speech Enhancement"
     static var description: IntentDescription = "When playing TV audio with a Sonos home theater speaker, you can turn on Speech Enhancement to boost the audio frequencies associated with the human voice. Turning this feature on will make dialogue easier to hear."
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed

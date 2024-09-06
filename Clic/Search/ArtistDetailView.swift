@@ -13,6 +13,7 @@ struct ArtistDetailView: View {
     @Environment(Router.self) private var router: Router?
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
+    @Environment(AlertService.self) private var alertService
 
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
@@ -156,7 +157,7 @@ struct ArtistDetailView: View {
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
-        .contentMargins(.bottom, 80, for: .scrollContent)
+        .contentMargins(.bottom, 120, for: .scrollContent)
         .task {
             isLoading = true
             artworkURL = playableContent.artwork
@@ -247,6 +248,7 @@ struct ArtistDetailView: View {
                 playableContent = PlayableContent(
                     title: artistName,
                     subtitle: playableContent.subtitle,
+                    thumbnail: nil,
                     artwork: nil,
                     content: playableContent.content
                 )
@@ -261,6 +263,7 @@ struct ArtistDetailView: View {
                 playableContent = PlayableContent(
                     title: artistName,
                     subtitle: playableContent.subtitle,
+                    thumbnail: nil,
                     artwork: nil,
                     content: playableContent.content
                 )
@@ -450,6 +453,7 @@ struct ArtistDetailView: View {
         ArtistDetailView(playableContent: PlayableContent(
             title: "Dua Lipa",
             subtitle: "",
+            thumbnail: nil,
             artwork: nil,
             content: MediaContent(
                 service: .spotify,

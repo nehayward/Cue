@@ -1,95 +1,102 @@
 import MusicSearchKit
 import NukeUI
-import SwiftUI
 import SonosKit
+import SwiftUI
+import Collections
 
 struct QueueScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
-
+    
     @Binding var group: GroupRoom
-    @State private var tracks: [PlayableContent] = []
-    @State private var isLoading = true
+    @State private var router = Router()
+    @State private var isLoading: Bool = true
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List {
-                    ForEach(tracks, id: \.trackID) { track in
-                        HStack {
-                            ThumbnailView(content: track)
-                                .frame(width: 40, height: 40)
-                            Button {
-                                Task {
-                                    guard let position = track.metadata?.position else { return }
-                                    await sonosService.seek(trackNumber: position, on: group)
-                                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                                }
-                            } label: {
+                    ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
+                        Button {
+                            Task {
+                                guard let position = track.metadata?.position else { return }
+                                await sonosService.seek(trackNumber: position, on: group)
+                                await sonosService.play(ip: group.coordinatorRoom.ip)
+                                group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                            }
+                        } label: {
+                            HStack {
+                                ThumbnailView(content: track)
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 40, height: 40)
                                 VStack(alignment: .leading) {
                                     Text(track.title)
                                         .lineLimit(1)
                                     Text(track.subtitle)
-                                        .lineLimit(1)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                }
-                                .swipeActions {
-                                    Button(role: .destructive) {
-                                        guard let position = track.metadata?.position else { return }
-                                        tracks.remove(at: position - 1)
-                                        Task {
-                                            try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                                            tracks = await sonosService.getQueue(ip: group.coordinatorRoom.ip)
-                                        }
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
+                                        .lineLimit(1)
                                 }
                             }
                         }
+//                        .swipeActions {
+//                            Button(role: .destructive) {
+//                                guard let position = track.metadata?.position else { return }
+//                                group.coordinatorRoom.queue.remove(at: position - 1)
+//                                Task {
+//                                    try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+//                                    group.coordinatorRoom.queue =  OrderedSet(await sonosService.getQueue(ip: group.ip))
+//                                }
+//                            } label: {
+//                                Label("Delete", systemImage: "trash")
+//                            }
+//                        }
                         .listRowBackground(isTrackPlaying(for: track) ? nil : Color.clear)
                         .bold(isTrackPlaying(for: track))
                     }
-                    .fontDesign(.rounded)
                 }
-                .scrollContentBackground(.hidden)
+                .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .listStyle(.plain)
-                .navigationTitle("Queue")
-                .task {
-                    await getQueue()
+                .task(id: group.coordinatorRoom.track.trackID) {
+                    isLoading = true
+                    group.playMode = await sonosService.playMode(ip: group.ip)
+                    let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
+                    proxy.scrollTo(id, anchor: .top)
+                    self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                    isLoading = false
                 }
-                .task(id: tracks.count) {
-                    withAnimation {
-                        let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
-                        proxy.scrollTo(id)
-                    }
-                }
-                .animation(.spring, value: tracks)
-                .overlay {
-                    if isLoading {
-                        ProgressView()
-                            .padding()
-                            .background(.thinMaterial)
-                    }
-                    if tracks.isEmpty, !isLoading {
-                        ContentUnavailableView("Empty", systemImage: "music.note.list")
-                            .transition(.opacity)
-                    }
-                }
+                .animation(.spring, value: group.coordinatorRoom.queue)
+                .navigationBarTitle(navigationTitle)
             }
-            .animation(Animation.default.delay(tracks.isEmpty ? 0 : 2), value: tracks)
         }
-    }
-
-    private func getQueue() async {
-        isLoading = true
-        defer { isLoading = false }
-        self.tracks = await sonosService.getQueue(ip: group.ip)
+        .overlay {
+            if isLoading, group.coordinatorRoom.queue.isEmpty {
+                ProgressView()
+            }
+            if group.coordinatorRoom.queue.isEmpty, !isLoading {
+                ContentUnavailableView("Empty", systemImage: "music.note.list")
+                    .transition(.opacity)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if group.playbackService != .queue  {
+                Text("Queue Not Active")
+                    .padding()
+                    .background(.thickMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .fontDesign(.rounded)
+        .animation(.default, value: group.playbackService)
     }
 
     private func isTrackPlaying(for song: PlayableContent) -> Bool {
         guard let position = song.metadata?.position else { return false }
         return group.coordinatorRoom.track.position == position && group.playbackService == .queue
+    }
+    
+    private var navigationTitle: Text {
+        Text("Queue \(!group.coordinatorRoom.queue.isEmpty ? " " : "")") +
+        Text(group.coordinatorRoom.queue.count, format: .number)
     }
 }
 

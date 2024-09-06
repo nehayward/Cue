@@ -665,7 +665,7 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func queuePlayable(playableContent: PlayableContent, IP: String, position: QueuePosition = .next) async {
+    func queuePlayable(playableContent: PlayableContent, IP: String, position: QueuePosition = .next) async throws {
         var arguments: [String: Any] = [
             "InstanceID": 0,
             "EnqueuedURI": playableContent.uri,
@@ -684,12 +684,13 @@ final class SonosAPI: NSObject {
             arguments["EnqueueAsNext"] = 1
         }
 
-        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return
+        guard let (_, response) = try await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            throw SonosServiceError.timeout
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
+            throw SonosServiceError.serviceUnavailable
         }
     }
 

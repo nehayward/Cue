@@ -12,7 +12,7 @@ let package = Package(
             targets: ["SubscriptionKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/RevenueCat/purchases-ios.git", from: "4.28.0"),
+        .package(url: "https://github.com/RevenueCat/purchases-ios.git", from: "5.3.2"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0")
     ],
     targets: [

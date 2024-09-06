@@ -20,7 +20,7 @@ struct AppleLibraryBrowseScreen: View {
     
     private var numberOfItemsInGrid: Int {
 #if targetEnvironment(macCatalyst)
-        return 3
+        return 2
 #endif
         return 4
     }

@@ -53,7 +53,7 @@ struct PlayerSelectionView: View {
                             if let playableContent {
                                 playHistoryService.history.remove(playableContent)
                                 playHistoryService.history.insert(playableContent, at: 0)
-                                await sonosService.queue(playable: playableContent, group: group, position: position)
+                                try await sonosService.queue(playable: playableContent, group: group, position: position)
                                 await sonosService.play(ip: group.ip)
                                 try? await Task.sleep(for: .milliseconds(100))
                                 try? await sonosService.updateGroups(from: [group])

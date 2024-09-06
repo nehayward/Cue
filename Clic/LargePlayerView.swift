@@ -223,6 +223,7 @@ struct LargePlayerView: View {
                         .ignoresSafeArea()
                 }
                 .ignoresSafeArea()
+                .id(group.coordinatorRoom.track.id)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(group.nameWithCount)
@@ -254,6 +255,7 @@ struct LargePlayerView: View {
                 refreshID = UUID()
             }
         }
+        .environment(AlertService.shared)
     }
 
     private func playbackView() -> some View {

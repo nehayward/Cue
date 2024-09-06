@@ -100,7 +100,7 @@ struct RemoteWidgetEntry: TimelineEntry {
                 name: "Kitchen + 1"
             )
         ),
-        playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", artwork: nil, content: .init(service: service, id: "123", type: .track, location: nil)),
+        playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: service, id: "123", type: .track, location: nil)),
         volume: 20,
         track: Track(
             trackID: "",
@@ -167,6 +167,7 @@ struct RemoteWidget: Widget {
         .supportedFamilies(families)
         .configurationDisplayName("Remote")
         .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system. Tap to start Live Activity.")
+        .promptsForUserConfigurationIfiOS18()
     }
 }
 

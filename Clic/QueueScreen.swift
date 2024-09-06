@@ -26,6 +26,7 @@ struct QueueScreen: View {
                                 guard let position = track.metadata?.position else { return }
                                 await sonosService.seek(trackNumber: position, on: group)
                                 await sonosService.play(ip: group.coordinatorRoom.ip)
+                                group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                             }
                         } label: {
                             HStack {
@@ -172,7 +173,7 @@ struct QueueScreen: View {
                     isLoading = true
                     group.playMode = await sonosService.playMode(ip: group.ip)
                     let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
-                    proxy.scrollTo(id)
+                    proxy.scrollTo(id, anchor: .top)
                     self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                     isLoading = false
                 }

@@ -17,48 +17,8 @@ struct DeviceCellView: View {
                             Text(settings.audioInputFormat.description)
                         } else {
                             HStack {
-                                LazyImage(url: group.coordinatorRoom.track.artworkURL) { state in
-                                    if let image = state.image {
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                    } else if state.isLoading {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .aspectRatio(contentMode: .fit)
-                                            .foregroundStyle(.ultraThinMaterial)
-                                            .shadow(radius: 2)
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .aspectRatio(contentMode: .fit)
-                                            .foregroundStyle(.accent.gradient.secondary)
-                                            .shadow(radius: 2)
-                                            .overlay {
-                                                if group.coordinatorRoom.track.artworkURL == nil {
-                                                    Image(systemName: "music.note")
-                                                        .resizable()
-                                                        .scaledToFit()
-                                                        .foregroundStyle(.regularMaterial)
-                                                        .frame(width: 24, height: 24)
-                                                }
-                                            }
-                                    }
-                                }
-//                                // MARK: For Screenshots
-//                                #if DEBUG
-//                                .overlay {
-//                                    Rectangle()
-//                                        .foregroundStyle(.regularMaterial)
-//                                }
-//                                #endif
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .shadow(radius: 2)
-                                .frame(width: 40, height: 40)
-                                .overlay(alignment: .bottomTrailing) {
-                                    group.coordinatorRoom.track.musicService.icon
-                                            .frame(width: 10, height: 10)
-                                            .padding([.trailing, .bottom], 4)
-                                            .shadow(radius: 10)
-                                }
+                                ThumbnailView(content: group.coordinatorRoom.track.toPlayable)
+                                    .frame(width: 40, height: 40)
                                 VStack(alignment: .leading) {
                                     Text(group.coordinatorRoom.track.song)
                                         .lineLimit(1, reservesSpace: true)

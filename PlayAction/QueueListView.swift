@@ -58,7 +58,7 @@ struct QueueListView: View {
                                 Task {
                                     playHistoryService.history.remove(playableContent)
                                     playHistoryService.history.insert(playableContent, at: 0)
-                                    await sonosService.queue(playable: playableContent, group: group, position: .now)
+                                    try await sonosService.queue(playable: playableContent, group: group, position: .now)
                                     await sonosService.play(ip: group.ip)
                                     self.context?.completeRequest(returningItems: [])
                                 }
@@ -81,7 +81,7 @@ struct QueueListView: View {
                                 Task {
                                     //                                    playHistory.remove(playableContent)
                                     //                                    playHistory.insert(playableContent, at: 0)
-                                    await sonosService.queue(playable: playableContent, group: group, position: .next)
+                                    try await sonosService.queue(playable: playableContent, group: group, position: .next)
                                     self.context?.completeRequest(returningItems: [])
                                 }
                             } label: {

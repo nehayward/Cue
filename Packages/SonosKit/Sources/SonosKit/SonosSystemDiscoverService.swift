@@ -153,7 +153,7 @@ final class SonosSystemDiscoverService {
                 if permissionsDenied {
                     throw SonosServiceError.permissionDenied
                 }
-                if Date.now > date.addingTimeInterval(1) {
+                if Date.now > date.addingTimeInterval(3) {
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(100))

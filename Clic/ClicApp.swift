@@ -1,5 +1,6 @@
 import Analytics
 import Defaults
+import Nuke
 import CloudStorage
 import RevenueCat
 import RevenueCatUI
@@ -127,6 +128,9 @@ struct ClicApp: App {
                 )
                 // MARK: For Debug
 //                Tips.showTipsForTesting([AppTip.self])
+                
+                // MARK: Configure NukeUI
+                configureNuke()
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)
@@ -358,6 +362,26 @@ struct ClicApp: App {
                 }
             }
         }
+    }
+    
+    private func configureNuke() {
+        let pipeline = ImagePipeline {
+            $0.imageCache = ImageCache.shared
+            $0.dataCache = try? DataCache(name: "com.clic.imageCache")
+            
+            // Customize caching behavior
+            $0.dataCachePolicy = .automatic
+            
+            let dataLoader: DataLoader = {
+                let config = URLSessionConfiguration.default
+                config.urlCache = nil
+                return DataLoader(configuration: config)
+            }()
+
+            $0.dataLoader = dataLoader
+        }
+        
+        ImagePipeline.shared = pipeline
     }
 }
 
