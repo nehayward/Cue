@@ -1,6 +1,5 @@
 import SwiftUI
 import SonosKit
-import WatchConnectivity
 
 struct DebugScreen: View {
     @State var sonosSearch = SonosSearch()
@@ -13,9 +12,6 @@ struct DebugScreen: View {
             }
             .onAppear {
                 sonosSearch.ssdp()
-            }
-            .onAppear {
-                try? WCSession.default.updateApplicationContext(["Group": "!23"])
             }
             .safeAreaInset(edge: .top) {
                 Text("State: \(sonosService.state)")

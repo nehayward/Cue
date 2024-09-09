@@ -108,9 +108,11 @@ struct ListViewLarge: View {
                 if sonosService.systemState.permissionDenied {
                     Button {
                         // MARK: Settings Action
+                        #if canImport(UIKit)
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
                         }
+                        #endif
                     } label: {
                         Label("Local Network Permission Needed", systemImage: "wifi.exclamationmark.circle.fill")
                             .bold()

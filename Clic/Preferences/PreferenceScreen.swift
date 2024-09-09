@@ -2,13 +2,11 @@ import Analytics
 import CloudStorage
 import Defaults
 import SwiftUI
-import WatchConnectivity
 import SonosKit
 import RevenueCat
 import MusicSearchKit
 import SubscriptionKit
 import RevenueCatUI
-import MessageUI
 
 struct PreferenceScreen: View {
     @Environment(\.dismiss) var dismiss
@@ -67,17 +65,6 @@ struct PreferenceScreen: View {
                     Section {
                         NavigationLink("Logs") {
                             LogScreen()
-                        }
-                        Button("Send Logs") {
-                            self.isShowingMailView = true
-                        }
-                        .sheet(isPresented: $isShowingMailView) {
-                            MailViewRepresentable(
-                                subject: "Support Logs",
-                                recipients: ["hi@clic.dance"],
-                                messageBody: "Version: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)",
-                                logFilesDirectory: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appending(path: "Logs")
-                            )
                         }
                         if let vanishes = sonosService.system?.vanished {
                             Text("Vanished")

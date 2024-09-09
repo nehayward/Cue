@@ -21,7 +21,7 @@ public final class AppleMusicAPI {
     }
     
     public func favoriteSong(songId: String) async throws {
-#if !targetEnvironment(macCatalyst)
+#if !targetEnvironment(macCatalyst) && !os(macOS)
         let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songId))
         let response = try await request.response()
         
