@@ -79,7 +79,7 @@ struct QueueScreen: View {
                         group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
                     }
                 })
-                .withAppRouter(router: router)
+                .withAppRouter()
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)

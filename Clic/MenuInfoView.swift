@@ -72,8 +72,16 @@ struct MenuInfoView: View {
                 }
             }
         } label: {
+#if os(visionOS)
+            Image(systemName: "ellipsis")
+#else
             Image(systemName: "ellipsis")
                 .padding(.vertical)
+                .glassBackgroundEffect()
+#endif
         }
+#if os(visionOS)
+        .tint(.clear)
+#endif
     }
 }

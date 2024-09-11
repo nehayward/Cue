@@ -6,7 +6,7 @@ import SonosKit
 import WidgetKit
 #endif
 
-struct LaunchSpeakerIntent: OpenIntent, ControlConfigurationIntent {
+struct LaunchSpeakerIntent: OpenIntent {
     static var title: LocalizedStringResource = "Open Sonos Speaker"
     static var description: IntentDescription = "Open a specific Sonos speaker."
 
@@ -29,3 +29,7 @@ struct LaunchSpeakerIntent: OpenIntent, ControlConfigurationIntent {
         return .result()
     }
 }
+
+#if !os(visionOS)
+extension LaunchSpeakerIntent: ControlConfigurationIntent { }
+#endif

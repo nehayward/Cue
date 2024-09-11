@@ -74,7 +74,7 @@ struct DeviceListMainView: View {
                 .selectionDisabled(!enabled(group: group))
             }
             .environment(\.defaultMinListRowHeight, 40)
-            .withAppRouter(router: router)
+            .withAppRouter()
             .navigationBarTitle("", displayMode: .inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

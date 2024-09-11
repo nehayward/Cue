@@ -303,7 +303,7 @@ struct LargePlayerView: View {
         HStack {
             Button {
                 Task {
-                    await HapticManager.shared.fireHaptic(.selection)
+                    HapticManager.shared.fireHaptic(.selection)
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
                 }
             } label: {
@@ -319,10 +319,10 @@ struct LargePlayerView: View {
             Button{
                 Task {
                     if group.coordinatorRoom.isPlaying {
-                        await HapticManager.shared.fireHaptic(.selection)
+                        HapticManager.shared.fireHaptic(.selection)
                         await sonosService.pause(ip: group.coordinatorRoom.ip)
                     } else {
-                        await HapticManager.shared.fireHaptic(.selection)
+                        HapticManager.shared.fireHaptic(.selection)
                         await sonosService.play(ip: group.coordinatorRoom.ip)
                     }
                 }
@@ -341,7 +341,7 @@ struct LargePlayerView: View {
             Spacer()
             Button {
                 Task {
-                    await HapticManager.shared.fireHaptic(.selection)
+                    HapticManager.shared.fireHaptic(.selection)
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
             } label: {

@@ -2,7 +2,7 @@ import AppIntents
 import CloudStorage
 import SonosKit
 
-struct CreateLiveActivityIntent: LiveActivityIntent, ControlConfigurationIntent {
+struct CreateLiveActivityIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Create Live Activity"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
     static var isDiscoverable: Bool = false
@@ -11,8 +11,6 @@ struct CreateLiveActivityIntent: LiveActivityIntent, ControlConfigurationIntent 
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity?
     
-    
-
     init(room: SonosDeviceEntity) {
         self.room = room
     }
@@ -33,3 +31,7 @@ struct CreateLiveActivityIntent: LiveActivityIntent, ControlConfigurationIntent 
         return .result()
     }
 }
+
+#if !os(visionOS)
+extension CreateLiveActivityIntent: ControlConfigurationIntent { }
+#endif

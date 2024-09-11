@@ -20,29 +20,24 @@ struct PlayableContentView: View {
     var hideArtwork: Bool = false
 
     var body: some View {
-        Group {
-            if let add = adding?.add, add {
-                content
-            } else {
-                switch item.content.type {
-                case .playlist, .album, .libraryPlaylist, .libraryAlbum:
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
-                        content
-                    }
-                case .artist, .libraryArtist:
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                        content
-                    }
-                case .track, .favorite, .radio:
-                    content
-                case .libraryTrack:
+        if let add = adding?.add, add {
+            content
+        } else {
+            switch item.content.type {
+            case .playlist, .album, .libraryPlaylist, .libraryAlbum:
+                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                     content
                 }
+            case .artist, .libraryArtist:
+                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                    content
+                }
+            case .track, .favorite, .radio:
+                content
+            case .libraryTrack:
+                content
             }
         }
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden, edges: .all)
-        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: trailingInset))
     }
 
     private var content: some View {
@@ -110,6 +105,9 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden, edges: .all)
+        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: trailingInset))
     }
 
     private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {

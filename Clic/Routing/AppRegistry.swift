@@ -70,7 +70,7 @@ extension View {
                     NavigationStack {
                         MediaDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter(router: router)
+                            .withAppRouter()
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
@@ -90,7 +90,7 @@ extension View {
                     NavigationStack {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter(router: router)
+                            .withAppRouter()
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
@@ -117,7 +117,7 @@ extension View {
                         @State var router = Router()
                         NavigationStack {
                             AlarmListView(group: group)
-                                .withAppRouter(router: router)
+                                .withAppRouter()
                         }
                     }
                 case let .customSleepTimer(group):
@@ -205,7 +205,7 @@ extension View {
                     NavigationStack {
                         MediaDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter(router: router)
+                            .withAppRouter()
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
@@ -219,7 +219,7 @@ extension View {
                     NavigationStack(path: $router.path) {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter(router: router)
+                            .withAppRouter()
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)
@@ -259,9 +259,10 @@ extension View {
         }
     }
 
-    func withAppRouter(router: Router) -> some View {
+    func withAppRouter() -> some View {
         @Bindable var sonosService = SonosService.shared
-
+        @Environment(\.dismiss) var dismiss
+        
         return navigationDestination(for: RouterDestination.self) { destination in
             switch destination {
             case let .player(groupID):
@@ -270,7 +271,7 @@ extension View {
                 } else {
                     Text("Group No Longer Available")
                         .onTapGesture {
-                            router.path.removeAll()
+                            dismiss()
                         }
                 }
             case let .groupDestination(content, position):

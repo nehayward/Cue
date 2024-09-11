@@ -310,7 +310,7 @@ struct PreferenceScreen: View {
             //                SubscriptionDetailScreen()
             //                    .environment(subscriptionService)
             //            }
-            .withAppRouter(router: router)
+            .withAppRouter()
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .addDismiss {
                 dismiss()

@@ -56,14 +56,20 @@ struct ClicApp: App {
                             Group {
                                 switch router.inspectorSheet {
                                 case let .search(group):
-                                    @State var router = Router()
-                                    @State var selectedGroupService = SelectedGroupService(group: group)
-
-                                    SearchScreen()
-                                        .environment(router)
-                                        .environment(selectedGroupService)
+                                    SearchScreen {
+                                        router.inspectorSheet = nil
+                                    }
+                                    .environment(SelectedGroupService(group: group))
                                 case let .queue(group):
-                                    QueueScreen(group: group)
+                                    QueueScreen(closeInspector: {
+                                        router.inspectorSheet = nil
+                                    }, group: group)
+                                case let .browse(group):
+                                    @State var selectedGroupService = SelectedGroupService(group: group)
+                                    BrowseScreen {
+                                        router.inspectorSheet = nil
+                                    }
+                                    .environment(selectedGroupService)
                                 default:
                                     EmptyView()
                                         .onAppear {
@@ -77,6 +83,7 @@ struct ClicApp: App {
                             .offset(z: router.inspectorSheet != nil ? 0 : -64)
                             .opacity(router.inspectorSheet != nil ? 1 : 0)
                             .animation(.spring, value: router.inspectorSheet)
+                            .withEnvironments()
                         }
 #endif
                     }
