@@ -77,7 +77,6 @@ struct MenuInfoView: View {
 #else
             Image(systemName: "ellipsis")
                 .padding(.vertical)
-                .glassBackgroundEffect()
 #endif
         }
 #if os(visionOS)

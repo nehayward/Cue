@@ -33,5 +33,6 @@ struct CreateLiveActivityIntent: LiveActivityIntent {
 }
 
 #if !os(visionOS)
+@available(iOS 18.0, *)
 extension CreateLiveActivityIntent: ControlConfigurationIntent { }
 #endif

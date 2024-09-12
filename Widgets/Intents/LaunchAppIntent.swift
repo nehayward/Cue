@@ -31,5 +31,6 @@ struct LaunchSpeakerIntent: OpenIntent {
 }
 
 #if !os(visionOS)
+@available(iOS 18.0, *)
 extension LaunchSpeakerIntent: ControlConfigurationIntent { }
 #endif

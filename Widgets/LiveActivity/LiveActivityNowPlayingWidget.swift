@@ -164,7 +164,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                 Image(systemName: "hifispeaker.fill")
             }
         }
-        .supplementalActivityFamiliesBackDeployment()
+//        .supplementalActivityFamiliesBackDeployment()
     }
 
     private func updateTransition(context: ActivityViewContext<ClicNowPlayingWidgetAttributes>) -> AnyTransition {
