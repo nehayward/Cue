@@ -345,7 +345,7 @@ struct ClicApp: App {
                         router.presentedSheet = .groupScreen(group: group)
                     } else {
                         selectedID = group.coordinatorID
-                        // MARK: Maybe add group to toolbar
+                        router.presentedSheet = .groupScreen(group: group)
                     }
                     return
                 }
@@ -362,7 +362,7 @@ struct ClicApp: App {
                             router.presentedSheet = .groupScreen(group: group)
                         } else {
                             selectedID = group.coordinatorID
-                            // MARK: Maybe add group to toolbar
+                            router.presentedSheet = .groupScreen(group: group)
                         }
                         return
                     }

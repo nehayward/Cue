@@ -22,6 +22,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .plex
         case "tidal":
             self = .tidal
+        case "tunein":
+            self = .tuneIn
         default:
             return nil
         }
@@ -39,6 +41,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "plex"
         case .tidal:
             "tidal"
+        case .tuneIn:
+            "tunein"
         default:
             nil
         }
@@ -60,6 +64,26 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             ""
         }
     }
+    
+    public var sonosRawValue: String {
+        switch self {
+        case .apple:
+            "apple"
+        case .spotify:
+            "spotify"
+        case .library:
+            "library"
+        case .plex:
+            "plex"
+        case .tidal:
+            "tidal"
+        case .tuneIn:
+            "tunein"
+        default:
+            ""
+        }
+    }
+
 
     @ViewBuilder
     public var icon: some View {

@@ -12,6 +12,20 @@
 		010DBB272C8960AA000E278E /* PlayHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DBB262C8960AA000E278E /* PlayHistory.swift */; };
 		010DBB2A2C8A04C6000E278E /* LaunchAppControlWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DBB292C8A04C6000E278E /* LaunchAppControlWidget.swift */; };
 		010DBB2C2C8A3073000E278E /* QueueIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DBB2B2C8A3073000E278E /* QueueIconView.swift */; };
+		0111797C2C934221007FFA13 /* RemoteWidgetLargeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0111797B2C934221007FFA13 /* RemoteWidgetLargeView.swift */; };
+		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
+		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
+		011179822C935181007FFA13 /* PlayIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179812C935181007FFA13 /* PlayIntent.swift */; };
+		011179832C935181007FFA13 /* PlayIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179812C935181007FFA13 /* PlayIntent.swift */; };
+		011179842C935181007FFA13 /* PlayIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179812C935181007FFA13 /* PlayIntent.swift */; };
+		011179852C935181007FFA13 /* PlayIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179812C935181007FFA13 /* PlayIntent.swift */; };
+		011179872C94AD17007FFA13 /* RemoteWidgetExtraLargeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179862C94AD17007FFA13 /* RemoteWidgetExtraLargeView.swift */; };
+		0111798C2C94D914007FFA13 /* SceneWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179892C94D914007FFA13 /* SceneWidgetView.swift */; };
+		0111798D2C94D914007FFA13 /* SceneWidgetConfigurationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0111798B2C94D914007FFA13 /* SceneWidgetConfigurationIntent.swift */; };
+		0111798E2C94D914007FFA13 /* SceneWidgetProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0111798A2C94D914007FFA13 /* SceneWidgetProvider.swift */; };
+		0111798F2C94D914007FFA13 /* SceneWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179882C94D914007FFA13 /* SceneWidget.swift */; };
+		011179912C94D948007FFA13 /* SceneControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179902C94D948007FFA13 /* SceneControl.swift */; };
+		011179932C94D9A7007FFA13 /* SceneEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011179922C94D9A7007FFA13 /* SceneEntry.swift */; };
 		011309B72C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
 		011309B82C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
 		011309B92C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
@@ -629,6 +643,15 @@
 		010DBB262C8960AA000E278E /* PlayHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayHistory.swift; sourceTree = "<group>"; };
 		010DBB292C8A04C6000E278E /* LaunchAppControlWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAppControlWidget.swift; sourceTree = "<group>"; };
 		010DBB2B2C8A3073000E278E /* QueueIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueIconView.swift; sourceTree = "<group>"; };
+		0111797B2C934221007FFA13 /* RemoteWidgetLargeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetLargeView.swift; sourceTree = "<group>"; };
+		011179812C935181007FFA13 /* PlayIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayIntent.swift; sourceTree = "<group>"; };
+		011179862C94AD17007FFA13 /* RemoteWidgetExtraLargeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteWidgetExtraLargeView.swift; sourceTree = "<group>"; };
+		011179882C94D914007FFA13 /* SceneWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneWidget.swift; sourceTree = "<group>"; };
+		011179892C94D914007FFA13 /* SceneWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneWidgetView.swift; sourceTree = "<group>"; };
+		0111798A2C94D914007FFA13 /* SceneWidgetProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneWidgetProvider.swift; sourceTree = "<group>"; };
+		0111798B2C94D914007FFA13 /* SceneWidgetConfigurationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneWidgetConfigurationIntent.swift; sourceTree = "<group>"; };
+		011179902C94D948007FFA13 /* SceneControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneControl.swift; sourceTree = "<group>"; };
+		011179922C94D9A7007FFA13 /* SceneEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneEntry.swift; sourceTree = "<group>"; };
 		011309B62C88C437001A9065 /* ImageCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheService.swift; sourceTree = "<group>"; };
 		E90016592B60CC07004C051D /* NightModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightModeIntent.swift; sourceTree = "<group>"; };
 		E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMenuView.swift; sourceTree = "<group>"; };
@@ -890,8 +913,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				011179802C934C9B007FFA13 /* Defaults in Frameworks */,
 				E97C0D452A325CC5005AB0E0 /* SwiftUI.framework in Frameworks */,
 				E97C0D5D2A326D25005AB0E0 /* SonosKit in Frameworks */,
+				0111797E2C934C96007FFA13 /* Collections in Frameworks */,
 				E97C0D432A325CC5005AB0E0 /* WidgetKit.framework in Frameworks */,
 				E9A5412C2BD83F5800EAAF5C /* VibesDS in Frameworks */,
 			);
@@ -1095,6 +1120,7 @@
 				E97C0D692A38FBAB005AB0E0 /* SetRelativeGroupVolumeIntent.swift */,
 				E9EE31832ADF82B000F71303 /* IntentError.swift */,
 				E98248CC2AF04ED8008927EF /* UpdateType.swift */,
+				011179812C935181007FFA13 /* PlayIntent.swift */,
 				E9DE680A2C4D9BF700602A2B /* LaunchAppIntent.swift */,
 			);
 			path = Intents;
@@ -1386,6 +1412,8 @@
 				E9DE84992A66F87C004C3947 /* RemoteWidgetRectangularView.swift */,
 				E92E47102B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift */,
 				E9604DE02C0F6D7200A421D9 /* RemoteWidgetMediumView.swift */,
+				0111797B2C934221007FFA13 /* RemoteWidgetLargeView.swift */,
+				011179862C94AD17007FFA13 /* RemoteWidgetExtraLargeView.swift */,
 			);
 			path = RemoteWidgetViews;
 			sourceTree = "<group>";
@@ -1412,6 +1440,12 @@
 		E9F600BF2B4E54730039AAA6 /* SceneWidget */ = {
 			isa = PBXGroup;
 			children = (
+				011179882C94D914007FFA13 /* SceneWidget.swift */,
+				011179892C94D914007FFA13 /* SceneWidgetView.swift */,
+				0111798A2C94D914007FFA13 /* SceneWidgetProvider.swift */,
+				011179922C94D9A7007FFA13 /* SceneEntry.swift */,
+				0111798B2C94D914007FFA13 /* SceneWidgetConfigurationIntent.swift */,
+				011179902C94D948007FFA13 /* SceneControl.swift */,
 			);
 			path = SceneWidget;
 			sourceTree = "<group>";
@@ -1532,6 +1566,8 @@
 			packageProductDependencies = (
 				E97C0D5C2A326D25005AB0E0 /* SonosKit */,
 				E9A5412B2BD83F5800EAAF5C /* VibesDS */,
+				0111797D2C934C96007FFA13 /* Collections */,
+				0111797F2C934C9B007FFA13 /* Defaults */,
 			);
 			productName = SonosWidgetExtension;
 			productReference = E97C0D412A325CC5005AB0E0 /* Widgets.appex */;
@@ -1759,6 +1795,7 @@
 				E9D49E4F2BC9D2330084185E /* PlayableContentView.swift in Sources */,
 				E95D66CE2C5ACAAC009385AF /* PlexManagementView.swift in Sources */,
 				E93739E32C125D3C00B64F74 /* SpeakerSettingsListView.swift in Sources */,
+				011179832C935181007FFA13 /* PlayIntent.swift in Sources */,
 				E92B3EA12B60249B00724FA1 /* AppRegistry.swift in Sources */,
 				E98150DE2BED146A0076E312 /* AlarmView.swift in Sources */,
 				E950E7D32B74185F0029415B /* SplitView.swift in Sources */,
@@ -1922,6 +1959,7 @@
 				E98ED5E82C24B071000F42F0 /* SelectedGroupService.swift in Sources */,
 				E97562F72B699B2400787E14 /* SonosDeviceQuery.swift in Sources */,
 				E97562F92B699B2400787E14 /* DropDestination+.swift in Sources */,
+				011179842C935181007FFA13 /* PlayIntent.swift in Sources */,
 				E97416AE2C16A9E100700859 /* PlayableContentList.swift in Sources */,
 				E97562FA2B699B2400787E14 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97562FB2B699B2400787E14 /* LargePlayerView.swift in Sources */,
@@ -2018,6 +2056,8 @@
 				E918F9712B61970800FC2A09 /* SpeechModeIntent.swift in Sources */,
 				E9EE31842ADF82B000F71303 /* IntentError.swift in Sources */,
 				E9DE56532C49A4BA000A1554 /* LiveActivityNowPlayingView.swift in Sources */,
+				011179912C94D948007FFA13 /* SceneControl.swift in Sources */,
+				011179822C935181007FFA13 /* PlayIntent.swift in Sources */,
 				E9C03B192A5A196A00FB9118 /* NextIntent.swift in Sources */,
 				E9DAE49E2A5FACD400B03199 /* NowPlayingWidgetProvider.swift in Sources */,
 				E98248CA2AF03FB4008927EF /* RefreshIntent.swift in Sources */,
@@ -2025,11 +2065,13 @@
 				E900165A2B60CC07004C051D /* NightModeIntent.swift in Sources */,
 				E98248CD2AF04ED8008927EF /* UpdateType.swift in Sources */,
 				E9DE849A2A66F87C004C3947 /* RemoteWidgetRectangularView.swift in Sources */,
+				011179872C94AD17007FFA13 /* RemoteWidgetExtraLargeView.swift in Sources */,
 				E97C0D482A325CC5005AB0E0 /* WidgetBundle.swift in Sources */,
 				E9604DE12C0F6D7200A421D9 /* RemoteWidgetMediumView.swift in Sources */,
 				E97353452A3956A6007EA5A8 /* SonosDeviceQuery.swift in Sources */,
 				E92E47112B33EFD500DE6647 /* RemoteWidgetAccessoryCircularView.swift in Sources */,
 				E9F600BA2B4DC4830039AAA6 /* LiveActivity+Environment.swift in Sources */,
+				0111797C2C934221007FFA13 /* RemoteWidgetLargeView.swift in Sources */,
 				E97C0D4E2A325CC5005AB0E0 /* RemoteWidgetConfigurationIntent.swift in Sources */,
 				E9DE84A02A673321004C3947 /* LiveActivityNowPlaying.swift in Sources */,
 				E9C03B162A5A195300FB9118 /* SonosDeviceEntity.swift in Sources */,
@@ -2040,6 +2082,7 @@
 				E97C0D4C2A325CC5005AB0E0 /* RemoteWidget.swift in Sources */,
 				E97C0D5B2A326B15005AB0E0 /* TogglePlaybackIntent.swift in Sources */,
 				010DBB2A2C8A04C6000E278E /* LaunchAppControlWidget.swift in Sources */,
+				011179932C94D9A7007FFA13 /* SceneEntry.swift in Sources */,
 				E97C0D682A33D78F005AB0E0 /* NowPlayingWidget.swift in Sources */,
 				E97C0D4A2A325CC5005AB0E0 /* LiveActivityNowPlayingWidget.swift in Sources */,
 				E97C0D6B2A38FBDD005AB0E0 /* SetRelativeGroupVolumeIntent.swift in Sources */,
@@ -2048,6 +2091,10 @@
 				E92E47132B33F42C00DE6647 /* CreateLiveActivityIntent.swift in Sources */,
 				E97C0D672A33D787005AB0E0 /* NowPlayingWidgetConfigurationIntent.swift in Sources */,
 				E9B00E642C6FDEAF005BF635 /* RemoteControlWidget.swift in Sources */,
+				0111798C2C94D914007FFA13 /* SceneWidgetView.swift in Sources */,
+				0111798D2C94D914007FFA13 /* SceneWidgetConfigurationIntent.swift in Sources */,
+				0111798E2C94D914007FFA13 /* SceneWidgetProvider.swift in Sources */,
+				0111798F2C94D914007FFA13 /* SceneWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2075,6 +2122,7 @@
 				E9DE56502C49A4A8000A1554 /* LiveActivityNowPlayingSmallView.swift in Sources */,
 				E98527902A5E59AC009016C2 /* NextIntent.swift in Sources */,
 				E9146E8E2BE5568E00056149 /* LibrarySearchView.swift in Sources */,
+				011179852C935181007FFA13 /* PlayIntent.swift in Sources */,
 				E96385FE2AD8E654005411BF /* Bundle+AppIcon.swift in Sources */,
 				E9F600B92B4DC3230039AAA6 /* LiveActivity+Environment.swift in Sources */,
 				E91272B82C120E7E0060A4B3 /* SpeakerSettingsListView.swift in Sources */,
@@ -3611,6 +3659,15 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		010DBB242C89605C000E278E /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		0111797D2C934C96007FFA13 /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+		0111797F2C934C9B007FFA13 /* Defaults */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
 		};

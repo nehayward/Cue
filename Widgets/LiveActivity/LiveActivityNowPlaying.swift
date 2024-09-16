@@ -7,8 +7,6 @@ import VibesDS
 
 struct LiveActivityNowPlaying: View {
     var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
-
-    var bool = false
     var body: some View {
         if #available(iOS 18.0, *) {
             LiveActivityNowPlayingFamilyView(context: context)

@@ -65,4 +65,46 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Radio"
         }
     }
+    
+    public var sonosRawValue: String {
+        switch self {
+        case .libraryTrack:
+            "library-song"
+        case .track:
+            "song"
+        case .libraryPlaylist:
+            "library-playlist"
+        case .playlist:
+            "playlist"
+        case .artist:
+            "artist"
+        case .libraryArtist:
+            "library-artist"
+        case .album:
+            "album"
+        case .libraryAlbum:
+            "library-album"
+        case .favorite:
+            "favorite"
+        case .radio:
+            "radio"
+        }
+    }
+    
+    public var symbol: String {
+        switch self {
+        case .track, .libraryTrack:
+            return "music.note"
+        case .album, .libraryAlbum:
+            return "smallcircle.circle.fill"
+        case .artist, .libraryArtist:
+            return "music.mic"
+        case .playlist, .libraryPlaylist:
+            return "rectangle.stack.badge.play"
+        case .radio:
+            return "radio.fill"
+        case .favorite:
+            return "star.fill"
+        }
+    }
 }

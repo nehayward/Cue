@@ -81,6 +81,11 @@ struct PreferenceScreen: View {
                     } header: {
                         Text("Debug 👾")
                     }
+                    
+                    PaywallButtonView()
+                        .environment(router)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
                 }
 
                 Section {

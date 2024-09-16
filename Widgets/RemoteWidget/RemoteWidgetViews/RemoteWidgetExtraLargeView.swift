@@ -1,8 +1,9 @@
+
 import SwiftUI
 import SonosKit
 import WidgetKit
 
-struct RemoteWidgetMediumView: View {
+struct RemoteWidgetExtraLargeView: View {
     var entry: Provider.Entry
 
     var body: some View {
@@ -37,6 +38,7 @@ struct RemoteWidgetMediumView: View {
                     .buttonBorderShape(.circle)
                     .tint(.primary)
                 }
+                
                 if let theater = entry.TVSettings {
                     Spacer()
                     Text(theater.audioInputFormat.description)
@@ -74,19 +76,12 @@ struct RemoteWidgetMediumView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 60, height: 60)
+                                .frame(width: 100, height: 100)
                                 .overlay(alignment: .bottomTrailing) {
                                     entry.playableContent?.content.service.icon
                                         .frame(width: 16, height: 16, alignment: .bottomLeading)
                                         .padding([.bottom, .trailing], 4)
                                 }
-                            //                        // MARK: For Screenshots
-                            //                        #if DEBUG
-                            //                        .overlay {
-                            //                            Rectangle()
-                            //                                .foregroundStyle(.regularMaterial)
-                            //                        }
-                            //                        #endif
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -99,52 +94,87 @@ struct RemoteWidgetMediumView: View {
                                 .foregroundStyle(.secondary)
                                 .invalidatableContent()
                                 .id(entry.playableContent?.subtitle)
+                            HStack(spacing: 24) {
+                                Group {
+                                    Button(intent: PreviousIntent(room: room)) {
+                                        Image(systemName: "backward.fill")
+                                            .frame(width: 24, height: 24)
+                                    }
+                                    Button(intent: TogglePlaybackIntent(room: room)) {
+                                        Image(systemName: "playpause.fill")
+                                            .frame(width: 32, height: 32)
+                                    }
+                                    Button(intent: NextIntent(room: room)) {
+                                        Image(systemName: "forward.fill")
+                                            .frame(width: 24, height: 24)
+                                    }
+                                }
+                                .tint(.primary)
+                                .buttonStyle(.liveActivity)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: 24, alignment: .center)
+                            HStack {
+                                Image(systemName: "speaker.wave.3.fill", variableValue: entry.volume/100)
+                                    .contentTransition(.symbolEffect(.automatic))
+                                    .font(.caption)
+                                ProgressView(value: Double(entry.volume), total: 100)
+                                    .tint(.accent)
+                                    .invalidatableContent()
+                                Text("\(entry.volume, specifier: "%0.f")")
+                                    .font(.caption)
+                                    .contentTransition(.numericText())
+                                    .invalidatableContent()
+                            }
+                            .padding([.leading,.trailing])
                         }
                         .lineLimit(0, reservesSpace: true)
                         Spacer()
+                        VStack(spacing: 12) {
+                            Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: 3)) {
+                                Image(systemName: "plus")
+                                    .bold()
+                                    .foregroundStyle(.thickMaterial)
+                                    .frame(width: 40, height: 40)
+                            }
+                            Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: -3)) {
+                                Image(systemName: "minus")
+                                    .bold()
+                                    .foregroundStyle(.thickMaterial)
+                                    .frame(width: 40, height: 40)
+                            }
+                        }
+                        .background(.primary, in: Capsule())
+                        .buttonStyle(.plain)
+                        .fontDesign(.rounded)
+                    }
+                    Divider()
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16)], spacing: 16) {
+                        ForEach(entry.playHistory.prefix(6)) { playHistory in
+                            HStack {
+                                Image(systemName: playHistory.content.type.symbol)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 24, height: 24)
+                                VStack(alignment: .leading) {
+                                    Text(playHistory.title)
+                                    Text(playHistory.subtitle)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .lineLimit(1)
+                                Spacer()
+                                Button(intent: PlayIntent(room: room, title: playHistory.title, id: playHistory.content.id, service: playHistory.content.service.sonosRawValue, type: playHistory.content.type.sonosRawValue)) {
+                                    Image(systemName: "play.fill")
+                                        .foregroundStyle(.accent)
+                                }
+                            }
+                        }
                     }
                 }
                 Spacer()
             }
             .frame(maxHeight: .infinity)
-            .containerBackground(for: .widget) {
-                if entry.configuration.plainBackground {
-                    Rectangle().foregroundStyle(.widgetBackground)
-                } else {
-                    if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .blur(radius: 20)
-                            .ignoresSafeArea()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .overlay {
-                                Rectangle()
-                                    .foregroundStyle(.ultraThinMaterial)
-                            }
-                    }
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if entry.TVSettings == nil {
-                    HStack {
-                        Group {
-                            Button(intent: TogglePlaybackIntent(room: room)) {
-                                Image(systemName: "playpause.fill")
-                                    .frame(width: 32, height: 32)
-                            }
-                            Button(intent: NextIntent(room: room)) {
-                                Image(systemName: "forward.fill")
-                                    .frame(width: 24, height: 24)
-                            }
-                        }
-                        .tint(.primary)
-                        .buttonStyle(.liveActivity)
-                    }
-                    .frame(maxHeight: 24)
-                }
-            }
+            .containerBackground(.widgetBackground, for: .widget)
             .fontDesign(.rounded)
-            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)
@@ -152,7 +182,7 @@ struct RemoteWidgetMediumView: View {
     }
 }
 
-#Preview("Active Subscription", as: .systemMedium) {
+#Preview("Active Subscription", as: .systemExtraLarge) {
     RemoteWidget()
 } timeline: {
     RemoteWidgetEntry.previewBarbie()

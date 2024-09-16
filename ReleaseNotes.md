@@ -1,3 +1,19 @@
+# 2024.39
+
++ Added Large and Extra Large Widget.
++ Fixed watch live activity not showing.
++ Add Lifetime purchase option.
+
+Previous 
+New Features:
++ Apple Music Library Search: Added support for searching your local Apple Music library.
++ Apple Watch Live Activity: Interactive controls for playback.
++ Explicit Content Label: Added explicit content labels for easier identification.
++ Remote Control Center Widget: Added a new widget for quick access to remote controls.
++ Launch Control Center Widget: Added a dedicated widget for launching app.
++ New App Icon: Updated the app with a fresh new icon.
++ Play History on Watch App: Added play history view to the Apple Watch app.
+
 # 2024.37
 
 ## App Store

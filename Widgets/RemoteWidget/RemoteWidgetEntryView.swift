@@ -3,10 +3,10 @@ import SwiftUI
 import SonosKit
 import WidgetKit
 
-struct RemoteWidgetEntryView : View {
+struct RemoteWidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) private var widgetFamily: WidgetFamily
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize    
 
     @ViewBuilder
     var body: some View {
@@ -19,6 +19,10 @@ struct RemoteWidgetEntryView : View {
                     RemoteWidgetAccessoryCircularView(entry: entry)
                 case .systemMedium:
                     RemoteWidgetMediumView(entry: entry)
+                case .systemLarge:
+                    RemoteWidgetLargeView(entry: entry)
+                case .systemExtraLarge:
+                    RemoteWidgetExtraLargeView(entry: entry)
                 default:
                     VStack(spacing: 0) {
                         Text(entry.name ?? room.name)

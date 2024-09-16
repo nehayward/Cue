@@ -3,6 +3,8 @@ import CloudStorage
 import WidgetKit
 import SwiftUI
 import SonosKit
+import Defaults
+import Collections
 
 struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> RemoteWidgetEntry {
@@ -41,6 +43,8 @@ struct Provider: AppIntentTimelineProvider {
                 if let artworkURL = track?.artworkURL {
                     await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL)
                 }
+                
+                let playHistory: OrderedSet<PlayableContent> = CloudStorageSync.shared.codable(forKey: AppStorageKeys.playHistory) ?? []
 
                 var entry = RemoteWidgetEntry(
                     date: .now,
@@ -49,7 +53,8 @@ struct Provider: AppIntentTimelineProvider {
                     volume: volume,
                     track: track,
                     name: group.nameWithCount,
-                    activeSubscription: activeSubscription
+                    activeSubscription: activeSubscription,
+                    playHistory: Array(playHistory.elements.prefix(6))
                 )
 
 //                // MARK: Mock
@@ -90,6 +95,11 @@ struct RemoteWidgetEntry: TimelineEntry {
     var name: String? = nil
     var TVSettings: TVSettings? = nil
     var activeSubscription = false
+    var playHistory: [PlayableContent] = [
+        .init(title: "Music for a Sushi Restaurant", subtitle: "Harry Style", thumbnail: nil, artwork: nil, content: MediaContent.init(service: .apple, id: "", type: .album, location: nil)),
+        .init(title: "Dance the Night", subtitle: "By Dua Lipa", thumbnail: nil, artwork: nil, content: MediaContent.init(service: .plex, id: "", type: .album, location: nil)),
+        .init(title: "I Had Some Help (Feat. Morgan Wallen)", subtitle: "Post Malone, Morgan Wallen", thumbnail: nil, artwork: nil, content: MediaContent.init(service: .spotify, id: "", type: .track, location: nil))
+    ]
 
     static func previewBarbie(_ active: Bool = true, service: MusicService = .apple) -> RemoteWidgetEntry { RemoteWidgetEntry(
         date: .now,
@@ -144,7 +154,7 @@ struct RemoteWidget: Widget {
     @Environment(\.widgetFamily) var widgetFamily: WidgetFamily
 
     var families: [WidgetFamily] {
-        [.accessoryRectangular, .accessoryCircular, .systemSmall, .systemMedium]
+        [.accessoryRectangular, .accessoryCircular, .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge]
     }
 
     var body: some WidgetConfiguration {

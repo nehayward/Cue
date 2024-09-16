@@ -21,7 +21,7 @@ struct RemoteWidgetAccessoryCircularView: View {
             .buttonStyle(.plain)
             .containerBackground(.bar, for: .widget)
             .invalidatableContent()
-            .disabled(entry.configuration.launchSpeaker ?? false)
+            .disabled(entry.configuration.launchSpeaker)
             .widgetURL(URL(string: "clic://device?id=\(room.id)"))
         } else {
             Label("No Wifi", systemImage: "wifi.slash")

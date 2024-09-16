@@ -13,7 +13,6 @@ struct NowPlayingProvider: AppIntentTimelineProvider {
         do {
             try await sonosService.load(useCache: true)
         } catch {
-            print(error)
             return NowPlayingEntry(date: .now, configuration: configuration, info: nil)
         }
 

@@ -80,6 +80,10 @@ public final class SubscriptionService {
                 let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
                 let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
                 subscription = newSubscription
+            } else if !customerInfo.nonSubscriptions.isEmpty {
+                let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+                let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
+                subscription = newSubscription
             } else {
                 subscription = .notActive
             }
@@ -98,6 +102,10 @@ public final class SubscriptionService {
                 if !customerInfo.activeSubscriptions.isEmpty {
                     let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
                     let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
+                    subscription = newSubscription
+                } else if !customerInfo.nonSubscriptions.isEmpty {
+                    let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+                    let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
                     subscription = newSubscription
                 } else {
                     subscription = .notActive
@@ -124,6 +132,10 @@ public final class SubscriptionService {
         if !customerInfo.activeSubscriptions.isEmpty {
             let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
             let newSubscription = Subscription(isActive: true, expiration: customerInfo.latestExpirationDate, info: subscriptionInfo)
+            subscription = newSubscription
+        } else if !customerInfo.nonSubscriptions.isEmpty {
+            let subscriptionInfo = customerInfo.entitlements.active.values.first?.toSubscriptionInfo
+            let newSubscription = Subscription(isActive: true, expiration: nil, info: subscriptionInfo)
             subscription = newSubscription
         } else {
             subscription = .notActive
