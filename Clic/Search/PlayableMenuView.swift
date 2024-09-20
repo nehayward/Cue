@@ -126,7 +126,7 @@ struct PlayableMenuView: View {
                             try await AppleMusicAPI().favoriteSong(songId: item.id)
                         }
                     } label: {
-                        Label("Favorite", systemImage: "play.fill")
+                        Label("Favorite in \(item.content.service.title)", systemImage: "heart.fill")
                     }
                 }
             case .radio, .favorite:

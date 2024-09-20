@@ -17,6 +17,8 @@ public final class AppleMusicBrowseService {
     public var userPlaylists: OrderedSet<PlayableContent> = []
     public var usersRecents: OrderedSet<PlayableContent> = []
     public var usersRecentsAdded: OrderedSet<PlayableContent> = []
+    public var userRadioStations: OrderedSet<PlayableContent> = []
+    public var userStations: OrderedSet<PlayableContent> = []
 
     var offsets: [String: Int] = [:]
 
@@ -66,11 +68,25 @@ public final class AppleMusicBrowseService {
         }
     }
     
-    public func updateUsersNew(offset: Int = 0) async {
-        guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset) else { return }
+    public func updateUsersRadioStations(offset: Int = 0) async {
+        guard let container = try? await apple.lookupUsersRecentRadioStations(offset: offset) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
         for newUsersRecentsTrack in newUsersRecentsTracks {
-            usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
+            userRadioStations.updateOrAppend(newUsersRecentsTrack)
+        }
+    }
+    
+    public func updateRadioStations(offset: Int = 0) async {
+        guard let container = try? await apple.lookupAppleRadioStations(offset: offset) else { return }
+        let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
+        for newUsersRecentsTracks in newUsersRecentsTracks {
+            userStations.updateOrAppend(newUsersRecentsTracks)
+        }
+        
+        guard let container = try? await apple.lookupUsersRecentRadioStations(offset: offset) else { return }
+        let newUsersRecentRadioStations = container.data.compactMap(\.toPlayable)
+        for newUsersRecentRadioStation in newUsersRecentRadioStations {
+            userStations.updateOrAppend(newUsersRecentRadioStation)
         }
     }
 

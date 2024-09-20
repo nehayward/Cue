@@ -52,7 +52,6 @@ public final class PlexAPI {
         }
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "query", value: query),
-            URLQueryItem(name: "sectionId", value: "3"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         search.append(queryItems: queryItems)
@@ -397,59 +396,59 @@ public final class PlexAPI {
     private func getPlexServer() async -> PlexServer? {
 //        let jsonData = """
 // {
-//    "name": "ALUNA",
-//    "product": "Plex Media Server",
-//    "productVersion": "1.40.4.8679-424562606",
-//    "platform": "Linux",
-//    "platformVersion": "DSM 7.2.1.69057-3",
-//    "device": "DS920+",
-//    "clientIdentifier": "d6812b5a755e0118d223ca98b19a4b3da95b1470",
-//    "createdAt": "2021-01-24T21:10:24Z",
-//    "lastSeenAt": "2024-07-30T23:54:18Z",
-//    "provides": "server",
-//    "ownerId": null,
-//    "sourceTitle": null,
-//    "publicAddress": "70.112.150.77",
-//    "accessToken": "yz9Qj6sMATJfJQc2Jnsq",
-//    "owned": true,
-//    "home": false,
-//    "synced": false,
-//    "relay": true,
-//    "presence": true,
-//    "httpsRequired": false,
-//    "publicAddressMatches": true,
-//    "dnsRebindingProtection": false,
-//    "natLoopbackSupported": true,
-//    "connections": [
-//      {
-//        "protocol": "http",
-//        "address": "192.168.50.187",
-//        "port": 32400,
-//        "uri": "http://192.168.50.187:32400",
-//        "local": true,
-//        "relay": false,
-//        "IPv6": false
-//      },
-//      {
-//        "protocol": "http",
-//        "address": "QuickConnect.to",
-//        "port": 29463,
-//        "uri": "http://QuickConnect.to:29463",
-//        "local": false,
-//        "relay": false,
-//        "IPv6": false
-//      },
-//      {
-//        "protocol": "http",
-//        "address": "70.112.150.77",
-//        "port": 29463,
-//        "uri": "http://70.112.150.77:29463",
-//        "local": false,
-//        "relay": false,
-//        "IPv6": false
+//        "name": "The Mothership",
+//        "product": "Plex Media Server",
+//        "productVersion": "1.41.0.8992-8463ad060",
+//        "platform": "MacOSX",
+//        "platformVersion": "15.0.0",
+//        "device": "Mac14,3",
+//        "clientIdentifier": "883946cf10e29d817ec3f89bf8ae36d14978176a",
+//        "createdAt": "2016-09-04T19:10:07Z",
+//        "lastSeenAt": "2024-09-16T22:00:39Z",
+//        "provides": "server",
+//        "ownerId": null,
+//        "sourceTitle": null,
+//        "publicAddress": "212.159.69.190",
+//        "accessToken": "KSAM-R573sKNdDdk2i-G",
+//        "owned": true,
+//        "home": false,
+//        "synced": false,
+//        "relay": true,
+//        "presence": true,
+//        "httpsRequired": false,
+//        "publicAddressMatches": false,
+//        "dnsRebindingProtection": false,
+//        "natLoopbackSupported": true,
+//        "connections": [
+//          {
+//            "protocol": "https",
+//            "address": "192.168.135.254",
+//            "port": 32400,
+//            "uri": "https://192-168-135-254.b9c7c12bf5f64e85a1a12a53f4e74f69.plex.direct:32400",
+//            "local": true,
+//            "relay": false,
+//            "IPv6": false
+//          },
+//          {
+//            "protocol": "https",
+//            "address": "212.159.69.190",
+//            "port": 50000,
+//            "uri": "https://212-159-69-190.b9c7c12bf5f64e85a1a12a53f4e74f69.plex.direct:50000",
+//            "local": false,
+//            "relay": false,
+//            "IPv6": false
+//          },
+//          {
+//            "protocol": "https",
+//            "address": "178.79.176.52",
+//            "port": 8443,
+//            "uri": "https://178-79-176-52.b9c7c12bf5f64e85a1a12a53f4e74f69.plex.direct:8443",
+//            "local": false,
+//            "relay": true,
+//            "IPv6": false
+//          }
+//        ]
 //      }
-//    ]
-//  }
 //"""
 //        return try? JSONDecoder().decode(PlexServer.self, from: jsonData.data(using: .utf8)!)
         if let plexServer {

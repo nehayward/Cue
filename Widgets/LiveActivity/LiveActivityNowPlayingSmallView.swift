@@ -78,28 +78,6 @@ struct LiveActivityNowPlayingSmallView: View {
             }
             if let settings = context.state.TVSettings {
                 Text(settings.audioInputFormat.description)
-                HStack {
-                    Group {
-                        Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
-                            Label("Night Mode", systemImage: "moon.zzz.fill")
-                        }
-                        .labelStyle(.iconOnly)
-                        .symbolRenderingMode(.hierarchical)
-                        .toggleStyle(.button)
-                        .frame(width: 24, height: 24)
-                        .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
-                        Spacer()
-                        Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
-                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                        }
-                        .symbolRenderingMode(.hierarchical)
-                        .labelStyle(.iconOnly)
-                        .toggleStyle(.button)
-                        .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
-                        .frame(width: 24, height: 24)
-                    }
-                    .tint(.teal)
-                }
             }
         }
         .font(dynamicTypeSize < .medium ? .caption : .body)

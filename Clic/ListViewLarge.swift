@@ -44,10 +44,12 @@ struct ListViewLarge: View {
                     .foregroundStyle(.primary)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                     .dropDestinationPlay(on: group)
+                    .paywall(enabled(group: group))
                 } else {
                     Text(group.coordinatorRoom.state.reason)
                         .selectionDisabled()
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                        .paywall(enabled(group: group))
                 }
             } header: {
                 HStack {
@@ -67,9 +69,6 @@ struct ListViewLarge: View {
                 .headerProminence(.increased)
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
             }
-            .redacted(reason: enabled(group: group) ? [] : .placeholder)
-            .disabled(!enabled(group: group))
-            .selectionDisabled(!enabled(group: group))
         }
         .environment(\.defaultMinListRowHeight, 40)
         .animation(.interactiveSpring, value: sonosService.groups)

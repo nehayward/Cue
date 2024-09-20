@@ -77,6 +77,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return id.encodeProgramURI
         case (.radio, .tuneIn):
             return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
+        case (.radio, .apple):
+            return "x-sonosapi-radio:radio%3A\(id)?sid=204&amp;flags=32"
         case (.libraryPlaylist, .apple):
             return "x-rincon-cpcontainer:1006206clibraryplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
         default:
@@ -165,6 +167,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
             return """
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON85255_X_#Svc85255-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
+    case(.radio, .apple):
+        return """
+            &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+            """
         case (.favorite, _):
             return """
 \(metadata?.URIMetadata ?? "")

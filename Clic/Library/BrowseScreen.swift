@@ -34,7 +34,7 @@ struct BrowseScreen: View {
             case .plex:
                 PlexBrowseScreen()
             case .spotify:
-                Text("Coming Soon…")
+                Text("Support is in progress for Spotify. In the meantime you can queue public playlist from the Spotify app from the share sheet")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .library:
                 LibraryBrowseScreen()
@@ -51,7 +51,7 @@ struct BrowseScreen: View {
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
                         // MARK: Add Spotify
-                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex].contains(service) {
+                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex, .spotify].contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 browseMediaService = service

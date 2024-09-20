@@ -22,15 +22,15 @@
 				SUBQUERY (
 				$extensionItem.attachments,
 				$attachment,
-				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text"
-				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url"
+				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.plain-text&quot;
+				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.url&quot;
 				).@count &gt;= 1
 				).@count &gt; 0
 			</string>
 			<key>NSExtensionServiceAllowsFinderPreviewItem</key>
 			<true/>
 			<key>NSExtensionServiceFinderPreviewIconName</key>
-			<string>ClicIconNoBackground</string>
+			<string>AppIcon</string>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ui-services</string>

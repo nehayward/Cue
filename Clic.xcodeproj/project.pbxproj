@@ -29,6 +29,7 @@
 		011309B72C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
 		011309B82C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
 		011309B92C88C43A001A9065 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 011309B62C88C437001A9065 /* ImageCacheService.swift */; };
+		012008E72C9B2A2F008DBFDD /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E9705DD92C0A5592005CE79A /* Media.xcassets */; };
 		013686182C8509C400B1340F /* SonosDeviceQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97353432A395699007EA5A8 /* SonosDeviceQuery.swift */; };
 		013686192C8509C400B1340F /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
 		0136861A2C8509CB00B1340F /* SonosDeviceEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9C03B142A5A192300FB9118 /* SonosDeviceEntity.swift */; };
@@ -36,6 +37,9 @@
 		0136861D2C850A9900B1340F /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		0136861E2C850A9900B1340F /* IntentError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9EE31832ADF82B000F71303 /* IntentError.swift */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
+		01B4CDAE2C9CC5AD00AC02CD /* View+Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B4CDAD2C9CC5AD00AC02CD /* View+Paywall.swift */; };
+		01B4CDAF2C9CC5AD00AC02CD /* View+Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B4CDAD2C9CC5AD00AC02CD /* View+Paywall.swift */; };
+		01B4CDB02C9CC5AD00AC02CD /* View+Paywall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B4CDAD2C9CC5AD00AC02CD /* View+Paywall.swift */; };
 		E900165A2B60CC07004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
 		E900165B2B60CDB1004C051D /* NightModeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E90016592B60CC07004C051D /* NightModeIntent.swift */; };
 		E901B5A82BEAAC0E0064A621 /* TimerMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */; };
@@ -653,6 +657,7 @@
 		011179902C94D948007FFA13 /* SceneControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneControl.swift; sourceTree = "<group>"; };
 		011179922C94D9A7007FFA13 /* SceneEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneEntry.swift; sourceTree = "<group>"; };
 		011309B62C88C437001A9065 /* ImageCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheService.swift; sourceTree = "<group>"; };
+		01B4CDAD2C9CC5AD00AC02CD /* View+Paywall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+Paywall.swift"; sourceTree = "<group>"; };
 		E90016592B60CC07004C051D /* NightModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightModeIntent.swift; sourceTree = "<group>"; };
 		E901B5A72BEAAC0E0064A621 /* TimerMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMenuView.swift; sourceTree = "<group>"; };
 		E90ACD812ABFDD77006A9FD3 /* PreferenceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceScreen.swift; sourceTree = "<group>"; };
@@ -1293,6 +1298,7 @@
 				E9F600C92B5256A60039AAA6 /* PlayerSelectionView.swift */,
 				E9B2074B2A89802F0028C2E0 /* QueueScreen.swift */,
 				E92AB89E2C34903800881D71 /* View+Keyboard.swift */,
+				01B4CDAD2C9CC5AD00AC02CD /* View+Paywall.swift */,
 				E9CAEC4C2C22162800F9C725 /* SelectGroupView.swift */,
 				E9D856262A9FB5AD0024B192 /* PillView.swift */,
 				010DBB2B2C8A3073000E278E /* QueueIconView.swift */,
@@ -1728,6 +1734,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				012008E72C9B2A2F008DBFDD /* Media.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1894,6 +1901,7 @@
 				E98ED5EA2C24B08A000F42F0 /* MiniPlayerView.swift in Sources */,
 				E92B3EDA2B60249B00724FA1 /* UpdateType.swift in Sources */,
 				E92B3EDB2B60249B00724FA1 /* PillView.swift in Sources */,
+				01B4CDAE2C9CC5AD00AC02CD /* View+Paywall.swift in Sources */,
 				E92B3EDC2B60249B00724FA1 /* LiveActivityNowPlaying.swift in Sources */,
 				E9A380692C00FC8C00D5349E /* BetaFeatures.swift in Sources */,
 				E9C7CAFA2BE2FC5200C59311 /* NewReleasesView.swift in Sources */,
@@ -2036,6 +2044,7 @@
 				E97563212B699B2400787E14 /* HapticManager.swift in Sources */,
 				E97563222B699B2400787E14 /* UpdateType.swift in Sources */,
 				E97563232B699B2400787E14 /* PillView.swift in Sources */,
+				01B4CDAF2C9CC5AD00AC02CD /* View+Paywall.swift in Sources */,
 				E97563242B699B2400787E14 /* LiveActivityNowPlaying.swift in Sources */,
 				E950E7D42B7418610029415B /* SplitView.swift in Sources */,
 				E9CAEC4F2C22162E00F9C725 /* SelectGroupView.swift in Sources */,
@@ -2130,6 +2139,7 @@
 				E98CE0082B2FB0D7002E5A96 /* LogScreen.swift in Sources */,
 				E9B135C82B6C21F60096A14E /* ArtistDetailView.swift in Sources */,
 				E92E47142B33F43600DE6647 /* CreateLiveActivityIntent.swift in Sources */,
+				01B4CDB02C9CC5AD00AC02CD /* View+Paywall.swift in Sources */,
 				E9B3476D2BF14BF300688851 /* ContentToAdd.swift in Sources */,
 				E96385F62AD8E19F005411BF /* DeviceListMainView.swift in Sources */,
 				E96385F72AD8E1A3005411BF /* PreferenceScreen.swift in Sources */,
@@ -2469,6 +2479,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E9A953192ADDA06D00600516 /* Debug.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -2505,6 +2516,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E9F7BF492AE2E11500EFE380 /* Beta.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
@@ -2540,6 +2552,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = E9A9531A2ADDA06D00600516 /* Release.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PlayAction/PlayAction.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;

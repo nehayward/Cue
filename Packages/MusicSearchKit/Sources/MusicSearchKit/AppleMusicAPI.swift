@@ -167,6 +167,40 @@ public final class AppleMusicAPI {
         }
     }
     
+    public func lookupUsersRecentRadioStations(offset: Int = 0) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/me/recent/radio-stations?offset=\(offset)&limit=25")!
+        let request = MusicDataRequest(urlRequest: .init(url: radioStationsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let recentRadioStations = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return recentRadioStations
+        } catch {
+            print("Error decoding radio stations: \(error)")
+            return nil
+        }
+    }
+    
+    public func lookupAppleRadioStations(offset: Int = 0) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let region = (Locale.current.region?.identifier ?? "US").lowercased()
+        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/catalog/\(region)/stations?filter[identity]=personal")!
+        let request = MusicDataRequest(urlRequest: .init(url: radioStationsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        do {
+            let radioStations = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return radioStations
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+    
     public func lookupUsersNew(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

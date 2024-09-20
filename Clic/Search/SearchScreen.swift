@@ -42,6 +42,7 @@ struct SearchScreen: View {
         NavigationStack(path: $router.path) {
             List {
                 filterView
+//                LoggerView()
                 if !searchCompletionTapped {
                     ForEach(musicSearchService.suggestions) { suggestion in
                         Button {

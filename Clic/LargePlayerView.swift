@@ -23,16 +23,19 @@ struct LargePlayerView: View {
         @Bindable var sonosService = sonosService
 
         VStack(alignment: .center) {
-            ArtworkView(group: $group)
-                .cornerRadius(12)
-                .padding(.bottom, 24)
-                .draggable(group.coordinatorRoom.track.toPlayable)
-                .shadow(radius: 10)
-                .frame(maxWidth: 500)
+            if !group.TVMode {
+                ArtworkView(group: $group)
+                    .cornerRadius(12)
+                    .padding(.bottom, 24)
+                    .draggable(group.coordinatorRoom.track.toPlayable)
+                    .shadow(radius: 10)
+                    .frame(maxWidth: 500)
+            }
 
             if group.TVMode {
+                Spacer()
                 TVModeView()
-            }  else {
+            } else {
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
                     Text(stationName)
                         .multilineTextAlignment(.center)
@@ -60,8 +63,9 @@ struct LargePlayerView: View {
                 Spacer()
                 mediaControlsView()
             }
-
-            Spacer(minLength: 40)
+            if !group.TVMode {
+                Spacer(minLength: 40)
+            }
             VStack {
                 GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
                     .padding(.bottom, 12)

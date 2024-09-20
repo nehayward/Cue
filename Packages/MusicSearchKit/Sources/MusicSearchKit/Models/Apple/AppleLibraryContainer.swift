@@ -40,7 +40,7 @@ extension AppleLibraryItem {
     }
 
     public struct Meta: Codable {
-        public let total: Int
+        public let total: Int?
     }
 
     public struct PlayParameters: Codable {

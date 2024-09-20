@@ -6,7 +6,6 @@ import SubscriptionKit
 
 struct ClicPaywall: View {
     @Environment(\.dismiss) var dismiss
-    @State private var animateGradient = false
 
     private var features = [
         (Icons.speaker.systemName, "Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
@@ -24,11 +23,6 @@ struct ClicPaywall: View {
                     .bold()
                     .font(.largeTitle)
                     .foregroundStyle(.teal.gradient)
-                    .onAppear {
-                        withAnimation(.smooth(duration: 5).repeatForever(autoreverses: true)) {
-                            animateGradient.toggle()
-                        }
-                    }
                     .padding(.vertical, 24)
                 ForEach(Array(features.enumerated()), id: \.offset) { index, element in
                     HStack(alignment: .firstTextBaseline) {
@@ -41,30 +35,23 @@ struct ClicPaywall: View {
                                 .foregroundStyle(.teal.gradient)
                             Text(element.2)
                                 .lineLimit(2, reservesSpace: true)
-                                .foregroundStyle(.primary.opacity(0.6))
+                                .foregroundStyle(.primary.opacity(0.8))
                         }
                         Spacer()
                     }
-                    .frame(maxWidth: 500)
-                    .padding(.horizontal)
                 }
             }
+            .padding(.horizontal)
             .padding(.bottom)
             .fontDesign(.rounded)
-            .saturation(animateGradient ? 0.9 : 3)
+            .saturation(1.2)
         }
-        .background {
-            LinearGradient(colors: [.teal.opacity(0.05), .teal.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
-        }
-        .paywallFooter(condensed: false, purchaseCompleted: { customerInfo in
+        .frame(maxWidth: .infinity)
+        .paywallFooter(condensed: true, purchaseCompleted: { customerInfo in
             Analytics.shared.track(.subscribed)
             dismiss()
         })
         .fontDesign(.rounded)
-        #if !os(visionOS)
-        .presentationBackground(.windowBackground)
-        #endif
         .interactiveDismissDisabled()
         .overlay(alignment: .topTrailing) {
             Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: {
@@ -79,6 +66,9 @@ struct ClicPaywall: View {
         .onAppear {
             Analytics.shared.track(.viewedPaywall)
         }
+#if targetEnvironment(macCatalyst)
+        .frame(width: 800, height: 1000)
+#endif
     }
 }
 

@@ -119,6 +119,34 @@ struct AppleLibraryBrowseScreen: View {
                             }
                         }
                     }
+                    
+                    if !appleMusicBrowseService.userRadioStations.isEmpty {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
+                            ForEach(appleMusicBrowseService.userRadioStations.prefix(numberOfItemsInGrid)) { item in
+                                PlayableCardView(item: item)
+                            }
+                        }
+                    }
+                    
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Stations", items: $appleMusicBrowseService.userStations, action: { offset in
+                        await appleMusicBrowseService.updateRadioStations(offset: offset)
+                    })) {
+                        HStack {
+                            Text("Personal Radio")
+                            Spacer()
+                            Text("Show all \(Image(systemName: "chevron.right"))")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical)
+                    
+                    if !appleMusicBrowseService.userStations.isEmpty {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
+                            ForEach(appleMusicBrowseService.userStations.prefix(numberOfItemsInGrid)) { item in
+                                PlayableCardView(item: item)
+                            }
+                        }
+                    }
                 }
             }
             .contentMargins(.horizontal, 16, for: .scrollContent)
@@ -208,11 +236,27 @@ struct AppleLibraryBrowseScreen: View {
     @MainActor
     private func updateAppleMusicBrowseService() async {
         isLoading = true
-        await appleMusicBrowseService.updateUsersApplePlaylists()
-        await appleMusicBrowseService.updateUsersRecentPlayed()
-        await appleMusicBrowseService.updateUsersRecentAddedTracks()
-        await appleMusicBrowseService.updateUsersAppleAlbums()
-        await appleMusicBrowseService.updateUsersAppleArtists()
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await appleMusicBrowseService.updateUsersApplePlaylists()
+            }
+            group.addTask {
+                await appleMusicBrowseService.updateUsersRecentPlayed()
+            }
+            group.addTask {
+                await appleMusicBrowseService.updateUsersRecentAddedTracks()
+            }
+            group.addTask {
+                await appleMusicBrowseService.updateUsersAppleAlbums()
+            }
+            group.addTask {
+                await appleMusicBrowseService.updateUsersAppleArtists()
+            }
+            group.addTask {
+                await appleMusicBrowseService.updateRadioStations()
+            }
+        }
+
         isLoading = false
     }
 }

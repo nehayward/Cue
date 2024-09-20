@@ -327,6 +327,9 @@ struct PreferenceScreen: View {
         .task {
             try? await subscriptionService.checkSubscription()
         }
+#if targetEnvironment(macCatalyst)
+        .frame(width: 800, height: 800)
+#endif
     }
 }
 

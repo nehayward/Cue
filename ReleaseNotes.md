@@ -1,3 +1,9 @@
+# 2024.40
+
++ Added Apple Radio Stations
++ Improved Queue management.
++ Fixed an issue where Plex search wasn't showing results.
+
 # 2024.39
 
 + Added Large and Extra Large Widget.

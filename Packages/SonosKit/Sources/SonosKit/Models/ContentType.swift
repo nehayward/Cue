@@ -32,7 +32,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             self = .artist
         case let str where str.contains("track"), let str where str.contains("song"), let str where str == "object.item", let str where str == "object.item.audioitem":
             self = .track
-        case let str where str.contains("audiobroadcast"), let str where str.contains("radio"):
+        case let str where str.contains("audiobroadcast"), let str where str.contains("radio"), let str where str.contains("station"):
             self = .radio
         case let str where str.contains("favorite"):
             self = .favorite

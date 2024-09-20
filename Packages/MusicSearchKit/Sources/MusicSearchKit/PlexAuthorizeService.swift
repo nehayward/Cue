@@ -12,6 +12,7 @@ public final class PlexAuthenticator: NSObject {
 
     public static var shared = PlexAuthenticator()
 
+//    public var authToken: String? = "KSAM-R573sKNdDdk2i-G"
     public var authToken: String? {
         get {
             UserDefaults.standard.string(forKey: "com.clic.plexToken")

@@ -51,9 +51,6 @@ struct QueueScreen: View {
                                         .bold()
                                 }
                             }
-                            .contextMenu {
-                                menu(content: track)
-                            }
                         }
                         .swipeActions {
                             Button(role: .destructive) {
