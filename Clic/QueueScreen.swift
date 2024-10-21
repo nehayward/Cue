@@ -6,8 +6,11 @@ import Collections
 
 struct QueueScreen: View {
     @Environment(\.dismiss) var dismiss
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosService.self) var sonosService
+    @Environment(PlayHistoryService.self) var playHistoryService
+    
     var closeInspector: (() -> Void)? = nil
+    
     @Binding var group: GroupRoom
     @State private var router = Router()
     @State private var isLoading: Bool = true
@@ -83,10 +86,10 @@ struct QueueScreen: View {
                 .toolbar {
                     ToolbarItemGroup(placement: .navigation) {
                         VStack(alignment: .leading) {
-                            Text("Queue")
+                            Text("Queue" + (group.playbackService != .queue ? " not active" : ""))
                                 .bold()
                             HStack(spacing: 0) {
-                                Text(group.coordinatorRoom.queue.count, format: .number)
+                                Text(group.coordinatorRoom.queueTotal, format: .number)
                                     .contentTransition(.numericText())
                                 Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
                                 if totalDuration.components.seconds > 0  {
@@ -157,7 +160,15 @@ struct QueueScreen: View {
                             Text("Save")
                         }
                         .disabled(group.coordinatorRoom.queue.isEmpty)
-
+                        Spacer()
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.presentedSheet = .search(group: group)
+                        } label: {
+                            Label("Search", systemImage: "magnifyingglass")
+                                .fontDesign(.rounded)
+                        }
+                        Spacer()
                         Button(role: .destructive) {
                             clearQueueConfirmation.toggle()
                         } label: {
@@ -169,7 +180,7 @@ struct QueueScreen: View {
                 .task(id: group.coordinatorRoom.track.trackID) {
                     isLoading = true
                     group.playMode = await sonosService.playMode(ip: group.ip)
-                    let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
+                    let id = group.coordinatorRoom.track.trackID + ".\(group.coordinatorRoom.track.position)"
                     proxy.scrollTo(id, anchor: .top)
                     self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
                     isLoading = false
@@ -186,17 +197,21 @@ struct QueueScreen: View {
             if isLoading, group.coordinatorRoom.queue.isEmpty {
                 ProgressView()
             }
-            if group.coordinatorRoom.queue.isEmpty, !isLoading {
-                ContentUnavailableView("Empty", systemImage: "music.note.list")
-                    .transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if group.playbackService != .queue  {
-                Text("Queue Not Active")
-                    .padding()
-                    .background(.thickMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            if group.coordinatorRoom.queue.isEmpty {
+                ContentUnavailableView {
+                    Text("Play History")
+                        .padding()
+                } description: {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
+                        ForEach(playHistoryService.history.prefix(5)) { item in
+                            PlayableCardView(item: item, hideAction: true)
+                                .frame(width: 100, height: 100)
+                        }
+                        .fontDesign(.rounded)
+                    }
+                }
+                .transition(.opacity)
+                .opacity(isLoading ? 0 : 1)
             }
         }
         .fontDesign(.rounded)

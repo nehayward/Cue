@@ -6,7 +6,6 @@ import WidgetKit
 struct RemoteWidgetEntryView: View {
     var entry: Provider.Entry
     @Environment(\.widgetFamily) private var widgetFamily: WidgetFamily
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize    
 
     @ViewBuilder
     var body: some View {
@@ -29,33 +28,39 @@ struct RemoteWidgetEntryView: View {
                             .font(.subheadline)
                             .padding(.bottom, 8)
                         HStack(spacing: 18) {
-                            if let TVSettings = entry.TVSettings {
+                            if let theater = entry.TVSettings {
                                 VStack(spacing: 12) {
-                                    Toggle(isOn: TVSettings.nightMode, intent: NightModeIntent(room: room, nightMode: !TVSettings.nightMode)) {
-                                        Label("Night Mode", systemImage: "moon.zzz")
+                                    Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
+                                        Label("Night Mode", systemImage: "moon.zzz.fill")
+                                            .foregroundStyle(.accent)
+                                            .widgetAccentable()
                                     }
-                                    .symbolVariant(TVSettings.nightMode ? .fill : .none)
                                     .labelStyle(.iconOnly)
-                                    .contentShape(.circle)
                                     .toggleStyle(.button)
-                                    .foregroundStyle(.thickMaterial)
-                                    .frame(width: 40, height: 40)
-                                    .foregroundStyle(.thickMaterial)
-                                    .frame(width: 40, height: 40)
-                                    .tint(.secondary)
-                                    .background(TVSettings.nightMode ? .primary : .tertiary, in: Capsule())
+                                    .frame(width: 40, height: 40) // Makes it a perfect circle
+                                    .buttonStyle(.plain)
+                                    .background(
+                                        Circle()
+                                            .fill(.fill)
+                                    )
+                                    .opacity(theater.nightMode ? 1 : 0.4)
+                                    .invalidatableContent()
 
-                                    Toggle(isOn: TVSettings.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !TVSettings.dialogLevel)) {
-                                        Label("Speech Enhancement", systemImage: "person.wave.2")
+                                    Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                                        Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                            .foregroundStyle(.accent)
+                                            .widgetAccentable()
                                     }
-                                    .symbolVariant(TVSettings.dialogLevel ? .fill : .none)
                                     .labelStyle(.iconOnly)
                                     .toggleStyle(.button)
-                                    .contentShape(.circle)
-                                    .foregroundStyle(.thickMaterial)
-                                    .frame(width: 40, height: 40)
-                                    .tint(.secondary)
-                                    .background(TVSettings.dialogLevel ? .primary : .tertiary, in: Capsule())
+                                    .frame(width: 40, height: 40) // Makes it a perfect circle
+                                    .buttonStyle(.plain)
+                                    .background(
+                                        Circle()
+                                            .fill(.fill)
+                                    )
+                                    .opacity(theater.dialogLevel ? 1 : 0.4)
+                                    .invalidatableContent()
                                 }
                             } else {
                                 VStack(spacing: 12) {
@@ -64,9 +69,9 @@ struct RemoteWidgetEntryView: View {
                                             .font(.caption)
                                             .foregroundStyle(.thickMaterial)
                                             .frame(width: 40, height: 40)
+                                            .widgetAccentable()
                                     }
                                     .buttonBorderShape(.circle)
-                                    .tint(.secondary)
                                     .background(.primary, in: Capsule())
 
                                     Button(intent: NextIntent(room: room)) {
@@ -74,6 +79,7 @@ struct RemoteWidgetEntryView: View {
                                             .font(.caption)
                                             .foregroundStyle(.thickMaterial)
                                             .frame(width: 40, height: 40)
+                                            .widgetAccentable()
                                     }
                                     .buttonBorderShape(.circle)
                                     .tint(.secondary)
@@ -86,12 +92,14 @@ struct RemoteWidgetEntryView: View {
                                         .bold()
                                         .foregroundStyle(.thickMaterial)
                                         .frame(width: 40, height: 40)
+                                        .widgetAccentable()
                                 }
                                 Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: -3)) {
                                     Image(systemName: "minus")
                                         .bold()
                                         .foregroundStyle(.thickMaterial)
                                         .frame(width: 40, height: 40)
+                                        .widgetAccentable()
                                 }
                             }
                             .background(.primary, in: Capsule())
@@ -99,27 +107,30 @@ struct RemoteWidgetEntryView: View {
                         .padding(.bottom, 8)
 
                         HStack {
-                            Image(systemName: "speaker.wave.3.fill", variableValue: entry.volume/100)
+                            Image(systemName: entry.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: entry.volume/100)
                                 .contentTransition(.symbolEffect(.automatic))
                                 .font(.caption)
                             ProgressView(value: Double(entry.volume), total: 100)
                                 .tint(.accent)
                                 .invalidatableContent()
+                                .widgetAccentable()
+                                .opacity(entry.isMuted ? 0.3 : 1)
                             Text("\(entry.volume, specifier: "%0.f")")
                                 .font(.caption)
                                 .contentTransition(.numericText())
                                 .invalidatableContent()
+                                .strikethrough(entry.isMuted)
                         }
                         .padding([.leading,.trailing])
                     }
                     .buttonStyle(.plain)
                     .fontDesign(.rounded)
                     .containerBackground(.widgetBackground, for: .widget)
-                    .widgetURL(URL(string: "clic://device?id=\(room.id)"))
+                    .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
                 }
             } else {
                 VStack {
-                    Image(systemName: "hifispeaker")
+                    Image(systemName: "hifispeaker.fill")
                         .symbolRenderingMode(.hierarchical)
                         .fontDesign(.rounded)
                         .imageScale(.large)

@@ -19,36 +19,45 @@ struct PlayableCardView: View {
 
     var item: PlayableContent
     var hideArtwork: Bool = false
+    var hideAction: Bool = false
 
     var body: some View {
         Group {
             if let add = adding?.add, add {
                 content
             } else {
-                switch item.content.type {
-                case .playlist, .album, .libraryPlaylist, .libraryAlbum:
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                if !hideAction {
+                    switch item.content.type {
+                    case .playlist, .album, .libraryPlaylist, .libraryAlbum:
+                        NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                            content
+                        }
+                    case .artist, .libraryArtist:
+                        NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                            content
+                        }
+                    case .track, .favorite, .radio:
+                        Button {
+                            play()
+                        } label: {
+                            content
+                        }
+                    case .libraryTrack:
                         content
                     }
-                case .artist, .libraryArtist:
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                        content
-                    }
-                case .track, .favorite, .radio:
+                } else {
                     Button {
                         play()
                     } label: {
                         content
                     }
-                case .libraryTrack:
-                    content
                 }
             }
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
-            if adding == nil {
+            if adding == nil && !hideAction {
                 Menu {
                     PlayableMenuView(item: item)
                 } label: {

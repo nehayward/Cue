@@ -33,7 +33,7 @@ struct GroupScreen: View {
                                 .font(.caption)
                         }
                         Spacer()
-                        Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                        Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
                             .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
                     }
                     .foregroundStyle(selections.contains(room.id) ? .black : .primary)

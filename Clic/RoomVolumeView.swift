@@ -26,13 +26,17 @@ struct RoomVolumeView: View {
                     await sonosService.setRoomMute(room: room, mute: !room.isMuted)
                 }
             } label: {
-                Image(systemName: room.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: room.volume/100)
-                    .renderingMode(.template)
-                    .contentTransition(.symbolEffect(.automatic))
-                    .padding(.trailing, 8)
+                Image(room.isMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: room.volume/100)
+                    .resizable()
+                    .scaledToFit()
+                    .symbolRenderingMode(room.isMuted ? .hierarchical : .monochrome)
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(.primary)
+                    .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
             }
-            .frame(width: 24, alignment: .leading)
             .buttonStyle(.plain)
+            .padding(.trailing)
+
 
             VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
                 if room.isMuted {
@@ -55,9 +59,11 @@ struct RoomVolumeView: View {
                 .fontDesign(.rounded)
                 .bold()
         }
+        .opacity(room.isMuted ? 0.4 : 1)
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: room.volume)
+        .animation(.interactiveSpring, value: room.isMuted)
         .frame(height: 40)
     }
 

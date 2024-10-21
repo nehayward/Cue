@@ -14,6 +14,7 @@ struct Provider: AppIntentTimelineProvider {
             configuration: RemoteWidgetConfigurationIntent(),
             playableContent: nil,
             volume: 0,
+            isMuted: false,
             track: nil,
             activeSubscription: activeSubscription
         )
@@ -26,6 +27,7 @@ struct Provider: AppIntentTimelineProvider {
             configuration: configuration,
             playableContent: nil,
             volume: 0,
+            isMuted: false,
             track: nil,
             activeSubscription: activeSubscription
         )
@@ -39,6 +41,7 @@ struct Provider: AppIntentTimelineProvider {
                 let volume = try? await SonosService.shared.getGroupVolume(ip: group.ip) {
 
                 let track = await SonosService.shared.getTrackDetails(ip: group.ip)
+                let isMuted = await SonosService.shared.isMuted(for: group)
                 let playbackService = await SonosService.shared.playbackService(ip: group.ip)
                 if let artworkURL = track?.artworkURL {
                     await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL)
@@ -51,6 +54,7 @@ struct Provider: AppIntentTimelineProvider {
                     configuration: configuration,
                     playableContent: track?.toPlayable,
                     volume: volume,
+                    isMuted: isMuted ?? false,
                     track: track,
                     name: group.nameWithCount,
                     activeSubscription: activeSubscription,
@@ -79,6 +83,7 @@ struct Provider: AppIntentTimelineProvider {
             configuration: configuration,
             playableContent: nil,
             volume: 0,
+            isMuted: false,
             track: nil,
             activeSubscription: activeSubscription
         )
@@ -91,6 +96,7 @@ struct RemoteWidgetEntry: TimelineEntry {
     let configuration: RemoteWidgetConfigurationIntent
     let playableContent: PlayableContent?
     let volume: Double
+    let isMuted: Bool
     let track: Track?
     var name: String? = nil
     var TVSettings: TVSettings? = nil
@@ -112,6 +118,7 @@ struct RemoteWidgetEntry: TimelineEntry {
         ),
         playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: service, id: "123", type: .track, location: nil)),
         volume: 20,
+        isMuted: true,
         track: Track(
             trackID: "",
             name: "Barbie",
@@ -135,6 +142,7 @@ struct RemoteWidgetEntry: TimelineEntry {
         ),
         playableContent: nil,
         volume: 20,
+        isMuted: false,
         track: Track(
             trackID: "",
             name: "Barbie",
@@ -169,6 +177,7 @@ struct RemoteWidget: Widget {
                             .overlay {
                                 Image(systemName: "lock.fill")
                                     .font(widgetFamily == .accessoryRectangular ? .body : .title)
+                                    .widgetAccentable()
                             }
                             .widgetURL(URL(string: "clic://subscribe"))
                     }

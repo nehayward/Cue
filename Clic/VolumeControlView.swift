@@ -22,11 +22,12 @@ struct VolumeControlView: View {
                     await sonosService.setGroupMute(group: group, mute: !group.isMuted)
                 }
             } label: {
-                Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
+                Image(group.isMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
                     .resizable()
                     .scaledToFit()
-                    .contentTransition(.symbolEffect(.automatic))
-                    .foregroundStyle(group.isMuted ? Color.secondary : Color.accent)
+                    .symbolRenderingMode(group.isMuted ? .hierarchical : .monochrome)
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(.primary)
                     .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
             }
             .buttonStyle(.plain)
@@ -60,6 +61,9 @@ struct VolumeControlView: View {
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: group.groupVolume)
         .frame(height: UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40)
+        .opacity(group.isMuted ? 0.6 : 1)
+        .animation(.spring, value: group.isMuted)
+        .tint(.primary)
     }
 
     private func updateVolume(volume: Double) {
@@ -76,6 +80,6 @@ struct VolumeControlView: View {
 }
 
 #Preview {
-    VolumeControlView(group: .constant(.garage))
-        .environment(SonosService.shared)
+    VolumeControlView(group: .constant(.gym))
+        .withEnvironments()
 }

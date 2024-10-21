@@ -368,9 +368,14 @@ public final class SonosService {
                     async let groupVolume = getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
                     async let playMode = playMode(ip: roomGroup.coordinatorRoom.ip)
                     async let availableActions = getCurrentTransportActions(ip: roomGroup.ip)
+                    async let queueTotal = getQueueTotal(group: roomGroup)
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
                         roomGroup.groupVolume = groupVolumeAwaited
+                    }
+                    
+                    if let queueTotalAwaited = try? await queueTotal {
+                        roomGroup.coordinatorRoom.queueTotal = queueTotalAwaited
                     }
 
                     if let awaitedActions = await availableActions {
@@ -1315,6 +1320,11 @@ public final class SonosService {
         if position == .now, queueActive, playable.content.type != .playlist, let count, count > 0 {
             await next(ip: group.ip)
         }
+    }
+    
+    public func getQueueTotal(group: GroupRoom) async throws -> Int? {
+        let count = await api.getQueueCount(IP: group.ip)
+        return count
     }
 
     public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async throws {

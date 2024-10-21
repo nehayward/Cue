@@ -21,7 +21,7 @@ struct PlayHistoryView: View {
                     } label: {
                         HStack {
                             ThumbnailView(content: item, preferredSize: 40)
-                                .aspectRatio(contentMode: .fit)
+                                .aspectRatio(contentMode: .fill)
                                 .frame(width: 40, height: 40)
                             VStack(alignment: .leading) {
                                 Text(item.title)

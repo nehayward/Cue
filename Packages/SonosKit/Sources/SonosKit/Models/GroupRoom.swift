@@ -101,13 +101,14 @@ extension GroupRoom {
                                          coordinatorID: Room.gym.id,
                                          rooms: [.gym],
                                          coordinatorRoom: .gym)
+    
 
     public static let garage = GroupRoom(id: "RINCON_B8E937525BB001400:931790658",
                                          coordinatorID: Room.garage.id,
                                          rooms: [.garage],
                                          coordinatorRoom: .garage)
 
-    public static let theater = GroupRoom(id: "RINCON_48A6B80D8FB401400:2447655112",
+    public static let theater = GroupRoom(id: "RINCON_48A6B80D8FB401400:2447655188",
                                           coordinatorID: Room.theater.id,
                                           rooms: [.theater],
                                           coordinatorRoom: .theater,

@@ -6,6 +6,8 @@ import SubscriptionKit
 
 struct ClicPaywall: View {
     @Environment(\.dismiss) var dismiss
+    @State var width: CGFloat? = nil
+    @State var height: CGFloat? = nil
 
     private var features = [
         (Icons.speaker.systemName, "Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
@@ -66,9 +68,7 @@ struct ClicPaywall: View {
         .onAppear {
             Analytics.shared.track(.viewedPaywall)
         }
-#if targetEnvironment(macCatalyst)
-        .frame(width: 800, height: 1000)
-#endif
+        .customizeWindowSizeForMacOS15()
     }
 }
 

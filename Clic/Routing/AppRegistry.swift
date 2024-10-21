@@ -14,6 +14,7 @@ extension View {
                 switch destination {
                 case let .groupScreen(group):
                     GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
+                        .customizeWindowSizeForMacOS15()
                 case .paywall:
                    ClicPaywall()
 //                    PaywallView(displayCloseButton: true)
@@ -30,22 +31,28 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
-                    @State var router = Router()
+                    @State var searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService(group: group)
 
                     SearchScreen()
-                        .environment(router)
+                        .environment(searchRouter)
                         .environment(selectedGroupService)
+                        .onDisappear {
+                            Router.search.path.removeAll()
+                        }
                     // MARK: Add back later maybe
 //                        .environment(Router.search)
                 case let .sceneSearchAdd(adding):
-                    @State var router = Router()
+                    let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
 
                     SearchScreen()
                         .environment(adding)
-                        .environment(router)
+                        .environment(searchRouter)
                         .environment(selectedGroupService)
+                        .onDisappear {
+                            Router.search.path.removeAll()
+                        }
                 case let .queue(group):
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
@@ -83,6 +90,7 @@ extension View {
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
+                    .customizeWindowSizeForMacOS15()
                 case let .artistDetail(content, group):
                     @State var router = Router()
                     @State var selectedGroupService = SelectedGroupService(group: group)
@@ -103,14 +111,15 @@ extension View {
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
+                    .customizeWindowSizeForMacOS15()
 
                 case let .searchAdd(adding):
-                    @State var router = Router()
+                    let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
-
+                    
                     SearchScreen(isAlarmSearch: true)
                         .environment(adding)
-                        .environment(router)
+                        .environment(searchRouter)
                         .environment(selectedGroupService)
                 case let .alarms(group):
                     Group {
@@ -145,6 +154,8 @@ extension View {
                         .environment(selectedGroupService)
                 case .plexManagement:
                     PlexManagementView()
+                case let .volumeControlsScreen(groupID: groupID):
+                    VolumeControlsScreen(groupID: groupID)
                 }
             }
             .withEnvironments()
@@ -164,20 +175,26 @@ extension View {
                 case .settings:
                     PreferenceScreen()
                 case let .search(group):
-                    @State var router = Router()
+                    let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService(group: group)
 
                     SearchScreen()
-                        .environment(router)
+                        .environment(searchRouter)
                         .environment(selectedGroupService)
+                        .onDisappear {
+                            Router.search.path.removeAll()
+                        }
                 case let .sceneSearchAdd(adding):
-                    @State var router = Router()
+                    let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
 
                     SearchScreen()
                         .environment(adding)
-                        .environment(router)
+                        .environment(searchRouter)
                         .environment(selectedGroupService)
+                        .onDisappear {
+                            Router.search.path.removeAll()
+                        }
                 case let .queue(group):
                     @State var selectedGroupService = SelectedGroupService(group: group.wrappedValue)
 
@@ -251,6 +268,9 @@ extension View {
                     NewPlaylistView(group: group)
                 case let .renamePlaylist(content: content):
                     NewPlaylistView(playlist: content)
+                case let .volumeControlsScreen(groupID: groupID):
+                    VolumeControlsScreen(groupID: groupID)
+                        .frame(idealWidth: 400, idealHeight: 800)
                 default:
                     EmptyView()
                 }

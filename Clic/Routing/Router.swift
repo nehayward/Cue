@@ -6,6 +6,7 @@ import SonosKit
 
 @Observable public final class Router {
     static var main = Router()
+    static var search = Router()
     
     var path: [RouterDestination] = []
     var selection: RouterDestination?
@@ -13,6 +14,7 @@ import SonosKit
     
     @MainActor var inspectorSheet: InspectorDestination?
     @MainActor var popover: SheetDestination?
+    @MainActor var volumePopover: SheetDestination?
 
     var dismiss: Bool = false
 

@@ -16,17 +16,33 @@ struct RemoteWidgetExtraLargeView: View {
                         .opacity(0.8)
                         .lineLimit(1)
                     Spacer()
-                    Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                            Image("hifispeaker.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image("hifispeaker.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
-                    Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                            Image(systemName: "magnifyingglass.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image(systemName: "magnifyingglass.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
                     Button(intent: RefreshIntent()) {
                         Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
@@ -74,6 +90,7 @@ struct RemoteWidgetExtraLargeView: View {
                         if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
                             Image(uiImage: image)
                                 .resizable()
+                                .backdeployedWidgetAccentedRenderingMode(.fullColor)
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
                                 .frame(width: 100, height: 100)
@@ -82,6 +99,18 @@ struct RemoteWidgetExtraLargeView: View {
                                         .frame(width: 16, height: 16, alignment: .bottomLeading)
                                         .padding([.bottom, .trailing], 4)
                                 }
+                            //                        // MARK: For Screenshots
+                            //                        #if DEBUG
+                            //                        .overlay {
+                            //                            Rectangle()
+                            //                                .foregroundStyle(.regularMaterial)
+                            //                        }
+                            //                        #endif
+                        } else  {
+                            Rectangle()
+                                .foregroundStyle(.thickMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 100, height: 100)
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -114,16 +143,19 @@ struct RemoteWidgetExtraLargeView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: 24, alignment: .center)
                             HStack {
-                                Image(systemName: "speaker.wave.3.fill", variableValue: entry.volume/100)
+                                Image(systemName: entry.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: entry.volume/100)
                                     .contentTransition(.symbolEffect(.automatic))
                                     .font(.caption)
                                 ProgressView(value: Double(entry.volume), total: 100)
                                     .tint(.accent)
                                     .invalidatableContent()
+                                    .widgetAccentable()
+                                    .opacity(entry.isMuted ? 0.3 : 1)
                                 Text("\(entry.volume, specifier: "%0.f")")
                                     .font(.caption)
                                     .contentTransition(.numericText())
                                     .invalidatableContent()
+                                    .strikethrough(entry.isMuted)
                             }
                             .padding([.leading,.trailing])
                         }
@@ -135,19 +167,20 @@ struct RemoteWidgetExtraLargeView: View {
                                     .bold()
                                     .foregroundStyle(.thickMaterial)
                                     .frame(width: 40, height: 40)
+                                    .widgetAccentable()
                             }
                             Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: -3)) {
                                 Image(systemName: "minus")
                                     .bold()
                                     .foregroundStyle(.thickMaterial)
                                     .frame(width: 40, height: 40)
+                                    .widgetAccentable()
                             }
                         }
                         .background(.primary, in: Capsule())
                         .buttonStyle(.plain)
                         .fontDesign(.rounded)
                     }
-                    Divider()
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16)], spacing: 16) {
                         ForEach(entry.playHistory.prefix(6)) { playHistory in
                             HStack {
@@ -158,6 +191,7 @@ struct RemoteWidgetExtraLargeView: View {
                                 VStack(alignment: .leading) {
                                     Text(playHistory.title)
                                     Text(playHistory.subtitle)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                                 .lineLimit(1)
@@ -165,9 +199,11 @@ struct RemoteWidgetExtraLargeView: View {
                                 Button(intent: PlayIntent(room: room, title: playHistory.title, id: playHistory.content.id, service: playHistory.content.service.sonosRawValue, type: playHistory.content.type.sonosRawValue)) {
                                     Image(systemName: "play.fill")
                                         .foregroundStyle(.accent)
+                                        .widgetAccentable()
                                 }
                             }
                         }
+                        .fontDesign(.rounded)
                     }
                 }
                 Spacer()
@@ -175,6 +211,7 @@ struct RemoteWidgetExtraLargeView: View {
             .frame(maxHeight: .infinity)
             .containerBackground(.widgetBackground, for: .widget)
             .fontDesign(.rounded)
+            .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

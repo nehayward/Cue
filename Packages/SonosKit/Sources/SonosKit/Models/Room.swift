@@ -35,6 +35,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var alarmRunning: Bool = false
     public var subs: [Sub] = []
     public var queue: OrderedSet<PlayableContent> = []
+    public var queueTotal: Int = 0
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)

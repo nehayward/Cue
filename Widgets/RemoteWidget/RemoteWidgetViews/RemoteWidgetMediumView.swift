@@ -4,6 +4,7 @@ import WidgetKit
 
 struct RemoteWidgetMediumView: View {
     var entry: Provider.Entry
+    @Environment(\.widgetRenderingMode) var widgetRenderingMode
 
     var body: some View {
         if let room = entry.configuration.room {
@@ -15,17 +16,33 @@ struct RemoteWidgetMediumView: View {
                         .opacity(0.8)
                         .lineLimit(1)
                     Spacer()
-                    Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                            Image("hifispeaker.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image("hifispeaker.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
-                    Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                            Image(systemName: "magnifyingglass.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image(systemName: "magnifyingglass.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
                     Button(intent: RefreshIntent()) {
                         Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
@@ -42,44 +59,52 @@ struct RemoteWidgetMediumView: View {
                     Text(theater.audioInputFormat.description)
                     HStack(spacing: 12) {
                         Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
-                            Label("Night Mode", systemImage: "moon.zzz")
+                            Label("Night Mode", systemImage: "moon.zzz.fill")
+                                .foregroundStyle(.accent)
+                                .widgetAccentable()
                         }
-                        .symbolVariant(theater.nightMode ? .fill : .none)
                         .labelStyle(.iconOnly)
-                        .contentShape(.circle)
                         .toggleStyle(.button)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .tint(.secondary)
-                        .background(theater.nightMode ? .primary : .tertiary, in: Capsule())
+                        .frame(width: 40, height: 40) // Makes it a perfect circle
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(.fill)
+                        )
+                        .opacity(theater.nightMode ? 1 : 0.4)
+                        .invalidatableContent()
 
                         Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
-                            Label("Speech Enhancement", systemImage: "person.wave.2")
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                .foregroundStyle(.accent)
+                                .widgetAccentable()
                         }
-                        .symbolVariant(theater.dialogLevel ? .fill : .none)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .contentShape(.circle)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .tint(.secondary)
-                        .background(theater.dialogLevel ? .primary : .tertiary, in: Capsule())
+                        .frame(width: 40, height: 40) // Makes it a perfect circle
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(.fill)
+                        )
+                        .opacity(theater.dialogLevel ? 1 : 0.4)
+                        .invalidatableContent()
                     }
                 } else {
                     HStack {
                         if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
                             Image(uiImage: image)
                                 .resizable()
+                                .backdeployedWidgetAccentedRenderingMode(.fullColor)
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 60, height: 60)
+                                .frame(width: 80, height: 80)
                                 .overlay(alignment: .bottomTrailing) {
                                     entry.playableContent?.content.service.icon
                                         .frame(width: 16, height: 16, alignment: .bottomLeading)
                                         .padding([.bottom, .trailing], 4)
                                 }
+                            
                             //                        // MARK: For Screenshots
                             //                        #if DEBUG
                             //                        .overlay {
@@ -87,6 +112,11 @@ struct RemoteWidgetMediumView: View {
                             //                                .foregroundStyle(.regularMaterial)
                             //                        }
                             //                        #endif
+                        } else  {
+                            Rectangle()
+                                .foregroundStyle(.thickMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 80, height: 80)
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -114,6 +144,7 @@ struct RemoteWidgetMediumView: View {
                     if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
                         Image(uiImage: image)
                             .resizable()
+                            .backdeployedWidgetAccentedRenderingMode(.fullColor)
                             .blur(radius: 20)
                             .ignoresSafeArea()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -144,7 +175,7 @@ struct RemoteWidgetMediumView: View {
                 }
             }
             .fontDesign(.rounded)
-            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
+            .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

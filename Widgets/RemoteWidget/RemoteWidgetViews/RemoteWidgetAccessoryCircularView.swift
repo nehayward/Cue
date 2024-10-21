@@ -11,6 +11,7 @@ struct RemoteWidgetAccessoryCircularView: View {
                 Gauge(value: entry.volume, in: 0...100) {
                     Text("\(entry.volume, specifier: "%0.f")%")
                         .contentTransition(.numericText())
+                        .strikethrough(entry.isMuted)
                 } currentValueLabel: {
                     Text(entry.name ?? room.name)
                         .font(.caption)
@@ -22,7 +23,8 @@ struct RemoteWidgetAccessoryCircularView: View {
             .containerBackground(.bar, for: .widget)
             .invalidatableContent()
             .disabled(entry.configuration.launchSpeaker)
-            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
+            .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
+
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

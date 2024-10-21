@@ -43,3 +43,36 @@ extension WidgetConfiguration {
         }
     }
 }
+
+@available(iOS, deprecated: 18.0, message: "use WidgetAccentedRenderingMode instead")
+enum BackdeployedWidgetAccentedRenderingMode {
+    case accented
+    case accentedDesaturated
+    case desaturated
+    case fullColor
+    
+    @available(iOS 18.0, *)
+    func toRenderingMode() -> WidgetAccentedRenderingMode {
+        switch self {
+        case .accented: .accented
+        case .accentedDesaturated: .accentedDesaturated
+        case .desaturated: .desaturated
+        case .fullColor: .fullColor
+        }
+    }
+}
+
+extension Image {
+    @available(iOS, deprecated: 18.0, message: "use widgetAccentedRenderingMode instead")
+    @ViewBuilder
+    func backdeployedWidgetAccentedRenderingMode(
+        _ mode: BackdeployedWidgetAccentedRenderingMode
+    ) -> some View {
+        if #available(iOS 18.0, *) {
+            self.widgetAccentedRenderingMode(mode.toRenderingMode())
+        }
+        else {
+            self
+        }
+    }
+}

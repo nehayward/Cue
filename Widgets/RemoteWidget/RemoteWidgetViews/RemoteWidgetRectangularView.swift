@@ -23,6 +23,7 @@ struct RemoteWidgetRectangularView: View {
                             .foregroundStyle(.primary)
                             .font(.caption)
                             .contentTransition(.numericText())
+                            .strikethrough(entry.isMuted)
                     }
                 }
                 .fontDesign(.rounded)
@@ -32,7 +33,7 @@ struct RemoteWidgetRectangularView: View {
             .invalidatableContent()
             .containerBackground(.bar, for: .widget)
             .disabled(entry.configuration.launchSpeaker)
-            .widgetURL(URL(string: "clic://device?id=\(room.id)"))
+            .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

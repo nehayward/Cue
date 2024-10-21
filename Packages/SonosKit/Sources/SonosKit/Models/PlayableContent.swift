@@ -11,7 +11,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     public let content: MediaContent
     public var metadata: PlayableContentMetadata?
 
-    public var trackID: String { content.id + (metadata?.position?.description ?? "") }
+    public var trackID: String { "\(content.id).\(metadata?.position?.description ?? "")" }
 
     public init(
         title: String,
@@ -247,12 +247,13 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
     }
 
     public static func == (lhs: PlayableContent, rhs: PlayableContent) -> Bool {
-        lhs.content == rhs.content && lhs.title == rhs.title
+        lhs.content == rhs.content && lhs.title == rhs.title && lhs.metadata?.position ?? 0 == rhs.metadata?.position ?? 0
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(content)
         hasher.combine(title)
+        hasher.combine(metadata?.position ?? 0)
     }
 }
 

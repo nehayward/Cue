@@ -26,18 +26,17 @@ struct ArtworkView: View {
                     Rectangle()
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
-                        .shadow(radius: 2)
                         .transition(.opacity)
                 } else {
                     Rectangle()
-                        .foregroundStyle(.accent.gradient.secondary)
+                        .foregroundStyle(.thickMaterial)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
                             if group.coordinatorRoom.track.artworkURL == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
-                                    .foregroundStyle(.regularMaterial)
+                                    .foregroundStyle(.foreground)
                                     .frame(width: placeholderSize, height: placeholderSize)
                             }
                         }

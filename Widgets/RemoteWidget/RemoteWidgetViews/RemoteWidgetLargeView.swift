@@ -16,17 +16,33 @@ struct RemoteWidgetLargeView: View {
                         .opacity(0.8)
                         .lineLimit(1)
                     Spacer()
-                    Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://group?id=\(room.id)")!) {
+                            Image("hifispeaker.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image("hifispeaker.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
-                    Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                    if entry.activeSubscription {
+                        Link(destination: URL(string: "clic://search?id=\(room.id)")!) {
+                            Image(systemName: "magnifyingglass.circle.fill")
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                    } else {
                         Image(systemName: "magnifyingglass.circle.fill")
                             .resizable()
                             .frame(width: 24, height: 24)
                             .bold()
+                            .opacity(0.5)
                     }
                     Button(intent: RefreshIntent()) {
                         Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
@@ -44,44 +60,63 @@ struct RemoteWidgetLargeView: View {
                     Text(theater.audioInputFormat.description)
                     HStack(spacing: 12) {
                         Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
-                            Label("Night Mode", systemImage: "moon.zzz")
+                            Label("Night Mode", systemImage: "moon.zzz.fill")
+                                .foregroundStyle(.accent)
+                                .widgetAccentable()
                         }
-                        .symbolVariant(theater.nightMode ? .fill : .none)
                         .labelStyle(.iconOnly)
-                        .contentShape(.circle)
                         .toggleStyle(.button)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .tint(.secondary)
-                        .background(theater.nightMode ? .primary : .tertiary, in: Capsule())
+                        .frame(width: 40, height: 40) // Makes it a perfect circle
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(.fill)
+                        )
+                        .opacity(theater.nightMode ? 1 : 0.4)
+                        .invalidatableContent()
 
                         Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
-                            Label("Speech Enhancement", systemImage: "person.wave.2")
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                .foregroundStyle(.accent)
+                                .widgetAccentable()
                         }
-                        .symbolVariant(theater.dialogLevel ? .fill : .none)
                         .labelStyle(.iconOnly)
                         .toggleStyle(.button)
-                        .contentShape(.circle)
-                        .foregroundStyle(.thickMaterial)
-                        .frame(width: 40, height: 40)
-                        .tint(.secondary)
-                        .background(theater.dialogLevel ? .primary : .tertiary, in: Capsule())
+                        .frame(width: 40, height: 40) // Makes it a perfect circle
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(.fill)
+                        )
+                        .opacity(theater.dialogLevel ? 1 : 0.4)
+                        .invalidatableContent()
                     }
                 } else {
                     HStack {
                         if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
                             Image(uiImage: image)
                                 .resizable()
+                                .backdeployedWidgetAccentedRenderingMode(.fullColor)
                                 .aspectRatio(contentMode: .fit)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 100, height: 100)
+                                .frame(width: 80, height: 80)
                                 .overlay(alignment: .bottomTrailing) {
                                     entry.playableContent?.content.service.icon
                                         .frame(width: 16, height: 16, alignment: .bottomLeading)
                                         .padding([.bottom, .trailing], 4)
                                 }
+                            //                        // MARK: For Screenshots
+                            //                        #if DEBUG
+                            //                        .overlay {
+                            //                            Rectangle()
+                            //                                .foregroundStyle(.regularMaterial)
+                            //                        }
+                            //                        #endif
+                        } else  {
+                            Rectangle()
+                                .foregroundStyle(.thickMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 80, height: 80)
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -117,8 +152,7 @@ struct RemoteWidgetLargeView: View {
                         .lineLimit(0, reservesSpace: true)
                         Spacer()
                     }
-                    Divider()
-                    ForEach(entry.playHistory.prefix(3)) { playHistory in
+                    ForEach(entry.playHistory.prefix(4)) { playHistory in
                         HStack {
                             Image(systemName: playHistory.content.type.symbol)
                                 .resizable()
@@ -128,6 +162,7 @@ struct RemoteWidgetLargeView: View {
                             VStack(alignment: .leading) {
                                 Text(playHistory.title)
                                 Text(playHistory.subtitle)
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                             .lineLimit(1)
@@ -135,6 +170,7 @@ struct RemoteWidgetLargeView: View {
                             Button(intent: PlayIntent(room: room, title: playHistory.title, id: playHistory.content.id, service: playHistory.content.service.sonosRawValue, type: playHistory.content.type.sonosRawValue)) {
                                 Image(systemName: "play.fill")
                                     .foregroundStyle(.accent)
+                                    .widgetAccentable()
                             }
                         }
                     }
@@ -144,6 +180,7 @@ struct RemoteWidgetLargeView: View {
             .frame(maxHeight: .infinity)
             .containerBackground(.widgetBackground, for: .widget)
             .fontDesign(.rounded)
+            .widgetURL(entry.activeSubscription ? URL(string: "clic://device?id=\(room.id)") : nil)
         } else {
             Label("No Wifi", systemImage: "wifi.slash")
                 .containerBackground(.secondary, for: .widget)

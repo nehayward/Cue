@@ -9,7 +9,6 @@ import NukeUI
 import VibesDS
 
 struct MediaDetailView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
@@ -66,7 +65,7 @@ struct MediaDetailView: View {
 //                ContentArtworkView(content: playableContent)
 //                    .frame(idealWidth: 320, idealHeight: 320)
             }
-            .frame(maxWidth: .infinity, minHeight: 300)
+            .frame(maxWidth: .infinity, minHeight: 300, maxHeight: 400)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
 

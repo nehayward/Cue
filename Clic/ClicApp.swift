@@ -33,6 +33,7 @@ struct ClicApp: App {
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    @CloudStorage("com.clic.plexToken") var plexToken: String = ""
 
     @State var selectedID: String?
     @State private var previousCount: Int = 0
@@ -138,6 +139,11 @@ struct ClicApp: App {
                 
                 // MARK: Configure NukeUI
                 configureNuke()
+                
+                // MARK: Sync Plex Token with Watch
+                if let key = UserDefaults.standard.string(forKey: "com.clic.plexToken") {
+                    plexToken = key
+                }
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)

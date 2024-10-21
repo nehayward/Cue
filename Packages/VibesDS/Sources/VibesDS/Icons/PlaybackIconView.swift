@@ -1,0 +1,33 @@
+import SwiftUI
+
+
+public struct PlaybackIconView: View {
+    var value: Double
+    var total: Double
+    var isPlaying: Bool
+    
+    public init(value: Double, total: Double, isPlaying: Bool) {
+        self.value = value
+        self.total = total
+        self.isPlaying = isPlaying
+    }
+    
+    public var body: some View {
+        VibeGaugeView(value: value, total: total, color: .accentColor, lineWidth: 2)
+            .overlay(alignment: .center) {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(isPlaying ? Color.accentColor : Color.accentColor.opacity(0.7))
+                    .contentTransition(.symbolEffect(.automatic))
+                    .frame(width: 12, height: 12, alignment: .center)
+                    .padding(.leading, !isPlaying ? 2 : 0)
+            }
+    }
+}
+
+
+#Preview {
+    PlaybackIconView(value: 12, total: 100, isPlaying: true)
+}
+

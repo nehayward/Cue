@@ -13,29 +13,42 @@ struct LargePlayerView: View {
 
     @Binding var group: GroupRoom
 
-    @State var isExpanded: Bool = false
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
     @State private var refreshID = UUID()
 
+    private var isMacCatalystOrPad: Bool {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return true
+        }
+#if targetEnvironment(macCatalyst)
+        return true
+        #else
+        return false
+        #endif
+    }
+    
     var body: some View {
         @Bindable var sonosService = sonosService
 
         VStack(alignment: .center) {
-            if !group.TVMode {
-                ArtworkView(group: $group)
-                    .cornerRadius(12)
-                    .padding(.bottom, 24)
-                    .draggable(group.coordinatorRoom.track.toPlayable)
-                    .shadow(radius: 10)
-                    .frame(maxWidth: 500)
-            }
-
             if group.TVMode {
-                Spacer()
+                Image(systemName: "tv")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                    .opacity(0.2)
+        
                 TVModeView()
+                Spacer()
             } else {
+                ArtworkView(group: $group)
+                    .padding(.bottom, 12)
+                    .shadow(radius: 10)
+                    .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                    .draggable(group.coordinatorRoom.track.toPlayable)
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
                     Text(stationName)
                         .multilineTextAlignment(.center)
@@ -50,51 +63,49 @@ struct LargePlayerView: View {
                     .bold()
                     .multilineTextAlignment(.center)
                     .fontDesign(.rounded)
+                    .font(.title2)
 
                 Text(group.coordinatorRoom.track.artist)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
-                    .padding(.bottom, isExpanded ? 20 : 40)
                     .fontDesign(.rounded)
+                    .font(.title3)
                     .frame(maxWidth: .infinity)
                     .lineLimit(1, reservesSpace: true)
 
                 playbackView()
                 Spacer()
                 mediaControlsView()
-            }
-            if !group.TVMode {
-                Spacer(minLength: 40)
+                Spacer()
             }
             VStack {
-                GroupVolumeControlView(group: $group, isExpanded: $isExpanded)
+                VolumeControlView(group: $group)
                     .padding(.bottom, 12)
+                    .frame(maxWidth: 500)
+
                 if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {
                     HStack(spacing: 0) {
                         Button {
                             router.presentedSheet = .groupScreen(group: group)
                         } label: {
-                            if group.TVMode {
-                                Image(systemName: "tv.and.hifispeaker.fill")
-                                    .fontDesign(.rounded)
-                            } else {
-                                Image(systemName: "hifispeaker")
+                            GroupIconView()
+                        }
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+                        
+                        if group.rooms.count > 1 {
+                            Spacer()
+                            Button {
+                                router.sheet(to: .volumeControlsScreen(groupID: group.coordinatorID))
+                            } label: {
+                                Label("Room Volume", systemImage: "speaker.wave.2.fill")
                                     .symbolRenderingMode(.hierarchical)
+                                    .labelStyle(.iconOnly)
                                     .fontDesign(.rounded)
                             }
+                            .buttonStyle(.plain)
+                            .imageScale(.large)
                         }
-                        .buttonStyle(.plain)
-                        .imageScale(.large)
-                        Spacer()
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.sheet(to: .browse(group: group))
-                        } label: {
-                            Image(systemName: "music.note.house")
-                                .fontDesign(.rounded)
-                        }
-                        .buttonStyle(.plain)
-                        .imageScale(.large)
                         Spacer()
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
@@ -106,46 +117,33 @@ struct LargePlayerView: View {
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
-
-                        if group.rooms.count > 1 {
-                            Spacer()
-                            Button {
-                                withAnimation(.bouncy(duration: 0.3)) {
-                                    isExpanded.toggle()
-                                }
-                            } label: {
-                                Label("Room Volume", systemImage: "speaker.wave.2.circle")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .labelStyle(.iconOnly)
-                                    .fontDesign(.rounded)
-                            }
-                            .buttonStyle(.plain)
-                            .imageScale(.large)
+                        Spacer()
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.sheet(to: .browse(group: group))
+                        } label: {
+                            Image(systemName: "music.note.house.fill")
+                                .fontDesign(.rounded)
                         }
+                        .buttonStyle(.plain)
+                        .imageScale(.large)
+
                         Spacer()
                         Button {
                             router.presentedSheet = .queue(group: $group)
                         } label: {
-                            Group {
-                                if group.playbackService == .queue {
-                                    Image(systemName: "list.bullet")
-                                } else {
-                                    Image("custom.list.bullet.slash")
-                                        .foregroundStyle(.secondary)
+                            QueueIconView(group: $group)
+                                .fontDesign(.rounded)
+                                .font(.title3)
+                                .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
+                                .overlay(alignment: .topTrailing) {
+                                    if isHoveringOnQueueList {
+                                        Image(systemName: "plus.circle.fill")
+                                            .offset(x: 12, y: -18)
+                                            .transition(.scale)
+                                            .foregroundStyle(.green)
+                                    }
                                 }
-                            }
-                            .contentTransition(.symbolEffect)
-                            .fontDesign(.rounded)
-                            .font(.title3)
-                            .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)
-                            .overlay(alignment: .topTrailing) {
-                                if isHoveringOnQueueList {
-                                    Image(systemName: "plus.circle.fill")
-                                        .offset(x: 12, y: -18)
-                                        .transition(.scale)
-                                        .foregroundStyle(.green)
-                                }
-                            }
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
@@ -159,64 +157,34 @@ struct LargePlayerView: View {
                             if group.playMode.contains(.shuffle) {
                                 Image(systemName: "shuffle.circle.fill")
                                     .symbolRenderingMode(.multicolor)
-                                    .foregroundStyle(.background)
-                                    .offset(x: 8, y: -8)
-                                    .shadow(radius: 2)
-                                    .environment(\.colorScheme, .dark)
+                                    .foregroundStyle(.black.secondary)
+                                    .offset(x: 10, y: -10)
                             } else if group.playMode.contains(.repeatAll){
                                 Image(systemName: "repeat.circle.fill")
                                     .symbolRenderingMode(.multicolor)
-                                    .foregroundStyle(.background)
-                                    .offset(x: 8, y: -8)
-                                    .shadow(radius: 2)
-                                    .environment(\.colorScheme, .dark)
+                                    .foregroundStyle(.black.secondary)
+                                    .offset(x: 10, y: -10)
                             } else if group.playMode.contains(.repeatOne){
                                 Image(systemName: "repeat.1.circle.fill")
                                     .symbolRenderingMode(.multicolor)
-                                    .foregroundStyle(.background)
-                                    .offset(x: 8, y: -8)
-                                    .shadow(radius: 2)
-                                    .environment(\.colorScheme, .dark)
+                                    .foregroundStyle(.black.secondary)
+                                    .offset(x: 10, y: -10)
                             }
                         }
-                    }
-                    .frame(maxWidth: 300)
-                    .padding(.horizontal, 38)
-                } else {
-                    if group.rooms.count > 1 {
-                        Button {
-                            withAnimation(.bouncy(duration: 0.3)) {
-                                isExpanded.toggle()
-                            }
-                        } label: {
-                            Label("Room Volume", systemImage: "speaker.wave.2.circle")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .fontDesign(.rounded)
-                        }
-                        .frame(maxWidth: 300)
-                        .padding(.horizontal, 60)
-                        .padding(.bottom, 24)
-                        .buttonStyle(.plain)
-                        .imageScale(.large)
                     }
                 }
             }
         }
         .frame(maxHeight: .infinity)
-        .padding()
         .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
-            if group.rooms.count < 2 {
-                isExpanded = false
-            }
         }
         .onDisappear {
             sonosService.selectedGroup = nil
         }
         .background {
             ArtworkView(group: $group)
-                .saturation(1.2)
+                .saturation(1.3)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.3)
                 .blur(radius: 60)
@@ -224,6 +192,7 @@ struct LargePlayerView: View {
                     Rectangle()
                         .foregroundStyle(.thinMaterial)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, -100)
                         .ignoresSafeArea()
                 }
                 .ignoresSafeArea()
@@ -248,7 +217,6 @@ struct LargePlayerView: View {
         }
         .dropDestinationPlay(on: group)
         .animation(.bouncy, value: group.playMode)
-        .ignoresSafeArea(.keyboard)
         .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
@@ -260,10 +228,13 @@ struct LargePlayerView: View {
             }
         }
         .environment(AlertService.shared)
+        .padding(.horizontal, 32)
+        .safeAreaPadding(.bottom)
+        .ignoresSafeArea(.keyboard)
     }
 
     private func playbackView() -> some View {
-        VStack {
+        VStack(spacing: 0) {
             if !group.coordinatorRoom.track.duration.isZero {
                 VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
                     Task { @MainActor in
@@ -365,9 +336,11 @@ struct LargePlayerView: View {
         VStack(alignment: .center) {
             if let settings = group.tvSettings {
                 Text(settings.audioInputFormat.description)
+                    .multilineTextAlignment(.center)
+                    .font(.title)
                     .bold()
             }
-            HStack {
+            HStack(spacing: 24) {
                 if let settings = Binding<TVSettings>($group.tvSettings) {
                     Button {
                         Task {
@@ -376,10 +349,12 @@ struct LargePlayerView: View {
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
+                            .font(.title)
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
                             .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
+                            .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
@@ -393,13 +368,16 @@ struct LargePlayerView: View {
                     } label: {
                         Label("Dialog Mode", systemImage: "person.wave.2.fill")
                             .symbolRenderingMode(.hierarchical)
+                            .font(.title)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
+                            .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
                     .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.dialogLevel.wrappedValue)
+                    
                 }
             }
         }
@@ -430,7 +408,7 @@ fileprivate struct DuaLipaContainer: View {
     var body: some View {
         NavigationStack {
             LargePlayerView(group: $group)
-                .environment(SonosService.shared)
+                .withEnvironments()
                 .environment(Router())
         }
         .colorScheme(.dark)
@@ -448,6 +426,21 @@ fileprivate struct DuaLipaContainer: View {
 #Preview("Theater") {
     TVContainer()
 }
+
+#Preview("Theater Music") {
+    @Previewable @State var group: GroupRoom = .garagePlusTheater
+    NavigationStack {
+        LargePlayerView(group: $group)
+            .environment(Router.main)
+            .task {
+                try? await SonosService.shared.load(useCache: true)
+                group = SonosService.shared.groups.first(where: { $0.ip == GroupRoom.theater.ip })!
+                print(group.nameWithCount)
+            }
+    }
+    .withEnvironments()
+}
+
 
 #Preview("Dua Lipa") {
     DuaLipaContainer()

@@ -1,5 +1,14 @@
 # 2024.40
 
++ Add tinting to watch complication
++ Indicate if speaker is muted in Widgets
++ Improve volume controls for multiple speakers
++ Fix tinting on Widgets
++ Fix Plex images not loading on Watch
++ Fix layout issue with settings screen on Sonoma
+
+# 2024.40
+
 + Added Apple Radio Stations
 + Improved Queue management.
 + Fixed an issue where Plex search wasn't showing results.

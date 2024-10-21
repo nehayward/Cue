@@ -26,7 +26,7 @@ struct PreferenceScreen: View {
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
 
-    @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -327,9 +327,7 @@ struct PreferenceScreen: View {
         .task {
             try? await subscriptionService.checkSubscription()
         }
-#if targetEnvironment(macCatalyst)
-        .frame(width: 800, height: 800)
-#endif
+        .customizeWindowSizeForMacOS15()
     }
 }
 

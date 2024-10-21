@@ -12,6 +12,7 @@ struct WatchWidgetsEntryView: View {
                 .symbolRenderingMode(.hierarchical)
                 .fontDesign(.rounded)
                 .font(.largeTitle)
+                .widgetAccentable()
         }
         .containerBackground(.foreground, for: .widget)
     }

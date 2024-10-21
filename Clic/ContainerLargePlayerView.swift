@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct ContainerLargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -27,11 +28,25 @@ struct ContainerLargePlayerView: View {
                             router.popover = .groupScreen(group: sonosService.sorted[group])
                         }
                     } label: {
-                        Image(systemName: "hifispeaker")
+                        GroupIconView()
                             .tint(.primary)
                     }
                     .withPopoverDestinations(popoverDestination: $router.popover)
                     .id(refreshID)
+                    
+                    Button {
+                        if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            router.volumePopover = .volumeControlsScreen(groupID: sonosService.sorted[groupID].coordinatorID)
+                        }
+                    } label: {
+                        Label("Room Volume", systemImage: "speaker.wave.2.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                            .fontDesign(.rounded)
+                            .tint(.primary)
+                    }
+                    .withPopoverDestinations(popoverDestination: $router.volumePopover)
+                    .tint(.primary)
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -56,7 +71,7 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "music.note.house")
+                        Image(systemName: "music.note.house.fill")
                             .tint(.primary)
                     }
                     .id(refreshID)
@@ -70,8 +85,10 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "list.bullet")
-                            .tint(.primary)
+                        if let id, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            QueueIconView(group: $sonosService.sorted[group])
+                                .tint(.primary)
+                        }
                     }
                     .id(refreshID)
                 }

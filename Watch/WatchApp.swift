@@ -15,6 +15,7 @@ struct WatchApp: App {
     @State private var popover = Popover.shared
 
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.clic.plexToken") var plexToken: String = ""
 
     var body: some Scene {
         WindowGroup {
@@ -34,6 +35,10 @@ struct WatchApp: App {
                     }
                     #endif
                     configureNuke()
+                    
+                    if !plexToken.isEmpty {
+                        UserDefaults.standard.set(plexToken, forKey: "com.clic.plexToken")
+                    }
                 }
         }
         .onChange(of: scenePhase) {

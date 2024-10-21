@@ -41,12 +41,12 @@ struct GroupScreen: View {
                                     }
                                 }
                                 Spacer()
-                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
+                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
                                     .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
+                                    .opacity(selections.contains(room.id) ? 1 : 0.4)
                             }
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .fontDesign(.rounded)
-                            .bold()
                         }
                         RoomVolumeView(room: $room, touchDelay: 0.05)
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
@@ -178,8 +178,10 @@ struct GroupScreen: View {
 }
 
 #Preview {
+    @Previewable @State var isPresented = true
+    
     Text("HERE")
-        .sheet(isPresented: .constant(true)) {
+        .sheet(isPresented: $isPresented) {
             GroupScreen(coordinatorID: GroupRoom.gym.coordinatorID, sheetDestination: .constant(nil))
                 .withEnvironments()
         }
