@@ -44,7 +44,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var isSoundbar: Bool {
         let keywords = ["Ray", "Beam", "Playbar", "Arc"]
         if let info {
-            return keywords.contains(where: info.modelName.contains)
+            return keywords.contains(where: info.modelDisplayName.contains)
         }
         return false
     }
@@ -130,6 +130,7 @@ extension Room: CustomStringConvertible {
 extension Room {
     public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
     public static let gym = Room(id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
-    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"), info: .init(modelName: "Arc", modelNumber: "", seriesID: "", manufacturer: ""))
+    public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"))
+    public static let livingRoom = Room(id: "RINCON_949F3E6FBAE401400", ip: "192.168.4.48", name: "Living Room")
     public static let garage_kitchen_display = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Kitchen")
 }

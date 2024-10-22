@@ -955,23 +955,6 @@ final class XMLParserSonos {
         return updateID ?? "0"
     }
 
-    func parseDeviceInfo(xml: String) -> DeviceInfo? {
-        let xmlParsed = XMLHash.parse(xml)
-        let deviceXML = xmlParsed["root"]["device"]
-
-        guard let modelName = deviceXML["modelName"].element?.text,
-              let modelNumber = deviceXML["modelNumber"].element?.text,
-              let manufacturer = deviceXML["manufacturer"].element?.text,
-              let seriesID = deviceXML["seriesid"].element?.text else { return nil }
-
-        return DeviceInfo(
-            modelName: modelName,
-            modelNumber: modelNumber,
-            seriesID: seriesID,
-            manufacturer: manufacturer
-        )
-    }
-
     // MARK: Alarm Clock
     func parseAlarmClockList(from xml: String) -> [Alarm] {
         let xmlParsed = XMLHash.parse(xml)

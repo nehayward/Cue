@@ -1,4 +1,8 @@
-# 2024.40
+# 2024.42
+
++ Improve Preference Screen
+
+# 2024.41
 
 + Add tinting to watch complication
 + Indicate if speaker is muted in Widgets

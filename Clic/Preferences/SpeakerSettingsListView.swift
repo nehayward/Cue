@@ -14,14 +14,29 @@ struct SpeakerSettingsListView: View {
     var body: some View {
         List {
             ForEach(sonosService.sortedRooms) { room in
-                NavigationLink(room.name, value: RouterDestination.speakerSettings(room: room))
+                NavigationLink(value: RouterDestination.speakerSettings(room: room)) {
+                    HStack {
+                        Image(systemName: "circle.square.fill")
+                            .foregroundStyle((room.info?.color ?? "") == "Black" ? .black : .white, .quaternary)
+                        Text(room.name)
+                        if let info = room.info {
+                            Text("(\(info.modelDisplayName))")
+                        }
+                    }
+                }
             }
         }
         .navigationTitle("Speaker Settings")
         .toolbarTitleDisplayMode(.inline)
+        .task {
+            sonosService.monitor()
+        }
     }
 }
 
 #Preview {
-    SpeakerSettingsListView()
+    NavigationStack {
+        SpeakerSettingsListView()
+    }
+    .withEnvironments()
 }

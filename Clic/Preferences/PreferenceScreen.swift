@@ -10,24 +10,24 @@ import RevenueCatUI
 
 struct PreferenceScreen: View {
     @Environment(\.dismiss) var dismiss
-
+    
     @Environment(SonosService.self) var sonosService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
-
-
+    
+    
     @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
     @State private var refreshSonosLibrary = false
-
+    
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-
+    
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
-
+    
     var body: some View {
         @Bindable var sonosService = sonosService
         NavigationStack {
@@ -45,8 +45,23 @@ struct PreferenceScreen: View {
                                 showManageSubscriptions = true
                                 Analytics.shared.track(.viewedManageSubscription)
                             } label: {
-                                Text("Manage Subscription")
+                                Label {
+                                    Text("Clic Super")
+                                } icon: {
+                                    Image("clic.icon")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .foregroundStyle(.white)
+                                        .padding(8)
+                                        .frame(width: 32, height: 32)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .foregroundStyle(.black)
+                                        )
+                                }
                             }
+                            .tint(.primary)
+                            
                             if let info = subscriptionService.subscription.info, let expiration = info.expirationDate {
                                 if info.willRenew {
                                     Text("Renews \(Text(expiration, style: .date))")
@@ -60,7 +75,10 @@ struct PreferenceScreen: View {
                             }
                         }
                     }
+                } header: {
+                    Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
+                
                 if UIApplication.shared.isRunningInTestFlightEnvironment() {
                     Section {
                         NavigationLink("Logs") {
@@ -87,39 +105,106 @@ struct PreferenceScreen: View {
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                 }
-
+                
                 Section {
-                    LabeledContent("System") {
-                        Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
+                    Label {
+                        HStack {
+                            Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
+                            Spacer()
+                            Image(systemName: "circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(!sonosService.sonosPulse.isCancelled ? .green : .red)
+                                .shadow(color: !sonosService.sonosPulse.isCancelled ? .green : .red, radius: 2, x: 0, y: 0)
+                        }
+                    } icon: {
+                        Image(systemName: "wifi")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.black)
+                            )
                     }
-                    NavigationLink(value: RouterDestination.houseHold) {
-                        Label("Households", systemImage: "house")
-                            .foregroundStyle(.primary)
-                    }
+                    
                     NavigationLink(value: RouterDestination.speakerSettingsList) {
-                        Label("Speaker Settings", systemImage: "hifispeaker")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text("Speaker Settings")
+                        } icon: {
+                            Image(systemName: "hifispeaker.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.black)
+                                )
+                        }
                     }
+                    
                     NavigationLink(value: RouterDestination.alarms) {
-                        Label("Alarms", systemImage: "alarm")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text("Alarms")
+                        } icon: {
+                            Image(systemName: "alarm.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.orange)
+                                )
+                        }
+                    }
+                    
+                    NavigationLink(value: RouterDestination.houseHold) {
+                        Label {
+                            Text("Switch Households")
+                        } icon: {
+                            Image(systemName: "house.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.blue)
+                                )
+                        }
                     }
                     
                     Button {
                         Task {
-                            alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise.circle")
+                            alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise")
                             await sonosService.refreshLibrary()
                         }
                     } label: {
                         Label {
                             Text("Refresh Sonos Library")
                         } icon: {
-                            Image(systemName: "arrow.clockwise.circle")
+                            Image(systemName: "arrow.clockwise")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.blue)
+                                )
                         }
                     }
-                } header: {
-                    Text("Sonos System")
+                    .tint(.primary)
                 }
+                
                 Section {
                     NavigationLink {
                         List {
@@ -140,7 +225,7 @@ struct PreferenceScreen: View {
                             } footer: {
                                 Text("Requires authorization in the Sonos app.")
                             }
-
+                            
                             Section {
                                 Button {
                                     router.presentedSheet = .plexManagement
@@ -167,7 +252,7 @@ struct PreferenceScreen: View {
                             } footer: {
                                 Text("Requires authorization in the **Sonos app** and **Clic**")
                             }
-
+                            
                             Toggle(isOn: $coreFeatures.nowPlaying) {
                                 HStack {
                                     Image(.nowPlayingAppIcon)
@@ -194,58 +279,142 @@ struct PreferenceScreen: View {
                                 }
                             }
                         } label: {
-                            Text("Services")
+                            Label {
+                                Text("Services")
+                            } icon: {
+                                Image(systemName: "music.quarternote.3")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .bold()
+                                    .padding(8)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .foregroundStyle(.accent)
+                                    )
+                            }
                         }
                     }
                     NavigationLink(value: RouterDestination.manageScenes) {
-                        LabeledContent("Scenes") {
-                            Text("Manage scenes")
+                        Label {
+                            HStack {
+                                Text("Scenes")
+                                Spacer()
+                                Text("Super")
+                                    .font(.caption)
+                                    .textCase(.uppercase)
+                                    .padding(4)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(.secondary, lineWidth: 1)
+                                    )
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "bolt.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(Color.teal)
+                                )
                         }
-                    }
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        Toggle(isOn: $isCompact) {
-                            Text("Compact Live Activities")
-                            Text("Removes volumes controls and reduces size of Live Activities")
-                        }
-                        .tint(.accent)
-                    }
-
-                    if UIDevice.current.userInterfaceIdiom == .phone {
-                        Toggle(isOn: $autoLaunchNowPlaying) {
-                            Text("Auto launch to Group/Room playing on watch")
-                            Text("Instantly jump to the group currently playing.")
-                        }
-                        .tint(.accent)
-                    }
-#endif
+                    }.disabled(!subscriptionService.subscription.isActive)
                 }
-
-
-//                Section {
-//                    Toggle(isOn: $betaFeatures.tidalFeature) {
-//                        HStack {
-//                            MediaSearchService.tidal.icon
-//                                .frame(width: 24, height: 24)
-//                            VStack(alignment: .leading) {
-//                                Text(MediaSearchService.tidal.title)
-//                                Text("Search and play songs, albums, and artists (requires Tidal authorization in the Sonos app).")
-//                                    .font(.caption)
-//                                    .foregroundStyle(.secondary)
+                
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
+                Section {
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
+                        Label {
+                            Toggle(isOn: $isCompact) {
+                                Text("Compact Live Activities")
+                            }
+                            .tint(.accent)
+                        } icon: {
+                            Image(systemName: "widget.medium")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(Color.indigo)
+                                )
+                        }
+                    }
+                } footer: {
+                    Text("Removes volumes controls and reduces size of Live Activities")
+                }
+#endif
+                
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
+                Section {
+                    if UIDevice.current.userInterfaceIdiom == .phone {
+//                        NavigationLink {
+//                            Form {
+//                                Toggle(isOn: $autoLaunchNowPlaying) {
+//                                    Text("Auto launch to Group/Room playing on watch")
+//                                    Text("Instantly jump to the group currently playing.")
+//                                }
+//                                .tint(.accent)
 //                            }
-//                        }
-//                    }
-//                    .tint(.accent)
-//                    .onChange(of: betaFeatures.tidalFeature) {
-//                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
-//                    }
-//                } header: {
-//                    Text("Beta 👾")
-//                } footer: {
-//                    Text("Requires Subscription")
-//                }
-//                .disabled(!subscriptionService.subscription.isActive)
+//                        } label: {
+                            Label {
+                                Toggle(isOn: $autoLaunchNowPlaying) {
+                                    Text("Auto Launch Watch")
+                                }
+                                .tint(.accent)
+                            } icon: {
+                                Image(systemName: "applewatch")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .bold()
+                                    .padding(8)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .foregroundStyle(.blue)
+                                    )
+                            }
+                    }
 
+                } footer: {
+                    Text("Instantly jump to the group currently playing.")
+                }
+#endif
+                
+                //                Section {
+                //                    Toggle(isOn: $betaFeatures.tidalFeature) {
+                //                        HStack {
+                //                            MediaSearchService.tidal.icon
+                //                                .frame(width: 24, height: 24)
+                //                            VStack(alignment: .leading) {
+                //                                Text(MediaSearchService.tidal.title)
+                //                                Text("Search and play songs, albums, and artists (requires Tidal authorization in the Sonos app).")
+                //                                    .font(.caption)
+                //                                    .foregroundStyle(.secondary)
+                //                            }
+                //                        }
+                //                    }
+                //                    .tint(.accent)
+                //                    .onChange(of: betaFeatures.tidalFeature) {
+                //                        musicSearchSelection = betaFeatures.tidalFeature ? .tidal : .apple
+                //                    }
+                //                } header: {
+                //                    Text("Beta 👾")
+                //                } footer: {
+                //                    Text("Requires Subscription")
+                //                }
+                //                .disabled(!subscriptionService.subscription.isActive)
+                
                 // MARK: Disable until fixed later for app review.
                 //                Section {
                 //                    Picker(selection: $selectedAppIcon, label: EmptyView()) {
@@ -295,15 +464,34 @@ struct PreferenceScreen: View {
                 //                }
                 //                .disabled(!subscriptionService.subscription.isActive)
                 Section {
-                    let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
-                    Link("Support hi@clic.dance", destination: URL(string: message)!)
-                        .tint(.accent)
+                    //                    let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
+                    Label {
+                        HStack {
+                            Link("Support hi@clic.dance", destination: URL(string: "message")!)
+                                .tint(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.forward")
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "questionmark")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.yellow)
+                            )
+                    }
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
-                        Text(Purchases.shared.appUserID)
-                            .textSelection(.enabled)
-                            .scaledToFit()
+                        //                        Text(Purchases.shared.appUserID)
+                        //                            .textSelection(.enabled)
+                        //                            .scaledToFit()
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -311,12 +499,9 @@ struct PreferenceScreen: View {
             .navigationTitle("Preferences")
             .navigationBarTitleDisplayMode(.inline)
             .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
-            //            .sheet(isPresented: $showSubscriptions) {
-            //                SubscriptionDetailScreen()
-            //                    .environment(subscriptionService)
-            //            }
             .withAppRouter()
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+            .environment(\.defaultMinListHeaderHeight, 0)
             .addDismiss {
                 dismiss()
             }
@@ -327,6 +512,11 @@ struct PreferenceScreen: View {
         .task {
             try? await subscriptionService.checkSubscription()
         }
+        .onAppear {
+            if OSEnvironment.isPreviews {
+                sonosService.monitor()
+            }
+        }
         .customizeWindowSizeForMacOS15()
     }
 }
@@ -336,8 +526,6 @@ struct PreferenceScreen: View {
     Text("Preference")
         .sheet(isPresented:.constant(true)) {
             PreferenceScreen()
-                .environment(SonosService.shared)
-                .environment(SubscriptionService.shared)
+                .withEnvironments()
         }
-
 }

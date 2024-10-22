@@ -14,14 +14,16 @@ struct HouseholdScreen: View {
     var body: some View {
         List {
             ForEach(Array(houseHoldsIPs), id: \.self) { ip in
-                Button {
-                    Task {
-                        sonosService.preferredHouseHold = await sonosService.getHouseID(for: ip)
-                        alertService.showAlert(with: "Set Preferred Household")
-                        try? await sonosService.load(useCache: false)
+                Section(header: Spacer(minLength: 0)) {
+                    Button {
+                        Task {
+                            sonosService.preferredHouseHold = await sonosService.getHouseID(for: ip)
+                            alertService.showAlert(with: "Set Preferred Household")
+                            try? await sonosService.load(useCache: false)
+                        }
+                    } label: {
+                        Text("\(roomsForIP[ip] ?? "")")
                     }
-                } label: {
-                    Text("\(roomsForIP[ip] ?? "")")
                 }
             }
         }
@@ -35,19 +37,26 @@ struct HouseholdScreen: View {
                     print("Failed")
                     return
                 }
-                roomsForIP[ip] = group.flatMap(\.rooms).map(\.name).joined(separator: ", ")
+                roomsForIP[ip] = group
+                    .flatMap(\.rooms)
+                    .map(\.name)
+                    .joined(separator: "\n")
             }
         }
         .navigationTitle("Households")
+        .navigationBarTitleDisplayMode(.inline)
         .overlay {
             if !isLoaded {
                 ProgressView()
             }
         }
+        .environment(\.defaultMinListHeaderHeight, 0)
     }
 }
 
 #Preview {
-    HouseholdScreen()
-        .environment(SonosService.shared)
+    NavigationStack {
+        HouseholdScreen()
+            .withEnvironments()
+    }
 }

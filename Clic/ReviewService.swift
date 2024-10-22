@@ -28,7 +28,7 @@ final class ReviewCoordinator {
             return
         }
 
-        //         If the count has not yet been stored, this will return 0
+        //  If the count has not yet been stored, this will return 0
         var count = UserDefaults.standard.integer(forKey: UserDefaultsKeys.processCompletedCountKey)
         count += 1
         UserDefaults.standard.set(count, forKey: UserDefaultsKeys.processCompletedCountKey)
@@ -38,7 +38,7 @@ final class ReviewCoordinator {
         debugPrint("\(self.identifier) | lastVersionPromptedForReview \(lastVersionPromptedForReview)")
 
         // Has the process been completed several times and the user has not already been prompted for this version?
-        if count >= 0 && currentVersion != lastVersionPromptedForReview {
+        if count >= 3 && currentVersion != lastVersionPromptedForReview {
             debugPrint("\(self.identifier) | valid review request")
             if let scene = UIApplication
                 .shared

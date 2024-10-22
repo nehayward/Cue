@@ -16,7 +16,7 @@ struct SpeakerSettingsView: View {
                     } label: {
                         Text("Bass")
                     }
-
+                    
                     Slider(value: $room.settings.bass, in: -10...10, step: 1) {
                         Text("Bass")
                     } minimumValueLabel: {
@@ -30,24 +30,24 @@ struct SpeakerSettingsView: View {
                             await sonosService.setBass(room: room)
                         }
                     }
-                    #if !os(visionOS)
+#if !os(visionOS)
                     .sensoryFeedback(.impact, trigger: room.settings.bass)
-                    #endif
+#endif
                 }
-
+                
                 VStack {
                     LabeledContent {
                         Text(room.settings.treble, format: .number)
                     } label: {
                         Text("Treble")
                     }
-
+                    
                     Slider(value: $room.settings.treble, in: -10...10, step: 1) {
                         Text("Bass")
                     } minimumValueLabel: {
                         Text("-10")
                             .foregroundStyle(.secondary)
-
+                        
                     } maximumValueLabel: {
                         Text("10")
                             .foregroundStyle(.secondary)
@@ -56,11 +56,11 @@ struct SpeakerSettingsView: View {
                             await sonosService.setTreble(room: room)
                         }
                     }
-                    #if !os(visionOS)
+#if !os(visionOS)
                     .sensoryFeedback(.impact, trigger: room.settings.treble)
-                    #endif
+#endif
                 }
-
+                
                 Toggle(isOn: $room.settings.loudness) {
                     Text("Loudness")
                 }.onChange(of: room.settings.loudness) { oldValue, newValue in
@@ -70,7 +70,7 @@ struct SpeakerSettingsView: View {
                         }
                     }
                 }
-
+                
                 LabeledContent {
                     if room.settings.truePlay {
                         Text("Enabled")
@@ -82,8 +82,8 @@ struct SpeakerSettingsView: View {
                 } label: {
                     Text("Trueplay")
                 }
-            } header: {
-                LabeledContent("EQ") {
+
+//                LabeledContent("EQ") {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         Task {
@@ -91,18 +91,16 @@ struct SpeakerSettingsView: View {
                             room.settings = await sonosService.getSpeakerSettings(room: room)
                         }
                     } label: {
-                        Label("Reset", systemImage: "arrow.counterclockwise")
-                            .labelStyle(.iconOnly)
+                        Text("Restore to Default")
                     }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.circle)
-                }
+                    .tint(.red)
+//                }
             }
-
+            
             if room.isSoundbar {
                 Section {
                     Text(room.theaterSettings.audioInputFormat.description)
-
+                    
                     Toggle(isOn: $room.theaterSettings.nightMode) {
                         Text("Night Mode")
                     }
@@ -113,7 +111,7 @@ struct SpeakerSettingsView: View {
                             }
                         }
                     }
-
+                    
                     Toggle(isOn: $room.theaterSettings.dialogLevel) {
                         Text("Speech Enhancement")
                     }
@@ -128,7 +126,7 @@ struct SpeakerSettingsView: View {
                     Text("Home Theater")
                 }
                 .listSectionSpacing(12)
-
+                
                 Section {
                     Toggle(isOn: $room.theaterSettings.isSurroundEnable) {
                         Text("Surround Enabled")
@@ -139,7 +137,7 @@ struct SpeakerSettingsView: View {
                             }
                         }
                     }
-
+                    
                     VStack {
                         LabeledContent {
                             Text(room.theaterSettings.surroundLevel, format: .number)
@@ -149,7 +147,7 @@ struct SpeakerSettingsView: View {
                         } label: {
                             Text("TV Level")
                         }
-
+                        
                         Slider(value: $room.theaterSettings.surroundLevel, in: EQType.surroundLevel.range, step: 1) {
                             Text("TV Level")
                         } minimumValueLabel: {
@@ -163,11 +161,11 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .surroundLevel, value: Int(room.theaterSettings.surroundLevel))
                             }
                         }
-                        #if !os(visionOS)
+#if !os(visionOS)
                         .sensoryFeedback(.impact, trigger: room.theaterSettings.surroundLevel)
-                        #endif
+#endif
                     }
-
+                    
                     VStack {
                         LabeledContent {
                             Text(room.theaterSettings.musicSurroundLevel, format: .number)
@@ -177,7 +175,7 @@ struct SpeakerSettingsView: View {
                         } label: {
                             Text("Music Level")
                         }
-
+                        
                         Slider(value: $room.theaterSettings.musicSurroundLevel, in: EQType.musicSurroundLevel.range, step: 1) {
                             Text("Music Level")
                         } minimumValueLabel: {
@@ -191,9 +189,9 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .musicSurroundLevel, value: Int(room.theaterSettings.musicSurroundLevel))
                             }
                         }
-                        #if !os(visionOS)
+#if !os(visionOS)
                         .sensoryFeedback(.impact, trigger: room.theaterSettings.musicSurroundLevel)
-                        #endif
+#endif
                     }
                     VStack(alignment: .leading) {
                         Text("Music Playback")
@@ -216,7 +214,7 @@ struct SpeakerSettingsView: View {
                     }
                 }
                 .listSectionSpacing(12)
-
+                
                 Section {
                     VStack {
                         LabeledContent {
@@ -227,13 +225,13 @@ struct SpeakerSettingsView: View {
                         } label: {
                             Text("Height Level")
                         }
-
+                        
                         Slider(value: $room.theaterSettings.heightChannel, in: EQType.heightChannelLevel.range, step: 1) {
                             Text("Height Level")
                         } minimumValueLabel: {
                             Text(EQType.heightChannelLevel.range.lowerBound, format: .number)
                                 .foregroundStyle(.secondary)
-
+                            
                         } maximumValueLabel: {
                             Text(EQType.heightChannelLevel.range.upperBound, format: .number)
                                 .foregroundStyle(.secondary)
@@ -242,16 +240,16 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .heightChannelLevel, value: Int(room.theaterSettings.heightChannel))
                             }
                         }
-                        #if !os(visionOS)
+#if !os(visionOS)
                         .sensoryFeedback(.impact, trigger: room.theaterSettings.heightChannel)
-                        #endif
+#endif
                     }
                 } footer: {
                     Text("This setting is used when playing spatial audio with height channels, like Dolby Atmos. It adjusts the volume of the height channels to account for ceiling height. For high ceilings, a higher setting (+10) is recommended. Many users prefer +5 to +10 for a more noticeable height effect, regardless of ceiling height.")
                 }
                 .listSectionSpacing(12)
             }
-
+            
             if room.subs.count > 0 {
                 Section {
                     Toggle(isOn: $room.theaterSettings.isSubEnabled) {
@@ -269,13 +267,13 @@ struct SpeakerSettingsView: View {
                         } label: {
                             Text("Sub Level")
                         }
-
+                        
                         Slider(value: $room.theaterSettings.subGain, in: EQType.subGain.range, step: 1) {
                             Text("Sub Level")
                         } minimumValueLabel: {
                             Text(EQType.subGain.range.lowerBound, format: .number)
                                 .foregroundStyle(.secondary)
-
+                            
                         } maximumValueLabel: {
                             Text(EQType.subGain.range.upperBound, format: .number)
                                 .foregroundStyle(.secondary)
@@ -284,24 +282,28 @@ struct SpeakerSettingsView: View {
                                 await sonosService.setEQ(room: room, eq: .subGain, value: Int(room.theaterSettings.subGain))
                             }
                         }
-                        #if !os(visionOS)
+#if !os(visionOS)
                         .sensoryFeedback(.impact, trigger: room.theaterSettings.heightChannel)
-                        #endif
+#endif
                     }
                 }
             }
-
+            
             Section {
                 Text(room.ip)
                     .textSelection(.enabled)
                 // MARK: Add Back
-                //                    if let channelMap = room.channelMap {
-                //                        Text(channelMap)
-                //                    }
-                if let info = room.info {
-                    Text(info.modelName)
+                if let channelMap = room.channelMap {
+                    Text(channelMap)
                 }
-
+                
+                if let channelMap = room.satChannelMap {
+                    Text(channelMap)
+                }
+                if let info = room.info {
+                    Text(info.modelDisplayName)
+                }
+                
                 if let battery = room.battery {
                     HStack {
                         Text("Battery")
@@ -325,10 +327,10 @@ struct SpeakerSettingsView: View {
         .toolbarTitleDisplayMode(.inline)
         .navigationTitle(room.name)
         .task {
+            room.info = await sonosService.info(room: room)
             room.settings = await sonosService.getSpeakerSettings(room: room)
             room.theaterSettings = await sonosService.getTheaterSettings(room: room)
         }
-        .listStyle(.insetGrouped)
         .headerProminence(.increased)
         .fontDesign(.rounded)
         .addDismiss(action: dismiss.callAsFunction)
@@ -336,20 +338,27 @@ struct SpeakerSettingsView: View {
 }
 
 #Preview {
-    Text("SoundView")
-        .sheet(isPresented: .constant(true)) {
-            SpeakerSettingsView(room: .gym)
-                .environment(SonosService.shared)
-        }
+    NavigationStack {
+        SpeakerSettingsView(room: .gym)
+            .environment(SonosService.shared)
+    }
 }
 
 #Preview("Theater") {
     Text("Theater")
         .sheet(isPresented: .constant(true)) {
-            SpeakerSettingsView(room: .theater)
-                .environment(SonosService.shared)
-                .presentationDetents([.large])
-
+            NavigationStack {
+                SpeakerSettingsView(room: .theater)
+                    .environment(SonosService.shared)
+                    .presentationDetents([.large])
+            }
         }
+}
+
+#Preview("Living Room") {
+    NavigationStack {
+        SpeakerSettingsView(room: .livingRoom)
+            .environment(SonosService.shared)
+    }
 
 }

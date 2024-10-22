@@ -19,8 +19,7 @@ struct PillView: View {
                 .bold()
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(Capsule().foregroundStyle(.thickMaterial))
-                .shadow(radius: 5)
+                .background(Capsule().foregroundStyle(.thickMaterial).shadow(radius: 12))
                 .transition(.move(edge: .top).combined(with: .opacity).combined(with: .scale(alertService.alert.isShowing ? 0.8 : 1)))
                 .animation(.bouncy, value: alertService.alert.isShowing)
                 .zIndex(1) // Ensure it appears above other content

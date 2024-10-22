@@ -1491,6 +1491,10 @@ public final class SonosService {
     }
 
     // MARK: - Speaker Settings
+    public func info(room: Room) async -> DeviceInfo? {
+        await api.deviceInfo(IP: room.ip)
+    }
+    
     public func getSpeakerSettings(room: Room) async -> SpeakerSettings {
         async let bass = api.getBass(ipAddress: room.ip) ?? 0
         async let treble = api.getTreble(ipAddress: room.ip) ?? 0
@@ -1587,7 +1591,7 @@ public final class SonosService {
         let allRooms = groups.flatMap(\.rooms)
         guard let room = allRooms.first(where: { $0.ethernetEnabled }) else {
             let filteredRooms = allRooms.filter { room in
-                guard let modelName = room.info?.modelName.lowercased() else { return false }
+                guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
                 let notTheseModels = ["roam", "move"]
                 return notTheseModels.filter { modelName.contains($0) }.count == 0
             }

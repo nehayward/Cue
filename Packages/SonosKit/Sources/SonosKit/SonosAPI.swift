@@ -1042,16 +1042,22 @@ final class SonosAPI: NSObject {
         }
     }
 
-    // TODO: Implement
     func deviceInfo(IP: String) async -> DeviceInfo? {
-        guard let url = URL(string: "http://\(IP):1400/xml/device_description.xml") else { return nil }
+        guard let url = URL(string: "http://\(IP):1400/info") else { return nil }
         let request = URLRequest(url: url)
         guard let (data, response) = try? await session.data(for: request) else { return nil }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
         }
-        let xml = String(decoding: data, as: UTF8.self)
-        return xmlParser.parseDeviceInfo(xml: xml)
+        
+        do {
+            let discoveryInfo = try decoder.decode(DiscoveryInfo.self, from: data)
+            return discoveryInfo.device
+        } catch {
+            print("Error decoding JSON: \(error)")
+        }
+        
+        return nil
     }
 
     func createSoapRequest(ip: String, action: String, arguments: [String: Any], endpoint: String) -> URLRequest? {
