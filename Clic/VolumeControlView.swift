@@ -32,8 +32,14 @@ struct VolumeControlView: View {
             }
             .buttonStyle(.plain)
             .padding(.trailing)
+            .hoverEffect(.automatic)
 
             VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
+                    sonosService.isEditing = isEditing
+                }
+                
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)
@@ -44,7 +50,6 @@ struct VolumeControlView: View {
                 updateVolume(volume: group.groupVolume)
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                    print(isEditing)
                     group.isEditingVolume = isEditing
                 }
             }

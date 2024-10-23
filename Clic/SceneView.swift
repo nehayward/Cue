@@ -62,33 +62,32 @@ struct SceneView: View {
                             }
                         }
                         .padding(.vertical)
-                    } else {
-                        NavigationLink {
-                            SceneBuilderScreen()
-                                .onAppear {
-                                    withAnimation {
-                                        presentationDetentSelection = .large
-                                    }
-                                }
-                        } label: {
-                            //                            Button {
-                            //                                HapticManager.shared.fireHaptic(.buttonPress)
-                            //                                show = true
-                            //                            } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title)
-                            //                            }
-                            //                            .bold()
-                            //                            .foregroundStyle(Color.accentColor.gradient)
-                        }
                     }
                 }
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
             }
-            .contentMargins(.leading, 12, for: .scrollContent)
             .navigationTitle("Scenes")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SceneBuilderScreen()
+                            .onAppear {
+                                withAnimation {
+                                    presentationDetentSelection = .large
+                                }
+                            }
+                    } label: {
+                        //                            Button {
+                        //                                HapticManager.shared.fireHaptic(.buttonPress)
+                        //                                show = true
+                        //                            } label: {
+                        Image(systemName: "plus")
+                        //                            }
+                        //                            .bold()
+                        //                            .foregroundStyle(Color.accentColor.gradient)
+                    }
+                }
+            }
             //            .navigationDestination(for: Set<String>.self) { ids in
             //                SceneBuilderScreen(sheetDestination: .constant(nil))
             //            }
@@ -105,42 +104,48 @@ struct SceneView: View {
             }
         }
         .presentationDetents([.medium, .large], selection: $presentationDetentSelection)
-        .presentationBackground(.ultraThinMaterial.secondary)
         .presentationDragIndicator(.hidden)
-
     }
 }
 
 #Preview {
-    SceneView(
-        scenes: [SonosScene(
-            id: UUID(),
-            name: "Test",
-            rooms: [SceneRoom(
-                id: "",
-                ip: "",
-                name: "Garage",
-                volume: 10
-            )]
-        )]
-    )
-    .environment(SonosService())
-    .environment(AlertService())
-    .padding()
-    .frame(maxHeight: .infinity, alignment: .bottom)
+    Text("")
+        .sheet(isPresented: .constant(true)) {
+            SceneView(
+                scenes: [SonosScene(
+                    id: UUID(),
+                    name: "Garage",
+                    rooms: [SceneRoom(
+                        id: "",
+                        ip: "",
+                        name: "Garage",
+                        volume: 10
+                    )],
+                    playableContent: PlayableContent(
+                        title: "Cold Heart - PNAU Remix",
+                        subtitle: "Elton John, Dua Lipa, PNAU",
+                        thumbnail: URL(
+                            string: "https://i.scdn.co/image/ab67616d00004851523458c391fe8180a19a1069"
+                        ),
+                        artwork: URL(
+                            string: "https://i.scdn.co/image/ab67616d0000b273523458c391fe8180a19a1069"
+                        ),
+                        content: MediaContent(service: MusicService.spotify, id: "7rglLriMNBPAyuJOMGwi39", type: .track, location: URL(string:"https://open.spotify.com/track/7rglLriMNBPAyuJOMGwi39"))
+                    )
+                )]
+            )
+            .environment(SonosService())
+            .environment(AlertService())
+            .padding()
+            .frame(maxHeight: .infinity, alignment: .bottom)
+        }
 }
 
-#Preview {
+#Preview("Empty") {
     SceneView(
         scenes: []
     )
     .environment(SonosService())
     .environment(AlertService())
     .padding()
-}
-
-#Preview("Empty") {
-    SceneView(scenes: [])
-        .environment(SonosService())
-        .environment(AlertService())
 }

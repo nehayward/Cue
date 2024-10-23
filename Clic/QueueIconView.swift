@@ -24,5 +24,6 @@ struct QueueIconView: View {
         }
         .animation(.spring, value: group.coordinatorRoom.track.position)
         .fontDesign(.rounded)
+        .frame(width: 24, height: 24)
     }
 }

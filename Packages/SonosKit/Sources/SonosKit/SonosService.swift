@@ -753,6 +753,10 @@ public final class SonosService {
         room.isMuted = mute
         await api.setRoomMute(IP: room.ip, mute: mute)
     }
+    
+    public func setRoomMute(IP: String, mute: Bool) async {
+        await api.setRoomMute(IP: IP, mute: mute)
+    }
 
     public func setGroupVolume(ip: String, volume: Int) async {
         await api.setGroupVolume(IP: ip, volume: volume)
@@ -1165,6 +1169,7 @@ public final class SonosService {
         let rooms = scene.rooms[1...].map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
         for room in scene.rooms {
             await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+            await setRoomMute(IP: room.ip, mute: false)
         }
 
         if rooms.isEmpty {

@@ -1,6 +1,8 @@
 # 2024.42
 
 + Improve Preference Screen
++ Fix volume control delays on Sequoia 
++ Fix scenes not unmuting when running
 
 # 2024.41
 

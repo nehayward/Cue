@@ -34,6 +34,5 @@ public struct VibeGaugeView: View {
                     .animation(.spring, value: value)
             }
         }
-        .frame(width: 24, height: 24)
     }
 }

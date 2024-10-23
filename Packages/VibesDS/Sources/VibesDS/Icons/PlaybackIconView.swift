@@ -23,6 +23,7 @@ public struct PlaybackIconView: View {
                     .frame(width: 12, height: 12, alignment: .center)
                     .padding(.leading, !isPlaying ? 2 : 0)
             }
+            .frame(width: 24, height: 24)
     }
 }
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import SonosKit
+import VibesDS
 
 struct MiniPlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -88,8 +89,9 @@ struct MiniPlayerView: View {
     private func playPauseLabel(for group: GroupRoom) -> some View {
         ZStack {
             if group.coordinatorRoom.track.duration > 0 {
-                CircularProgressView(
-                    progress: group.coordinatorRoom.track.playbackPosition / group.coordinatorRoom.track.duration,
+                VibeGaugeView(
+                    value: group.coordinatorRoom.track.playbackPosition,
+                    total: group.coordinatorRoom.track.duration,
                     color: group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7),
                     lineWidth: 4
                 )

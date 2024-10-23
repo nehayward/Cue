@@ -6,6 +6,7 @@ public final class SpotifyAPI {
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
+    private let tokenManager = TokenManager()
 
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
@@ -288,43 +289,18 @@ public final class SpotifyAPI {
         return urlRequest
     }
 
+    // Update the validToken method
     func validToken() async throws -> Token {
-        if let handle = refreshTask {
-            return try await handle.value
-        }
-
-        guard let token = currentToken else {
-            return try await refreshToken()
-//            throw AuthError.missingToken
-        }
-
-        if token.isValid {
-            return token
-        }
-
-        return try await refreshToken()
+        return try await tokenManager.getValidToken(refreshToken: refreshToken)
     }
 
+    // Update the refreshToken method
     func refreshToken() async throws -> Token {
-        if let refreshTask = refreshTask {
-            return try await refreshTask.value
+        guard let response = await getToken() else {
+            throw AuthError.missingToken
         }
-
-        let task = Task { () throws -> Token in
-            defer { refreshTask = nil }
-
-            // Normally you'd make a network call here. Could look like this:
-            guard let response = await getToken() else {
-                throw AuthError.missingToken
-            }
-
-            let newToken = Token(validUntil: Date.now.addingTimeInterval(TimeInterval(response.expiresIn)), id: response.accessToken)
-            currentToken = newToken
-            return newToken
-        }
-
-        self.refreshTask = task
-        return try await task.value
+        
+        return Token(validUntil: Date.now.addingTimeInterval(TimeInterval(response.expiresIn)), id: response.accessToken)
     }
 }
 
@@ -334,4 +310,34 @@ extension SpotifyAPI {
         let id: String
         var isValid: Bool { Date.now < validUntil }
     }
+    
+    actor TokenManager {
+        private var currentToken: Token?
+        private var refreshTask: Task<Token, Error>?
+        
+        func getValidToken(refreshToken: @escaping () async throws -> Token) async throws -> Token {
+            if let token = currentToken, token.isValid {
+                return token
+            }
+            
+            return try await refreshTokenIfNeeded(refreshToken: refreshToken)
+        }
+        
+        private func refreshTokenIfNeeded(refreshToken: @escaping () async throws -> Token) async throws -> Token {
+            if let task = refreshTask {
+                return try await task.value
+            }
+            
+            let task = Task {
+                defer { refreshTask = nil }
+                let newToken = try await refreshToken()
+                currentToken = newToken
+                return newToken
+            }
+            
+            refreshTask = task
+            return try await task.value
+        }
+    }
 }
+

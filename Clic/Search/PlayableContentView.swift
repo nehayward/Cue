@@ -9,12 +9,12 @@ import Defaults
 
 struct PlayableContentView: View {
     @Environment(SonosService.self) private var sonosService
-    @Environment(Router.self) private var router
+    @Environment(Router.self) private var router: Router?
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
 
     var item: PlayableContent
     var hideArtwork: Bool = false
@@ -25,11 +25,11 @@ struct PlayableContentView: View {
         } else {
             switch item.content.type {
             case .playlist, .album, .libraryPlaylist, .libraryAlbum:
-                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
                     content
                 }
             case .artist, .libraryArtist:
-                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
                     content
                 }
             case .track, .favorite, .radio:
@@ -98,7 +98,6 @@ struct PlayableContentView: View {
                 }
             }
         }
-        .contentShape(.contextMenuPreview, Capsule())
         .contextMenu {
             if adding == nil {
                 PlayableMenuView(item: item)
@@ -113,7 +112,6 @@ struct PlayableContentView: View {
     private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
         if let add = adding?.add, add {
             adding?.content = item
-            router.dismiss = true
             return
         }
         hideKeyboard()
@@ -129,8 +127,10 @@ struct PlayableContentView: View {
                     alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
                 }
             }
-            guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+            guard let group = selectedGroupService?.group else {
+                if let selectedGroupService {
+                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                }
                 return
             }
             try await queueSong(group)

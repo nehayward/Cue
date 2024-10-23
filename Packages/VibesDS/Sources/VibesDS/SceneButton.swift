@@ -7,13 +7,11 @@ public struct SceneButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         configuration
             .label
-            .bold()
             .fontDesign(.rounded)
             #if !os(visionOS)
             .sensoryFeedback(.selection, trigger: configuration.isPressed == true)
             #endif
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(8)
             .background{
                 Capsule()
                     .modifier(SceneButtonForegroundColor())
@@ -57,64 +55,54 @@ public struct SceneButton: View {
             action()
             started = true
         } label: {
-            VStack {
+            VStack(spacing: 0) {
                 Text(scene.name)
-                    .frame(maxWidth: .infinity)
+                    .lineLimit(1)
+                    .frame(maxWidth: 260)
                     .fontDesign(.rounded)
-                    .bold()
-                    .padding()
+                    .multilineTextAlignment(.center)
             }
+            .padding()
+            .frame(maxWidth: .infinity)
         }
-        .overlay(alignment: .leading) {
-            if let artworkURL {
-                LazyImage(url: artworkURL) { state in
-                    if let image = state.image {
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .foregroundStyle(.thinMaterial)
-                            .frame(width: 50, height: 50)
-                    }
-                }
-                .padding()
-            }
-        }
-        .overlay {
-            ZStack {
-                Capsule()
-                    .inset(by: 4)
-                    .trim(from: 0, to: 1)
-                    .stroke(Color.accentColor.gradient, lineWidth: 3)
-                    .opacity(started ? 0.4 : 0)
-                Capsule()
-                    .inset(by: 4)
-                    .trim(from: 0, to: started ? 1 : 0)
-                    .stroke(Color.accentColor.gradient, style: .init(lineWidth: 4, lineCap: started ? .round : .butt))
-                    .rotationEffect(.degrees(-180))
-            }
-            .onChange(of: started) { oldValue, newValue in
-                if oldValue == newValue { return }
-                if newValue {
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        started = false
-                    }
-                }
-            }
-        }
-        .animation(started ? .snappy : nil, value: started)
+//        .buttonStyle(.scene)
+//        .overlay(alignment: .leading) {
+//            if let artworkURL {
+//                LazyImage(url: artworkURL) { state in
+//                    if let image = state.image {
+//                        image
+//                            .resizable()
+//                            .aspectRatio(contentMode: .fit)
+//                            .frame(width: 50, height: 50)
+//                            .clipShape(Circle())
+//                    } else {
+//                        Circle()
+//                            .foregroundStyle(.thinMaterial)
+//                            .frame(width: 50, height: 50)
+//                    }
+//                }
+//                .padding()
+//            }
+//        }
+//        .overlay(alignment: .trailing) {
+//            ZStack {
+//                ForEach(Array(scene.rooms.enumerated()), id: \.offset) { index, room in
+//                    VibeGaugeView(
+//                        value: room.volume,
+//                        total: 100,
+//                        color: .primary,
+//                        lineWidth: 2
+//                    )
+//                    .frame(width: CGFloat(50 - (index * 8)), height: CGFloat(50 - (index * 8))) // Decrease size by 4 for each index
+//                }
+//            }
+//            .padding()
+//        }
         .task {
             if let content = scene.playableContent {
                 artworkURL = await SonosService.shared.getArtwork(from: content)
             }
         }
-        .buttonBorderShape(.capsule)
-        .background(.background)
-        .clipShape(Capsule())
     }
 }
 
@@ -127,7 +115,7 @@ public struct SceneButton: View {
                         id: UUID(),
                         name: "Living Room",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
-                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
+                                SceneRoom(id: "", ip: "", name: "Garage", volume: 10)],
                         playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
                     )
             ) {
@@ -138,8 +126,10 @@ public struct SceneButton: View {
                     SonosScene(
                         id: UUID(),
                         name: "Main",
-                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
-                                SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
+                        rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 100),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 12),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 12),
+                                SceneRoom(id: "", ip: "", name: "Gym", volume: 12),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10),SceneRoom(id: "", ip: "", name: "Gym", volume: 10)]
                     )
@@ -151,7 +141,7 @@ public struct SceneButton: View {
                 scene:
                     SonosScene(
                         id: UUID(),
-                        name: "Theater + Kitchen",
+                        name: "Theater + Kitchen + Theater + Living Room",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
                         playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
@@ -167,7 +157,17 @@ public struct SceneButton: View {
                         name: "Living Room",
                         rooms: [SceneRoom(id: "", ip: "", name: "Gym", volume: 10),
                                 SceneRoom(id: "", ip: "", name: "Gym", volume: 10)],
-                        playableContent: PlayableContent(title: "One Night/All Night", subtitle: "Justice", thumbnail: nil, artwork: nil, content: MediaContent(service: .spotify, id: "7sjuNUjWtSqhbxJ3RAUffm", type: .track, location: nil))
+                        playableContent: PlayableContent(
+                            title: "Cold Heart - PNAU Remix",
+                            subtitle: "Elton John, Dua Lipa, PNAU",
+                            thumbnail: URL(
+                                string: "https://i.scdn.co/image/ab67616d00004851523458c391fe8180a19a1069"
+                            ),
+                            artwork: URL(
+                                string: "https://i.scdn.co/image/ab67616d0000b273523458c391fe8180a19a1069"
+                            ),
+                            content: MediaContent(service: MusicService.spotify, id: "7rglLriMNBPAyuJOMGwi39", type: .track, location: URL(string:"https://open.spotify.com/track/7rglLriMNBPAyuJOMGwi39"))
+                        )
                     )
             ) {
                 print("HERE")

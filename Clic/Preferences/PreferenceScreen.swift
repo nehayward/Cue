@@ -464,12 +464,12 @@ struct PreferenceScreen: View {
                 //                }
                 //                .disabled(!subscriptionService.subscription.isActive)
                 Section {
-                    //                    let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
+                    let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Label {
                         HStack {
-                            Link("Support hi@clic.dance", destination: URL(string: "message")!)
+                            Link("Support hi@clic.dance", destination: URL(string: message)!)
                                 .tint(.primary)
-                            Spacer()
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             Image(systemName: "arrow.up.forward")
                                 .foregroundStyle(.secondary)
                         }
@@ -489,9 +489,9 @@ struct PreferenceScreen: View {
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
-                        //                        Text(Purchases.shared.appUserID)
-                        //                            .textSelection(.enabled)
-                        //                            .scaledToFit()
+                        Text(Purchases.shared.appUserID)
+                            .textSelection(.enabled)
+                            .scaledToFit()
                     }
                     .frame(maxWidth: .infinity)
                 }

@@ -8,6 +8,7 @@ public struct VibeSlider: View {
     @State private var isDragging: Bool = false
     @State private var startingValue: Double?
     @State private var onEditingChangedTask: Task<Void, Error> = Task { }
+    @State private var onHover: Bool = false
 
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
@@ -85,7 +86,9 @@ public struct VibeSlider: View {
                 .contentShape(.hoverEffect, .capsule)
             #endif
             }
+#if !targetEnvironment(macCatalyst)
         .delaysTouches(for: touchDelay) { }
+#endif
         .gesture(dragGesture)
         #if !os(visionOS)
         .sensoryFeedback(trigger: value) { oldValue, newValue in
@@ -118,6 +121,14 @@ public struct VibeSlider: View {
     }
 
     private func handleDragEnded(_ gesture: DragGesture.Value) {
+#if targetEnvironment(macCatalyst)
+        if gesture.translation.width == 0.0 {
+            let newPercentage = gesture.location.x / width
+            withAnimation {
+                value = newPercentage * 100
+            }
+        }
+#endif
         isDragging = false
         onEditingChanged(false)
         startingValue = nil

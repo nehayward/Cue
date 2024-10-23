@@ -4,66 +4,20 @@ import os
 
 @Observable
 public final class GroupRoom: Identifiable, @unchecked Sendable {
-    private let lock = OSAllocatedUnfairLock()
     public var coordinatorRoom: Room
     public let id: String
     public let coordinatorID: String
     public var rooms: [Room] = []
     public var TVMode: Bool { playbackService == .tv }
     public var isCrossfaded: Bool? = nil
-    public var tvSettings: TVSettings? {
-        get {
-            return lock.withLock {
-                return privateTVSettings
-            }
-        }
-        set {
-            lock.withLock {
-                DispatchQueue.main.async { [weak self] in
-                    self?.privateTVSettings = newValue
-                }
-            }
-        }
-    }
-
-    private var privateTVSettings: TVSettings? = nil
+    public var tvSettings: TVSettings?
     public var playMode: PlayMode = .normal
-    public var isMuted: Bool {
-        get {
-            return lock.withLock {
-                return privateIsMuted
-            }
-        }
-        set {
-            lock.withLock {
-                DispatchQueue.main.async { [weak self] in
-                    self?.privateIsMuted = newValue
-                }
-            }
-        }
-    }
-    private var privateIsMuted: Bool = false
+    public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
     public var playbackService: PlaybackService = .unknown
     public var availableActions: AvailableActions = []
-
-    private var privateGroupVolume: Double = 0
-
-    public var groupVolume: Double {
-        get {
-            return lock.withLock {
-                return privateGroupVolume
-            }
-        }
-        set {
-            lock.withLock {
-                DispatchQueue.main.async { [weak self] in
-                    self?.privateGroupVolume = newValue
-                }
-            }
-        }
-    }
+    public var groupVolume: Double = 0
 
     public init(
         id: String,

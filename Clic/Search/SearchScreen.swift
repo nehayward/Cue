@@ -193,7 +193,7 @@ struct SearchScreen: View {
         .environment(router)
         .environment(musicSearchService)
         .environment(alertService)
-        .onChange(of: router.dismiss) {
+        .onChange(of: contentToAdd?.content) {
             dismiss()
         }
         .safeAreaInset(edge: .bottom) {
