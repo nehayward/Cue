@@ -18,9 +18,12 @@ struct PlayableContentView: View {
 
     var item: PlayableContent
     var hideArtwork: Bool = false
+    var hideDetails: Bool = false
 
     var body: some View {
-        if let add = adding?.add, add {
+        if hideDetails {
+            content
+        } else if let add = adding?.add, add {
             content
         } else {
             switch item.content.type {
@@ -28,13 +31,13 @@ struct PlayableContentView: View {
                 NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
                     content
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden, edges: .all)
             case .artist, .libraryArtist:
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
                     content
                 }
-            case .track, .favorite, .radio:
-                content
-            case .libraryTrack:
+            case .track, .favorite, .radio, .libraryTrack:
                 content
             }
         }
@@ -74,7 +77,7 @@ struct PlayableContentView: View {
                 Spacer()
                 switch item.content.type {
                 case .track, .favorite, .libraryTrack:
-                    if adding == nil {
+                    if adding == nil, !hideDetails {
                         Menu {
                             PlayableMenuView(item: item)
                         } label: {
@@ -99,7 +102,7 @@ struct PlayableContentView: View {
             }
         }
         .contextMenu {
-            if adding == nil {
+            if adding == nil, !hideDetails {
                 PlayableMenuView(item: item)
             }
         }
@@ -129,7 +132,7 @@ struct PlayableContentView: View {
             }
             guard let group = selectedGroupService?.group else {
                 if let selectedGroupService {
-                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
                 }
                 return
             }

@@ -12,6 +12,8 @@ extension View {
                 HapticManager.shared.fireHaptic(.notification(.success))
                 do {
                     try await SonosService.shared.queue(playable: playableContent, group: group, position: now ? .now : .next)
+                    PlayHistoryService.shared.history.remove(playableContent)
+                    PlayHistoryService.shared.history.insert(playableContent, at: 0)
                     if now {
                         await SonosService.shared.play(ip: group.ip)
                     }

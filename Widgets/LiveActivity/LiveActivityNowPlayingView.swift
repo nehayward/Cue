@@ -165,7 +165,8 @@ struct LiveActivityNowPlayingView: View {
                     .buttonStyle(.liveActivity)
 
                     VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(context.state.isMuted ? Color.secondary : .teal)
+                        .opacity(context.state.isMuted ? 0.5 : 1)
                         .invalidatableContent()
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                         Image(systemName: "plus")

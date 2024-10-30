@@ -57,7 +57,7 @@ struct VolumeControlsScreen: View {
                         Button {
                             syncVolumes()
                         } label: {
-                            Text("Set all to \(sonosService.sorted[groupID].groupVolume, specifier: "%03.0f")%")
+                            Text("Set all to\(sonosService.sorted[groupID].groupVolume, specifier: "%03.0f")%")
                                 .frame(maxWidth: .infinity)
                                 .padding(.horizontal)
                                 .fontDesign(.rounded)

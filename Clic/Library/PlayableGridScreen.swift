@@ -40,6 +40,7 @@ struct PlayableGridScreen: View {
                 }
             }
         }
+        .miniPlayerOnScrollHandler()
         .overlay {
             if isLoading {
                 ProgressView()

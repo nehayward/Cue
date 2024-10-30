@@ -28,16 +28,22 @@ extension View {
 //                        .onAppear {
 //                            Analytics.shared.track(.viewedPaywall)
 //                        }
-                case .settings:
-                    PreferenceScreen()
+                case let .settings(destination):
+                    PreferenceScreen(destination: destination)
                 case let .search(group):
-                    @State var searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let searchRouter = Router.search
+                    let selectedGroupService = SelectedGroupService.shared
 
                     SearchScreen()
                         .environment(searchRouter)
                         .environment(selectedGroupService)
+                        .onAppear {
+                            if selectedGroupService.group == nil {
+                                selectedGroupService.group = group
+                            }
+                        }
                         .onDisappear {
+                            SelectedGroupService.shared.group = nil
                             Router.search.path.removeAll()
                         }
                     // MARK: Add back later maybe
@@ -146,9 +152,9 @@ extension View {
                     .presentationDetents([.medium, .large])
                     .presentationBackground(.thinMaterial)
                     .presentationCornerRadius(24)
-                case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection):
-                    SelectGroupView(onSelection: onSelection)
-                        .presentationDetents([.medium, .large])
+                case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
+                    SelectGroupView(content: content, onSelection: onSelection)
+                        .presentationDetents([.fraction(0.8), .large])
                         .presentationBackground(.thinMaterial)
                         .presentationCornerRadius(24)
                         .environment(selectedGroupService)
@@ -340,6 +346,8 @@ extension View {
                     .navigationTitle(title)
             case .houseHold:
                 HouseholdScreen()
+            case .servicePreferenceScreen:
+                ServicePreferenceScreen()
             }
         }
     }
@@ -401,8 +409,10 @@ extension View {
             .environment(PlaylistContainer.shared)
             .environment(PlayHistoryService.shared)
             .environment(AppleMusicBrowseService.shared)
+            .environment(SpotifyBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
+            .environment(MiniPlayerManger.shared)
     }
 
     @ViewBuilder

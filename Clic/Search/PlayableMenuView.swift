@@ -137,6 +137,12 @@ struct PlayableMenuView: View {
                 }
             }
         }
+        Button {
+            selectedGroupService.group = nil
+            play()
+        } label: {
+            Label("Play in Another Room…", systemImage: "hifispeaker.arrow.forward.fill")
+        }
     }
 
     private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
@@ -158,7 +164,7 @@ struct PlayableMenuView: View {
                 }
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
                 return
             }
             try await queueSong(group)

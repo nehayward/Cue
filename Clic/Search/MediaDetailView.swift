@@ -124,14 +124,16 @@ struct MediaDetailView: View {
             ForEach(tracks) { item in
                 PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album)
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            Task {
-                                guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
-                                try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
-                                tracks.remove(at: index)
+                        if playableContent.content.type == .libraryPlaylist {
+                            Button(role: .destructive) {
+                                Task {
+                                    guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
+                                    try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
+                                    tracks.remove(at: index)
+                                }
+                            } label: {
+                                Label("Remove", systemImage: "trash")
                             }
-                        } label: {
-                            Label("Remove", systemImage: "trash")
                         }
                     }
                     .disabled(!(item.metadata?.isPlayable ?? true))
@@ -154,6 +156,7 @@ struct MediaDetailView: View {
         .task {
             await updateTracks()
         }
+        .miniPlayerOnScrollHandler()
         .listStyle(.plain)
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
@@ -195,7 +198,7 @@ struct MediaDetailView: View {
                 await sonosService.play(ip: group.coordinatorRoom.ip)
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: playableContent))
                 return
             }
             try await queueSong(group)

@@ -26,7 +26,9 @@ import SonosKit
 
     @MainActor
     func navigate(to: RouterDestination) {
-        path.append(to)
+        if !path.contains(to) {
+            path.append(to)
+        }
     }
 
     func sheet(to: SheetDestination?) {

@@ -51,15 +51,17 @@ struct PlayerSelectionView: View {
                         dismiss()
                         Task {
                             if let playableContent {
-                                playHistoryService.history.remove(playableContent)
-                                playHistoryService.history.insert(playableContent, at: 0)
-                                try await sonosService.queue(playable: playableContent, group: group, position: position)
-                                await sonosService.play(ip: group.ip)
-                                try? await Task.sleep(for: .milliseconds(100))
-                                try? await sonosService.updateGroups(from: [group])
-                                return
+                                do {
+                                    try await sonosService.queue(playable: playableContent, group: group, position: position)
+                                    playHistoryService.history.remove(playableContent)
+                                    playHistoryService.history.insert(playableContent, at: 0)
+                                    await sonosService.play(ip: group.ip)
+                                    try? await Task.sleep(for: .milliseconds(100))
+                                    try? await sonosService.updateGroups(from: [group])
+                                } catch {
+//                                    alertService.showAlert(with: "Please authorize \(playableContent.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+                                }
                             }
-                            await sonosService.play(ip: group.ip)
                         }
                     } label: {
                         Text(group.nameWithCount)

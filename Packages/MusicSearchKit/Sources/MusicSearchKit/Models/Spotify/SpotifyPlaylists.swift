@@ -8,13 +8,13 @@ public struct SpotifyPlaylistItems: Decodable, Identifiable, Sendable {
     let description: String
     public let externalUrls: ExternalUrls
     public let href: String
-    public let images: [SpotifyImage]
+    public let images: [SpotifyImage]?
     public let name: String
     public let owner: Owner
     let primaryColor: String?
     let `public`: Bool?
     let snapshotId: String
-    public let tracks: Tracks
+    public let tracks: PlaylistTracks
     public let type: String
     public let uri: String
 }
@@ -32,7 +32,7 @@ public struct Owner: Decodable, Sendable {
     public let uri: String
 }
 
-public struct Tracks: Decodable, Sendable {
+public struct PlaylistTracks: Decodable, Sendable {
     let href: String
     let total: Int
     public let items: [SpotifyPlaylistItemContainer]?

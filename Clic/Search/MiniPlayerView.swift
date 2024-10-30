@@ -9,6 +9,7 @@ struct MiniPlayerView: View {
     @State private var router = Router()
     
     var body: some View {
+#if !targetEnvironment(macCatalyst)
         Group {
             if let group = selectedGroup {
                 VStack(spacing: 8) {
@@ -18,15 +19,18 @@ struct MiniPlayerView: View {
                     #endif
                 }
                 .transition(.push(from: .bottom).combined(with: .blurReplace))
-            } else {
-                selectGroupButton
+                .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
+                    MiniPlayerManger.shared.offset = 0
+                }
             }
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-        .animation(.bouncy.delay(0.2), value: selectedGroupService.group)
+        .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
+        .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
+#endif
     }
     
     private var selectedGroup: GroupRoom? {
@@ -38,7 +42,13 @@ struct MiniPlayerView: View {
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
-            router.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
+            Router.main.sheet(to: nil)
+            if Router.main.path.last == .player(groupID: group.coordinatorID) {
+                return
+            } else {
+                Router.main.path.removeAll()
+                Router.main.navigate(to: .player(groupID: group.coordinatorID))
+            }
         } label: {
             HStack {
                 artworkView(for: group)
@@ -55,8 +65,6 @@ struct MiniPlayerView: View {
     private func artworkView(for group: GroupRoom) -> some View {
         ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
             .frame(width: 40, height: 40)
-            .animation(.bouncy, value: group.coordinatorRoom.track.trackID)
-            .id(group.coordinatorRoom.track.id)
     }
     
     private func trackInfoView(for group: GroupRoom) -> some View {
@@ -71,6 +79,7 @@ struct MiniPlayerView: View {
         .lineLimit(1, reservesSpace: true)
         .foregroundStyle(.primary)
         .tint(.primary)
+        .transition(.slide)
     }
     
     private func playPauseButton(for group: GroupRoom) -> some View {
@@ -93,7 +102,7 @@ struct MiniPlayerView: View {
                     value: group.coordinatorRoom.track.playbackPosition,
                     total: group.coordinatorRoom.track.duration,
                     color: group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7),
-                    lineWidth: 4
+                    lineWidth: 2
                 )
                 .frame(width: 30, height: 30)
             }
@@ -141,29 +150,26 @@ extension SonosService {
 }
 
 
-struct CircularProgressView: View {
-    var progress: Double
-    var color: Color
-    var lineWidth: CGFloat = 2
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(
-                    color.opacity(0.3),
-                    lineWidth: lineWidth
-                )
-            Circle()
-                .trim(from: 0, to: CGFloat(min(progress, 1.0)))
-                .stroke(
-                    color,
-                    style: StrokeStyle(
-                        lineWidth: lineWidth,
-                        lineCap: .round
-                    )
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.linear, value: progress)
+extension View {
+    @ViewBuilder
+    func miniPlayerOnScrollHandler() -> some View {
+        if #available(iOS 18.0, *) {
+            self.onScrollGeometryChange(for: CGFloat.self, of: { geo in
+                return geo.contentOffset.y + geo.contentInsets.top
+            }, action: { new, old in
+                let delta = new - old
+                guard new >= 0 else { return }
+                
+                withAnimation(.interactiveSpring()) {
+                    if delta < 0 {  // Scrolling up
+                        MiniPlayerManger.shared.offset = 300  // Show view
+                    } else if delta > 0 {  // Scrolling down
+                        MiniPlayerManger.shared.offset = 0    // Hide view
+                    }
+                }
+            })
+        } else {
+            self // fallback behavior for earlier versions
         }
     }
 }

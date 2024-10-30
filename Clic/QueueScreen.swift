@@ -197,7 +197,7 @@ struct QueueScreen: View {
             if isLoading, group.coordinatorRoom.queue.isEmpty {
                 ProgressView()
             }
-            if group.coordinatorRoom.queue.isEmpty {
+            if group.coordinatorRoom.queue.isEmpty, !isLoading {
                 ContentUnavailableView {
                     Text("Play History")
                         .padding()

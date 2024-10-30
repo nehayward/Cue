@@ -12,13 +12,27 @@ struct PlayHistoryFullView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @State private var clearHistoryConfirmation: Bool = false
+    @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
 
     var body: some View {
         List {
-            ForEach(playHistoryService.history) { item in
+            FilterView(selectedService: .constant(.spotify), filters: $filters)
+                .listRowSeparator(.hidden)
+            
+            let filteredHistory = playHistoryService.history.filter { item in
+                if filters.filter(\.isFiltered).isEmpty {
+                    return true
+                } else {
+                    return filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
+                }
+            }
+
+            ForEach(filteredHistory) { item in
                 PlayableContentView(item: item)
             }
+            .fontDesign(.rounded)
         }
+        .miniPlayerOnScrollHandler()
         .toolbar {
             ToolbarItem(placement: .destructiveAction) {
                 if !playHistoryService.history.isEmpty {

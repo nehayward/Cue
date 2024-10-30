@@ -1,3 +1,20 @@
+# 2024.43
+
+––New Features––
+Spotify Playlist Import: Effortlessly import your favorite Spotify playlists and enjoy them here!
+New Player Selection UI: Choose any speaker you’d like to play on directly from the search screen.
+Play in Another Room…: Easily move your music to a different room with this convenient option.
+
+––Enhancements––
+Preference Screen Overhaul: The preference screen has a fresh look with improved layout and functionality.
+Long-Press Song Titles: Now you can long-press on a song title in the player screen to view the full title.
+
+––Bug Fixes––
+Volume Control: Resolved delays in volume control for Sequoia.
+Scene Management: Fixed issues with scenes not unmuting or ungrouping from rooms when running.
+Album Sorting: Albums are now sorted by release year (latest first) in the artist view, with LPs removed for a cleaner look.
+Live Activity Mute State: Mute states are now clearly indicated in live activities for easier tracking.
+
 # 2024.42
 
 + Improve Preference Screen

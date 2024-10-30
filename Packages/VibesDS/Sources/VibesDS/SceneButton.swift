@@ -11,14 +11,14 @@ public struct SceneButtonStyle: ButtonStyle {
             #if !os(visionOS)
             .sensoryFeedback(.selection, trigger: configuration.isPressed == true)
             #endif
-            .padding(8)
+            .padding(.horizontal, 8)
             .background{
                 Capsule()
-                    .modifier(SceneButtonForegroundColor())
-                    .shadow(radius: 2, x: 0, y: 1)
+                    .foregroundStyle(.background.secondary)
             }
             .offset(y: configuration.isPressed ? 2 : 0)
             .animation(.default, value: configuration.isPressed)
+            .shadow(radius: 1)
     }
 }
 
@@ -65,7 +65,7 @@ public struct SceneButton: View {
             .padding()
             .frame(maxWidth: .infinity)
         }
-//        .buttonStyle(.scene)
+        .buttonStyle(.scene)
 //        .overlay(alignment: .leading) {
 //            if let artworkURL {
 //                LazyImage(url: artworkURL) { state in

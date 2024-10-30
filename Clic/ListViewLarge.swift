@@ -37,7 +37,7 @@ struct ListViewLarge: View {
                                 MediaControlsView(group: $group)
                             }
                         }
-                        VolumeControlView(group: $group, touchDelay: 0.05)
+                        VolumeControlView(group: $group, touchDelay: 0)
                     }
                     .tag(group.coordinatorID)
                     .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)
@@ -91,7 +91,7 @@ struct ListViewLarge: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    router.presentedSheet = .settings
+                    router.presentedSheet = .settings()
                 } label: {
                     Image(systemName: "switch.2")
                 }

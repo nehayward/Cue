@@ -16,6 +16,7 @@ struct PreferenceScreen: View {
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
     
+    var destination: RouterDestination? = nil
     
     @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
@@ -30,7 +31,7 @@ struct PreferenceScreen: View {
     
     var body: some View {
         @Bindable var sonosService = sonosService
-        NavigationStack {
+        NavigationStack(path: $router.path) {
             Form {
                 Section {
                     if !subscriptionService.subscription.isActive {
@@ -206,71 +207,7 @@ struct PreferenceScreen: View {
                 }
                 
                 Section {
-                    NavigationLink {
-                        List {
-                            Section {
-                                ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                    Toggle(isOn: coreFeatures.enabledServices(service)) {
-                                        Label {
-                                            Text(service.title)
-                                        } icon: {
-                                            service.iconForMusicService
-                                                .frame(width: 24, height: 24)
-                                        }
-                                    }
-                                    .tint(.accent)
-                                }
-                            } header:  {
-                                Text("Supported Services")
-                            } footer: {
-                                Text("Requires authorization in the Sonos app.")
-                            }
-                            
-                            Section {
-                                Button {
-                                    router.presentedSheet = .plexManagement
-                                } label: {
-                                    Label {
-                                        HStack {
-                                            Text(MediaSearchService.plex.title)
-                                            Spacer()
-                                            if musicSearchService.isPlexAuthorized {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundStyle(.green.gradient)
-                                            } else {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(.red.gradient.secondary)
-                                            }
-                                        }
-                                    } icon: {
-                                        MediaSearchService.plex.iconForMusicService
-                                            .frame(width: 20, height: 20)
-                                    }
-                                }
-                            } header:  {
-                                Text("Personalized Services")
-                            } footer: {
-                                Text("Requires authorization in the **Sonos app** and **Clic**")
-                            }
-                            
-                            Toggle(isOn: $coreFeatures.nowPlaying) {
-                                HStack {
-                                    Image(.nowPlayingAppIcon)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 24, height: 24)
-                                    VStack(alignment: .leading) {
-                                        Link("Now Playing", destination: URL(string: "https://nowplaying.page")!)
-                                        Text("Add option to open current track in the Now Playing app.")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                            }
-                            .tint(.accent)
-                        }
-                        .navigationBarTitleDisplayMode(.inline)
-                    } label: {
+                    NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
                             ForEach(MediaSearchService.allCases, id: \.self) { service in
                                 if coreFeatures.enabledServices(service).wrappedValue {
@@ -500,13 +437,14 @@ struct PreferenceScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
             .withAppRouter()
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .environment(\.defaultMinListHeaderHeight, 0)
             .addDismiss {
                 dismiss()
             }
             .fontDesign(.rounded)
         }
+        .environment(router)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .withAlert()
         .animation(.spring, value: alertService.alert.isShowing)
         .task {
@@ -515,6 +453,10 @@ struct PreferenceScreen: View {
         .onAppear {
             if OSEnvironment.isPreviews {
                 sonosService.monitor()
+            }
+            
+            if let destination {
+                router.navigate(to: destination)
             }
         }
         .customizeWindowSizeForMacOS15()

@@ -32,9 +32,6 @@ struct ContentArtworkView: View {
                                 .foregroundStyle(.foreground)
                                 .frame(width: 24, height: 24)
                                 .bold()
-                                .transaction { transaction in
-                                    transaction.animation = nil
-                                }
                         }
                     }
             }

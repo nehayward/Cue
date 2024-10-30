@@ -10,6 +10,7 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var playableContent: PlayableContent
         var volume: Double
+        var isMuted: Bool
         var name: String
         var update: UpdateType = .refresh
         var TVMode: Bool
@@ -72,7 +73,8 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 .tint(.primary)
                                 .buttonStyle(.liveActivity)
                                 VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
-                                    .foregroundStyle(.teal)
+                                    .foregroundStyle(context.state.isMuted ? Color.secondary : .teal)
+                                    .opacity(context.state.isMuted ? 0.5 : 1)
                                     .invalidatableContent()
                                 Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                                     Image(systemName: "plus")
@@ -201,6 +203,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
             volume: 39,
+            isMuted: false,
             name: "Kitchen + 1",
             TVMode: false
         )

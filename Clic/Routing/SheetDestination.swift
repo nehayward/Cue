@@ -2,7 +2,7 @@ import SonosKit
 import SwiftUI
 
 enum SheetDestination: Identifiable, Equatable {
-    case settings
+    case settings(destination: RouterDestination? = nil)
     case paywall
     case groupScreen(group: GroupRoom)
     case search(group: GroupRoom? = nil)
@@ -21,7 +21,7 @@ enum SheetDestination: Identifiable, Equatable {
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
-    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws-> Void)? = nil)
+    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, content: PlayableContent? = nil)
     case plexManagement
     case volumeControlsScreen(groupID: String)
 

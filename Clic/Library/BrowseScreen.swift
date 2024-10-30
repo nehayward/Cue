@@ -34,8 +34,7 @@ struct BrowseScreen: View {
             case .plex:
                 PlexBrowseScreen()
             case .spotify:
-                Text("Support is in progress for Spotify. In the meantime you can queue public playlist from the Spotify app from the share sheet")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                SpotifyPlaylistScreen()
             case .library:
                 LibraryBrowseScreen()
             default:
@@ -66,19 +65,28 @@ struct BrowseScreen: View {
                     }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
-                        router.presentedSheet = .settings
+                        router.presentedSheet = .settings(destination: .servicePreferenceScreen)
                     } label: {
                         Text("Customize in Settings…")
                     }
                 } label: {
                     browseMediaService.iconForMusicService
+#if targetEnvironment(macCatalyst)
+                        .frame(width: 32, height: 32)
+#else
                         .frame(width: 24, height: 24)
+#endif
                 }
-                .popoverTip(AppTip.mediaService)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .popoverTip(AppTip.libraryMediaService)
                 .padding()
-
+                .frame(maxWidth: .infinity, alignment: .trailing)
+#if !targetEnvironment(macCatalyst)
+            .offset(y: MiniPlayerManger.shared.offset)
+#endif
                 MiniPlayerView()
+#if !targetEnvironment(macCatalyst)
+            .offset(y: MiniPlayerManger.shared.offset)
+#endif
             }
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)

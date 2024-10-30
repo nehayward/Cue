@@ -29,6 +29,7 @@ struct PlayableList: View {
                     }
             }
         }
+        .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .task {

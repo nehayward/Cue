@@ -64,6 +64,11 @@ struct LargePlayerView: View {
                     .multilineTextAlignment(.center)
                     .fontDesign(.rounded)
                     .font(.title2)
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
+                    .contextMenu {
+                        Text(group.coordinatorRoom.track.song)
+                    }
+             
 
                 Text(group.coordinatorRoom.track.artist)
                     .multilineTextAlignment(.center)

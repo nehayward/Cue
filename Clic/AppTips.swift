@@ -3,18 +3,23 @@ import TipKit
 
 enum AppTip: Tip {
     case mediaService
+    case libraryMediaService
 
     var title: Text {
         switch self {
         case .mediaService:
             Text("Change Search")
+        case .libraryMediaService:
+            Text("Change Service")
         }
     }
 
     var message: Text? {
         switch self {
         case .mediaService:
-            Text("Must be authorized in Sonos app to play content. Customize in Preferences")
+            Text("Content playback requires authorization in the Sonos app. Go to Preferences in Clic to customize what services are shown.")
+        case .libraryMediaService:
+            Text("Content playback requires authorization in the Sonos app. Go to Preferences in Clic to customize what services are shown.")
         }
     }
     

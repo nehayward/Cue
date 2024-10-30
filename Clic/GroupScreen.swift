@@ -1,6 +1,7 @@
 import SwiftUI
 import SonosKit
 import SubscriptionKit
+import CloudStorage
 import VibesDS
 
 struct GroupScreen: View {
@@ -8,6 +9,8 @@ struct GroupScreen: View {
     @Environment(AlertService.self) var alertService
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(\.dismiss) var dismiss
+
+    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
 
     @State var group: GroupRoom?
     @State var coordinatorID: String
@@ -58,6 +61,32 @@ struct GroupScreen: View {
                         : nil
                     )
                 }
+                VStack {
+                    Text("All Speakers")
+                        .bold()
+                    HStack(alignment: .center) {
+                        Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
+                        VibeSlider(value: $groupVolume, in: 0...100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20)
+                        Text("\(groupVolume, specifier: "%03.0f")%")
+                            .contentTransition(.numericText())
+                            .monospacedDigit()
+                            .animation(.spring.speed(5), value: groupVolume)
+                            .frame(width: 36, alignment: .trailing)
+                            .fontDesign(.rounded)
+                    }
+                    .font(.caption)
+                    .fontDesign(.rounded)
+                    .onChange(of: groupVolume, initial: false) { _, newValue in
+                        groupVolumeTask?.cancel()
+                        groupVolumeTask = Task {
+                            for room in sonosService.rooms {
+                                room.volume = groupVolume
+                                await sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                            }
+                        }
+                    }
+                    .frame(height: 32)
+                }
             }
             .navigationDestination(for: Set<String>.self) { ids in
                 if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
@@ -93,43 +122,21 @@ struct GroupScreen: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                VStack {
-                    SceneListView { scene in
-                        alertService.showAlert(with: "Running \(scene.name)")
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    Text("All")
-                        .bold()
-                    HStack(alignment: .center) {
-                        Image(systemName: "speaker.wave.3.fill", variableValue: groupVolume/100)
-                        VibeSlider(value: $groupVolume, in: 0...100)
-                        Text("\(groupVolume, specifier: "%03.0f")%")
-                            .contentTransition(.numericText())
-                            .monospacedDigit()
-                            .animation(.spring.speed(5), value: groupVolume)
-                            .frame(width: 36, alignment: .trailing)
-                            .fontDesign(.rounded)
-                    }
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .onChange(of: groupVolume, initial: false) { _, newValue in
-                        groupVolumeTask?.cancel()
-                        groupVolumeTask = Task {
-                            for room in sonosService.rooms {
-                                room.volume = groupVolume
-                                await sonosService.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
-                            }
+                if !scenes.isEmpty {
+                    VStack {
+                        SceneListView { scene in
+                            alertService.showAlert(with: "Running \(scene.name)")
                         }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
                     }
-                    .frame(height: 32)
-                }
-                .padding()
-                .background {
-                    RoundedRectangle(cornerRadius: 20)
-                        .foregroundStyle(.ultraThinMaterial)
-                        .edgesIgnoringSafeArea(.bottom)
-                        .shadow(radius: 2)
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 20)
+                            .foregroundStyle(.ultraThinMaterial)
+                            .edgesIgnoringSafeArea(.bottom)
+                            .shadow(radius: 1)
+                    }
                 }
             }
             .toolbarTitleDisplayMode(.inline)

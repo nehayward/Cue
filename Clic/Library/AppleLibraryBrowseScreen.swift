@@ -40,8 +40,7 @@ struct AppleLibraryBrowseScreen: View {
                             Label("Artists", systemImage: "music.mic")
                                 .foregroundStyle(.primary)
                             Spacer()
-                            
-                            Text("Show all \(Image(systemName: "chevron.right"))")
+                            Image(systemName: "chevron.right")
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -52,7 +51,7 @@ struct AppleLibraryBrowseScreen: View {
                         HStack {
                             Label("Albums", systemImage: "smallcircle.circle.fill")
                             Spacer()
-                            Text("Show all \(Image(systemName: "chevron.right"))")
+                            Image(systemName: "chevron.right")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -72,7 +71,7 @@ struct AppleLibraryBrowseScreen: View {
                             HStack {
                                 Text("Playlists")
                                 Spacer()
-                                Text("Show all \(Image(systemName: "chevron.right"))")
+                                Image(systemName: "chevron.right")
                             }
                         }
                         .foregroundStyle(.secondary)
@@ -86,7 +85,7 @@ struct AppleLibraryBrowseScreen: View {
                         HStack {
                             Text("Recently Played")
                             Spacer()
-                            Text("Show all \(Image(systemName: "chevron.right"))")
+                            Image(systemName: "chevron.right")
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -106,7 +105,7 @@ struct AppleLibraryBrowseScreen: View {
                         HStack {
                             Text("Recently Added")
                             Spacer()
-                            Text("Show all \(Image(systemName: "chevron.right"))")
+                            Image(systemName: "chevron.right")
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -134,7 +133,7 @@ struct AppleLibraryBrowseScreen: View {
                         HStack {
                             Text("Personal Radio")
                             Spacer()
-                            Text("Show all \(Image(systemName: "chevron.right"))")
+                            Image(systemName: "chevron.right")
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -149,6 +148,7 @@ struct AppleLibraryBrowseScreen: View {
                     }
                 }
             }
+            .miniPlayerOnScrollHandler()
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
@@ -215,6 +215,8 @@ struct AppleLibraryBrowseScreen: View {
                         .navigationTitle(title)
                 case .houseHold:
                     HouseholdScreen()
+                case .servicePreferenceScreen:
+                    ServicePreferenceScreen()
                 }
             }
         }

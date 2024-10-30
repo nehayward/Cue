@@ -59,6 +59,7 @@ struct LibraryBrowseScreen: View {
                     }
                 }
             }
+            .miniPlayerOnScrollHandler()
             .listStyle(.inset)
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)
@@ -124,6 +125,8 @@ struct LibraryBrowseScreen: View {
                         .navigationTitle(title)
                 case .houseHold:
                     HouseholdScreen()
+                case .servicePreferenceScreen:
+                    ServicePreferenceScreen()
                 }
             }
         }

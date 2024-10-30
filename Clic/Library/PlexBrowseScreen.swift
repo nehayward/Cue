@@ -52,6 +52,7 @@ struct PlexBrowseScreen: View {
                     }
                 }
             }
+            .miniPlayerOnScrollHandler()
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
@@ -118,6 +119,8 @@ struct PlexBrowseScreen: View {
                         .navigationTitle(title)
                 case .houseHold:
                     HouseholdScreen()
+                case .servicePreferenceScreen:
+                    ServicePreferenceScreen()
                 }
             }
         }

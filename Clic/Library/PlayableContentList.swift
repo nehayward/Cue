@@ -25,7 +25,6 @@ struct PlayableContentList: View {
             case .track:
                 ForEach(browseService.songs) { item in
                     PlayableContentView(item: item)
-                    
                 }
             case .album:
                 ForEach(browseService.albums) { item in
@@ -71,6 +70,7 @@ struct PlayableContentList: View {
                 }
                 .listRowSeparator(.hidden)
         }
+        .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .task {

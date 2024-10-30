@@ -1,3 +1,5 @@
+import Foundation
+
 public struct SpotifyAlbums: Decodable, Sendable {
     public let items: [SpotifyAlbumItem]
 }
@@ -19,6 +21,13 @@ public struct SpotifyAlbumItem: Decodable, Identifiable, Sendable {
             return releaseDate.components(separatedBy: "-").first
         }
         return nil
+    }
+    
+    public var releaseYear: Date? {
+        guard let dateString = releaseDate else { return nil }
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        return dateFormatter.date(from: dateString)
     }
 }
 

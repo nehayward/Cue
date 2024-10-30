@@ -85,6 +85,7 @@ struct SearchScreen: View {
                     }
                 }
             }
+            .miniPlayerOnScrollHandler()
             .ignoresSafeArea(.keyboard)
             .contentMargins(.bottom, 120, for: .scrollContent)
             .searchable(
@@ -95,7 +96,6 @@ struct SearchScreen: View {
             )
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                 if suggestion == nil {
                     searchCompletionTapped = false
@@ -176,6 +176,8 @@ struct SearchScreen: View {
                         .navigationTitle(title)
                 case .houseHold:
                     HouseholdScreen()
+                case .servicePreferenceScreen:
+                    ServicePreferenceScreen()
                 }
             }
         }
@@ -199,6 +201,7 @@ struct SearchScreen: View {
         .safeAreaInset(edge: .bottom) {
             if contentToAdd == nil {
                 MiniPlayerView()
+                    .offset(y: MiniPlayerManger.shared.offset)
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -216,6 +219,8 @@ struct SearchScreen: View {
             }
         }
         .environment(selectedGroupService)
+        .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
     }
 
     @MainActor
@@ -260,7 +265,7 @@ struct SearchScreen: View {
                     }
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
-                        router.presentedSheet = .settings
+                        router.presentedSheet = .settings(destination: .servicePreferenceScreen)
                     } label: {
                         Text("Customize in Settings…")
                     }
@@ -287,4 +292,3 @@ struct SearchScreen: View {
     SearchScreen()
         .environment(SonosService.shared)
 }
-

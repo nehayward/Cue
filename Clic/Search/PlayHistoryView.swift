@@ -23,14 +23,16 @@ struct PlayHistoryView: View {
         .fontDesign(.rounded)
         .bold()
         
-        ForEach(playHistoryService.history.prefix(5)) { item in
+        let filteredHistory = playHistoryService.history.filter { item in
             if filters.filter(\.isFiltered).isEmpty {
-                PlayableContentView(item: item)
+                return true
             } else {
-                if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
-                    PlayableContentView(item: item)
-                }
+                return filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
             }
+        }
+
+        ForEach(filteredHistory.prefix(5)) { item in
+            PlayableContentView(item: item)
         }
         .fontDesign(.rounded)
     }

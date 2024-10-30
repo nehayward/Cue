@@ -8,6 +8,7 @@ import SwiftUI
 
 @Observable
 final class SelectedGroupService {
+    static var shared = SelectedGroupService()
     var group: GroupRoom?
 
     init(group: GroupRoom? = nil) {

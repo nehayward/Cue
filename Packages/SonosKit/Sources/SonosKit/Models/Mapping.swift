@@ -246,7 +246,14 @@ extension Album {
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
-            metadata: PlayableContentMetadata(isExplicit: contentRating == .explicit)
+            metadata: PlayableContentMetadata(
+                artist: artistName,
+                albumYear: releaseDate,
+                audioCodec: audioVariants?.map(\.description).reduce("", +),
+                isPlayable: playParameters != nil,
+                isExplicit:  contentRating == .explicit,
+                isSingle: isSingle ?? false
+            )
         )
     }
 }
@@ -321,7 +328,8 @@ extension SpotifyAlbumItem {
             artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify)),
             metadata: .init(
-                artistID: artists.first?.id
+                artistID: artists.first?.id,
+                albumYear: releaseYear
             )
         )
     }
@@ -369,8 +377,8 @@ extension SpotifyPlaylistItems {
         PlayableContent(
             title: name,
             subtitle: owner.displayName,
-            thumbnail: images.thumbnail,
-            artwork: images.biggestImageURL,
+            thumbnail: images?.thumbnail,
+            artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify))
         )
     }
@@ -385,6 +393,19 @@ extension SpotifyArtistsItems {
             artwork: images.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: externalUrls.spotify)),
             metadata: .init(popularity: popularity)
+        )
+    }
+}
+
+extension UserPlaylists {
+    public var toPlayable: PlayableContent {
+        PlayableContent(
+            title: name,
+            subtitle: "",
+            thumbnail: images?.thumbnail,
+            artwork: images?.biggestImageURL,
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify)),
+            metadata: nil
         )
     }
 }

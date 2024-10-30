@@ -41,7 +41,7 @@ struct DeviceListMainView: View {
                                         MediaControlsView(group: $group)
                                     }
                                 }
-                                VolumeControlView(group: $group, touchDelay: 0.05)
+                                VolumeControlView(group: $group, touchDelay: 0)
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
@@ -78,7 +78,7 @@ struct DeviceListMainView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        router.presentedSheet = .settings
+                        router.presentedSheet = .settings()
                     } label: {
                         Image(systemName: "switch.2")
                     }

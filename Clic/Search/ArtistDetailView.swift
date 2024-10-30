@@ -52,7 +52,7 @@ struct ArtistDetailView: View {
                     Button {
                         Task {
                             guard let group = selectedGroupService.group else {
-                                router?.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
+                                router?.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService, content: playableContent)
                                 return
                             }
                             HapticManager.shared.fireHaptic(.buttonPress)
@@ -101,14 +101,49 @@ struct ArtistDetailView: View {
 //            }
 
             if !tracks.isEmpty {
-                Section("Top Tracks") {
+                Section {
                     ForEach(tracks) { track in
                         PlayableContentView(item: track)
+                    }
+                } header: {
+                    HStack {
+                        Text("Top Tracks")
+                        Spacer()
+                        // MARK: Add queue multiple uris
+
+//                        if !albums.isEmpty {
+//                            Button {
+//                                hideKeyboard()
+//                                Task { @MainActor in
+//                                    let queueSong: ((GroupRoom) async throws -> Void) = { group in
+//                                        HapticManager.shared.fireHaptic(.buttonPress)
+//                                        do {
+//                                            try await sonosService.queue(contents: tracks.reversed(), group: group, replaceQueue: false)
+//                                            await sonosService.play(ip: group.coordinatorRoom.ip)
+//                                        }
+//                                    }
+//                                    guard let group = selectedGroupService.group else {
+//                                        router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+//                                        return
+//                                    }
+//                                    try await queueSong(group)
+//                                }
+//                            } label: {
+//                                Image(systemName: "play.fill")
+//                                    .foregroundStyle(.accent)
+//                            }
+//                            .bold()
+//                            .buttonStyle(.bordered)
+//                            .buttonBorderShape(.circle)
+//                            .tint(.accent)
+//                            .help("Play Discography")
+//                            .padding(.trailing, -14)
+//                        }
                     }
                 }
             }
 
-            Section("Albums") {
+            Section {
                 ForEach(albums) { album in
                     PlayableContentView(item: album)
                 }
@@ -118,6 +153,41 @@ struct ArtistDetailView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                 }
+            } header: {
+                HStack {
+                    Text("Albums")
+                    // MARK: Add queue multiple uris
+//                    Spacer()
+//                    if !albums.isEmpty {
+//                        Button {
+//                            hideKeyboard()
+//                            Task { @MainActor in
+//                                let queueSong: ((GroupRoom) async throws -> Void) = { group in
+//                                    HapticManager.shared.fireHaptic(.buttonPress)
+//                                    do {
+//                                        try await sonosService.queue(contents: albums.reversed(), group: group, replaceQueue: true)
+//                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+//                                    }
+//                                }
+//                                guard let group = selectedGroupService.group else {
+//                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+//                                    return
+//                                }
+//                                try await queueSong(group)
+//                            }
+//                        } label: {
+//                            Image(systemName: "play.fill")
+//                                .foregroundStyle(.accent)
+//                        }
+//                        .bold()
+//                        .buttonStyle(.bordered)
+//                        .buttonBorderShape(.circle)
+//                        .tint(.accent)
+//                        .help("Play Discography")
+//                        .padding(.trailing, -14)
+//                    }
+                }
+                
             }
 
             //            Section {
@@ -152,7 +222,44 @@ struct ArtistDetailView: View {
             //                .padding(.vertical)
             //                .frame(maxWidth: .infinity, alignment: .center)
             //            }
+            
+            // MARK: Add queue multiple uris
+//            if !albums.isEmpty {
+//                HStack {
+//                    Button {
+//                        hideKeyboard()
+//                        Task { @MainActor in
+//                            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+//                                HapticManager.shared.fireHaptic(.buttonPress)
+//                                do {
+//                                    try await sonosService.clearQueue(group.ip)
+//                                    for album in albums.reversed() {
+//                                        try await sonosService.queue(playable: album, group: group, position: .end, replaceQueue: false)
+//                                    }
+//                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+//                                }
+//                            }
+//                            guard let group = selectedGroupService.group else {
+//                                router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+//                                return
+//                            }
+//                            try await queueSong(group)
+//                        }
+//                    } label: {
+//                        Text("Play Discography")
+//                            .frame(maxWidth: .infinity, alignment: .center)
+//                            .foregroundStyle(.foreground)
+//                    }
+//                    .bold()
+//                    .buttonStyle(.bordered)
+//                    .tint(.accent)
+//                }
+//                .frame(maxWidth: .infinity)
+//                .listRowBackground(Color.clear)
+//                .listRowSeparator(.hidden)
+//            }
         }
+        .miniPlayerOnScrollHandler()
         .listStyle(.plain)
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
@@ -167,6 +274,12 @@ struct ArtistDetailView: View {
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
+                    .filter { !($0.metadata?.isSingle ?? false) }
+                    .sorted { (album1, album2) in
+                        let year1 = album1.metadata?.albumYear ?? .now
+                        let year2 = album2.metadata?.albumYear ?? .now
+                        return year1 > year2
+                    }
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
             case (.libraryArtist, .apple):
                 if let url = await MusicSearchService().appleLibraryArtistArtwork(name: playableContent.title) {
@@ -193,6 +306,12 @@ struct ArtistDetailView: View {
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
+                    .filter { !($0.metadata?.isSingle ?? false) }
+                    .sorted { (album1, album2) in
+                    let year1 = album1.metadata?.albumYear ?? .now
+                    let year2 = album2.metadata?.albumYear ?? .now
+                    return year1 > year2
+                }
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
             case (.libraryTrack, .apple):
@@ -224,6 +343,12 @@ struct ArtistDetailView: View {
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
+                    .filter { !($0.metadata?.isSingle ?? false) }
+                    .sorted { (album1, album2) in
+                        let year1 = album1.metadata?.albumYear ?? .now
+                        let year2 = album2.metadata?.albumYear ?? .now
+                        return year1 > year2
+                    }
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
             case (.album, .spotify):

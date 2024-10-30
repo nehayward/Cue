@@ -25,6 +25,7 @@ struct SceneView: View {
                                 try? await sonosService.runScene(scene)
                             }
                         }
+                        .padding(.horizontal, 12)
                         .contentShape(.contextMenuPreview, Capsule())
                         .contextMenu {
                             Button("Remove", role: .destructive) {

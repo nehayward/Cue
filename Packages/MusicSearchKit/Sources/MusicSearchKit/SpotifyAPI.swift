@@ -14,6 +14,24 @@ public final class SpotifyAPI {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
 
+    public func lookupUser(for userID: String) async -> SpotifyUser? {
+        guard let userID = userID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return nil }
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/users/\(userID)"
+
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifySearch: SpotifyUser = try await loadAuthorized(url)
+            return spotifySearch
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+
     public func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
@@ -100,6 +118,22 @@ public final class SpotifyAPI {
 
         do {
             let spotifyPlaylist: SpotifyPlaylistItems = try await loadAuthorized(url)
+            return spotifyPlaylist
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    public func userPlaylists(userID: String) async -> SpotifyUserPlaylistsResponse? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/users/\(userID)/playlists"
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifyPlaylist: SpotifyUserPlaylistsResponse = try await loadAuthorized(url)
             return spotifyPlaylist
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -210,8 +244,8 @@ public final class SpotifyAPI {
         components.host = "api.spotify.com"
         components.path = "/v1/artists/\(id)/albums"
         components.queryItems = [
-//            URLQueryItem(name: "market", value: ""),
-            URLQueryItem(name: "limit", value: "50")
+            URLQueryItem(name: "limit", value: "50"),
+            URLQueryItem(name: "include_groups", value: "album")
         ]
 
         guard let url = components.url else { return nil }
@@ -231,8 +265,8 @@ public final class SpotifyAPI {
         request.httpMethod = "POST"
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         // MARK: Might need to revert back
-        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
-//        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
+//        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
+        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil
@@ -275,7 +309,8 @@ public final class SpotifyAPI {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
-//            print(String(decoding: data, as: UTF8.self))
+            print(String(decoding: data, as: UTF8.self))
+            print(error)
             logger.error("Failed to decode ⚠️")
 //            assertionFailure(String(decoding: data, as: UTF8.self))
             throw error

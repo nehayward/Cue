@@ -30,6 +30,7 @@ struct ClicApp: App {
     @State private var musicSearchService = MusicSearchService.shared
     @State private var playlistContainer = PlaylistContainer.shared
     @State private var playHistoryService = PlayHistoryService()
+    @State private var miniPlayerManager = MiniPlayerManger.shared
 
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
@@ -101,6 +102,7 @@ struct ClicApp: App {
             .environment(musicSearchService)
             .environment(playlistContainer)
             .environment(playHistoryService)
+            .environment(miniPlayerManager)
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
@@ -144,6 +146,13 @@ struct ClicApp: App {
                 if let key = UserDefaults.standard.string(forKey: "com.clic.plexToken") {
                     plexToken = key
                 }
+                
+               // TODO: Add Feature to force dark mode
+//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+//                    windowScene.windows.forEach { window in
+//                        window.overrideUserInterfaceStyle = .dark
+//                    }
+//                }
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)
@@ -458,7 +467,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
 class ToolbarDelegate: NSObject {
     @objc func prefs(_ sender:Any) {
         Task { @MainActor in
-            Router.main.presentedSheet = .settings
+            Router.main.presentedSheet = .settings()
         }
     }
 

@@ -20,6 +20,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case playableLibraryList(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case playableGridScreen(title: String, items: Binding<OrderedSet<PlayableContent>>, action: ((Int) async -> Void))
     case fullPlayHistoryList
+    case servicePreferenceScreen
     case houseHold
 
     public var id: String {
@@ -56,6 +57,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "playableGridScreen"
         case .houseHold:
             return "houseHold"
+        case .servicePreferenceScreen:
+            return "servicePreferenceScreen"
         }
     }
 
@@ -135,6 +138,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("fullPlayHistoryList")
         case .houseHold:
             hasher.combine("houseHolds")
+        case .servicePreferenceScreen:
+            hasher.combine("servicePreferenceScreen")
         }
     }
 }

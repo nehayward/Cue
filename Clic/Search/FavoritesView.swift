@@ -21,6 +21,7 @@ struct FavoritesView: View {
                     }
                     .contentMargins(.bottom, 120, for: .scrollContent)
                     .navigationTitle("Favorites")
+                    .miniPlayerOnScrollHandler()
                 } label: {
                     Text("Favorites")
                         .foregroundStyle(.secondary)

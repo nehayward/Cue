@@ -124,7 +124,7 @@ struct PlayableCardView: View {
                 }
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
                 return
             }
             try await queueSong(group)

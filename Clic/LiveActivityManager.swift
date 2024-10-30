@@ -37,10 +37,13 @@ final class LiveActivityManager: LiveActivityManageable {
             if group.TVMode {
                 tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
             }
+            
+            
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(
                 playableContent: group.coordinatorRoom.track.toPlayable,
                 volume: group.groupVolume,
+                isMuted: group.isMuted,
                 name: group.nameWithCount,
                 update: type,
                 TVMode: group.TVMode,
@@ -80,6 +83,7 @@ final class LiveActivityManager: LiveActivityManageable {
                 let contentState = ClicNowPlayingWidgetAttributes.ContentState(
                     playableContent: group.coordinatorRoom.track.toPlayable,
                     volume: group.groupVolume,
+                    isMuted: group.isMuted,
                     name: group.nameWithCount,
                     TVMode: group.TVMode,
                     TVSettings: tvSettings
@@ -120,6 +124,7 @@ final class LiveActivityManager: LiveActivityManageable {
         let contentState = ClicNowPlayingWidgetAttributes.ContentState(
             playableContent: group.coordinatorRoom.track.toPlayable,
             volume: group.groupVolume,
+            isMuted: group.isMuted,
             name: group.nameWithCount,
             TVMode: group.TVMode,
             TVSettings: tvSettings

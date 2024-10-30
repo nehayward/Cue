@@ -28,6 +28,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
             volume: 39,
+            isMuted: false,
             name: "Kitchen + 1",
             TVMode: false
         )
@@ -37,6 +38,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
             volume: 50,
+            isMuted: false,
             name: "Kitchen + 1",
             TVMode: false
         )
@@ -46,6 +48,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
             playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
             volume: 50,
+            isMuted: false,
             name: "Kitchen + 1",
             TVMode: true,
             TVSettings: .init(nightMode: false, dialogLevel: true, audioInputFormat: .dolbyAtmosDDPlus)
