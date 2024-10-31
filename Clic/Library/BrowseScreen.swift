@@ -24,7 +24,7 @@ struct BrowseScreen: View {
     @State private var router = Router()
     @State private var alertService = AlertService()
     @State private var isLoaded: Bool = false
-    @State private var coreFeatures = CoreFeatures()
+    @State private var coreFeatures = CoreFeatures.shared
 
     var body: some View {
         Group {

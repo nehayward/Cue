@@ -27,7 +27,7 @@ struct SearchScreen: View {
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
-    @State private var coreFeatures = CoreFeatures()
+    @State private var coreFeatures = CoreFeatures.shared
     @State private var alertService = AlertService()
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil

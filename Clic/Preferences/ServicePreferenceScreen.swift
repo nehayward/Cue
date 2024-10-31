@@ -6,10 +6,10 @@ struct ServicePreferenceScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @Environment(MusicSearchService.self) var musicSearchService
-
-    @State private var coreFeatures = CoreFeatures()
+    @Environment(CoreFeatures.self) private var coreFeatures
 
     var body: some View {
+        @Bindable var coreFeatures = coreFeatures
         List {
             Section {
                 ForEach(MediaSearchService.allCases, id: \.self) { service in

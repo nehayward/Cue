@@ -5,7 +5,7 @@ import MusicSearchKit
 struct MenuInfoView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
-    @State private var coreFeatures = CoreFeatures()
+    @State private var coreFeatures = CoreFeatures.shared
 
     var group: GroupRoom
     

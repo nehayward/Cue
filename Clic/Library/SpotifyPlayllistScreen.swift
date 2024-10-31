@@ -63,8 +63,8 @@ struct SpotifyPlaylistScreen: View {
                                                 .padding()
                                         }
                                     }
-                                    .frame(maxWidth: .infinity, maxHeight: 200)
                                     .clipShape(Circle())
+                                    .frame(maxWidth: .infinity, maxHeight: 200)
                                     Text(user.displayName ?? user.id)
                                         .font(.title)
                                         .padding(.bottom)
@@ -82,9 +82,9 @@ struct SpotifyPlaylistScreen: View {
                                 Text("Enter Spotify Username")
                                     .padding(.bottom)
                             } description: {
-                                Text("You can find this on your Spotify profile page. It's a unique identifier, not your display name.")
+                                Text("Copy your username from your Spotify profile")
                             } actions: {
-                                Link("Open Spotify Profile", destination: URL(string: "https://www.spotify.com/account/profile/")!)
+                                Link("Open Spotify Profile", destination: URL(string: "spotify://user")!)
                                     .underline()
                             }
                         }
@@ -120,7 +120,7 @@ struct SpotifyPlaylistScreen: View {
             .searchable(text: $query, isPresented: $isSearching)  // Bind search query to the searchable modifier
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
-            .navigationTitle(userID.isEmpty ? "Search for your UserID" : "\(userID) Playlists")
+            .navigationTitle(userID.isEmpty ? "Enter Spotify Username" : "\(userID) Playlists")
             .navigationBarTitleDisplayMode(.inline)
             .task(id: userID) {
                 await updateSpotifyBrowseService()

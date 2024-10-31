@@ -413,6 +413,7 @@ extension View {
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)
+            .environment(CoreFeatures.shared)
     }
 
     @ViewBuilder

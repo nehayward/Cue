@@ -1,11 +1,13 @@
 import SwiftUI
 import SonosKit
 import VibesDS
+import SubscriptionKit
 
 struct MiniPlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SelectedGroupService.self) private var selectedGroupService
-    
+    @Environment(SubscriptionService.self) var subscriptionService
+
     @State private var router = Router()
     
     var body: some View {
@@ -42,6 +44,10 @@ struct MiniPlayerView: View {
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
+            guard subscriptionService.subscription.isActive else {
+                Router.main.sheet(to: .paywall)
+                return
+            }
             Router.main.sheet(to: nil)
             if Router.main.path.last == .player(groupID: group.coordinatorID) {
                 return

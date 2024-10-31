@@ -15,10 +15,10 @@ struct PreferenceScreen: View {
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
-    
+    @Environment(CoreFeatures.self) var coreFeatures
+
     var destination: RouterDestination? = nil
     
-    @State private var coreFeatures = CoreFeatures()
     @State private var router = Router()
     @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
@@ -31,6 +31,8 @@ struct PreferenceScreen: View {
     
     var body: some View {
         @Bindable var sonosService = sonosService
+        @Bindable var coreFeatures = coreFeatures
+
         NavigationStack(path: $router.path) {
             Form {
                 Section {

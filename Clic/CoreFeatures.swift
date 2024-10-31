@@ -8,13 +8,22 @@ import SwiftUI
 
 @Observable
 final class CoreFeatures {
+    static let shared = CoreFeatures()
+    
+    private var features: [String: Bool] = [:]
+    
+    init() {
+        // Load all features from UserDefaults
+        for key in UserDefaults.standard.dictionaryRepresentation().keys {
+            if let value = UserDefaults.standard.object(forKey: key) as? Bool {
+                features[key] = value
+            }
+        }
+    }
+    
     var nowPlaying: Bool {
-        get {
-            feature(feature: .nowPlaying)
-        }
-        set {
-            setFeature(value: newValue, feature: .nowPlaying)
-        }
+        get { feature(feature: .nowPlaying) }
+        set { setFeature(value: newValue, feature: .nowPlaying) }
     }
     
     func enabledServices(_ service: MediaSearchService) -> Binding<Bool> {
@@ -26,22 +35,24 @@ final class CoreFeatures {
     }
 
     func isEnabled(_ service: MediaSearchService) -> Bool {
-        self.feature(service.title)
+        feature(service.title)
     }
 
     private func feature(feature: Features) -> Bool {
-        UserDefaults.standard.bool(forKey: feature.key)
+        features[feature.key] ?? UserDefaults.standard.bool(forKey: feature.key)
     }
 
     private func setFeature(value: Bool, feature: Features) {
+        features[feature.key] = value
         UserDefaults.standard.setValue(value, forKey: feature.key)
     }
 
     private func feature(_ feature: String) -> Bool {
-        UserDefaults.standard.object(forKey: feature) as? Bool ?? true
+        features[feature] ?? UserDefaults.standard.object(forKey: feature) as? Bool ?? true
     }
 
     private func setFeature(value: Bool, _ feature: String) {
+        features[feature] = value
         UserDefaults.standard.setValue(value, forKey: feature)
     }
 }
