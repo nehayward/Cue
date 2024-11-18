@@ -24,6 +24,7 @@ enum SheetDestination: Identifiable, Equatable {
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, content: PlayableContent? = nil)
     case plexManagement
     case volumeControlsScreen(groupID: String)
+    case onboard
 
     var id: String {
         switch self {
@@ -71,6 +72,8 @@ enum SheetDestination: Identifiable, Equatable {
             "plexManagement"
         case .volumeControlsScreen:
             "volumeControlsScreen"
+        default:
+            "\(self)"
         }
     }
 

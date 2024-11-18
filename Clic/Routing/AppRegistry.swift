@@ -162,6 +162,8 @@ extension View {
                     PlexManagementView()
                 case let .volumeControlsScreen(groupID: groupID):
                     VolumeControlsScreen(groupID: groupID)
+                case .onboard:
+                    OnboardView()
                 }
             }
             .withEnvironments()
@@ -277,6 +279,8 @@ extension View {
                 case let .volumeControlsScreen(groupID: groupID):
                     VolumeControlsScreen(groupID: groupID)
                         .frame(idealWidth: 400, idealHeight: 800)
+                case .onboard:
+                    OnboardView()
                 default:
                     EmptyView()
                 }

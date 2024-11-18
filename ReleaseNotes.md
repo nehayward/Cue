@@ -1,3 +1,21 @@
+# 2024.44
+
+––New Features––
+- New Volume controls for Live Activity and Dynamic Island
+- New Volume controls for Widgets
+- New Run Scene Control Widgets
+- New Alarm launcher for Control Widgets, add alarm setting controls to your lock screen.
+- Shortcuts are easier to use and have been categorized.
+- Search for speakers in Spotlight
+- New shortcut to control Live Activities
+
+
+
+––Enhancements––
+
+––Bug Fixes––
+- 
+
 # 2024.43
 
 ––New Features––

@@ -3,60 +3,99 @@ import VibesDS
 import SwiftUI
 import SonosKit
 import RevenueCatUI
+import Defaults
 
 struct OnboardView: View {
+    @Environment(SonosService.self) var sonosService
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedTab: Int = 1
-    @State private var phase = 1.0
+    @State private var selectedTab: Int = 0
+    @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
 
     var body: some View {
-        NavigationStack {
-            TabView(selection: $selectedTab) {
-                VStack {
-                    Text("Welcome lets get you set up!")
-                        .font(.title)
-
-                    Text("First, tap the button below to allow Clic to discover Sonos devices")
-
-                    Button {
-                        selectedTab += 1
-                    } label: {
-                        Text("Discover")
-                            .bold()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    welcomeView(proxy: proxy)
+                        .id(0)  // Add this
+                    servicesView(proxy: proxy)  // Pass proxy here
+                        .id(1)  // Add this
+                    paywallView(proxy: proxy)  // Add this view and pass proxy
+                        .id(2)  // Add this
                 }
-                .padding()
-                .tag(1)
-                Text("Services")
-                    .tag(2)
-                ClicPaywall()
-                    .tag(3)
-                //            PaywallView()
+                .scrollTargetLayout()
+                .fontDesign(.rounded)
             }
-            .animation(.bouncy, value: selectedTab)
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .overlay(alignment: .bottom) {
-                VStack(spacing: 12) {
-                    Button {
-                        selectedTab += 1
-                    } label: {
-                        Image(systemName: "arrow.forward")
-                            .font(.body)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text("Skip")
-                            .font(.caption)
-                    }.opacity(0.4)
-                }
-            }
-            .fontDesign(.rounded)
+            .scrollTargetBehavior(.paging)
+            .scrollIndicators(.hidden)
+            .scrollContentBackground(.hidden)
+            .scrollDisabled(true)
+        }.onDisappear {
+            hasOnboarded = true
         }
+    }
+    
+    func welcomeView(proxy: ScrollViewProxy) -> some View {
+        VStack {
+            Image("clic.icon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: 200)
+                .foregroundStyle(.accent.gradient)
+
+            Text("Welcome, let's get you set up!")
+                .font(.largeTitle)
+            Text("Please ensure you're on the same network as your Sonos Devices")
+            
+            Button {
+                sonosService.monitor()
+                withAnimation {
+                    proxy.scrollTo(1, anchor: .center)
+                }
+            } label: {
+                Text("Discover")
+                    .bold()
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+        }
+        .padding()
+        .containerRelativeFrame([.horizontal, .vertical])
+    }
+    
+    func servicesView(proxy: ScrollViewProxy) -> some View {
+        VStack {
+            Text("Services")
+                .font(.title)
+            Text(sonosService.sorted.count, format: .number)
+            Button {
+                withAnimation {
+                    proxy.scrollTo(2, anchor: .center)
+                }
+            } label: {
+                Text("Next")
+                    .bold()
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+        }
+        .containerRelativeFrame([.horizontal, .vertical])
+    }
+    
+    func paywallView(proxy: ScrollViewProxy) -> some View {
+        VStack {
+            ClicPaywall()
+            
+            Button {
+                dismiss()
+            } label: {
+                Text("Finish")
+                    .bold()
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+        }
+        .padding()
+        .containerRelativeFrame([.horizontal, .vertical])
     }
 }
 
@@ -64,5 +103,6 @@ struct OnboardView: View {
     Text("Onboard")
         .sheet(isPresented: .constant(true)) {
             OnboardView()
+                .withEnvironments()
         }
 }

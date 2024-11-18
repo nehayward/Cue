@@ -13,11 +13,11 @@ struct LaunchAppControlWidget: ControlWidget {
         ) { configuration in
             ControlWidgetButton(action: configuration) {
                 Image("clic.icon.big")
-                Text(configuration.target.name)
+                Text(configuration.room?.name ?? "Select Room")
             }
         }
-        .displayName("App Launcher")
-        .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system. Tap to Launch to selected room")
+        .displayName("Launcher")
+        .description("Select a Sonos device to control. Must be on Wi-Fi with Sonos system. Tap to launch to selected room")
         .promptsForUserConfiguration()
     }
 }

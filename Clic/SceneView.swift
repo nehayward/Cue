@@ -37,7 +37,7 @@ struct SceneView: View {
                     }
                     if scenes.isEmpty {
                         ContentUnavailableView {
-                            Label("Add Scene", systemImage: "wand.and.stars.inverse")
+                            Label("Add Scene", systemImage: "bolt.fill")
                         } description: {
                             Text("Create a scene, to automate grouping and volume.")
                         } actions: {

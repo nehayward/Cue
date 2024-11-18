@@ -11,6 +11,7 @@ import MusicSearchKit
 import StoreKit
 import SwiftUI
 import TipKit
+import CoreSpotlight
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -35,6 +36,8 @@ struct ClicApp: App {
     @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
     @CloudStorage("com.clic.plexToken") var plexToken: String = ""
+    
+    @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
 
     @State var selectedID: String?
     @State private var previousCount: Int = 0
@@ -147,6 +150,13 @@ struct ClicApp: App {
                     plexToken = key
                 }
                 
+                
+                // TODO: Add onboard
+//                if !hasOnboarded {
+//                    print(SheetDestination.onboard.id)
+//                    router.sheet(to: .onboard)
+//                }
+                
                // TODO: Add Feature to force dark mode
 //                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
 //                    windowScene.windows.forEach { window in
@@ -158,6 +168,28 @@ struct ClicApp: App {
             .frame(minWidth: 800, minHeight: 500)
 #endif
             .fontDesign(.rounded)
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                guard let userInfo = activity.userInfo, let itemIdentifier = userInfo[CSSearchableItemActivityIdentifier] as? String else {
+                    return
+                }
+                if itemIdentifier.starts(with: "SonosDeviceEntity/") {
+                    let deviceID = itemIdentifier.replacingOccurrences(of: "SonosDeviceEntity/", with: "")
+                    
+                    Task {
+                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: deviceID) else { return }
+                        if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                                router.path.removeAll()
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            } else if router.path.isEmpty {
+                                router.navigate(to: .player(groupID: group.coordinatorID))
+                            }
+                        } else {
+                            selectedID = group.coordinatorID
+                        }
+                    }
+                }
+            }
         }
         .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {
@@ -183,6 +215,16 @@ struct ClicApp: App {
             Analytics.shared.track(.numberOfDevices, with: ["Device Count" : sonosService.rooms.count,
                                                             "Subscriber": subscriptionService.subscription.isActive])
             previousCount = sonosService.rooms.count
+        }
+        .onChange(of: sonosService.sortedRooms) {
+            if #available(iOS 18.0, *) {
+                Task {
+                    try? await CSSearchableIndex.default().deleteAllSearchableItems()
+                    try? await CSSearchableIndex.default().indexAppEntities(
+                        sonosService.sortedRooms.map { SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)}
+                    )
+                }
+            }
         }
         .commands {
             SidebarCommands()
@@ -220,6 +262,8 @@ struct ClicApp: App {
 
     @MainActor
     private func handleScenePhase(_ scenePhase: ScenePhase) {
+//        guard hasOnboarded else { return }
+        
         switch scenePhase {
         case .active:
             sonosService.monitor()
@@ -261,6 +305,11 @@ struct ClicApp: App {
     private func handle(_ url: URL) {
         Task { @MainActor in
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+            if components.host?.lowercased() == "alarms" {
+                router.presentedSheet = .settings(destination: .alarms)
+                return
+            }
+            
             if components.host?.lowercased() == "subscribe" {
                 router.presentedSheet = .paywall
                 return
@@ -269,24 +318,11 @@ struct ClicApp: App {
             if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
                 router.presentedSheet = nil
 
-                if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
-                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                            router.path.removeAll()
-                            router.navigate(to: .player(groupID: group.coordinatorID))
-                        } else if router.path.isEmpty {
-                            router.navigate(to: .player(groupID: group.coordinatorID))
+                guard let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) else {
+                    Task {
+                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
+                            return
                         }
-                        router.presentedSheet = .search(group: group)
-                    } else {
-                        selectedID = group.coordinatorID
-                        router.inspectorSheet = .search(group: group)
-                    }
-                    return
-                }
-                Task {
-                    try await sonosService.load(useCache: true)
-                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
                             if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
                                 router.path.removeAll()
@@ -299,16 +335,33 @@ struct ClicApp: App {
                             selectedID = group.coordinatorID
                             router.inspectorSheet = .search(group: group)
                         }
-                        return
                     }
+                    return
                 }
+                
+                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                        router.path.removeAll()
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    } else if router.path.isEmpty {
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    }
+                    router.presentedSheet = .search(group: group)
+                } else {
+                    selectedID = group.coordinatorID
+                    router.inspectorSheet = .search(group: group)
+                }
+                return
             }
 
             if components.host?.lowercased() == "device", let id = components.queryItems?.first(where: { $0.name == "id" })?.value, !id.isEmpty {
                 router.presentedSheet = nil
 
-                let navigateToGroup = {
-                    if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
+                guard let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) else {
+                    Task {
+                        guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
+                            return
+                        }
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
                             if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
                                 router.path.removeAll()
@@ -319,16 +372,19 @@ struct ClicApp: App {
                         } else {
                             selectedID = group.coordinatorID
                         }
-                        return true
                     }
-                    return false
-                }
-                if navigateToGroup() {
                     return
                 }
-                Task {
-                    try await sonosService.load(useCache: true)
-                    _ = navigateToGroup()
+                
+                if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                        router.path.removeAll()
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    } else if router.path.isEmpty {
+                        router.navigate(to: .player(groupID: group.coordinatorID))
+                    }
+                } else {
+                    selectedID = group.coordinatorID
                 }
             }
 

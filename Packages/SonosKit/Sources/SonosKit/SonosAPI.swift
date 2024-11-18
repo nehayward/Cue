@@ -1054,6 +1054,7 @@ final class SonosAPI: NSObject {
             let discoveryInfo = try decoder.decode(DiscoveryInfo.self, from: data)
             return discoveryInfo.device
         } catch {
+            print(String(decoding: data, as: UTF8.self))
             print("Error decoding JSON: \(error)")
         }
         

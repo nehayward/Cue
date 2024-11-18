@@ -59,7 +59,7 @@ struct RemoteWidgetLargeView: View {
                     Spacer()
                     Text(theater.audioInputFormat.description)
                     HStack(spacing: 12) {
-                        Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
+                        Toggle(isOn: theater.nightMode, intent: SetNightModeIntent(room: room, nightMode: !theater.nightMode)) {
                             Label("Night Mode", systemImage: "moon.zzz.fill")
                                 .foregroundStyle(.accent)
                                 .widgetAccentable()
@@ -75,7 +75,7 @@ struct RemoteWidgetLargeView: View {
                         .opacity(theater.nightMode ? 1 : 0.4)
                         .invalidatableContent()
 
-                        Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                        Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                                 .foregroundStyle(.accent)
                                 .widgetAccentable()
@@ -91,32 +91,48 @@ struct RemoteWidgetLargeView: View {
                         .opacity(theater.dialogLevel ? 1 : 0.4)
                         .invalidatableContent()
                     }
+                    VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
+                        Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {
+                            
+                        }
+                    }
+                    .padding([.leading, .trailing])
                 } else {
                     HStack {
-                        if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .backdeployedWidgetAccentedRenderingMode(.fullColor)
-                                .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 80, height: 80)
-                                .overlay(alignment: .bottomTrailing) {
-                                    entry.playableContent?.content.service.icon
-                                        .frame(width: 16, height: 16, alignment: .bottomLeading)
-                                        .padding([.bottom, .trailing], 4)
-                                }
-                            //                        // MARK: For Screenshots
-                            //                        #if DEBUG
-                            //                        .overlay {
-                            //                            Rectangle()
-                            //                                .foregroundStyle(.regularMaterial)
-                            //                        }
-                            //                        #endif
-                        } else  {
-                            Rectangle()
-                                .foregroundStyle(.thickMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 80, height: 80)
+                        Group {
+                            if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .backdeployedWidgetAccentedRenderingMode(.fullColor)
+                                    .aspectRatio(contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .frame(width: 80, height: 80)
+                                    .overlay(alignment: .bottomTrailing) {
+                                        entry.playableContent?.content.service.icon
+                                            .frame(width: 16, height: 16, alignment: .bottomLeading)
+                                            .padding([.bottom, .trailing], 4)
+                                    }
+                                //                        // MARK: For Screenshots
+                                //                        #if DEBUG
+                                //                        .overlay {
+                                //                            Rectangle()
+                                //                                .foregroundStyle(.regularMaterial)
+                                //                        }
+                                //                        #endif
+                            } else  {
+                                Rectangle()
+                                    .foregroundStyle(.thickMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .frame(width: 80, height: 80)
+                            }
+                        }.overlay {
+                            if entry.isMuted {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.ultraThinMaterial)
+                                    .overlay {
+                                        Image(systemName: "speaker.slash.fill")
+                                    }
+                            }
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -151,6 +167,11 @@ struct RemoteWidgetLargeView: View {
                         }
                         .lineLimit(0, reservesSpace: true)
                         Spacer()
+                    }
+                    VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
+                        Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {
+                            
+                        }
                     }
                     ForEach(entry.playHistory.prefix(4)) { playHistory in
                         HStack {

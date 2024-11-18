@@ -1,33 +1,32 @@
 import AppIntents
 import CloudStorage
 import SonosKit
-
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
 
-struct SetRelativeGroupVolumeIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Set Relative Volume"
-    static var description: IntentDescription = "Increase or decrease volume, example: +2 or -2"
+struct NextIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Skip Forward"
+    static var description = IntentDescription(
+        "Skips to the next song in the queue or radio station",
+        categoryName: "Playback"
+    )
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    static var sonosService = SonosService()
+    static private var sonosService = SonosService.shared
     static private var liveActivityManager = LiveActivityManagerFactory.shared
 
-    @Parameter(title: "Sonos Speaker")
-    var room: SonosDeviceEntity
+    @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
-    @Parameter(title: "Relative Volume")
-    var volume: Int
-
-    init(room: SonosDeviceEntity, volume: Int) {
+    init(room: SonosDeviceEntity) {
         self.room = room
-        self.volume = volume
     }
-    
-    init() {
 
+    static var parameterSummary: some ParameterSummary {
+        Summary("Skip forward on \(\.$room)")
     }
+
+    init() { }
 
     func perform() async throws -> some IntentResult {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
@@ -37,13 +36,14 @@ struct SetRelativeGroupVolumeIntent: LiveActivityIntent {
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
-
-        await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: volume)
+        
+        await Self.sonosService.next(ip: coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(type: .refresh)
-#if canImport(WidgetKit)
-        WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
-#endif
+        await Self.liveActivityManager.refresh(type: .next)
+        
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
         return .result()
     }
 }

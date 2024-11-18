@@ -2,6 +2,7 @@
 import SwiftUI
 import SonosKit
 import WidgetKit
+import VibesDS
 
 struct RemoteWidgetExtraLargeView: View {
     var entry: Provider.Entry
@@ -59,7 +60,7 @@ struct RemoteWidgetExtraLargeView: View {
                     Spacer()
                     Text(theater.audioInputFormat.description)
                     HStack(spacing: 12) {
-                        Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
+                        Toggle(isOn: theater.nightMode, intent: SetNightModeIntent(room: room, nightMode: !theater.nightMode)) {
                             Label("Night Mode", systemImage: "moon.zzz")
                         }
                         .symbolVariant(theater.nightMode ? .fill : .none)
@@ -73,7 +74,7 @@ struct RemoteWidgetExtraLargeView: View {
                         .tint(.secondary)
                         .background(theater.nightMode ? .primary : .tertiary, in: Capsule())
 
-                        Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                        Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2")
                         }
                         .symbolVariant(theater.dialogLevel ? .fill : .none)
@@ -85,32 +86,48 @@ struct RemoteWidgetExtraLargeView: View {
                         .tint(.secondary)
                         .background(theater.dialogLevel ? .primary : .tertiary, in: Capsule())
                     }
+                    VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
+                        Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {
+                            
+                        }
+                    }
+                    .padding([.leading, .trailing])
                 } else {
                     HStack {
-                        if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .backdeployedWidgetAccentedRenderingMode(.fullColor)
-                                .aspectRatio(contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 100, height: 100)
-                                .overlay(alignment: .bottomTrailing) {
-                                    entry.playableContent?.content.service.icon
-                                        .frame(width: 16, height: 16, alignment: .bottomLeading)
-                                        .padding([.bottom, .trailing], 4)
-                                }
-                            //                        // MARK: For Screenshots
-                            //                        #if DEBUG
-                            //                        .overlay {
-                            //                            Rectangle()
-                            //                                .foregroundStyle(.regularMaterial)
-                            //                        }
-                            //                        #endif
-                        } else  {
-                            Rectangle()
-                                .foregroundStyle(.thickMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .frame(width: 100, height: 100)
+                        Group {
+                            if let image = ArtworkManager.shared.getImage(name: entry.name ?? room.name) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .backdeployedWidgetAccentedRenderingMode(.fullColor)
+                                    .aspectRatio(contentMode: .fit)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .frame(width: 120, height: 120)
+                                    .overlay(alignment: .bottomTrailing) {
+                                        entry.playableContent?.content.service.icon
+                                            .frame(width: 16, height: 16, alignment: .bottomLeading)
+                                            .padding([.bottom, .trailing], 4)
+                                    }
+                                //                        // MARK: For Screenshots
+                                //                        #if DEBUG
+                                //                        .overlay {
+                                //                            Rectangle()
+                                //                                .foregroundStyle(.regularMaterial)
+                                //                        }
+                                //                        #endif
+                            } else  {
+                                Rectangle()
+                                    .foregroundStyle(.thickMaterial)
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .frame(width: 120, height: 120)
+                            }
+                        }.overlay {
+                            if entry.isMuted {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.ultraThinMaterial)
+                                    .overlay {
+                                        Image(systemName: "speaker.slash.fill")
+                                    }
+                            }
                         }
                         VStack(alignment: .leading) {
                             Text(entry.playableContent?.title ?? "")
@@ -142,44 +159,13 @@ struct RemoteWidgetExtraLargeView: View {
                                 .buttonStyle(.liveActivity)
                             }
                             .frame(maxWidth: .infinity, maxHeight: 24, alignment: .center)
-                            HStack {
-                                Image(systemName: entry.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill", variableValue: entry.volume/100)
-                                    .contentTransition(.symbolEffect(.automatic))
-                                    .font(.caption)
-                                ProgressView(value: Double(entry.volume), total: 100)
-                                    .tint(.accent)
-                                    .invalidatableContent()
-                                    .widgetAccentable()
-                                    .opacity(entry.isMuted ? 0.3 : 1)
-                                Text("\(entry.volume, specifier: "%0.f")")
-                                    .font(.caption)
-                                    .contentTransition(.numericText())
-                                    .invalidatableContent()
-                                    .strikethrough(entry.isMuted)
+                            VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
+                                Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {
+                                    
+                                }
                             }
-                            .padding([.leading,.trailing])
+                            .padding([.leading, .trailing])
                         }
-                        .lineLimit(0, reservesSpace: true)
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: 3)) {
-                                Image(systemName: "plus")
-                                    .bold()
-                                    .foregroundStyle(.thickMaterial)
-                                    .frame(width: 40, height: 40)
-                                    .widgetAccentable()
-                            }
-                            Button(intent: SetRelativeGroupVolumeIntent(room: room, volume: -3)) {
-                                Image(systemName: "minus")
-                                    .bold()
-                                    .foregroundStyle(.thickMaterial)
-                                    .frame(width: 40, height: 40)
-                                    .widgetAccentable()
-                            }
-                        }
-                        .background(.primary, in: Capsule())
-                        .buttonStyle(.plain)
-                        .fontDesign(.rounded)
                     }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16)], spacing: 16) {
                         ForEach(entry.playHistory.prefix(6)) { playHistory in

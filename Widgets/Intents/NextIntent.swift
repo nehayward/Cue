@@ -7,11 +7,14 @@ import WidgetKit
 
 struct NextIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Next"
-    static var description: IntentDescription = "Go to the next song in queue if available."
+    static var description = IntentDescription(
+        "Skips to the next song in the queue or radio station",
+        categoryName: "Playback"
+    )
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    static var sonosService = SonosService()
-    static var liveActivityManager = LiveActivityManagerFactory.shared
+    static private var sonosService = SonosService.shared
+    static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
 
@@ -20,7 +23,7 @@ struct NextIntent: LiveActivityIntent {
     }
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Next item in queue on \(\.$room)")
+        Summary("Skip forward on \(\.$room)")
     }
 
     init() { }
@@ -33,6 +36,7 @@ struct NextIntent: LiveActivityIntent {
         guard let coordinatorRoom = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
+        
         await Self.sonosService.next(ip: coordinatorRoom.ip)
         try? await Task.sleep(for: .milliseconds(250))
         await Self.liveActivityManager.refresh(type: .next)

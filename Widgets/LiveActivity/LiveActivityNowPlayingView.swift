@@ -54,24 +54,37 @@ struct LiveActivityNowPlayingView: View {
             }
             if context.state.TVSettings == nil {
                 HStack {
-                    if let image = ArtworkManager.shared.getImage(name: context.state.name) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .frame(width: 48, height: 48)
-                            .overlay(alignment: .bottomTrailing) {
-                                context.state.playableContent.content.service.icon
-                                    .frame(width: 8, height: 8, alignment: .bottomLeading)
-                                    .padding([.bottom, .trailing], 4)
-                            }
-                        //                        // MARK: For Screenshots
-                        //                        #if DEBUG
-                        //                        .overlay {
-                        //                            Rectangle()
-                        //                                .foregroundStyle(.regularMaterial)
-                        //                        }
-                        //                        #endif
+                    Group {
+                        if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 48, height: 48)
+                                .overlay(alignment: .bottomTrailing) {
+                                    context.state.playableContent.content.service.icon
+                                        .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                        .padding([.bottom, .trailing], 4)
+                                }
+                            //                        // MARK: For Screenshots
+                            //                        #if DEBUG
+                            //                        .overlay {
+                            //                            Rectangle()
+                            //                                .foregroundStyle(.regularMaterial)
+                            //                        }
+                            //                        #endif
+                        } else {
+                            RoundedRectangle(cornerRadius: 4)
+                                .frame(width: 48, height: 48)
+                        }
+                    }.overlay {
+                        if context.state.isMuted {
+                            RoundedRectangle(cornerRadius: 4)
+                                .foregroundStyle(.ultraThinMaterial)
+                                .overlay {
+                                    Image(systemName: "speaker.slash.fill")
+                                }
+                        }
                     }
                     VStack(alignment: .leading) {
                         Text(context.state.playableContent.title)
@@ -89,19 +102,20 @@ struct LiveActivityNowPlayingView: View {
                     }
                     .lineLimit(0, reservesSpace: true)
                     Spacer()
-                    if isCompact {
+                    HStack(spacing: 0) {
                         Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
                             Image(systemName: "playpause.fill")
                                 .frame(width: 24, height: 24)
                         }
-                        .buttonBorderShape(.circle)
                         .tint(.primary)
+                        .buttonStyle(.liveActivity)
+                        
                         Button(intent: NextIntent(room: context.attributes.room)) {
                             Image(systemName: "forward.fill")
                                 .frame(width: 24, height: 24)
                         }
-                        .buttonBorderShape(.circle)
                         .tint(.primary)
+                        .buttonStyle(.liveActivity)
                     }
                 }
             }
@@ -109,7 +123,7 @@ struct LiveActivityNowPlayingView: View {
                 Text(settings.audioInputFormat.description)
                 HStack(spacing: 24) {
                     Group {
-                        Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                        Toggle(isOn: settings.nightMode, intent: SetNightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
                             Label("Night Mode", systemImage: "moon.zzz.fill")
                         }
                         .labelStyle(.iconOnly)
@@ -117,9 +131,8 @@ struct LiveActivityNowPlayingView: View {
                         .toggleStyle(.button)
                         .frame(width: 48, height: 32)
                         .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
-                        .padding(.bottom, 12)
 
-                        Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                        Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                         }
                         .symbolRenderingMode(.hierarchical)
@@ -127,31 +140,8 @@ struct LiveActivityNowPlayingView: View {
                         .toggleStyle(.button)
                         .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
                         .frame(width: 48, height: 32)
-                        .padding(.bottom, 12)
                     }
                     .tint(.teal)
-                }
-            } else {
-                if !isCompact {
-                    HStack(spacing: 24) {
-                        Group {
-                            Button(intent: PreviousIntent(room: context.attributes.room)) {
-                                Image(systemName: "backward.fill")
-                                    .frame(width: 24, height: 24)
-                            }
-                            Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                                Image(systemName: "playpause.fill")
-                                    .frame(width: 32, height: 32)
-                            }
-                            Button(intent: NextIntent(room: context.attributes.room)) {
-                                Image(systemName: "forward.fill")
-                                    .frame(width: 24, height: 24)
-                            }
-                        }
-                        .tint(.primary)
-                        .buttonStyle(.liveActivity)
-                    }
-                    .frame(maxHeight: 20)
                 }
             }
             if !isCompact {
@@ -163,11 +153,12 @@ struct LiveActivityNowPlayingView: View {
                     }
                     .tint(.primary)
                     .buttonStyle(.liveActivity)
-
-                    VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
-                        .foregroundStyle(context.state.isMuted ? Color.secondary : .teal)
-                        .opacity(context.state.isMuted ? 0.5 : 1)
-                        .invalidatableContent()
+                    
+                    VibeNumberSlider(value: .constant(Double(context.state.volume))) { number in
+                        Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
+                            
+                        }
+                    }
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                         Image(systemName: "plus")
                             .frame(width: 24, height: 24)
@@ -177,7 +168,7 @@ struct LiveActivityNowPlayingView: View {
                     .buttonStyle(.liveActivity)
                 }
                 .padding([.bottom], 8)
-                .frame(maxHeight: 24)
+                .frame(height: 48)
             }
         }
         .font(dynamicTypeSize < .medium ? .caption : .body)

@@ -1,5 +1,5 @@
 
-public struct AvailableActions: OptionSet {
+public struct AvailableActions: OptionSet, Sendable {
     public let rawValue: Int
 
     public static let set = Self(rawValue: 1 << 0)
@@ -37,7 +37,7 @@ public struct AvailableActions: OptionSet {
 }
 
 extension AvailableActions: CustomStringConvertible, CustomDebugStringConvertible {
-    static public var debugDescriptions: [(Self, String)] = [
+    static public let debugDescriptions: [(Self, String)] = [
         (.set, "set"),
         (.stop, "stop"),
         (.pause, "pause"),

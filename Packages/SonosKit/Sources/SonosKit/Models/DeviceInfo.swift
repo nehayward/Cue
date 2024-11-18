@@ -1,14 +1,14 @@
 import Foundation
 
 struct DiscoveryInfo: Codable {
-    let objectType: String
+    let objectType: String?
     let device: DeviceInfo
-    let householdId: String
-    let locationId: String
-    let playerId: String
-    let groupId: String
-    let websocketUrl: String
-    let restUrl: String
+    let householdId: String?
+    let locationId: String?
+    let playerId: String?
+    let groupId: String?
+    let websocketUrl: String?
+    let restUrl: String?
     
     enum CodingKeys: String, CodingKey {
         case objectType = "_objectType"
@@ -23,22 +23,22 @@ struct DiscoveryInfo: Codable {
 }
 
 public struct DeviceInfo: Codable {
-    public let objectType: String
+    public let objectType: String?
     public let id: String
     public let serialNumber: String
     public let model: String
     public let modelDisplayName: String
-    public let color: String
-    public let capabilities: [String]
-    public let deviceFeatures: [Feature]
+    public let color: String?
+    public let capabilities: [String]?
+    public let deviceFeatures: [Feature]?
     public let apiVersion: String
     public let minApiVersion: String
     public let name: String
-    public let websocketUrl: String
+    public let websocketUrl: String?
     public let softwareVersion: String
     public let hwVersion: String
     public let swGen: Int
-    public let quarantineReasons: [String]
+    public let quarantineReasons: [String]?
     
     enum CodingKeys: String, CodingKey {
         case objectType = "_objectType"

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PlayableContentMetadata: Equatable, Codable, Hashable {
+public struct PlayableContentMetadata: Equatable, Codable, Hashable, Sendable {
     public let duration: Duration?
     public let popularity: Int?
     public let artist: String?

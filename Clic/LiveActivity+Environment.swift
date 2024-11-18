@@ -4,6 +4,8 @@ protocol LiveActivityManageable {
     func refresh(type: UpdateType) async
     func createActivity()
     func createActivity(id: String) async
+    func stop(id: String) async
+    func toggle(id: String) async
 }
 
 struct LiveActivityManagerKey: EnvironmentKey {
@@ -26,6 +28,8 @@ final class LiveActivityManagerMock: LiveActivityManageable {
     func refresh(type: UpdateType) async { }
     func createActivity() { }
     func createActivity(id: String) async {}
+    func stop(id: String) async {}
+    func toggle(id: String) async {}
 }
 
 struct LiveActivityManagerFactory {

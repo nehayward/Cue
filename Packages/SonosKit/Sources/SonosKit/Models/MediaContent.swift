@@ -1,6 +1,6 @@
 import Foundation
 
-public struct MediaContent: Equatable, Codable, Hashable {
+public struct MediaContent: Equatable, Codable, Hashable, Sendable {
     public let service: MusicService
     public let id: String
     public let type: ContentType

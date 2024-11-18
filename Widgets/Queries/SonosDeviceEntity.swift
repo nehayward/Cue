@@ -1,7 +1,8 @@
 import AppIntents
+import CoreSpotlight
 import SonosKit
 
-struct SonosDeviceEntity: AppEntity, Identifiable, Codable {
+struct SonosDeviceEntity: AppEntity, Identifiable, Codable, IndexedEntity {
     let id: String
     let ip: String
     let name: String

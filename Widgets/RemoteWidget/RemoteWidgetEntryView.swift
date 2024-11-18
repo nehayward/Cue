@@ -30,7 +30,7 @@ struct RemoteWidgetEntryView: View {
                         HStack(spacing: 18) {
                             if let theater = entry.TVSettings {
                                 VStack(spacing: 12) {
-                                    Toggle(isOn: theater.nightMode, intent: NightModeIntent(room: room, nightMode: !theater.nightMode)) {
+                                    Toggle(isOn: theater.nightMode, intent: SetNightModeIntent(room: room, nightMode: !theater.nightMode)) {
                                         Label("Night Mode", systemImage: "moon.zzz.fill")
                                             .foregroundStyle(.accent)
                                             .widgetAccentable()
@@ -46,7 +46,7 @@ struct RemoteWidgetEntryView: View {
                                     .opacity(theater.nightMode ? 1 : 0.4)
                                     .invalidatableContent()
 
-                                    Toggle(isOn: theater.dialogLevel, intent: SpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
+                                    Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
                                         Label("Speech Enhancement", systemImage: "person.wave.2.fill")
                                             .foregroundStyle(.accent)
                                             .widgetAccentable()

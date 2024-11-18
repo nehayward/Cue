@@ -147,7 +147,7 @@ struct DeviceListMainView: View {
                             router.sheet(to: .paywall)
                         }
                     } label: {
-                        Image(systemName: "wand.and.stars.inverse")
+                        Image(systemName: "bolt.fill")
                     }
                     Spacer()
                     Button{

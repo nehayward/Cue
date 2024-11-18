@@ -4,10 +4,13 @@ import SonosKit
 
 struct PreviousIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Previous"
-    static var description: IntentDescription = "Go to the previous song in queue if available."
+    static var description = IntentDescription(
+        "Go to the previous song in queue if available.",
+        categoryName: "Playback"
+    )
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    static var sonosService = SonosService()
+    static private var sonosService = SonosService.shared
     static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity

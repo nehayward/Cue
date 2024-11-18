@@ -2,7 +2,7 @@ import Foundation
 import CoreTransferable
 import UniformTypeIdentifiers
 
-public struct PlayableContent: Equatable, Codable, Hashable, Identifiable {
+public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Sendable {
     public var id: String { content.id }
     public let title: String
     public let subtitle: String

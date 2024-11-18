@@ -4,12 +4,14 @@ import SonosKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
-struct TogglePlaybackIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Toggle Playback"
-    static var description: IntentDescription = "This will toggle the playback of Sonos speaker"
+
+struct TogglePlaybackIntent: DeprecatedAppIntent {
+    static var deprecation: IntentDeprecation<PlaybackIntent> = IntentDeprecation(message: "Please use the `PlaybackIntent` instead", replacedBy: PlaybackIntent.self)
+    static var title: LocalizedStringResource = "Playback"
+    static var description: IntentDescription = "Control playback of Sonos speaker"
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    static private var sonosService = SonosService()
+    static private var sonosService = SonosService.shared
     static private var liveActivityManager = LiveActivityManagerFactory.shared
 
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity
@@ -20,10 +22,6 @@ struct TogglePlaybackIntent: LiveActivityIntent {
 
     init() { }
 
-    static var parameterSummary: some ParameterSummary {
-        Summary("Toggle playback of \(\.$room)")
-    }
-
     func perform() async throws -> some IntentResult {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in Clic")
@@ -32,6 +30,7 @@ struct TogglePlaybackIntent: LiveActivityIntent {
         guard let coordinatorGroup = await Self.sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
             throw IntentError.message("Failed to lookup Room")
         }
+        
         await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
         await Self.liveActivityManager.createActivity(id: room.id)
         await Self.liveActivityManager.refresh(type: .refresh)

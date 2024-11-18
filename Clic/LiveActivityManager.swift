@@ -17,8 +17,6 @@ final class LiveActivityManager: LiveActivityManageable {
     }
 
     func refresh(type: UpdateType = .refresh) async {
-        try? await sonosService.load(useCache: true)
-
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
             guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
@@ -27,18 +25,16 @@ final class LiveActivityManager: LiveActivityManageable {
                 return
             }
             
+            try? await sonosService.updateGroups(from: [group])
+            
             if group.coordinatorRoom.track == .empty {
                 artworkManager.removeArtwork(coordinatorRoom: group.nameWithCount)
-            } else {
-                await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
             }
 
             var tvSettings: TVSettings?
             if group.TVMode {
                 tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
             }
-            
-            
 
             let contentState = ClicNowPlayingWidgetAttributes.ContentState(
                 playableContent: group.coordinatorRoom.track.toPlayable,
@@ -150,6 +146,29 @@ final class LiveActivityManager: LiveActivityManageable {
                 await activity.end(activity.content, dismissalPolicy: .immediate)
             }
         }
+    }
+    
+    func stop(id: String) async {
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+                continue
+            }
+
+            await activity.end(activity.content, dismissalPolicy: .immediate)
+        }
+    }
+    
+    func toggle(id: String) async {
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+                continue
+            }
+
+            await activity.end(activity.content, dismissalPolicy: .immediate)
+            return
+        }
+        
+        await createActivity(id: id)
     }
 }
 

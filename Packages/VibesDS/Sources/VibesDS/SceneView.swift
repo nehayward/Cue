@@ -39,12 +39,12 @@ public struct SceneView: View {
 
 #Preview("Empty View") {
     SceneView()
-        .environment(SonosService.shared)
+        .environment(SonosService())
 }
 
 #Preview("With Scenes") {
     var scenes: [SonosScene] = [SonosScene(id: UUID(), name: "Main", rooms: [SceneRoom(id: "", ip: "", name: "", volume: 0)])]
 
     return SceneView(scenes: scenes)
-        .environment(SonosService.shared)
+        .environment(SonosService())
 }

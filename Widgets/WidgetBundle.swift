@@ -30,6 +30,8 @@ private var body_iOS18: some Widget {
     #endif
     RemoteControlWidget()
     LaunchAppControlWidget()
+    AlarmsControlWidget()
+    SceneControlWidget()
 }
 
 

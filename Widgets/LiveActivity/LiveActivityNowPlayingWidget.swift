@@ -20,125 +20,145 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
 }
 
 struct LiveActivityNowPlayingWidget: Widget {
+    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) var isCompact: Bool = false
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ClicNowPlayingWidgetAttributes.self) { context in
             LiveActivityNowPlaying(context: context)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
-                    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) var isCompact: Bool = false
-
                     VStack {
                         Link(destination: URL(string: "clic://device?id=\(context.attributes.room.id)")!) {
-                            HStack {
-                                if let image = ArtworkManager.shared.getImage(name: context.state.name) {
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                                        .frame(width: 48, height: 48)
-                                        .overlay(alignment: .bottomTrailing) {
-                                            context.state.playableContent.content.service.icon
-                                                .frame(width: 8, height: 8, alignment: .bottomLeading)
-                                                .padding([.bottom, .trailing], 2)
-                                        }
-                                }
-                                VStack(alignment: .leading) {
-                                    Text(context.state.playableContent.title)
-                                        .lineLimit(0)
-                                        .bold()
-                                        .invalidatableContent()
-                                        .id(context.state.playableContent.title)
-                                        .transition(updateTransition(context: context))
-                                    Text(context.state.playableContent.subtitle)
-                                        .lineLimit(0)
-                                        .foregroundStyle(.secondary)
-                                        .invalidatableContent()
-                                        .id(context.state.playableContent.subtitle)
-                                        .transition(updateTransition(context: context))
-                                }
-                                if let settings = context.state.TVSettings {
+                            if let settings = context.state.TVSettings {
+                                VStack(spacing: 4) {
                                     Text(settings.audioInputFormat.description)
-                                } else {
-                                    Spacer()
+                                    HStack(spacing: 24) {
+                                        if let settings = context.state.TVSettings {
+                                            Toggle(isOn: settings.nightMode, intent: SetNightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                                                Label("Night Mode", systemImage: "moon.zzz.fill")
+                                            }
+                                            .labelStyle(.iconOnly)
+                                            .toggleStyle(.button)
+                                            .foregroundStyle(settings.nightMode ? Color.teal : .secondary.opacity(0.8))
+                                            .frame(width: 32, height: 32)
+                                            
+                                            Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                                                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                            }
+                                            .symbolRenderingMode(.hierarchical)
+                                            .labelStyle(.iconOnly)
+                                            .toggleStyle(.button)
+                                            .foregroundStyle(settings.dialogLevel ? Color.teal : .secondary.opacity(0.8))
+                                            .frame(width: 32, height: 32)
+                                        }
+                                    }
                                 }
-                            }
-                        }
-                        if !isCompact {
-                            HStack {
-                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-                                    Image(systemName: "minus")
-                                        .bold()
-                                }
+                                .frame(maxWidth: .infinity)
                                 .tint(.primary)
-                                .buttonStyle(.liveActivity)
-                                VibeSlider(value: .constant(Double(context.state.volume)), baseHeight: 12)
-                                    .foregroundStyle(context.state.isMuted ? Color.secondary : .teal)
-                                    .opacity(context.state.isMuted ? 0.5 : 1)
-                                    .invalidatableContent()
-                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-                                    Image(systemName: "plus")
-                                        .bold()
+                                .buttonStyle(.borderless)
+                            } else {
+                                HStack {
+                                    Group {
+                                        if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                                            Image(uiImage: image)
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                                .frame(width: 48, height: 48)
+                                                .overlay(alignment: .bottomTrailing) {
+                                                    context.state.playableContent.content.service.icon
+                                                        .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                                        .padding([.bottom, .trailing], 2)
+                                                }
+                                            //                        // MARK: For Screenshots
+                                            //                        #if DEBUG
+                                            //                        .overlay {
+                                            //                            Rectangle()
+                                            //                                .foregroundStyle(.regularMaterial)
+                                            //                        }
+                                            //                        #endif
+                                        } else {
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .frame(width: 48, height: 48)
+                                        }
+                                    }.overlay {
+                                        if context.state.isMuted {
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .foregroundStyle(.ultraThinMaterial)
+                                                .overlay {
+                                                    Image(systemName: "speaker.slash.fill")
+                                                }
+                                        }
+                                    }
+                                    HStack(spacing: 0) {
+                                        VStack(alignment: .leading) {
+                                            Text(context.state.playableContent.title)
+                                                .lineLimit(0)
+                                                .bold()
+                                                .invalidatableContent()
+                                                .id(context.state.playableContent.title)
+                                                .transition(updateTransition(context: context))
+                                            Text(context.state.playableContent.subtitle)
+                                                .lineLimit(0)
+                                                .foregroundStyle(.secondary)
+                                                .invalidatableContent()
+                                                .id(context.state.playableContent.subtitle)
+                                                .transition(updateTransition(context: context))
+                                        }
+                                        if context.state.TVSettings == nil {
+                                            Button(intent: PlaybackIntent(room: context.attributes.room)) {
+                                                Image(systemName: "playpause.fill")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 24, height: 24)
+                                            }
+                                            .buttonStyle(.liveActivity)
+                                            Button(intent: NextIntent(room: context.attributes.room)) {
+                                                Image(systemName: "forward.fill")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 24, height: 24)
+                                            }
+                                            .buttonStyle(.liveActivity)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
                                 }
-                                .tint(.primary)
-                                .buttonStyle(.liveActivity)
+                                .frame(maxWidth: .infinity)
                             }
-                            .frame(maxWidth: 240)
-                            .frame(height: 12)
                         }
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 24) {
-                        if let settings = context.state.TVSettings {
-                            Toggle(isOn: settings.nightMode, intent: NightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
-                                Label("Night Mode", systemImage: "moon.zzz.fill")
+                    VStack {
+                        if !isCompact {
+                            HStack {
+                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
+                                    Image(systemName: "minus")
+                                        .frame(width: 24, height: 24)
+                                        .bold()
+                                }
+                                .tint(.primary)
+                                .buttonStyle(.liveActivity)
+                                VibeNumberSlider(value: .constant(Double(context.state.volume))) { number in
+                                    Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
+                                        
+                                    }
+                                }
+                                Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
+                                    Image(systemName: "plus")
+                                        .frame(width: 24, height: 24)
+                                        .bold()
+                                }
+                                .tint(.primary)
+                                .buttonStyle(.liveActivity)
                             }
-                            .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
-                            .foregroundStyle(settings.nightMode ? Color.teal : .secondary.opacity(0.8))
-                            .frame(width: 32, height: 32)
-
-                            Toggle(isOn: settings.dialogLevel, intent: SpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
-                                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                            }
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
-                            .foregroundStyle(settings.dialogLevel ? Color.teal : .secondary.opacity(0.8))
-                            .frame(width: 32, height: 32)
-                        } else {
-                            Button(intent: PreviousIntent(room: context.attributes.room)) {
-                                Image(systemName: "backward.fill")
-                            }
-                            Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                                Image(systemName: "playpause.fill")
-                                    .imageScale(.large)
-                            }
-                            Button(intent: NextIntent(room: context.attributes.room)) {
-                                Image(systemName: "forward.fill")
-                                    .frame(width: 24, height: 24)
-                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 32)
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .tint(.primary)
-                    .buttonStyle(.borderless)
-                    .overlay(alignment: .trailing) {
-                        Link(destination: URL(string: "clic://search?id=\(context.attributes.room.id)")!) {
-                            Image(systemName: "magnifyingglass.circle.fill")
-                                .imageScale(.large)
-                                .bold()
-                        }
-                    }
-                    .overlay(alignment: .leading) {
-                        Link(destination: URL(string: "clic://group?id=\(context.attributes.room.id)")!) {
-                            Image("hifispeaker.circle.fill")
-                                .imageScale(.large)
-                                .bold()
-                        }
-                    }
-                    .padding(.top, 4)
+                    .padding(.top, 8)
                 }
             } compactLeading: {
                 if context.state.TVSettings != nil {
@@ -149,18 +169,31 @@ struct LiveActivityNowPlayingWidget: Widget {
                         .fontDesign(.rounded)
                 }
             } compactTrailing: {
-                if let image = ArtworkManager.shared.getImage(name: context.state.name) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .frame(width: 20, height: 20)
-                        .overlay(alignment: .bottomTrailing) {
-                            context.state.playableContent.content.service.icon
-                                .frame(width: 8, height: 8, alignment: .bottomLeading)
-                                .padding([.bottom, .trailing], 1)
-
-                        }
+                Group {
+                    if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .frame(width: 20, height: 20)
+                            .overlay(alignment: .bottomTrailing) {
+                                context.state.playableContent.content.service.icon
+                                    .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                    .padding([.bottom, .trailing], 1)
+                                
+                            }
+                    } else {
+                        RoundedRectangle(cornerRadius: 4)
+                            .frame(width: 20, height: 20)
+                    }
+                }.overlay {
+                    if context.state.isMuted {
+                        RoundedRectangle(cornerRadius: 4)
+                            .foregroundStyle(.ultraThinMaterial)
+                            .overlay {
+                                Image(systemName: "speaker.slash.fill")
+                            }
+                    }
                 }
             } minimal: {
                 Image(systemName: "hifispeaker.fill")
