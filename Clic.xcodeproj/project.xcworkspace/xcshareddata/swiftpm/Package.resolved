@@ -1,5 +1,5 @@
 {
-  "originHash" : "1628a30dd77ad30a791681b31063799c6ae868a70aa8168727c5e8fdac5119c1",
+  "originHash" : "612dcd6960bd220476df826263012e4913fac1c59d37218a657465b0c8a2fc4c",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "c7058bfd80d7f42ca6aa392bf1fab769d1158bf1",
-        "version" : "5.5.0"
+        "revision" : "7b2855bbe96980952c9ebe686df1ead1b38f1f11",
+        "version" : "5.9.0"
       }
     },
     {

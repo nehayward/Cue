@@ -9,13 +9,6 @@
 - Search for speakers in Spotlight
 - New shortcut to control Live Activities
 
-
-
-––Enhancements––
-
-––Bug Fixes––
-- 
-
 # 2024.43
 
 ––New Features––
