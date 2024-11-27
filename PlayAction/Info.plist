@@ -31,6 +31,8 @@
 			<true/>
 			<key>NSExtensionServiceFinderPreviewIconName</key>
 			<string>AppIcon</string>
+			<key>NSExtensionServiceRoleType</key>
+			<string>NSExtensionServiceRoleTypeViewer</string>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ui-services</string>

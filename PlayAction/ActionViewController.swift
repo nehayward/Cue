@@ -11,12 +11,20 @@ final class ActionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        queueListView = QueueListView(sonosService: .shared, viewModel: viewModel, context: extensionContext)
+        queueListView = QueueListView(viewModel: viewModel, context: extensionContext)
         let hostingController = UIHostingController(rootView: queueListView)
         addChild(hostingController)
         hostingController.view.frame = self.view.bounds
         view.addSubview(hostingController.view)
         hostingController.didMove(toParent: self)
+
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
 
         for item in self.extensionContext!.inputItems as! [NSExtensionItem] {
             for provider in item.attachments! {

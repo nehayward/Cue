@@ -8,108 +8,116 @@ import MusicKit
 import OrderedCollections
 
 struct QueueListView: View {
-    var sonosService: SonosService = .shared
-
-    @State var playableContent: PlayableContent? = nil
-    @State var isQueueing: Bool = false
-    @State private var playHistoryService = PlayHistoryService()
+    private var sonosService: SonosService = .shared
+    
+    @State private var isQueueing: Bool = false
+    @State private var content: PlayableContent?
+    
+    @State private var groupVolume: Double = 0
+    @State private var selections = Set<String>()
+    @State private var rooms: [Room] = []
+    
+    private var playHistoryService = PlayHistoryService.shared
+    
     var viewModel: ViewModel
     var context: NSExtensionContext?
-
+    
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
-
+    
+    public init(viewModel: ViewModel, context: NSExtensionContext? = nil) {
+        self.viewModel = viewModel
+        self.context = context
+    }
+    
     var body: some View {
-        @Bindable var sonosService = sonosService
         NavigationStack {
-            VStack {
-                if let playableContent = playableContent {
+            List {
+                if let playableContent = content {
                     HStack(alignment: .top) {
-                        AsyncImage(url: playableContent.artwork) { image in
-                            image
-                                .resizable()
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .overlay(alignment: .bottomTrailing) {
-                                    playableContent.content.service.icon
-                                        .frame(width: 16)
-                                        .padding([.bottom, .trailing], 4)
-                                }
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .transition(.scale)
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 100, height: 100)
+                        VibeContentArtworkView(content: playableContent)
+                            .frame(width: 80, height: 80)
+                            .environment(sonosService)
                         VStack(alignment: .leading) {
                             Text(playableContent.title)
-                            Text("\(playableContent.content.type.title)\(playableContent.subtitle.isEmpty ? "" : " • \(playableContent.subtitle)")")
+                            Text(playableContent.subtitle)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(1)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fontDesign(.rounded)
                     }
-                    .padding(.horizontal)
-
-                    List($sonosService.sorted) { $group in
-                        VStack(alignment: .leading) {
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden, edges: .all)
+                    .listRowInsets(EdgeInsets())
+                    
+                    playEverywhereButton
+                    
+                    ForEach($rooms) { $room in
+                        VStack {
                             Button {
-                                isQueueing = true
                                 impactFeedbackGenerator.impactOccurred()
-                                Task {
-                                    playHistoryService.history.remove(playableContent)
-                                    playHistoryService.history.insert(playableContent, at: 0)
-                                    try await sonosService.queue(playable: playableContent, group: group, position: .now)
-                                    await sonosService.play(ip: group.ip)
-                                    self.context?.completeRequest(returningItems: [])
+                                if selections.contains(room.id) {
+                                    selections.remove(room.id)
+                                } else {
+                                    selections.insert(room.id)
+                                    if groupVolume.isZero {
+                                        groupVolume = room.volume
+                                    }
                                 }
                             } label: {
-                                Text(group.nameWithCount)
-                                    .fontDesign(.rounded)
-                                    .bold()
-                            }
-                            VolumeControlView(volume: $group.groupVolume) { volume in
-                                Task {
-                                    await sonosService.setGroupVolume(ip: group.ip, volume: Int(volume))
+                                HStack {
+                                    Text(room.name)
+                                        .bold()
+                                    Spacer()
+                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
                                 }
-                            }
-                            .frame(height: 40)
-                        }
-                        .foregroundStyle(.primary)
-                        .swipeActions {
-                            Button {
-                                isQueueing = true
-                                Task {
-                                    //                                    playHistory.remove(playableContent)
-                                    //                                    playHistory.insert(playableContent, at: 0)
-                                    try await sonosService.queue(playable: playableContent, group: group, position: .next)
-                                    self.context?.completeRequest(returningItems: [])
-                                }
-                            } label: {
-                                Label("Play Next", systemImage: "text.line.last.and.arrowtriangle.forward")
-                                    .font(.caption)
+                                .fontDesign(.rounded)
                             }
                         }
                     }
-                    .listRowSpacing(10)
-                    .disabled(isQueueing)
                 }
             }
-            .overlay {
-                if isQueueing {
-                    ProgressView()
-                        .background {
-                            Circle()
-                                .padding()
-                                .foregroundStyle(.thinMaterial)
-                        }
+            .scrollContentBackground(.hidden)
+            .listRowSpacing(10)
+            .foregroundStyle(.primary)
+            .fontDesign(.rounded)
+            .onAppear {
+                Task {
+                    if sonosService.sortedRooms.isEmpty {
+                        try? await sonosService.load(useCache: true)
+                    }
+                    rooms = sonosService.sortedRooms.filter {
+                        $0.state == .active
+                    }.map {
+                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
+                        room.volume = $0.volume
+                        return room
+                    }
                 }
             }
+            .animation(.default, value: sonosService.sorted)
+            .animation(.default, value: selections)
+            .animation(.default, value: groupVolume)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         self.context?.completeRequest(returningItems: [])
                     }
+                    .keyboardShortcut(.escape)
                 }
+            }
+            .background(.thinMaterial)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .overlay {
+            if isQueueing {
+                ProgressView()
+                    .background {
+                        Circle()
+                            .padding()
+                            .foregroundStyle(.thinMaterial)
+                    }
             }
         }
         .task {
@@ -123,12 +131,12 @@ struct QueueListView: View {
                     viewModel.isLoading = false
                     return
                 }
-                self.playableContent = playableContent
+                self.content = playableContent
                 viewModel.isLoading = false
             }
         }
         .overlay {
-            if playableContent == nil, !viewModel.isLoading {
+            if content == nil, !viewModel.isLoading {
                 VStack {
                     Text("Only Apple Music, Spotify, and Tidal Supported")
                         .font(.title)
@@ -138,7 +146,7 @@ struct QueueListView: View {
                         .multilineTextAlignment(.center)
                 }
             }
-            if playableContent != nil, sonosService.groups.isEmpty {
+            if content != nil, sonosService.groups.isEmpty {
                 Text("No system available")
                     .font(.title)
                     .padding()
@@ -148,8 +156,80 @@ struct QueueListView: View {
                 ProgressView()
             }
         }
+        .overlay(alignment: .bottom) {
+            VStack {
+                HStack {
+                    VibeSlider(value: $groupVolume, step: 1)
+                    Text(groupVolume/100, format: .percent)
+                        .animation(nil, value: groupVolume)
+                        .monospacedDigit()
+                }
+                .frame(height: 24)
+                .padding(.bottom)
+                Button {
+                    Task {
+                        impactFeedbackGenerator.impactOccurred()
+                        let rooms = rooms.filter { room in
+                            selections.contains(room.id)
+                        }
+                        guard let newGroup = await sonosService.speedGroup(rooms: rooms), let content else {
+                            print("Failed!")
+                            return
+                        }
+                        isQueueing = true
+                        playHistoryService.history.remove(content)
+                        playHistoryService.history.insert(content, at: 0)
+                        try await sonosService.queue(playable: content, group: newGroup, position: .now)
+                        await sonosService.play(ip: newGroup.ip)
+                        
+                        for room in rooms {
+                            await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
+                            await sonosService.setRoomMute(IP: room.ip, mute: false)
+                        }
+                        try await Task.sleep(for: .microseconds(200))
+                        await sonosService.snapShotGroup(ip: newGroup.ip)
+                        self.context?.completeRequest(returningItems: [])
+                    }
+                } label: {
+                    Text("Play")
+                        .frame(maxWidth: .infinity)
+                        .bold()
+                        .fontDesign(.rounded)
+                }
+                .transition(.slide)
+                .buttonStyle(.borderedProminent)
+                .tint(.accentColor)
+                .disabled(selections.isEmpty)
+            }
+            .padding()
+            .background(.thinMaterial)
+        }
+        .accentColor(.teal)
+        .disabled(isQueueing)
     }
-
+    
+    var playEverywhereButton: some View {
+        Button {
+            impactFeedbackGenerator.impactOccurred()
+            for room in rooms {
+                if groupVolume.isZero {
+                    groupVolume = room.volume
+                }
+                selections.insert(room.id)
+            }
+        } label: {
+            Text("Everywhere")
+                .frame(maxWidth: .infinity)
+                .bold()
+        }
+        .buttonStyle(.bordered)
+        .fontDesign(.rounded)
+        .tint(.accentColor)
+        .foregroundStyle(Color.accentColor)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets())
+    }
+    
     @Observable
     final class ViewModel {
         var url: URL?
