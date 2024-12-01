@@ -15,7 +15,7 @@ BLACK FRIDAY Special $4.99 for the first year.
 - Moved to OrderedKeys
 
 Release Notes
-BLACK FRIDAY Special: Just $4.99 for the first year!
+Winter Special: Just $4.99 for the first year! (Until 12/8)
 
 Take advantage of this limited-time offer and explore our newest features and improvements:
 
@@ -30,7 +30,7 @@ Improvements & Fixes
 - Spotify Playlist Reliability: Resolved a bug that prevented certain Spotify playlists from loading.
 - Better Volume Controls: Improved volume control responsiveness and usability on the main screen.
 
-Get these exciting updates now and don’t miss the Black Friday special! 🚀
+Get these exciting updates now and don’t miss the Winter special!
 
 # 2024.44
 
