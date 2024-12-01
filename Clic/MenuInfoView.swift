@@ -36,6 +36,16 @@ struct MenuInfoView: View {
                         AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
                     }
                 }
+                if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService), group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {
+                    Button {
+                        Task {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            await sonosService.startRadio(content: group.coordinatorRoom.track.toPlayable, group: group)
+                        }
+                    } label: {
+                        Label("Start Radio", systemImage: "radio.fill")
+                    }
+                }
                 Button {
                     router.sheet(to: .alarms(group: group))
                 } label: {

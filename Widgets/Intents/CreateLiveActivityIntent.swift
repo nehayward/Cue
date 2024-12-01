@@ -27,7 +27,7 @@ struct CreateLiveActivityIntent: LiveActivityIntent {
         }
 
         await Self.liveActivityManager.createActivity(id: id)
-        await Self.liveActivityManager.refresh(type: .refresh)
+        await Self.liveActivityManager.refresh()
         return .result()
     }
 }

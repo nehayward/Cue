@@ -41,7 +41,7 @@ struct DeviceListMainView: View {
                                         MediaControlsView(group: $group)
                                     }
                                 }
-                                VolumeControlView(group: $group, touchDelay: 0)
+                                VolumeControlView(group: $group, delayDrag: true)
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))

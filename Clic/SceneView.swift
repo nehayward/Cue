@@ -33,6 +33,10 @@ struct SceneView: View {
                                     sceneSearch.id == scene.id
                                 }
                             }
+                        } preview: {
+                            Text(scene.description)
+                                .fontDesign(.rounded)
+                                .padding()
                         }
                     }
                     if scenes.isEmpty {

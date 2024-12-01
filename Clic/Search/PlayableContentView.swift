@@ -19,28 +19,32 @@ struct PlayableContentView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideDetails: Bool = false
+    var index: Int = 0
 
     var body: some View {
-        if hideDetails {
-            content
-        } else if let add = adding?.add, add {
-            content
-        } else {
-            switch item.content.type {
-            case .playlist, .album, .libraryPlaylist, .libraryAlbum:
-                NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
-                    content
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden, edges: .all)
-            case .artist, .libraryArtist:
-                NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
-                    content
-                }
-            case .track, .favorite, .radio, .libraryTrack:
+        Group {
+            if hideDetails {
                 content
+            } else if let add = adding?.add, add {
+                content
+            } else {
+                switch item.content.type {
+                case .playlist, .album, .libraryPlaylist, .libraryAlbum:
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
+                        content
+                    }
+                    .listRowSeparator(.hidden, edges: .all)
+                case .artist, .libraryArtist:
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
+                        content
+                    }
+                case .track, .favorite, .radio, .libraryTrack:
+                    content
+                }
             }
         }
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
+        .id(item.trackID)
     }
 
     private var content: some View {
@@ -107,12 +111,10 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
-        .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
-        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: trailingInset))
     }
 
-    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(position: QueuePosition = .now, replaceQueue: Bool = false, playParent: Bool = true) {
         if let add = adding?.add, add {
             adding?.content = item
             return
@@ -122,6 +124,12 @@ struct PlayableContentView: View {
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
                 HapticManager.shared.fireHaptic(.buttonPress)
                 do {
+                    // MARK: Add back later with further UX
+//                    if let parent = item.metadata?.parent {
+//                        try await sonosService.replaceQueue(playable: parent, group: group, index: index)
+//                        return
+//                    }
+                    
                     try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
                     await sonosService.play(ip: group.coordinatorRoom.ip)
                     playHistoryService.history.remove(item)

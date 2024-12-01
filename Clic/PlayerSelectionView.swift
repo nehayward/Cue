@@ -69,7 +69,7 @@ struct PlayerSelectionView: View {
                             .fontDesign(.rounded)
                             .bold()
                     }
-                    VolumeControlView(group: $group, touchDelay: 0.05)
+                    VolumeControlView(group: $group, delayDrag: true)
                 }
                 .foregroundStyle(.primary)
                 .listRowBackground(Rectangle().foregroundColor(.clear).background(Material.bar))

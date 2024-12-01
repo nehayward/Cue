@@ -1,4 +1,4 @@
-#if canImport(ActivityKit)
+#if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import ActivityKit
 import AppIntents
 import WidgetKit
@@ -7,16 +7,32 @@ import SonosKit
 import VibesDS
 
 struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
+    public struct ContentState: Codable, Hashable, Identifiable {
+        var id: String { playableContent.id }
+        
         var playableContent: PlayableContent
+        var isPlaying: Bool
         var volume: Double
         var isMuted: Bool
         var name: String
-        var update: UpdateType = .refresh
         var TVMode: Bool
         var TVSettings: TVSettings? = nil
     }
     var room: SonosDeviceEntity
+}
+
+extension GroupRoom {
+    var toContentState: ClicNowPlayingWidgetAttributes.ContentState {
+        ClicNowPlayingWidgetAttributes.ContentState(
+            playableContent: coordinatorRoom.track.toPlayable,
+            isPlaying: coordinatorRoom.isPlaying,
+            volume: groupVolume,
+            isMuted: isMuted,
+            name: nameWithCount,
+            TVMode: TVMode,
+            TVSettings: tvSettings
+        )
+    }
 }
 
 struct LiveActivityNowPlayingWidget: Widget {
@@ -71,6 +87,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                                         .frame(width: 8, height: 8, alignment: .bottomLeading)
                                                         .padding([.bottom, .trailing], 2)
                                                 }
+                                                .animation(.spring, value: context.state)
                                             //                        // MARK: For Screenshots
                                             //                        #if DEBUG
                                             //                        .overlay {
@@ -94,18 +111,18 @@ struct LiveActivityNowPlayingWidget: Widget {
                                     HStack(spacing: 0) {
                                         VStack(alignment: .leading) {
                                             Text(context.state.playableContent.title)
-                                                .lineLimit(0)
+                                                .lineLimit(1)
                                                 .bold()
-                                                .invalidatableContent()
-                                                .id(context.state.playableContent.title)
-                                                .transition(updateTransition(context: context))
+                                                .animation(.spring, value: context.state)
                                             Text(context.state.playableContent.subtitle)
-                                                .lineLimit(0)
+                                                .lineLimit(1)
                                                 .foregroundStyle(.secondary)
-                                                .invalidatableContent()
-                                                .id(context.state.playableContent.subtitle)
-                                                .transition(updateTransition(context: context))
+                                                .animation(.spring, value: context.state)
                                         }
+                                        .lineLimit(0, reservesSpace: true)
+                                        .invalidatableContent()
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
                                         if context.state.TVSettings == nil {
                                             Button(intent: PlaybackIntent(room: context.attributes.room)) {
                                                 Image(systemName: "playpause.fill")
@@ -113,7 +130,9 @@ struct LiveActivityNowPlayingWidget: Widget {
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(width: 24, height: 24)
                                             }
+                                            .tint(.primary)
                                             .buttonStyle(.liveActivity)
+                                            
                                             Button(intent: NextIntent(room: context.attributes.room)) {
                                                 Image(systemName: "forward.fill")
                                                     .resizable()
@@ -145,6 +164,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                     Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
                                         
                                     }
+                                    .buttonStyle(.liveActivity)
                                 }
                                 Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                                     Image(systemName: "plus")
@@ -201,17 +221,6 @@ struct LiveActivityNowPlayingWidget: Widget {
         }
         .supplementalActivityFamiliesBackDeployment()
     }
-
-    private func updateTransition(context: ActivityViewContext<ClicNowPlayingWidgetAttributes>) -> AnyTransition {
-        switch context.state.update {
-        case .next:
-            return .push(from: .trailing)
-        case .previous:
-            return .push(from: .leading)
-        case .refresh:
-            return .opacity
-        }
-    }
 }
 
 extension WidgetConfiguration {
@@ -234,7 +243,7 @@ extension ClicNowPlayingWidgetAttributes {
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 39,
             isMuted: false,
             name: "Kitchen + 1",

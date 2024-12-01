@@ -1,3 +1,37 @@
+# 2024.45
+
+BLACK FRIDAY Special $4.99 for the first year.
+
+––New Features––
+- Scenes now prioritize grouping to the player that is playing, so that playback is not interrupted.
+- Redesigned and improved Play in Clic for Action Sheet.
+- Improve Live Activities animations.
+- Fix Queue Count not updating in some cases.
+- Fixed for Spotify Playlist not loading in some cases.
+- Add Radio option for Spotify and Apple Tracks
+- Improve volume controls on main screen.
+
+## Internal
+- Moved to OrderedKeys
+
+Release Notes
+BLACK FRIDAY Special: Just $4.99 for the first year!
+
+Take advantage of this limited-time offer and explore our newest features and improvements:
+
+New Features
+- Seamless Scene Grouping: Scenes now automatically group to the player currently playing, ensuring playback continues uninterrupted.
+- Enhanced Action Sheet: Redesigned Play in Clic for a more intuitive and polished experience.
+- Radio Options for Your Tracks: Added a Radio option for Spotify and Apple Music tracks, giving you more ways to enjoy your music.
+
+Improvements & Fixes
+- Smoother Live Activities Animations: Improved animations for Live Activities, making them more fluid and engaging.
+- Reliable Queue Counts: Fixed an issue where the queue count wouldn’t update in some cases.
+- Spotify Playlist Reliability: Resolved a bug that prevented certain Spotify playlists from loading.
+- Better Volume Controls: Improved volume control responsiveness and usability on the main screen.
+
+Get these exciting updates now and don’t miss the Black Friday special! 🚀
+
 # 2024.44
 
 ––New Features––

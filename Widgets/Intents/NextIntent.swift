@@ -28,6 +28,7 @@ struct NextIntent: LiveActivityIntent {
 
     init() { }
 
+    @MainActor
     func perform() async throws -> some IntentResult {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in App")
@@ -38,8 +39,7 @@ struct NextIntent: LiveActivityIntent {
         }
         
         await Self.sonosService.next(ip: coordinatorRoom.ip)
-        try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(type: .next)
+        await Self.liveActivityManager.refresh()
         
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()

@@ -265,8 +265,8 @@ public final class SpotifyAPI {
         request.httpMethod = "POST"
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         // MARK: Might need to revert back
-//        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
-        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
+        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
+//        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil
@@ -309,7 +309,7 @@ public final class SpotifyAPI {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
-            print(String(decoding: data, as: UTF8.self))
+            print(T.self)
             print(error)
             logger.error("Failed to decode ⚠️")
 //            assertionFailure(String(decoding: data, as: UTF8.self))

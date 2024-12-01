@@ -89,7 +89,7 @@ struct QueueScreen: View {
                             Text("Queue" + (group.playbackService != .queue ? " not active" : ""))
                                 .bold()
                             HStack(spacing: 0) {
-                                Text(group.coordinatorRoom.queueTotal, format: .number)
+                                Text(group.coordinatorRoom.queue.count, format: .number)
                                     .contentTransition(.numericText())
                                 Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
                                 if totalDuration.components.seconds > 0  {

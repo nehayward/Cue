@@ -148,10 +148,7 @@ struct SpotifyPlaylistScreen: View {
                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
                         LargePlayerView(group: $sonosService.sorted[group])
                     } else {
-                        Text("Group No Longer Available")
-                            .onTapGesture {
-                                dismiss()
-                            }
+                        GroupNoLongerAvailableScreen()
                     }
                 case let .groupDestination(content, position):
                     PlayerSelectionView(playableContent: content, position: position)

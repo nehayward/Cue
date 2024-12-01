@@ -677,35 +677,61 @@ public final class SonosService {
     
     // Returns the new group
     public func speedGroup(rooms: [Room]) async -> GroupRoom? {
+        // If there's only one room, ungroup it and return as a single group
         if rooms.count == 1, let room = rooms.first {
             await api.ungroup(IP: room.ip)
             return room.toGroup
         }
         
-        // Check if coordinator id is a group otherwise ungroup
+        // Get current groups, fallback to fetching them if necessary
         guard let currentGroups = !sorted.isEmpty ? sorted : try? await getGroupsFast() else {
             // Offline
             return nil
         }
         
         let coordinatorIDs = rooms.map(\.id)
-        guard let coordinatorGroup = currentGroups.first(where: { coordinatorIDs.contains($0.coordinatorID) }) else {
+        let filteredGroups = currentGroups.filter { group in
+            group.rooms.map(\.id).contains(where: coordinatorIDs.contains)
+        }
+        
+        // Update the playback state for filtered groups
+        for idx in filteredGroups.indices {
+            let playback = await getPlaybackInfo(ip: filteredGroups[idx].ip)
+            filteredGroups[idx].coordinatorRoom.isPlaying = (playback == .playing)
+        }
+        
+        // Check if exactly one group is playing
+        let playingGroups = filteredGroups.filter { $0.coordinatorRoom.isPlaying }
+        var coordinatorGroup: GroupRoom?
+        
+        if playingGroups.count == 1 {
+            // Use the single playing group as the coordinator group
+            coordinatorGroup = playingGroups.first
+        } else {
+            // Normal logic: Find the first group matching coordinator IDs
+            coordinatorGroup = filteredGroups.first(where: { coordinatorIDs.contains($0.coordinatorID) })
+        }
+        
+        guard let coordinatorGroup else {
             // Offline
             return nil
         }
         
-        let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorGroup.coordinatorID }
+        // Group non-coordinator rooms to the coordinator group
+        let nonCoordinatorRooms = rooms.filter { $0.id != coordinatorGroup.coordinatorID }
         for room in nonCoordinatorRooms {
             if !coordinatorGroup.rooms.contains(room) {
                 await api.group(IP: room.ip, to: coordinatorGroup.coordinatorID)
             }
         }
-
+        
+        // Ungroup any extra rooms from the coordinator group
         for room in coordinatorGroup.rooms {
             if !rooms.contains(room) {
                 await api.ungroup(IP: room.ip)
             }
         }
+        
         return coordinatorGroup
     }
 
@@ -1254,49 +1280,7 @@ public final class SonosService {
     public func seek(to time: TimeInterval, on group: GroupRoom) async {
         await api.seek(to: time, IP: group.coordinatorRoom.ip)
     }
-
-    public func queueAppleSong(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        let queueActive = group.playbackService == .queue
-
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-
-        await api.queueAppleSong(id: id, IP: group.ip, position: position)
-
-        if position == .now, queueActive {
-            await next(ip: group.ip)
-        }
-    }
-
-    public func queueAppleAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        let queueActive = group.playbackService == .queue
-
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-
-        await api.queueAppleAlbum(ID: id, IP: group.coordinatorRoom.ip, position: position)
-
-        if position == .now, queueActive {
-            await next(ip: group.ip)
-        }
-    }
-
-    public func queueApplePlaylist(id: String, group: GroupRoom) async {
-        await api.removeAllTrackFromQueue(IP: group.ip)
-        await api.queueApplePlaylist(ID: id, IP: group.ip)
-        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-    }
-
-    public func queueSpotifyPlaylist(id: String, group: GroupRoom) async {
-        await api.removeAllTrackFromQueue(IP: group.ip)
-        await api.queueSpotifyPlaylist(ID: id, IP: group.ip)
-        if group.playbackService != .queue {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-    }
-
+    
     public func queueSpotifyArtistTopTracks(id: String, group: GroupRoom) async {
         if group.playbackService != .queue {
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
@@ -1304,40 +1288,7 @@ public final class SonosService {
         await api.queueSpotifyArtistTopTracks(ID: id, IP: group.ip)
     }
 
-    public func queueSpotifyArtistRadio(id: String, group: GroupRoom) async {
-        if group.playbackService != .queue {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-        await api.queueSpotifyArtistRadio(ID: id, IP: group.ip)
-    }
-
-    public func queueSpotifyTrack(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        let queueActive = group.playbackService == .queue
-
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-
-        await api.queueSpotifyTrack(ID: id, IP: group.coordinatorRoom.ip, position: position)
-        if position == .now, queueActive {
-            await next(ip: group.ip)
-        }
-    }
-
-    public func queueSpotifyAlbum(id: String, group: GroupRoom, position: QueuePosition = .now) async {
-        let queueActive = group.playbackService == .queue
-
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-        await api.queueSpotifyAlbum(ID: id, IP: group.coordinatorRoom.ip, position: position)
-
-        if position == .now, queueActive {
-            await next(ip: group.ip)
-        }
-    }
-
-    private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async throws {
+    private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false, index: Int? = nil) async throws {
         if playable.content.type == .radio || playable.metadata?.radioStation != nil {
             await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
@@ -1357,20 +1308,33 @@ public final class SonosService {
 
         let count = await api.getQueueCount(IP: group.ip)
         try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position)
+        
+        if let index, index > 0 {
+            let current = await api.getCurrentTrack(ipAddress: group.ip)?.position ?? 1
+            await seek(trackNumber: current + index, on: group)
+            return
+        }
 
         if position == .now, queueActive, playable.content.type != .playlist, let count, count > 0 {
             await next(ip: group.ip)
         }
     }
-    
+        
     public func getQueueTotal(group: GroupRoom) async throws -> Int? {
         let count = await api.getQueueCount(IP: group.ip)
         return count
     }
+    
+    public func replaceQueue(playable: PlayableContent, group: GroupRoom, index: Int = 0) async throws {
+        try await api.replaceQueue(playableContent: playable, IP: group.ip, index: index)
+        await api.play(ipAddress: group.ip)
+        try? await Task.sleep(for: .milliseconds(120))
+        try? await updateGroups(from: [group])
+    }
 
-    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false) async throws {
-        try await queuePlayable(playable: playable, group: group, position: position, replaceQueue: replaceQueue)
-        try? await Task.sleep(for: .milliseconds(150))
+    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false, index: Int? = nil) async throws {
+        try await queuePlayable(playable: playable, group: group, position: position, replaceQueue: replaceQueue, index: index)
+        try? await Task.sleep(for: .milliseconds(120))
         try? await updateGroups(from: [group])
     }
     

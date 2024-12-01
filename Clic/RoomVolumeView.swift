@@ -10,11 +10,11 @@ struct RoomVolumeView: View {
     @State private var volumeTask: Task<Void, Error>?
     var updatedVolume: (() -> Void)? = nil
 
-    private let touchDelay: TimeInterval
+    private let delayDrag: Bool
 
-    init(room: Binding<Room>, touchDelay: TimeInterval = 0, updatedVolume: (() -> Void)? = nil) {
+    init(room: Binding<Room>, delayDrag: Bool = false, updatedVolume: (() -> Void)? = nil) {
         self._room = room
-        self.touchDelay = touchDelay
+        self.delayDrag = delayDrag
         self.updatedVolume = updatedVolume
     }
 
@@ -38,7 +38,7 @@ struct RoomVolumeView: View {
             .padding(.trailing)
 
 
-            VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
+            VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, delayDrag: true) { isEditing in
                 if room.isMuted {
                     Task {
                         await sonosService.setRoomMute(room: room, mute: false)

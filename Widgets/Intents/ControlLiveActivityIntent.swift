@@ -43,14 +43,14 @@ struct ControlLiveActivityIntent: AppIntent & LiveActivityIntent {
         case .start:
             await Self.liveActivityManager.createActivity(
                 id: coordinatorRoom.coordinatorID)
-            await Self.liveActivityManager.refresh(type: .refresh)
+            await Self.liveActivityManager.refresh()
         case .stop:
             await Self.liveActivityManager.stop(
                 id: coordinatorRoom.coordinatorID)
         case .toggle:
             await Self.liveActivityManager.toggle(
                 id: coordinatorRoom.coordinatorID)
-            await Self.liveActivityManager.refresh(type: .refresh)
+            await Self.liveActivityManager.refresh()
         }
 
         return .result()

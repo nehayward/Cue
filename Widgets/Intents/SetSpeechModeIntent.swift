@@ -50,8 +50,8 @@ struct SetSpeechEnhancementIntent: LiveActivityIntent {
             throw IntentError.message("Night Mode not supported")
         }
         
-        try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(type: .refresh)
+        try? await Task.sleep(for: .milliseconds(100))
+        await Self.liveActivityManager.refresh()
         return .result(value: speechEnhancement)
     }
 }

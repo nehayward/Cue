@@ -260,13 +260,13 @@ public final class MusicSearchService {
             playableContent.append(contentsOf: tracks.map(\.toPlayable))
         }
         if let tracks = results.albums?.items {
-            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+            playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
         if let tracks = results.artists?.items {
             playableContent.append(contentsOf: tracks.map(\.toPlayable))
         }
         if let tracks = results.playlists?.items {
-            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+            playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
         }
 
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
@@ -275,7 +275,7 @@ public final class MusicSearchService {
     public func searchSpotifyPlayableContent(query: String) async -> [PlayableContent] {
         var playableContents: [PlayableContent] = []
         guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return [] }
-        if let albums = results.albums?.items.map(\.toPlayable) {
+        if let albums = results.albums?.items.compactMap({ $0?.toPlayable }) {
             playableContents.append(contentsOf: albums)
         }
 

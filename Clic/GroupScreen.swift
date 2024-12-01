@@ -51,7 +51,7 @@ struct GroupScreen: View {
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .fontDesign(.rounded)
                         }
-                        RoomVolumeView(room: $room, touchDelay: 0.05)
+                        RoomVolumeView(room: $room, delayDrag: true)
                             .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                             .tint(selections.contains(room.id) ? .black : .accentColor)
                     }

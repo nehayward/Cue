@@ -93,7 +93,7 @@ public struct SceneButton: View {
 //                        color: .primary,
 //                        lineWidth: 2
 //                    )
-//                    .frame(width: CGFloat(50 - (index * 8)), height: CGFloat(50 - (index * 8))) // Decrease size by 4 for each index
+//                    .frame(width: CGFloat(40 - (index * 8)), height: CGFloat(40 - (index * 8))) // Decrease size by 4 for each index
 //                }
 //            }
 //            .padding()

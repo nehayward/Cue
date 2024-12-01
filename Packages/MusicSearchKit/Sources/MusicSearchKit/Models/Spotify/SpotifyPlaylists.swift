@@ -1,5 +1,5 @@
 public struct SpotifyPlaylists: Decodable, Sendable {
-    public let items: [SpotifyPlaylistItems]
+    public let items: [SpotifyPlaylistItems?]
 }
 
 public struct SpotifyPlaylistItems: Decodable, Identifiable, Sendable {

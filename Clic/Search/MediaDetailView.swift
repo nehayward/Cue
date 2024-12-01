@@ -122,7 +122,7 @@ struct MediaDetailView: View {
             .listRowSeparator(.hidden)
 
             ForEach(tracks) { item in
-                PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album)
+                PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album, index: tracks.firstIndex(of: item) ?? 0)
                     .swipeActions(edge: .trailing) {
                         if playableContent.content.type == .libraryPlaylist {
                             Button(role: .destructive) {
@@ -144,6 +144,7 @@ struct MediaDetailView: View {
                             }
                         }
                     }
+                    .listRowBackground(Color.clear)
             }
 
             if tracks.isEmpty, !isLoaded {
@@ -227,7 +228,7 @@ struct MediaDetailView: View {
         case (.album, .spotify):
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
             playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.map { $0.toPlayable(thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            newTracks = albumDetails.tracks.items.map { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
             newTracks = playlist.map(\.toPlayable)
@@ -238,7 +239,7 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             size = playlist.total
-            newTracks = playlist.items.map { $0.track.toPlayable(thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
+            newTracks = playlist.items.map { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
@@ -256,7 +257,7 @@ struct MediaDetailView: View {
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: song.album.id) else { return }
             playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.map { $0.toPlayable(thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            newTracks = albumDetails.tracks.items.map { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.album, .library):
             newTracks = await sonosService.libraryLookup(ID: playableContent.id)
         case (.playlist, .library):

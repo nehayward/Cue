@@ -20,7 +20,7 @@ struct RefreshIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in Clic")
         }
 
-        await Self.liveActivityManager.refresh(type: .refresh)
+        await Self.liveActivityManager.refresh()
 #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
 #endif

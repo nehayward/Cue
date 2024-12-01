@@ -231,6 +231,14 @@ struct LargePlayerView: View {
             if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
                 refreshID = UUID()
             }
+            if scenePhase == .active {
+                Task {
+                    guard let track = await sonosService.getTrack(ip: group.ip) else { return }
+                    if group.coordinatorRoom.track == track {
+                        group.coordinatorRoom.track.playbackPosition = track.playbackPosition
+                    }
+                }
+            }
         }
         .environment(AlertService.shared)
         .padding(.horizontal, 32)
@@ -387,6 +395,14 @@ struct LargePlayerView: View {
             }
         }
         .fontDesign(.rounded)
+    }
+    
+    var artworkView: some View {
+        ArtworkView(group: $group)
+            .padding(.bottom, 12)
+            .shadow(radius: 10)
+            .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+            .draggable(group.coordinatorRoom.track.toPlayable)
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 protocol LiveActivityManageable {
-    func refresh(type: UpdateType) async
+    func refresh() async
     func createActivity()
     func createActivity(id: String) async
     func stop(id: String) async
@@ -10,7 +10,7 @@ protocol LiveActivityManageable {
 
 struct LiveActivityManagerKey: EnvironmentKey {
     // you can also set the real user service as the default value
-    #if os(iOS) && canImport(ActivityKit)
+    #if os(iOS) && canImport(ActivityKit) && !targetEnvironment(macCatalyst)
     static let defaultValue: any LiveActivityManageable = LiveActivityManager()
     #else
     static let defaultValue: any LiveActivityManageable = LiveActivityManagerMock()
@@ -25,7 +25,7 @@ extension EnvironmentValues {
 }
 
 final class LiveActivityManagerMock: LiveActivityManageable {
-    func refresh(type: UpdateType) async { }
+    func refresh() async { }
     func createActivity() { }
     func createActivity(id: String) async {}
     func stop(id: String) async {}
@@ -34,7 +34,7 @@ final class LiveActivityManagerMock: LiveActivityManageable {
 
 struct LiveActivityManagerFactory {
     // you can also set the real user service as the default value
-    #if os(iOS) && canImport(ActivityKit)
+    #if os(iOS) && canImport(ActivityKit) && !targetEnvironment(macCatalyst)
     static let shared: any LiveActivityManageable = LiveActivityManager()
     #else
     static let shared: any LiveActivityManageable = LiveActivityManagerMock()

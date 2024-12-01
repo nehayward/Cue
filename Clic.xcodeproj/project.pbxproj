@@ -68,6 +68,7 @@
 		E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9C03B0E2A586F7E00FB9118 /* SonosKit */; };
 		E9C2C4382C580FE000ABC177 /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E9C2C4372C580FE000ABC177 /* Glur */; };
 		E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9D49E4D2BC9D21B0084185E /* Analytics */; };
+		E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
 		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
 		E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C52B4E62040039AAA6 /* NukeUI */; };
@@ -110,6 +111,13 @@
 			remoteGlobalIDString = E9C03AFB2A586F5E00FB9118;
 			remoteInfo = "SonosWatch Watch App";
 		};
+		E9D637782CEBF06D00434339 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E92E47422B360C5C00DE6647;
+			remoteInfo = QueueAction;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -119,6 +127,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */,
 				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -293,7 +302,6 @@
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchAppIntent.swift,
 				Intents/Models/IntentError.swift,
-				Intents/Models/UpdateType.swift,
 				Intents/NextIntent.swift,
 				Intents/PlaybackIntent.swift,
 				Intents/PreviousIntent.swift,
@@ -343,7 +351,6 @@
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchAppIntent.swift,
 				Intents/Models/IntentError.swift,
-				Intents/Models/UpdateType.swift,
 				Intents/NextIntent.swift,
 				Intents/PlaybackIntent.swift,
 				Intents/PreviousIntent.swift,
@@ -379,7 +386,6 @@
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchAppIntent.swift,
 				Intents/Models/IntentError.swift,
-				Intents/Models/UpdateType.swift,
 				Intents/NextIntent.swift,
 				Intents/PlaybackIntent.swift,
 				Intents/PreviousIntent.swift,
@@ -404,13 +410,33 @@
 			);
 			target = E9BDE56B29E3396700D230A8 /* Clic */;
 		};
+		E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SplitView.swift,
+			);
+			target = E9BDE56B29E3396700D230A8 /* Clic */;
+		};
+		E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SplitView.swift,
+			);
+			target = E97562C82B699B2400787E14 /* Clic (Mac) */;
+		};
+		E9D6375D2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SplitView.swift,
+			);
+			target = E92B3E862B60249B00724FA1 /* Clic (Vision) */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
 		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816C2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816E2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
-		E91B81562CEBC171004C279D /* Vision */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Vision; sourceTree = "<group>"; };
-		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
+		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375D2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
 		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
 		E91B829A2CEBC291004C279D /* Widgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832B2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widgets; sourceTree = "<group>"; };
@@ -541,7 +567,6 @@
 				E91B7FBA2CEBC162004C279D /* Clic */,
 				E91B815B2CEBC171004C279D /* Mac */,
 				E91B813B2CEBC171004C279D /* Watch */,
-				E91B81562CEBC171004C279D /* Vision */,
 				E91B829A2CEBC291004C279D /* Widgets */,
 				E91B81632CEBC171004C279D /* WatchWidgets */,
 				E91B81742CEBC222004C279D /* PlayAction */,
@@ -592,7 +617,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
-				E91B81562CEBC171004C279D /* Vision */,
 			);
 			name = "Clic (Vision)";
 			packageProductDependencies = (
@@ -654,10 +678,10 @@
 			);
 			dependencies = (
 				E97562C92B699B2400787E14 /* PBXTargetDependency */,
+				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
-				E91B81562CEBC171004C279D /* Vision */,
 			);
 			name = "Clic (Mac)";
 			packageProductDependencies = (
@@ -746,7 +770,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
-				E91B81562CEBC171004C279D /* Vision */,
 			);
 			name = Clic;
 			packageProductDependencies = (
@@ -802,7 +825,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1600;
+				LastSwiftUpdateCheck = 1610;
 				LastUpgradeCheck = 1530;
 				TargetAttributes = {
 					E92E47422B360C5C00DE6647 = {
@@ -987,6 +1010,11 @@
 			platformFilter = ios;
 			target = E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */;
 			targetProxy = E9C03B072A586F6100FB9118 /* PBXContainerItemProxy */;
+		};
+		E9D637792CEBF06D00434339 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E92E47422B360C5C00DE6647 /* QueueAction */;
+			targetProxy = E9D637782CEBF06D00434339 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1177,6 +1205,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
@@ -1215,6 +1244,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
@@ -1252,6 +1282,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).QueueAction";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
@@ -1433,6 +1464,7 @@
 			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -1460,6 +1492,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
@@ -1478,6 +1511,7 @@
 			baseConfigurationReferenceRelativePath = Release.xcconfig;
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -1505,6 +1539,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;
@@ -2097,6 +2132,7 @@
 			baseConfigurationReferenceRelativePath = Beta.xcconfig;
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -2124,6 +2160,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = NO;
 				SKIP_INSTALL = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = YES;

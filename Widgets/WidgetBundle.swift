@@ -16,22 +16,24 @@ struct SonosWidgetBundle: WidgetBundle {
 @WidgetBundleBuilder
 private var body_iOS17: some Widget {
     RemoteWidget()
-    #if canImport(ActivityKit)
+    #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
     LiveActivityNowPlayingWidget()
     #endif
+//    SceneWidget()
 }
 
 @available(iOS 18.0, *)
 @WidgetBundleBuilder
 private var body_iOS18: some Widget {
     RemoteWidget()
-    #if canImport(ActivityKit)
+    #if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
     LiveActivityNowPlayingWidget()
     #endif
     RemoteControlWidget()
     LaunchAppControlWidget()
     AlarmsControlWidget()
     SceneControlWidget()
+//    SceneWidget()
 }
 
 

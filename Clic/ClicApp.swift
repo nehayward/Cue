@@ -272,7 +272,7 @@ struct ClicApp: App {
             }
 
             Task {
-                await liveActivityManager.refresh(type: .refresh)
+                await liveActivityManager.refresh()
             }
 
             Task {
@@ -289,7 +289,7 @@ struct ClicApp: App {
             WidgetCenter.shared.reloadAllTimelines()
 #endif
             Task {
-                await liveActivityManager.refresh(type: .refresh)
+                await liveActivityManager.refresh()
             }
         case .background:
             print("Background")

@@ -12,7 +12,7 @@ public struct VibeSlider: View {
 
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
-    private let touchDelay: TimeInterval
+    private let delayDrag: Bool
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
@@ -29,13 +29,13 @@ public struct VibeSlider: View {
         in range: ClosedRange<Double> = 0...100,
         step: Double.Stride = 1,
         baseHeight: CGFloat = 24,
-        touchDelay: TimeInterval = 0,
+        delayDrag: Bool = false,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
             self._value = value
             self.range = range
             self.step = step
             self.baseHeight = baseHeight
-            self.touchDelay = touchDelay
+            self.delayDrag = delayDrag
             self.onEditingChanged = onEditingChanged
         }
 
@@ -86,9 +86,6 @@ public struct VibeSlider: View {
                 .contentShape(.hoverEffect, .capsule)
             #endif
             }
-#if !targetEnvironment(macCatalyst)
-        .delaysTouches(for: touchDelay) { }
-#endif
         .gesture(dragGesture)
         #if !os(visionOS)
         .sensoryFeedback(trigger: value) { oldValue, newValue in
@@ -109,7 +106,7 @@ public struct VibeSlider: View {
     }
 
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: delayDrag ? 20 : 0)
             .onChanged(handleDragChanged)
             .onEnded(handleDragEnded)
     }
@@ -171,63 +168,4 @@ fileprivate struct Container: View {
 #Preview("Colors") {
     Container(volume: 50)
         .foregroundStyle(Color.red)
-}
-
-
-extension View {
-    /// Delays touches for a specified duration before recognizing a gesture or tap.
-    /// - Parameters:
-    ///   - duration: The time to delay before recognizing the gesture or tap.
-    ///   - action: A closure to execute when the tap is recognized.
-    func delaysTouches(for duration: TimeInterval = 0.25, onTap action: @escaping () -> Void = {}) -> some View {
-        modifier(DelaysTouches(duration: duration, action: action))
-    }
-}
-
-fileprivate struct DelaysTouches: ViewModifier {
-    @State private var disabled = false
-    @State private var touchDownDate: Date? = nil
-
-    var duration: TimeInterval
-    var action: () -> Void
-
-    func body(content: Content) -> some View {
-        Button(action: action) {
-            content
-        }
-        .buttonStyle(DelaysTouchesButtonStyle(disabled: $disabled, duration: duration, touchDownDate: $touchDownDate))
-        .disabled(disabled)
-    }
-}
-
-fileprivate struct DelaysTouchesButtonStyle: ButtonStyle {
-    @Binding var disabled: Bool
-    var duration: TimeInterval
-    @Binding var touchDownDate: Date?
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { old, new in
-                handleIsPressed(new)
-            }
-    }
-
-    private func handleIsPressed(_ isPressed: Bool) {
-        if isPressed {
-            let date = Date()
-            touchDownDate = date
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + max(duration, 0)) {
-                if date == touchDownDate {
-                    disabled = true
-                    DispatchQueue.main.async {
-                        disabled = false
-                    }
-                }
-            }
-        } else {
-            touchDownDate = nil
-            disabled = false
-        }
-    }
 }

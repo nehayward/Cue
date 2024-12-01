@@ -1,4 +1,4 @@
-#if canImport(ActivityKit)
+#if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import ActivityKit
 import Foundation
 import SonosKit
@@ -16,7 +16,7 @@ final class LiveActivityManager: LiveActivityManageable {
         self.sonosService = sonosService
     }
 
-    func refresh(type: UpdateType = .refresh) async {
+    func refresh() async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
             guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
@@ -31,23 +31,17 @@ final class LiveActivityManager: LiveActivityManageable {
                 artworkManager.removeArtwork(coordinatorRoom: group.nameWithCount)
             }
 
-            var tvSettings: TVSettings?
             if group.TVMode {
-                tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
             }
-
-            let contentState = ClicNowPlayingWidgetAttributes.ContentState(
-                playableContent: group.coordinatorRoom.track.toPlayable,
-                volume: group.groupVolume,
-                isMuted: group.isMuted,
-                name: group.nameWithCount,
-                update: type,
-                TVMode: group.TVMode,
-                TVSettings: tvSettings
-            )
-
-            let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60))
+            
+            let contentState = group.toContentState
+            let activityContent = ActivityContent(state: contentState, staleDate: .now.addingTimeInterval(1))
             await activity.update(activityContent)
+            
+//            if !group.coordinatorRoom.isPlaying && !group.TVMode {
+//                await activity.end(activity.content, dismissalPolicy: .after(.now.addingTimeInterval(60)))
+//            }
         }
     }
 
@@ -69,24 +63,12 @@ final class LiveActivityManager: LiveActivityManageable {
                 let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
                                                                                             ip: group.coordinatorRoom.ip,
                                                                                             name: group.nameWithCount))
-
-
-                var tvSettings: TVSettings?
                 if group.TVMode {
-                    tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+                    group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
                 }
 
-                let contentState = ClicNowPlayingWidgetAttributes.ContentState(
-                    playableContent: group.coordinatorRoom.track.toPlayable,
-                    volume: group.groupVolume,
-                    isMuted: group.isMuted,
-                    name: group.nameWithCount,
-                    TVMode: group.TVMode,
-                    TVSettings: tvSettings
-                )
-
+                let contentState = group.toContentState
                 let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: Double(activities.count))
-
 
                 do {
                     if Task.isCancelled { return }
@@ -112,19 +94,11 @@ final class LiveActivityManager: LiveActivityManageable {
                                                                                     ip: group.coordinatorRoom.ip,
                                                                                     name: group.nameWithCount))
 
-        var tvSettings: TVSettings?
         if group.TVMode {
-            tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
+            group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
         }
 
-        let contentState = ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: group.coordinatorRoom.track.toPlayable,
-            volume: group.groupVolume,
-            isMuted: group.isMuted,
-            name: group.nameWithCount,
-            TVMode: group.TVMode,
-            TVSettings: tvSettings
-        )
+        let contentState = group.toContentState
         
         let activityContent = ActivityContent(state: contentState, staleDate: Date.now.addingTimeInterval(60), relevanceScore: activities.isEmpty ? 0 : 1)
         guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
@@ -150,7 +124,7 @@ final class LiveActivityManager: LiveActivityManageable {
     
     func stop(id: String) async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+            guard let _ = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 continue
             }
 
@@ -160,7 +134,7 @@ final class LiveActivityManager: LiveActivityManageable {
     
     func toggle(id: String) async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
+            guard let _ = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 continue
             }
 

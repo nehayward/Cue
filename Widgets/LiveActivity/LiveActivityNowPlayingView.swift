@@ -1,4 +1,4 @@
-#if canImport(ActivityKit)
+#if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import AppIntents
 import WidgetKit
 import SonosKit
@@ -6,21 +6,10 @@ import SwiftUI
 import VibesDS
 
 struct LiveActivityNowPlayingView: View {
-    @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-
-    private var updateTransition: AnyTransition {
-        switch context.state.update {
-        case .next:
-            return .push(from: .trailing)
-        case .previous:
-            return .push(from: .leading)
-        case .refresh:
-            return .opacity
-        }
-    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -66,6 +55,7 @@ struct LiveActivityNowPlayingView: View {
                                         .frame(width: 8, height: 8, alignment: .bottomLeading)
                                         .padding([.bottom, .trailing], 4)
                                 }
+                                .animation(.spring, value: context.state)
                             //                        // MARK: For Screenshots
                             //                        #if DEBUG
                             //                        .overlay {
@@ -90,17 +80,14 @@ struct LiveActivityNowPlayingView: View {
                         Text(context.state.playableContent.title)
                             .lineLimit(1)
                             .bold()
-                            .invalidatableContent()
-                            .id(context.state.playableContent.title)
-                            .transition(updateTransition)
+                            .animation(.spring, value: context.state)
                         Text(context.state.playableContent.subtitle)
                             .lineLimit(1)
                             .foregroundStyle(.secondary)
-                            .invalidatableContent()
-                            .id(context.state.playableContent.subtitle)
-                            .transition(updateTransition)
+                            .animation(.spring, value: context.state)
                     }
                     .lineLimit(0, reservesSpace: true)
+                    .invalidatableContent()
                     Spacer()
                     HStack(spacing: 0) {
                         Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
@@ -159,6 +146,7 @@ struct LiveActivityNowPlayingView: View {
                             
                         }
                     }
+                    
                     Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
                         Image(systemName: "plus")
                             .frame(width: 24, height: 24)

@@ -8,6 +8,7 @@ struct PaywallButtonView: View {
     @Environment(Router.self) var router: Router?
 
     private var features = [
+        ("Winter Sale ❄️", "Over 50% off the first Year (Ends 12/8)."),
         ("Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
         ("Live Activities + Dynamic Island", "Instantly adjust playback and volume from the lock screen."),
         ("Interactive Widgets", "Convenient home screen widgets for immediate playback control."),
@@ -19,8 +20,7 @@ struct PaywallButtonView: View {
     @State private var title = ""
     @State private var current: Int? = 0
     @State private var count = 0
-
-    @State private var timer = Timer.publish(every: 4, on: .main, in: .common).autoconnect()
+    @State private var timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Button {
@@ -33,18 +33,18 @@ struct PaywallButtonView: View {
                     ForEach(Array(features.enumerated()), id: \.offset) { index, element in
                         VStack {
                             Text(element.0)
-                                .font(.title3)
+                                .font(.title2)
                                 #if os(visionOS)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(.foreground)
                                 #else
-                                .foregroundStyle(.ultraThickMaterial)
+                                .foregroundStyle(.foreground)
                                 #endif
                             Text(element.1)
                                 .lineLimit(2, reservesSpace: true)
                                 #if os(visionOS)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.foreground)
                                 #else
-                                .foregroundStyle(.bar)
+                                .foregroundStyle(.secondary)
                                 #endif
                         }
                         .multilineTextAlignment(.center)
@@ -68,9 +68,8 @@ struct PaywallButtonView: View {
             .bold()
             .padding()
             .frame(maxWidth: .infinity)
-            .background(.accent.gradient)
+            .background(.ultraThickMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(radius: 8, x: 0, y: 1)
             .fixedSize(horizontal: false, vertical: true)
         }
         .buttonStyle(.plain)

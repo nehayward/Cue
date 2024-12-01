@@ -16,7 +16,7 @@ public final class SpotifyBrowseService {
     
     public func updateUsersRecentPlayed(userID: String, offset: Int = 0) async {
         guard let container = await spotifyAPI.userPlaylists(userID: userID) else { return }
-        let newUserPlaylists = container.items.compactMap(\.toPlayable)
+        let newUserPlaylists = container.items.compactMap { $0?.toPlayable }
         for new in newUserPlaylists {
             userPlaylists.updateOrAppend(new)
         }

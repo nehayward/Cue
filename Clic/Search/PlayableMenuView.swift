@@ -33,11 +33,7 @@ struct PlayableMenuView: View {
 
                 if [.spotify, .apple].contains(item.content.service) && item.content.type != .libraryArtist {
                     Button {
-                        guard let group = selectedGroupService.group else { return }
-                        Task {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            await sonosService.startRadio(content: item, group: group)
-                        }
+                        startRadio()
                     } label: {
                         Label("Start Radio", systemImage: "radio.fill")
                     }
@@ -93,6 +89,14 @@ struct PlayableMenuView: View {
 
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                         Label("View Artist", systemImage: "music.mic")
+                    }
+                }
+                
+                if [.spotify, .apple].contains(item.content.service), item.content.type == .track {
+                    Button {
+                        startRadio()
+                    } label: {
+                        Label("Start Radio", systemImage: "radio.fill")
                     }
                 }
 
@@ -168,6 +172,23 @@ struct PlayableMenuView: View {
                 return
             }
             try await queueSong(group)
+        }
+    }
+    
+    private func startRadio() {
+        Task { @MainActor in
+            hideKeyboard()
+            let startRadio: ((GroupRoom) async throws -> Void) = { group in
+                Task {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    await sonosService.startRadio(content: item, group: group)
+                }
+            }
+            guard let group = selectedGroupService.group else {
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: startRadio, content: item))
+                return
+            }
+            try await startRadio(group)
         }
     }
 }

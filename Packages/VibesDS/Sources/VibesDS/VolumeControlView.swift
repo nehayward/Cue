@@ -6,15 +6,15 @@ public struct VolumeControlView: View {
     @Binding private var volume: Double
 
     private var updatedVolume: ((Double) -> Void)? = nil
-    private let touchDelay: TimeInterval
+    private let delayDrag: Bool
 
     public init(
         volume: Binding<Double>,
-        touchDelay: TimeInterval = 0,
+        delayDrag: Bool = false,
         updatedVolume: ((Double) -> Void)? = nil
     ) {
         self._volume = volume
-        self.touchDelay = touchDelay
+        self.delayDrag = delayDrag
         self.updatedVolume = updatedVolume
     }
 
@@ -23,7 +23,7 @@ public struct VolumeControlView: View {
             Image(systemName: "speaker.wave.3.fill", variableValue: volume/100)
                 .renderingMode(.template)
                 .padding(.trailing, 8)
-            VibeSlider(value: $volume, in: 0...100, touchDelay: touchDelay) { isEditing in
+            VibeSlider(value: $volume, in: 0...100, delayDrag: delayDrag) { isEditing in
                 self.isEditingRoomVolume = isEditing
                 let volume = volume
                 updateVolume(volume: volume)

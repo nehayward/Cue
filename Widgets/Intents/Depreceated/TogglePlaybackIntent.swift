@@ -33,7 +33,7 @@ struct TogglePlaybackIntent: DeprecatedAppIntent {
         
         await Self.sonosService.togglePlayback(ip: coordinatorGroup.ip)
         await Self.liveActivityManager.createActivity(id: room.id)
-        await Self.liveActivityManager.refresh(type: .refresh)
+        await Self.liveActivityManager.refresh()
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif

@@ -36,6 +36,10 @@ public struct SceneListView: View {
                                 sceneSearch.id == scene.id
                             }
                         }
+                    } preview: {
+                        Text(scene.description)
+                            .fontDesign(.rounded)
+                            .padding()
                     }
                     #endif
                 }

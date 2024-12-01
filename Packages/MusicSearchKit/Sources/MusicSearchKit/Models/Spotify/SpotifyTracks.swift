@@ -8,7 +8,8 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let id: String
     public let href: String
     public let name: String
-    public let album: SpotifyAlbum
+    public let album: SpotifyAlbumItem
+    public let isPlayable: Bool?
     public let artists: [SpotifyArtistsInfo]
     public let externalUrls: ExternalUrls
     public let externalIds: SpotifyExternalIDS
@@ -18,15 +19,4 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let popularity: Int
     public let durationMs: Int
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
-}
-
-public struct SpotifyAlbum: Equatable, Decodable, Sendable {
-    public let id: String
-    public let name: String
-    public let images: [SpotifyImage]
-}
-
-public struct SpotifyArtistsInfo: Equatable, Decodable, Sendable {
-    public let id: String
-    public let name: String
 }

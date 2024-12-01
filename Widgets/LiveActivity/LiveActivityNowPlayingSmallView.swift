@@ -1,4 +1,4 @@
-#if canImport(ActivityKit)
+#if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import AppIntents
 import WidgetKit
 import SonosKit
@@ -8,21 +8,10 @@ import VibesDS
 @available(iOS 18.0, *)
 struct LiveActivityNowPlayingFamilyView: View {
     @Environment(\.activityFamily) var activityFamily
-    var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
+    let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
     
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    
-    private var updateTransition: AnyTransition {
-        switch context.state.update {
-        case .next:
-            return .push(from: .trailing)
-        case .previous:
-            return .push(from: .leading)
-        case .refresh:
-            return .opacity
-        }
-    }
-    
+
     var body: some View {
         switch activityFamily {
         case .medium:
@@ -48,32 +37,50 @@ struct LiveActivityNowPlayingSmallView: View {
                 .fontDesign(.rounded)
             if context.state.TVSettings == nil {
                 HStack {
-                    if let image = ArtworkManager.shared.getImage(name: context.state.name) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .frame(width: 48, height: 48)
-                            .overlay(alignment: .bottomTrailing) {
-                                context.state.playableContent.content.service.icon
-                                    .frame(width: 8, height: 8, alignment: .bottomLeading)
-                                    .padding([.bottom, .trailing], 4)
-                            }
+                    Group {
+                        if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 48, height: 48)
+                                .overlay(alignment: .bottomTrailing) {
+                                    context.state.playableContent.content.service.icon
+                                        .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                        .padding([.bottom, .trailing], 4)
+                                }
+                                .animation(.spring, value: context.state)
+                        } else {
+                            RoundedRectangle(cornerRadius: 4)
+                                .frame(width: 48, height: 48)
+                        }
+                    }.overlay {
+                        if context.state.isMuted {
+                            RoundedRectangle(cornerRadius: 4)
+                                .foregroundStyle(.ultraThinMaterial)
+                                .overlay {
+                                    Image(systemName: "speaker.slash.fill")
+                                }
+                        }
                     }
                     Spacer()
-                    Button(intent: TogglePlaybackIntent(room: context.attributes.room)) {
-                        Image(systemName: "playpause.fill")
-                            .frame(width: 24, height: 24)
+                    HStack(spacing: 0) {
+                        Button(intent: PlaybackIntent(room: context.attributes.room)) {
+                            Image(systemName: "playpause.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 24, height: 24)
+                        }
+                        .tint(.primary)
+                        .buttonStyle(.liveActivity)
+                        
+                        Button(intent: NextIntent(room: context.attributes.room)) {
+                            Image(systemName: "forward.fill")
+                                .frame(width: 24, height: 24)
+                        }
+                        .tint(.primary)
+                        .buttonStyle(.liveActivity)
                     }
-                    .buttonBorderShape(.circle)
-                    .tint(.primary)
-                    Button(intent: NextIntent(room: context.attributes.room)) {
-                        Image(systemName: "forward.fill")
-                            .frame(width: 24, height: 24)
-                    }
-                    .buttonBorderShape(.circle)
-                    .tint(.primary)
-                    
                 }
             }
             if let settings = context.state.TVSettings {

@@ -1,4 +1,4 @@
-#if canImport(ActivityKit)
+#if canImport(ActivityKit) && !targetEnvironment(macCatalyst)
 import AppIntents
 import WidgetKit
 import SonosKit
@@ -26,7 +26,7 @@ extension ClicNowPlayingWidgetAttributes {
 extension ClicNowPlayingWidgetAttributes.ContentState {
     fileprivate static var testing: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 39,
             isMuted: false,
             name: "Kitchen + 1",
@@ -36,7 +36,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
 
     fileprivate static var testing2: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 50,
             isMuted: false,
             name: "Kitchen + 1",
@@ -46,7 +46,7 @@ extension ClicNowPlayingWidgetAttributes.ContentState {
 
     fileprivate static var theater: ClicNowPlayingWidgetAttributes.ContentState {
         ClicNowPlayingWidgetAttributes.ContentState(
-            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)),
+            playableContent: .init(title: "Dance the Night (From The Barbie Album)", subtitle: "Dua Lipa",  thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "123", type: .track, location: nil)), isPlaying: true,
             volume: 50,
             isMuted: false,
             name: "Kitchen + 1",

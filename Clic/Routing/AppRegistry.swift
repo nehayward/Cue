@@ -291,18 +291,14 @@ extension View {
 
     func withAppRouter() -> some View {
         @Bindable var sonosService = SonosService.shared
-        @Environment(\.dismiss) var dismiss
-        
+
         return navigationDestination(for: RouterDestination.self) { destination in
             switch destination {
             case let .player(groupID):
                 if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
                     LargePlayerView(group: $sonosService.sorted[group])
                 } else {
-                    Text("Group No Longer Available")
-                        .onTapGesture {
-                            dismiss()
-                        }
+                    GroupNoLongerAvailableScreen()
                 }
             case let .groupDestination(content, position):
                 PlayerSelectionView(playableContent: content, position: position)

@@ -160,11 +160,12 @@ struct SelectGroupView: View {
                         }
                     } label: {
                         Text("Play")
+                            .bold()
                             .frame(maxWidth: .infinity)
                     }
                     .transition(.slide)
-                    .buttonStyle(.bordered)
-                    .tint(.accent)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selections.isEmpty)
                 }
                 .padding()
                 .background(.thinMaterial)

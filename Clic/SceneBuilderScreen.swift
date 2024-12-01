@@ -49,7 +49,7 @@ struct SceneBuilderScreen: View {
                         .fontDesign(.rounded)
                         .bold()
                     }
-                    RoomVolumeView(room: $room, touchDelay: 0.05)
+                    RoomVolumeView(room: $room, delayDrag: true)
                         .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                         .tint(selections.contains(room.id) ? .black : .accentColor)
                 }

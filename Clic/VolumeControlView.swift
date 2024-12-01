@@ -7,11 +7,11 @@ struct VolumeControlView: View {
     @Binding var group: GroupRoom
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    private let touchDelay: TimeInterval
+    private let delayDrag: Bool
 
-    init(group: Binding<GroupRoom>, touchDelay: TimeInterval = 0) {
+    init(group: Binding<GroupRoom>, delayDrag: Bool = false) {
         self._group = group
-        self.touchDelay = touchDelay
+        self.delayDrag = delayDrag
     }
 
     var body: some View {
@@ -34,7 +34,7 @@ struct VolumeControlView: View {
             .padding(.trailing)
             .hoverEffect(.automatic)
 
-            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, touchDelay: touchDelay) { isEditing in
+            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, delayDrag: delayDrag) { isEditing in
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                     sonosService.isEditing = isEditing

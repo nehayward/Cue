@@ -1,6 +1,7 @@
 import SwiftUI
 import TipKit
 
+@MainActor
 enum AppTip: Tip {
     case mediaService
     case libraryMediaService

@@ -54,8 +54,8 @@ struct SetRelativeGroupVolumeIntent: SetValueIntent, LiveActivityIntent {
         
         guard !roomOnly else {
             await Self.sonosService.setRelativeVolume(ip: room.ip, volume: Int(value))
-            try? await Task.sleep(for: .milliseconds(250))
-            await Self.liveActivityManager.refresh(type: .refresh)
+            try? await Task.sleep(for: .milliseconds(100))
+            await Self.liveActivityManager.refresh()
     #if canImport(WidgetKit)
             WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
     #endif
@@ -67,8 +67,8 @@ struct SetRelativeGroupVolumeIntent: SetValueIntent, LiveActivityIntent {
         }
 
         await Self.sonosService.setRelativeGroupVolume(ip: coordinatorRoom.ip, volume: Int(value))
-        try? await Task.sleep(for: .milliseconds(250))
-        await Self.liveActivityManager.refresh(type: .refresh)
+        try? await Task.sleep(for: .milliseconds(100))
+        await Self.liveActivityManager.refresh()
 #if canImport(WidgetKit)
         WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
 #endif

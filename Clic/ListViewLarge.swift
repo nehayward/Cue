@@ -37,7 +37,7 @@ struct ListViewLarge: View {
                                 MediaControlsView(group: $group)
                             }
                         }
-                        VolumeControlView(group: $group, touchDelay: 0)
+                        VolumeControlView(group: $group)
                     }
                     .tag(group.coordinatorID)
                     .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)

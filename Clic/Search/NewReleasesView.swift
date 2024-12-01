@@ -82,7 +82,7 @@ struct NewReleasesView: View {
         }
         .task {
             if let albums = await musicSearchService.spotifyNewReleases()?.albums {
-                musicSearchService.newReleases = albums.items
+                musicSearchService.newReleases = albums.items.compactMap { $0 }
             }
         }
     }

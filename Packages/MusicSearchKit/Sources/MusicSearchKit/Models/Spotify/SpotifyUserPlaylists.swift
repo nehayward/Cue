@@ -2,7 +2,7 @@ import Foundation
 
 public struct SpotifyUserPlaylistsResponse: Decodable {
     public let href: String?
-    public let items: [UserPlaylists]
+    public let items: [SpotifyUserPlaylists?]
     public let limit: Int
     public let next: String?
     public let offset: Int
@@ -10,7 +10,7 @@ public struct SpotifyUserPlaylistsResponse: Decodable {
     public let total: Int
 }
 
-public struct UserPlaylists: Decodable {
+public struct SpotifyUserPlaylists: Decodable {
    public let collaborative: Bool
    public let description: String
    public let externalUrls: ExternalUrls

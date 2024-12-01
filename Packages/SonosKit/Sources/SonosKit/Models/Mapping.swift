@@ -78,7 +78,8 @@ extension MusicKit.Track {
                 album: albumTitle,
                 isrc: isrc,
                 isPlayable: playParameters != nil,
-                isExplicit: contentRating == .explicit
+                isExplicit: contentRating == .explicit,
+                parent: albums?.first?.toPlayable
             )
         )
     }
@@ -120,7 +121,12 @@ extension MusicKit.Track {
             thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .libraryTrack, location: url),
-            metadata: PlayableContentMetadata(duration: durationSeconds, artist: artistName, album: albumTitle, isrc: isrc)
+            metadata: PlayableContentMetadata(
+                duration: durationSeconds,
+                artist: artistName,
+                album: albumTitle,
+                isrc: isrc
+            )
         )
     }
 }
@@ -306,14 +312,15 @@ extension SpotifyTrackItem {
                 location: URL(string: externalUrls.spotify)
             ),
             metadata: PlayableContentMetadata(
-                duration: Duration.seconds(
+                duration: Duration.milliseconds(
                     durationMs
                 ),
                 popularity: popularity,
                 artist: artists.first?.name,
                 album: album.name,
                 isrc: externalIds.isrc,
-                isExplicit: explicit
+                isExplicit: explicit,
+                parent: album.toPlayable
             )
         )
     }
@@ -360,14 +367,21 @@ extension SpotifyAlbumDetails {
 }
 
 extension SpotifyAlbumTrackItems {
-    public func toPlayable(thumbnail: URL?, artwork: URL?) -> PlayableContent {
+    public func toPlayable(album: PlayableContent?, thumbnail: URL?, artwork: URL?) -> PlayableContent {
         PlayableContent(
             title: name,
             subtitle: allArtists,
             thumbnail: thumbnail,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls.spotify)),
-            metadata: .init(duration: Duration.milliseconds(durationMs))
+            metadata: PlayableContentMetadata(
+                duration: Duration.milliseconds(
+                    durationMs
+                ),
+                artist: artists.first?.name,
+                isExplicit: explicit,
+                parent: album
+            )
         )
     }
 }
@@ -397,8 +411,8 @@ extension SpotifyArtistsItems {
     }
 }
 
-extension UserPlaylists {
-    public var toPlayable: PlayableContent {
+extension SpotifyUserPlaylists {
+    public var toPlayable: PlayableContent? {
         PlayableContent(
             title: name,
             subtitle: "",

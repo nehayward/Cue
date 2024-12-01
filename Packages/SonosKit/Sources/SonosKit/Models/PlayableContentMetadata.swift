@@ -1,6 +1,7 @@
 import Foundation
 
-public struct PlayableContentMetadata: Equatable, Codable, Hashable, Sendable {
+public class PlayableContentMetadata: Equatable, Codable, Hashable {
+    // Properties
     public let duration: Duration?
     public let popularity: Int?
     public let artist: String?
@@ -16,8 +17,10 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable, Sendable {
     public var isPlayable: Bool? // A song might not be released so it's not playable.
     public var isExplicit: Bool?
     public var isSingle: Bool?
+    public let parent: PlayableContent?
 
-    init(
+    // Initializer
+    public init(
         duration: Duration? = nil,
         popularity: Int? = nil,
         artist: String? = nil,
@@ -30,9 +33,10 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable, Sendable {
         audioCodec: String? = nil,
         URIMetadata: String? = nil,
         radioStation: Bool? = nil,
-        isPlayable: Bool = true,
-        isExplicit: Bool = false,
-        isSingle: Bool = false
+        isPlayable: Bool? = true,
+        isExplicit: Bool? = false,
+        isSingle: Bool? = false,
+        parent: PlayableContent? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -49,5 +53,46 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable, Sendable {
         self.isPlayable = isPlayable
         self.isExplicit = isExplicit
         self.isSingle = isSingle
+        self.parent = parent
+    }
+
+    // Equatable conformance
+    public static func == (lhs: PlayableContentMetadata, rhs: PlayableContentMetadata) -> Bool {
+        lhs.duration == rhs.duration &&
+        lhs.popularity == rhs.popularity &&
+        lhs.artist == rhs.artist &&
+        lhs.artistID == rhs.artistID &&
+        lhs.album == rhs.album &&
+        lhs.albumID == rhs.albumID &&
+        lhs.albumYear == rhs.albumYear &&
+        lhs.isrc == rhs.isrc &&
+        lhs.position == rhs.position &&
+        lhs.audioCodec == rhs.audioCodec &&
+        lhs.URIMetadata == rhs.URIMetadata &&
+        lhs.radioStation == rhs.radioStation &&
+        lhs.isPlayable == rhs.isPlayable &&
+        lhs.isExplicit == rhs.isExplicit &&
+        lhs.isSingle == rhs.isSingle &&
+        lhs.parent == rhs.parent
+    }
+
+    // Hashable conformance
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(duration)
+        hasher.combine(popularity)
+        hasher.combine(artist)
+        hasher.combine(artistID)
+        hasher.combine(album)
+        hasher.combine(albumID)
+        hasher.combine(albumYear)
+        hasher.combine(isrc)
+        hasher.combine(position)
+        hasher.combine(audioCodec)
+        hasher.combine(URIMetadata)
+        hasher.combine(radioStation)
+        hasher.combine(isPlayable)
+        hasher.combine(isExplicit)
+        hasher.combine(isSingle)
+        hasher.combine(parent)
     }
 }

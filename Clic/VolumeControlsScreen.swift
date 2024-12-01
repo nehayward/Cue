@@ -23,7 +23,7 @@ struct VolumeControlsScreen: View {
         NavigationStack {
             List {
                 if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                    VolumeControlView(group: $sonosService.sorted[groupID], touchDelay: 0.01)
+                    VolumeControlView(group: $sonosService.sorted[groupID], delayDrag: true)
                         .frame(height: 40)
                         .listRowBackground(isMacCatalyst ? Color.clear : nil)
                         .listRowSeparator(.hidden)

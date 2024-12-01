@@ -25,7 +25,6 @@ struct FavoritesView: View {
                 } label: {
                     Text("Favorites")
                         .foregroundStyle(.secondary)
-                        .listRowSeparator(.hidden)
                         .fontDesign(.rounded)
                         .bold()
                 }

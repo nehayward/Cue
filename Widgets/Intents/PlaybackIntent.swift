@@ -10,6 +10,7 @@ struct PlaybackIntent: LiveActivityIntent {
     static var description = IntentDescription("Control playback of selected Sonos speaker or Group it's a part of", categoryName: "Playback", searchKeywords: ["Playback"])
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
     static private var liveActivityManager = LiveActivityManagerFactory.shared
+    
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity?
     @Parameter(title: "Playback", default: .toggle) var playback: PlaybackOption
     
@@ -49,8 +50,9 @@ struct PlaybackIntent: LiveActivityIntent {
             await SonosService.shared.togglePlayback(ip: coordinatorRoom.ip)
         }
         
+        try? await Task.sleep(for: .milliseconds(200))
         await Self.liveActivityManager.createActivity(id: coordinatorRoom.id)
-        await Self.liveActivityManager.refresh(type: .refresh)
+        await Self.liveActivityManager.refresh()
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
