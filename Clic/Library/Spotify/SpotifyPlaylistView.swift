@@ -26,7 +26,7 @@ struct SpotifyUsersPlaylistView: View {
         NavigationLink {
             List {
                 if !spotifyBrowseService.userPlaylists.isEmpty {
-                    ForEach(spotifyBrowseService.userPlaylists.prefix(playlistCountLimit)) { item in
+                    ForEach(spotifyBrowseService.userPlaylists) { item in
                         PlayableContentView(item: item)
                     }
                 } else {
