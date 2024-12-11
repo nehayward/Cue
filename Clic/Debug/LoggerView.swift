@@ -3,18 +3,22 @@ import OSLog
 import Analytics
 
 struct LoggerView: View {
-    @State private var text = "Sending Logs..."
+    @State private var text = "Send Logs..."
 
     var body: some View {
-        Text(text)
-            .textSelection(.enabled)
-            .fontDesign(.monospaced)
-            .padding()
-        .task {
+        Button {
+            text = "Sent"
+        } label: {
+            Text(text)
+                .padding()
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .task(id: text) {
             let text = await fetchBeaverLogs()
             await uploadLogs(text: text)
-            self.text = "Sent"
         }
+        .listRowSeparator(.hidden)
     }
 }
 
@@ -56,7 +60,7 @@ extension LoggerView {
     private func uploadLogs(text: String) async {
         if text.isEmpty { return }
         // Define the URL and request
-        guard let id = await UIDevice.current.identifierForVendor?.uuidString else { return }
+        guard let id =  UIDevice.current.identifierForVendor?.uuidString else { return }
         guard let url = URL(string: "https://tight-night-3b05.nehayward.workers.dev/\(Date.now.ISO8601Format(.iso8601Date(timeZone: .current, dateSeparator: .omitted)))_\(id).txt") else {
             fatalError("Invalid URL")
         }

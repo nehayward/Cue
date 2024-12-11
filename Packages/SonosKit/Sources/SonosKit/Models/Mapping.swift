@@ -2,6 +2,16 @@ import Foundation
 import MusicKit
 import MusicSearchKit
 
+extension PlayableContent {
+    public var toRadio: PlayableContent {
+        let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
+        let content = MediaContent(service: content.service, id: content.id + ".radio", type: type, location: nil)
+        let metadata = metadata ?? PlayableContentMetadata()
+        metadata.radioStation = true
+        return PlayableContent(title: title, subtitle: title, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
+    }
+}
+
 extension Track {
     public var toPlayable: PlayableContent {
         PlayableContent(
@@ -10,7 +20,7 @@ extension Track {
             thumbnail: artworkURL,
             artwork: artworkURL,
             content: MediaContent(service: musicService, id: trackID.description, type: trackID.contains("i.") ? .libraryTrack : .track, location: metadata?.openInURL),
-            metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album)
+            metadata: PlayableContentMetadata(duration: Duration.seconds(duration), artist: artist, album: album, position: position)
         )
     }
 }
@@ -78,8 +88,7 @@ extension MusicKit.Track {
                 album: albumTitle,
                 isrc: isrc,
                 isPlayable: playParameters != nil,
-                isExplicit: contentRating == .explicit,
-                parent: albums?.first?.toPlayable
+                isExplicit: contentRating == .explicit
             )
         )
     }
@@ -160,7 +169,6 @@ extension Playlist {
 
         artworkURL = processURL(artworkURL)
         thumbnailURL = processURL(thumbnailURL)
-
 
         return PlayableContent(
             title: name,
@@ -319,8 +327,7 @@ extension SpotifyTrackItem {
                 artist: artists.first?.name,
                 album: album.name,
                 isrc: externalIds.isrc,
-                isExplicit: explicit,
-                parent: album.toPlayable
+                isExplicit: explicit
             )
         )
     }
@@ -379,8 +386,7 @@ extension SpotifyAlbumTrackItems {
                     durationMs
                 ),
                 artist: artists.first?.name,
-                isExplicit: explicit,
-                parent: album
+                isExplicit: explicit
             )
         )
     }
@@ -633,8 +639,8 @@ extension TidalTrackResource {
         return PlayableContent(
             title: title,
             subtitle: artists.first?.name ?? "",
-            thumbnail: URL(string: album.imageCover.first(where: { $0.width == $0.height })?.url ?? ""),
-            artwork: URL(string: album.imageCover.last(where: { $0.width == $0.height })?.url ?? ""),
+            thumbnail: album.imageCover.thumbnail,
+            artwork: album.imageCover.biggestImageURL,
             content: .init(
                 service: .tidal,
                 id: id,
@@ -665,7 +671,7 @@ extension TidalAlbumResource {
             title: title,
             subtitle: [artist?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
-            artwork: imageCover?.thumbnail,
+            artwork: imageCover?.biggestImageURL,
             content: .init(
                 service: .tidal,
                 id: id,
@@ -691,8 +697,8 @@ extension TidalArtistResource {
         PlayableContent(
             title: name,
             subtitle: "",
-            thumbnail: URL(string: picture.first(where: { $0.width == $0.height })?.url ?? ""),
-            artwork: URL(string: picture.last(where: { $0.width == $0.height })?.url ?? ""),
+            thumbnail: picture.thumbnail,
+            artwork: picture.biggestImageURL,
             content: .init(
                 service: .tidal,
                 id: id,

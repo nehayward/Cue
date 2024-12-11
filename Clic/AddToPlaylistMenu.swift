@@ -5,6 +5,7 @@ import MusicSearchKit
 struct AddToPlaylistMenu: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
+    @Environment(AlertService.self) private var alertService
 
     var itemToAdd: PlayableContent
 
@@ -27,6 +28,7 @@ struct AddToPlaylistMenu: View {
                 ForEach(playlistsContainer.playlists) { playlist in
                     Button(playlist.title) {
                         Task {
+                            alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
                             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
                         }
                     }
@@ -36,7 +38,7 @@ struct AddToPlaylistMenu: View {
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
             }
         } label: {
-            Label("Add to Playlist", systemImage: "plus")
+            Label("Add to Sonos Playlist…", systemImage: "plus")
         }
     }
 }

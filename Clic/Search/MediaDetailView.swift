@@ -9,6 +9,7 @@ import NukeUI
 import VibesDS
 
 struct MediaDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
@@ -20,7 +21,7 @@ struct MediaDetailView: View {
     @State var playableContent: PlayableContent
     @State private var tracks: OrderedSet<PlayableContent> = []
     @State private var isLoaded: Bool = false
-    @State private var size: Int?
+    @State private var totalSongs: Int?
     @State private var duration: Duration?
 
     var body: some View {
@@ -65,19 +66,19 @@ struct MediaDetailView: View {
 //                ContentArtworkView(content: playableContent)
 //                    .frame(idealWidth: 320, idealHeight: 320)
             }
-            .frame(maxWidth: .infinity, minHeight: 300, maxHeight: 400)
+            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: 250)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
 
             VStack {
                 Text("\(playableContent.subtitle)")
                 HStack(spacing: 0) {
-                    if let size {
-                        Text(size, format: .number)
+                    if let totalSongs {
+                        Text(totalSongs, format: .number)
                     } else {
                         Text("\(tracks.count.formatted())")
                     }
-                    Text(" Tracks")
+                    Text(" Songs")
                     if let duration {
                         Text(" • \(duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
                     } else {
@@ -94,10 +95,11 @@ struct MediaDetailView: View {
 
             HStack {
                 Button {
-                    play(replaceQueue: true)
+                    play()
                 } label: {
-                    Text("Replace")
-                        .padding()
+                    Text("Play")
+                        .padding(.horizontal)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .foregroundStyle(.foreground)
                 }
@@ -106,10 +108,11 @@ struct MediaDetailView: View {
                 .tint(.accent)
 
                 Button {
-                    play(position: .next)
+                    play([.shuffle, .normal])
                 } label: {
-                    Text("Play Next")
-                        .padding()
+                    Text("Shuffle")
+                        .padding(.horizontal)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .foregroundStyle(.foreground)
                 }
@@ -122,7 +125,13 @@ struct MediaDetailView: View {
             .listRowSeparator(.hidden)
 
             ForEach(tracks) { item in
-                PlayableContentView(item: item, hideArtwork: playableContent.content.type == .album, index: tracks.firstIndex(of: item) ?? 0)
+                PlayableContentView(item: item,
+                                    parent: playableContent,
+                                    hideArtwork: playableContent.content.type == .album,
+                                    hideContentType: true,
+                                    index: ((tracks.firstIndex(of: item) ?? -1) + 1),
+                                    dismissOnComplete: true,
+                                    total: totalSongs ?? tracks.count)
                     .swipeActions(edge: .trailing) {
                         if playableContent.content.type == .libraryPlaylist {
                             Button(role: .destructive) {
@@ -183,26 +192,29 @@ struct MediaDetailView: View {
         }
     }
 
-    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
-            hideKeyboard()
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                playHistoryService.history.remove(playableContent)
-                playHistoryService.history.insert(playableContent, at: 0)
-                HapticManager.shared.fireHaptic(.buttonPress)
-                await sonosService.setPlayMode(group.ip, mode: [.normal])
-                do {
-                    try await sonosService.queue(playable: playableContent, group: group, position: position, replaceQueue: replaceQueue)
-                }  catch {
-                    alertService.showAlert(with: "Please authorize \(playableContent.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
-                }
-                await sonosService.play(ip: group.coordinatorRoom.ip)
-            }
-            guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: playableContent))
+            let queue: ((GroupRoom) async throws -> Void) = { group in
+                QueueManager.shared.addToQueue(
+                        item: QueueItem(
+                            playableContent: playableContent,
+                            group: group,
+                            position: [.playlist, .libraryPlaylist].contains(playableContent.content.type) ? .replace : .now,
+                            total: totalSongs ?? tracks.count,
+                            playMode: playMode,
+                            showBanner: false
+                        )
+                    )
+                    Router.main.show(destination: .player(groupID: group.coordinatorID))
                 return
             }
-            try await queueSong(group)
+            
+            guard let group = selectedGroupService.group else {
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: playableContent))
+                return
+            }
+        
+            try await queue(group)
         }
     }
 
@@ -235,10 +247,10 @@ struct MediaDetailView: View {
         case (.libraryPlaylist, .apple):
             let (tracks, playlistCount) = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id, offset: offset)
             newTracks = tracks
-            size = playlistCount
+            totalSongs = playlistCount
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
-            size = playlist.total
+            totalSongs = playlist.total
             newTracks = playlist.items.map { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
@@ -298,7 +310,7 @@ struct MediaDetailView: View {
         case (.album, .plex):
             newTracks = await musicSearchService.lookupPlexAlbumSongs(id: playableContent.content.id)
         case (.playlist, .plex):
-            (size, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
+            (totalSongs, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
         default:
             break
         }

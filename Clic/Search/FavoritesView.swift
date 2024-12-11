@@ -20,10 +20,10 @@ struct FavoritesView: View {
                         }
                     }
                     .contentMargins(.bottom, 120, for: .scrollContent)
-                    .navigationTitle("Favorites")
+                    .navigationTitle("Sonos Favorites")
                     .miniPlayerOnScrollHandler()
                 } label: {
-                    Text("Favorites")
+                    Text("Sonos Favorites")
                         .foregroundStyle(.secondary)
                         .fontDesign(.rounded)
                         .bold()

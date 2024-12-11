@@ -39,7 +39,7 @@ public final class PlexAPI {
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
-        guard let token = authenticator.authToken,
+        guard let token = await authenticator.authToken,
               let plexServer = await getPlexServer() else {
             logger.info("No server")
             return nil
@@ -55,7 +55,6 @@ public final class PlexAPI {
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         search.append(queryItems: queryItems)
-
         var request = URLRequest(url: search)
         request.httpMethod = "GET"
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
@@ -88,7 +87,7 @@ public final class PlexAPI {
         }
 
         var playlists = playlistContainer.mediaContainer.metadata
-        guard let token = authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
 
         for index in playlists.indices {
             playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
@@ -100,7 +99,7 @@ public final class PlexAPI {
     }
 
     public func albums() async -> PlexLibraryItem? {
-        guard let token = authenticator.authToken else { return nil }
+        guard let token = await authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
@@ -155,7 +154,7 @@ public final class PlexAPI {
     }
 
     public func lookupPlexSong(key: String) async -> PlexSongItem? {
-        guard let token = authenticator.authToken, let plexServer = await getPlexServer() else {
+        guard let token = await authenticator.authToken, let plexServer = await getPlexServer() else {
             return nil
         }
 
@@ -188,7 +187,7 @@ public final class PlexAPI {
     }
 
     public func lookupAlbum(key: String) async -> PlexLibraryItem? {
-        guard let token = authenticator.authToken else { return nil }
+        guard let token = await authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer(), let id = plexServer.clientIdentifier else {
             return nil
         }
@@ -244,7 +243,7 @@ public final class PlexAPI {
     }
 
     public func lookupAlbumTracks(key: String) async -> PlexLibraryItem? {
-        guard let token = authenticator.authToken else { return nil }
+        guard let token = await authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
@@ -294,7 +293,7 @@ public final class PlexAPI {
     }
 
     public func lookupPlaylist(key: String, offset: Int = 0) async -> PlexPlaylistItem? {
-        guard let token = authenticator.authToken else { return nil }
+        guard let token = await authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
@@ -340,7 +339,7 @@ public final class PlexAPI {
         }
 
         guard var artist = playlistContainer.mediaContainer.metadata.first,
-              let token = authenticator.authToken else { return nil }
+              let token = await authenticator.authToken else { return nil }
 
         artist.sonosID = "\(id)%3A3%3A\(artist.ratingKey)"
         if let thumb = artist.thumb {
@@ -390,7 +389,7 @@ public final class PlexAPI {
             return []
         }
         logger.info(plexServers)
-        return plexServers
+        return plexServers.filter { $0.accessToken != nil }
     }
 
     private func getPlexServer() async -> PlexServer? {
@@ -461,7 +460,7 @@ public final class PlexAPI {
     }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {
-        guard let token = authenticator.authToken else { return nil }
+        guard let token = await authenticator.authToken else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -498,7 +497,7 @@ public final class PlexAPI {
     }
 
     private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
-        guard let token = authenticator.authToken,
+        guard let token = await authenticator.authToken,
                 let plexServer = await getPlexServer(),
                 let clientID = plexServer.clientIdentifier,
                 let metadata else { return [] }

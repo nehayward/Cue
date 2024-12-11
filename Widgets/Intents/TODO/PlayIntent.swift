@@ -51,7 +51,7 @@ struct PlayIntent: LiveActivityIntent {
         }
         
         let item = PlayableContent(title: "", subtitle: "", thumbnail: nil, artwork: nil, content: MediaContent(service: MusicService(service: service)!, id: id, type: ContentType(type)!, location: nil))
-        try await SonosService.shared.queue(playable: item, group: group, position: .next, replaceQueue: false)
+        try await SonosService.shared.queue(playable: item, group: group, position: .next)
         await SonosService.shared.play(ip: group.coordinatorRoom.ip)
         
         #if canImport(WidgetKit)

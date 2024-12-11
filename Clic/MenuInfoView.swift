@@ -38,10 +38,7 @@ struct MenuInfoView: View {
                 }
                 if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService), group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {
                     Button {
-                        Task {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            await sonosService.startRadio(content: group.coordinatorRoom.track.toPlayable, group: group)
-                        }
+                        QueueManager.shared.addToQueue(item: QueueItem(playableContent: group.coordinatorRoom.track.toPlayable.toRadio, group: group, position: .now, title: "Starting radio"))
                     } label: {
                         Label("Start Radio", systemImage: "radio.fill")
                     }

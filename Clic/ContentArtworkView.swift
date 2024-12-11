@@ -36,9 +36,8 @@ struct ContentArtworkView: View {
                     }
             }
         }
-        .transition(.opacity)
         .id(content.id)
-        .clipShape([.artist, .libraryArtist].contains(content.content.type) ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
+        .clipShape([.artist, .libraryArtist, .artistRadio].contains(content.content.type) ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
         .shadow(radius: 2)
         .overlay(alignment: .bottomTrailing) {
             if showMusicSource {

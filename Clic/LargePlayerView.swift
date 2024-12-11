@@ -12,7 +12,8 @@ struct LargePlayerView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @Binding var group: GroupRoom
-
+    
+    @State var test: Double = -40
     @State private var isEditing: Bool = false
     @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
@@ -44,7 +45,7 @@ struct LargePlayerView: View {
                 TVModeView()
                 Spacer()
             } else {
-                ArtworkView(group: $group)
+                artworkView
                     .padding(.bottom, 12)
                     .shadow(radius: 10)
                     .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
@@ -149,6 +150,23 @@ struct LargePlayerView: View {
                                             .foregroundStyle(.green)
                                     }
                                 }
+                                .overlay {
+                                    if let lastQueuedItem = QueueManager.shared.lastQueuedItem {
+                                        ContentArtworkView(content: lastQueuedItem.playableContent, showMusicSource: false)
+                                            .scaleEffect(test == -40 ? 1.5 : 0.2)
+                                            .offset(y: test)
+                                            .opacity(test == -40 ? 1 : 0)
+                                            .onAppear {
+                                                withAnimation(.easeInOut(duration: 0.5).delay(2)) {
+                                                    test = 0
+                                                } completion: {
+                                                    print("Done")
+                                                    test = -40
+                                                    QueueManager.shared.lastQueuedItem = nil
+                                                }
+                                            }
+                                    }
+                                }
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
@@ -188,7 +206,7 @@ struct LargePlayerView: View {
             sonosService.selectedGroup = nil
         }
         .background {
-            ArtworkView(group: $group)
+            artworkView
                 .saturation(1.3)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(1.3)
@@ -201,11 +219,24 @@ struct LargePlayerView: View {
                         .ignoresSafeArea()
                 }
                 .ignoresSafeArea()
-                .id(group.coordinatorRoom.track.id)
         }
         .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle(group.nameWithCount)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    ForEach(group.rooms) { room in
+                        Text(room.name)
+                            .bold()
+                            .fontDesign(.rounded)
+                    }
+                } label: {
+                    Text(group.nameWithCount)
+                        .bold()
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.primary)
+                }
+                .tint(.primary)
+            }
             ToolbarItemGroup(placement: .primaryAction) {
                 if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
                     Text(date, style: .timer)
@@ -293,6 +324,7 @@ struct LargePlayerView: View {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    try? await sonosService.updateGroups(from: [group])
                 }
             } label: {
                 Image(systemName: "backward.fill")
@@ -331,6 +363,7 @@ struct LargePlayerView: View {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
                     await sonosService.next(ip: group.coordinatorRoom.ip)
+                    try? await sonosService.updateGroups(from: [group])
                 }
             } label: {
                 Image(systemName: "forward.fill")
@@ -399,10 +432,7 @@ struct LargePlayerView: View {
     
     var artworkView: some View {
         ArtworkView(group: $group)
-            .padding(.bottom, 12)
-            .shadow(radius: 10)
-            .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-            .draggable(group.coordinatorRoom.track.toPlayable)
+            .id(group.coordinatorRoom.track.id)
     }
 }
 

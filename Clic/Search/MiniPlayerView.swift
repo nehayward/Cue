@@ -9,6 +9,7 @@ struct MiniPlayerView: View {
     @Environment(SubscriptionService.self) var subscriptionService
 
     @State private var router = Router()
+    @State private var selectedGroup: GroupRoom?
     
     var body: some View {
 #if !targetEnvironment(macCatalyst)
@@ -16,9 +17,7 @@ struct MiniPlayerView: View {
             if let group = selectedGroup {
                 VStack(spacing: 8) {
                     groupInfoButton(for: group)
-                    #if !targetEnvironment(macCatalyst)
                     VolumeControlView(group: .constant(group))
-                    #endif
                 }
                 .transition(.push(from: .bottom).combined(with: .blurReplace))
                 .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
@@ -32,14 +31,27 @@ struct MiniPlayerView: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
         .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
+        .onChange(of: selectedGroupService.group) {
+            updateSelectedGroup()
+        }
+        .onChange(of: sonosService.sorted) {
+            updateSelectedGroup()
+        }
+        .onAppear {
+            updateSelectedGroup()
+        }
 #endif
     }
     
-    private var selectedGroup: GroupRoom? {
+    // Move the logic for updating selectedGroup to a separate function
+    private func updateSelectedGroup() {
         guard let groupID = selectedGroupService.group?.coordinatorID,
               let group = sonosService.sorted.first(where: { $0.coordinatorID == groupID })
-        else { return nil }
-        return group
+        else {
+            selectedGroup = nil
+            return
+        }
+        selectedGroup = group
     }
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
@@ -48,13 +60,7 @@ struct MiniPlayerView: View {
                 Router.main.sheet(to: .paywall)
                 return
             }
-            Router.main.sheet(to: nil)
-            if Router.main.path.last == .player(groupID: group.coordinatorID) {
-                return
-            } else {
-                Router.main.path.removeAll()
-                Router.main.navigate(to: .player(groupID: group.coordinatorID))
-            }
+            Router.main.show(destination: .player(groupID: group.coordinatorID))
         } label: {
             HStack {
                 artworkView(for: group)
@@ -125,6 +131,7 @@ struct MiniPlayerView: View {
             Task {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 await sonosService.next(ip: group.ip)
+                try? await sonosService.updateGroups(from: [group])
             }
         } label: {
             Image(systemName: "forward.fill")
@@ -132,16 +139,6 @@ struct MiniPlayerView: View {
         }
         .buttonBorderShape(.circle)
         .disabled(!group.availableActions.contains(.next))
-    }
-    
-    private var selectGroupButton: some View {
-        Button {
-            router.presentedSheet = .selectGroup(selectedGroupService: selectedGroupService)
-        } label: {
-            Text("Select Group")
-        }
-        .buttonStyle(.bordered)
-        .tint(.accent)
     }
 }
 
@@ -168,7 +165,7 @@ extension View {
                 
                 withAnimation(.interactiveSpring()) {
                     if delta < 0 {  // Scrolling up
-                        MiniPlayerManger.shared.offset = 300  // Show view
+                        MiniPlayerManger.shared.offset = min(abs(new), 300)  // Show view
                     } else if delta > 0 {  // Scrolling down
                         MiniPlayerManger.shared.offset = 0    // Hide view
                     }

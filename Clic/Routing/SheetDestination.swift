@@ -25,6 +25,7 @@ enum SheetDestination: Identifiable, Equatable {
     case plexManagement
     case volumeControlsScreen(groupID: String)
     case onboard
+    case spotifyUserPlaylists
 
     var id: String {
         switch self {

@@ -3,6 +3,7 @@ import CloudStorage
 import MusicSearchKit
 import Defaults
 import NukeUI
+import UIKit
 import MusicKit
 import OrderedCollections
 import SwiftUI
@@ -12,6 +13,7 @@ import TipKit
 
 struct SearchScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dismissSearch) private var dismissSearch
     
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(MusicSearchService.self) var musicSearchService
@@ -28,11 +30,21 @@ struct SearchScreen: View {
 
     var isAlarmSearch: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
-    @State private var alertService = AlertService()
+    @State private var alertService = AlertService.shared
     @State private var searchCompletionTapped: Bool = false
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
+    
+    @FocusState private var isSearchFieldFocused: Bool
+    
+    private var showAlert: Bool {
+#if targetEnvironment(macCatalyst)
+        return false
+#else
+        return UIDevice.current.userInterfaceIdiom == .phone
+#endif
+    }
 
     var body: some View {
         @Bindable var router = router
@@ -42,7 +54,10 @@ struct SearchScreen: View {
         NavigationStack(path: $router.path) {
             List {
                 filterView
-//                LoggerView()
+//                if musicSearchSelection == .plex {
+//                    LoggerView()
+//                }
+#if targetEnvironment(macCatalyst)
                 if !searchCompletionTapped {
                     ForEach(musicSearchService.suggestions) { suggestion in
                         Button {
@@ -59,9 +74,14 @@ struct SearchScreen: View {
                         }
                     }
                 }
+#endif
 
                 if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
                     PlayHistoryView(filters: $filters)
+                }
+                
+                if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .spotify {
+                    SpotifyUsersPlaylistView()
                 }
 
                 if musicSearchService.query.isEmpty, !isAlarmSearch {
@@ -77,7 +97,7 @@ struct SearchScreen: View {
                     case .library:
                         LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
                     case .plex:
-                        PlexSearchView(plexResults: musicSearchService.plexResults, filters: $filters)
+                        PlexSearchView(query: $musicSearchService.query, plexResults: musicSearchService.plexResults, filters: $filters)
                     case .tidal:
                         TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
                     case .tuneIn:
@@ -94,6 +114,7 @@ struct SearchScreen: View {
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "Searching \(musicSearchSelection.title)"
             )
+            .searchFocusedBackport($isSearchFieldFocused)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
@@ -118,67 +139,9 @@ struct SearchScreen: View {
                 dismiss()
                 closeInspector?()
             }
-            // MARK: Workaround into I can use extension on view iOS 18 bug
-            .navigationDestination(for: RouterDestination.self) { destination in
-                switch destination {
-                case let .player(groupID):
-                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-                        LargePlayerView(group: $sonosService.sorted[group])
-                    } else {
-                        GroupNoLongerAvailableScreen()
-                    }
-                case let .groupDestination(content, position):
-                    PlayerSelectionView(playableContent: content, position: position)
-                case .manageScenes:
-                    ManageSceneScreen()
-                case let .mediaDetail(content, _):
-                    MediaDetailView(playableContent: content)
-                case let .artistDetail(content, _):
-                    ArtistDetailView(playableContent: content)
-                case .createScene:
-                    SceneBuilderScreen()
-                case .alarms:
-                    AlarmListView()
-                case let .addAlarm(group):
-                    AlarmView(group: group, alarm: .newAlarm)
-                case let .editAlarm(alarm):
-                    AlarmView(edit: true, alarm: alarm)
-                case .speakerSettingsList:
-                    SpeakerSettingsListView()
-                case let .speakerSettings(room: room):
-                    SpeakerSettingsView(room: room)
-                case let .playableContentList(group: group, contentType: contentType):
-                    let title = switch contentType {
-                    case .track:
-                        "Songs"
-                    case .album:
-                        "Albums"
-                    case .artist:
-                        "Artists"
-                    case .playlist:
-                        "Playlists"
-                    default:
-                        ""
-                    }
-                    PlayableContentList(type: contentType)
-                        .navigationTitle(title)
-                        .environment(group)
-                case .fullPlayHistoryList:
-                    PlayHistoryFullView()
-                case let .playableLibraryList(title: title, items: items, action: action):
-                    PlayableList(items: items, action: action)
-                        .navigationTitle(title)
-                case let .playableGridScreen(title: title, items: items, action: action):
-                    PlayableGridScreen(items: items, action: action)
-                        .navigationTitle(title)
-                case .houseHold:
-                    HouseholdScreen()
-                case .servicePreferenceScreen:
-                    ServicePreferenceScreen()
-                }
-            }
+            .withAppRouter()
         }
-        .withAlert()
+        .withAlert(enabled: showAlert)
         .animation(.spring, value: alertService.alert.isShowing)
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
@@ -202,6 +165,11 @@ struct SearchScreen: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .overlay(alignment: .bottom) {
+#if !targetEnvironment(macCatalyst)
+            searchSuggestions
+#endif
+        }
         .onAppear {
             searchFieldIsPresented = true
             musicSearchService.query = ""
@@ -217,6 +185,8 @@ struct SearchScreen: View {
         }
         .environment(selectedGroupService)
         .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
+        .animation(.interactiveSpring, value: isSearchFieldFocused)
+        .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
     }
 
@@ -224,7 +194,7 @@ struct SearchScreen: View {
     private func showKeyboard() {
         UIView.setAnimationsEnabled(false)
         Task {
-            try await Task.sleep(for: .milliseconds(400))
+            try await Task.sleep(for: .milliseconds(300))
             UIView.setAnimationsEnabled(true)
         }
     }
@@ -282,6 +252,49 @@ struct SearchScreen: View {
         }
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+    }
+    
+    private var searchSuggestions: some View {
+        ScrollView(.horizontal) {
+            HStack {
+                ForEach(musicSearchService.suggestions) { suggestion in
+                    Button {
+                        musicSearchService.query = suggestion.searchTerm
+                        self.suggestion = suggestion.searchTerm
+                        searchCompletionTapped = true
+                        hideKeyboard()
+                    } label: {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                            Text(suggestion.displayTerm)
+                            Spacer()
+                        }
+                        .foregroundStyle(.accent)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.accentColor)
+                }
+            }
+            .padding(.vertical)
+        }
+        .contentMargins(.horizontal, 20, for: .scrollContent)
+        .background(.regularMaterial)
+        .opacity((isSearchFieldFocused && !musicSearchService.suggestions.isEmpty) ? 1 : 0)
+        .scrollIndicators(.hidden)
+        .scrollContentBackground(.hidden)
+        .mask(
+            HStack(spacing: 0) {
+                LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0), Color.black]),
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 20)
+                Rectangle().fill(Color.black)
+                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 20)
+            }
+            .padding(.leading, -15)
+        )
+        .scrollClipDisabled()
     }
 }
 

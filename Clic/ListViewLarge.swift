@@ -37,10 +37,10 @@ struct ListViewLarge: View {
                                 MediaControlsView(group: $group)
                             }
                         }
-                        VolumeControlView(group: $group)
+                        VolumeControlView(group: $group, delayDrag: true)
                     }
                     .tag(group.coordinatorID)
-                    .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 12)) : nil)
+                    .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 16)) : Color(UIColor.secondarySystemGroupedBackground).clipShape(RoundedRectangle(cornerRadius: 16)))
                     .foregroundStyle(.primary)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                     .dropDestinationPlay(on: group)
@@ -49,6 +49,7 @@ struct ListViewLarge: View {
                     Text(group.coordinatorRoom.state.reason)
                         .selectionDisabled()
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                        .listRowBackground(Color(UIColor.secondarySystemGroupedBackground).clipShape(RoundedRectangle(cornerRadius: 16)))
                         .paywall(enabled(group: group))
                 }
             } header: {

@@ -404,9 +404,13 @@ public final class SonosService {
 
                     switch await playbackInfo {
                     case .playing:
-                        roomGroup.coordinatorRoom.isPlaying = true
+                        Task { @MainActor in
+                            roomGroup.coordinatorRoom.isPlaying = true
+                        }
                     case .paused:
-                        roomGroup.coordinatorRoom.isPlaying = false
+                        Task { @MainActor in
+                            roomGroup.coordinatorRoom.isPlaying = false
+                        }
                     default:
                         break
                     }
@@ -1093,8 +1097,10 @@ public final class SonosService {
 
         if let groupIndex {
             for (index, _) in groups[groupIndex].rooms.enumerated() {
-                groups[groupIndex].rooms[index].isPlaying = false
-                groups[groupIndex].coordinatorRoom.isPlaying = false
+                Task { @MainActor in
+                    groups[groupIndex].rooms[index].isPlaying = false
+                    groups[groupIndex].coordinatorRoom.isPlaying = false
+                }
             }
         }
 
@@ -1110,9 +1116,11 @@ public final class SonosService {
         }
 
         if let groupIndex {
-            for (index, _) in groups[groupIndex].rooms.enumerated() {
-                groups[groupIndex].rooms[index].isPlaying = true
-                groups[groupIndex].coordinatorRoom.isPlaying = true
+            Task { @MainActor in
+                for (index, _) in groups[groupIndex].rooms.enumerated() {
+                    groups[groupIndex].rooms[index].isPlaying = true
+                    groups[groupIndex].coordinatorRoom.isPlaying = true
+                }
             }
         }
         isEditing = true
@@ -1288,20 +1296,34 @@ public final class SonosService {
         await api.queueSpotifyArtistTopTracks(ID: id, IP: group.ip)
     }
 
-    private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false, index: Int? = nil) async throws {
-        if playable.content.type == .radio || playable.metadata?.radioStation != nil {
-            await api.setAVTransportContent(playableContent: playable, IP: group.ip)
+    private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, index: Int? = nil) async throws {
+        if [.favorite, .radio].contains(playable.content.type) {
+            try await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
         }
+        
+        if playable.content.type.isRadio {
+            try await startRadio(content: playable, group: group)
+            return
+        }
+        
+        if group.playbackService == .unknown {
+            group.playbackService = await playbackService(ip: group.ip) ?? .unknown
+        }
+        
+        let queueActive = group.playbackService == .queue
 
-        if replaceQueue {
+        if position == .replace {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
 
-        let queueActive = group.playbackService == .queue
-
         if !queueActive {
             try await api.queuePlayable(playableContent: playable, IP: group.ip, position: .front)
+            if let index, index > 0 {
+                let current = await api.getCurrentQueueIndex(ipAddress: group.ip)
+                await seek(trackNumber: current + index, on: group)
+                return
+            }
             await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
             return
         }
@@ -1310,7 +1332,7 @@ public final class SonosService {
         try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position)
         
         if let index, index > 0 {
-            let current = await api.getCurrentTrack(ipAddress: group.ip)?.position ?? 1
+            let current = await api.getCurrentQueueIndex(ipAddress: group.ip)
             await seek(trackNumber: current + index, on: group)
             return
         }
@@ -1332,19 +1354,19 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
 
-    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, replaceQueue: Bool = false, index: Int? = nil) async throws {
-        try await queuePlayable(playable: playable, group: group, position: position, replaceQueue: replaceQueue, index: index)
+    public func queue(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, index: Int? = nil) async throws {
+        try await queuePlayable(playable: playable, group: group, position: position, index: index)
         try? await Task.sleep(for: .milliseconds(120))
         try? await updateGroups(from: [group])
     }
     
     // TODO: Add queue multiple uris
-    public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end, replaceQueue: Bool = false) async throws {
-        if replaceQueue {
+    public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end) async throws {
+        if position == .replace {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
         for content in contents {
-            try await queuePlayable(playable: content, group: group, position: position, replaceQueue: false)
+            try await queuePlayable(playable: content, group: group, position: position)
         }
         if position == .next {
             await next(ip: group.ip)
@@ -1369,8 +1391,8 @@ public final class SonosService {
         await api.reorderQueue(group: group, from: from, to: to)
     }
 
-    public func startRadio(content: PlayableContent, group: GroupRoom) async {
-        await api.startRadio(playableContent: content, IP: group.ip)
+    public func startRadio(content: PlayableContent, group: GroupRoom) async throws {
+        try await api.startRadio(playableContent: content, IP: group.ip)
         await api.play(ipAddress: group.ip)
     }
 

@@ -16,14 +16,18 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
 
-    var item: PlayableContent
+    let item: PlayableContent
+    var parent: PlayableContent?
     var hideArtwork: Bool = false
     var hideDetails: Bool = false
-    var index: Int = 0
+    var hideContentType: Bool = false
+    var index: Int? = nil
+    var dismissOnComplete: Bool = false
+    var total: Int = 1
 
     var body: some View {
         Group {
-            if hideDetails {
+            if hideDetails || item.content.service == .unknown {
                 content
             } else if let add = adding?.add, add {
                 content
@@ -38,7 +42,7 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
                         content
                     }
-                case .track, .favorite, .radio, .libraryTrack:
+                case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack:
                     content
                 }
             }
@@ -49,12 +53,18 @@ struct PlayableContentView: View {
 
     private var content: some View {
         Button {
-            play(replaceQueue: item.content.type == .playlist)
+            play(position: item.content.type == .playlist ? .replace : .now)
         } label: {
             HStack {
+                if let index, hideArtwork {
+                    Text(index, format: .number) // Display the number without leading zeros
+                        .monospacedDigit()
+                        .multilineTextAlignment(.center) // Center the text
+                        .frame(width: 30, alignment: .center) // Ensure fixed width for 3 characters
+                        .foregroundStyle(.secondary)
+                }
                 if !hideArtwork {
                     ContentArtworkView(content: item)
-                        .aspectRatio(contentMode: .fit)
                         .frame(width: 60, height: 60)
                 }
                 VStack(alignment: .leading) {
@@ -66,14 +76,14 @@ struct PlayableContentView: View {
                         }
                     }
                     HStack(spacing: 0) {
-                        Text("\(item.content.type.title)\(item.subtitle.isEmpty ? "" : " • \(item.subtitle)")")
+                        if !item.content.type.isRadio {
+                            Text(
+                                "\(!hideContentType ? item.content.type.title : "")\(!hideContentType && !item.subtitle.isEmpty ? " • " : "")\(item.subtitle)"
+                            )
                             .truncationMode(.head)
-
-                        // MARK: Add back when you normalize duration to seconds
-//                        if let duration = item.metadata?.duration, duration.components.seconds != 0 {
-//                            Text(" • ")
-//                            Text(duration, format: .time(pattern: .minuteSecond))
-//                        }
+                        } else {
+                            Text(item.content.type.title)
+                        }
                     }
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -89,12 +99,14 @@ struct PlayableContentView: View {
                                 .frame(maxWidth: 50, maxHeight: .infinity)
                                 .background(.clear)
                         }
+                        .menuOrder(.priority)
                     }
                 default:
                     EmptyView()
                 }
             }
             .fontDesign(.rounded)
+            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
         }
         .swipeActions {
             if playHistoryService.history.contains(item) {
@@ -112,9 +124,10 @@ struct PlayableContentView: View {
         }
         .draggable(item)
         .listRowSeparator(.hidden, edges: .all)
+        .animation(.snappy, value: selectedGroupService?.group?.coordinatorRoom.track.trackID)
     }
 
-    private func play(position: QueuePosition = .now, replaceQueue: Bool = false, playParent: Bool = true) {
+    private func play(position: QueuePosition = .now) {
         if let add = adding?.add, add {
             adding?.content = item
             return
@@ -122,28 +135,22 @@ struct PlayableContentView: View {
         hideKeyboard()
         Task { @MainActor in
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                HapticManager.shared.fireHaptic(.buttonPress)
-                do {
-                    // MARK: Add back later with further UX
-//                    if let parent = item.metadata?.parent {
-//                        try await sonosService.replaceQueue(playable: parent, group: group, index: index)
-//                        return
-//                    }
-                    
-                    try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
-                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                    playHistoryService.history.remove(item)
-                    playHistoryService.history.insert(item, at: 0)
-                } catch {
-                    alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+                if let parent {
+                    let position: QueuePosition = [.playlist, .libraryPlaylist].contains(parent.content.type) ? .replace : position
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: position, index: index, total: total, showBanner: false))
+                    Router.main.show(destination: .player(groupID: group.coordinatorID))
+                    return
                 }
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, index: index, total: total, title: position.title))
             }
+            
             guard let group = selectedGroupService?.group else {
                 if let selectedGroupService {
                     router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
                 }
                 return
             }
+            
             try await queueSong(group)
         }
     }

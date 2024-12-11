@@ -22,6 +22,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case fullPlayHistoryList
     case servicePreferenceScreen
     case houseHold
+    case spotifyUserPlaylist
 
     public var id: String {
         switch self {
@@ -59,6 +60,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "houseHold"
         case .servicePreferenceScreen:
             return "servicePreferenceScreen"
+        case .spotifyUserPlaylist:
+            return "spotifyUserPlaylist"
         }
     }
 
@@ -140,6 +143,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("houseHolds")
         case .servicePreferenceScreen:
             hasher.combine("servicePreferenceScreen")
+        case .spotifyUserPlaylist:
+            hasher.combine("spotifyUserPlaylist")
         }
     }
 }

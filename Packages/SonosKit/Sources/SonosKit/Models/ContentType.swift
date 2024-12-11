@@ -8,6 +8,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     case playlist
     case favorite
     case radio
+    case songRadio
+    case artistRadio
 
     case libraryTrack
     case libraryPlaylist
@@ -61,7 +63,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Library Album"
         case .favorite:
             "Favorite"
-        case .radio:
+        case .radio, .artistRadio, .songRadio:
             "Radio"
         }
     }
@@ -86,7 +88,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "library-album"
         case .favorite:
             "favorite"
-        case .radio:
+        case .radio, .artistRadio, .songRadio:
             "radio"
         }
     }
@@ -101,10 +103,14 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             return "music.mic"
         case .playlist, .libraryPlaylist:
             return "rectangle.stack.badge.play"
-        case .radio:
+        case .radio, .artistRadio, .songRadio:
             return "radio.fill"
         case .favorite:
             return "star.fill"
         }
+    }
+    
+    public var isRadio: Bool {
+        [.radio, .artistRadio, .songRadio].contains(self)
     }
 }

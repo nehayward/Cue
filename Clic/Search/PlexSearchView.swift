@@ -10,11 +10,20 @@ struct PlexSearchView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
+    @Binding var query: String
+    
     var plexResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var body: some View {
-        PlexAuthorizationFlowView()
+        PlexAuthorizationFlowView {
+            Task {
+                let query = query
+                self.query += " "
+                try? await Task.sleep(for: .milliseconds(400))
+                self.query = query
+            }
+        }
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
                 PlayableContentView(item: item)

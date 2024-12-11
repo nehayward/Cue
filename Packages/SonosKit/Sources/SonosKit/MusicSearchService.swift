@@ -17,12 +17,10 @@ public final class MusicSearchService {
     
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     
-    @MainActor
     public var isPlexAuthorized: Bool {
         plex.isAuthorized
     }
 
-    @MainActor
     public var plexServerID: String? {
         get {
             plex.serverID

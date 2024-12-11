@@ -87,12 +87,15 @@ extension View {
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
+                            .miniPlayerOnScrollHandler()
                     }
-                    .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .safeAreaInset(edge: .bottom) {
                         MiniPlayerView()
+                            .offset(y: MiniPlayerManger.shared.offset)
                     }
+                    .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -108,12 +111,15 @@ extension View {
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
+                            .miniPlayerOnScrollHandler()
                     }
-                    .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .safeAreaInset(edge: .bottom) {
                         MiniPlayerView()
+                            .offset(y: MiniPlayerManger.shared.offset)
                     }
+                    .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
+                    .scrollContentBackground(.hidden)
+                    .presentationBackground(.thinMaterial)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -164,6 +170,8 @@ extension View {
                     VolumeControlsScreen(groupID: groupID)
                 case .onboard:
                     OnboardView()
+                case .spotifyUserPlaylists:
+                    SpotifyPlaylistScreen()
                 }
             }
             .withEnvironments()
@@ -348,6 +356,8 @@ extension View {
                 HouseholdScreen()
             case .servicePreferenceScreen:
                 ServicePreferenceScreen()
+            case .spotifyUserPlaylist:
+                SpotifyUsersPlaylistView(playlistCountLimit: .max)
             }
         }
     }

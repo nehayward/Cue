@@ -15,6 +15,9 @@ public final class AlertService: @unchecked Sendable {
         alert.isShowing = false
         alert.text = text
         alert.isShowing = true
+        alert.content = nil
+        alert.subtitle = ""
+        alert.imageName = ""
 
         alertTask = Task { [weak self] in
             guard let self else { return }
@@ -28,9 +31,10 @@ public final class AlertService: @unchecked Sendable {
     }
     
     @MainActor
-    func showAlert(with text: String, imageName: String) {
+    func showAlert(with text: String, imageName: String, delay: Duration = .seconds(3)) {
         alertTask?.cancel()
-        alert.isShowing = false
+        alert.content = nil
+        alert.subtitle = ""
         alert.text = text
         alert.imageName = imageName
         alert.isShowing = true
@@ -38,7 +42,7 @@ public final class AlertService: @unchecked Sendable {
         alertTask = Task { [weak self] in
             guard let self else { return }
             try Task.checkCancellation()
-            try await Task.sleep(for: .seconds(3))
+            try await Task.sleep(for: delay)
             try Task.checkCancellation()
             alert.isShowing = false
             try await Task.sleep(for: .milliseconds(800))
@@ -47,18 +51,20 @@ public final class AlertService: @unchecked Sendable {
         }
     }
 
-    func showAlertContent(with content: PlayableContent) {
+    func showAlertContent(with content: PlayableContent, subtitle: LocalizedStringKey, symbolName: String = "") {
         alertTask?.cancel()
         alert.content = nil
-        alert.isShowing = false
         alert.text = content.title
+        alert.subtitle = subtitle
         alert.content = content
-        alert.isShowing = true
+        alert.imageName = symbolName
 
-        alertTask = Task { [weak self] in
+        alertTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            try await Task.sleep(for: .milliseconds(200))
+            alert.isShowing = true
             try Task.checkCancellation()
-            try await Task.sleep(for: .seconds(3))
+            try await Task.sleep(for: .seconds(4))
             try Task.checkCancellation()
             alert.isShowing = false
             try await Task.sleep(for: .milliseconds(800))
@@ -72,8 +78,10 @@ public final class AlertService: @unchecked Sendable {
 public final class Alert: Equatable {
     var isShowing: Bool = false
     var text: String = ""
+    var subtitle: LocalizedStringKey = ""
     var imageName: String?
     var content: PlayableContent?
+    var handleTap: (() -> Void)? = { print("Hello") }
 
     public static func == (lhs: Alert, rhs: Alert) -> Bool {
         lhs.isShowing != rhs.isShowing
@@ -81,9 +89,14 @@ public final class Alert: Equatable {
 }
 
 extension View {
-    func withAlert() -> some View {
-        return overlay(alignment: .top) {
-            PillView()
+    @ViewBuilder
+    func withAlert(enabled: Bool = true) -> some View {
+        if enabled {
+            overlay(alignment: .top) {
+                AlertView()
+            }
+        } else {
+            self
         }
     }
 }

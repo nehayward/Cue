@@ -17,7 +17,6 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
     public var isPlayable: Bool? // A song might not be released so it's not playable.
     public var isExplicit: Bool?
     public var isSingle: Bool?
-    public let parent: PlayableContent?
 
     // Initializer
     public init(
@@ -35,8 +34,7 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
         radioStation: Bool? = nil,
         isPlayable: Bool? = true,
         isExplicit: Bool? = false,
-        isSingle: Bool? = false,
-        parent: PlayableContent? = nil
+        isSingle: Bool? = false
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -53,7 +51,6 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
         self.isPlayable = isPlayable
         self.isExplicit = isExplicit
         self.isSingle = isSingle
-        self.parent = parent
     }
 
     // Equatable conformance
@@ -72,8 +69,7 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
         lhs.radioStation == rhs.radioStation &&
         lhs.isPlayable == rhs.isPlayable &&
         lhs.isExplicit == rhs.isExplicit &&
-        lhs.isSingle == rhs.isSingle &&
-        lhs.parent == rhs.parent
+        lhs.isSingle == rhs.isSingle
     }
 
     // Hashable conformance
@@ -93,6 +89,5 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
         hasher.combine(isPlayable)
         hasher.combine(isExplicit)
         hasher.combine(isSingle)
-        hasher.combine(parent)
     }
 }

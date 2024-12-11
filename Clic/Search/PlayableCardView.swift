@@ -36,7 +36,13 @@ struct PlayableCardView: View {
                         NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                             content
                         }
-                    case .track, .favorite, .radio:
+                    case .track, .favorite:
+                        Button {
+                            play()
+                        } label: {
+                            content
+                        }
+                    case .radio, .artistRadio, .songRadio:
                         Button {
                             play()
                         } label: {
@@ -98,7 +104,7 @@ struct PlayableCardView: View {
                 .padding([.horizontal, .bottom], 12)
                 .foregroundStyle(.white)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .contextMenu {
                 if adding == nil {
                     PlayableMenuView(item: item)
@@ -109,19 +115,13 @@ struct PlayableCardView: View {
     }
 
 
-    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(position: QueuePosition = .now) {
         hideKeyboard()
         Task { @MainActor in
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                HapticManager.shared.fireHaptic(.buttonPress)
-                do {
-                    try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
-                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                    playHistoryService.history.remove(item)
-                    playHistoryService.history.insert(item, at: 0)
-                } catch {
-                    alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
-                }
+                let position = [.playlist, .libraryPlaylist].contains(item.content.type) ? .replace : position
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position))
+                router.show(destination: .player(groupID: group.coordinatorID))
             }
             guard let group = selectedGroupService.group else {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))

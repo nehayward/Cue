@@ -56,11 +56,20 @@ struct ArtistDetailView: View {
                                 return
                             }
                             HapticManager.shared.fireHaptic(.buttonPress)
-                            await sonosService.startRadio(content: playableContent, group: group)
+                            do {
+                                let radioContent = playableContent.toRadio
+                                alertService.showAlertContent(with: radioContent, subtitle: "Radio")
+                                try await sonosService.startRadio(content: radioContent, group: group)
+                                playHistoryService.history.remove(radioContent)
+                                playHistoryService.history.insert(radioContent, at: 0)
+                            } catch {
+                                alertService.showAlert(with: "Please authorize \(playableContent.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+                            }
                         }
                     } label: {
-                        Label("Start Radio \(Image(systemName: "radio"))", systemImage: "play.fill")
-                            .padding()
+                        Text("Start Radio \(Image(systemName: "radio.fill"))")
+                            .padding(.horizontal)
+                            .padding(.vertical, 12)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .foregroundStyle(.foreground)
                     }
@@ -103,11 +112,12 @@ struct ArtistDetailView: View {
             if !tracks.isEmpty {
                 Section {
                     ForEach(tracks) { track in
-                        PlayableContentView(item: track)
+                        PlayableContentView(item: track, hideContentType: true)
+                            .listRowBackground(Color.clear)
                     }
                 } header: {
                     HStack {
-                        Text("Top Tracks")
+                        Text("Top Songs")
                         Spacer()
                         // MARK: Add queue multiple uris
 
@@ -145,7 +155,8 @@ struct ArtistDetailView: View {
 
             Section {
                 ForEach(albums) { album in
-                    PlayableContentView(item: album)
+                    PlayableContentView(item: album, hideContentType: true)
+                        .listRowBackground(Color.clear)
                 }
                 if isLoading {
                     ProgressView()

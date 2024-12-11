@@ -3,7 +3,6 @@ import Foundation
 import Network
 import os
 
-
 extension NWBrowser.State {
     var debugDescription: String {
         switch self {
@@ -46,7 +45,8 @@ final class SonosSystemDiscoverService {
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
     @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
-
+    
+    private let lock = OSAllocatedUnfairLock()
     private var permissionsDenied: Bool = false
     private var connections: [NWConnection?] = []
     private var allIPs: Set<String> = []
@@ -236,7 +236,10 @@ final class SonosSystemDiscoverService {
                               let endpoint = currentPath.remoteEndpoint else { return }
 
                         if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            self.allIPs.insert(ip)
+                            self.lock.withLock {
+                                self.allIPs.insert(ip)
+                                return
+                            }
                         }
                     default:
                         break
@@ -303,4 +306,3 @@ final class SonosSystemDiscoverService {
         })
     }
 }
-

@@ -38,11 +38,11 @@ struct PlayHistoryView: View {
         }
     }
     
-    private func play(item: PlayableContent, position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(item: PlayableContent, position: QueuePosition = .now) {
         Task { @MainActor in
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
                 do {
-                    try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
+                    try await sonosService.queue(playable: item, group: group, position: position)
                     await sonosService.play(ip: group.coordinatorRoom.ip)
                     playHistoryService.history.remove(item)
                     playHistoryService.history.insert(item, at: 0)

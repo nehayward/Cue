@@ -133,11 +133,11 @@ final class XMLParserSonos {
         guard let trackDurationString = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackDuration"].element?.text,
               let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text,
               !trackURI.isEmpty,
-              let trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
+              var trackNumber = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["Track"].element?.text
         else {
             return .empty
         }
-
+        
         let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text ?? "Unknown"
         let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text
         let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text
@@ -278,6 +278,8 @@ final class XMLParserSonos {
                 }
             }
         }
+        
+        let position = Int(trackNumber) ?? 1
 
         return Track(
             trackID: trackID,
@@ -289,9 +291,7 @@ final class XMLParserSonos {
             musicService: musicService,
             duration: trackDuration,
             playbackPosition: playbackPosition,
-            position: Int(
-                trackNumber
-            ) ?? 0,
+            position: position,
             sonosAlbumArtURL: sonosAlbumArtURL,
             metadata: metadata
         )
@@ -866,87 +866,48 @@ final class XMLParserSonos {
 
         for item in items {
             guard let title = item["dc:title"].element?.text,
-                  let trackID = item["res"].element?.text,
-                  let type = item["upnp:class"].element?.text,
-                  let contentType = ContentType(type),
-                  let type = item["r:type"].element?.text, type != "shortcut" else {
+                  let trackID = item["res"].element?.text.encodeProgramURI,
+                  var uriMetadata = item["r:resMD"].element?.text.unescaped else {
                 continue
             }
-
+            let innerXML = XMLHash.parse(uriMetadata)
+            let type = innerXML["DIDL-Lite"]["item"]["upnp:class"].element?.text ?? ""
+            let contentType = ContentType(type) ?? .favorite
+            
             var sonosAlbumArtURL: URL?
             if let albumArtURI = item["upnp:albumArtURI"].all.first?.element?.text {
                 sonosAlbumArtURL = URL(string: albumArtURI)
             }
 
-            //                    trackID = item["res"].element?.text ?? ""
-
-
-//            var musicService = MusicService.unknown
-//            if let trackURI = item["res"].element?.text.removingPercentEncoding {
-//                musicService = trackURI.contains("spotify") ? .spotify : .apple
-//                if trackURI.contains("airplay") {
-//                    musicService = .airplay
-//                }
-//
-//                if trackURI.contains("x-file-cifs") {
-//                    musicService = .library
-//                }
-//
-//                // TODO: Parse with this for HiRes info
-////                print(item["res"].element?.attribute(by: "protocolInfo")?.text.removingPercentEncoding)
-//
-//                // MarkLook for Client ID
-//                if trackURI.contains("x-sonos-http") {
-//                    musicService = .plex
-//                }
-//
-//                let tidalPattern = #/track\/(\d{7,9})/#
-//                if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? tidalPattern.firstMatch(in: trackURIRemovePercent) {
-//                    musicService = .tidal
-//                    trackID = String(result.1)
-//                }
-//
-//                switch musicService {
-//                case .apple:
-//                    let pattern = #/song:(\w*)/#
-//                    if let trackURIRemovePercent = trackURI.removingPercentEncoding, let result = try? pattern.firstMatch(in: trackURIRemovePercent) {
-//                        trackID = String(result.1)
-//                    } else {
-//                        musicService = .unknown
-//                    }
-//                case .spotify:
-//                    let pattern = #/track:(\w*)/#
-//                    if let result = try? pattern.firstMatch(in: trackURI) {
-//                        trackID = String(result.1)
-//                    } else {
-//                        musicService = .unknown
-//                    }
-//                case .airplay, .unknown, .tuneIn:
-//                    musicService = .unknown
-//                    trackID = item["res"].element?.text ?? ""
-//                case .library:
-//                    trackID = item["res"].element?.text ?? ""
-//                case .plex:
-//                    // MARK: Verify
-//                    trackID = item["res"].element?.text ?? ""
-//                case .tidal:
-//                    break
-//                }
-//            }
-
             var subtitle: String = ""
             if let description = item["r:description"].element?.text {
                 subtitle = description
             }
-            let uriMetadata = item["r:resMD"].element?.text.encodeProgramURI
-            let isRadioStation = (uriMetadata?.contains("audioBroadcast") ?? uriMetadata?.contains("radio")) ?? false
-            let mediaContent = MediaContent(service: .unknown, id: trackID.encodeProgramURI, type: contentType, location: nil)
-            let metadata = PlayableContentMetadata(URIMetadata: uriMetadata, radioStation: isRadioStation)
+            
+            uriMetadata = sanitizeDCTitle(uriMetadata)
+
+            let isRadioStation = uriMetadata.contains("audioBroadcast") || uriMetadata.contains("radio")
+            let mediaContent = MediaContent(service: .unknown, id: trackID, type: contentType, location: nil)
+            let metadata = PlayableContentMetadata(URIMetadata: uriMetadata.escaped, radioStation: isRadioStation)
             let playableContent = PlayableContent(title: title, subtitle: subtitle, thumbnail: sonosAlbumArtURL, artwork: sonosAlbumArtURL, content: mediaContent, metadata: metadata)
             searchResults.append(playableContent)
         }
 
         return searchResults
+    }
+
+    func parseContentType(from xmlString: String) -> ContentType? {
+        let pattern = "<upnp:class>(.*?)</upnp:class>"
+        let regex = try? NSRegularExpression(pattern: pattern, options: [])
+        let nsRange = NSRange(xmlString.startIndex..<xmlString.endIndex, in: xmlString)
+        
+        if let match = regex?.firstMatch(in: xmlString, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: xmlString) {
+            let classType = String(xmlString[range])
+            return ContentType(classType)
+        }
+        
+        return nil
     }
 
     func parseGetUpdateId(IP: String, xml: String) -> String {
@@ -1111,6 +1072,46 @@ final class XMLParserSonos {
             }
         }
         return nil
+    }
+    
+    private func parseService(from input: String) -> MusicService {
+        var musicService: MusicService = input.lowercased().contains("spotify") ? .spotify : .unknown
+
+        if input.contains("x-file-cifs") {
+            musicService = .library
+        }
+
+        if input.contains("%3a3%3") {
+            musicService = .plex
+        }
+
+        if input.contains("librarytrack") {
+            musicService = .apple
+        }
+        
+        return musicService
+    }
+    
+
+    // Add this new method
+    private func sanitizeDCTitle(_ xml: String) -> String {
+        let pattern = "<dc:title>(.*?)</dc:title>"
+        let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+        
+        guard let match = regex?.firstMatch(in: xml, options: [], range: range),
+              let titleRange = Range(match.range(at: 1), in: xml) else {
+            return xml
+        }
+        
+        var sanitizedXML = xml
+        let title = String(xml[titleRange])
+        let sanitizedTitle = title.replacingOccurrences(of: "&amp;", with: "")
+            .replacingOccurrences(of: "&", with: "")
+        
+        sanitizedXML = sanitizedXML.replacingOccurrences(of: title, with: sanitizedTitle, options: [], range: titleRange)
+        
+        return sanitizedXML
     }
 }
 

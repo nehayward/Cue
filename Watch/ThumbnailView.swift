@@ -44,27 +44,13 @@ struct ThumbnailView: View {
         .clipShape([.artist, .libraryArtist].contains(content.content.type) ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
         .shadow(radius: 2)
         .overlay(alignment: .bottomTrailing) {
-            if showMusicSource {
-                Group {
-                    content.content.service.icon
-                        .containerRelativeFrame(.horizontal) { size, axis in
-                            size * 0.05
-                        }
-                        .padding(4)
-                        .shadow(radius: 10)
-                    if content.content.type == .favorite {
-                        Image(systemName: "star.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white.gradient)
-                            .containerRelativeFrame(.horizontal) { size, axis in
-                                size * 0.05
-                            }
-                            .padding(4)
-                            .shadow(radius: 10)
-                    }
+            content.content.service.icon
+                .containerRelativeFrame(.horizontal) { size, axis in
+                    size * 0.05
                 }
-            }
+                .padding(4)
+                .shadow(radius: 10)
+                .opacity(showMusicSource ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .task(id: content.id) {

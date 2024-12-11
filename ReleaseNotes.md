@@ -1,3 +1,10 @@
+# 2024.46
+
+––New Features––
+- Improved queueing, simple tap a song on a playlist and it'll now replace the queue with the whole playlist. Album now queued and jumps to track that's selected.
+- Tap Navigation Title to see all players in group.
+- Improve Plex integration
+
 # 2024.45
 
 BLACK FRIDAY Special $4.99 for the first year.

@@ -136,6 +136,7 @@ struct FilterButton: View {
                     .imageScale(.medium)
                 if filter.isFiltered {
                     Text(filter.filter.title)
+                        .font(.body.smallCaps())
                         .transition(.opacity)
                         .matchedGeometryEffect(id: "filterText\(filter.filter.rawValue)", in: animation)
                 }

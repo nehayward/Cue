@@ -27,6 +27,7 @@ struct DeviceListMainView: View {
                 Section {
                     if group.coordinatorRoom.state == .active {
                         Button {
+                            HapticManager.shared.fireHaptic(.selection)
                             router.navigate(to: .player(groupID: group.coordinatorID))
                         } label: {
                             VStack(spacing: 12) {
@@ -47,11 +48,13 @@ struct DeviceListMainView: View {
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
+                        .listRowBackground(Color(UIColor.secondarySystemGroupedBackground))
                     } else {
                         Text(group.coordinatorRoom.state.reason)
                             .padding(.vertical, 8)
                             .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                             .paywall(enabled(group: group))
+                            .listRowBackground(Color(UIColor.secondarySystemGroupedBackground))
                     }
                 } header: {
                     HStack {

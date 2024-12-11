@@ -191,6 +191,24 @@ final class SonosAPI: NSObject {
         SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xml.unescaped)
         return trackInfo
     }
+    
+    @MainActor
+    func getCurrentQueueIndex(ipAddress: String, prioritizedAlbumArtIP: String? = nil) async -> Int {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0)
+        ]
+
+        guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return 0
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let trackInfo = xmlParser.parsePositionInfo(xml: xml.unescaped, IP: ipAddress, preferredIPForTrackAlbumArt: prioritizedAlbumArtIP)
+        SonosLogInformation.shared.log(name: "\(ipAddress)_track.txt", xml.unescaped)
+        var position = (trackInfo?.position ?? 0)
+        position = position == 1 ? 0 : position
+        return position
+    }
 
     func pause(ipAddress: String) async {
         let arguments: OrderedKeys = [
@@ -490,6 +508,8 @@ final class SonosAPI: NSObject {
         
         switch position {
         case .front: break
+        case .replace:
+            break
         case .end:
             desiredFirstTrackNumberEnqueued.1 = 0
         case .now, .next:
@@ -522,7 +542,7 @@ final class SonosAPI: NSObject {
             ("ContainerURI", ""),
             ("ContainerMetaData", ""),
             ("CurrentTrackIndex", 0),
-            ("NewCurrentTrackIndices", index + 1),
+            ("NewCurrentTrackIndices", index),
             ("NumberOfURIs", 1),
             ("EnqueuedURIsAndMetaData", playableContent.URIAndURIMetada)
         ]
@@ -531,13 +551,13 @@ final class SonosAPI: NSObject {
             throw SonosServiceError.timeout
         }
 
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+        if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode != 200 {
+            print("Failed", statusCode)
             throw SonosServiceError.serviceUnavailable
         }
     }
 
-    func startRadio(playableContent: PlayableContent, IP: String) async {
+    func startRadio(playableContent: PlayableContent, IP: String) async throws {
         guard let radioURI = playableContent.uriRadio, let URIMetadataRadio = playableContent.URIMetadataRadio else { return }
 
         let arguments: OrderedKeys = [
@@ -549,6 +569,7 @@ final class SonosAPI: NSObject {
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
+                throw SonosServiceError.serviceUnavailable
             }
         }
     }
@@ -686,7 +707,7 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func setAVTransportContent(playableContent: PlayableContent, IP: String) async {
+    func setAVTransportContent(playableContent: PlayableContent, IP: String) async throws {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("CurrentURI", playableContent.uri),
@@ -696,6 +717,7 @@ final class SonosAPI: NSObject {
         if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
                 print("Failed")
+                throw SonosServiceError.serviceUnavailable
             }
         }
     }

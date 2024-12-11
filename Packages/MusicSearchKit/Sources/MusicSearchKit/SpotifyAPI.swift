@@ -7,11 +7,17 @@ public final class SpotifyAPI {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let tokenManager = TokenManager()
+    private let tokenKey: Data?
 
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+        
+        // MARK: Workaround for Spotify Limitation
+        let keys: [Data?] = ["grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8),
+                    "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)]
+        tokenKey = keys.randomElement()?.map{ $0 }
     }
 
     public func lookupUser(for userID: String) async -> SpotifyUser? {
@@ -264,9 +270,7 @@ public final class SpotifyAPI {
         var request = URLRequest(url: URL)
         request.httpMethod = "POST"
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        // MARK: Might need to revert back
-        request.httpBody = "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)
-//        request.httpBody = "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8)
+        request.httpBody = tokenKey
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil
@@ -282,7 +286,6 @@ public final class SpotifyAPI {
     }
 
     // MARK: Token
-
     private var currentToken: Token?
     private var refreshTask: Task<Token, Error>?
 

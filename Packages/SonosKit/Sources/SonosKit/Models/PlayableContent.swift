@@ -13,6 +13,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     public var trackID: String { "\(content.id).\(metadata?.position?.description ?? "")" }
     
+    public var radioID: String {
+        id.replacingOccurrences(of: ".radio", with: "")
+    }
+    
     public init(
         title: String,
         subtitle: String,
@@ -46,25 +50,25 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.playlist, .spotify):
             return "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(id)"
         case (.track, .apple):
-            return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;flags=8224&amp;sn=5"
+            return "x-sonos-http:song%3a\(id).mp4"
         case (.libraryTrack, .apple):
-            return "x-sonos-http:librarytrack%3a\(id)?sid=204&amp;flags=8232&amp;sn=4"
+            return "x-sonos-http:librarytrack%3a\(id)"
         case (.libraryAlbum, .apple):
-            return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
+            return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)"
         case (.album, .apple):
-            return "x-rincon-cpcontainer:1004206calbum%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
+            return "x-rincon-cpcontainer:1004206calbum%3a\(id)"
         case (.playlist, .apple):
-            return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=5"
+            return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)"
         case (.favorite, _):
             return id
         case (_, .library):
             return id
         case (.track, .plex):
-            return "x-sonosapi-hls-static:10036020\(id)%3Atrack?sid=212&amp;flags=24616&amp;sn=9"
+            return "x-sonosapi-hls-static:10036020\(id)%3Atrack"
         case (.album, .plex):
-            return "x-rincon-cpcontainer:1004206c\(id)%3Aalbum?sid=212&amp;flags=8300&amp;sn=9"
+            return "x-rincon-cpcontainer:1004206c\(id)%3Aalbum"
         case (.artist, .plex):
-            return "x-rincon-cpcontainer:1005004c\(id)%3Aartist?sid=212&amp;flags=8300&amp;sn=9"
+            return "x-rincon-cpcontainer:1005004c\(id)%3Aartist"
         case (.playlist, .plex):
             return "x-rincon-cpcontainer:1006206c\(id)%3Aplaylist?sid=212&amp;flags=8300&amp;sn=9"
         case (.track, .tidal):
@@ -73,8 +77,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-rincon-cpcontainer:1004206calbum%2f\(id)"
         case (.artist, .tidal):
             return ""
-        case (.track, .unknown):
-            return id.encodeProgramURI
+        case (_, .unknown):
+            return id
         case (.radio, .tuneIn):
             return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
         case (.radio, .apple):
@@ -159,10 +163,6 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
 \(Self.defaultXMLNSHeader) id="1005004c\(id)%3Aartist"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.person.musicArtist&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
-        case (.track, .unknown):
-            return """
-\(Self.defaultXMLNSHeader) id="\(id.encodeProgramURI)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
-"""
         case (.radio, .tuneIn):
             return """
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON85255_X_#Svc85255-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
@@ -171,19 +171,21 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
             &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
             """
-        case (.favorite, _):
-            return """
-\(metadata?.URIMetadata ?? "")
-"""
+        case (_, .unknown):
+            return metadata?.URIMetadata ?? ""
         default:
             return ""
         }
     }
     
     public var URIAndURIMetada: String {
-        """
-    &lt;URIs&gt;&lt;URI uri=&quot\(uri)&quot;&gt;\(URIMetadata)&lt;/URI&gt;&lt;/URIs&gt;
     """
+&lt;URIs&gt;
+  &lt;URI uri=&quot;\(uri)&quot;&gt;
+   \(URIMetadata)
+  &lt;/URI&gt;
+&lt;/URIs&gt;
+"""
     }
 
     private static var defaultXMLNSHeader = """
@@ -228,14 +230,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 
     public var uriRadio: String? {
         switch (content.type, content.service) {
-        case (.artist, .spotify):
-            "x-sonosapi-radio:spotify%3aartistRadio%3a\(content.id)?sid=12&amp;flags=8300&amp;sn=1"
-        case (.artist, .apple):
-            "x-sonosapi-radio:radio%3ara.\(content.id)?sid=204&amp;flags=0&amp;sn=41"
-        case (.track, .spotify):
-            "x-sonosapi-radio:spotify%3atrackRadio%3a\(content.id)?sid=12&amp;flags=0&amp;sn=1"
-        case (.track, .apple):
-            "x-sonosapi-radio:radio%3Ara.\(content.id)?sid=204&amp;flags=32"
+        case (.artist, .spotify), (.artistRadio, .spotify):
+            "x-sonosapi-radio:spotify%3aartistRadio%3a\(radioID)?sid=12&amp;flags=8300&amp;sn=1"
+        case (.artist, .apple), (.artistRadio, .apple):
+            "x-sonosapi-radio:radio%3ara.\(radioID)?sid=204&amp;flags=0&amp;sn=41"
+        case (.track, .spotify), (.songRadio, .spotify):
+            "x-sonosapi-radio:spotify%3atrackRadio%3a\(radioID)?sid=12&amp;flags=0&amp;sn=1"
+        case (.track, .apple), (.songRadio, .apple):
+            "x-sonosapi-radio:radio%3Ara.\(radioID)?sid=204&amp;flags=32"
         default:
             nil
         }
@@ -243,21 +245,21 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 
     public var URIMetadataRadio: String? {
         switch (content.type, content.service) {
-        case (.artist, .spotify):
+        case (.artist, .spotify), (.artistRadio, .spotify):
             """
-\(Self.defaultXMLNSHeader) id="100c206cspotify%3aartistRadio%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="100c206cspotify%3aartistRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
 """
-        case (.artist, .apple):
+        case (.artist, .apple), (.artistRadio, .apple):
             """
-\(Self.defaultXMLNSHeader) id="000c0000radio%3ara.\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0000radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
 """
-        case (.track, .spotify):
+        case (.track, .spotify), (.songRadio, .spotify):
             """
-\(Self.defaultXMLNSHeader) id="000c0000spotify%3atrackRadio%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0000spotify%3atrackRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
 """
-        case (.track, .apple):
+        case (.track, .apple), (.songRadio, .apple):
             """
-\(Self.defaultXMLNSHeader) id="000c0020radio%3ara.\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0020radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
 """
         default:
             nil

@@ -34,5 +34,21 @@ import SonosKit
     func sheet(to: SheetDestination?) {
         presentedSheet = to
     }
+    
+    @MainActor
+    func show(destination: RouterDestination) {
+        if UIDevice.current.userInterfaceIdiom != .phone {
+            return
+        }
+        
+        Router.main.sheet(to: nil)
+        if Router.main.path.last == destination {
+            return
+        } else {
+            Router.main.path.removeAll()
+            Router.main.navigate(to: destination)
+        }
+        return
+    }
 }
 

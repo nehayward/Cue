@@ -83,6 +83,19 @@ struct QueueScreen: View {
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
                 .scrollContentBackground(.hidden)
                 .listStyle(.plain)
+                .overlay {
+                    if group.coordinatorRoom.queue.isEmpty, !isLoading {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 16) {
+                            ForEach(playHistoryService.history.prefix(6)) { item in
+                                PlayableCardView(item: item, hideAction: true)
+                                    .frame(width: 120, height: 120)
+                            }
+                            .fontDesign(.rounded)
+                        }
+                        .opacity(isLoading ? 0 : 1)
+                        .padding(.horizontal, 8)
+                    }
+                }
                 .toolbar {
                     ToolbarItemGroup(placement: .navigation) {
                         VStack(alignment: .leading) {
@@ -112,9 +125,9 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
-                                try? await Task.sleep(for: .milliseconds(100))
+                                try? await Task.sleep(for: .milliseconds(500))
                                 withAnimation {
-                                    let id = group.coordinatorRoom.track.trackID + "\(group.coordinatorRoom.track.position)"
+                                    let id = group.coordinatorRoom.track.toPlayable.trackID
                                     proxy.scrollTo(id)
                                 }
                             }
@@ -180,12 +193,9 @@ struct QueueScreen: View {
                 .task(id: group.coordinatorRoom.track.trackID) {
                     isLoading = true
                     group.playMode = await sonosService.playMode(ip: group.ip)
-                    let id = group.coordinatorRoom.track.trackID + ".\(group.coordinatorRoom.track.position)"
-                    proxy.scrollTo(id, anchor: .top)
-                    self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                    await scrollToNowPlaying(proxy)
                     isLoading = false
                 }
-                .animation(.spring, value: group.coordinatorRoom.queue)
                 .addDismiss {
                     dismiss()
                     closeInspector?()
@@ -197,25 +207,11 @@ struct QueueScreen: View {
             if isLoading, group.coordinatorRoom.queue.isEmpty {
                 ProgressView()
             }
-            if group.coordinatorRoom.queue.isEmpty, !isLoading {
-                ContentUnavailableView {
-                    Text("Play History")
-                        .padding()
-                } description: {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
-                        ForEach(playHistoryService.history.prefix(5)) { item in
-                            PlayableCardView(item: item, hideAction: true)
-                                .frame(width: 100, height: 100)
-                        }
-                        .fontDesign(.rounded)
-                    }
-                }
-                .transition(.opacity)
-                .opacity(isLoading ? 0 : 1)
-            }
         }
         .fontDesign(.rounded)
         .animation(.default, value: group.playbackService)
+        .animation(.spring, value: group.coordinatorRoom.queue)
+        .animation(.spring, value: isLoading)
         .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
             Button {
                 Task {
@@ -283,6 +279,14 @@ struct QueueScreen: View {
             } label: {
                 Label("Remove", systemImage: "trash")
             }
+        }
+    }
+    
+    private func scrollToNowPlaying(_ proxy: ScrollViewProxy) async {
+        let id = group.coordinatorRoom.track.toPlayable.trackID
+        self.group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+        await MainActor.run {
+            proxy.scrollTo(id, anchor: .top)
         }
     }
 }

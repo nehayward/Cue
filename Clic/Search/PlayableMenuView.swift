@@ -17,15 +17,19 @@ struct PlayableMenuView: View {
 
     var body: some View {
         VStack {
-            if playHistoryService.history.contains(item) {
-                Button(role: .destructive) {
-                    playHistoryService.history.remove(item)
-                } label: {
-                    Label("Remove from History", systemImage: "trash")
-                }
-            }
-            OpenInServiceView(item: item)
+            // TODO: Add scene playlist
+            //                NavigationLink(value: RouterDestination.createScene(content: item)) {
+            //                    Label("Create Scene", systemImage: "bolt.fill")
+            //                }
             switch item.content.type {
+            case .artistRadio, .songRadio:
+                if [.spotify, .apple].contains(item.content.service) {
+                    Button {
+                        startRadio()
+                    } label: {
+                        Label("Start Radio", systemImage: "radio.fill")
+                    }
+                }
             case .artist, .libraryArtist:
                 NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                     Label("View Artist", systemImage: "music.mic")
@@ -39,9 +43,9 @@ struct PlayableMenuView: View {
                     }
                 }
             case .playlist, .libraryPlaylist:
-                ControlGroup("Queue") {
+                ControlGroup("Queue \(item.title)") {
                     Button {
-                        play(replaceQueue: true)
+                        play(position: .replace)
                     } label: {
                         Label("Replace", systemImage: "play.fill")
                     }
@@ -66,47 +70,12 @@ struct PlayableMenuView: View {
                         Label("Rename", systemImage: "textformat")
                     }
                 }
-
-                if item.content.service == .library, item.content.type == .playlist {
-                    Button(role: .destructive) {
-                        Task {
-                            await sonosService.delete(playlistID: item.id)
-                        }
-                    } label: {
-                        Label("Delete from Library", systemImage: "trash")
-                    }
-                }
-// TODO: Add scene playlist
-//                NavigationLink(value: RouterDestination.createScene(content: item)) {
-//                    Label("Create Scene", systemImage: "bolt.fill")
-//                }
-
             case .album, .track, .libraryTrack, .libraryAlbum:
-                if [.album, .track].contains(item.content.type) {
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
-                        Label("View Album", systemImage: "smallcircle.circle.fill")
-                    }
-
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
-                        Label("View Artist", systemImage: "music.mic")
-                    }
-                }
-                
-                if [.spotify, .apple].contains(item.content.service), item.content.type == .track {
+                ControlGroup("Queue \(item.title)") {
                     Button {
-                        startRadio()
+                        play(position: .now)
                     } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
-                    }
-                }
-
-                ControlGroup("Queue") {
-                    if item.content.type == .album {
-                        Button {
-                            play(replaceQueue: true)
-                        } label: {
-                            Label("Replace", systemImage: "play.fill")
-                        }
+                        Label("Play", systemImage: "play.fill")
                     }
 
                     Button {
@@ -119,6 +88,32 @@ struct PlayableMenuView: View {
                         play(position: .end)
                     } label: {
                         Label("Play Last", systemImage: "text.append")
+                    }
+                }
+                
+                if [.spotify, .apple].contains(item.content.service), item.content.type == .track {
+                    Button {
+                        startRadio()
+                    } label: {
+                        Label("Start Radio", systemImage: "radio.fill")
+                    }
+                }
+                
+                if item.content.type == .album {
+                    Button {
+                        play(position: .replace)
+                    } label: {
+                        Label("Replace Queue", systemImage: "play.fill")
+                    }
+                }
+                
+                if [.album, .track].contains(item.content.type), item.content.service != .unknown {
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                        Label("View Album", systemImage: "smallcircle.circle.fill")
+                    }
+
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                        Label("View Artist", systemImage: "music.mic")
                     }
                 }
 
@@ -141,15 +136,35 @@ struct PlayableMenuView: View {
                 }
             }
         }
+        OpenInServiceView(item: item)
+
         Button {
             selectedGroupService.group = nil
             play()
         } label: {
             Label("Play in Another Room…", systemImage: "hifispeaker.arrow.forward.fill")
         }
+        
+        if item.content.service == .library, item.content.type == .playlist {
+            Button(role: .destructive) {
+                Task {
+                    await sonosService.delete(playlistID: item.id)
+                }
+            } label: {
+                Label("Delete from Library", systemImage: "trash")
+            }
+        }
+        
+        if playHistoryService.history.contains(item) {
+            Button(role: .destructive) {
+                playHistoryService.history.remove(item)
+            } label: {
+                Label("Remove from History", systemImage: "trash")
+            }
+        }
     }
 
-    private func play(position: QueuePosition = .now, replaceQueue: Bool = false) {
+    private func play(position: QueuePosition = .now) {
         if let add = adding?.add, add {
             adding?.content = item
             router.dismiss = true
@@ -158,14 +173,7 @@ struct PlayableMenuView: View {
         Task { @MainActor in
             hideKeyboard()
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                do {
-                    try await sonosService.queue(playable: item, group: group, position: position, replaceQueue: replaceQueue)
-                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                    playHistoryService.history.remove(item)
-                    playHistoryService.history.insert(item, at: 0)
-                } catch {
-                    alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
-                }
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title, showBanner: true))
             }
             guard let group = selectedGroupService.group else {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
@@ -179,10 +187,8 @@ struct PlayableMenuView: View {
         Task { @MainActor in
             hideKeyboard()
             let startRadio: ((GroupRoom) async throws -> Void) = { group in
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    await sonosService.startRadio(content: item, group: group)
-                }
+                let radioItem = item.toRadio
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: radioItem, group: group, position: .now, title: "Starting radio", showBanner: true))
             }
             guard let group = selectedGroupService.group else {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: startRadio, content: item))
