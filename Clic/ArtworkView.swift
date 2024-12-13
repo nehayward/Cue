@@ -7,12 +7,10 @@ struct ArtworkView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(AlertService.self) var alertService
     
+    var isDraggable: Bool = false
     @Binding var group: GroupRoom
-    @State private var size: Double = 24
     @State private var alarmRunning: Bool = false
-    @State var imageRequest: ImageRequest?
-
-    private var placeholderSize: Double { size == 24 ? 100 : 42 }
+    @State private var imageRequest: ImageRequest?
 
     var body: some View {
         GeometryReader { proxy in
@@ -21,12 +19,10 @@ struct ArtworkView: View {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .transition(.opacity)
                 } else if state.isLoading {
                     Rectangle()
                         .aspectRatio(contentMode: .fit)
                         .foregroundStyle(.ultraThinMaterial)
-                        .transition(.opacity)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
@@ -37,7 +33,8 @@ struct ArtworkView: View {
                                     .resizable()
                                     .scaledToFit()
                                     .foregroundStyle(.foreground)
-                                    .frame(width: placeholderSize, height: placeholderSize)
+                                    .fontWeight(.light)
+                                    .frame(width: proxy.size.width * 0.5, height: proxy.size.width * 0.5)
                             }
                         }
                 }
@@ -52,17 +49,12 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: $group, size: $size, alarmRunning: $alarmRunning)
+                ArtworkBadgeView(group: $group, size: proxy.size.width, alarmRunning: $alarmRunning)
             }
-            .onChange(of: proxy.size, initial: true) {
-                if proxy.size.width < 100 {
-                    size = 16
-                } else {
-                    size = 24
-                }
+            .if(isDraggable) {
+                $0.draggable(group.coordinatorRoom.track.toPlayable)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .animation(.spring, value: group.coordinatorRoom.track.trackID)
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
             }

@@ -35,11 +35,6 @@ struct VolumeControlView: View {
             .hoverEffect(.automatic)
 
             VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, delayDrag: delayDrag) { isEditing in
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                    sonosService.isEditing = isEditing
-                }
-                
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)

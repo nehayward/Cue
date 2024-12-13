@@ -27,3 +27,7 @@ struct QueueIconView: View {
         .frame(width: 24, height: 24)
     }
 }
+
+#Preview {
+    QueueIconView(group: .constant(.garage))
+}

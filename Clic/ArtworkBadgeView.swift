@@ -5,7 +5,7 @@ import MusicSearchKit
 
 struct ArtworkBadgeView: View {
     @Binding var group: GroupRoom
-    @Binding var size: Double
+    var size: Double
     @Binding var alarmRunning: Bool
 
     var body: some View {
@@ -14,24 +14,32 @@ struct ArtworkBadgeView: View {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(.white.gradient)
-                .frame(width: size, height: size, alignment: .bottomTrailing)
-                .padding(size == 24 ? 16 : 4)
-                .shadow(radius: 10)
+                .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                .shadow(radius: 12)
+                .padding([.bottom, .trailing], padding)
         } else {
             if group.playbackService == .radio {
                 Image(systemName: "radio.fill")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .foregroundStyle(.white.gradient)
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
-                    .shadow(radius: 10)
+                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                    .shadow(radius: 12)
+                    .padding([.bottom, .trailing], padding)
             } else {
                 group.coordinatorRoom.track.musicService.icon
-                    .frame(width: size, height: size, alignment: .bottomTrailing)
-                    .padding(size == 24 ? 16 : 4)
+                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                    .padding([.bottom, .trailing], padding)
             }
         }
+    }
+    
+    private var frameSize: Double {
+        max(16, size * 0.1)
+    }
+    
+    private var padding: Double {
+        max(4, size * 0.04)
     }
 }
 //

@@ -229,7 +229,6 @@
 		E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				ConditionalViewModifier.swift,
 				Info.plist,
 				Storage.swift,
 			);
@@ -238,7 +237,6 @@
 		E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				ConditionalViewModifier.swift,
 				Info.plist,
 				Storage.swift,
 				SubscriptionDetailScreen.swift,

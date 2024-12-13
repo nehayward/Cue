@@ -45,11 +45,10 @@ struct LargePlayerView: View {
                 TVModeView()
                 Spacer()
             } else {
-                artworkView
+                artworkView(true)
                     .padding(.bottom, 12)
                     .shadow(radius: 10)
                     .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-                    .draggable(group.coordinatorRoom.track.toPlayable)
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
                     Text(stationName)
                         .multilineTextAlignment(.center)
@@ -147,7 +146,7 @@ struct LargePlayerView: View {
                                         Image(systemName: "plus.circle.fill")
                                             .offset(x: 12, y: -18)
                                             .transition(.scale)
-                                            .foregroundStyle(.green)
+                                            .foregroundStyle(.green.gradient)
                                     }
                                 }
                                 .overlay {
@@ -170,12 +169,6 @@ struct LargePlayerView: View {
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
-                        .dropDestinationPlay(on: group, now: false) { isTargeted in
-                            if isTargeted {
-                                HapticManager.shared.fireHaptic(.selection)
-                            }
-                            isHoveringOnQueueList = isTargeted
-                        }
                         .overlay(alignment: .topTrailing) {
                             if group.playMode.contains(.shuffle) {
                                 Image(systemName: "shuffle.circle.fill")
@@ -194,6 +187,12 @@ struct LargePlayerView: View {
                                     .offset(x: 10, y: -10)
                             }
                         }
+                        .dropDestinationPlay(on: group, position: .next) { isTargeted in
+                            if isTargeted {
+                                HapticManager.shared.fireHaptic(.selection)
+                            }
+                            isHoveringOnQueueList = isTargeted
+                        }
                     }
                 }
             }
@@ -204,21 +203,6 @@ struct LargePlayerView: View {
         }
         .onDisappear {
             sonosService.selectedGroup = nil
-        }
-        .background {
-            artworkView
-                .saturation(1.3)
-                .aspectRatio(contentMode: .fill)
-                .scaleEffect(1.3)
-                .blur(radius: 60)
-                .overlay {
-                    Rectangle()
-                        .foregroundStyle(.thinMaterial)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.horizontal, -100)
-                        .ignoresSafeArea()
-                }
-                .ignoresSafeArea()
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -252,7 +236,6 @@ struct LargePlayerView: View {
             }
         }
         .dropDestinationPlay(on: group)
-        .animation(.bouncy, value: group.playMode)
         .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
@@ -275,6 +258,22 @@ struct LargePlayerView: View {
         .padding(.horizontal, 32)
         .safeAreaPadding(.bottom)
         .ignoresSafeArea(.keyboard)
+        .animation(.bouncy, value: group.playMode)
+        .animation(.bouncy, value: isHoveringOnQueueList)
+        .background {
+            ZStack {
+                artworkView()
+                    .saturation(1.3)
+                    .aspectRatio(contentMode: .fill)
+                    .scaleEffect(1.3)
+                    .blur(radius: 60)
+                Rectangle()
+                    .foregroundStyle(.thinMaterial)
+                    .scaleEffect(1.3)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea()
+        }
     }
 
     private func playbackView() -> some View {
@@ -283,7 +282,7 @@ struct LargePlayerView: View {
                 VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                        sonosService.isEditing = isEditing
+                        group.isEditingPlayback = isEditing
                     }
 
                     if !isEditing {
@@ -430,8 +429,8 @@ struct LargePlayerView: View {
         .fontDesign(.rounded)
     }
     
-    var artworkView: some View {
-        ArtworkView(group: $group)
+    func artworkView(_ isDraggable: Bool = false) -> some View {
+        ArtworkView(isDraggable: isDraggable, group: $group)
             .id(group.coordinatorRoom.track.id)
     }
 }

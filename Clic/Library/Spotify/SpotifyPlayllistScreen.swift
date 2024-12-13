@@ -13,7 +13,6 @@ import TipKit
 struct SpotifyPlaylistScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(SpotifyBrowseService.self) private var spotifyBrowseService: SpotifyBrowseService
-    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     
     @Environment(\.dismiss) private var dismiss
     

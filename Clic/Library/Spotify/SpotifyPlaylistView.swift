@@ -16,6 +16,7 @@ struct SpotifyUsersPlaylistView: View {
     @Environment(Router.self) private var router
 
     var playlistCountLimit: Int = 5
+    var hideNavigation: Bool = false
     
     @AppStorage("spotify.userID.clic") private var userID: String = ""
     @State private var isLoading: Bool = false
@@ -23,30 +24,17 @@ struct SpotifyUsersPlaylistView: View {
     var body: some View {
         @Bindable var sonosService = sonosService
         
-        NavigationLink {
-            List {
-                if !spotifyBrowseService.userPlaylists.isEmpty {
-                    ForEach(spotifyBrowseService.userPlaylists) { item in
-                        PlayableContentView(item: item)
-                    }
-                } else {
-                    if isLoading, spotifyBrowseService.userPlaylists.isEmpty {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .listRowBackground(Color.clear)
-                    }
-                }
+        if !hideNavigation {
+            NavigationLink(value: RouterDestination.spotifyUserPlaylist) {
+                Text("My Playlists")
+                    .foregroundStyle(.secondary)
+                    .fontDesign(.rounded)
+                    .bold()
             }
-            .navigationTitle("Spotify Playlist")
-        } label: {
-            Text("My Playlists")
-                .foregroundStyle(.secondary)
-                .fontDesign(.rounded)
-                .bold()
-        }
-        .listRowSeparator(.hidden)
-        .task {
-            await updateSpotifyBrowseService()
+            .listRowSeparator(.hidden)
+            .task {
+                await updateSpotifyBrowseService()
+            }
         }
         
         if !spotifyBrowseService.userPlaylists.isEmpty {

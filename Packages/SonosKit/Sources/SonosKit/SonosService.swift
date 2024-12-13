@@ -308,7 +308,7 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.track.downloadedArtworkURL = previousArtwork
             }
 
-            if roomGroup.coordinatorRoom.track == awaitedTrack {
+            if roomGroup.coordinatorRoom.track == awaitedTrack, !roomGroup.isEditingPlayback {
                 roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                 return
             }
@@ -322,7 +322,7 @@ public final class SonosService {
             guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
                 if roomGroup.coordinatorRoom.track != awaitedTrack {
                     roomGroup.coordinatorRoom.track = awaitedTrack
-                } else {
+                } else if !roomGroup.isEditingPlayback {
                     roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                 }
                 return
@@ -415,7 +415,7 @@ public final class SonosService {
                         break
                     }
 
-                    if roomGroup.coordinatorRoom.track == awaitedTrack {
+                    if roomGroup.coordinatorRoom.track == awaitedTrack, !roomGroup.isEditingPlayback {
                         roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                         return
                     }
@@ -428,7 +428,7 @@ public final class SonosService {
                     guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
                         if roomGroup.coordinatorRoom.track != awaitedTrack {
                             roomGroup.coordinatorRoom.track = awaitedTrack
-                        } else {
+                        } else if !roomGroup.isEditingPlayback {
                             roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                         }
                         return
@@ -595,7 +595,6 @@ public final class SonosService {
                     default:
                         break
                     }
-
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume {
                         roomGroup.groupVolume = groupVolumeAwaited
@@ -1106,7 +1105,7 @@ public final class SonosService {
 
         isEditing = true
         await api.pause(ipAddress: ip)
-        try? await Task.sleep(for: .seconds(2))
+        try? await Task.sleep(for: .milliseconds(400))
         isEditing = false
     }
 
@@ -1125,7 +1124,7 @@ public final class SonosService {
         }
         isEditing = true
         await api.play(ipAddress: ip)
-        try? await Task.sleep(for: .seconds(2))
+        try? await Task.sleep(for: .milliseconds(400))
         isEditing = false
     }
 

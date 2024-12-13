@@ -357,7 +357,10 @@ extension View {
             case .servicePreferenceScreen:
                 ServicePreferenceScreen()
             case .spotifyUserPlaylist:
-                SpotifyUsersPlaylistView(playlistCountLimit: .max)
+                List {
+                    SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)
+                        .navigationTitle("Spotify User Playlists")
+                }
             }
         }
     }

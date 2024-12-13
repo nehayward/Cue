@@ -15,6 +15,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var isMuted: Bool = false
     public var ip: String { coordinatorRoom.ip }
     public var isEditingVolume: Bool = false
+    public var isEditingPlayback: Bool = false
     public var playbackService: PlaybackService = .unknown
     public var availableActions: AvailableActions = []
     public var groupVolume: Double = 0

@@ -85,8 +85,8 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        if let id, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                            QueueIconView(group: $sonosService.sorted[group])
+                        if let id, let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                            QueueIconView(group: $sonosService.sorted[groupID])
                                 .tint(.primary)
                         }
                     }

@@ -4,6 +4,10 @@
 - Improved queueing, simple tap a song on a playlist and it'll now replace the queue with the whole playlist. Album now queued and jumps to track that's selected.
 - Tap Navigation Title to see all players in group.
 - Improve Plex integration
+- Swipe to play next.
+- Add shuffle to albums and playlists
+- Improved resizing on Mac
+
 
 # 2024.45
 

@@ -109,11 +109,11 @@ struct PlayableContentView: View {
             .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
         }
         .swipeActions {
-            if playHistoryService.history.contains(item) {
-                Button(role: .destructive) {
-                    playHistoryService.history.remove(item)
+            if [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum].contains(item.content.type) {
+                Button {
+                    play(position: .next)
                 } label: {
-                    Label("Remove from History", systemImage: "trash")
+                    Label("Play Next", systemImage: "text.insert")
                 }
             }
         }

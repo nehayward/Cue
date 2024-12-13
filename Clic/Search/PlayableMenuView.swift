@@ -61,6 +61,12 @@ struct PlayableMenuView: View {
                     } label: {
                         Label("Play Last", systemImage: "text.append")
                     }
+                    
+                    Button {
+                        play(position: .replace, shuffle: true)
+                    } label: {
+                        Label("Shuffle", systemImage: "shuffle")
+                    }
                 }
 
                 if item.content.service == .library, item.content.id.last?.isNumber ?? false {
@@ -164,7 +170,7 @@ struct PlayableMenuView: View {
         }
     }
 
-    private func play(position: QueuePosition = .now) {
+    private func play(position: QueuePosition = .now, shuffle: Bool = false) {
         if let add = adding?.add, add {
             adding?.content = item
             router.dismiss = true
@@ -173,7 +179,11 @@ struct PlayableMenuView: View {
         Task { @MainActor in
             hideKeyboard()
             let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title, showBanner: true))
+                let playMode: PlayMode = shuffle ? [.shuffle, .normal] : [.normal]
+                if shuffle {
+                    await sonosService.setPlayMode(group.ip, mode: [.normal, .shuffle])
+                }
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title, playMode: playMode, showBanner: true))
             }
             guard let group = selectedGroupService.group else {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
