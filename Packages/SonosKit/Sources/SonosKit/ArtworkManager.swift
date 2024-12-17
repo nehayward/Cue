@@ -1,6 +1,7 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
-
+#endif
 public final class ArtworkManager {
     public static var shared = ArtworkManager()
 
@@ -11,6 +12,7 @@ public final class ArtworkManager {
     }
 
     public func downScale(coordinatorRoom: String,  url: URL?) async {
+#if canImport(UIKit)
         let fileURL = containerURL.appendingPathComponent("\(coordinatorRoom).jpg")
 
         guard let url = url else {
@@ -40,6 +42,7 @@ public final class ArtworkManager {
         } catch {
             print("Error saving image: \(error)")
         }
+#endif
     }
 
     public func removeArtwork(coordinatorRoom: String) {
@@ -51,7 +54,8 @@ public final class ArtworkManager {
         let fileURL = containerURL.appendingPathComponent("\(name).jpg")
         return try? Data(contentsOf: fileURL)
     }
-
+    
+#if canImport(UIKit)
     public func getImage(name: String) -> UIImage? {
         #if DEBUG
         print("HERE")
@@ -65,4 +69,6 @@ public final class ArtworkManager {
         }
         return nil
     }
+#endif
 }
+

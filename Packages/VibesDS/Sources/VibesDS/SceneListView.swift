@@ -28,7 +28,7 @@ public struct SceneListView: View {
                             try? await sonosService.runScene(scene)
                         }
                     }
-                    #if !os(watchOS)
+                    #if !os(watchOS) && !os(macOS)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
                         Button("Remove", role: .destructive) {

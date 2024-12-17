@@ -71,7 +71,7 @@ public struct VibeContentArtworkView: View {
     private var contentShape: AnyShape {
         [.artist, .libraryArtist].contains(content.content.type)
             ? AnyShape(Circle())
-            : AnyShape(RoundedRectangle(cornerRadius: 8))
+            : AnyShape(RoundedRectangle(cornerRadius: 6))
     }
     
     // MARK: - Music Source Overlay
@@ -84,7 +84,7 @@ public struct VibeContentArtworkView: View {
     
     // MARK: - Calculate Overlay Size
     private func calculateOverlaySize(from size: CGSize) {
-        overlaySize = size.width * 0.10
+        overlaySize = size.width * 0.2
     }
     
     // MARK: - Load Image

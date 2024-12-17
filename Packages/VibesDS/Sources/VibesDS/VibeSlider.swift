@@ -82,7 +82,7 @@ public struct VibeSlider: View {
                         .frame(width: calculateProgressWidth(), height: isDragging ? expandedHeight : baseHeight)
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
-            #if !os(watchOS)
+            #if !os(watchOS) && !os(macOS)
                 .contentShape(.hoverEffect, .capsule)
             #endif
             }
@@ -93,7 +93,7 @@ public struct VibeSlider: View {
             return oldValue < newValue ? .decrease : .increase
         }
         #endif
-        #if !os(watchOS)
+        #if !os(watchOS) && !os(macOS)
         .hoverEffect(.highlight)
         .defaultHoverEffect(.highlight)
         #endif
@@ -118,7 +118,7 @@ public struct VibeSlider: View {
     }
 
     private func handleDragEnded(_ gesture: DragGesture.Value) {
-#if targetEnvironment(macCatalyst)
+#if targetEnvironment(macCatalyst) || os(macOS)
         if gesture.translation.width == 0.0 {
             let newPercentage = gesture.location.x / width
             withAnimation {

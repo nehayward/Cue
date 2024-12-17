@@ -18,7 +18,7 @@ public final class SpotifyAuthenticatorService: NSObject {
         }
     }
 
-#if os(iOS) || os(macOS)
+#if os(iOS) || targetEnvironment(macCatalyst)
     private func authenticate() async {
         let authURL = URL(string: "https://app.plex.tv/auth/#?clientID=&code=")!
         session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: nil) { callbackURL, error in }
@@ -28,7 +28,7 @@ public final class SpotifyAuthenticatorService: NSObject {
 #endif
 }
 
-#if os(iOS) || os(macOS)
+#if os(iOS) || targetEnvironment(macCatalyst)
 extension SpotifyAuthenticatorService: ASWebAuthenticationPresentationContextProviding {
     public nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return UIApplication.shared.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()

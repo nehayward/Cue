@@ -22,7 +22,7 @@ public final class PlexAuthenticator: NSObject {
         }
     }
 
-#if os(iOS) || os(macOS) || os(visionOS)
+#if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)
     @MainActor
     private func authenticate(with clientID: String) async {
         guard let code = await startMonitor() else { return }
@@ -135,7 +135,7 @@ public final class PlexAuthenticator: NSObject {
     }
 }
 
-#if os(iOS) || os(macOS)
+#if os(iOS) || targetEnvironment(macCatalyst)
 extension PlexAuthenticator: ASWebAuthenticationPresentationContextProviding {
     public nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return UIApplication.shared.windows.first { $0.isKeyWindow } ?? ASPresentationAnchor()
