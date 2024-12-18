@@ -29,6 +29,10 @@ struct PreferenceScreen: View {
     
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
+#if targetEnvironment(macCatalyst)
+    @State private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
+#endif
+    
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var coreFeatures = coreFeatures
@@ -208,6 +212,38 @@ struct PreferenceScreen: View {
                     .tint(.primary)
                 }
                 
+                
+            #if targetEnvironment(macCatalyst)
+                Section {
+                    Button {
+                        Task {
+                            do {
+                                try await menuAppLaunchAtLoginManager.setLaunchAtLoginEnabled(true)
+                            } catch {
+                                print(error)
+                            }
+                        }
+                    } label: {
+                        Label {
+                            Text("Menu Bar App")
+                        } icon: {
+                            Image(systemName: "hifispeaker.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.blue)
+                                )
+                        }
+                    }
+                    .tint(.primary)
+                }
+                #endif
+                
                 Section {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
@@ -265,7 +301,6 @@ struct PreferenceScreen: View {
                         }
                     }.disabled(!subscriptionService.subscription.isActive)
                 }
-                
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {

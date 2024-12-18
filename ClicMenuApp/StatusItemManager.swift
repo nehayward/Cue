@@ -1,6 +1,6 @@
+import Combine
 import SwiftUI
 import SonosKit
-import Combine
 
 final class StatusItemManager {
     private var statusItem: NSStatusItem?

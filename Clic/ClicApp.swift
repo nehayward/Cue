@@ -15,7 +15,6 @@ import CoreSpotlight
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
-
 @main
 struct ClicApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -41,6 +40,10 @@ struct ClicApp: App {
 
     @State var selectedID: String?
     @State private var previousCount: Int = 0
+    
+#if targetEnvironment(macCatalyst)
+    private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
+#endif
 
     var body: some Scene {
         WindowGroup {
@@ -163,6 +166,10 @@ struct ClicApp: App {
 //                        window.overrideUserInterfaceStyle = .dark
 //                    }
 //                }
+                // Update SMAppService registration with proper error handling
+#if targetEnvironment(macCatalyst)
+                menuAppLaunchAtLoginManager.autoEnableIfNeeded()
+#endif
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)

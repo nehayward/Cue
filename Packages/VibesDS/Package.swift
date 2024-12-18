@@ -26,13 +26,6 @@ let package = Package(
                 "CloudStorage",
                 "SonosKit",
                 .product(name: "NukeUI", package: "Nuke")
-            ]),
-        .testTarget(
-            name: "VibesDSTests",
-            dependencies: [
-                "CloudStorage",
-                "VibesDS",
-                "SonosKit"
-            ]),
+            ])
     ]
 )
