@@ -15,11 +15,11 @@ final class BetaFeatures {
         }
     }
 
-    private func feature(feature: Features) -> Bool {
+    private func feature(feature: FeatureKeys) -> Bool {
         UserDefaults.standard.bool(forKey: feature.key)
     }
 
-    private func setFeature(value: Bool, feature: Features) {
+    private func setFeature(value: Bool, feature: FeatureKeys) {
         UserDefaults.standard.setValue(value, forKey: feature.key)
     }
 }

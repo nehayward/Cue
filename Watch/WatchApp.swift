@@ -1,5 +1,6 @@
 import Observation
 import Nuke
+import Defaults
 import SwiftUI
 import SonosKit
 import WidgetKit
@@ -8,7 +9,7 @@ import CloudStorage
 @main
 struct WatchApp: App {
     @Environment(\.scenePhase) var scenePhase
-    @CloudStorage("com.clic.subscriptions") var activeSubscription: Bool = false
+    @CloudStorage(CloudKeys.hasSubscription) var activeSubscription: Bool = false
 
     @State private var router: Router = .main
     @State private var sonosService = SonosService.shared

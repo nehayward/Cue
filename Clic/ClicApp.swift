@@ -32,8 +32,8 @@ struct ClicApp: App {
     @State private var playHistoryService = PlayHistoryService()
     @State private var miniPlayerManager = MiniPlayerManger.shared
 
-    @CloudStorage("com.clic.subscriptions") private var activeSubscription: Bool = false
-    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
+    @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
     @CloudStorage("com.clic.plexToken") var plexToken: String = ""
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
@@ -113,7 +113,7 @@ struct ClicApp: App {
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
                 // MARK: Move for accent color fix
-                SubscriptionService.shared.initialize(key: "com.clic.subscriptions")
+                SubscriptionService.shared.initialize(key: CloudKeys.hasSubscription)
                 Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
 
                 // Check MusicService

@@ -1,5 +1,5 @@
 
-public enum Features: String {
+public enum FeatureKeys: String {
     case tidalSupport
     case nowPlaying
 

@@ -38,11 +38,11 @@ final class CoreFeatures {
         feature(service.title)
     }
 
-    private func feature(feature: Features) -> Bool {
+    private func feature(feature: FeatureKeys) -> Bool {
         features[feature.key] ?? UserDefaults.standard.bool(forKey: feature.key)
     }
 
-    private func setFeature(value: Bool, feature: Features) {
+    private func setFeature(value: Bool, feature: FeatureKeys) {
         features[feature.key] = value
         UserDefaults.standard.setValue(value, forKey: feature.key)
     }

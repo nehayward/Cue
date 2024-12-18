@@ -14,6 +14,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../SonosKit"),
+        .package(path: "../Defaults"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
         .package(url: "https://github.com/kean/Nuke", from: "12.3.0")
     ],
@@ -25,6 +26,7 @@ let package = Package(
             dependencies: [
                 "CloudStorage",
                 "SonosKit",
+                "Defaults",
                 .product(name: "NukeUI", package: "Nuke")
             ])
     ]

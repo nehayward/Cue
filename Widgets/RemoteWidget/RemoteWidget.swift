@@ -47,7 +47,7 @@ struct Provider: AppIntentTimelineProvider {
                     await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL)
                 }
                 
-                let playHistory: OrderedSet<PlayableContent> = CloudStorageSync.shared.codable(forKey: AppStorageKeys.playHistory) ?? []
+                let playHistory: OrderedSet<PlayableContent> = CloudStorageSync.shared.codable(forKey: CloudKeys.playHistory) ?? []
 
                 var entry = RemoteWidgetEntry(
                     date: .now,

@@ -1,10 +1,11 @@
 import CloudStorage
+import Defaults
 import SwiftUI
 import SonosKit
 
 public struct SceneView: View {
     @Environment(SonosService.self) var sonosService: SonosService
-    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
 
     public init(scenes: [SonosScene]? = nil) {
         if let scenes {
