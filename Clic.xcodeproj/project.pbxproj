@@ -10,10 +10,10 @@
 		010DBB252C89605C000E278E /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 010DBB242C89605C000E278E /* Defaults */; };
 		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
-		012860452D133C9300ADD3E5 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0156D7E32D133504003B70DE /* SonosKit */; };
-		012860462D133C9300ADD3E5 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = 0156D7E52D133504003B70DE /* VibesDS */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
-		0156D7E92D1337D5003B70DE /* ClicMenuApp.app in Copy Status Menu */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* ClicMenuApp.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		01CF9FC32D15DA7200A428C0 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CF9FC22D15DA7200A428C0 /* SonosKit */; };
+		01CF9FC52D15DA7200A428C0 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = 01CF9FC42D15DA7200A428C0 /* VibesDS */; };
+		01CF9FC62D15DB5500A428C0 /* Clic Mini.app in Copy Menu App */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
@@ -79,13 +79,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		012863692D133EBA00ADD3E5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 01C1296E2D0CB4E9009F9E90;
-			remoteInfo = ClicMenuApp;
-		};
 		E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -131,17 +124,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		0156D7E82D1337B4003B70DE /* Copy Status Menu */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = Contents/Library/LoginItems;
-			dstSubfolderSpec = 1;
-			files = (
-				0156D7E92D1337D5003B70DE /* ClicMenuApp.app in Copy Status Menu */,
-			);
-			name = "Copy Status Menu";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		0159A2E52D1283F600AF0F19 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -150,6 +132,17 @@
 			files = (
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01CF9FB92D15D46600A428C0 /* Copy Menu App */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 12;
+			dstPath = Contents/Library/LoginItems;
+			dstSubfolderSpec = 1;
+			files = (
+				01CF9FC62D15DB5500A428C0 /* Clic Mini.app in Copy Menu App */,
+			);
+			name = "Copy Menu App";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E975633A2B699B2400787E14 /* Embed Foundation Extensions */ = {
@@ -211,7 +204,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		01C1296F2D0CB4E9009F9E90 /* ClicMenuApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClicMenuApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic Mini.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E90F31432BC4795800884EA5 /* SonosKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SonosKit; path = Packages/SonosKit; sourceTree = "<group>"; };
 		E90F315C2BC481E400884EA5 /* Analytics */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Analytics; sourceTree = SOURCE_ROOT; };
 		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -233,6 +226,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 01C1296E2D0CB4E9009F9E90 /* Clic Mini */;
+		};
 		01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -455,7 +455,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		01C129702D0CB4E9009F9E90 /* ClicMenuApp */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = ClicMenuApp; sourceTree = "<group>"; };
+		01C129702D0CB4E9009F9E90 /* ClicMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicMini; sourceTree = "<group>"; };
 		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
 		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816C2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816E2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
 		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
@@ -470,8 +470,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				012860462D133C9300ADD3E5 /* VibesDS in Frameworks */,
-				012860452D133C9300ADD3E5 /* SonosKit in Frameworks */,
+				01CF9FC32D15DA7200A428C0 /* SonosKit in Frameworks */,
+				01CF9FC52D15DA7200A428C0 /* VibesDS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -601,7 +601,7 @@
 				E91B829A2CEBC291004C279D /* Widgets */,
 				E91B81632CEBC171004C279D /* WatchWidgets */,
 				E91B81742CEBC222004C279D /* PlayAction */,
-				01C129702D0CB4E9009F9E90 /* ClicMenuApp */,
+				01C129702D0CB4E9009F9E90 /* ClicMini */,
 				E9BDE56D29E3396700D230A8 /* Products */,
 				E9BDE57E29E33B0700D230A8 /* Frameworks */,
 			);
@@ -617,7 +617,7 @@
 				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
 				E92B3EFB2B60249B00724FA1 /* Clic.app */,
 				E97563432B699B2400787E14 /* Clic.app */,
-				01C1296F2D0CB4E9009F9E90 /* ClicMenuApp.app */,
+				01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -636,9 +636,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		01C1296E2D0CB4E9009F9E90 /* ClicMenuApp */ = {
+		01C1296E2D0CB4E9009F9E90 /* Clic Mini */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "ClicMenuApp" */;
+			buildConfigurationList = 01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "Clic Mini" */;
 			buildPhases = (
 				01C1296B2D0CB4E9009F9E90 /* Sources */,
 				0159A2D02D12268300AF0F19 /* Frameworks */,
@@ -649,15 +649,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				01C129702D0CB4E9009F9E90 /* ClicMenuApp */,
+				01C129702D0CB4E9009F9E90 /* ClicMini */,
 			);
-			name = ClicMenuApp;
+			name = "Clic Mini";
 			packageProductDependencies = (
-				0156D7E32D133504003B70DE /* SonosKit */,
-				0156D7E52D133504003B70DE /* VibesDS */,
+				01CF9FC22D15DA7200A428C0 /* SonosKit */,
+				01CF9FC42D15DA7200A428C0 /* VibesDS */,
 			);
 			productName = ClicMenuApp;
-			productReference = 01C1296F2D0CB4E9009F9E90 /* ClicMenuApp.app */;
+			productReference = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E92B3E862B60249B00724FA1 /* Clic (Vision) */ = {
@@ -729,12 +729,11 @@
 				E975632B2B699B2400787E14 /* Frameworks */,
 				E97563372B699B2400787E14 /* Resources */,
 				E975633A2B699B2400787E14 /* Embed Foundation Extensions */,
-				0156D7E82D1337B4003B70DE /* Copy Status Menu */,
+				01CF9FB92D15D46600A428C0 /* Copy Menu App */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				0128636A2D133EBA00ADD3E5 /* PBXTargetDependency */,
 				E97562C92B699B2400787E14 /* PBXTargetDependency */,
 				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
 			);
@@ -936,7 +935,7 @@
 				E97562C82B699B2400787E14 /* Clic (Mac) */,
 				E92B3E862B60249B00724FA1 /* Clic (Vision) */,
 				E92E47422B360C5C00DE6647 /* QueueAction */,
-				01C1296E2D0CB4E9009F9E90 /* ClicMenuApp */,
+				01C1296E2D0CB4E9009F9E90 /* Clic Mini */,
 			);
 		};
 /* End PBXProject section */
@@ -1063,12 +1062,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0128636A2D133EBA00ADD3E5 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			platformFilter = maccatalyst;
-			target = 01C1296E2D0CB4E9009F9E90 /* ClicMenuApp */;
-			targetProxy = 012863692D133EBA00ADD3E5 /* PBXContainerItemProxy */;
-		};
 		E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E92E47422B360C5C00DE6647 /* QueueAction */;
@@ -1109,18 +1102,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
-				CODE_SIGN_ENTITLEMENTS = ClicMenuApp/ClicMenuApp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Clic;
+				INFOPLIST_FILE = ClicMini/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1131,8 +1127,8 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.ClicMenuApp;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.clic.mini;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -1147,18 +1143,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
-				CODE_SIGN_ENTITLEMENTS = ClicMenuApp/ClicMenuApp.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Clic;
+				INFOPLIST_FILE = ClicMini/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1169,8 +1168,8 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.ClicMenuApp;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.clic.mini;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -1184,18 +1183,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
-				CODE_SIGN_ENTITLEMENTS = ClicMenuApp/ClicMenuApp.entitlements;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Distribution";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = Z9QV6PA2TY;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Clic;
+				INFOPLIST_FILE = ClicMini/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -1206,8 +1208,8 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.nick.ClicMenuApp;
+				MARKETING_VERSION = "$(VERSION_NUMBER)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.clic.mini;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2414,7 +2416,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "ClicMenuApp" */ = {
+		01C1297E2D0CB4E9009F9E90 /* Build configuration list for PBXNativeTarget "Clic Mini" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				01C1297B2D0CB4E9009F9E90 /* Debug */,
@@ -2642,11 +2644,11 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
-		0156D7E32D133504003B70DE /* SonosKit */ = {
+		01CF9FC22D15DA7200A428C0 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
-		0156D7E52D133504003B70DE /* VibesDS */ = {
+		01CF9FC42D15DA7200A428C0 /* VibesDS */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VibesDS;
 		};

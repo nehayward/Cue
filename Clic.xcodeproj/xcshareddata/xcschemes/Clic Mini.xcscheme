@@ -4,7 +4,8 @@
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
-      buildImplicitDependencies = "YES">
+      buildImplicitDependencies = "YES"
+      buildArchitectures = "Automatic">
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
@@ -14,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E97562C82B699B2400787E14"
-               BuildableName = "Clic.app"
-               BlueprintName = "Clic (Mac)"
+               BlueprintIdentifier = "01C1296E2D0CB4E9009F9E90"
+               BuildableName = "Clic Mini.app"
+               BlueprintName = "Clic Mini"
                ReferencedContainer = "container:Clic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -43,19 +44,12 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E97562C82B699B2400787E14"
-            BuildableName = "Clic.app"
-            BlueprintName = "Clic (Mac)"
+            BlueprintIdentifier = "01C1296E2D0CB4E9009F9E90"
+            BuildableName = "Clic Mini.app"
+            BlueprintName = "Clic Mini"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "OS_ACTIVITY_MODE"
-            value = "disable"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
@@ -67,9 +61,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E97562C82B699B2400787E14"
-            BuildableName = "Clic.app"
-            BlueprintName = "Clic (Mac)"
+            BlueprintIdentifier = "01C1296E2D0CB4E9009F9E90"
+            BuildableName = "Clic Mini.app"
+            BlueprintName = "Clic Mini"
             ReferencedContainer = "container:Clic.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -80,23 +74,5 @@
    <ArchiveAction
       buildConfiguration = "Release"
       revealArchiveInOrganizer = "YES">
-      <PostActions>
-         <ExecutionAction
-            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
-            <ActionContent
-               title = "Run Script"
-               scriptText = "# Type a script or drag a script file from your workspace to insert its path.&#10;">
-               <EnvironmentBuildable>
-                  <BuildableReference
-                     BuildableIdentifier = "primary"
-                     BlueprintIdentifier = "E97562C82B699B2400787E14"
-                     BuildableName = "Clic.app"
-                     BlueprintName = "Clic (Mac)"
-                     ReferencedContainer = "container:Clic.xcodeproj">
-                  </BuildableReference>
-               </EnvironmentBuildable>
-            </ActionContent>
-         </ExecutionAction>
-      </PostActions>
    </ArchiveAction>
 </Scheme>

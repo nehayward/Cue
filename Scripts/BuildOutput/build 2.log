@@ -1,0 +1,8 @@
+Command line invocation:
+    /Applications/Xcode-16.2.0.app/Contents/Developer/usr/bin/xcodebuild -workspace "/Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Clic" -scheme ClicMenuApp -configuration Release -derivedDataPath ./DerivedData -archivePath ./BuildOutput/ClicMenuApp.xcarchive archive
+
+User defaults from command line:
+    IDEArchivePathOverride = /Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Clic/Scripts/BuildOutput/ClicMenuApp.xcarchive
+    IDEDerivedDataPathOverride = /Users/nick/Library/Mobile Documents/com~apple~CloudDocs/Active/Clic/Scripts/DerivedData
+    IDEPackageSupportUseBuiltinSCM = YES
+
