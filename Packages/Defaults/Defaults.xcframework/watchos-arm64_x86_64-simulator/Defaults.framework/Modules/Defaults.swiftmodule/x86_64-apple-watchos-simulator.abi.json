@@ -1,0 +1,1011 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "Defaults",
+    "printedName": "Defaults",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Defaults"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "AppStorageKeys",
+        "printedName": "AppStorageKeys",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "mediaService",
+            "printedName": "mediaService",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults14AppStorageKeysO12mediaServiceSSvpZ",
+            "mangledName": "$s8Defaults14AppStorageKeysO12mediaServiceSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults14AppStorageKeysO12mediaServiceSSvgZ",
+                "mangledName": "$s8Defaults14AppStorageKeysO12mediaServiceSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "browseMediaService",
+            "printedName": "browseMediaService",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults14AppStorageKeysO18browseMediaServiceSSvpZ",
+            "mangledName": "$s8Defaults14AppStorageKeysO18browseMediaServiceSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults14AppStorageKeysO18browseMediaServiceSSvgZ",
+                "mangledName": "$s8Defaults14AppStorageKeysO18browseMediaServiceSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "appleMusicAuthorized",
+            "printedName": "appleMusicAuthorized",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults14AppStorageKeysO20appleMusicAuthorizedSSvpZ",
+            "mangledName": "$s8Defaults14AppStorageKeysO20appleMusicAuthorizedSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults14AppStorageKeysO20appleMusicAuthorizedSSvgZ",
+                "mangledName": "$s8Defaults14AppStorageKeysO20appleMusicAuthorizedSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:8Defaults14AppStorageKeysO",
+        "mangledName": "$s8Defaults14AppStorageKeysO",
+        "moduleName": "Defaults",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Defaults"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "CloudKeys",
+        "printedName": "CloudKeys",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "playHistory",
+            "printedName": "playHistory",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults9CloudKeysO11playHistorySSvpZ",
+            "mangledName": "$s8Defaults9CloudKeysO11playHistorySSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults9CloudKeysO11playHistorySSvgZ",
+                "mangledName": "$s8Defaults9CloudKeysO11playHistorySSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "scenes",
+            "printedName": "scenes",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults9CloudKeysO6scenesSSvpZ",
+            "mangledName": "$s8Defaults9CloudKeysO6scenesSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults9CloudKeysO6scenesSSvgZ",
+                "mangledName": "$s8Defaults9CloudKeysO6scenesSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "hasSubscription",
+            "printedName": "hasSubscription",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults9CloudKeysO15hasSubscriptionSSvpZ",
+            "mangledName": "$s8Defaults9CloudKeysO15hasSubscriptionSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults9CloudKeysO15hasSubscriptionSSvgZ",
+                "mangledName": "$s8Defaults9CloudKeysO15hasSubscriptionSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:8Defaults9CloudKeysO",
+        "mangledName": "$s8Defaults9CloudKeysO",
+        "moduleName": "Defaults",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "FeatureKeys",
+        "printedName": "FeatureKeys",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "tidalSupport",
+            "printedName": "tidalSupport",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Defaults.FeatureKeys.Type) -> Defaults.FeatureKeys",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "FeatureKeys",
+                    "printedName": "Defaults.FeatureKeys",
+                    "usr": "s:8Defaults11FeatureKeysO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Defaults.FeatureKeys.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "FeatureKeys",
+                        "printedName": "Defaults.FeatureKeys",
+                        "usr": "s:8Defaults11FeatureKeysO"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "s:8Defaults11FeatureKeysO12tidalSupportyA2CmF",
+            "mangledName": "$s8Defaults11FeatureKeysO12tidalSupportyA2CmF",
+            "moduleName": "Defaults"
+          },
+          {
+            "kind": "Var",
+            "name": "nowPlaying",
+            "printedName": "nowPlaying",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(Defaults.FeatureKeys.Type) -> Defaults.FeatureKeys",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "FeatureKeys",
+                    "printedName": "Defaults.FeatureKeys",
+                    "usr": "s:8Defaults11FeatureKeysO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "Defaults.FeatureKeys.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "FeatureKeys",
+                        "printedName": "Defaults.FeatureKeys",
+                        "usr": "s:8Defaults11FeatureKeysO"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "s:8Defaults11FeatureKeysO10nowPlayingyA2CmF",
+            "mangledName": "$s8Defaults11FeatureKeysO10nowPlayingyA2CmF",
+            "moduleName": "Defaults"
+          },
+          {
+            "kind": "Var",
+            "name": "key",
+            "printedName": "key",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults11FeatureKeysO3keySSvp",
+            "mangledName": "$s8Defaults11FeatureKeysO3keySSvp",
+            "moduleName": "Defaults",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults11FeatureKeysO3keySSvg",
+                "mangledName": "$s8Defaults11FeatureKeysO3keySSvg",
+                "moduleName": "Defaults",
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Defaults.FeatureKeys?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "FeatureKeys",
+                    "printedName": "Defaults.FeatureKeys",
+                    "usr": "s:8Defaults11FeatureKeysO"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:8Defaults11FeatureKeysO8rawValueACSgSS_tcfc",
+            "mangledName": "$s8Defaults11FeatureKeysO8rawValueACSgSS_tcfc",
+            "moduleName": "Defaults",
+            "implicit": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults11FeatureKeysO8rawValueSSvp",
+            "mangledName": "$s8Defaults11FeatureKeysO8rawValueSSvp",
+            "moduleName": "Defaults",
+            "implicit": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults11FeatureKeysO8rawValueSSvg",
+                "mangledName": "$s8Defaults11FeatureKeysO8rawValueSSvg",
+                "moduleName": "Defaults",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:8Defaults11FeatureKeysO",
+        "mangledName": "$s8Defaults11FeatureKeysO",
+        "moduleName": "Defaults",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "enumRawTypeName": "String",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Defaults"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "GroupStorageKeys",
+        "printedName": "GroupStorageKeys",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "storage",
+            "printedName": "storage",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Foundation.UserDefaults?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UserDefaults",
+                    "printedName": "Foundation.UserDefaults",
+                    "usr": "c:objc(cs)NSUserDefaults"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults16GroupStorageKeysO7storageSo06NSUserA0CSgvpZ",
+            "mangledName": "$s8Defaults16GroupStorageKeysO7storageSo06NSUserA0CSgvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Foundation.UserDefaults?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "UserDefaults",
+                        "printedName": "Foundation.UserDefaults",
+                        "usr": "c:objc(cs)NSUserDefaults"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults16GroupStorageKeysO7storageSo06NSUserA0CSgvgZ",
+                "mangledName": "$s8Defaults16GroupStorageKeysO7storageSo06NSUserA0CSgvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "name",
+            "printedName": "name",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults16GroupStorageKeysO4nameSSvpZ",
+            "mangledName": "$s8Defaults16GroupStorageKeysO4nameSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults16GroupStorageKeysO4nameSSvgZ",
+                "mangledName": "$s8Defaults16GroupStorageKeysO4nameSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "hasOnboarded",
+            "printedName": "hasOnboarded",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults16GroupStorageKeysO12hasOnboardedSSvpZ",
+            "mangledName": "$s8Defaults16GroupStorageKeysO12hasOnboardedSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults16GroupStorageKeysO12hasOnboardedSSvgZ",
+                "mangledName": "$s8Defaults16GroupStorageKeysO12hasOnboardedSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:8Defaults16GroupStorageKeysO",
+        "mangledName": "$s8Defaults16GroupStorageKeysO",
+        "moduleName": "Defaults",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "Defaults"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "Prefix",
+        "printedName": "Prefix",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "id",
+            "printedName": "id",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:8Defaults6PrefixO2idSSvpZ",
+            "mangledName": "$s8Defaults6PrefixO2idSSvpZ",
+            "moduleName": "Defaults",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:8Defaults6PrefixO2idSSvgZ",
+                "mangledName": "$s8Defaults6PrefixO2idSSvgZ",
+                "moduleName": "Defaults",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:8Defaults6PrefixO",
+        "mangledName": "$s8Defaults6PrefixO",
+        "moduleName": "Defaults",
+        "isEnumExhaustive": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "BitwiseCopyable",
+            "printedName": "BitwiseCopyable",
+            "usr": "s:s15BitwiseCopyableP",
+            "mangledName": "$ss15BitwiseCopyableP"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": [
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 85,
+      "length": 27,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 98,
+      "length": 1,
+      "value": "\".mediaService\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 156,
+      "length": 33,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 169,
+      "length": 1,
+      "value": "\".browseMediaService\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 235,
+      "length": 35,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/AppStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 248,
+      "length": 1,
+      "value": "\".appleMusicAuthorized\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/CloudKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 79,
+      "length": 26,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/CloudKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 92,
+      "length": 1,
+      "value": "\".playHistory\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/CloudKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 137,
+      "length": 17,
+      "value": "\"com.clic.scenes\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/CloudKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 196,
+      "length": 24,
+      "value": "\"com.clic.subscriptions\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/GroupStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 163,
+      "length": 16,
+      "value": "\"group.com.clic\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/GroupStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 217,
+      "length": 27,
+      "value": "\"\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/GroupStorageKeys.swift",
+      "kind": "StringLiteral",
+      "offset": 230,
+      "length": 1,
+      "value": "\".hasOnboarded\""
+    },
+    {
+      "filePath": "\/Users\/nick\/Library\/Mobile Documents\/com~apple~CloudDocs\/Active\/Clic\/Packages\/Defaults\/Sources\/Defaults\/Prefix.swift",
+      "kind": "StringLiteral",
+      "offset": 53,
+      "length": 15,
+      "value": "\"com.nick.Clic\""
+    }
+  ]
+}

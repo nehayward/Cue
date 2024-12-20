@@ -1,5 +1,4 @@
 {
-  "originHash" : "b4ed2bddef3c6919014905aae8d38622ee10648bfe924566161601aa6cf98dd1",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -69,10 +68,10 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/drmohundro/SWXMLHash",
       "state" : {
-        "revision" : "a853604c9e9a83ad9954c7e3d2a565273982471f",
-        "version" : "7.0.2"
+        "revision" : "6ae7b83692c4a2ed53ea2cb0e6cda20768800a99",
+        "version" : "8.1.0"
       }
     }
   ],
-  "version" : 3
+  "version" : 2
 }

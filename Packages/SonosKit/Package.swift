@@ -1,4 +1,4 @@
-// swift-tools-version: 5.11
+// swift-tools-version: 5.9
 import PackageDescription
 
 let package = Package(
@@ -12,7 +12,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.6"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
-        .package(url: "https://github.com/drmohundro/SWXMLHash", from: "7.0.0"),
+        .package(url: "https://github.com/drmohundro/SWXMLHash", from: "8.0.0"),
         .package(path: "../MusicSearchKit")
     ],
     targets: [

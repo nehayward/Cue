@@ -1,0 +1,39 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.0.3 effective-5.10 (swiftlang-6.0.3.1.10 clang-1600.0.30.1)
+// swift-module-flags: -target arm64-apple-ios17.0-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name Defaults
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface
+import Foundation
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+public enum AppStorageKeys {
+  public static let mediaService: Swift.String
+  public static let browseMediaService: Swift.String
+  public static let appleMusicAuthorized: Swift.String
+}
+public enum CloudKeys {
+  public static let playHistory: Swift.String
+  public static let scenes: Swift.String
+  public static let hasSubscription: Swift.String
+}
+public enum FeatureKeys : Swift.String {
+  case tidalSupport
+  case nowPlaying
+  public var key: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum GroupStorageKeys {
+  public static let storage: Foundation.UserDefaults?
+  public static let name: Swift.String
+  public static let hasOnboarded: Swift.String
+}
+extension Defaults.FeatureKeys : Swift.Equatable {}
+extension Defaults.FeatureKeys : Swift.Hashable {}
+extension Defaults.FeatureKeys : Swift.RawRepresentable {}

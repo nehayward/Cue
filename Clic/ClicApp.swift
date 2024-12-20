@@ -169,6 +169,8 @@ struct ClicApp: App {
                 // Update SMAppService registration with proper error handling
 #if targetEnvironment(macCatalyst)
                 menuAppLaunchAtLoginManager.autoEnableIfNeeded()
+                AppDelegate.loadAppKitIntegrationFramework()
+
 #endif
             }
 #if targetEnvironment(macCatalyst)
@@ -492,6 +494,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
        return sceneConfig
      }
+    
+    static var appKitController: NSObject?
+
+    class func loadAppKitIntegrationFramework() {
+        if let frameworksPath = Bundle.main.privateFrameworksPath {
+            let bundlePath = "\(frameworksPath)/MacApp.framework"
+            do {
+                try Bundle(path: bundlePath)?.loadAndReturnError()
+
+                let bundle = Bundle(path: bundlePath)!
+                NSLog("[APPKIT BUNDLE] Loaded Successfully")
+
+                if let appKitControllerClass = bundle.classNamed("MacApp.AppKitController") as? NSObject.Type {
+                    appKitController = appKitControllerClass.init()
+                }
+            }
+            catch {
+                NSLog("[APPKIT BUNDLE] Error loading: \(error)")
+            }
+        }
+    }
 }
 
 class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
