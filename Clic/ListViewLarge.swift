@@ -68,6 +68,10 @@ struct ListViewLarge: View {
                 }
                 .fontDesign(.rounded)
                 .headerProminence(.increased)
+#if targetEnvironment(macCatalyst)
+                .foregroundStyle(.foreground)
+                .font(.title2)
+#endif
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
             }
         }

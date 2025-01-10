@@ -35,13 +35,13 @@ struct LargePlayerView: View {
 
         VStack(alignment: .center) {
             if group.TVMode {
+                Spacer()
                 Image(systemName: "tv")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .symbolRenderingMode(.hierarchical)
                     .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
                     .opacity(0.2)
-        
                 TVModeView()
                 Spacer()
             } else {
@@ -412,10 +412,11 @@ struct LargePlayerView: View {
                         }
                     } label: {
                         Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .symbolRenderingMode(.hierarchical)
                             .font(.title)
+                            .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
+                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
                             .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.bordered)

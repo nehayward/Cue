@@ -18,7 +18,7 @@ public struct Battery {
         if let rawBattPct = infoDict["RawBattPct"], let percentage = Double(rawBattPct) {
             self.percentage = percentage
         } else {
-            self.percentage = 0
+            return nil
         }
 
         switch infoDict["BattChg"] {
@@ -31,7 +31,7 @@ public struct Battery {
         if let battTmp = infoDict["BattTmp"], let batteryTemperature = Double(battTmp) {
             self.batteryTemperature = batteryTemperature
         } else {
-            self.batteryTemperature = 0
+            return nil
         }
     }
 }

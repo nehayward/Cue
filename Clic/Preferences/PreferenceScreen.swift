@@ -216,16 +216,18 @@ struct PreferenceScreen: View {
             #if targetEnvironment(macCatalyst)
                 Section {
                     Button {
-                        Task {
-                            do {
-                                try await menuAppLaunchAtLoginManager.setLaunchAtLoginEnabled(true)
-                            } catch {
-                                print(error)
-                            }
-                        }
+                        menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                     } label: {
                         Label {
-                            Text("Menu Bar App")
+                            HStack {
+                                Text("Menu Bar App")
+                                Spacer()
+                                Image(systemName: "circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
+                                    .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 2, x: 0, y: 0)
+                            }
+                            .animation(.spring, value: menuAppLaunchAtLoginManager.isRunning)
                         } icon: {
                             Image(systemName: "hifispeaker.fill")
                                 .resizable()
@@ -495,6 +497,15 @@ struct PreferenceScreen: View {
             if let destination {
                 router.navigate(to: destination)
             }
+            
+#if targetEnvironment(macCatalyst)
+            menuAppLaunchAtLoginManager.monitor()
+#endif
+        }
+        .onDisappear {
+#if targetEnvironment(macCatalyst)
+            menuAppLaunchAtLoginManager.stopMonitor()
+#endif
         }
         .customizeWindowSizeForMacOS15()
     }

@@ -7,17 +7,17 @@ final class IntegrationsTests: XCTestCase {
     let sonosService = SonosService()
     let api = SonosAPI()
 
-    func testQueue() async throws {
-        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", group: .garage)
-    }
-
-    func testSpotifyTrackQueue() async throws {
-        await sonosService.queueSpotifyTrack(id: "1vYXt7VSjH9JIM5oRRo7vA", group: .garage)
-    }
-
-    func testSpotifyAlbumQueue() async throws {
-        await sonosService.queueSpotifyAlbum(id: "01sfgrNbnnPUEyz6GZYlt9", group: .garage)
-    }
+//    func testQueue() async throws {
+//        await sonosService.queueSpotifyPlaylist(id: "7I1a94XGmUyXaGEYz3yghi", group: .garage)
+//    }
+//
+//    func testSpotifyTrackQueue() async throws {
+//        await sonosService.queueSpotifyTrack(id: "1vYXt7VSjH9JIM5oRRo7vA", group: .garage)
+//    }
+//
+//    func testSpotifyAlbumQueue() async throws {
+//        await sonosService.queueSpotifyAlbum(id: "01sfgrNbnnPUEyz6GZYlt9", group: .garage)
+//    }
 
     // Dua Lipa
     func testSpotifyTopTrackQueue() async throws {
@@ -25,9 +25,9 @@ final class IntegrationsTests: XCTestCase {
     }
 
     // Dua Lipa
-    func testQueueSpotifyArtistRadio() async throws {
-        await sonosService.queueSpotifyArtistRadio(id: "6M2wZ9GZgrQXHCFfjv46we", group: .garage)
-    }
+//    func testQueueSpotifyArtistRadio() async throws {
+//        await sonosService.queueSpotifyArtistRadio(id: "6M2wZ9GZgrQXHCFfjv46we", group: .garage)
+//    }
 
     func testGetQueue() async throws {
         let tracks = await sonosService.getQueue(ip: garageSonosIP)

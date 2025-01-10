@@ -52,7 +52,7 @@
 			<key>UIApplicationShortcutItemTitle</key>
 			<string>Search</string>
 			<key>UIApplicationShortcutItemType</key>
-			<string>com.cllic.search</string>
+			<string>com.clic.search</string>
 		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>

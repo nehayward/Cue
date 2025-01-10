@@ -1195,10 +1195,15 @@ public final class SonosService {
 
     // MARK: TV
     public func getTVSettings(ip: String) async throws -> TVSettings {
-        let audioInputFormat = try await api.getAudioInputFormat(IP: ip)
-        let dialogLevel = try await api.getDialogLevel(IP: ip)
-        let nightMode = try await api.getNightMode(IP: ip)
-        return TVSettings(nightMode: nightMode, dialogLevel: dialogLevel, audioInputFormat: audioInputFormat)
+        async let audioInputFormat = api.getAudioInputFormat(IP: ip)
+        async let dialogLevel = api.getDialogLevel(IP: ip)
+        async let nightMode = api.getNightMode(IP: ip)
+        
+        return try await TVSettings(
+            nightMode: nightMode,
+            dialogLevel: dialogLevel,
+            audioInputFormat: audioInputFormat
+        )
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {

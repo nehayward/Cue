@@ -1,16 +1,15 @@
-import SwiftUI
-import SonosKit
 import Combine
-import SonosKit
-import VibesDS
+import CloudKit
+import SonosKitMini
+import SwiftUI
+import Kingfisher
 
 struct GroupMenuScreen: View {
-    @State private var sonosService = SonosService.shared
-    @State private var volumeTask: Task<Void, Error>?
-    @State private var isLoading: Bool = false
-    @State private var hoveredGroupId: String? // Add this property
     @State var showList: Bool = false
-
+    @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var isLoading: Bool = false
+    @State private var hoveredGroupId: String?
+    
     var sizePassthrough: PassthroughSubject<CGSize, Never>?
     
     var body: some View {
@@ -26,33 +25,45 @@ struct GroupMenuScreen: View {
             }
     }
     
-    @ViewBuilder
     var mainContent: some View {
-        @Bindable var sonosService = sonosService
         VStack(alignment: .leading) {
-            ForEach(sortByNowPlaying) { $group in
+            ForEach($sonosServiceMini.sortedNowPlaying) { $group in
                 Section {
                     if group.coordinatorRoom.state == .active {
                         VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                VibeContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
-                                    .frame(width: 48, height: 48)
-                                Link(destination: URL(string: "clic://device?id=\(group.coordinatorRoom.id)")!) {
-                                    VStack(alignment: .leading) {
-                                        Text(group.coordinatorRoom.track.toPlayable.title)
-                                        Text(group.coordinatorRoom.track.toPlayable.subtitle)
-                                            .foregroundStyle(.secondary)
+                            if group.tvSettings == nil {
+                                HStack {
+                                    Link(destination: URL(string: "clic://device?id=\(group.coordinatorRoom.id)")!) {
+                                        KFImage.url(group.coordinatorRoom.track.sonosAlbumArtURL)
+                                            .placeholder {
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .foregroundStyle(.thinMaterial)
+                                            }
+                                            .loadDiskFileSynchronously()
+                                            .diskCacheExpiration(.days(1))
+                                            .fade(duration: 0.2)
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 48, height: 48)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                                        VStack(alignment: .leading) {
+                                            Text(group.coordinatorRoom.track.song)
+                                            Text(group.coordinatorRoom.track.artist)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .lineLimit(1, reservesSpace: true)
                                     }
-                                    .lineLimit(1)
-                                }
-                                Spacer()
-                                if group.coordinatorRoom.track != .empty {
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                     playPauseButton(for: group)
                                     nextTrackButton(for: group)
                                 }
+                                .foregroundStyle(.primary)
+                                .transition(.opacity)
+                            } else {
+                                TVView(group: $group)
+                                    .transition(.opacity)
                             }
-                            .foregroundStyle(.primary)
-                            VolumeView(group: $group)
+                            VolumeMiniView(group: $group)
                                 .frame(height: 16)
                         }
                         .padding(12)
@@ -63,99 +74,84 @@ struct GroupMenuScreen: View {
                         .onHover { isHovered in
                             hoveredGroupId = isHovered ? group.coordinatorRoom.id : nil
                         }
+                        .transition(.opacity)
                     }
                 } header: {
-                    HStack {
-                        Text(group.nameWithCount)
-                        if let battery = group.coordinatorRoom.battery {
-                            Spacer()
-                            Text((battery.percentage / 100), format: .percent)
-                                .foregroundStyle(.secondary)
-                            if battery.chargingState == .charging {
-                                Image(systemName: "battery.100percent.bolt")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
-                            }
-                        }
-                    }
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.foreground)
-                    .font(.title2)
+                    header(group)
                 }
             }
         }
         .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(12)
-        .animation(.interactiveSpring, value: sortByNowPlaying.wrappedValue)
-        .task {
-            isLoading = true
-            try? await sonosService.load(useCache: true)
-            isLoading = false
-        }
-        .overlay {
-            if isLoading, sonosService.sorted.isEmpty {
-                ProgressView()
-                    .padding(.vertical)
+        .animation(.spring, value: sonosServiceMini.sortedNowPlaying)
+        .onAppear {
+            Task {
+                isLoading = true
+                try? await sonosServiceMini.load(useCache: true, keyPaths: [\.groupVolume, \.coordinatorRoom.track])
+                isLoading = false
             }
         }
-//        .safeAreaInset(edge: .top) {
-//            Button("Click Me") { showList.toggle() }
-//              .frame(width: 100, height: 20)
-//              .overlay {
-//                  if showList {
-//                      List {
-//                          Button("AA") {}
-//                          Button("AA") {}
-//                          Button("AA") {}
-//                      }
-//                      .frame(width: 200, height: 300)
-//                      .offset(y: 160)
-//                      .transition(.opacity)
-//                      .padding()
-//                      .clipShape(RoundedRectangle(cornerRadius: 12))
-//                  }
-//              }
-//              .zIndex(1)
-//              .animation(.spring, value: showList)
-//        }
+        .overlay {
+            if isLoading, sonosServiceMini.sorted.isEmpty {
+                ProgressView()
+                    .padding(.vertical)
+                    .controlSize(.small)
+            } else if !isLoading, sonosServiceMini.sorted.isEmpty {
+                Link(destination: URL(string: "clic://")!) {
+                    Text("Sonos System not found, Launch Clic")
+                        .padding()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .buttonStyle(.plain)
+            }
+        }
+        //        .safeAreaInset(edge: .top) {
+        //            Button("Click Me") { showList.toggle() }
+        //              .frame(width: 100, height: 20)
+        //              .overlay {
+        //                  if showList {
+        //                      List {
+        //                          Button("AA") {}
+        //                          Button("AA") {}
+        //                          Button("AA") {}
+        //                      }
+        //                      .frame(width: 200, height: 300)
+        //                      .offset(y: 160)
+        //                      .transition(.opacity)
+        //                      .padding()
+        //                      .clipShape(RoundedRectangle(cornerRadius: 12))
+        //                  }
+        //              }
+        //              .zIndex(1)
+        //              .animation(.spring, value: showList)
+        //        }
     }
     
-    private func playPauseButton(for group: GroupRoom) -> some View {
+    private func playPauseButton(for group: SonosGroup) -> some View {
         Button {
             Task {
-                await sonosService.togglePlayback(ip: group.ip)
-                group.coordinatorRoom.isPlaying.toggle()
+                await sonosServiceMini.togglePlayback(ip: group.ip)
             }
         } label: {
             playPauseLabel(for: group)
         }
         .buttonStyle(.plain)
         .buttonBorderShape(.circle)
+        .disabled(!group.availableActions.contains(.play))
     }
     
-    private func playPauseLabel(for group: GroupRoom) -> some View {
-        ZStack {
-            if group.coordinatorRoom.track.duration > 0 {
-                VibeGaugeView(
-                    value: group.coordinatorRoom.track.playbackPosition,
-                    total: group.coordinatorRoom.track.duration,
-                    color: group.coordinatorRoom.isPlaying ? Color.primary : Color.primary.opacity(0.7),
-                    lineWidth: 2
-                )
-                .frame(width: 30, height: 30)
-            }
-            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                .font(.body)
-                .contentTransition(.symbolEffect(.automatic))
-        }
-        .frame(width: 40, height: 40)
+    private func playPauseLabel(for group: SonosGroup) -> some View {
+        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+            .font(.body)
+            .contentTransition(.symbolEffect(.automatic))
+            .frame(width: 40, height: 40)
     }
     
-    private func nextTrackButton(for group: GroupRoom) -> some View {
+    private func nextTrackButton(for group: SonosGroup) -> some View {
         Button {
             Task {
-                await sonosService.next(ip: group.ip)
-                try? await sonosService.updateGroups(from: [group])
+                await sonosServiceMini.next(ip: group.ip)
+                try? await sonosServiceMini.updateGroups(from: [group])
             }
         } label: {
             Image(systemName: "forward.fill")
@@ -165,31 +161,32 @@ struct GroupMenuScreen: View {
         .disabled(!group.availableActions.contains(.next))
     }
     
-    @MainActor
-    private func updateVolume(volume: Double) {
-        volumeTask?.cancel()
-        volumeTask = Task {
-            try Task.checkCancellation()
-        }
-    }
-    
-    private var sortByNowPlaying: Binding<[GroupRoom]> {
-        Binding(
-            get: {
-                sonosService.sorted.sorted(by: { $0.coordinatorRoom.isPlaying != $1.coordinatorRoom.isPlaying })
-            },
-            set: { newValue in
-                sonosService.sorted = newValue
+    @ViewBuilder
+    fileprivate func header(_ group: SonosGroup) -> some View {
+        HStack {
+            Text(group.nameWithCount)
+            if let battery = group.coordinatorRoom.battery {
+                Spacer()
+                Text((battery.percentage / 100), format: .percent)
+                    .foregroundStyle(.secondary)
+                if battery.chargingState == .charging {
+                    Image(systemName: "battery.100percent.bolt")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                }
             }
-        )
+        }
+        .fontDesign(.rounded)
+        .foregroundStyle(.foreground)
+        .font(.title2)
     }
 }
 
-#Preview {
-    GroupMenuScreen(sizePassthrough: nil)
-        .environment(SonosService.shared)
-        .task {
-            SonosService.shared.monitor()
-        }
-        .frame(height: 800)
-}
+//#Preview {
+//    GroupMenuScreen(sizePassthrough: nil)
+//        .environment(SonosService.shared)
+//        .task {
+//            SonosService.shared.monitor()
+//        }
+//        .frame(height: 800)
+//}

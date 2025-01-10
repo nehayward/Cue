@@ -1,18 +1,11 @@
 import SwiftUI
-import SonosKit
-import VibesDS
+import SonosKitMini
 
-struct VolumeView: View {
-    @Environment(SonosService.self) private var sonosService: SonosService
-    @Binding var group: GroupRoom
+struct VolumeMiniView: View {
+    @Environment(SonosMiniService.self) private var sonosService
+    @Binding var group: SonosGroup
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    private let delayDrag: Bool
-
-    init(group: Binding<GroupRoom>, delayDrag: Bool = false) {
-        self._group = group
-        self.delayDrag = delayDrag
-    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
@@ -32,7 +25,7 @@ struct VolumeView: View {
             .buttonStyle(.plain)
             .padding(.trailing)
 
-            VibeSlider(value: $group.groupVolume, baseHeight: 20, delayDrag: delayDrag) { isEditing in
+            VibeMiniSlider(value: $group.groupVolume, baseHeight: 20, delayDrag: false) { isEditing in
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)
@@ -71,7 +64,7 @@ struct VolumeView: View {
             await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             if volume.isZero {
                 try? await Task.sleep(for: .milliseconds(200))
-                await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
+//                await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
             }
         }
     }

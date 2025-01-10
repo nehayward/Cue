@@ -1,4 +1,5 @@
 {
+  "originHash" : "7a08cae08f6535c3fd504bef05c4cb4715ead1b69a2bd06fc9c3cd3c4d7e3a50",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -16,6 +17,24 @@
       "state" : {
         "revision" : "9e00ff79da318f2c78b749b1027e54a9d4de2e33",
         "version" : "1.0.4"
+      }
+    },
+    {
+      "identity" : "keyboardshortcuts",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
+      "state" : {
+        "revision" : "7ecc38bb6edf7d087d30e737057b8d8a9b7f51eb",
+        "version" : "2.2.4"
+      }
+    },
+    {
+      "identity" : "kingfisher",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onevcat/Kingfisher",
+      "state" : {
+        "revision" : "e6749919f9761d573d37a7d7e78b1b854c191d7f",
+        "version" : "8.1.3"
       }
     },
     {
@@ -73,5 +92,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

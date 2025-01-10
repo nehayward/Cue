@@ -169,8 +169,8 @@ struct ClicApp: App {
                 // Update SMAppService registration with proper error handling
 #if targetEnvironment(macCatalyst)
                 menuAppLaunchAtLoginManager.autoEnableIfNeeded()
-                AppDelegate.loadAppKitIntegrationFramework()
-
+                menuAppLaunchAtLoginManager.loadDelegate()
+                menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
 #endif
             }
 #if targetEnvironment(macCatalyst)
@@ -480,7 +480,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        options: UIScene.ConnectionOptions
      ) -> UISceneConfiguration {
          if let shortcutItem = options.shortcutItem {
-             if shortcutItem.type == "com.cllic.search" {
+             if shortcutItem.type == "com.clic.search" {
                  Task { @MainActor in
                      // MARK: Delay for Toolbar
                      try await Task.sleep(for: .milliseconds(200))
@@ -494,27 +494,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
        return sceneConfig
      }
-    
-    static var appKitController: NSObject?
-
-    class func loadAppKitIntegrationFramework() {
-        if let frameworksPath = Bundle.main.privateFrameworksPath {
-            let bundlePath = "\(frameworksPath)/MacApp.framework"
-            do {
-                try Bundle(path: bundlePath)?.loadAndReturnError()
-
-                let bundle = Bundle(path: bundlePath)!
-                NSLog("[APPKIT BUNDLE] Loaded Successfully")
-
-                if let appKitControllerClass = bundle.classNamed("MacApp.AppKitController") as? NSObject.Type {
-                    appKitController = appKitControllerClass.init()
-                }
-            }
-            catch {
-                NSLog("[APPKIT BUNDLE] Error loading: \(error)")
-            }
-        }
-    }
 }
 
 class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
@@ -539,7 +518,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
                      performActionFor shortcutItem: UIApplicationShortcutItem,
                      completionHandler: @escaping (Bool) -> Void) {
 
-        if shortcutItem.type == "com.cllic.search" {
+        if shortcutItem.type == "com.clic.search" {
             Task { @MainActor in
                 // MARK: Delay for Toolbar
                 try await Task.sleep(for: .milliseconds(200))

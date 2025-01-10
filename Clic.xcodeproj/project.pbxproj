@@ -7,10 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 010855CD2D15FE0D00DD9B84 /* SonosKitMini */; };
+		010858FF2D17BE0C00DD9B84 /* Clic Mini.app in CopyFiles */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		010DBB252C89605C000E278E /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 010DBB242C89605C000E278E /* Defaults */; };
 		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
+		01791F182D224223006EBC22 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01791F172D224223006EBC22 /* Kingfisher */; };
+		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
+		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
@@ -76,6 +81,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		010858FD2D17BDF500DD9B84 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01C1296E2D0CB4E9009F9E90;
+			remoteInfo = "Clic Mini";
+		};
+		01F0B0BC2D28742200885D20 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 01F0B0AA2D286EC000885D20;
+			remoteInfo = MacGlue;
+		};
 		E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -124,9 +143,10 @@
 		0108525D2D15F13200DD9B84 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
+			dstPath = Contents/Library/LoginItems;
+			dstSubfolderSpec = 1;
 			files = (
+				010858FF2D17BE0C00DD9B84 /* Clic Mini.app in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +166,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */,
 				E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */,
 				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
 			);
@@ -201,6 +222,7 @@
 /* Begin PBXFileReference section */
 		01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic Mini.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		01E41E572D15EEB500E89679 /* Defaults.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Defaults.xcframework; path = Packages/Defaults/Defaults.xcframework; sourceTree = "<group>"; };
+		01F0B0AB2D286EC000885D20 /* MacGlue.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacGlue.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		E92E47432B360C5C00DE6647 /* QueueAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QueueAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -222,6 +244,15 @@
 				Info.plist,
 			);
 			target = 01C1296E2D0CB4E9009F9E90 /* Clic Mini */;
+		};
+		01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				MacGlue/MacUtils.swift,
+				MacGlue/MacUtilsImpl.swift,
+				MacGlue/TopRunningAppsObserver.swift,
+			);
+			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
 		};
 		01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -437,6 +468,7 @@
 		E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				MacGlue/MacUtils.swift,
 				MenuAppLaunchAtLoginManager.swift,
 				SplitView.swift,
 			);
@@ -449,7 +481,7 @@
 		01C129702D0CB4E9009F9E90 /* ClicMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicMini; sourceTree = "<group>"; };
 		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
 		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816C2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816E2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
-		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
+		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
 		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
 		E91B829A2CEBC291004C279D /* Widgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832B2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widgets; sourceTree = "<group>"; };
@@ -458,6 +490,16 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		0159A2D02D12268300AF0F19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01791F182D224223006EBC22 /* Kingfisher in Frameworks */,
+				010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */,
+				01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01F0B0A82D286EC000885D20 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -602,6 +644,7 @@
 				E92B3EFB2B60249B00724FA1 /* Clic.app */,
 				E97563432B699B2400787E14 /* Clic.app */,
 				01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */,
+				01F0B0AB2D286EC000885D20 /* MacGlue.bundle */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -638,10 +681,32 @@
 			);
 			name = "Clic Mini";
 			packageProductDependencies = (
+				010855CD2D15FE0D00DD9B84 /* SonosKitMini */,
+				01791F172D224223006EBC22 /* Kingfisher */,
+				01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */,
 			);
 			productName = ClicMenuApp;
 			productReference = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */;
 			productType = "com.apple.product-type.application";
+		};
+		01F0B0AA2D286EC000885D20 /* MacGlue */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 01F0B0AF2D286EC000885D20 /* Build configuration list for PBXNativeTarget "MacGlue" */;
+			buildPhases = (
+				01F0B0A72D286EC000885D20 /* Sources */,
+				01F0B0A82D286EC000885D20 /* Frameworks */,
+				01F0B0A92D286EC000885D20 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MacGlue;
+			packageProductDependencies = (
+			);
+			productName = MacGlue;
+			productReference = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */;
+			productType = "com.apple.product-type.bundle";
 		};
 		E92B3E862B60249B00724FA1 /* Clic (Vision) */ = {
 			isa = PBXNativeTarget;
@@ -717,8 +782,10 @@
 			buildRules = (
 			);
 			dependencies = (
+				010858FE2D17BDF500DD9B84 /* PBXTargetDependency */,
 				E97562C92B699B2400787E14 /* PBXTargetDependency */,
 				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
+				01F0B0BD2D28742200885D20 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
@@ -872,6 +939,9 @@
 					01C1296E2D0CB4E9009F9E90 = {
 						CreatedOnToolsVersion = 16.2;
 					};
+					01F0B0AA2D286EC000885D20 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					E92E47422B360C5C00DE6647 = {
 						CreatedOnToolsVersion = 15.1;
 					};
@@ -906,6 +976,8 @@
 				E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */,
 				018567D72D12152D00AF14EB /* XCLocalSwiftPackageReference "Packages/SonosKit" */,
 				018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */,
+				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -919,12 +991,20 @@
 				E92B3E862B60249B00724FA1 /* Clic (Vision) */,
 				E92E47422B360C5C00DE6647 /* QueueAction */,
 				01C1296E2D0CB4E9009F9E90 /* Clic Mini */,
+				01F0B0AA2D286EC000885D20 /* MacGlue */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		01C1296D2D0CB4E9009F9E90 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		01F0B0A92D286EC000885D20 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -993,6 +1073,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		01F0B0A72D286EC000885D20 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E92B3E9C2B60249B00724FA1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1045,6 +1132,17 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		010858FE2D17BDF500DD9B84 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 01C1296E2D0CB4E9009F9E90 /* Clic Mini */;
+			targetProxy = 010858FD2D17BDF500DD9B84 /* PBXContainerItemProxy */;
+		};
+		01F0B0BD2D28742200885D20 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = maccatalyst;
+			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
+			targetProxy = 01F0B0BC2D28742200885D20 /* PBXContainerItemProxy */;
+		};
 		E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E92E47422B360C5C00DE6647 /* QueueAction */;
@@ -1168,7 +1266,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
@@ -1194,10 +1291,89 @@
 				MARKETING_VERSION = "$(VERSION_NUMBER)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nick.clic.mini;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		01F0B0AC2D286EC000885D20 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.MacGlue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Debug;
+		};
+		01F0B0AD2D286EC000885D20 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.MacGlue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = bundle;
+			};
+			name = Beta;
+		};
+		01F0B0AE2D286EC000885D20 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSPrincipalClass = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nick.MacGlue;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				WRAPPER_EXTENSION = bundle;
 			};
 			name = Release;
 		};
@@ -2409,6 +2585,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		01F0B0AF2D286EC000885D20 /* Build configuration list for PBXNativeTarget "MacGlue" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				01F0B0AC2D286EC000885D20 /* Debug */,
+				01F0B0AD2D286EC000885D20 /* Beta */,
+				01F0B0AE2D286EC000885D20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Clic (Vision)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2503,6 +2689,22 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.1.3;
+			};
+		};
+		01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.2.4;
+			};
+		};
 		E92B3E912B60249B00724FA1 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -2610,6 +2812,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		010855CD2D15FE0D00DD9B84 /* SonosKitMini */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKitMini;
+		};
 		010DBB242C89605C000E278E /* Defaults */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
@@ -2626,6 +2832,16 @@
 		0136861F2C850AE900B1340F /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
+		};
+		01791F172D224223006EBC22 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
 		};
 		E90F315D2BC4829500884EA5 /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;

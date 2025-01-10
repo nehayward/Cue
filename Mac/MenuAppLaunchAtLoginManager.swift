@@ -8,9 +8,13 @@ import OSLog
 
 @Observable
 final class MenuAppLaunchAtLoginManager {
+    
+    @ObservationIgnored static var appKitController: NSObject?
     @ObservationIgnored private lazy var logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: String(describing: Self.self))
     
     static var shared = MenuAppLaunchAtLoginManager()
+    var isRunning: Bool = false
+    var macUtils: MacUtils?
 
     var isLaunchAtLoginEnabled: Bool { SMAppService.menuApp.status == .enabled }
 
@@ -47,11 +51,44 @@ final class MenuAppLaunchAtLoginManager {
             }
         }
     }
+    
+    func monitor() {
+        macUtils?.setupRunningAppsObserver()
+        macUtils?.runningUpdate(handler: { isRunning in
+            print("----Running-----")
+            self.isRunning = isRunning
+        })
+    }
+    
+    func stopMonitor() {
+        macUtils?.stopRunningAppObserver()
+    }
+    
+    func loadDelegate() {
+        let bundleFileName = "MacGlue.bundle"
+        guard let bundleURL = Bundle.main.builtInPlugInsURL?.appendingPathComponent(bundleFileName) else {
+//            Diag.error("Failed to find MacUtils plugin, macOS-specific functions will be limited")
+            return
+        }
+        
+        guard let bundle = Bundle(url: bundleURL) else {
+//            Diag.error("Failed to load MacUtils plugin, macOS-specific functions will be limited")
+            return
+        }
+        
+        let className = "MacGlue.MacUtilsImpl"
+        guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
+            print("Failed to instantiate MacUtils plugin, macOS-specific functions will be limited")
+            return
+        }
+        
+        macUtils = pluginClass.init()
+    }
 
 }
 
 @available(macOS 13.0, *)
 private extension SMAppService {
-    static let menuApp = SMAppService.loginItem(identifier: "com.nick.ClicMenuApp")
+    static let menuApp = SMAppService.loginItem(identifier: "com.nick.clic.mini")
 }
 #endif
