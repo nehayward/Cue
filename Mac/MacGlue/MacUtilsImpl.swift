@@ -36,7 +36,8 @@ class MacUtilsImpl: NSObject, MacUtils {
     }
 
     func isControlKeyPressed() -> Bool {
-        return (GetCurrentKeyModifiers() & UInt32(controlKey)) != 0
+//        return (GetCurrentKeyModifiers() & UInt32(controlKey)) != 0
+        return false
     }
     
     // Added function to open ClicMini app

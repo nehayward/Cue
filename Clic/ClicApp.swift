@@ -37,6 +37,7 @@ struct ClicApp: App {
     @CloudStorage("com.clic.plexToken") var plexToken: String = ""
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
+    @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
 
     @State var selectedID: String?
     @State private var previousCount: Int = 0
@@ -170,7 +171,9 @@ struct ClicApp: App {
 #if targetEnvironment(macCatalyst)
                 menuAppLaunchAtLoginManager.autoEnableIfNeeded()
                 menuAppLaunchAtLoginManager.loadDelegate()
-                menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                if isMenuBarAppEnabled {
+                    menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                }
 #endif
             }
 #if targetEnvironment(macCatalyst)

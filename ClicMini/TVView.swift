@@ -3,44 +3,54 @@ import SonosKitMini
 
 struct TVView: View {
     @Environment(SonosMiniService.self) var sonosService
-    
-    @Binding var group: SonosGroup
+    @Binding var device: SonosDevice
     
     var body: some View {
         VStack {
-            Text(group.tvSettings?.audioInputFormat.description ?? "")
-                .bold()
+            Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
+                Text(device.currentTrackMetadata?.streamInfo?.info?.description ?? "")
+                    .bold()
+            }
+            .foregroundStyle(.primary)
             HStack {
-                if let settings = group.tvSettings {
+                if let settings = device.TVSettings {
                     Button {
                         Task {
-                            try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            try? await sonosService.setNightMode(device.ip, enabled: !settings.nightMode)
                         }
                     } label: {
-                        Label("Night Mode", systemImage: "moon.zzz.fill")
+                        Label("Night Mode \(settings.nightMode ? "On": "Off")", systemImage: "moon.zzz.fill")
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
-                            .foregroundStyle(settings.nightMode ? .accent : .secondary.opacity(0.8))
+                            .foregroundColor(settings.nightMode ? .accentColor : .secondary)
+                            .padding(8)
+                            .background(settings.nightMode ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                            .cornerRadius(6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.nightMode ? .accent : nil)
-                    .animation(.spring, value: settings.nightMode)
+                    .contentShape(Rectangle())
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .buttonStyle(.plain)
+                    .animation(.spring(response: 0.3), value: settings.nightMode)
                     
                     Button {
                         Task {
-                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            try? await sonosService.setDialogLevel(device.ip, enabled: !settings.dialogLevel)
                         }
                     } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                        Label("Dialog Mode \(settings.dialogLevel ? "On": "Off")", systemImage: "person.wave.2.fill")
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
-                            .foregroundStyle(settings.dialogLevel ? .accent : .secondary.opacity(0.8))
+                            .foregroundColor(settings.dialogLevel ? .accentColor : .secondary)
+                            .padding(8)
+                            .background(settings.dialogLevel ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+                            .cornerRadius(6)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(settings.dialogLevel ? .accent : nil)
-                    .animation(.spring, value: settings.dialogLevel)
+                    .contentShape(Rectangle())
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .buttonStyle(.plain)
+                    .animation(.spring(response: 0.3), value: settings.dialogLevel)
                 }
             }
         }
@@ -48,4 +58,3 @@ struct TVView: View {
         .frame(maxWidth: .infinity)
     }
 }
-

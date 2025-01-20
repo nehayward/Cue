@@ -10,7 +10,17 @@ struct GroupMenuScreen: View {
     @State private var isLoading: Bool = false
     @State private var hoveredGroupId: String?
     
-    var sizePassthrough: PassthroughSubject<CGSize, Never>?
+    var sizePassthroughWindow: PassthroughSubject<CGSize, Never>?
+    
+    private var filteredDeviceBindings: [Binding<SonosDevice>] {
+        sonosServiceMini.sortedNowPlaying
+            .enumerated()
+            .filter { !$0.element.isHidden }
+            .filter { $0.element.state == .active }
+            .map { index, _ in
+                $sonosServiceMini.sortedNowPlaying[index]
+            }
+    }
     
     var body: some View {
         mainContent
@@ -18,93 +28,60 @@ struct GroupMenuScreen: View {
                 GeometryReader { geometryProxy in
                     Color.clear
                         .preference(key: SizePreferenceKey.self, value: geometryProxy.size)
+                        .onAppear {
+                            sizePassthroughWindow?.send(geometryProxy.size)
+                        }
                 }
             )
             .onPreferenceChange(SizePreferenceKey.self) { size in
-                sizePassthrough?.send(size)
+                sizePassthroughWindow?.send(size)
             }
+            .frame(height: CGFloat(filteredDeviceBindings.count * 120 + (filteredDeviceBindings.isEmpty ? 44 : 0)))
+            .animation(.spring(response: 0.6, dampingFraction: 0.7), value: filteredDeviceBindings.count)
+            .fontDesign(.rounded)
     }
     
     var mainContent: some View {
-        VStack(alignment: .leading) {
-            ForEach($sonosServiceMini.sortedNowPlaying) { $group in
-                Section {
-                    if group.coordinatorRoom.state == .active {
-                        VStack(alignment: .leading, spacing: 12) {
-                            if group.tvSettings == nil {
-                                HStack {
-                                    Link(destination: URL(string: "clic://device?id=\(group.coordinatorRoom.id)")!) {
-                                        KFImage.url(group.coordinatorRoom.track.sonosAlbumArtURL)
-                                            .placeholder {
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .foregroundStyle(.thinMaterial)
-                                            }
-                                            .loadDiskFileSynchronously()
-                                            .diskCacheExpiration(.days(1))
-                                            .fade(duration: 0.2)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 48, height: 48)
-                                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                                        VStack(alignment: .leading) {
-                                            Text(group.coordinatorRoom.track.song)
-                                            Text(group.coordinatorRoom.track.artist)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .lineLimit(1, reservesSpace: true)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    playPauseButton(for: group)
-                                    nextTrackButton(for: group)
-                                }
-                                .foregroundStyle(.primary)
-                                .transition(.opacity)
-                            } else {
-                                TVView(group: $group)
-                                    .transition(.opacity)
-                            }
-                            VolumeMiniView(group: $group)
-                                .frame(height: 16)
-                        }
-                        .padding(12)
-                        .background {
-                            RoundedRectangle(cornerRadius: 12)
-                                .foregroundStyle(hoveredGroupId == group.coordinatorID ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
-                        }
-                        .onHover { isHovered in
-                            hoveredGroupId = isHovered ? group.coordinatorRoom.id : nil
-                        }
-                        .transition(.opacity)
-                    }
-                } header: {
-                    header(group)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(filteredDeviceBindings) { $device in
+                GroupItemView(device: $device, hoveredGroupId: $hoveredGroupId)
+                    .frame(maxHeight: 200)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.9)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.4)
+                            .combined(with: .opacity)
+                    ))
+                    .id(device.id)
             }
         }
-        .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(12)
-        .animation(.spring, value: sonosServiceMini.sortedNowPlaying)
+        .frame(minWidth: 400, maxWidth: .infinity, alignment: .top)
+        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: filteredDeviceBindings.map { $0.wrappedValue.id })
         .onAppear {
             Task {
                 isLoading = true
-                try? await sonosServiceMini.load(useCache: true, keyPaths: [\.groupVolume, \.coordinatorRoom.track])
+                try? await sonosServiceMini.load(useCache: true)
                 isLoading = false
             }
         }
         .overlay {
-            if isLoading, sonosServiceMini.sorted.isEmpty {
+            if isLoading, filteredDeviceBindings.isEmpty {
                 ProgressView()
                     .padding(.vertical)
                     .controlSize(.small)
-            } else if !isLoading, sonosServiceMini.sorted.isEmpty {
+                    .transition(.opacity)
+            } else if !isLoading, filteredDeviceBindings.isEmpty {
                 Link(destination: URL(string: "clic://")!) {
                     Text("Sonos System not found, Launch Clic")
                         .padding()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .buttonStyle(.plain)
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut, value: isLoading)
         //        .safeAreaInset(edge: .top) {
         //            Button("Click Me") { showList.toggle() }
         //              .frame(width: 100, height: 20)
@@ -127,45 +104,163 @@ struct GroupMenuScreen: View {
         //        }
     }
     
-    private func playPauseButton(for group: SonosGroup) -> some View {
+    @ViewBuilder
+    fileprivate func header(_ device: SonosDevice) -> some View {
+        HStack {
+            Text(device.nameWithCount)
+            if let battery = device.battery {
+                Spacer()
+                Text((battery.percentage / 100), format: .percent)
+                    .foregroundStyle(.secondary)
+                if battery.chargingState == .charging {
+                    Image(systemName: "battery.100percent.bolt")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                }
+            }
+        }
+        .fontDesign(.rounded)
+        .foregroundStyle(.foreground)
+        .font(.title2)
+        .animation(.spring(response: 0.3), value: device.nameWithCount)
+        .animation(.spring(response: 0.3), value: device.battery)
+    }
+}
+
+struct GroupItemView: View {
+    @State private var sonosServiceMini = SonosMiniService.shared
+    @Binding var device: SonosDevice
+    @Binding var hoveredGroupId: String?
+    
+    var body: some View {
+        Section {
+            deviceContent
+        } header: {
+            GroupHeader(device: device)
+        }
+    }
+    
+    private var deviceContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                if !device.isTVMode {
+                    HStack(spacing: 0) {
+                        Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
+                            KFImage.url(device.sonosAlbumARTURL)
+                                .placeholder {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.thinMaterial)
+                                }
+                                .loadDiskFileSynchronously()
+                                .diskCacheExpiration(.days(1))
+                                .fade(duration: 0.2)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(alignment: .bottomTrailing) {
+                                    device.musicServiceType.icon
+                                        .frame(width: 12, height: 12)
+                                }
+#if DEBUG && SCREENSHOT
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.ultraThinMaterial)
+                                }
+#endif
+                            
+                            if let trackInfo = device.currentTrackMetadata {
+                                VStack(alignment: .leading) {
+                                    Text(trackInfo.title)
+                                    Text(trackInfo.creator)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .lineLimit(1, reservesSpace: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            
+                            //                                        VStack(alignment: .leading) {
+                            //                                            Text(device.track.song)
+                            //                                            Text(device.track.artist)
+                            //                                                .foregroundStyle(.secondary)
+                            //                                        }
+                            //                                        .lineLimit(1, reservesSpace: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack {
+                            playPauseButton(for: device)
+                            nextTrackButton(for: device)
+                        }
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: device.isPlaying)
+                    }
+                    .foregroundStyle(.primary)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
+                } else {
+                    TVView(device: $device)
+                        .transition(.scale.combined(with: .opacity))
+                }
+                
+                VolumeMiniView(device: $device)
+                    .frame(height: 16)
+            }
+            .padding(12)
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .foregroundStyle(hoveredGroupId == device.id ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
+            }
+            .onHover { isHovered in
+                hoveredGroupId = isHovered ? device.id : nil
+            }
+        }
+    }
+    
+    private func playPauseButton(for device: SonosDevice) -> some View {
         Button {
             Task {
-                await sonosServiceMini.togglePlayback(ip: group.ip)
+                await sonosServiceMini.togglePlayback(ip: device.ip)
             }
         } label: {
-            playPauseLabel(for: group)
+            playPauseLabel(for: device)
+                .frame(minWidth: 44, maxHeight: .infinity)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .buttonBorderShape(.circle)
-        .disabled(!group.availableActions.contains(.play))
+        .disabled(!device.availableActions.contains(.play))
     }
     
-    private func playPauseLabel(for group: SonosGroup) -> some View {
-        Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+    private func playPauseLabel(for device: SonosDevice) -> some View {
+        Image(systemName: device.isPlaying ? "pause.fill" : "play.fill")
             .font(.body)
             .contentTransition(.symbolEffect(.automatic))
-            .frame(width: 40, height: 40)
     }
     
-    private func nextTrackButton(for group: SonosGroup) -> some View {
+    private func nextTrackButton(for device: SonosDevice) -> some View {
         Button {
             Task {
-                await sonosServiceMini.next(ip: group.ip)
-                try? await sonosServiceMini.updateGroups(from: [group])
+                await sonosServiceMini.next(ip: device.ip)
+                try? await sonosServiceMini.updateDevices(from: [device])
             }
         } label: {
             Image(systemName: "forward.fill")
-                .padding(4)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!group.availableActions.contains(.next))
+        .disabled(!device.availableActions.contains(.next))
     }
+}
+
+struct GroupHeader: View {
+    let device: SonosDevice
     
-    @ViewBuilder
-    fileprivate func header(_ group: SonosGroup) -> some View {
+    var body: some View {
         HStack {
-            Text(group.nameWithCount)
-            if let battery = group.coordinatorRoom.battery {
+            Text(device.nameWithCount)
+            if let battery = device.battery {
                 Spacer()
                 Text((battery.percentage / 100), format: .percent)
                     .foregroundStyle(.secondary)
@@ -181,12 +276,3 @@ struct GroupMenuScreen: View {
         .font(.title2)
     }
 }
-
-//#Preview {
-//    GroupMenuScreen(sizePassthrough: nil)
-//        .environment(SonosService.shared)
-//        .task {
-//            SonosService.shared.monitor()
-//        }
-//        .frame(height: 800)
-//}

@@ -1,0 +1,64 @@
+<e:propertyset
+    xmlns:e="urn:schemas-upnp-org:event-1-0">
+    <e:property>
+        <ZoneGroupState>
+            <ZoneGroupState>
+                <ZoneGroups>
+                    <ZoneGroup Coordinator="RINCON_48A6B80D8FB401400" ID="RINCON_48A6B80D8FB401400:2447655083">
+                        <ZoneGroupMember UUID="RINCON_48A6B80D8FB401400" Location="http://192.168.4.144:1400/xml/device_description.xml" ZoneName="Theater" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" HTSatChanMapSet="RINCON_48A6B80D8FB401400:LF,RF;RINCON_38420B9286F401400:LR;RINCON_542A1B51A28601400:RR;RINCON_542A1B24DB0801400:SW" BootSeq="25" TVConfigurationError="0" HdmiCecAvailable="1" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="2457" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="1" SecureRegState="3" VoiceConfigState="2" MicEnabled="0" AirPlayEnabled="1" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843">
+                            <Satellite UUID="RINCON_542A1B24DB0801400" Location="http://192.168.4.145:1400/xml/device_description.xml" ZoneName="Sub" Icon="" Configuration="1" Invisible="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" HTSatChanMapSet="RINCON_48A6B80D8FB401400:LF,RF;RINCON_542A1B24DB0801400:SW" BootSeq="160" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="0" WirelessLeafOnly="0" ChannelFreq="2457" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="5" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                            <Satellite UUID="RINCON_38420B9286F401400" Location="http://192.168.4.137:1400/xml/device_description.xml" ZoneName="Theater" Icon="" Configuration="1" Invisible="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" HTSatChanMapSet="RINCON_48A6B80D8FB401400:LF,RF;RINCON_38420B9286F401400:LR" BootSeq="130" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="0" WirelessLeafOnly="0" ChannelFreq="2457" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="5" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                            <Satellite UUID="RINCON_542A1B51A28601400" Location="http://192.168.4.106:1400/xml/device_description.xml" ZoneName="Theater" Icon="" Configuration="1" Invisible="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" HTSatChanMapSet="RINCON_48A6B80D8FB401400:LF,RF;RINCON_542A1B51A28601400:RR" BootSeq="146" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="0" WirelessLeafOnly="0" ChannelFreq="2457" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="5" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                        </ZoneGroupMember>
+                    </ZoneGroup>
+                    <ZoneGroup Coordinator="RINCON_949F3E6FBAE401400" ID="RINCON_542A1B4D154801400:329070947">
+                        <ZoneGroupMember UUID="RINCON_949F3E6FBAE401400" Location="http://192.168.4.48:1400/xml/device_description.xml" ZoneName="Living Room" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" BootSeq="88" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="2457" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="1" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="0" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                        <ZoneGroupMember UUID="RINCON_38420B780CF801400" Location="http://192.168.4.154:1400/xml/device_description.xml" ZoneName="Kitchen" Icon="" Configuration="1" Invisible="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" ChannelMapSet="RINCON_38420B780CEA01400:RF,RF;RINCON_38420B780CF801400:LF,LF" BootSeq="22" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="5785" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="5" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="0" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                        <ZoneGroupMember UUID="RINCON_38420B780CEA01400" Location="http://192.168.4.153:1400/xml/device_description.xml" ZoneName="Kitchen" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" ChannelMapSet="RINCON_38420B780CEA01400:RF,RF;RINCON_38420B780CF801400:LF,LF" BootSeq="18" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="5785" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="1" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="1" IdleState="0" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                    </ZoneGroup>
+                    <ZoneGroup Coordinator="RINCON_542A1B4D154801400" ID="RINCON_542A1B4D154801400:329070949">
+                        <ZoneGroupMember UUID="RINCON_542A1B4D154801400" Location="http://192.168.4.51:1400/xml/device_description.xml" ZoneName="Patio" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" BootSeq="137" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="5785" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="4" SecureRegState="3" VoiceConfigState="0" MicEnabled="1" AirPlayEnabled="1" IdleState="1" MoreInfo="RawBattPct:100,BattPct:100,BattChg:CHARGING,BattTmp:32" SSLPort="1443" HHSSLPort="1843"/>
+                    </ZoneGroup>
+                    <ZoneGroup Coordinator="RINCON_7828CAC7352E01400" ID="RINCON_7828CAC7352E01400:857060440">
+                        <ZoneGroupMember UUID="RINCON_B8E937525BB001400" Location="http://192.168.4.50:1400/xml/device_description.xml" ZoneName="Garage" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" BootSeq="49" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="5785" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="4" SecureRegState="3" VoiceConfigState="0" MicEnabled="0" AirPlayEnabled="0" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                        <ZoneGroupMember UUID="RINCON_7828CAC7352E01400" Location="http://192.168.4.49:1400/xml/device_description.xml" ZoneName="Gym" Icon="" Configuration="1" SoftwareVersion="73.0-42060" SWGen="2" MinCompatibleVersion="72.0-00000" LegacyCompatibleVersion="58.0-00000" BootSeq="46" TVConfigurationError="0" HdmiCecAvailable="0" WirelessMode="1" WirelessLeafOnly="0" ChannelFreq="5785" BehindWifiExtender="0" WifiEnabled="1" EthLink="0" Orientation="0" RoomCalibrationState="4" SecureRegState="3" VoiceConfigState="2" MicEnabled="1" AirPlayEnabled="1" IdleState="1" MoreInfo="" SSLPort="1443" HHSSLPort="1843"/>
+                    </ZoneGroup>
+                </ZoneGroups>
+                <VanishedDevices></VanishedDevices>
+            </ZoneGroupState>
+        </ZoneGroupState>
+    </e:property>
+    <e:property>
+        <ThirdPartyMediaServersX>2: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</ThirdPartyMediaServersX>
+    </e:property>
+    <e:property>
+        <AvailableSoftwareUpdate>
+            <UpdateItem
+                xmlns="urn:schemas-rinconnetworks-com:update-1-0" Type="Software" Version="73.0-42060" UpdateURL="http://update-firmware.sonos.com/firmware/Prod/73.0-42060-v15.5-eqsrsbpq-GA-1/^73.0-42060" DownloadSize="0" ManifestURL="http://update-firmware.sonos.com/firmware/Prod/73.0-42060-v15.5-eqsrsbpq-GA-1/update.upm" Swgen="2" LatestSwgen="2" ManifestRevision="1f9bf2c2-6069-41a4-bba5-8d06d7fc050d"/>
+            </AvailableSoftwareUpdate>
+        </e:property>
+        <e:property>
+            <AlarmRunSequence>RINCON_48A6B80D8FB401400:25:0</AlarmRunSequence>
+        </e:property>
+        <e:property>
+            <ZoneGroupName>Theater</ZoneGroupName>
+        </e:property>
+        <e:property>
+            <ZoneGroupID>RINCON_48A6B80D8FB401400:2447655083</ZoneGroupID>
+        </e:property>
+        <e:property>
+            <ZonePlayerUUIDsInGroup>RINCON_48A6B80D8FB401400</ZonePlayerUUIDsInGroup>
+        </e:property>
+        <e:property>
+            <MuseHouseholdId>Sonos_GBw44sBd7swQ55xlbUSTzNmTlp.bo1nzn_Y9N9_it2wu2EX</MuseHouseholdId>
+        </e:property>
+        <e:property>
+            <AreasUpdateID>CzvSCq1WaMFOhxs4XnSxnmlP95yAxrnqP7cKa2ustxA=</AreasUpdateID>
+        </e:property>
+        <e:property>
+            <SourceAreasUpdateID>4</SourceAreasUpdateID>
+        </e:property>
+        <e:property>
+            <NetsettingsUpdateID>132</NetsettingsUpdateID>
+        </e:property>
+    </e:propertyset>

@@ -26,7 +26,8 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    
+    @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
+
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
@@ -215,21 +216,47 @@ struct PreferenceScreen: View {
                 
             #if targetEnvironment(macCatalyst)
                 Section {
+                    Label {
+                        HStack {
+                            Text("Clic Mini (Menu Bar App)")
+                            Spacer()
+                            Image(systemName: "circle.fill")
+                                .font(.caption2)
+                                .foregroundStyle(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
+                                .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 2, x: 0, y: 0)
+                        }
+                        .animation(.spring, value: menuAppLaunchAtLoginManager.isRunning)
+                    } icon: {
+                        Image(systemName: "hifispeaker.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.blue)
+                            )
+                    }
                     Button {
                         menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                     } label: {
                         Label {
-                            HStack {
-                                Text("Menu Bar App")
-                                Spacer()
-                                Image(systemName: "circle.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
-                                    .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 2, x: 0, y: 0)
+                            Text("Open Clic Mini (Menu Bar App)")
+                            Spacer()
+                            Toggle(isOn: $isMenuBarAppEnabled) {
+                                Text("Enable Clic Mini")
                             }
-                            .animation(.spring, value: menuAppLaunchAtLoginManager.isRunning)
+                            .tint(.accent)
+                            .labelsHidden()
+                            .onChange(of: isMenuBarAppEnabled) {
+                                if isMenuBarAppEnabled {
+                                    menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                                }
+                            }
                         } icon: {
-                            Image(systemName: "hifispeaker.fill")
+                            Image(systemName: "arrow.up.forward")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundStyle(.white)
@@ -238,7 +265,7 @@ struct PreferenceScreen: View {
                                 .frame(width: 32, height: 32)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue)
+                                        .foregroundStyle(Color.cyan)
                                 )
                         }
                     }

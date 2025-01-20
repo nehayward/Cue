@@ -84,7 +84,6 @@ final class MenuAppLaunchAtLoginManager {
         
         macUtils = pluginClass.init()
     }
-
 }
 
 @available(macOS 13.0, *)

@@ -1,0 +1,14 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:GetPositionInfoResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+      <Track>5</Track>
+      <TrackDuration>0:03:29</TrackDuration>
+      <TrackMetaData>&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1" restricted="true"&gt;&lt;res protocolInfo="sonos.com-spotify:*:audio/x-spotify:*" duration="0:03:29"&gt;x-sonos-spotify:spotify%3atrack%3a4LihUZcWy0B6lGLqcJ8u9B?sid=12&amp;amp;flags=8232&amp;amp;sn=1&lt;/res&gt;&lt;r:streamContent&gt;&lt;/r:streamContent&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonos-spotify%3aspotify%253atrack%253a4LihUZcWy0B6lGLqcJ8u9B%3fsid%3d12%26flags%3d8232%26sn%3d1&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;New Rules&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;dc:creator&gt;Dua Lipa&lt;/dc:creator&gt;&lt;upnp:album&gt;Dua Lipa (Deluxe)&lt;/upnp:album&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</TrackMetaData>
+      <TrackURI>x-sonos-spotify:spotify%3atrack%3a4LihUZcWy0B6lGLqcJ8u9B?sid=12&amp;flags=8232&amp;sn=1</TrackURI>
+      <RelTime>0:00:01</RelTime>
+      <AbsTime>NOT_IMPLEMENTED</AbsTime>
+      <RelCount>2147483647</RelCount>
+      <AbsCount>2147483647</AbsCount>
+    </u:GetPositionInfoResponse>
+  </s:Body>
+</s:Envelope>

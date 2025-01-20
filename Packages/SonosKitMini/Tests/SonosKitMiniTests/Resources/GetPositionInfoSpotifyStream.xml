@@ -1,0 +1,14 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:GetPositionInfoResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+      <Track>0</Track>
+      <TrackDuration>0:02:26</TrackDuration>
+      <TrackMetaData>&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="-1" parentID="-1"&gt;&lt;res duration="0:02:27"&gt;x-sonos-spotify:spotify:track:0Ixspe1RBGwmEUWyKNFOBp?sid=12&amp;amp;flags=0&amp;amp;sn=1&lt;/res&gt;&lt;upnp:albumArtURI&gt;https://i.scdn.co/image/ab67616d0000b2730f8c3812f2ce29f1feadcf94&lt;/upnp:albumArtURI&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;dc:title&gt;I Want You&lt;/dc:title&gt;&lt;dc:creator&gt;Icona Pop&lt;/dc:creator&gt;&lt;upnp:album&gt;Club Romantech&lt;/upnp:album&gt;&lt;r:streamInfo&gt;bd:16,sr:44100,c:0,l:0,d:0&lt;/r:streamInfo&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</TrackMetaData>
+      <TrackURI>x-sonos-vli:RINCON_48A6B80D8FB401400:2,spotify:20b9ae3d92784c160f818c4b291fcd08</TrackURI>
+      <RelTime>0:01:07</RelTime>
+      <AbsTime>NOT_IMPLEMENTED</AbsTime>
+      <RelCount>2147483647</RelCount>
+      <AbsCount>2147483647</AbsCount>
+    </u:GetPositionInfoResponse>
+  </s:Body>
+</s:Envelope>

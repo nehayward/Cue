@@ -39,13 +39,12 @@ struct ArtworkView: View {
                         }
                 }
             }
-            // MARK: For Screenshots
-//            #if DEBUG
-//            .overlay {
-//                Rectangle()
-//                    .foregroundStyle(.regularMaterial)
-//            }
-//            #endif
+            #if DEBUG && SCREENSHOT
+            .overlay {
+                Rectangle()
+                    .foregroundStyle(.ultraThinMaterial)
+            }
+            #endif
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
