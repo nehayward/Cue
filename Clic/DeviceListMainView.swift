@@ -55,6 +55,7 @@ struct DeviceListMainView: View {
                             .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                             .paywall(enabled(group: group))
                             .listRowBackground(Color(UIColor.secondarySystemGroupedBackground))
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 } header: {
                     HStack {

@@ -21,6 +21,9 @@ let package = Package(
             dependencies: [
                 "CloudStorage",
                 .product(name: "RevenueCat", package: "purchases-ios")
+            ],
+            swiftSettings: [
+                .define("SUPER", .when(configuration: .debug))
             ]
         ),
         .testTarget(

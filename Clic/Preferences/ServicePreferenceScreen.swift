@@ -56,6 +56,7 @@ struct ServicePreferenceScreen: View {
                 Text("Requires authorization in the **Sonos app** and **Clic**")
             }
             
+#if !targetEnvironment(macCatalyst)
             Toggle(isOn: $coreFeatures.nowPlaying) {
                 HStack {
                     Image(.nowPlayingAppIcon)
@@ -71,6 +72,7 @@ struct ServicePreferenceScreen: View {
                 }
             }
             .tint(.accent)
+#endif
         }
         .navigationBarTitleDisplayMode(.inline)
     }

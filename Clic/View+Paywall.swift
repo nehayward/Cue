@@ -7,17 +7,20 @@ extension View {
             disabled(!isEnabled)
                 .selectionDisabled(!isEnabled)
                 .redacted(reason: .placeholder)
+                .frame(maxWidth: .infinity)
                 .overlay {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         Router.main.sheet(to: .paywall)
                     } label: {
-                        Text("Upgrade to unlock")
+                        Text("\(Image(systemName: "lock.fill")) Upgrade to Unlock")
+                            .font(.body.smallCaps())
                             .bold()
                             .fontDesign(.rounded)
+                            .foregroundStyle(.background.quaternary)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.accentColor)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.primary)
                 }
         } else {
             self

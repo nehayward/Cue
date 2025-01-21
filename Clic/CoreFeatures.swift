@@ -10,7 +10,7 @@ import SwiftUI
 final class CoreFeatures {
     static let shared = CoreFeatures()
     
-    private var features: [String: Bool] = [:]
+    var features: [String: Bool] = [:]
     
     init() {
         // Load all features from UserDefaults
@@ -22,7 +22,12 @@ final class CoreFeatures {
     }
     
     var nowPlaying: Bool {
-        get { feature(feature: .nowPlaying) }
+        get {
+#if targetEnvironment(macCatalyst)
+            return false
+#endif
+            return feature(feature: .nowPlaying)
+        }
         set { setFeature(value: newValue, feature: .nowPlaying) }
     }
     

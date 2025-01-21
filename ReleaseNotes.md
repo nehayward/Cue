@@ -1,3 +1,10 @@
+# 2025.1
+
+
+––Bug Fixes––
+- Hide NowPlaying on macOS, since it's not compatible 
+- Improve Music Service selection.
+
 # 2024.46
 
 ––New Features––

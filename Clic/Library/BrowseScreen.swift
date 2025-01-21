@@ -49,8 +49,13 @@ struct BrowseScreen: View {
             VStack {
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in
-                        // MARK: Add Spotify
-                        if coreFeatures.enabledServices(service).wrappedValue, [MediaSearchService.apple, MediaSearchService.library, MediaSearchService.plex, .spotify].contains(service) {
+                        if coreFeatures.enabledServices(service).wrappedValue, [
+                                MediaSearchService.apple,
+                                MediaSearchService.library,
+                                MediaSearchService.plex,
+                                .spotify
+                            ]
+                            .contains(service) {
                             Button {
                                 HapticManager.shared.fireHaptic(.buttonPress)
                                 browseMediaService = service
@@ -95,9 +100,14 @@ struct BrowseScreen: View {
             dismiss()
             closeInspector?()
         }
+        .onChange(of: coreFeatures.features) {
+            if coreFeatures.isEnabled(browseMediaService) {
+                return
+            }
+            guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
+            browseMediaService = service
+        }
     }
-
-
 }
 
 #Preview {

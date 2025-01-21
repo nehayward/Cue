@@ -24,7 +24,7 @@ public final class SubscriptionService {
         self.keyID = key
         guard let keyID else { return }
 
-#if DEBUG
+#if DEBUG && SUPER
         Purchases.logLevel = .error
         Purchases.configure(withAPIKey: "appl_ukLcssJkMdgCvraYWRsnWlqegvP", appUserID: "DEBUG")
 

@@ -8,7 +8,6 @@ struct PaywallButtonView: View {
     @Environment(Router.self) var router: Router?
 
     private var features = [
-        ("Winter Sale ❄️", "Over 50% off the first Year (Ends 12/8)."),
         ("Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
         ("Live Activities + Dynamic Island", "Instantly adjust playback and volume from the lock screen."),
         ("Interactive Widgets", "Convenient home screen widgets for immediate playback control."),
