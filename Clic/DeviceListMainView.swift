@@ -33,6 +33,10 @@ struct DeviceListMainView: View {
                             VStack(spacing: 12) {
                                 if group.tvSettings != nil {
                                     TVModeViewCell(group: $group)
+                                        .transition(.asymmetric(
+                                            insertion: .opacity,
+                                            removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
+                                        ))
                                 } else {
                                     HStack(alignment: .top) {
                                         ArtworkView(group: $group)
@@ -41,10 +45,15 @@ struct DeviceListMainView: View {
                                         Spacer()
                                         MediaControlsView(group: $group)
                                     }
+                                    .transition(.asymmetric(
+                                        insertion: .opacity,
+                                        removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
+                                    ))
                                 }
                                 VolumeControlView(group: $group, delayDrag: true)
                             }
                         }
+                        .animation(.spring, value: group.tvSettings)
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
@@ -76,6 +85,7 @@ struct DeviceListMainView: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 }
             }
+            .animation(.interactiveSpring, value: sonosService.sorted)
             .environment(\.defaultMinListRowHeight, 40)
             .withAppRouter()
             .navigationBarTitle("", displayMode: .inline)
@@ -177,7 +187,6 @@ struct DeviceListMainView: View {
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)
         .animation(.spring, value: alertService.alert.isShowing)
-        .animation(.interactiveSpring, value: sonosService.sorted)
         .overlay(alignment: .top) {
             VStack {
                 if !sonosService.networkMonitorService.isConnected {

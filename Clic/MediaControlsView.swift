@@ -16,6 +16,7 @@ struct MediaControlsView: View {
                 GroupIconView()
             }
             .buttonStyle(.borderless)
+            .tint(.primary)
             Button {
                 Task {
                     HapticManager.shared.fireHaptic(.buttonPress)

@@ -1,3 +1,4 @@
+import SwiftUI
 
 public enum AudioInputFormat: Int, Codable, Hashable, Equatable {
     case noInputConnected = 0
@@ -67,6 +68,18 @@ public enum AudioInputFormat: Int, Codable, Hashable, Equatable {
             "Dolby Multichannel PCM 7.1"
         case .DTS:
             "DTS 5.1"
+        }
+    }
+    
+    @ViewBuilder
+    public var icon: some View {
+        if self.description.contains("Dolby") {
+            SwiftUI.Image(.dolby)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            EmptyView()
         }
     }
 }

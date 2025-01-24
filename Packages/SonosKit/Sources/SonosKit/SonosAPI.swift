@@ -580,16 +580,16 @@ final class SonosAPI: NSObject {
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetCurrentTransportActions", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return AvailableActions(arrayLiteral: [])
+            return nil
         }
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
-            return AvailableActions(arrayLiteral: [])
+            return nil
         }
 
         let xml = String(decoding: data, as: UTF8.self)
         guard let transportActions = xmlParser.parseGetCurrentTransportActions(xml: xml) else {
-            return AvailableActions(arrayLiteral: [])
+            return nil
         }
         return transportActions
     }

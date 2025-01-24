@@ -1,9 +1,15 @@
 # 2025.1
 
+––New Features––
+- Introducing Clic Mini!
+- Add hover states to queue list and device list.
+- Add crossfade for album art
 
 ––Bug Fixes––
+- Fix live activity on watch app now open watch app.
 - Hide NowPlaying on macOS, since it's not compatible 
 - Improve Music Service selection.
+- Performance improvements for Mac app.
 
 # 2024.46
 

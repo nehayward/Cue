@@ -9,8 +9,6 @@ import VibesDS
 struct LiveActivityNowPlayingFamilyView: View {
     @Environment(\.activityFamily) var activityFamily
     let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
-    
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
 
     var body: some View {
         switch activityFamily {
@@ -28,13 +26,12 @@ struct LiveActivityNowPlayingSmallView: View {
     @State var context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
-    @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(context.state.name)
                 .font(.caption)
                 .fontDesign(.rounded)
+                .frame(maxWidth: .infinity, alignment: .center)
             if context.state.TVSettings == nil {
                 HStack {
                     Group {
@@ -89,7 +86,7 @@ struct LiveActivityNowPlayingSmallView: View {
         }
         .font(dynamicTypeSize < .medium ? .caption : .body)
         .padding()
-        .background(.background.opacity(0.4))
+        .frame(maxWidth: .infinity)
     }
 }
 #endif

@@ -1,3 +1,4 @@
+import Nuke
 import NukeUI
 import SwiftUI
 import SonosKit
@@ -8,21 +9,38 @@ struct ArtworkView: View {
     @Environment(AlertService.self) var alertService
     
     var isDraggable: Bool = false
+    var useExternal: Bool = false
+    var image: Binding<UIImage?>? = nil
+    var count: Binding<Int>? = nil
+    var animation: TimeInterval = 0.2
+    
     @Binding var group: GroupRoom
     @State private var alarmRunning: Bool = false
-    @State private var imageRequest: ImageRequest?
+    
+    // Add task cancellation
+    @State private var imageTask: ImageTask?
+    
+    // Internal state as fallback
+    @State private var internalImage: UIImage?
+    @State private var internalCount: Int = 0
+    
+    // Computed properties to handle optional bindings
+    private var artwork: Binding<UIImage?> {
+        image ?? $internalImage
+    }
+    
+    private var viewCount: Binding<Int> {
+        count ?? $internalCount
+    }
 
     var body: some View {
         GeometryReader { proxy in
-            LazyImage(request: imageRequest) { state in
-                if let image = state.image {
-                    image
+            Group {
+                if let currentImage = artwork.wrappedValue {
+                    Image(uiImage: currentImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                } else if state.isLoading {
-                    Rectangle()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
+                        .transition(.opacity)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
@@ -32,11 +50,14 @@ struct ArtworkView: View {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
-                                    .foregroundStyle(.foreground)
+                                    .foregroundStyle(.primary.secondary)
                                     .fontWeight(.light)
-                                    .frame(width: proxy.size.width * 0.5, height: proxy.size.width * 0.5)
+                                    .frame(maxWidth: 100)
+                                    .tint(Color.primary.secondary)
+                                    .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
                             }
                         }
+                        .transition(.opacity)
                 }
             }
             #if DEBUG && SCREENSHOT
@@ -57,13 +78,9 @@ struct ArtworkView: View {
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
             }
-            .task(id: group.coordinatorRoom.track.id) {
-                guard let url = group.coordinatorRoom.track.artworkURL else {
-                    imageRequest = nil
-                    return
-                }
-                let request = URLRequest(url: url)
-                imageRequest = ImageRequest(urlRequest: request)
+            .onChange(of: group.coordinatorRoom.track.artworkURL, initial: true) { _, newURL in
+                imageTask?.cancel()
+                imageTask = loadArtwork(url: newURL)
             }
             .onTapGesture(count: 2) {
 #if !targetEnvironment(macCatalyst)
@@ -76,9 +93,48 @@ struct ArtworkView: View {
                 }
 #endif
             }
+            .animation(internalCount > 1 ? .smooth(duration: animation) : nil, value: internalImage)
+            .onDisappear {
+                imageTask?.cancel()
+            }
         }
     }
+    
+    private func loadArtwork(url: URL?) -> ImageTask? {
+        guard let url else {
+            Task { @MainActor in
+                artwork.wrappedValue = nil
+            }
+            return nil
+        }
+        
+        if Task.isCancelled {
+            return nil
+        }
+        
+        let imageRequest = ImageRequest(url: url, priority: .high)
+        let task = ImagePipeline.shared.loadImage(with: imageRequest) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let response):
+                    if !Task.isCancelled {
+                        artwork.wrappedValue = response.image
+                        viewCount.wrappedValue += 1
+                    }
+                case .failure:
+                    if !Task.isCancelled {
+                        artwork.wrappedValue = nil
+                    }
+                }
+            }
+        }
+        
+        return task
+    }
 }
+
+
+
 //
 //#Preview("Empty") {
 //    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))

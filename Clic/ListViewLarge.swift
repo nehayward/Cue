@@ -13,6 +13,8 @@ struct ListViewLarge: View {
     @Binding var selected: String?
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    
+    @State private var hoveredID: String? = nil
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -28,6 +30,10 @@ struct ListViewLarge: View {
                     VStack(spacing: 12) {
                         if group.TVMode {
                             TVModeViewCell(group: $group)
+                                .transition(.asymmetric(
+                                    insertion: .opacity,
+                                    removal: .opacity.animation(.snappy(duration: 0))
+                                ))
                         } else {
                             HStack(alignment: .top) {
                                 ArtworkView(group: $group)
@@ -36,11 +42,30 @@ struct ListViewLarge: View {
                                 Spacer()
                                 MediaControlsView(group: $group)
                             }
+                            .transition(.asymmetric(
+                                insertion: .opacity,
+                                removal: .opacity.animation(.snappy(duration: 0))
+                            ))
                         }
                         VolumeControlView(group: $group, delayDrag: true)
                     }
+                    .animation(.spring, value: group.TVMode)
                     .tag(group.coordinatorID)
-                    .listRowBackground(group.coordinatorID == selected ? Color(uiColor: .systemFill).clipShape(RoundedRectangle(cornerRadius: 16)) : Color(UIColor.secondarySystemGroupedBackground).clipShape(RoundedRectangle(cornerRadius: 16)))
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                group.coordinatorID == selected ? Color(uiColor: .systemFill) :
+                                    hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :
+                                    Color(UIColor.secondarySystemGroupedBackground)
+                            )
+                    )
+                    .onHover { isHovered in
+                        if [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom)  {
+                            withAnimation(.interactiveSpring) {
+                                hoveredID = isHovered ? group.coordinatorID : nil
+                            }
+                        }
+                    }
                     .foregroundStyle(.primary)
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
                     .dropDestinationPlay(on: group)
@@ -77,7 +102,7 @@ struct ListViewLarge: View {
         }
         .environment(\.defaultMinListRowHeight, 40)
         .animation(.interactiveSpring, value: sonosService.groups)
-        .onChange(of: sonosService.sorted) { 
+        .onChange(of: sonosService.sorted) {
             if selected == nil {
                 sonosService.selectedGroup = sonosService.sorted.first
                 selected = sonosService.sorted.first?.coordinatorID
@@ -164,4 +189,3 @@ struct ListViewLarge: View {
         return index < 1
     }
 }
-

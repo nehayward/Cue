@@ -1,4 +1,6 @@
 import Foundation
+import Nuke
+import NukeUI
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -13,45 +15,47 @@ public final class ArtworkManager {
 
     public func downScale(coordinatorRoom: String,  url: URL?) async {
 #if canImport(UIKit)
-        let fileURL = containerURL.appendingPathComponent("\(coordinatorRoom).jpg")
+        let fileURL = getFileURL(for: coordinatorRoom)
 
         guard let url = url else {
-            try? FileManager.default.removeItem(at: fileURL)
+            removeArtwork(coordinatorRoom: coordinatorRoom)
             return
         }
-        guard let imageData = try? await URLSession.shared.data(from: url).0 else { return }
-        guard let image = UIImage(data: imageData) else { return }
-
-        let size = image.size
-        let targetSize  = CGSize(width: 200, height: 200)
-        let widthRatio  = targetSize.width  / size.width
-        let heightRatio = targetSize.height / size.height
-        let newSize = widthRatio > heightRatio ? CGSize(width: size.width * heightRatio, height: size.height * heightRatio) : CGSize(width: size.width * widthRatio, height: size.height * widthRatio)
-        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
-
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        image.draw(in: rect)
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        let data = resizedImage?.jpegData(compressionQuality: 1)
-
+        
         do {
-            try data?.write(to: fileURL)
-            print("Image saved successfully to \(fileURL)")
+            let newData = try await downloadAndProcessImage(from: url)
+            try await saveImageIfDifferent(newData, to: fileURL)
         } catch {
             print("Error saving image: \(error)")
         }
 #endif
     }
 
+    private func downloadAndProcessImage(from url: URL) async throws -> Data? {
+        let request = ImageRequest(url: url, processors: [
+            ImageProcessors.Resize(size: CGSize(width: 50, height: 50)),
+        ])
+        
+        let image = try await ImagePipeline.shared.image(for: request)
+        return image.jpegData(compressionQuality: 1)
+    }
+    
+    private func saveImageIfDifferent(_ newData: Data?, to fileURL: URL) async throws {
+        guard let newData else { return }
+        
+        let existingData = try? Data(contentsOf: fileURL)
+        guard existingData != newData else { return }
+        
+        try newData.write(to: fileURL)
+    }
+
     public func removeArtwork(coordinatorRoom: String) {
-        let fileURL = containerURL.appendingPathComponent("\(coordinatorRoom).jpg")
+        let fileURL = getFileURL(for: coordinatorRoom)
         try? FileManager.default.removeItem(at: fileURL)
     }
 
     public func getImageData(name: String) -> Data? {
-        let fileURL = containerURL.appendingPathComponent("\(name).jpg")
+        let fileURL = getFileURL(for: name)
         return try? Data(contentsOf: fileURL)
     }
     
@@ -63,7 +67,7 @@ public final class ArtworkManager {
             return UIImage(named: "barbie")
         }
         #endif
-        let fileURL = containerURL.appendingPathComponent("\(name).jpg")
+        let fileURL = getFileURL(for: name)
         if let data = try? Data(contentsOf: fileURL) {
             return UIImage(data: data)
         }
@@ -72,3 +76,6 @@ public final class ArtworkManager {
 #endif
 }
 
+private func getFileURL(for name: String) -> URL {
+    FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic")!.appendingPathComponent("\(name).jpg")
+}

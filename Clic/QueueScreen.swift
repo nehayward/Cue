@@ -16,61 +16,21 @@ struct QueueScreen: View {
     @State private var isLoading: Bool = true
     @State private var clearQueueConfirmation: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
+    @State private var hoveredTrackID: String? = nil
+
+    private var isCatalyst: Bool {
+#if targetEnvironment(macCatalyst)
+        return true
+#endif
+        return UIDevice.current.userInterfaceIdiom == .pad
+    }
 
     var body: some View {
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
-                        Button {
-                            dismiss()
-                            Task {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                guard let position = track.metadata?.position else { return }
-                                await sonosService.seek(trackNumber: position, on: group)
-                                await sonosService.play(ip: group.coordinatorRoom.ip)
-                                group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
-                            }
-                        } label: {
-                            HStack {
-                                ContentArtworkView(content: track)
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 60, height: 60)
-                                VStack(alignment: .leading) {
-                                    Text(track.title)
-                                        .lineLimit(1)
-                                    Text(track.subtitle)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer()
-                                Menu {
-                                    menu(content: track)
-                                } label: {
-                                    Image(systemName: "ellipsis")
-                                        .frame(maxWidth: 50, maxHeight: .infinity)
-                                        .background(.clear)
-                                        .tint(.primary)
-                                        .bold()
-                                }
-                            }
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                guard let position = track.metadata?.position else { return }
-                                group.coordinatorRoom.queue.remove(at: position - 1)
-                                Task {
-                                    try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                                    group.coordinatorRoom.queue =  OrderedSet(await sonosService.getQueue(ip: group.ip))
-                                }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                        .listRowBackground(isTrackPlaying(for: track) ? Color(uiColor: UIColor.systemFill) : Color.clear)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
-                        .bold(isTrackPlaying(for: track))
-                        .draggable(track)
+                        QueueCellView(track: track, group: $group, router: router)
                     }
                     .onMove(perform: move)
                 }
@@ -209,9 +169,9 @@ struct QueueScreen: View {
             }
         }
         .fontDesign(.rounded)
-        .animation(.default, value: group.playbackService)
-        .animation(.spring, value: group.coordinatorRoom.queue)
-        .animation(.spring, value: isLoading)
+        .animation(isCatalyst ? nil : .default, value: group.playbackService)
+        .animation(isCatalyst ? nil : .spring, value: group.coordinatorRoom.queue)
+        .animation(isCatalyst ? nil : .spring, value: isLoading)
         .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
             Button {
                 Task {

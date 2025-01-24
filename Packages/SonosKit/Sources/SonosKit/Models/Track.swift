@@ -2,7 +2,10 @@ import Foundation
 
 /// An observable class representing a track in a music service.
 @Observable
-public final class Track: Identifiable, Sendable {
+public final class Track: Identifiable, Sendable {    
+    /// The identifier for `Identifiable` conformance.
+    public var id: String { trackID + name + position.description }
+
     private let queue = DispatchQueue(label: "Track.\(UUID().uuidString)")
 
     @ObservationIgnored private var _playbackPosition: TimeInterval = .zero
@@ -43,9 +46,6 @@ public final class Track: Identifiable, Sendable {
     public var sonosAlbumArtURL: URL?
 
     public var metadata: Metadata?
-
-    /// The identifier for `Identifiable` conformance.
-    public var id: String { trackID + name + position.description }
 
     /// The duration of the track, in seconds.
     public var duration: TimeInterval

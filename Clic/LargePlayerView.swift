@@ -1,16 +1,16 @@
+import Nuke
 import NukeUI
 import SwiftUI
 import Collections
 import SonosKit
 import VibesDS
-import Glur
 
 struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
+    
     @Binding var group: GroupRoom
     
     @State var test: Double = -40
@@ -18,36 +18,41 @@ struct LargePlayerView: View {
     @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
     @State private var refreshID = UUID()
-
+    @State private var image: UIImage?
+    @State private var count = 0
+    @State private var imageTask: ImageTask?
+    
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return true
         }
 #if targetEnvironment(macCatalyst)
         return true
-        #else
+#else
         return false
-        #endif
+#endif
     }
     
     var body: some View {
         @Bindable var sonosService = sonosService
-
+        
         VStack(alignment: .center) {
             if group.TVMode {
-                Spacer()
-                Image(systemName: "tv")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .symbolRenderingMode(.hierarchical)
-                    .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-                    .opacity(0.2)
-                TVModeView()
-                Spacer()
+                Group {
+                    Spacer()
+                    Image(systemName: "tv")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .symbolRenderingMode(.hierarchical)
+                        .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                        .opacity(0.2)
+                    TVModeView()
+                    Spacer()
+                }
+                .transition(.opacity)
             } else {
                 artworkView(true)
                     .padding(.bottom, 12)
-                    .shadow(radius: 10)
                     .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
                     Text(stationName)
@@ -57,7 +62,7 @@ struct LargePlayerView: View {
                         .frame(maxWidth: .infinity)
                         .lineLimit(1, reservesSpace: true)
                 }
-
+                
                 Text(group.coordinatorRoom.track.song)
                     .lineLimit(1, reservesSpace: true)
                     .bold()
@@ -68,8 +73,7 @@ struct LargePlayerView: View {
                     .contextMenu {
                         Text(group.coordinatorRoom.track.song)
                     }
-             
-
+                
                 Text(group.coordinatorRoom.track.artist)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -77,7 +81,7 @@ struct LargePlayerView: View {
                     .font(.title3)
                     .frame(maxWidth: .infinity)
                     .lineLimit(1, reservesSpace: true)
-
+                
                 playbackView()
                 Spacer()
                 mediaControlsView()
@@ -87,7 +91,7 @@ struct LargePlayerView: View {
                 VolumeControlView(group: $group)
                     .padding(.bottom, 12)
                     .frame(maxWidth: 500)
-
+                
                 if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {
                     HStack(spacing: 0) {
                         Button {
@@ -132,7 +136,7 @@ struct LargePlayerView: View {
                         }
                         .buttonStyle(.plain)
                         .imageScale(.large)
-
+                        
                         Spacer()
                         Button {
                             router.presentedSheet = .queue(group: $group)
@@ -199,9 +203,11 @@ struct LargePlayerView: View {
         }
         .frame(maxHeight: .infinity)
         .onChange(of: group, initial: true) {
+            count = 0
             sonosService.selectedGroup = group
         }
         .onDisappear {
+            count = 0
             sonosService.selectedGroup = nil
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -266,7 +272,6 @@ struct LargePlayerView: View {
                     .saturation(1.3)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(1.3)
-                    .blur(radius: 60)
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
                     .scaleEffect(1.3)
@@ -274,8 +279,15 @@ struct LargePlayerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
         }
+        .onChange(of: group.coordinatorRoom.track.artworkURL, initial: true) { _, newURL in
+            imageTask?.cancel()
+            imageTask = loadArtwork(url: newURL)
+        }
+        .onDisappear {
+            imageTask?.cancel()
+        }
     }
-
+    
     private func playbackView() -> some View {
         VStack(spacing: 0) {
             if !group.coordinatorRoom.track.duration.isZero {
@@ -284,7 +296,7 @@ struct LargePlayerView: View {
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                         group.isEditingPlayback = isEditing
                     }
-
+                    
                     if !isEditing {
                         Task { @MainActor in
                             await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
@@ -295,7 +307,7 @@ struct LargePlayerView: View {
                 .frame(height: 40)
                 .foregroundStyle(.primary)
                 .disabled(!group.availableActions.contains(.scrubbable))
-
+                
                 HStack {
                     if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
                         Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
@@ -316,7 +328,7 @@ struct LargePlayerView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 60)
     }
-
+    
     private func mediaControlsView() -> some View {
         HStack {
             Button {
@@ -351,12 +363,12 @@ struct LargePlayerView: View {
                     .scaledToFit()
                     .contentTransition(.symbolEffect(.automatic))
                     .frame(width: 32, height: 32)
-
+                
             }
             .buttonStyle(.liveActivity)
-            .keyboardShortcut(.space, modifiers: []) 
+            .keyboardShortcut(.space, modifiers: [])
             .id(group.coordinatorID)
-
+            
             Spacer()
             Button {
                 Task {
@@ -376,7 +388,7 @@ struct LargePlayerView: View {
         .frame(maxWidth: 300)
         .padding(.horizontal, 60)
     }
-
+    
     private func TVModeView() -> some View {
         VStack(alignment: .center) {
             if let settings = group.tvSettings {
@@ -404,7 +416,7 @@ struct LargePlayerView: View {
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
-
+                    
                     Button {
                         Task {
                             try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
@@ -431,8 +443,40 @@ struct LargePlayerView: View {
     }
     
     func artworkView(_ isDraggable: Bool = false) -> some View {
-        ArtworkView(isDraggable: isDraggable, group: $group)
-            .id(group.coordinatorRoom.track.id)
+        ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, group: $group)
+            .animation(count > 1 ? .smooth(duration: 0.2) : nil, value: image)
+    }
+    
+    private func loadArtwork(url: URL?) -> ImageTask? {
+        guard let url else {
+            Task { @MainActor in
+                image = nil
+            }
+            return nil
+        }
+        
+        if Task.isCancelled {
+            return nil
+        }
+        
+        let imageRequest = ImageRequest(url: url, priority: .high)
+        let task = ImagePipeline.shared.loadImage(with: imageRequest) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let response):
+                    if !Task.isCancelled {
+                        self.image = response.image
+                        self.count += 1
+                    }
+                case .failure:
+                    if !Task.isCancelled {
+                        self.image = nil
+                    }
+                }
+            }
+        }
+        
+        return task
     }
 }
 
@@ -455,7 +499,7 @@ fileprivate struct DuaLipaContainer: View {
                                             rooms: [.theater],
                                             coordinatorRoom: .theater,
                                             tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .dolbyStereo))
-
+    
     var body: some View {
         NavigationStack {
             LargePlayerView(group: $group)

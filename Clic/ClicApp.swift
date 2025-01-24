@@ -463,7 +463,7 @@ struct ClicApp: App {
             $0.dataCachePolicy = .automatic
             
             let dataLoader: DataLoader = {
-                let config = URLSessionConfiguration.default
+                let config = URLSessionConfiguration.background(withIdentifier: "com.clic.image.loader")
                 config.urlCache = nil
                 return DataLoader(configuration: config)
             }()

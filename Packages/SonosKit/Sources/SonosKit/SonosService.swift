@@ -443,8 +443,10 @@ public final class SonosService {
                     }
 
                     if roomGroup.coordinatorRoom.track != awaitedTrack {
-                        roomGroup.coordinatorRoom.track = awaitedTrack
-                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                        Task { @MainActor in
+                            roomGroup.coordinatorRoom.track = awaitedTrack
+                            roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                        }
                     }
                     await ArtworkManager.shared.downScale(coordinatorRoom: roomGroup.nameWithCount, url: roomGroup.coordinatorRoom.track.artworkURL)
                 }

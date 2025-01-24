@@ -189,30 +189,35 @@ struct LiveActivityNowPlayingWidget: Widget {
                         .fontDesign(.rounded)
                 }
             } compactTrailing: {
-                Group {
-                    if let image = ArtworkManager.shared.getImage(name: context.state.name) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .frame(width: 20, height: 20)
-                            .overlay(alignment: .bottomTrailing) {
-                                context.state.playableContent.content.service.icon
-                                    .frame(width: 8, height: 8, alignment: .bottomLeading)
-                                    .padding([.bottom, .trailing], 1)
-                                
-                            }
-                    } else {
-                        RoundedRectangle(cornerRadius: 4)
-                            .frame(width: 20, height: 20)
-                    }
-                }.overlay {
-                    if context.state.isMuted {
-                        RoundedRectangle(cornerRadius: 4)
-                            .foregroundStyle(.ultraThinMaterial)
-                            .overlay {
-                                Image(systemName: "speaker.slash.fill")
-                            }
+                if let tvSetting = context.state.TVSettings {
+                    tvSetting.audioInputFormat.icon
+                        .frame(width: 20, height: 20)
+                } else {
+                    Group {
+                        if let image = ArtworkManager.shared.getImage(name: context.state.name) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 20, height: 20)
+                                .overlay(alignment: .bottomTrailing) {
+                                    context.state.playableContent.content.service.icon
+                                        .frame(width: 8, height: 8, alignment: .bottomLeading)
+                                        .padding([.bottom, .trailing], 1)
+                                    
+                                }
+                        } else {
+                            RoundedRectangle(cornerRadius: 4)
+                                .frame(width: 20, height: 20)
+                        }
+                    }.overlay {
+                        if context.state.isMuted {
+                            RoundedRectangle(cornerRadius: 4)
+                                .foregroundStyle(.ultraThinMaterial)
+                                .overlay {
+                                    Image(systemName: "speaker.slash.fill")
+                                }
+                        }
                     }
                 }
             } minimal: {
