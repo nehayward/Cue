@@ -448,7 +448,7 @@ struct LargePlayerView: View {
         ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, group: $group)
     }
     
-    private nonisolated func loadArtwork(url: URL?) -> ImageTask? {
+    private func loadArtwork(url: URL?) -> ImageTask? {
         guard let url else {
             Task { @MainActor in
                 image = nil
