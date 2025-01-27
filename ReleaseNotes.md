@@ -4,6 +4,7 @@
 - Introducing Clic Mini!
 - Add hover states to queue list and device list.
 - Add crossfade for album art
+- Live Activities now dismissed when paused on app launch.
 
 ––Bug Fixes––
 - Fix live activity on watch app now open watch app.
