@@ -124,9 +124,11 @@ struct GroupScreen: View {
             .safeAreaInset(edge: .bottom) {
                 if !scenes.isEmpty {
                     VStack {
-                        SceneListView { scene in
+                        SceneListView(editScene: { scene in
+                            Router.main.sheet(to: .editScene(scene))
+                        }, sceneActivated: { scene in
                             alertService.showAlert(with: "Running \(scene.name)")
-                        }
+                        })
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
                     }

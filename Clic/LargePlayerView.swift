@@ -335,6 +335,7 @@ struct LargePlayerView: View {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
+                    self.count = -1
                     try? await sonosService.updateGroups(from: [group])
                 }
             } label: {
@@ -374,6 +375,7 @@ struct LargePlayerView: View {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
                     await sonosService.next(ip: group.coordinatorRoom.ip)
+                    self.count = -1
                     try? await sonosService.updateGroups(from: [group])
                 }
             } label: {
@@ -444,10 +446,9 @@ struct LargePlayerView: View {
     
     func artworkView(_ isDraggable: Bool = false) -> some View {
         ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, group: $group)
-            .animation(count > 1 ? .smooth(duration: 0.2) : nil, value: image)
     }
     
-    private func loadArtwork(url: URL?) -> ImageTask? {
+    private nonisolated func loadArtwork(url: URL?) -> ImageTask? {
         guard let url else {
             Task { @MainActor in
                 image = nil
@@ -467,6 +468,7 @@ struct LargePlayerView: View {
                     if !Task.isCancelled {
                         self.image = response.image
                         self.count += 1
+                        print(count)
                     }
                 case .failure:
                     if !Task.isCancelled {

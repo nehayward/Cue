@@ -13,7 +13,7 @@ struct ArtworkView: View {
     var image: Binding<UIImage?>? = nil
     var count: Binding<Int>? = nil
     var animation: TimeInterval = 0.2
-    
+
     @Binding var group: GroupRoom
     @State private var alarmRunning: Bool = false
     
@@ -41,6 +41,7 @@ struct ArtworkView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .transition(.opacity)
+                        .animation(.smooth(duration: viewCount.wrappedValue > 1 ? animation : 0), value: currentImage)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
@@ -79,6 +80,7 @@ struct ArtworkView: View {
                 alarmRunning = new
             }
             .onChange(of: group.coordinatorRoom.track.artworkURL, initial: true) { _, newURL in
+                if useExternal { return }
                 imageTask?.cancel()
                 imageTask = loadArtwork(url: newURL)
             }
@@ -93,7 +95,9 @@ struct ArtworkView: View {
                 }
 #endif
             }
-            .animation(internalCount > 1 ? .smooth(duration: animation) : nil, value: internalImage)
+            .onAppear {
+                internalCount = 0
+            }
             .onDisappear {
                 imageTask?.cancel()
             }
@@ -101,6 +105,7 @@ struct ArtworkView: View {
     }
     
     private func loadArtwork(url: URL?) -> ImageTask? {
+        if useExternal { return nil }
         guard let url else {
             Task { @MainActor in
                 artwork.wrappedValue = nil

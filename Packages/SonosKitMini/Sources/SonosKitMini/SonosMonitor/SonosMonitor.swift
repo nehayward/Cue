@@ -14,29 +14,20 @@ public final class SonosMonitor: ObservableObject {
     init(port: UInt16 = 6116) {
         self.subscriber = .init(callbackPort: port)
         self.listener = .init(port: port)
-//        setupEventHandlers()
         setupWiFiMonitoring()
     }
     
-//    func setupEventHandlers() {
-//        listener.eventHandler = { [weak self] event, deviceID in
-//            Task { @MainActor in
-//                self?.updateEvent(for: deviceID, event: event)
-//            }
-//        }
-//        
-//        listener.zoneManagementHandler = { [weak self] event in
-//            Task { @MainActor in
-//                self?.updateZone(event: event)
-//            }
-//        }
-//    }
-    
     private func setupWiFiMonitoring() {
-        pathMonitor = NWPathMonitor(requiredInterfaceType: .wifi)
+        pathMonitor = NWPathMonitor()
         pathMonitor?.pathUpdateHandler = { [weak self] path in
             Task { @MainActor in
+                // Only get IP if the interface is WiFi or wired
+                if path.availableInterfaces.contains(where: { $0.type == .wifi || $0.type == .wiredEthernet }) {
+                    await self?.subscriber.sendSubscribeRequests()
+                }
                 self?.isConnectedToWiFi = path.status == .satisfied
+                
+                
             }
         }
         pathMonitor?.start(queue: DispatchQueue.global())
@@ -47,6 +38,7 @@ public final class SonosMonitor: ObservableObject {
     }
     
     public func startListening() async {
+        try? await listener.start()
         // Initially subscribe to network discovery or a known coordinator
         // You might want to start with one known device to bootstrap the process
         //        let initialIP = "192.168.4.49" // Example: Start with one known device

@@ -6,7 +6,7 @@ import MusicSearchKit
 import UIKit
 import SwiftUI
 
-final class LiveActivityManager: LiveActivityManageable {    
+final class LiveActivityManager: LiveActivityManageable {
     private let sonosService: SonosService
     private let artworkManager: ArtworkManager = .shared
 
@@ -114,21 +114,17 @@ final class LiveActivityManager: LiveActivityManageable {
         }
     }
 
-    func reset() {
+    func reset() async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            Task {
-                await activity.end(activity.content, dismissalPolicy: .immediate)
-            }
+            await activity.end(activity.content, dismissalPolicy: .immediate)
         }
     }
     
     func stop(id: String) async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard let _ = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
-                continue
+            if id == activity.attributes.room.id {
+                await activity.end(activity.content, dismissalPolicy: .immediate)
             }
-
-            await activity.end(activity.content, dismissalPolicy: .immediate)
         }
     }
     

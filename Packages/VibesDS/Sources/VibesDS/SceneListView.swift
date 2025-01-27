@@ -8,13 +8,19 @@ public struct SceneListView: View {
     @Environment(SonosService.self) var sonosService
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
     
+    private let editScene: (SonosScene) -> ()
     private let sceneActivated: (SonosScene) -> ()
 
-    public init(scenes: [SonosScene]? = nil, sceneActivated: @escaping (SonosScene) -> ()) {
+    public init(
+        scenes: [SonosScene]? = nil,
+        editScene: @escaping (SonosScene) -> (),
+        sceneActivated: @escaping (SonosScene) -> ()
+    ) {
         if let scenes {
             self.scenes = scenes
         }
-
+        
+        self.editScene = editScene
         self.sceneActivated = sceneActivated
     }
 
@@ -32,6 +38,10 @@ public struct SceneListView: View {
                     #if !os(watchOS) && !os(macOS)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
+                        // TODO: Edit scene
+//                        Button("Edit") {
+//                            editScene(scene)
+//                        }
                         Button("Remove", role: .destructive) {
                             scenes.removeAll { sceneSearch in
                                 sceneSearch.id == scene.id

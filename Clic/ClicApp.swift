@@ -285,6 +285,12 @@ struct ClicApp: App {
 
             Task {
                 await liveActivityManager.refresh()
+
+                for group in sonosService.groups {
+                    if !group.coordinatorRoom.isPlaying {
+                        await liveActivityManager.stop(id: group.coordinatorRoom.id)
+                    }
+                }
             }
 
             Task {

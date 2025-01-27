@@ -172,6 +172,8 @@ extension View {
                     OnboardView()
                 case .spotifyUserPlaylists:
                     SpotifyPlaylistScreen()
+                case let .editScene(scene):
+                    EditSceneScreen(scene: scene)
                 }
             }
             .withEnvironments()

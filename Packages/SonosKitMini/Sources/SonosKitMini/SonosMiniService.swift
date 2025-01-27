@@ -215,8 +215,13 @@ public final class SonosMiniService {
             print(currentDeviceIDs)
         }
         setupListeners()
-        sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
-        sonosMonitor.subscriber.subscribe()
+        
+        Task {
+            await sonosMonitor.startListening()
+            print("Started")
+            sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
+            sonosMonitor.subscriber.subscribe()
+        }
         
         snapShotVolume(for: devices)
         

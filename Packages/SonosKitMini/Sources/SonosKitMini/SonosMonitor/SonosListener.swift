@@ -43,8 +43,9 @@ final class SonosListener {
     private var activeConnections: Set<String> = []  // Track active Sonos device connections
     private let connectionQueue = DispatchQueue(label: "com.clic.connection_queue")
     
-    // Add connection timeout and reconnect settings
-    private let connectionTimeout: TimeInterval = 30
+    // Update connection timeout to be longer
+    private let connectionTimeout: TimeInterval = 300 // 5 minutes
+    private let keepAliveInterval: TimeInterval = 60 // 1 minute
     private let maxReconnectAttempts = 3
     private var reconnectAttempts = 0
     
@@ -55,14 +56,23 @@ final class SonosListener {
     private var availableBuffers: [[UInt8]] = []
     private let maxBufferPoolSize = 10
     
+    public var isActive: Bool {
+        isRunning && socketHandle != -1
+    }
+    
+    private var serverMonitorTimer: DispatchSourceTimer?
+    private let serverCheckInterval: TimeInterval = 30 // Check every 30 seconds
+    
     init(port: UInt16) {
         self.config = SonosListenerConfig(port: port)
         self.queue = DispatchQueue(label: config.queueLabel)
         setupLifecycleObservers()
         setupServer()
+        startServerMonitoring()
     }
     
     deinit {
+        stopServerMonitoring()
         removeLifecycleObservers()
         stopServer()
     }
@@ -319,10 +329,20 @@ final class SonosListener {
             return
         }
         
-        // Initialize buffer for this client
+        // Set keep-alive options
+        var keepAlive: Int32 = 1
+        var keepIdle: Int32 = 60 // Start probing after 60 seconds of inactivity
+        var keepInterval: Int32 = 10 // Send probe every 10 seconds
+        var keepCount: Int32 = 5 // Allow 5 probes before considering connection dead
+        
+        setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE, &keepAlive, socklen_t(MemoryLayout<Int32>.size))
+        setsockopt(socket, IPPROTO_TCP, TCP_KEEPALIVE, &keepIdle, socklen_t(MemoryLayout<Int32>.size))
+        setsockopt(socket, IPPROTO_TCP, TCP_KEEPINTVL, &keepInterval, socklen_t(MemoryLayout<Int32>.size))
+        setsockopt(socket, IPPROTO_TCP, TCP_KEEPCNT, &keepCount, socklen_t(MemoryLayout<Int32>.size))
+        
+        // Rest of handleClient implementation remains the same
         clientBuffers[socket] = Data()
         
-        // Create read source for client socket
         let source = DispatchSource.makeReadSource(fileDescriptor: socket, queue: queue)
         
         source.setEventHandler { [weak self] in
@@ -340,7 +360,7 @@ final class SonosListener {
         clientSources[socket] = source
         source.resume()
     }
-    
+
     private var readSource: DispatchSourceRead?
     private var clientSources: [Int32: DispatchSourceRead] = [:]
     private var clientBuffers: [Int32: Data] = [:]
@@ -371,11 +391,15 @@ final class SonosListener {
             let bytesRead = recv(socket, &buffer, buffer.count, 0)
             
             if bytesRead > 0 {
+                // Process data directly to avoid race conditions
+                if clientBuffers[socket] == nil {
+                    clientBuffers[socket] = Data()
+                }
                 clientBuffers[socket]?.append(contentsOf: buffer[..<bytesRead])
                 
-                if processBuffer(socket: socket) {
-                    break  // Request fully processed
-                }
+                // Try to process as many complete messages as possible
+                while processBuffer(socket: socket) {}
+                
             } else if bytesRead == 0 || (bytesRead == -1 && errno != EAGAIN) {
                 clientSources[socket]?.cancel()
                 return
@@ -384,60 +408,67 @@ final class SonosListener {
             }
         } while true
     }
-    
+
     private func processBuffer(socket: Int32) -> Bool {
-        guard let data = clientBuffers[socket] else { return false }
+        guard var data = clientBuffers[socket] else { return false }
         
+        // Try to find complete message boundary
         if let contentLength = expectedContentLengths[socket] {
-            if data.count >= contentLength {
-                processCompleteRequest(socket: socket)
-                return true
-            }
+            guard data.count >= contentLength else { return false }
+            
+            let messageData = data.prefix(contentLength)
+            data = data.dropFirst(contentLength)
+            clientBuffers[socket] = data
+            expectedContentLengths[socket] = nil
+            processCompleteRequest(socket: socket, data: Data(messageData))
+            return true
+            
         } else if let headerEndRange = data.range(of: Data("\r\n\r\n".utf8)) {
             let headerEndIndex = headerEndRange.upperBound
+            let headerData = data.prefix(headerEndIndex)
             
-            if let length = parseContentLength(from: data[..<headerEndIndex]) {
+            if let length = parseContentLength(headerString: String(data: headerData, encoding: .utf8) ?? "") {
                 expectedContentLengths[socket] = length
                 if data.count >= headerEndIndex + length {
-                    processCompleteRequest(socket: socket)
+                    let messageData = data.prefix(headerEndIndex + length)
+                    data = data.dropFirst(headerEndIndex + length)
+                    clientBuffers[socket] = data
+                    expectedContentLengths[socket] = nil
+                    processCompleteRequest(socket: socket, data: Data(messageData))
                     return true
                 }
             } else {
-                processCompleteRequest(socket: socket)
+                let messageData = data.prefix(headerEndIndex)
+                data = data.dropFirst(headerEndIndex)
+                clientBuffers[socket] = data
+                processCompleteRequest(socket: socket, data: Data(messageData))
                 return true
             }
         }
         return false
     }
-    
-    private func parseContentLength(from data: Data) -> Int? {
-        // Look for the header in binary data
-        let contentLengthPattern = "Content-Length: ".data(using: .utf8)!
-        if let range = data.range(of: contentLengthPattern) {
-            let startIndex = range.upperBound
-            // Find end of line
-            if let endRange = data[startIndex...].firstIndex(of: UInt8(ascii: "\r")) {
-                // Extract and parse the length value
-                let lengthData = data[startIndex..<endRange]
-                if let lengthStr = String(data: lengthData, encoding: .utf8),
-                   let length = Int(lengthStr.trimmingCharacters(in: .whitespaces)) {
-                    return length
-                }
+
+    private func parseContentLength(headerString: String) -> Int? {
+        let lines = headerString.components(separatedBy: "\r\n")
+        for line in lines {
+            let lowercaseLine = line.lowercased()
+            if lowercaseLine.hasPrefix("content-length:") {
+                let value = lowercaseLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
+                return Int(value)
             }
         }
         return nil
     }
+
     
-    private func processCompleteRequest(socket: Int32) {
-        guard let data = clientBuffers[socket] else {
-            clientSources[socket]?.cancel()
-            return
-        }
-        
+    private func processCompleteRequest(socket: Int32, data: Data) {
         let clientIP = getClientIP(socket: socket)
         
-        // Process the request in background
+        // Process the request in background with rate limiting
         queue.async { [weak self] in
+            // Add small delay between processing messages
+            usleep(1000) // 1ms delay
+            
             if let completeStr = String(data: data, encoding: .utf8) {
                 self?.handleSonosResponse(data, completeStr, clientIP: clientIP)
             }
@@ -446,9 +477,6 @@ final class SonosListener {
             _ = self?.standardResponse.withUnsafeBytes { buffer in
                 send(socket, buffer.baseAddress, buffer.count, 0)
             }
-            
-            // Clear resources
-            self?.clientSources[socket]?.cancel()
         }
     }
     
@@ -641,13 +669,64 @@ final class SonosListener {
         }
     }
     
-    func getActiveConnectionCount() -> Int {
+    private func startServerMonitoring() {
+        serverMonitorTimer?.cancel()
+        
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + serverCheckInterval, repeating: serverCheckInterval)
+        timer.setEventHandler { [weak self] in
+            self?.checkServerHealth()
+        }
+        timer.resume()
+        serverMonitorTimer = timer
+    }
+    
+    private func stopServerMonitoring() {
+        serverMonitorTimer?.cancel()
+        serverMonitorTimer = nil
+    }
+    
+    private func checkServerHealth() {
+        if !isActive {
+            print("Server not listening, attempting restart...")
+            restartServer()
+        }
+    }
+    
+    private func restartServer() {
+        stopServer()
+        setupServer()
+        print("Server restarted successfully")
+    }
+    
+    public func start() async throws {
+        if !isActive {
+            let serverReady = AsyncStream<Void> { continuation in
+                self.onServerReady = {
+                    continuation.yield(())
+                    continuation.finish()
+                }
+            }
+            
+            // Start the server
+            restartServer()
+            
+            // Wait for server to be ready
+            for await _ in serverReady {
+                // Server is ready
+                if !isActive {
+                    throw NSError(domain: "SonosListener", code: -1, userInfo: [NSLocalizedDescriptionKey: "Server failed to start"])
+                }
+                break
+            }
+        }
+    }
+    
+    public func getActiveConnectionCount() -> Int {
         return connectionQueue.sync { activeConnections.count }
     }
     
-    func getActiveDevices() -> Set<String> {
+    public func getActiveDevices() -> Set<String> {
         return connectionQueue.sync { activeConnections }
     }
 }
-
-

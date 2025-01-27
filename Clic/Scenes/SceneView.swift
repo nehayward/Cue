@@ -28,6 +28,10 @@ struct SceneView: View {
                         .padding(.horizontal, 12)
                         .contentShape(.contextMenuPreview, Capsule())
                         .contextMenu {
+                            // TODO: Add
+//                            Button("Edit") {
+//                                Router.main.sheet(to: .editScene(scene))
+//                            }
                             Button("Remove", role: .destructive) {
                                 scenes.removeAll { sceneSearch in
                                     sceneSearch.id == scene.id
