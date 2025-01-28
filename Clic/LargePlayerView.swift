@@ -284,6 +284,7 @@ struct LargePlayerView: View {
             imageTask = loadArtwork(url: newURL)
         }
         .onDisappear {
+            imageTask = nil
             imageTask?.cancel()
         }
     }
