@@ -2,45 +2,11 @@ import Foundation
 import SWXMLHash
 
 final class XMLParserSonos {
-
-    func parse(xml: String) {
-        let xml = XMLHash.parse(xml)
-        let zones = xml["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
-        let zonesParsed: [ZoneGroup] = try! zones.value()
-        print(zonesParsed)
-
-        let groups = zones[0].filterChildren { elem, index in
-            elem.name == "ZoneGroupMember"
-        }.children
-
-        print(groups)
-
-        let member: [ZoneGroupMember] = try! groups[0].value()
-        print(member)
-
-        print(zones["ZoneGroupMember"].description)
-
-        let allRooms = zonesParsed.flatMap { zoneGroup in
-            zoneGroup.zoneGroupMembers.compactMap {
-                if !$0.invisible {
-                    return Room(id: $0.UUID, ip: $0.location, name: $0.zoneName, channelMap: $0.channelMap, satChannelMap: $0.satChannelMap)
-                } else {
-                    return nil
-                }
-            }
-        }
-
-        print(allRooms)
-
-        print(zonesParsed)
-
-        zonesParsed.forEach { zoneGroup in
-            zoneGroup.zoneGroupMembers.forEach { zoneGroupMember in
-                print(zoneGroupMember.zoneName)
-            }
-            print()
-        }
-    }
+    private lazy var dateFormatter: DateFormatter = {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        return dateFormatter
+    }()
 
     func parseVolume(xml: String) throws -> Int {
         let xml = XMLHash.parse(xml)
@@ -83,15 +49,6 @@ final class XMLParserSonos {
 
             return VanishedDevice(id: id, name: name, reason: reason, IP: lastKnownIP, lastSeen: date, info: info, macAddress: macAddress)
         }
-    }
-
-    func parseZonesEvent(xml: String) -> [ZoneGroup] {
-        let xmlParsed = XMLHash.parse(xml)
-        let zones = xmlParsed["e:propertyset"]["e:property"][0]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
-        guard let zonesParsed: [ZoneGroup] = try? zones.value() else {
-            return []
-        }
-        return zonesParsed
     }
 
     func parsePositionInfo(xml: String, IP: String, preferredIPForTrackAlbumArt: String?) -> Track? {
@@ -732,7 +689,7 @@ final class XMLParserSonos {
 
     func parsePlaylistsTracks(IP: String, xml: String) -> [PlayableContent] {
         let xmlParsed = XMLHash.parse(xml)
-        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
+        guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return [] }
         let resultsParsed = XMLHash.parse(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
 

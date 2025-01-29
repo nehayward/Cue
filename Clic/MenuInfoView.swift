@@ -64,6 +64,28 @@ struct MenuInfoView: View {
                 }
 
                 ControlGroup {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        Task {
+                            await sonosService.setGroupMute(group: group, mute: !group.isMuted)
+                        }
+                    } label: {
+                        Label {
+                            Text("\(group.isMuted ? "Unmute" : "Mute")")
+                        } icon: {
+                            Image(group.isMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
+                                .resizable()
+                                .scaledToFit()
+                                .symbolRenderingMode(group.isMuted ? .hierarchical : .monochrome)
+                                .contentTransition(.symbolEffect(.replace))
+                                .foregroundStyle(.primary)
+                                .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing)
+                    .hoverEffect(.automatic)
+
                     if let isCrossfaded = group.isCrossfaded {
                         Button {
                             Task {

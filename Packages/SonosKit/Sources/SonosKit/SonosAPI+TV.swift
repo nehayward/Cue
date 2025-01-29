@@ -13,7 +13,7 @@ extension SonosAPI {
             throw SonosAPIError.failedLoading
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return try XMLParserSonos().parseForCurrentValue(xml: xml)
+        return try xmlParser.parseForCurrentValue(xml: xml)
     }
 
     func setDialogLevel(IP: String, enabled: Bool) async throws {
@@ -42,7 +42,7 @@ extension SonosAPI {
             throw SonosAPIError.failedLoading
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return try XMLParserSonos().parseForCurrentValue(xml: xml)
+        return try xmlParser.parseForCurrentValue(xml: xml)
     }
 
     func setNightMode(IP: String, enabled: Bool) async throws {
@@ -94,7 +94,7 @@ extension SonosAPI {
             throw SonosAPIError.failedLoading
         }
         let xml = String(decoding: data, as: UTF8.self)
-        return try XMLParserSonos().parseForHTAudioIn(xml: xml)
+        return try xmlParser.parseForHTAudioIn(xml: xml)
     }
 
     func tvInput(IP: String, ID: String) async {

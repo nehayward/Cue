@@ -87,32 +87,32 @@ struct PreferenceScreen: View {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
                 
-                if UIApplication.shared.isRunningInTestFlightEnvironment() {
-                    Section {
-                        NavigationLink("Logs") {
-                            LogScreen()
-                        }
-                        if let vanishes = sonosService.system?.vanished {
-                            Text("Vanished")
-                            ForEach(vanishes) { vanish in
-                                VStack(alignment: .leading) {
-                                    Text(vanish.id)
-                                    Text(vanish.name ?? "")
-                                    if let lastSeen = vanish.lastSeen {
-                                        Text(lastSeen, format: .dateTime)
-                                    }
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("Debug 👾")
-                    }
-                    
-                    PaywallButtonView()
-                        .environment(router)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                }
+//                if UIApplication.shared.isRunningInTestFlightEnvironment() {
+//                    Section {
+//                        NavigationLink("Logs") {
+//                            LogScreen()
+//                        }
+//                        if let vanishes = sonosService.system?.vanished {
+//                            Text("Vanished")
+//                            ForEach(vanishes) { vanish in
+//                                VStack(alignment: .leading) {
+//                                    Text(vanish.id)
+//                                    Text(vanish.name ?? "")
+//                                    if let lastSeen = vanish.lastSeen {
+//                                        Text(lastSeen, format: .dateTime)
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    } header: {
+//                        Text("Debug 👾")
+//                    }
+//                    
+//                    PaywallButtonView()
+//                        .environment(router)
+//                        .listRowBackground(Color.clear)
+//                        .listRowInsets(EdgeInsets())
+//                }
                 
                 Section {
                     Label {

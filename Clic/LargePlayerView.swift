@@ -44,7 +44,7 @@ struct LargePlayerView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .symbolRenderingMode(.hierarchical)
-                        .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                        .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
                         .opacity(0.2)
                     TVModeView()
                     Spacer()
@@ -53,7 +53,7 @@ struct LargePlayerView: View {
             } else {
                 artworkView(true)
                     .padding(.bottom, 12)
-                    .frame(maxWidth: isMacCatalystOrPad ? 500 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                    .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
                     Text(stationName)
                         .multilineTextAlignment(.center)
@@ -90,6 +90,7 @@ struct LargePlayerView: View {
             VStack {
                 VolumeControlView(group: $group)
                     .padding(.bottom, 12)
+                    .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
                 
                 if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {

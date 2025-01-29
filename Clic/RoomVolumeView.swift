@@ -19,52 +19,72 @@ struct RoomVolumeView: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                Task {
-                    await sonosService.setRoomMute(room: room, mute: !room.isMuted)
-                }
-            } label: {
-                Image(room.isMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: room.volume/100)
-                    .resizable()
-                    .scaledToFit()
-                    .symbolRenderingMode(room.isMuted ? .hierarchical : .monochrome)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(.primary)
-                    .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
-            }
-            .buttonStyle(.plain)
-            .padding(.trailing)
-
-
-            VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, delayDrag: true) { isEditing in
-                if room.isMuted {
+        VStack {
+            HStack(alignment: .center, spacing: 0) {
+                Button {
                     Task {
-                        await sonosService.setRoomMute(room: room, mute: false)
+                        HapticManager.shared.fireHaptic(.selection)
+                        await sonosService.setRelativeVolume(ip: room.ip, volume: -2)
+                        room.volume = max(0, room.volume - 2)
+                    }
+                    
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                        room.isEditingVolume = isEditing
+                    }
+                } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 24, height: 24)
+                        .bold()
+                }
+                .tint(.primary)
+                .buttonStyle(.liveActivity)
+                .buttonRepeatBehavior(.enabled)
+                
+                VibeSlider(value: $room.volume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: true, showValue: true) { isEditing in
+                    if room.isMuted {
+                        Task {
+                            await sonosService.setRoomMute(room: room, mute: false)
+                        }
+                    }
+                    self.isEditing = isEditing
+                    updateVolume(volume: room.volume)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                        room.isEditingVolume = isEditing
                     }
                 }
-                self.isEditing = isEditing
-                updateVolume(volume: room.volume)
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                    room.isEditingVolume = isEditing
+                
+                Button {
+                    if room.isMuted {
+                        Task {
+                            await sonosService.setRoomMute(IP: room.ip, mute: false)
+                        }
+                    }
+                    Task {
+                        HapticManager.shared.fireHaptic(.selection)
+                        await sonosService.setRelativeVolume(ip: room.ip, volume: 2)
+                        room.volume = min(100, room.volume + 2)
+                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                        room.isEditingVolume = isEditing
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 24, height: 24)
+                        .bold()
                 }
+                .tint(.primary)
+                .buttonStyle(.liveActivity)
+                .buttonRepeatBehavior(.enabled)
             }
-            Text("\(room.volume, specifier: "%03.0f")%")
-                .contentTransition(.numericText())
-                .monospacedDigit()
-                .animation(.spring.speed(2), value: room.volume)
-                .frame(width: 38, alignment: .trailing)
-                .fontDesign(.rounded)
-                .bold()
         }
         .opacity(room.isMuted ? 0.4 : 1)
         .font(.caption)
         .fontDesign(.rounded)
-        .animation(.interactiveSpring, value: room.volume)
         .animation(.interactiveSpring, value: room.isMuted)
-        .frame(height: 40)
+        .frame(height: 60)
     }
 
     private func updateVolume(volume: Double) {
@@ -79,6 +99,6 @@ struct RoomVolumeView: View {
 }
 
 #Preview {
-    return RoomVolumeView(room: .constant(.garage))
+    RoomVolumeView(room: .constant(.gym))
         .environment(SonosService.shared)
 }

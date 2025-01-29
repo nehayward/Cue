@@ -49,12 +49,13 @@ struct DeviceListMainView: View {
                                         insertion: .opacity,
                                         removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
                                     ))
+                                    .padding(.horizontal, 12)
                                 }
                                 VolumeControlView(group: $group, delayDrag: true)
                             }
                         }
                         .animation(.spring, value: group.tvSettings)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: group.TVMode ? 12 : 10, trailing: 12))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
                         .listRowBackground(Color(UIColor.secondarySystemGroupedBackground))

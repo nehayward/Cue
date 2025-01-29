@@ -17,24 +17,26 @@ struct VolumeControlView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
                 Task {
-                    await sonosService.setGroupMute(group: group, mute: !group.isMuted)
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: -2)
+                    group.groupVolume = max(0, group.groupVolume - 2)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                        group.isEditingVolume = isEditing
+                    }
                 }
             } label: {
-                Image(group.isMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: group.groupVolume/100)
-                    .resizable()
-                    .scaledToFit()
-                    .symbolRenderingMode(group.isMuted ? .hierarchical : .monochrome)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(.primary)
-                    .frame(width: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, height: UIDevice.current.userInterfaceIdiom == .phone ? 18 : 24, alignment: .trailing)
+                Image(systemName: "minus")
+                    .frame(width: 24, height: 24)
+                    .bold()
             }
-            .buttonStyle(.plain)
-            .padding(.trailing)
-            .hoverEffect(.automatic)
+            .tint(.primary)
+            .buttonStyle(.liveActivity)
+            .buttonRepeatBehavior(.enabled)
 
-            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 12 : 20, delayDrag: delayDrag) { isEditing in
+            
+            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: delayDrag, showValue: true) { isEditing in
                 if group.isMuted {
                     Task {
                         await sonosService.setGroupMute(group: group, mute: false)
@@ -48,18 +50,34 @@ struct VolumeControlView: View {
                     group.isEditingVolume = isEditing
                 }
             }
-            .foregroundStyle(.accent)
-            Text("\(group.groupVolume, specifier: "%03.0f")%")
-                .contentTransition(.numericText())
-                .monospacedDigit()
-                .animation(.spring.speed(2), value: group.groupVolume)
-                .frame(width: 38, alignment: .trailing)
-                .fontDesign(.rounded)
-                .bold()
+            .foregroundStyle(.primary)
+            
+            Button {
+                if group.isMuted {
+                    Task {
+                        await sonosService.setGroupMute(group: group, mute: false)
+                    }
+                }
+                Task {
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: 2)
+                    group.groupVolume = min(100, group.groupVolume + 2)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                        group.isEditingVolume = isEditing
+                    }
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .frame(width: 24, height: 24)
+                    .bold()
+            }
+            .tint(.primary)
+            .buttonStyle(.liveActivity)
+            .buttonRepeatBehavior(.enabled)
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .animation(.interactiveSpring, value: group.groupVolume)
         .frame(height: UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40)
         .opacity(group.isMuted ? 0.6 : 1)
         .animation(.spring, value: group.isMuted)

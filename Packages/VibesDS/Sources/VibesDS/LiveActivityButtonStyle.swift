@@ -10,6 +10,7 @@ public struct LiveActivityButtonStyle: ButtonStyle {
     struct LiveActivityButton: View {
         @Environment(\.isEnabled) private var isEnabled: Bool
         let configuration: ButtonStyle.Configuration
+        @State private var isAnimatingPress: Bool = false
 
         var body: some View {
             configuration
@@ -22,12 +23,25 @@ public struct LiveActivityButtonStyle: ButtonStyle {
                .padding(12)
                .background{
                    Circle()
-                       .foregroundStyle(.quaternary.opacity(configuration.isPressed ? 1 : 0))
+                       .foregroundStyle(.quaternary.opacity(isAnimatingPress ? 1 : 0))
                }
-               .scaleEffect(configuration.isPressed ? 0.85 : 1)
-               .opacity(configuration.isPressed ? 0.8 : 1)
-               .animation(.default, value: configuration.isPressed)
+               .scaleEffect(isAnimatingPress ? 0.85 : 1)
+               .opacity(isAnimatingPress ? 0.8 : 1)
+               .animation(.default, value: isAnimatingPress)
                .opacity(isEnabled ? 1.0 : 0.4)
+               .contentShape(Circle())
+               .onChange(of: configuration.isPressed) { wasPressed, isPressed in
+                    if isPressed {
+                        isAnimatingPress = true
+                    } else {
+                        // Add a slight delay before releasing the animation
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation {
+                                isAnimatingPress = false
+                            }
+                        }
+                    }
+               }
         }
     }
 }
