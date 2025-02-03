@@ -13,6 +13,8 @@
 		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
+		0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0155DC0A2D4D47EA00A452D4 /* Kingfisher */; };
+		017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 017008652D49DCB700416FD3 /* SonosKitMini */; };
 		01791F182D224223006EBC22 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01791F172D224223006EBC22 /* Kingfisher */; };
 		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
 		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -72,13 +74,11 @@
 		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
 		E9C03B092A586F6100FB9118 /* Clic Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9C03B0E2A586F7E00FB9118 /* SonosKit */; };
 		E9C2C4382C580FE000ABC177 /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E9C2C4372C580FE000ABC177 /* Glur */; };
 		E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9D49E4D2BC9D21B0084185E /* Analytics */; };
 		E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
 		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
-		E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C52B4E62040039AAA6 /* NukeUI */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
 /* End PBXBuildFile section */
 
@@ -608,11 +608,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E9F600C62B4E62040039AAA6 /* NukeUI in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
-				E9C03B0F2A586F7E00FB9118 /* SonosKit in Frameworks */,
+				0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */,
 				E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */,
 				010DBB252C89605C000E278E /* Defaults in Frameworks */,
+				017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -922,11 +922,11 @@
 			);
 			name = "Clic (Watch)";
 			packageProductDependencies = (
-				E9C03B0E2A586F7E00FB9118 /* SonosKit */,
 				E959B91B2AB506BF000D596E /* CloudStorage */,
 				E959B91E2AB65F3D000D596E /* VibesDS */,
-				E9F600C52B4E62040039AAA6 /* NukeUI */,
 				010DBB242C89605C000E278E /* Defaults */,
+				017008652D49DCB700416FD3 /* SonosKitMini */,
+				0155DC0A2D4D47EA00A452D4 /* Kingfisher */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -2844,6 +2844,15 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
+		0155DC0A2D4D47EA00A452D4 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		017008652D49DCB700416FD3 /* SonosKitMini */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKitMini;
+		};
 		01791F172D224223006EBC22 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
@@ -3034,10 +3043,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
-		E9C03B0E2A586F7E00FB9118 /* SonosKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SonosKit;
-		};
 		E9C2C4372C580FE000ABC177 /* Glur */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */;
@@ -3053,11 +3058,6 @@
 			productName = Nuke;
 		};
 		E9F600C32B4E5E470039AAA6 /* NukeUI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
-			productName = NukeUI;
-		};
-		E9F600C52B4E62040039AAA6 /* NukeUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
 			productName = NukeUI;

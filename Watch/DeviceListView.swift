@@ -1,34 +1,45 @@
 import CloudStorage
 import SwiftUI
-import SonosKit
+import SonosKitMini
 import VibesDS
 
 struct DeviceListView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosMiniService.self) var sonosService: SonosMiniService
     @Environment(Router.self) var router: Router
     @Environment(Popover.self) var popover: Popover
     @Binding var activeSubscription: Bool
     @Binding var selected: String?
 
-    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+//    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
+    
+    private var filteredDeviceBindings: [SonosDevice] {
+        sonosService.sortedNowPlaying.filter(\.isVisible)
+    }
 
     var body: some View {
-        @Bindable var sonosService = sonosService
         @Bindable var router = router
         
-        // MARK: Add Back for Debugging
+//         MARK: Add Back for Debugging
 //        let _ = Self._printChanges()
         NavigationSplitView {
             List (selection: $selected) {
-                ForEach($sonosService.sorted) { $group in
-                    DeviceCellView(group: $group)
-                        .tag(group.coordinatorID)
-                        .redacted(reason: enabled(group: group) ? [] : .placeholder)
-                        .disabled(!enabled(group: group))
-                        .selectionDisabled(!enabled(group: group))
-                        .padding(.vertical)
+                ForEach(filteredDeviceBindings) { device in
+                    DeviceCellView(id: device.id)
+                        .frame(maxHeight: 200)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.9)
+                                .combined(with: .opacity),
+                            removal: .scale(scale: 0.4)
+                                .combined(with: .opacity)
+                        ))
+                        .id(device.id)
+                        .redacted(reason: enabled(device) ? [] : .placeholder)
+                        .disabled(!enabled(device))
+                        .selectionDisabled(!enabled(device))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 0))
                 }
             }
+            .animation(.interactiveSpring, value: filteredDeviceBindings)
             .listStyle(.carousel)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -50,15 +61,15 @@ struct DeviceListView: View {
             }
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         } detail: {
-            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                PlayerScreen(group: $sonosService.sorted[index])
+            if let selected {
+                PlayerScreen(id: selected)
             } else {
                 Text("Group No Longer Available")
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            if sonosService.isSearching && sonosService.groups.isEmpty {
+        .overlay {
+            if filteredDeviceBindings.isEmpty {
                 Label("Searching", systemImage: "waveform.badge.magnifyingglass")
                     .imageScale(.large)
                     .symbolEffect(.variableColor)
@@ -67,15 +78,7 @@ struct DeviceListView: View {
                         Capsule()
                             .foregroundStyle(.ultraThinMaterial)
                     }
-                    .transition(.push(from: .bottom).combined(with: .scale))
-            }
-        }
-        .animation(.spring, value: sonosService.isSearching)
-        .onChange(of: selected) {
-            if let selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == selected }) {
-                sonosService.selectedGroup = sonosService.sorted[index]
-            } else {
-                sonosService.selectedGroup = nil
+                    .transition(.opacity)
             }
         }
         .overlay {
@@ -84,86 +87,25 @@ struct DeviceListView: View {
                     .ignoresSafeArea()
                     .foregroundStyle(.ultraThinMaterial)
                     .overlay {
-                        Text(popover.text)
-                            .animation(nil)
+                        VStack {
+                            Text(popover.text)
+                                .fontDesign(.rounded)
+                                .font(.title)
+                                .bold()
+                            let value = Double(popover.text) ?? 0.0
+                            VibeSlider(value: .constant(value), in: 0...100, step: 1, baseHeight: 12, delayDrag: false)
+                                .padding(.horizontal)
+                        }
                     }
                     .transition(.opacity)
+       
             }
         }
-        .background(Color.clear)
-        .animation(.interactiveSpring, value: sonosService.groups)
-//        .overlay {
-//            VStack {
-//                Text(!sonosService.sonosPulse.isCancelled ? "Running" : "Cancelled")
-//                    .bold()
-//                Spacer()
-//            }
-//            .ignoresSafeArea()
-//        }
-//        .overlay(alignment: .top) {
-//            if sonosService.systemNotFound {
-//                VStack {
-//                    Text("Disconnected \(sonosService.isRunning ? "Running" : "Failed"), \(sonosService.lastKnownIP)")
-//                        .bold()
-//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-//                    Button {
-//                        sonosService.monitorWatch()
-//                    } label: {
-//                        Text("Search for System")
-//                            .bold()
-//                    }
-//                    .buttonStyle(.borderedProminent)
-//                    .foregroundStyle(.thickMaterial)
-//                    .padding()
-//                }
-//                .background {
-//                    Rectangle()
-//                        .foregroundStyle(.thinMaterial)
-//                        .ignoresSafeArea()
-//                }
-//            }
-//
-//            if sonosService.groups.isEmpty {
-//                VStack {
-//                    Text("Empty \(sonosService.isRunning ? "Running" : "Failed")")
-//                        .bold()
-//                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-//                    Button {
-//                        sonosService.monitorWatch()
-//                    } label: {
-//                        Text("Search for System")
-//                            .bold()
-//                    }
-//                    .buttonStyle(.borderedProminent)
-//                    .foregroundStyle(.thickMaterial)
-//                    .padding()
-//                }
-//                .background {
-//                    Rectangle()
-//                        .foregroundStyle(.thinMaterial)
-//                        .ignoresSafeArea()
-//                }
-//            }
-//        }
-//        .animation(.smooth, value: sonosService.systemNotFound)
-//        .animation(.smooth, value: sonosService.groups)
     }
 
-    private func enabled(group: GroupRoom) -> Bool {
+    private func enabled(_ device: SonosDevice) -> Bool {
         if activeSubscription { return true }
-        guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
+        guard let index = sonosService.sorted.firstIndex(of: device) else { return false }
         return index < 1
     }
-}
-
-#Preview {
-    DeviceListView(activeSubscription: .constant(false), selected: .constant(nil))
-        .environment(Router())
-        .withEnvironments()
-}
-
-#Preview("Active Subscription") {
-    DeviceListView(activeSubscription: .constant(true), selected: .constant(nil))
-        .environment(Router())
-        .withEnvironments()
 }

@@ -40,4 +40,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         self.content = content
         self.metadata = metadata
     }
+    
+    public static func == (lhs: PlayableContent, rhs: PlayableContent) -> Bool {
+        lhs.content == rhs.content && lhs.title == rhs.title && lhs.metadata?.position ?? 0 == rhs.metadata?.position ?? 0
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(content)
+        hasher.combine(title)
+        hasher.combine(metadata?.position ?? 0)
+    }
 }

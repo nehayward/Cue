@@ -12,8 +12,9 @@ public struct SonosDevice: Identifiable {
     public var name: String
     public let id: String  // RINCON ID
     public let ip: String
-    public var isHidden: Bool { currentTrackURI.contains("x-rincon") }
-    
+    public var isHidden: Bool
+    public var isVisible: Bool { !isHidden }
+
     // Volume properties
     public var groupVolume: Double = 0
     public var groupIsMuted: Bool = false
@@ -57,10 +58,10 @@ public struct SonosDevice: Identifiable {
     var lastUpdate: Date = .now
     
     public var rooms: [SonosDevice] = []
+    public var allDevices: [SonosDevice] { [self] + rooms }
     
-    var queueTotal: Int?
+    var queueTotal: Int? = nil
     
-
     public let channelMap: String?
     public let satChannelMap: String?
     
@@ -72,35 +73,37 @@ public struct SonosDevice: Identifiable {
     public var battery: Battery? = nil
     public var macAddress: String? = nil
     public var location: URL? = nil
-    public var wirelessMode: Int
-    public var wirelessLeafOnly: Bool
-    public var behindWifiExtender: Bool
-    public var wifiEnabled: Bool
-    public var ethernetEnabled: Bool
-    public var voiceConfigState: Int
-    public var micEnabled: Bool
-    public var airPlayEnabled: Bool
-    public var invisible: Bool
+    public var wirelessMode: Int = 0
+    public var wirelessLeafOnly: Bool = false
+    public var behindWifiExtender: Bool = false
+    public var wifiEnabled: Bool = false
+    public var ethernetEnabled: Bool = false
+    public var voiceConfigState: Int = 0
+    public var micEnabled: Bool = false
+    public var airPlayEnabled: Bool = false
     public var info: DeviceInfo? = nil
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
     public var subs: [Sub] = []
-    public var queue: Set<PlayableContent> = []
-    
+    public var queue: [PlayableContent] = []
     
     public var sonosAlbumARTURL: URL? {
         guard let endpoint = currentTrackMetadata?.albumArtURI?.unescaped else {
             return nil
         }
-        print("http://\(ip):1400\(endpoint)")
-        guard let url = URL(string: "http://\(ip):1400\(endpoint)") else {
-            return nil
+    
+        let albumArtURL: URL?
+        if let url = URL(string: endpoint), url.scheme != nil {
+            // If it's already a valid URL with a scheme (http/https), use it directly
+            albumArtURL = url
+        } else {
+            // Otherwise, construct the Sonos-specific URL
+            albumArtURL = URL(string: "http://\(ip):1400\(endpoint)")
         }
         
-        return url
+        return albumArtURL
     }
 }
-
 
 extension SonosDevice: Hashable {
     public static func == (lhs: SonosDevice, rhs: SonosDevice) -> Bool {
@@ -108,12 +111,14 @@ extension SonosDevice: Hashable {
         lhs.name == rhs.name &&
         rhs.rooms.count == lhs.rooms.count &&
         lhs.trackID == rhs.trackID &&
-        lhs.currentTrackMetadata == rhs.currentTrackMetadata &&
-        lhs.isPlaying == rhs.isPlaying 
+        lhs.track.trackID == rhs.track.trackID &&
+        lhs.isPlaying == rhs.isPlaying &&
+        lhs.currentTrackMetadata == rhs.currentTrackMetadata
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+        hasher.combine(isPlaying)
     }
 }
 
@@ -129,4 +134,31 @@ extension SonosDevice {
             "\(name) + \(rooms.count)"
         }
     }
+}
+
+
+extension SonosDevice {
+//    public static let gym = Self(name: "Gym", id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", isHidden: false)
+    
+    
+//    public static let garage = Self(id: "RINCON_B8E937525BB001400:931790658",
+//                                    coordinatorID: SonosRoom.garage.id,
+//                                    rooms: [.garage],
+//                                    coordinatorRoom: .garage)
+//    
+//    public static let theater = Self(id: "RINCON_48A6B80D8FB401400:2447655188",
+//                                     coordinatorID: SonosRoom.theater.id,
+//                                     rooms: [.theater],
+//                                     coordinatorRoom: .theater,
+//                                     tvSettings: SonosTVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .unknown))
+//    
+//    public static let garage_kitchen_display = Self(id: "RINCON_B8E937525BB001400:931790658",
+//                                                    coordinatorID: SonosRoom.garage_kitchen_display.id,
+//                                                    rooms: [.garage_kitchen_display],
+//                                                    coordinatorRoom: .garage_kitchen_display)
+//    
+//    public static let garagePlusTheater = Self(id: "RINCON_B8E937525BB001400:931790658",
+//                                               coordinatorID: SonosRoom.garage.id,
+//                                               rooms: [.garage, .theater],
+//                                               coordinatorRoom: .garage)
 }

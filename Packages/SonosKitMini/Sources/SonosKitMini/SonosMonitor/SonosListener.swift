@@ -66,9 +66,11 @@ final class SonosListener {
     init(port: UInt16) {
         self.config = SonosListenerConfig(port: port)
         self.queue = DispatchQueue(label: config.queueLabel)
+        #if !os(watchOS)
         setupLifecycleObservers()
         setupServer()
         startServerMonitoring()
+        #endif
     }
     
     deinit {

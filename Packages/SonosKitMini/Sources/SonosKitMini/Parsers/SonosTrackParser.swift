@@ -9,72 +9,68 @@ final class SonosTrackParser {
             return nil
         }
         
-        // Extract transport state
-        let transportState = extractValue(from: bodyContent, forTag: "TransportState")
-        let currentPlayMode = extractValue(from: bodyContent, forTag: "CurrentPlayMode")
-        let numberOfTracks = Int(extractValue(from: bodyContent, forTag: "NumberOfTracks") ?? "0") ?? 0
-        let currentTrack = Int(extractValue(from: bodyContent, forTag: "CurrentTrack") ?? "0") ?? 0
-        let currentTrackDuration = extractValue(from: bodyContent, forTag: "CurrentTrackDuration")
-        
-        // Extract track information
-        let track = Int(extractValue(between: "<Track>", and: "</Track>", from: bodyContent) ?? "0") ?? 0
+        let position = Int(extractValue(between: "<Track>", and: "</Track>", from: bodyContent) ?? "0") ?? 0
         let trackDuration = extractValue(between: "<TrackDuration>", and: "</TrackDuration>", from: bodyContent)
-        let trackURI = extractValue(between: "<TrackURI>", and: "</TrackURI>", from: bodyContent)
+        let trackURI = extractValue(between: "<TrackURI>", and: "</TrackURI>", from: bodyContent) ?? ""
         
         // Extract metadata section
-        guard let metadataContent = extractValue(between: "<TrackMetaData>", and: "</TrackMetaData>", from: bodyContent.unescaped),
-              let itemContent = extractValue(between: "<item", and: "</item>", from: metadataContent) else {
-            return nil
+        if let metadataContent = extractValue(between: "<TrackMetaData>", and: "</TrackMetaData>", from: bodyContent.unescaped),
+           let itemContent = extractValue(between: "<item", and: "</item>", from: metadataContent) {
+            
+            // Parse track metadata
+            let title = extractValue(between: "<dc:title>", and: "</dc:title>", from: itemContent) ?? ""
+            let creator = extractValue(between: "<dc:creator>", and: "</dc:creator>", from: itemContent) ?? ""
+            let album = extractValue(between: "<upnp:album>", and: "</upnp:album>", from: itemContent) ?? ""
+            let albumArtURI = extractValue(between: "<upnp:albumArtURI>", and: "</upnp:albumArtURI>", from: itemContent) ?? ""
+            let streamContent = extractValue(between: "<r:streamContent>", and: "</r:streamContent>", from: itemContent) ?? ""
+            let upnpClass = extractValue(between: "<upnp:class>", and: "</upnp:class>", from: itemContent) ?? ""
+            
+            // Create track metadata
+            let metadata = SonosTrackMetadata(
+                title: title.unescaped.trimmingCharacters(in: .whitespacesAndNewlines),
+                creator: creator.unescaped,
+                album: album.unescaped,
+                albumArtURI: albumArtURI,
+                streamInfo: streamContent.isEmpty ? nil : SonosAudioStreamInfo.parse(from: streamContent)
+            )
+            let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
+
+            let ip = preferredIP ?? ip
+            let albumArtURL: URL?
+            if let url = URL(string: albumArtURI.unescaped), url.scheme != nil {
+                // If it's already a valid URL with a scheme (http/https), use it directly
+                albumArtURL = url
+            } else {
+                // Otherwise, construct the Sonos-specific URL
+                albumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            }
+
+            
+            return SonosTrack(
+                trackID: trackID,
+                trackURI: trackURI,
+                name: title.unescaped,
+                artist: creator.unescaped,
+                album: album.unescaped,
+                musicService: musicServiceType,
+                duration: .zero,
+                playbackPosition: .zero,
+                position: position,
+                sonosAlbumArtURL: albumArtURL,
+                metadata: nil,
+                albumArtURI: albumArtURI
+            )
         }
         
-        // Parse track metadata
-        let title = extractValue(between: "<dc:title>", and: "</dc:title>", from: itemContent) ?? ""
-        let creator = extractValue(between: "<dc:creator>", and: "</dc:creator>", from: itemContent) ?? ""
-        let album = extractValue(between: "<upnp:album>", and: "</upnp:album>", from: itemContent) ?? ""
-        let albumArtURI = extractValue(between: "<upnp:albumArtURI>", and: "</upnp:albumArtURI>", from: itemContent) ?? ""
-        let streamContent = extractValue(between: "<r:streamContent>", and: "</r:streamContent>", from: itemContent) ?? ""
-        let upnpClass = extractValue(between: "<upnp:class>", and: "</upnp:class>", from: itemContent) ?? ""
-        
-        // Create track metadata
-        let metadata = SonosTrackMetadata(
-            title: title.unescaped.trimmingCharacters(in: .whitespacesAndNewlines),
-            creator: creator.unescaped,
-            album: album.unescaped,
-            albumArtURI: albumArtURI,
-            streamInfo: streamContent.isEmpty ? nil : SonosAudioStreamInfo.parse(from: streamContent)
-        )
-//
-//        let ip = preferredIP ?? ip
-//        // First replace HTML entities
-//        let decodedAmpersand = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
-//
-//        // Then decode percent encoding and URL encoding
-//        let decodedUrl = decodedAmpersand
-//            .removingPercentEncoding?
-//            .replacingOccurrences(of: "%3a", with: ":")
-//            .replacingOccurrences(of: "%3f", with: "?")
-//            .replacingOccurrences(of: "%3d", with: "=")
-//            .replacingOccurrences(of: "%26", with: "&")
-//        
-//        var sonosAlbumArtURL: URL?
-//        
-//        if let decodedUrl, !decodedUrl.isEmpty {
-//            sonosAlbumArtURL = URL(string: "http://\(ip):1400\(decodedUrl)")
-//        }
-        
-        let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI ?? "")
-
+        let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
         return SonosTrack(
             trackID: trackID,
-            name: title,
-            artist: creator,
-            album: album,
+            trackURI: trackURI,
             musicService: musicServiceType,
             duration: .zero,
             playbackPosition: .zero,
-            position: 1,
-            metadata: nil,
-            albumArtURI: albumArtURI
+            position: position,
+            metadata: nil
         )
     }
     

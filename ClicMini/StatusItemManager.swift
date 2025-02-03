@@ -14,11 +14,12 @@ final class StatusItemManager {
     private var sizeCancellableWindow: AnyCancellable?
     
     func createStatusItem() {
+        if statusItem != nil { return }
         let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button!.target = self
         statusItem.button!.action = #selector(triggerStatus)
         statusItem.button!.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusItem.button?.image = NSImage(systemSymbolName: "hifispeaker.fill", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 14, weight: .regular))
+        statusItem.button?.image = NSImage(named: "clic.icon")?.withSymbolConfiguration(.init(pointSize: 32, weight: .black))
         
         // MARK: SwiftUI Menubar View
         //        // Add the hosting view for SwiftUI content

@@ -7,6 +7,8 @@ public struct SonosTrack: Identifiable, Sendable {
     
     /// The unique identifier of the track.
     public let trackID: String
+    
+    public let trackURI: String
 
     /// The name of the track.
     public var name: String
@@ -68,6 +70,7 @@ public struct SonosTrack: Identifiable, Sendable {
     ///   - sonosAlbumArtURL: The URL for the album art specific to Sonos service.
     public init(
         trackID: String,
+        trackURI: String,
         name: String = "",
         artist: String = "",
         album: String = "",
@@ -82,6 +85,7 @@ public struct SonosTrack: Identifiable, Sendable {
     ) {
         self.elapsed = .zero
         self.trackID = trackID
+        self.trackURI = trackURI
         self.name = name
         self.artist = artist
         self.album = album
@@ -109,6 +113,6 @@ extension SonosTrack: Hashable {
 
 public extension SonosTrack {
     /// A static instance of `Track` representing an empty state.
-    static let empty = SonosTrack(trackID: "", name: "")
-    static let alarm = SonosTrack(trackID: "x-rincon-buzzer:0", name: "Alarm")
+    static let empty = SonosTrack(trackID: "", trackURI: "", name: "")
+    static let alarm = SonosTrack(trackID: "x-rincon-buzzer:0", trackURI: "", name: "Alarm")
 }

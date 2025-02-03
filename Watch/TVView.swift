@@ -1,104 +1,139 @@
 import SwiftUI
-import SonosKit
+import SonosKitMini
 
 struct TVView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(\.scenePhase) var scenePhase
+    @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
     @Environment(Popover.self) var popOver: Popover
+    
+    let id: String
 
-    @Binding var group: GroupRoom
     @State private var volumeTask: Task<Void, Error>?
     @State private var isIdle: Bool = true
 
     var body: some View {
+        if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
+            deviceView(for: deviceIndex)
+        } else {
+            Text("Vanished")
+        }
+    }
+    
+    @ViewBuilder
+    func deviceView(for index: Int) -> some View {
+        @Bindable var sonosService = sonosService
+        let device = sonosService.devices[index]
+        let deviceBinding = $sonosService.devices[index]
+
         VStack(alignment: .center) {
             VStack {
-                if let settings = group.tvSettings {
-                    Text(settings.audioInputFormat.description)
-                        .bold()
-                }
-                Text("\(Text(group.groupVolume, format: .number))%")
+                Text(device.TVSettings?.audioInputFormat?.description ?? "--")
+                    .bold()
+                
                 Spacer()
                 HStack {
-                    if let settings = Binding<TVSettings>($group.tvSettings) {
-                        Button {
-                            Task {
-                                try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
-                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
-                            }
-                        } label: {
-                            Label("Night Mode", systemImage: "moon.zzz.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .toggleStyle(.button)
-                                .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
+                    Button {
+                        Task {
+                            try? await sonosService.setNightMode(device.ip, enabled: !nightMode)
+                            try? await sonosService.updateWatchDevices(from: [device])
                         }
-                        .buttonStyle(.bordered)
-                        .tint(settings.nightMode.wrappedValue ? .accent : nil)
-                        .animation(.spring, value: settings.nightMode.wrappedValue)
-
-                        Button {
-                            Task {
-                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
-                                group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
-                            }
-                        } label: {
-                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                                .symbolRenderingMode(.hierarchical)
-                                .labelStyle(.iconOnly)
-                                .toggleStyle(.button)
-                        }
-                        .buttonStyle(.bordered)
-                        .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                        .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
-                        .animation(.spring, value: settings.dialogLevel.wrappedValue)
+                    } label: {
+                        Label("Night Mode", systemImage: "moon.zzz.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
                     }
+                    .buttonBorderShape(.roundedRectangle)
+                    .opacity(nightMode ? 1 : 0.5)
+         
+                    Button {
+                        Task {
+                            try? await sonosService.setDialogLevel(device.ip, enabled:  !speachEnhancement)
+                            try? await sonosService.updateWatchDevices(from: [device])
+                        }
+                    } label: {
+                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonBorderShape(.roundedRectangle)
+                    .opacity(speachEnhancement ? 1 : 0.5)
+                }
+                
+                HStack(spacing: 0) {
+                    Button {
+                        Task {
+                            await sonosService.setRelativeGroupVolume(ip: device.ip, volume: -2)
+                            deviceBinding.groupVolume.wrappedValue = max(0, device.groupVolume - 2)
+                        }
+                    } label: {
+                        Image(systemName: "minus")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.liveActivity)
+                    Text(device.groupVolume, format: .number)
+                        .font(.title2)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .strikethrough(device.groupIsMuted, pattern: .dash, color: .red)
+                        .contentTransition(.numericText())
+                        .monospacedDigit()
+                    Button {
+                        Task {
+                            await sonosService.setRelativeVolume(ip: device.ip, volume: 2)
+                            deviceBinding.groupVolume.wrappedValue = min(100, device.groupVolume + 2)
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.liveActivity)
+                    .buttonRepeatBehavior(.enabled)
                 }
             }
+            .animation(.spring, value: device.volume)
             .fontDesign(.rounded)
         }
-        .padding()
-        .onAppear {
-            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-                sonosService.monitor()
+        .onChange(of: scenePhase, initial: true) {
+            if scenePhase == .active {
+                Task {
+                    try? await sonosService.updateWatchDevices(from: [device])
+                }
             }
         }
-        .tag(group.coordinatorID)
-        .focusable()
-        .digitalCrownRotation(detent: $group.groupVolume,
-                              from: 0,
-                              through: 100,
-                              by: 2,
-                              sensitivity: .low,
-                              isContinuous: false,
-                              isHapticFeedbackEnabled: true,
-                              onChange: { crownEvent in
-            isIdle = false
-            withAnimation {
-                popOver.isShowing = !isIdle
-            }
-            popOver.text = String(format: "%.0f", group.groupVolume)
-        }, onIdle: {
-            isIdle = true
-            withAnimation {
-                popOver.isShowing = !isIdle
-            }
-        })
-        .onChange(of: group.groupVolume) {
-            if isIdle { return }
-            volumeTask?.cancel()
-            volumeTask = Task {
-                await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(group.groupVolume))
-            }
+        .navigationTitle(device.nameWithCount)
+    }
+    
+    var nightMode: Bool {
+        guard let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }),
+              let tvSettings = sonosService.devices[deviceIndex].TVSettings else {
+            return false
         }
-        .navigationTitle(group.coordinatorRoom.name + "\(group.rooms.count > 1 ? " + \(group.rooms.count - 1)" : "")")
+                    
+        return tvSettings.nightMode
+    }
+    
+    
+    var speachEnhancement: Bool {
+        guard let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }),
+              let tvSettings = sonosService.devices[deviceIndex].TVSettings else {
+            return false
+        }
+                    
+        return tvSettings.dialogLevel
     }
 }
 
 #Preview {
     NavigationStack {
-        TVView(group: .constant(.theater))
-            .environment(SonosService())
+        TVView(id: "RINCON_48A6B80D8FB401400")
+            .environment(SonosMiniService.shared)
             .environment(Popover())
+            .task {
+                try? await SonosMiniService.shared.loadWatch(useCache: true)
+            }
     }
     .listStyle(.carousel)
 }

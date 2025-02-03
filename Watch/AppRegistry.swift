@@ -1,5 +1,6 @@
 import SonosKit
 import SwiftUI
+import SonosKitMini
 import VibesDS
 
 @MainActor
@@ -12,36 +13,27 @@ extension View {
                     PreferenceScreen()
                 case .scenes:
                     SceneView()
+//                    SceneView()
                 }
             }
             .withEnvironments()
         }
     }
-
-//    func withAppRouter(router: Router) -> some View {
-//        @Bindable var sonosService = SonosService.shared
-//
-//        return navigationDestination(for: RouterDestination.self) { destination in
-//            switch destination {
-//            case let .player(groupID):
-//                if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-//                    LargePlayerView(group: $sonosService.sorted[group])
-//                } else {
-//                    Text("Group No Longer Available")
-//                        .onTapGesture {
-//                            router.path.removeAll()
-//                        }
-//                }
-//            case let .groupDestination(content):
-//                PlayerSelectionView(playableContent: content)
-//            case .manageScenes:
-//                ManageSceneScreen()
-//            }
-//        }
-//    }
+    
+    func withAppRouter() -> some View {
+        navigationDestination(for: Path.self) { destination in
+            switch destination {
+            case let .player(id):
+                PlayerScreen(id: id)
+            default:     
+                Text("Group No Longer Available")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+        }
+    }
 
     func withEnvironments() -> some View {
-        environment(SonosService.shared)
+        environment(SonosMiniService.shared)
             .environment(Popover.shared)
             .environment(PlayHistoryService.shared)
     }

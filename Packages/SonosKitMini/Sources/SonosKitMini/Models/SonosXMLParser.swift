@@ -32,7 +32,7 @@ class SonosXMLParser: NSObject, XMLParserDelegate {
                     id: id,
                     coordinatorID: coordinator,
                     rooms: [],
-                    coordinatorRoom: SonosRoom(id: coordinator, ip: "", name: "")
+                    coordinatorRoom: SonosRoom(id: coordinator, groupID: coordinator, ip: "", name: "")
                 )
             }
         case "ZoneGroupMember":
@@ -42,7 +42,7 @@ class SonosXMLParser: NSObject, XMLParserDelegate {
                let softwareVersion = attributeDict["SoftwareVersion"] {
                 let ip = URL(string: location)?.host ?? ""
                 let isCoordinator = (uuid == currentGroup?.coordinatorID)
-                currentRoom = SonosRoom(id: uuid, ip: ip, name: name)
+                currentRoom = SonosRoom(id: uuid, groupID: currentGroup?.coordinatorID ?? "", ip: ip, name: name)
             }
         default:
             break

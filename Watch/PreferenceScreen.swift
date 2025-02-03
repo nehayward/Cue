@@ -3,10 +3,7 @@ import SwiftUI
 import SonosKit
 
 struct PreferenceScreen: View {
-    @State private var router = Router()
-    @State private var showSubscriptions = false
-
-    @CloudStorage("com.clic.autoLaunchNowPlaying")  private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     var body: some View {
         NavigationStack {

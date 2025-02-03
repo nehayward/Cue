@@ -5,6 +5,7 @@ import os
 @Observable
 public class SonosRoom: Equatable, Identifiable, Sendable {
     public let id: String
+    public let groupID: String
     public let ip: String
     public let name: String
     public let channelMap: String?
@@ -48,6 +49,7 @@ public class SonosRoom: Equatable, Identifiable, Sendable {
     
     public init(
         id: String,
+        groupID: String,
         ip: String,
         name: String,
         channelMap: String? = nil,
@@ -70,6 +72,7 @@ public class SonosRoom: Equatable, Identifiable, Sendable {
         info: DeviceInfo? = nil
     ) {
         self.id = id
+        self.groupID = groupID
         self.ip = ip
         self.name = name
         self.channelMap = channelMap
@@ -116,9 +119,9 @@ extension SonosRoom: CustomStringConvertible {
 }
 
 extension SonosRoom {
-    public static let garage = SonosRoom(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
-    public static let gym = SonosRoom(id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
-    public static let theater = SonosRoom(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: SonosTrack(trackID: "134"))
-    public static let livingRoom = SonosRoom(id: "RINCON_949F3E6FBAE401400", ip: "192.168.4.48", name: "Living Room")
-    public static let garage_kitchen_display = SonosRoom(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Kitchen")
+    public static let garage = SonosRoom(id: "RINCON_B8E937525BB001400", groupID: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
+    public static let gym = SonosRoom(id: "RINCON_7828CAC7352E01400", groupID: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
+    public static let theater = SonosRoom(id: "RINCON_48A6B80D8FB401400", groupID: "RINCON_7828CAC7352E01400", ip: "192.168.4.144", name: "Theater", track: SonosTrack(trackID: "134", trackURI: ""))
+    public static let livingRoom = SonosRoom(id: "RINCON_949F3E6FBAE401400", groupID: "RINCON_7828CAC7352E01400", ip: "192.168.4.48", name: "Living Room")
+    public static let garage_kitchen_display = SonosRoom(id: "RINCON_48A6B80D8FB401400", groupID: "RINCON_7828CAC7352E01400", ip: "192.168.4.144", name: "Kitchen")
 }

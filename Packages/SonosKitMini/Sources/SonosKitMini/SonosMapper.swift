@@ -15,7 +15,7 @@ extension ZoneGroup {
             return Sub(name: $0.zoneName, ip: ip)
         }
 
-        let rooms = members.compactMap { $0.toRoom(speakerSubs: subs)}
+        let rooms = members.compactMap { $0.toRoom(groupID: coordinator, speakerSubs: subs)}
         if rooms.isEmpty {
             return nil
         }
@@ -31,7 +31,7 @@ extension ZoneGroup {
 }
 
 extension ZoneGroupMember {
-    func toRoom(speakerSubs: [Sub]) -> SonosRoom? {
+    func toRoom(groupID: String, speakerSubs: [Sub]) -> SonosRoom? {
         guard !invisible else { return nil }
         let components = URLComponents(string: location)
         guard let ip = components?.host else { return nil }
@@ -51,6 +51,7 @@ extension ZoneGroupMember {
 
         return SonosRoom(
             id: UUID,
+            groupID: groupID,
             ip: ip,
             name: zoneName,
             channelMap: channelMap,
@@ -77,6 +78,7 @@ extension ZoneGroupMember {
         guard let ip = components?.host else { return nil }
         return SonosRoom(
             id: UUID,
+            groupID: UUID,
             ip: ip,
             name: zoneName,
             channelMap: channelMap,
@@ -102,9 +104,12 @@ extension SonosRoom {
             name: name,
             id: id,
             ip: ip,
+            isHidden: id != groupID,
             channelMap: channelMap,
             satChannelMap: satChannelMap,
             state: .active,
+            battery: battery,
+            location: location,
             wirelessMode: wirelessMode,
             wirelessLeafOnly: wirelessLeafOnly,
             behindWifiExtender: behindWifiExtender,
@@ -112,8 +117,7 @@ extension SonosRoom {
             ethernetEnabled: ethernetEnabled,
             voiceConfigState: voiceConfigState,
             micEnabled: micEnabled,
-            airPlayEnabled: airPlayEnabled,
-            invisible: invisible
+            airPlayEnabled: airPlayEnabled
         )
     }
 }

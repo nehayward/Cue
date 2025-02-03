@@ -29,7 +29,9 @@ final class SonosSubscriberService {
     init(callbackPort: UInt16, renewalInterval: TimeInterval = 60 * 30) {
         self.callbackPort = callbackPort
         self.renewalInterval = renewalInterval
+#if !os(watchOS)
         setupLifecycleObservers()
+#endif
     }
     
     deinit {

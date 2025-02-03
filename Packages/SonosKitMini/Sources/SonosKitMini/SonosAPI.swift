@@ -100,19 +100,19 @@ final class SonosAPI {
     }
 
 
-//    func setVolume(ipAddress: String, volume: Int) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master"),
-//            ("DesiredVolume", volume)
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//        }
-//    }
-//    
+    func setVolume(ipAddress: String, volume: Int) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master"),
+            ("DesiredVolume", volume)
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "SetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
+
     func getGroupMute(IP: String) async -> Bool? {
         let arguments: OrderedKeys = [
             ("InstanceID", 0)
@@ -134,40 +134,44 @@ final class SonosAPI {
         }
         return nil
     }
-//
-//    func getRoomMute(IP: String) async -> Bool? {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master")
-//        ]
-//
-//        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
-//            return nil
-//        }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//            return nil
-//        }
-//
-//        let xml = String(decoding: data, as: UTF8.self)
-//        return xmlParser.parseGetRoomMute(xml: xml)
-//    }
-//
-//    func setRoomMute(IP: String, mute: Bool) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master"),
-//            ("DesiredMute", mute ? 1 : 0)
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            logger.error("\(IP) Failed to \(#function)")
-//        }
-//    }
-//
+
+    func getDeviceMute(IP: String) async -> Bool? {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master")
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
+            return nil
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+            return nil
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "CurrentMute")
+        if let value = parser.parseXML(xml) {
+            return value == "1"
+        }
+        return nil
+    }
+
+    func setRoomMute(IP: String, mute: Bool) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master"),
+            ("DesiredMute", mute ? 1 : 0)
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetMute", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            
+        }
+    }
+
     func setGroupMute(IP: String, mute: Bool) async {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
@@ -180,48 +184,54 @@ final class SonosAPI {
 //            logger.error("\(IP) Failed to \(#function)")
         }
     }
-//
-//    func setRelativeVolume(ipAddress: String, volume: Int) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master"),
-//            ("Adjustment", volume)
-//        ]
-//
-//        try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl")
-//    }
-//
-//    func setRelativeGroupVolume(ipAddress: String, volume: Int) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Adjustment", volume)
-//        ]
-//
-//        try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl")
-//    }
-//
-//    func getVolume(ipAddress: String) async throws -> Double {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master")
-//        ]
-//
-//        guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
-//            throw SonosAPIError.requestBuild
-//        }
-//
-//        let xml = String(decoding: data, as: UTF8.self)
-//        let volume = try xmlParser.parseVolume(xml: xml)
-//        return Double(volume)
-//    }
-//
+
+    func setRelativeVolume(ipAddress: String, volume: Int) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master"),
+            ("Adjustment", volume)
+        ]
+
+        try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl")
+    }
+
+    func setRelativeGroupVolume(ipAddress: String, volume: Int) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Adjustment", volume)
+        ]
+
+        try? await sendSoapRequest(ip: ipAddress, action: "SetRelativeGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl")
+    }
+
+    func getVolume(ipAddress: String) async throws -> Double? {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master")
+        ]
+
+        guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetVolume", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else {
+            return nil
+        }
+        
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "CurrentVolume")
+        if let value = parser.parseXML(xml) {
+            print("Found Value: \(value)")
+            return Double(value) ?? 0
+        } else {
+            print("Failed to parse value for tag: CurrentVolume")
+        }
+        return nil
+    }
+
     func getGroupVolume(ipAddress: String) async throws -> Double? {
         let arguments: OrderedKeys = [
             ("InstanceID", 0)
         ]
 
         guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetGroupVolume", arguments: arguments, endpoint: "MediaRenderer/GroupRenderingControl") else {
-            return 0
+            return nil
         }
         
         let xml = String(decoding: data, as: UTF8.self)
@@ -272,17 +282,8 @@ final class SonosAPI {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        if let xmlData = xml.data(using: .utf8) {
-            print(xml)
-            let xmlTrackParser = SonosTrackParser.parse(xmlString: xml, ip: ipAddress, preferredIP: prioritizedAlbumArtIP)
-            
-//            xmlTrackParser.ip = ipAddress
-//            xmlTrackParser.preferredIP = prioritizedAlbumArtIP
-//            return xmlTrackParser.parse(data: xmlData)
-            return xmlTrackParser
-        }
-        
-        return nil
+        let xmlTrackParser = SonosTrackParser.parse(xmlString: xml, ip: ipAddress, preferredIP: prioritizedAlbumArtIP)
+        return xmlTrackParser
     }
 //    
 //    @MainActor
@@ -347,28 +348,28 @@ final class SonosAPI {
             print("Failed")
         }
     }
-//
-//    func previous(ipAddress: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0)
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return
-//        }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//        }
-//    }
-//
+
+    func previous(ipAddress: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0)
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: ipAddress, action: "Previous", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
+
     func isPlaying(ipAddress: String) async -> SonosPlaybackStatus {
         let arguments: OrderedKeys = [
             ("InstanceID", 0)
         ]
 
         guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return .transitioning
+            return .paused
         }
 
         let xml = String(decoding: data, as: UTF8.self)
@@ -415,50 +416,53 @@ final class SonosAPI {
 //        print(xml)
 //    }
 //
-    func mediaInfo(ipAddress: String) async -> PlaybackService? {
-        let arguments: OrderedKeys = [
-            ("InstanceID", 0)
-        ]
+    func mediaInfo(ipAddress: String) async -> (PlaybackService?, Int?) {
+           let arguments: OrderedKeys = [
+               ("InstanceID", 0)
+           ]
 
-        guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetMediaInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return nil
-        }
+           // Get media info data
+           guard let (data, _) = try? await sendSoapRequest(
+               ip: ipAddress,
+               action: "GetMediaInfo",
+               arguments: arguments,
+               endpoint: "MediaRenderer/AVTransport"
+           ) else {
+               return (nil, nil)
+           }
 
-        let xml = String(decoding: data, as: UTF8.self)
-        
-        let parser = GenericXMLParser(targetElement: "CurrentURI")
-        if let value = parser.parseXML(xml) {
-            print("Found Value: \(value)")
-            
-            if value.contains("htastream") {
-                return .tv
-            }
+           let xml = String(decoding: data, as: UTF8.self)
+           let parser = GenericXMLParser(targetElement: "CurrentURI")
+           
+           // Parse the current URI to determine the playback service
+           guard let value = parser.parseXML(xml) else {
+               return (.unknown, nil)
+           }
+           
+           // Map URI patterns to playback services
+           let serviceMapping: [(pattern: String, service: PlaybackService)] = [
+               ("htastream", .tv),
+               ("radio", .radio),
+               ("airplay", .airplay),
+               ("queue", .queue),
+               ("spotify", .spotifyConnect),
+               ("line-in", .lineIn)
+           ]
+           
+           // Find matching service
+           for (pattern, service) in serviceMapping {
+               if value.contains(pattern) {
+                   if service == .queue {
+                       let trackParser = GenericXMLParser(targetElement: "NrTracks")
+                       var queueTotal = Int(trackParser.parseXML(xml) ?? "0")
+                       return (service, queueTotal)
+                   }
+                   return (service, nil)
+               }
+           }
 
-            if value.contains("radio") {
-                return .radio
-            }
-
-            if value.contains("airplay") {
-                return .airplay
-            }
-
-            if value.contains("queue") {
-                return .queue
-            }
-
-            if value.contains("spotify") {
-                return .spotifyConnect
-            }
-
-            // TODO: Figure out
-            if value.contains("line-in") {
-                return .lineIn
-            }
-            
-        }
-    
-        return .unknown
-    }
+           return (.unknown, nil)
+       }
 //
 //
 ////    func batteryLevel(IP: String) {
@@ -581,36 +585,37 @@ final class SonosAPI {
 //        }
 //    }
 //
-//    func ungroup(IP: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Channel", "Master")
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "BecomeCoordinatorOfStandaloneGroup", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return
-//        }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            logger.log("Failed to ungroup")
-//        }
-//    }
-//
-//    func group(IP: String, to coordinatorID: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("CurrentURI", "x-rincon:\(coordinatorID)"),
-//            ("CurrentURIMetaData", "")
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return
-//        }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            logger.log("Failed to group")
-//        }
-//    }
+    func ungroup(IP: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Channel", "Master")
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "BecomeCoordinatorOfStandaloneGroup", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            
+        }
+    }
+
+    func group(IP: String, to id: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("CurrentURI", "x-rincon:\(id)"),
+            ("CurrentURIMetaData", "")
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            
+        }
+    }
+    
 //    func queueSpotifyArtistTopTracks(ID: String, IP: String) async {
 //        let URIMetadata = """
 //        &lt;DIDL-Lite&#32;
@@ -757,6 +762,30 @@ final class SonosAPI {
 //        SonosLogInformation.shared.log(name: "\(IP)_queue.txt", xml.unescaped)
 //        return queue
 //    }
+    
+    
+    func getQueue(IP: String, startingIndex: Int = 0, total: Int = 0, priorityIP: String? = nil) async -> [PlayableContent] {
+        let arguments: OrderedKeys = [
+            ("ObjectID", "Q:0"),
+            ("BrowseFlag", "BrowseDirectChildren"),
+            ("Filter", "*"),
+            ("StartingIndex", startingIndex),
+            ("RequestedCount", total),
+            ("SortCriteria", "")
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
+            return []
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let queue = QueueParser.parseQueue(xmlString: xml, ip: IP, preferredIP: priorityIP)
+        return queue
+    }
 //
 //    func getQueueCount(IP: String) async -> Int? {
 //        let arguments: OrderedKeys = [
@@ -779,21 +808,21 @@ final class SonosAPI {
 //        return queue
 //    }
 //
-//    func seek(trackNumber: Int, IP: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Unit", "TRACK_NR"),
-//            ("Target", trackNumber)
-//        ]
-//
-//        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return
-//        }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//        }
-//    }
+    func seek(to queueIndex: Int, IP: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Unit", "TRACK_NR"),
+            ("Target", queueIndex)
+        ]
+
+        guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+    }
 //
 //    func seek(to delta: Int, IP: String) async {
 //        let arguments: OrderedKeys = [
@@ -833,19 +862,19 @@ final class SonosAPI {
 //        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
 //    }
 //
-//    func setAVTransport(IP: String, ID: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("CurrentURI", "x-rincon-queue:\(ID)#0"),
-//            ("CurrentURIMetaData", "")
-//        ]
-//
-//        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-//            if (response as? HTTPURLResponse)?.statusCode != 200 {
-//                print("Failed")
-//            }
-//        }
-//    }
+    func setAVTransport(IP: String, ID: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("CurrentURI", "x-rincon-queue:\(ID)#0"),
+            ("CurrentURIMetaData", "")
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
 //
 //    func setAVTransportContent(playableContent: PlayableContent, IP: String) async throws {
 //        let arguments: OrderedKeys = [

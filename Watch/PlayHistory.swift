@@ -6,6 +6,7 @@ import Defaults
 import SonosKit
 import SwiftUI
 
+@MainActor
 @Observable
 final class PlayHistoryService: ObservableObject {
     static var shared = PlayHistoryService()

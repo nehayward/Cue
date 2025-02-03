@@ -8,13 +8,13 @@ struct WatchWidgetsEntryView: View {
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            Image(systemName: "hifispeaker.fill")
-                .symbolRenderingMode(.hierarchical)
-                .fontDesign(.rounded)
-                .font(.largeTitle)
+            Image("clic_icon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 25, height: 25)
                 .widgetAccentable()
         }
-        .containerBackground(.foreground, for: .widget)
+        .containerBackground(.clear, for: .widget)
     }
 }
 

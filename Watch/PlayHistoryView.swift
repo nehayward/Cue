@@ -3,26 +3,26 @@ import CloudStorage
 import Defaults
 import Foundation
 import NukeUI
-import SonosKit
+import SonosKitMini
 import SwiftUI
 
 struct PlayHistoryView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosMiniService.self) var sonosService: SonosMiniService
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
-    @Binding var group: GroupRoom
+    let id: String
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(playHistoryService.history.prefix(10)) { item in
                     Button {
-                        play(item: item)
+//                        play(item: item)
                     } label: {
                         HStack {
-                            ThumbnailView(content: item, preferredSize: 40)
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 40, height: 40)
+//                            ThumbnailView(content: item, preferredSize: 40)
+//                                .aspectRatio(contentMode: .fill)
+//                                .frame(width: 40, height: 40)
                             VStack(alignment: .leading) {
                                 Text(item.title)
                                 Text(item.subtitle)
@@ -38,17 +38,17 @@ struct PlayHistoryView: View {
         }
     }
     
-    private func play(item: PlayableContent, position: QueuePosition = .now) {
+    private func play(item: PlayableContent, queuePlacement: SonosQueuePlacement = .now) {
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+            let queueSong: ((SonosDevice) async throws -> Void) = { group in
                 do {
-                    try await sonosService.queue(playable: item, group: group, position: position)
-                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                    playHistoryService.history.remove(item)
-                    playHistoryService.history.insert(item, at: 0)
+//                    try await sonosService.queue(playable: item, group: group, position: position)
+//                    await sonosService.play(ip: group.coordinatorRoom.ip)
+//                    playHistoryService.history.remove(item)
+//                    playHistoryService.history.insert(item, at: 0)
                 }
             }
-            try await queueSong(group)
+//            try await queueSong(group)
         }
     }
 }

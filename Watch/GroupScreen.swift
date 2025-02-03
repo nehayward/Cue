@@ -1,103 +1,140 @@
 import SwiftUI
 import WatchKit
-import SonosKit
+import SonosKitMini
 
 struct GroupScreen: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosMiniService.self) var sonosService: SonosMiniService
     @Environment(\.dismiss) var dismiss
 
-    @State var group: GroupRoom?
-    @State private var coordinatorID: String
+    @State private var id: String
     @State private var selections: Set<String> = []
 
-    init(coordinatorID: String) {
-        self.coordinatorID = coordinatorID
+    init(id: String) {
+        self.id = id
     }
-
+    
     var body: some View {
-        @Bindable var sonosService = sonosService
+        Group {
+            if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
+                deviceView(for: deviceIndex)
+            } else {
+                Text("Vanished")
+            }
+        }.task {
+            print("Load")
+            if sonosService.devices.isEmpty {
+                try? await sonosService.updateDevices(useCache: true)
+            }
+            
+            guard let foundGroup = sonosService.devices.first(where: { $0.id == id }) else {
+                return
+            }
+            
+            print(foundGroup.name)
+            selections = Set(foundGroup.allDevices.map { $0.id })
+            print(selections)
+            print(foundGroup.allDevices.map(\.name))
+            print(foundGroup.rooms.map(\.name))
+        }
+    }
+    
+    @ViewBuilder
+    func deviceView(for index: Int) -> some View {
+        let device = sonosService.devices[index]
         List {
-            ForEach($sonosService.sortedRooms) { $room in
+            ForEach(sonosService.sorted) { device in
                 Button {
                     WKInterfaceDevice.current().play(.click)
-                    addGroup(id: room.id)
+                    addGroup(device.id)
                 } label: {
                     HStack {
                         VStack(alignment: .leading) {
                             HStack {
-                                Text(room.name)
-                                    .bold()
+                                VStack {
+                                    Text(device.name)
+                                        .font(.title3)
+                                        .bold()
+                                }
                                 Spacer()
                             }
-                            Text("\(room.volume, specifier: "%0.f")%")
-                                .font(.caption)
                         }
                         Spacer()
-                        Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                            .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
+                        Image(systemName: selections.contains(device.id) ? "checkmark.circle.fill" : "circle")
+                            .symbolEffect(.bounce, options: .speed(3), value: selections.contains(device.id))
+                            .font(.title3)
+                            .bold()
+                            .opacity(isSelected(device) ? 1 : 0.8)
                     }
-                    .foregroundStyle(selections.contains(room.id) ? .black : .primary)
                     .fontDesign(.rounded)
                 }
-                .listRowBackground(
-                    selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                        .foregroundStyle( Color.accentColor.gradient.opacity(0.8) )
-                    : nil
-                )
+                .listRowBackground(selections.contains(device.id) ? RoundedRectangle(cornerRadius: 12)
+                    .foregroundStyle(.fill)
+                : nil)
             }
         }
-        .ignoresSafeArea(edges: .bottom)
-        .task {
-            if sonosService.sortedRooms.isEmpty {
-                do {
-                    try await sonosService.load(useCache: true)
-                } catch {
-                    print(error)
+        .navigationTitle("\(device.nameWithCount)")
+    }
+    
+//    private func addGroup(id: String) {
+//        if selections.contains(id), selections.count == 1 { return }
+//        let oldRooms = sonosService.devices.filter { room in selections.contains(room.id) }
+//
+//        selections.formSymmetricDifference([id])
+//        let devices = sonosService.devices.filter { selections.contains($0.id) }
+//
+//        Task {
+//            print(devices.map(\.name))
+////            guard let group = sonosService.devices.first(where: { $0.id == id }) else { return }
+//            guard let newCoordinatorID = await sonosService.speedGroup(devices: devices) else { return }
+//            if !selections.contains(id) {
+//                // MARK: Reassign coordinatorID
+//                self.id = newCoordinatorID.id
+//                Task { @MainActor in
+//                    if Router.main.path.isEmpty { return }
+//                    Router.main.selectedID = id
+//                }
+//            }
+//            
+//            try? await sonosService.updateWatchDevices(from: oldRooms)
+//        }
+//
+//        
+//    }
+//
+    
+    
+    private func addGroup(_ addingID: String) {
+        if selections.contains(addingID), selections.count == 1 { return }
+        let oldRooms = sonosService.devices.filter { room in selections.contains(room.id) }
+        
+        selections.formSymmetricDifference([addingID])
+        let devices = sonosService.devices.filter { selections.contains($0.id) }
+        
+        
+        Task {
+            print(devices.map(\.name))
+            guard let device = sonosService.devices.first(where: { $0.id == id }) else { return }
+            guard let newCoordinatorID = await sonosService.smartGroup(rooms: devices, oldRooms: oldRooms, to: device) else { return }
+
+            if !selections.contains(id) {
+                withAnimation {
+                    self.id = newCoordinatorID
+                    Router.main.selectedID = id
                 }
             }
-        }
-        .navigationTitle("\(group?.nameWithCount ?? "Updating…")")
-        .navigationBarTitleDisplayMode(.inline)
-        .presentationDetents([.large])
-        .presentationDragIndicator(.hidden)
-        .task(id: sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID })?.rooms) {
-            if sonosService.isGrouping { return }
-            guard let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
-            group = foundGroup
-            selections = Set(foundGroup.rooms.map { $0.id })
+            try? await sonosService.updateWatchDevices(from: oldRooms)
         }
     }
     
-    private func addGroup(id: String) {
-        if selections.contains(id), selections.count == 1 { return }
-        let oldRooms = sonosService.sortedRooms.filter { room in selections.contains(room.id) }
-
-        selections.formSymmetricDifference([id])
-        let rooms = sonosService.sortedRooms.filter { selections.contains($0.id) }
-
-        Task {
-            guard let group = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
-            let newCoordinatorID = await sonosService.smartGroup(rooms: rooms, oldRooms: oldRooms, to: group)
-            if !selections.contains(group.coordinatorID) {
-                // MARK: Reassign coordinatorID
-                if let id = newCoordinatorID {
-                    coordinatorID = id
-                    Task { @MainActor in
-                        if Router.main.path.isEmpty { return }
-                        Router.main.path.removeAll()
-                        Router.main.selectedID = coordinatorID
-                    }
-                }
-            }
-        }
-
+    func isSelected(_ device: SonosDevice) -> Bool {
+        selections.contains(device.id)
     }
 }
 
-//#Preview {
-//    Text("HERE")
-//        .sheet(isPresented: .constant(true)) {
-//            GroupScreen(group: .constant(.garage), viewModel: GroupScreenViewModel(groupCoordinatorID: GroupRoom.garage.coordinatorID, sonosService: SonosService()))
-//                .environment(SonosService())
-//        }
-//}
+#Preview {
+    Text("Grouping")
+        .sheet(isPresented: .constant(true)) {
+            GroupScreen(id: "RINCON_7828CAC7352E01400")
+                .environment(SonosMiniService.shared)
+        }
+}

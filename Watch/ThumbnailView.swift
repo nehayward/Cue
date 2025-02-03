@@ -1,99 +1,108 @@
-import Nuke
-import NukeUI
+import Kingfisher
 import SwiftUI
-import SonosKit
+import SonosKitMini
 import MusicKit
 import MusicSearchKit
 
 struct ThumbnailView: View {
-    @Environment(SonosService.self) var sonosService
-    
-    var content: PlayableContent
-    var showMusicSource: Bool = true
-    @State var imageRequest: ImageRequest?
-    var preferredSize: Int = 100
+    @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
+
+    let id: String
+    var size: Size = .medium
     
     var body: some View {
-        LazyImage(request: imageRequest) { state in
-            if let image = state.image {
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                Rectangle()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.ultraThinMaterial)
-                    .shadow(radius: 2)
-                    .overlay {
-                        if state.error != nil {
-                            Image(systemName: "music.note")
-                                .resizable()
-                                .scaledToFit()
-                                .foregroundStyle(.foreground)
-                                .frame(width: 24, height: 24)
-                                .bold()
-                                .transaction { transaction in
-                                    transaction.animation = nil
-                                }
-                        }
-                    }
-            }
+        if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
+            deviceView(for: deviceIndex)
+        } else {
+            Text("Vanished")
         }
-        .transition(.opacity)
-        .id(content.id)
-        .clipShape([.artist, .libraryArtist].contains(content.content.type) ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
+    }
+    
+    @ViewBuilder
+    func deviceView(for index: Int) -> some View {
+        let device = sonosService.devices[index]
+        Group {
+            KFImage.url(device.track.sonosAlbumArtURL)
+                .resizable()
+                .processingQueue(.dispatch(.global()))
+                .setProcessor(DownsamplingImageProcessor(size: size.size))
+                .cacheOriginalImage()
+                .backgroundDecode()
+                .interpolation(.low)
+                .placeholder {
+                    Rectangle()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.thickMaterial)
+                        .shadow(radius: 2)
+                        .overlay {
+                            if device.track.sonosAlbumArtURL == nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: size.size.height/2, height: size.size.height/2)
+                                    .bold()
+                                    .transaction { transaction in
+                                        transaction.animation = nil
+                                    }
+                            }
+                        }
+                }
+                .diskCacheExpiration(.days(1))
+                .fade(duration: 0.25)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+#if DEBUG && SCREENSHOT
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .foregroundStyle(.ultraThinMaterial)
+                }
+#endif
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(radius: 2)
         .overlay(alignment: .bottomTrailing) {
-            content.content.service.icon
+            device.track.musicService.icon
                 .containerRelativeFrame(.horizontal) { size, axis in
                     size * 0.05
                 }
                 .padding(4)
-                .shadow(radius: 10)
-                .opacity(showMusicSource ? 1 : 0)
+        }
+        .overlay {
+            if device.groupIsMuted {
+                Image(systemName: "speaker.slash.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.primary)
+                    .frame(width: 24, height: 24)
+                    .bold()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8)
+                            .foregroundStyle(.ultraThinMaterial)
+                    }
+                    .clipped()
+                    .animation(.spring, value: device.groupIsMuted)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .task(id: content.id) {
-            imageRequest = makeImageRequest(url: content.artwork, priority: .veryLow)
-            let dataCache = try? DataCache(name: "com.clic.imageCache")
-            
-            if dataCache?.containsData(for: content.id) ?? false, ![.playlist, .libraryPlaylist].contains(content.content.type) {
-//                print("Data is cached")
-                return
-            }
-            
-            guard !content.id.isEmpty else {
-                imageRequest = nil
-                return
-            }
-        
-            
-            if let url = content.artwork, !(content.artwork?.absoluteString ?? "").contains("get") {
-                imageRequest = makeImageRequest(url: url)
-                return
-            }
-            
-            guard let artworkURL = await sonosService.getArtwork(from: content, size: preferredSize) else {
-                if let artworkURL = content.artwork {
-                    imageRequest = makeImageRequest(url: artworkURL)
-                }
-                return
-            }
-            if let url = content.artwork {
-                ImagePipeline.shared.imageTask(with: url).cancel()
-            }
-            imageRequest = makeImageRequest(url: artworkURL)
-        }
     }
-    
-    private func makeImageRequest(url: URL?, priority: ImageRequest.Priority = .veryHigh) -> ImageRequest {
-        let request = ImageRequest(
-            url: url,
-            priority: priority,
-            userInfo: [.imageIdKey: content.id]
-        )
+}
+
+extension ThumbnailView {
+    enum Size {
+        case small
+        case medium
         
-        return request
+        var size: CGSize {
+            switch self {
+            case .small:
+                CGSize(width: 40, height: 40)
+            case .medium:
+                CGSize(width: 120, height: 120)
+            }
+        }
     }
 }
 

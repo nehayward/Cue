@@ -61,35 +61,3 @@ extension SonosGroup {
         }
     }
 }
-
-
-//
-//extension SonosGroup {
-//    static var debug: [SonosGroup] = []
-//    public static let gym = Self(id: "RINCON_7828CAC7352E01400:857060900",
-//                                 coordinatorID: SonosRoom.gym.id,
-//                                         rooms: [.gym],
-//                                         coordinatorRoom: .gym)
-//    
-//
-//    public static let garage = Self(id: "RINCON_B8E937525BB001400:931790658",
-//                                         coordinatorID: SonosRoom.garage.id,
-//                                         rooms: [.garage],
-//                                         coordinatorRoom: .garage)
-//
-//    public static let theater = Self(id: "RINCON_48A6B80D8FB401400:2447655188",
-//                                          coordinatorID: SonosRoom.theater.id,
-//                                          rooms: [.theater],
-//                                          coordinatorRoom: .theater,
-//                                        tvSettings: SonosTVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .unknown))
-//
-//    public static let garage_kitchen_display = Self(id: "RINCON_B8E937525BB001400:931790658",
-//                                         coordinatorID: SonosRoom.garage_kitchen_display.id,
-//                                         rooms: [.garage_kitchen_display],
-//                                         coordinatorRoom: .garage_kitchen_display)
-//
-//    public static let garagePlusTheater = Self(id: "RINCON_B8E937525BB001400:931790658",
-//                                         coordinatorID: SonosRoom.garage.id,
-//                                                    rooms: [.garage, .theater],
-//                                         coordinatorRoom: .garage)
-//}
