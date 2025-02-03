@@ -18,7 +18,12 @@ struct ArtworkView: View {
     @State private var alarmRunning: Bool = false
     
     // Add task cancellation
-    @State private var imageTask: ImageTask?
+    @State private var imageTask: ImageTask? = nil {
+        willSet {
+            // Cancel previous task before assigning new one
+            imageTask?.cancel()
+        }
+    }
     
     // Internal state as fallback
     @State private var internalImage: UIImage?
@@ -79,9 +84,9 @@ struct ArtworkView: View {
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
             }
-            .onChange(of: group.coordinatorRoom.track.artworkURL, initial: true) { _, newURL in
+            .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
                 if useExternal { return }
-                imageTask?.cancel()
+                // Simply call loadArtwork - cancellation is handled in property observer
                 imageTask = loadArtwork(url: newURL)
             }
             .onTapGesture(count: 2) {
@@ -100,6 +105,7 @@ struct ArtworkView: View {
             }
             .onDisappear {
                 imageTask?.cancel()
+                imageTask = nil
             }
         }
     }
@@ -113,12 +119,8 @@ struct ArtworkView: View {
             return nil
         }
         
-        if Task.isCancelled {
-            return nil
-        }
-        
         let imageRequest = ImageRequest(url: url, priority: .high)
-        let task = ImagePipeline.shared.loadImage(with: imageRequest) { result in
+        return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
                 switch result {
                 case .success(let response):
@@ -131,14 +133,12 @@ struct ArtworkView: View {
                         artwork.wrappedValue = nil
                     }
                 }
+                // Set imageTask to nil after completion
+                imageTask = nil
             }
         }
-        
-        return task
     }
 }
-
-
 
 //
 //#Preview("Empty") {

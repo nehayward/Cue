@@ -5,9 +5,12 @@
 - Add hover states to queue list and device list.
 - Add crossfade for album art
 - Live Activities now dismissed when paused on app launch.
+- Rewrite watch app for performance increases.
+- Updated volume controls
 
 ––Bug Fixes––
-- Fix live activity on watch app now open watch app.
+- Fix queueTotal not being being correct when over 1000 items.
+- Fix live activity on watch app, it will now open watch app if installed.
 - Hide NowPlaying on macOS, since it's not compatible 
 - Improve Music Service selection.
 - Performance improvements for Mac app.

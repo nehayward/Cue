@@ -37,6 +37,7 @@ struct DeviceListMainView: View {
                                             insertion: .opacity,
                                             removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
                                         ))
+                                        .padding(.horizontal, 12)
                                 } else {
                                     HStack(alignment: .top) {
                                         ArtworkView(group: $group)

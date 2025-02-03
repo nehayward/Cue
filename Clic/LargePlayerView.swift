@@ -20,7 +20,11 @@ struct LargePlayerView: View {
     @State private var refreshID = UUID()
     @State private var image: UIImage?
     @State private var count = 0
-    @State private var imageTask: ImageTask?
+    @State private var imageTask: ImageTask? = nil {
+        willSet {
+            imageTask?.cancel()
+        }
+    }
     
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
@@ -89,7 +93,7 @@ struct LargePlayerView: View {
             }
             VStack {
                 VolumeControlView(group: $group)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 20)
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
                 
@@ -280,13 +284,18 @@ struct LargePlayerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
         }
-        .onChange(of: group.coordinatorRoom.track.artworkURL, initial: true) { _, newURL in
-            imageTask?.cancel()
+        .onAppear {
+            if image == nil {
+                imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
+            }
+        }
+        .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
             imageTask = loadArtwork(url: newURL)
         }
         .onDisappear {
-            imageTask = nil
             imageTask?.cancel()
+            imageTask = nil
+            image = nil
         }
     }
     
@@ -458,29 +467,21 @@ struct LargePlayerView: View {
             return nil
         }
         
-        if Task.isCancelled {
-            return nil
-        }
-        
-        let imageRequest = ImageRequest(url: url, priority: .high)
-        let task = ImagePipeline.shared.loadImage(with: imageRequest) { result in
+        let imageRequest = ImageRequest(url: url, priority: .veryHigh)
+        return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
+                if Task.isCancelled { return }
+                
                 switch result {
                 case .success(let response):
-                    if !Task.isCancelled {
-                        self.image = response.image
-                        self.count += 1
-                        print(count)
-                    }
+                    self.image = response.image
+                    self.count += 1
                 case .failure:
-                    if !Task.isCancelled {
-                        self.image = nil
-                    }
+                    self.image = nil
                 }
+                imageTask = nil
             }
         }
-        
-        return task
     }
 }
 

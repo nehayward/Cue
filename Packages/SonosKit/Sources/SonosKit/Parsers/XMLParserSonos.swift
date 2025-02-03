@@ -8,32 +8,32 @@ final class XMLParserSonos {
         return dateFormatter
     }()
 
+    private func parseXML(_ xml: String) -> XMLIndexer {
+        let parsed = XMLHash.parse(xml)
+        // Return immediately to allow ARC to clean up
+        return parsed
+    }
+        
     func parseVolume(xml: String) throws -> Int {
-        let xml = XMLHash.parse(xml)
-        guard let volume = xml["s:Envelope"]["s:Body"]["u:GetVolumeResponse"]["CurrentVolume"].element?.text, let volumeParsed = Int(volume) else {
-            throw XMLParserSonosError.parsing
-        }
-        return volumeParsed
+        let value = try parseValue(xml: xml, named: "CurrentVolume")
+        return Int(value) ?? 0
     }
 
     func parseGroupVolume(xml: String) throws -> Int {
-        let xml = XMLHash.parse(xml)
-        guard let volume = xml["s:Envelope"]["s:Body"]["u:GetGroupVolumeResponse"]["CurrentVolume"].element?.text, let volumeParsed = Int(volume) else {
-            throw XMLParserSonosError.parsing
-        }
-        return volumeParsed
+        let value = try parseValue(xml: xml, named: "CurrentVolume")
+        return Int(value) ?? 0
     }
 
     func parseZones(xml: String) -> [ZoneGroup] {
-        let xmlParsed = XMLHash.parse(xml)
-        let zones = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
+        let parsed = parseXML(xml)
+        let zones = parsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["ZoneGroups"]["ZoneGroup"]
         guard let zonesParsed: [ZoneGroup] = try? zones.value() else { return [] }
         return zonesParsed
     }
 
     func parseVanishedDevices(xml: String) -> [VanishedDevice] {
-        let xmlParsed = XMLHash.parse(xml)
-        let vanishedDevices = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["VanishedDevices"]
+        let parsed = parseXML(xml)
+        let vanishedDevices = parsed["s:Envelope"]["s:Body"]["u:GetZoneGroupStateResponse"]["ZoneGroupState"]["ZoneGroupState"]["VanishedDevices"]
         let items = vanishedDevices.children
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
@@ -56,7 +56,7 @@ final class XMLParserSonos {
         if xml.contains("&gt") {
             xml = xml.unescaped
         }
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
 
         // Check for TV
         if let trackURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackURI"].element?.text, trackURI.contains("htastream") {
@@ -255,14 +255,13 @@ final class XMLParserSonos {
     }
 
     func parsePlaybackInfo(xml: String) -> PlaybackStatus {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let status = xmlParsed["s:Envelope"]["s:Body"]["u:GetTransportInfoResponse"]["CurrentTransportState"].element?.text
-        else {
+        guard let value = try? parseValue(xml: xml, named: "CurrentTransportState") else {
             return .transitioning
         }
-        if status == "PLAYING" {
+        
+        if value == "PLAYING" {
             return .playing
-        } else if status == "PAUSED_PLAYBACK" || status == "STOPPED" {
+        } else if value == "PAUSED_PLAYBACK" || value == "STOPPED" {
             return .paused
         }
 
@@ -270,8 +269,7 @@ final class XMLParserSonos {
     }
 
     func parseMediaInfo(xml: String) -> PlaybackService {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let currentURI = xmlParsed["s:Envelope"]["s:Body"]["u:GetMediaInfoResponse"]["CurrentURI"].element?.text else {
+        guard let currentURI = try? parseValue(xml: xml, named: "CurrentURI") else {
             return .unknown
         }
 
@@ -304,8 +302,7 @@ final class XMLParserSonos {
     }
 
     func parseGetCurrentTransportActions(xml: String) -> AvailableActions? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let parseGetCurrentTransportActions = xmlParsed["s:Envelope"]["s:Body"]["u:GetCurrentTransportActionsResponse"]["Actions"].element?.text else {
+        guard let parseGetCurrentTransportActions = try? parseValue(xml: xml, named: "Actions") else {
             return nil
         }
         let actions = parseGetCurrentTransportActions.components(separatedBy: ",")
@@ -314,68 +311,35 @@ final class XMLParserSonos {
     }
 
     func parsePlaybackMode(_ xml: String) -> PlayMode? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let mode = xmlParsed["s:Envelope"]["s:Body"]["u:GetTransportSettingsResponse"]["PlayMode"].element?.text else {
+        guard let mode = try? parseValue(xml: xml, named: "PlayMode") else {
             return nil
         }
         return PlayMode(mode: mode)
     }
 
-    func parseAVTransport(xml: String) -> Double {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let rendererControlXML = xmlParsed["e:propertyset"]["e:property"]["LastChange"].element?.text
-        else {
-            return 0
-        }
-
-        let lastChangeXML = XMLHash.parse(rendererControlXML.unescaped)
-
-        let masterChannelElement = lastChangeXML["Event"]["InstanceID"].filterChildren { elem, index in
-            elem.allAttributes["channel"]?.text == "Master"
-        }
-
-        let masterVolume: String = masterChannelElement["Volume"].element?.allAttributes["val"]?.text ?? ""
-
-        return Double(masterVolume) ?? 0
-
-    }
-
-    func parseGetGroupMute(xml: String) -> Bool? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let isMuted = xmlParsed["s:Envelope"]["s:Body"]["u:GetGroupMuteResponse"]["CurrentMute"].element?.text else {
-            return nil
-        }
-        return isMuted == "1"
-    }
-
-    func parseGetRoomMute(xml: String) -> Bool? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let isMuted = xmlParsed["s:Envelope"]["s:Body"]["u:GetMuteResponse"]["CurrentMute"].element?.text else {
+    func parseMute(xml: String) -> Bool? {
+        guard let isMuted = try? parseValue(xml: xml, named: "CurrentMute") else {
             return nil
         }
         return isMuted == "1"
     }
 
     func parseGetCrossfade(xml: String) -> Bool? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let isCrossfadeEnabled = xmlParsed["s:Envelope"]["s:Body"]["u:GetCrossfadeModeResponse"]["CrossfadeMode"].element?.text else {
+        guard let isCrossfaded = try? parseValue(xml: xml, named: "CrossfadeMode") else {
             return nil
         }
-        return isCrossfadeEnabled == "1"
+        return isCrossfaded == "1"
     }
 
     func parseHouseID(xml: String) -> String {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let householdID = xmlParsed["s:Envelope"]["s:Body"]["u:GetZoneGroupAttributesResponse"]["CurrentMuseHouseholdId"].element?.text
-        else {
+        guard let householdID = try? parseValue(xml: xml, named: "CurrentMuseHouseholdId") else {
             return ""
         }
         return householdID
     }
 
     func parseSleepTimer(xml: String) -> Date? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let sleepTimeRemaining = xmlParsed["s:Envelope"]["s:Body"]["u:GetRemainingSleepTimerDurationResponse"]["RemainingSleepTimerDuration"].element?.text else {
+        guard let sleepTimeRemaining = try? parseValue(xml: xml, named: "RemainingSleepTimerDuration") else {
             return nil
         }
 
@@ -394,9 +358,9 @@ final class XMLParserSonos {
     }
 
     func parseQueue(IP: String, xml: String, preferredIPForTrackAlbumArt: String?) -> [PlayableContent] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
-        let resultsParsed = XMLHash.parse(resultXML)
+        let resultsParsed =  parseXML(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
         var tracks: [PlayableContent] = []
 
@@ -552,12 +516,6 @@ final class XMLParserSonos {
         return tracks
     }
 
-    func parseQueueCount(IP: String, xml: String) -> Int? {
-        let xmlParsed = XMLHash.parse(xml)
-        guard let queueCount = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["TotalMatches"].element?.text else { return nil }
-        return Int(queueCount)
-    }
-
     func parseForCurrentValue(xml: String) throws -> Bool {
         // Parse out CurrentValue
         let pattern = "<CurrentValue>(.*?)</CurrentValue>"
@@ -573,6 +531,25 @@ final class XMLParserSonos {
             }
         }
         throw XMLParserSonosError.parsing
+    }
+    
+    func parseValue(xml: String, named: String) throws -> String {
+        // Use NSRegularExpression with proper error handling
+        let pattern = "<\(named)>(.*?)</\(named)>"
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            throw XMLParserSonosError.parsing
+        }
+        
+        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+        
+        guard let match = regex.firstMatch(in: xml, options: [], range: range),
+              let valueRange = Range(match.range(at: 1), in: xml) else {
+            throw XMLParserSonosError.parsing
+        }
+        
+        let value = String(xml[valueRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value
     }
 
     func extractValue<T: LosslessStringConvertible>(from xmlData: Data, for tag: String) -> T? {
@@ -607,9 +584,9 @@ final class XMLParserSonos {
     }
 
     func parseLibrarySearch(IP: String, xml: String) -> [PlayableContent] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
-        let resultsParsed = XMLHash.parse(resultXML)
+        let resultsParsed = parseXML(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
 
         var searchResults: [PlayableContent] = []
@@ -659,9 +636,9 @@ final class XMLParserSonos {
     }
 
     func parsePlaylists(IP: String, xml: String) -> [PlayableContent] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
-        let resultsParsed = XMLHash.parse(resultXML)
+        let resultsParsed = parseXML(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
 
         var searchResults: [PlayableContent] = []
@@ -710,7 +687,7 @@ final class XMLParserSonos {
     }
 
     func parsePlaylistsTracks(IP: String, xml: String) -> [PlayableContent] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return [] }
         let resultsParsed = XMLHash.parse(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
@@ -836,7 +813,7 @@ final class XMLParserSonos {
     }
 
     func parseFavorites(IP: String, xml: String) -> [PlayableContent] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["Result"].element?.innerXML else { return []}
         let resultsParsed = XMLHash.parse(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
@@ -890,14 +867,14 @@ final class XMLParserSonos {
     }
 
     func parseGetUpdateId(IP: String, xml: String) -> String {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         let updateID = xmlParsed["s:Envelope"]["s:Body"]["u:BrowseResponse"]["UpdateID"].element?.text
         return updateID ?? "0"
     }
 
     // MARK: Alarm Clock
     func parseAlarmClockList(from xml: String) -> [Alarm] {
-        let xmlParsed = XMLHash.parse(xml)
+        let xmlParsed = parseXML(xml)
         guard let resultXML = xmlParsed["s:Envelope"]["s:Body"]["u:ListAlarmsResponse"]["CurrentAlarmList"].element?.innerXML else { return [] }
         let resultsParsed = XMLHash.parse(resultXML)
         guard let items = resultsParsed.children.first?.children else { return [] }
@@ -975,7 +952,7 @@ final class XMLParserSonos {
         if metadataXML.contains("&gt") {
             metadataXML = metadataXML.unescaped
         }
-        let xmlParsed = XMLHash.parse(metadataXML)
+        let xmlParsed = parseXML(metadataXML)
 
         guard let id = xmlParsed["DIDL-Lite"]["item"].element?.attribute(by: "id")?.text,
               let name = xmlParsed["DIDL-Lite"]["item"]["dc:title"].element?.text,
@@ -1052,25 +1029,6 @@ final class XMLParserSonos {
         }
         return nil
     }
-    
-    private func parseService(from input: String) -> MusicService {
-        var musicService: MusicService = input.lowercased().contains("spotify") ? .spotify : .unknown
-
-        if input.contains("x-file-cifs") {
-            musicService = .library
-        }
-
-        if input.contains("%3a3%3") {
-            musicService = .plex
-        }
-
-        if input.contains("librarytrack") {
-            musicService = .apple
-        }
-        
-        return musicService
-    }
-    
 
     // Add this new method
     private func sanitizeDCTitle(_ xml: String) -> String {
@@ -1091,57 +1049,5 @@ final class XMLParserSonos {
         sanitizedXML = sanitizedXML.replacingOccurrences(of: title, with: sanitizedTitle, options: [], range: titleRange)
         
         return sanitizedXML
-    }
-}
-
-
-extension String {
-    var unescaped: String {
-        var xml = self
-        xml = xml.replacingOccurrences(of: "&lt;", with: "<")
-        xml = xml.replacingOccurrences(of: "&gt;", with: ">")
-        xml = xml.replacingOccurrences(of: "&amp;", with: "&")
-        xml = xml.replacingOccurrences(of: "&quot;", with: "\"")
-        xml = xml.replacingOccurrences(of: "&apos;", with: "'")
-        return xml
-    }
-
-    var escaped: String {
-        var xml = self
-        xml = xml.replacingOccurrences(of: "&", with: "&amp;")
-        xml = xml.replacingOccurrences(of: "<", with: "&lt;")
-        xml = xml.replacingOccurrences(of: ">", with: "&gt;")
-        return xml
-    }
-
-    var xmlAllowedString: String {
-        var xml = self
-        xml = xml.replacingOccurrences(of: " ", with: "&#32;")
-        return xml
-    }
-
-    var encodeForSonos: String {
-        let xml = self
-        return xml
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "'", with: "&apos;")
-            .replacingOccurrences(of: " ", with: "&#32;")
-    }
-
-    var encodeProgramURI: String {
-        let xml = self
-        return xml
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-    }
-
-    var metaDataTitle: String {
-        let xml = self
-        return xml
-            .replacingOccurrences(of: "&", with: "&amp;amp;")
     }
 }

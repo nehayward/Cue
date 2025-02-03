@@ -181,13 +181,11 @@ struct LiveActivityNowPlayingWidget: Widget {
                     .padding(.top, 8)
                 }
             } compactLeading: {
-                if context.state.TVSettings != nil {
-                    Image(systemName: "tv.and.hifispeaker.fill")
-                } else {
-                    Image(systemName: "hifispeaker.fill")
-                        .symbolRenderingMode(.hierarchical)
-                        .fontDesign(.rounded)
-                }
+                Image("clic.icon")
+                    .symbolRenderingMode(.hierarchical)
+                    .resizable()
+                    .fontDesign(.rounded)
+                    .frame(width: 18, height: 18)
             } compactTrailing: {
                 if let tvSetting = context.state.TVSettings {
                     tvSetting.audioInputFormat.icon

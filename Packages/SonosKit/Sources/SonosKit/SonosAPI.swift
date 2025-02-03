@@ -56,7 +56,7 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        return xmlParser.parseGetGroupMute(xml: xml)
+        return xmlParser.parseMute(xml: xml)
     }
 
     func getRoomMute(IP: String) async -> Bool? {
@@ -75,7 +75,7 @@ final class SonosAPI: NSObject {
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        return xmlParser.parseGetRoomMute(xml: xml)
+        return xmlParser.parseMute(xml: xml)
     }
 
     func setRoomMute(IP: String, mute: Bool) async {
@@ -620,23 +620,18 @@ final class SonosAPI: NSObject {
 
     func getQueueCount(IP: String) async -> Int? {
         let arguments: OrderedKeys = [
-            ("ObjectID", "Q:0"),
-            ("BrowseFlag", "BrowseDirectChildren"),
-            ("Filter", "*"),
-            ("StartingIndex", 0),
-            ("RequestedCount", 1),
-            ("SortCriteria", "")
+            ("InstanceID", 0)
         ]
 
-        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else { return nil }
-
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetMediaInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return nil
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        let queue = xmlParser.parseQueueCount(IP: IP, xml: xml)
-        return queue
+        if let value = try? xmlParser.parseValue(xml: xml, named: "NrTracks"), let queueTotal = Int(value) {
+            return queueTotal
+        }
+        return nil
     }
 
     func seek(trackNumber: Int, IP: String) async {

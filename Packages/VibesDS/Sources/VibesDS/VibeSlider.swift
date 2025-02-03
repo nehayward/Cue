@@ -103,7 +103,7 @@ public struct VibeSlider: View {
                 .frame(minWidth: 32, minHeight: baseHeight)
                 .background((isDragging || isTouched) ? Color.primary : Color.clear)
                 .clipShape(Capsule())
-                .offset(x: isHovered ? min(max(0, mouseLocation.x - 16), width - 36) : offsetForValue,
+                .offset(x: offsetForValue,
                         y: (isTouched || isDragging) ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
         }

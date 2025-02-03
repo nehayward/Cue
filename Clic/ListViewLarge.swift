@@ -34,6 +34,7 @@ struct ListViewLarge: View {
                                     insertion: .opacity,
                                     removal: .opacity.animation(.snappy(duration: 0))
                                 ))
+                                .padding(.horizontal, 12)
                         } else {
                             HStack(alignment: .top) {
                                 ArtworkView(group: $group)
@@ -46,6 +47,7 @@ struct ListViewLarge: View {
                                 insertion: .opacity,
                                 removal: .opacity.animation(.snappy(duration: 0))
                             ))
+                            .padding(.horizontal, 12)
                         }
                         VolumeControlView(group: $group, delayDrag: true)
                     }
@@ -67,7 +69,7 @@ struct ListViewLarge: View {
                         }
                     }
                     .foregroundStyle(.primary)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
+                    .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))
                     .dropDestinationPlay(on: group)
                     .paywall(enabled(group: group))
                 } else {
