@@ -56,18 +56,7 @@ final class SonosKitTests: XCTestCase {
             print("Parsing failed with error: \(parser.parserError?.localizedDescription ?? "Unknown error")")
         }
     }
-    
-    func testTrackParse() throws {
-        let zone = Bundle.module.url(forResource: "Track", withExtension: "xml")
-        let zoneXML = try! String(contentsOf: zone!).unescaped.data(using: .utf8)
-        
-        let parser = SonosTrackParser()
-        if let track = parser.parse(data: zoneXML!) {
-            print("Parsed Track: \(track)")
-        } else {
-            print("Failed to parse track")
-        }
-    }
+
 
 //    func testZoneWithVanishedXMLParse() throws {
 //        let zone = Bundle.module.url(forResource: "ZonesVanished", withExtension: "xml")

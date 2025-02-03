@@ -10,7 +10,7 @@ final class SonosAPI: NSObject {
     private lazy var session: URLSession = privateSession
     private lazy var insecure: URLSession = insecureSession
 
-    lazy var xmlParser = XMLParserSonos()
+    var xmlParser = XMLParserSonos()
     lazy var decoder = JSONDecoder()
     lazy var encoder = JSONEncoder()
 

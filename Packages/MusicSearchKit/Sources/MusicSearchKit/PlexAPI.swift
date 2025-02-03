@@ -1,5 +1,4 @@
 import Foundation
-import SWXMLHash
 import SwiftyBeaver
 
 public final class PlexAPI {
