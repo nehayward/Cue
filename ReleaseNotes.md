@@ -7,8 +7,11 @@
 - Live Activities now dismissed when paused on app launch.
 - Rewrite watch app for performance increases.
 - Updated volume controls
+- Show Line In Icon
+- Added playlist to Tidal search results
 
 ––Bug Fixes––
+- Fix Tidal not showing results
 - Fix queueTotal not being being correct when over 1000 items.
 - Fix live activity on watch app, it will now open watch app if installed.
 - Hide NowPlaying on macOS, since it's not compatible 

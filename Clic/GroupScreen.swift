@@ -31,35 +31,35 @@ struct GroupScreen: View {
         NavigationStack(path: $path) {
             List {
                 ForEach($sonosService.sortedRooms.filter { $0.state.wrappedValue == .active } ) { $room in
-                    VStack {
+                    VStack(spacing: 0) {
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
                             addGroup(id: room.id)
                         } label: {
                             HStack {
-                                VStack(alignment: .leading) {
-                                    HStack {
-                                        Text(room.name)
-                                        Spacer()
-                                    }
-                                }
-                                Spacer()
+                                Text(room.name)
+                                    .font(.title3)
+                                    .bold()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
                                     .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
-                                    .opacity(selections.contains(room.id) ? 1 : 0.4)
+                                    .font(.title2)
+                                    .opacity(isSelected(room) ? 1 : 0.8)
                             }
-                            .foregroundStyle(selections.contains(room.id) ? .black : .primary)
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(.primary)
                             .fontDesign(.rounded)
+                            .padding()
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                         RoomVolumeView(room: $room, delayDrag: true)
-                            .foregroundStyle(selections.contains(room.id) ? .black : .primary)
-                            .tint(selections.contains(room.id) ? .black : .accentColor)
+                            .foregroundStyle(.primary)
                     }
-                    .listRowBackground(
-                        selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                            .foregroundStyle(Color.accentColor.gradient.opacity(0.8) )
-                        : nil
-                    )
+                    .listRowBackground(selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
+                        .foregroundStyle(.placeholder)
+                    : nil)
+                    .listRowInsets(EdgeInsets())
                 }
                 VStack {
                     Text("All Speakers")
@@ -149,8 +149,7 @@ struct GroupScreen: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .task(id: sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID })?.rooms) {
-            if sonosService.isGrouping { return }
-            guard let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
+            guard let foundGroup = sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
             group = foundGroup
             selections = Set(foundGroup.rooms.map { $0.id })
         }
@@ -182,7 +181,10 @@ struct GroupScreen: View {
                 }
             }
         }
-
+    }
+    
+    func isSelected(_ room: Room) -> Bool {
+        selections.contains(room.id)
     }
 }
 

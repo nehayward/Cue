@@ -23,15 +23,22 @@ struct VolumeControlsScreen: View {
         NavigationStack {
             List {
                 if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                    VolumeControlView(group: $sonosService.sorted[groupID], delayDrag: true)
-                        .frame(height: 40)
-                        .listRowBackground(isMacCatalyst ? Color.clear : nil)
-                        .listRowSeparator(.hidden)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(sonosService.sorted[groupID].nameWithCount)
+                            .fontDesign(.rounded)
+                            .bold()
+                            .padding(.leading)
+                        VolumeControlView(group: $sonosService.sorted[groupID], delayDrag: true)
+                            .frame(height: 40)
+                            .listRowBackground(isMacCatalyst ? Color.clear : nil)
+                            .listRowSeparator(.hidden)
+                    }
                     
                     ForEach($sonosService.sorted[groupID].rooms) { $room in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(room.name)
                                 .fontDesign(.rounded)
+                                .padding(.leading)
                             RoomVolumeView(room: $room) {
                                 volumeTask?.cancel()
                                 volumeTask = Task {

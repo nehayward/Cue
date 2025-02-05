@@ -10,16 +10,16 @@ public final class TidalAPI {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
     }
 
-    public func search(for query: String, limit: Int = 10) async -> TidalResult? {
+    public func search(for query: String, limit: Int = 20) async -> TidalResult? {
         if query.count < 1 { return nil }
         
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/search"
+        components.path = "/v2/searchresults/\(query)"
         components.queryItems = [
-            URLQueryItem(name: "query", value: query),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "tracks,artists,albums,playlists")
         ]
 
         guard let url = components.url else {
@@ -27,52 +27,24 @@ public final class TidalAPI {
         }
 
         do {
-            guard let spotifySearch: TidalResult? = try await loadAuthorized(url) else { return nil }
-            return spotifySearch
+            guard let tidalResponse: TidalApiResponse? = try await loadAuthorized(url) else {
+                return nil
+            }
+            return tidalResponse?.toTidalResult
         } catch {
 
             return nil
         }
     }
 
-//    public func track(with id: String) async -> SpotifyTrackItem? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/tracks/\(id)"
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifyTrack: SpotifyTrackItem = try await loadAuthorized(url)
-//            return spotifyTrack
-//        } catch {
-//
-//            return nil
-//        }
-//    }
-//
-//    public func playlist(id: String) async -> SpotifyPlaylistItems? {
-//        var components = URLComponents()
-//        components.scheme = "https"
-//        components.host = "api.spotify.com"
-//        components.path = "/v1/playlists/\(id)"
-//        guard let url = components.url else { return nil }
-//
-//        do {
-//            let spotifyPlaylist: SpotifyPlaylistItems = try await loadAuthorized(url)
-//            return spotifyPlaylist
-//        } catch {
-//            return nil
-//        }
-//    }
-
     public func track(with id: String) async -> TidalTrackResource? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/tracks/\(id)"
+        components.path = "/v2/tracks/\(id)"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "artists,albums")
         ]
 
         guard let url = components.url else {
@@ -80,43 +52,123 @@ public final class TidalAPI {
         }
 
         struct TrackResult: Codable {
-            let resource: TidalTrackResource
+            let data: TidalIncluded
+            let included: [TidalIncluded]?
         }
 
-        guard let trackResult: TrackResult = try? await loadAuthorized(url) else { return nil }
-        return trackResult.resource
+        guard let result: TrackResult = try? await loadAuthorized(url),
+              let albumResult = result.included?.first(where: { $0.type.lowercased().contains("album") }),
+              let artistResult = result.included?.first(where: { $0.type.lowercased().contains("artist") }) else { return nil}
+        
+        let artist = TidalArtistResource(
+            id: artistResult.id,
+            name: artistResult.attributes.label,
+            picture: artistResult.attributes.tidalImages,
+            main: true,
+            tidalUrl: artistResult.attributes.tidalURL,
+            popularity: artistResult.attributes.popularityRating
+        )
+        
+        let album = TidalAlbumResource(
+            id: albumResult.id,
+            barcodeId: albumResult.attributes.barcodeId,
+            title: albumResult.attributes.title ?? "",
+            artists: [artist],
+            duration: albumResult.attributes.durationInSeconds,
+            releaseDate: albumResult.attributes.releaseDate,
+            imageCover: albumResult.attributes.tidalImages,
+            numberOfVolumes: nil,
+            numberOfTracks: nil,
+            numberOfVideos: nil,
+            copyright: nil,
+            tidalUrl: albumResult.attributes.tidalURL,
+            properties: nil,
+            mediaMetadata: albumResult.attributes.mediaTags,
+            isExplicit: albumResult.attributes.isExplicit,
+            popularity: albumResult.attributes.popularityRating
+        )
+
+        return TidalTrackResource(
+            id: result.data.id,
+            isrc: result.data.attributes.isrc,
+            title:  result.data.attributes.label,
+            artists: [artist],
+            album: album,
+            duration: result.data.attributes.durationInSeconds,
+            releaseDate: result.data.attributes.releaseDate,
+            imageCover: albumResult.attributes.tidalImages,
+            numberOfVolumes: nil,
+            numberOfTracks: nil,
+            numberOfVideos: nil,
+            copyright: nil,
+            tidalUrl: result.data.attributes.tidalURL,
+            mediaMetadata: result.data.attributes.mediaTags,
+            isExplicit: result.data.attributes.isExplicit,
+            popularity: result.data.attributes.popularityRating
+        )
     }
 
     public func album(with id: String) async -> TidalAlbumResource? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/albums/\(id)"
+        components.path = "/v2/albums/\(id)"
         components.queryItems = [
             URLQueryItem(name: "limit", value: "100"),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "artists")
         ]
 
         guard let url = components.url else {
             return nil
         }
-
-        struct AlbumResult: Codable {
-            let resource: TidalAlbumResource
+        
+        struct Result: Codable {
+            let data: TidalIncluded
+            let included: [TidalIncluded]?
         }
 
-        guard let trackResult: AlbumResult = try? await loadAuthorized(url) else { return nil }
-        return trackResult.resource
+        guard let album: Result = try? await loadAuthorized(url),
+              let artistResult = album.included?.first(where: { $0.type.lowercased().contains("artist") }) else { return nil}
+        
+        let artist = TidalArtistResource(
+            id: artistResult.id,
+            name: artistResult.attributes.label,
+            picture: artistResult.attributes.tidalImages,
+            main: true,
+            tidalUrl: artistResult.attributes.tidalURL,
+            popularity: artistResult.attributes.popularityRating
+        )
+        
+        return TidalAlbumResource(
+            id: album.data.id,
+            barcodeId: album.data.attributes.barcodeId,
+            title: album.data.attributes.title ?? "",
+            artists: [artist],
+            duration: album.data.attributes.durationInSeconds,
+            releaseDate: album.data.attributes.releaseDate,
+            imageCover: album.data.attributes.tidalImages,
+            numberOfVolumes: nil,
+            numberOfTracks: nil,
+            numberOfVideos: nil,
+            copyright: nil,
+            tidalUrl: album.data.attributes.tidalURL,
+            properties: nil,
+            mediaMetadata: album.data.attributes.mediaTags,
+            isExplicit: album.data.attributes.isExplicit,
+            popularity: album.data.attributes.popularityRating
+        )
     }
 
     public func albumSongs(id: String) async -> [TidalTrackResource] {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/albums/\(id)/items"
+        components.path = "/v2/albums/\(id)"
         components.queryItems = [
             URLQueryItem(name: "limit", value: "100"),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "items,artists")
         ]
 
         guard let url = components.url else {
@@ -124,62 +176,177 @@ public final class TidalAPI {
         }
 
         struct AlbumResult: Codable {
-            let data: [TidalTrackEntry]
+            let data: TidalIncluded
+            let included: [TidalIncluded]
         }
 
-        guard let album: AlbumResult = try? await loadAuthorized(url) else { return [] }
-        return album.data.map { $0.resource }
+        guard let albumResult: AlbumResult = try? await loadAuthorized(url),
+              let artistResult = albumResult.included.first(where: { $0.type.lowercased().contains("artist") }) else { return [] }
+        
+        let artist = TidalArtistResource(
+            id: artistResult.id,
+            name: artistResult.attributes.label,
+            picture: artistResult.attributes.tidalImages,
+            main: true,
+            tidalUrl: artistResult.attributes.tidalURL,
+            popularity: artistResult.attributes.popularityRating
+        )
+        
+        let album = TidalAlbumResource(
+            id: albumResult.data.id,
+            barcodeId: albumResult.data.attributes.barcodeId,
+            title: albumResult.data.attributes.title ?? "",
+            artists: [artist],
+            duration: albumResult.data.attributes.durationInSeconds,
+            releaseDate: albumResult.data.attributes.releaseDate,
+            imageCover: albumResult.data.attributes.tidalImages,
+            numberOfVolumes: nil,
+            numberOfTracks: nil,
+            numberOfVideos: nil,
+            copyright: nil,
+            tidalUrl: albumResult.data.attributes.tidalURL,
+            properties: nil,
+            mediaMetadata: albumResult.data.attributes.mediaTags,
+            isExplicit: albumResult.data.attributes.isExplicit,
+            popularity: albumResult.data.attributes.popularityRating
+        )
+        
+        return albumResult.included.map {
+            TidalTrackResource(
+                id: $0.id,
+                isrc: $0.attributes.isrc,
+                title: $0.attributes.title ?? "",
+                artists: [],
+                album: album,
+                duration: $0.attributes.durationInSeconds,
+                releaseDate: nil,
+                imageCover: [],
+                numberOfVolumes: nil,
+                numberOfTracks: nil,
+                numberOfVideos: nil,
+                copyright: nil,
+                tidalUrl: "",
+                mediaMetadata: nil,
+                isExplicit: $0.attributes.isExplicit,
+                popularity: $0.attributes.popularityRating
+            )
+        }
     }
 
     public func artistSongs(id: String) async -> [TidalTrackResource] {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/artists/\(id)/tracks"
+        components.path = "/v2/artists/\(id)"
         components.queryItems = [
             URLQueryItem(name: "limit", value: "20"),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "tracks"),
+            URLQueryItem(name: "collapseBy", value: "FINGERPRINT"),
         ]
 
         guard let url = components.url else {
             return []
         }
 
-        struct AlbumResult: Codable {
-            let data: [TidalTrackEntry]
+        struct Result: Codable {
+            let data: TidalIncluded
+            let included: [TidalIncluded]?
         }
 
-        guard let album: AlbumResult = try? await loadAuthorized(url) else { return [] }
-        return album.data.map { $0.resource }
+        guard let result: Result = try? await loadAuthorized(url),
+              let tracks = result.included else { return [] }
+        
+        let artist = TidalArtistResource(
+            id: result.data.id,
+            name: result.data.attributes.label,
+            picture: result.data.attributes.tidalImages,
+            main: true,
+            tidalUrl: result.data.attributes.tidalURL,
+            popularity: result.data.attributes.popularityRating
+        )
+        
+        return tracks.compactMap {
+            TidalTrackResource(
+                id: $0.id,
+                isrc: $0.attributes.isrc,
+                title: $0.attributes.label,
+                artists: [artist],
+                album: nil,
+                duration: $0.attributes.durationInSeconds,
+                releaseDate: $0.attributes.releaseDate,
+                imageCover: $0.attributes.tidalImages,
+                numberOfVolumes: $0.attributes.numberOfVolumes,
+                numberOfTracks: $0.attributes.numberOfItems,
+                numberOfVideos: nil,
+                copyright: nil,
+                tidalUrl: $0.attributes.tidalURL,
+                mediaMetadata: $0.attributes.mediaTags,
+                isExplicit: $0.attributes.isExplicit,
+                popularity: $0.attributes.popularityRating
+            )
+        }
     }
 
     public func artistAlbums(id: String) async -> [TidalAlbumResource] {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/artists/\(id)/albums"
+        components.path = "/v2/artists/\(id)"
         components.queryItems = [
-            URLQueryItem(name: "limit", value: "100"),
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "albums"),
         ]
+
 
         guard let url = components.url else {
             return []
         }
 
         struct AlbumResult: Codable {
-            let data: [TidalAlbumEntry]
+            let data: TidalIncluded
+            let included: [TidalIncluded]?
         }
 
-        guard let album: AlbumResult = try? await loadAuthorized(url) else { return [] }
-        return album.data.map { $0.resource }
+        guard let result: AlbumResult = try? await loadAuthorized(url),
+              let albums = result.included else { return [] }
+        
+        let artist = TidalArtistResource(
+            id: result.data.id,
+            name: result.data.attributes.label,
+            picture: result.data.attributes.tidalImages,
+            main: true,
+            tidalUrl: result.data.attributes.tidalURL,
+            popularity: result.data.attributes.popularityRating
+        )
+        
+        return albums.compactMap {
+            TidalAlbumResource(
+                id: $0.id,
+                barcodeId: $0.attributes.barcodeId,
+                title: $0.attributes.label,
+                artists: [artist],
+                duration: $0.attributes.durationInSeconds,
+                releaseDate: $0.attributes.releaseDate,
+                imageCover: $0.attributes.tidalImages,
+                numberOfVolumes: $0.attributes.numberOfVolumes,
+                numberOfTracks: $0.attributes.numberOfItems,
+                numberOfVideos: nil,
+                copyright: nil,
+                tidalUrl: $0.attributes.tidalURL,
+                properties: nil,
+                mediaMetadata: $0.attributes.mediaTags,
+                isExplicit: $0.attributes.isExplicit,
+                popularity: $0.attributes.popularityRating
+            )
+        }
     }
 
     public func artist(with id: String) async -> TidalArtistResource? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/artists/\(id)"
+        components.path = "/v2/artists/\(id)"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
         ]
@@ -188,12 +355,23 @@ public final class TidalAPI {
             return nil
         }
 
-        struct ArtistResult: Codable {
-            let resource: TidalArtistResource
+        struct AlbumResult: Codable {
+            let data: TidalIncluded
+            let included: [TidalIncluded]?
         }
 
-        guard let trackResult: ArtistResult = try? await loadAuthorized(url) else { return nil }
-        return trackResult.resource
+        guard let result: AlbumResult = try? await loadAuthorized(url) else { return nil }
+        
+        let artist = TidalArtistResource(
+            id: result.data.id,
+            name: result.data.attributes.label,
+            picture: result.data.attributes.tidalImages,
+            main: true,
+            tidalUrl: result.data.attributes.tidalURL,
+            popularity: result.data.attributes.popularityRating
+        )
+        
+        return artist
     }
 
 
@@ -258,8 +436,6 @@ public final class TidalAPI {
         var urlRequest = URLRequest(url: url)
         let token = try await validToken()
         urlRequest.setValue("Bearer \(token.id)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("application/vnd.tidal.v1+json", forHTTPHeaderField: "Content-Type")
-
         return urlRequest
     }
 

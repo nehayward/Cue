@@ -25,15 +25,8 @@ struct PlayerScreen: View {
                                     .transition(.scale.combined(with: .opacity))
                             }
                         }
-                        .tag(0)
                         GroupVolumeControlScreen(id: id)
-                            .tag(1)
-                        UpNextScreen(id: id) {
-                            withAnimation {
-                                tabSelection = 0
-                            }
-                        }
-                        .id(2)
+                        UpNextScreen(id: id)
                     }
                     .animation(.interactiveSpring, value: device.isTVMode)
                 } else {

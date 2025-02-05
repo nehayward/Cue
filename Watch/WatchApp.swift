@@ -45,7 +45,12 @@ struct WatchApp: App {
                         }
                     }
                 }
-                try? await sonosService.loadWatch(useCache: true)
+                do {
+                    try await sonosService.loadWatch(useCache: true)
+                } catch {
+                    try await sonosService.loadWatch(useCache: false)
+                    print(error)
+                }
             }
         }
     }

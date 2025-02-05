@@ -26,7 +26,7 @@ struct SceneBuilderScreen: View {
             //                    PlayableContentView(item: content)
             //                }
             ForEach($rooms) { $room in
-                VStack {
+                VStack(spacing: 0) {
                     Button {
                         HapticManager.shared.fireHaptic(.selection)
                         if selections.contains(room.id) {
@@ -41,27 +41,28 @@ struct SceneBuilderScreen: View {
                     } label: {
                         HStack {
                             Text(room.name)
-                            Spacer()
-                            Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "checkmark.circle")
-                                .symbolEffect(.bounce, options: .speed(5), value: selections.contains(room.id))
+                                .font(.title3)
+                                .bold()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
+                                .font(.title2)
+                                .opacity(isSelected(room) ? 1 : 0.8)
                         }
-                        .foregroundStyle(selections.contains(room.id) ? .black : .primary)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(.primary)
                         .fontDesign(.rounded)
-                        .bold()
+                        .padding()
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                     RoomVolumeView(room: $room, delayDrag: true)
-                        .foregroundStyle(selections.contains(room.id) ? .black : .primary)
-                        .tint(selections.contains(room.id) ? .black : .accentColor)
+                        .foregroundStyle(.primary)
                 }
-                .listRowBackground(
-                    selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                        .foregroundStyle(Color.accentColor.gradient.opacity(0.8))
-                    : nil
-                )
-                .task {
-                    guard let group = group else { return }
-                    selections.insert(group.wrappedValue.coordinatorRoom.id)
-                }
+                .listRowBackground(selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
+                    .foregroundStyle(.placeholder)
+                : nil)
+                .listRowInsets(EdgeInsets())
             }
 
 //            // TODO: Scenes
@@ -153,6 +154,10 @@ struct SceneBuilderScreen: View {
         .onAppear {
             Analytics.shared.track(.viewedSceneBuilderScreen)
         }
+    }
+    
+    func isSelected(_ room: Room) -> Bool {
+        selections.contains(room.id)
     }
 }
 

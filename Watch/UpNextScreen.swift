@@ -13,7 +13,6 @@ struct UpNextScreen: View {
     
     @State private var isLoading: Bool = false
     
-    var jumpToNowPlaying: () -> Void
     
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -37,7 +36,6 @@ struct UpNextScreen: View {
                             guard let position = track.metadata?.position else { return }
                             await sonosService.seek(to: position, on: device)
                             await sonosService.play(device.ip)
-                            jumpToNowPlaying()
                         }
                     } label: {
                         HStack {

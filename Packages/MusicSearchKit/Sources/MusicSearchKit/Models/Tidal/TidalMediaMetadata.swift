@@ -7,6 +7,6 @@ public struct TidalMediaMetadata: Codable {
     }
     
     public var hasLossLess: Bool {
-        tags?.contains { $0.caseInsensitiveCompare("dolby_atmos") == .orderedSame } ?? false
+        tags?.contains { $0.caseInsensitiveCompare("LOSSLESS") == .orderedSame } ?? false
     }
 }

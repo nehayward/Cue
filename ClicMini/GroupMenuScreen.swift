@@ -162,6 +162,24 @@ struct GroupItemView: View {
                                     device.musicServiceType.icon
                                         .frame(width: 12, height: 12)
                                 }
+                                .overlay {
+                                    if device.groupIsMuted {
+                                        Image(systemName: "speaker.slash.fill")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .foregroundStyle(.primary)
+                                            .frame(width: 24, height: 24)
+                                            .bold()
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                            .background {
+                                                RoundedRectangle(cornerRadius: 2)
+                                                    .foregroundStyle(.ultraThinMaterial)
+                                            }
+                                            .clipped()
+                                            .transition(.opacity)
+                                    }
+                                }
+                                .animation(.spring, value: device.groupIsMuted)
 #if DEBUG && SCREENSHOT
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 4)

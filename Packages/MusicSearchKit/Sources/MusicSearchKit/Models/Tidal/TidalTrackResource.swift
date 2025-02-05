@@ -4,7 +4,7 @@ public struct TidalTrackResource: Codable {
     public let isrc: String?
     public let title: String
     public let artists: [TidalArtistResource]
-    public let album: TidalAlbum
+    public let album: TidalAlbumResource?
     public let duration: Int
     public let releaseDate: String?
     public let imageCover: [TidalImage]?
@@ -13,10 +13,7 @@ public struct TidalTrackResource: Codable {
     public let numberOfVideos: Int?
     public let copyright: String?
     public let tidalUrl: String
-    public let mediaMetadata: TidalMediaMetadata
-    public let properties: TidalProperties?
-    
-    public var isExplicit: Bool {
-        properties?.content?.contains("explicit") ?? false
-    }
+    public let mediaMetadata: [String]?
+    public let isExplicit: Bool
+    public let popularity: Double
 }

@@ -639,8 +639,8 @@ extension TidalTrackResource {
         return PlayableContent(
             title: title,
             subtitle: artists.first?.name ?? "",
-            thumbnail: album.imageCover.thumbnail,
-            artwork: album.imageCover.biggestImageURL,
+            thumbnail: album?.imageCover?.thumbnail,
+            artwork: album?.imageCover?.biggestImageURL,
             content: .init(
                 service: .tidal,
                 id: id,
@@ -651,12 +651,13 @@ extension TidalTrackResource {
                 duration: Duration.seconds(
                     duration
                 ),
+                popularity: Int(popularity),
                 artist: artist?.name,
                 artistID: artist?.id,
-                album: album.title,
-                albumID: album.id,
+                album: album?.title,
+                albumID: album?.id,
                 isrc: isrc,
-                audioCodec: mediaMetadata.tags?.last?.uppercased(),
+                audioCodec: mediaMetadata?.first,
                 isExplicit: isExplicit
             )
         )
@@ -669,7 +670,7 @@ extension TidalAlbumResource {
         let artist = artists.first { $0.main ?? false }
         return PlayableContent(
             title: title,
-            subtitle: [artist?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            subtitle: [artist?.name, releaseDateFormatted, dolbyAtmos, lossless].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: imageCover?.thumbnail,
             artwork: imageCover?.biggestImageURL,
             content: .init(
@@ -682,11 +683,30 @@ extension TidalAlbumResource {
                 duration: Duration.seconds(
                     duration
                 ),
+                popularity: Int(popularity),
                 artist: artist?.name,
                 artistID: artist?.id,
                 album: title,
                 albumID: id,
                 isExplicit: isExplicit
+            )
+        )
+    }
+}
+
+// MARK: Tidal
+extension TidalPlaylistResource {
+    public var toPlayable: PlayableContent {
+        return PlayableContent(
+            title: name,
+            subtitle: "",
+            thumbnail: imageUrls.thumbnail,
+            artwork: imageUrls.biggestImageURL,
+            content: MediaContent(
+                service: .tidal,
+                id: id.description,
+                type: .playlist,
+                location: nil
             )
         )
     }
@@ -704,7 +724,8 @@ extension TidalArtistResource {
                 id: id,
                 type: .artist,
                 location: URL(string: tidalUrl ?? "")
-            )
+            ),
+            metadata: .init(popularity: Int(popularity))
         )
     }
 }

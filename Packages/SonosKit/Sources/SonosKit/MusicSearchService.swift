@@ -491,9 +491,10 @@ public final class MusicSearchService {
     private func searchTidal(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await tidal.search(for: query) else { return playableContent }
-        playableContent.append(contentsOf: results.tracks.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.albums.map(\.resource.toPlayable))
-        playableContent.append(contentsOf: results.artists.map(\.resource.toPlayable))
+        playableContent.append(contentsOf: results.tracks.map(\.toPlayable))
+        playableContent.append(contentsOf: results.albums.map(\.toPlayable))
+        playableContent.append(contentsOf: results.artists.map(\.toPlayable))
+        playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }

@@ -16,6 +16,14 @@ struct PreferenceScreen: View {
                 } footer: {
                     Text("Instantly jump to the group currently playing.")
                 }
+                
+                VStack(alignment: .center) {
+                    Text("Version **\(OSEnvironment.versionInfo)**")
+                    Text("Build **\(OSEnvironment.buildNumber)**")
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+                
             }
         }
     }

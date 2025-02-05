@@ -159,7 +159,7 @@ public final class SonosMiniService {
             }
             devices[index].isAlarmRunning = avEvent.isAlarmRunning
             devices[index].queueTotal = avEvent.queueTotal
-            
+            devices[index].isHidden = avEvent.currentTrackURI.contains("x-rincon")
             devices[index].trackID = avEvent.trackID
             devices[index].musicServiceType = avEvent.musicService
             

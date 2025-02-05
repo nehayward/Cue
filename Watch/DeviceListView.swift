@@ -54,7 +54,7 @@ struct DeviceListView: View {
                     Button {
                         router.sheet(to: .scenes)
                     } label: {
-                        Image(systemName: "bolt.circle.fill")
+                        Image(systemName: "bolt.fill")
                     }
                     Spacer()
                 }

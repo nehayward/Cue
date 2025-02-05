@@ -41,6 +41,7 @@ public final class LibraryBrowseService {
         }
     }
 
+    @MainActor
     public func updatePlaylists() async {
         guard let ip = sonosService.prioritizedIP() else { return }
         let newPlaylists = await sonosAPI.getLibraryItems(IP: ip, type: .playlist, offset: 0, requestedCount: 0)

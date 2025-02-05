@@ -75,6 +75,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "track%2f\(id)"
         case (.album, .tidal):
             return "x-rincon-cpcontainer:1004206calbum%2f\(id)"
+        case (.playlist, .tidal):
+            return "x-rincon-cpcontainer:0006006cplaylist%2F\(id)"
         case (.artist, .tidal):
             return ""
         case (_, .unknown):
@@ -158,6 +160,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.album, .tidal):
             return """
 \(Self.defaultXMLNSHeader) id="00040000album%2f\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.playlist, .tidal):
+            return """
+\(Self.defaultXMLNSHeader) id="0006006cplaylist%2F\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON44551_X_#Svc44551-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case (.artist, .tidal):
             return """

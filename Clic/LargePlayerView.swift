@@ -273,7 +273,7 @@ struct LargePlayerView: View {
         .animation(.bouncy, value: isHoveringOnQueueList)
         .background {
             ZStack {
-                artworkView()
+                artworkView(showBadge: false)
                     .saturation(1.3)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(1.3)
@@ -455,8 +455,8 @@ struct LargePlayerView: View {
         .fontDesign(.rounded)
     }
     
-    func artworkView(_ isDraggable: Bool = false) -> some View {
-        ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, group: $group)
+    func artworkView(_ isDraggable: Bool = false, showBadge: Bool = true) -> some View {
+        ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, showBadge: showBadge, group: $group)
     }
     
     private func loadArtwork(url: URL?) -> ImageTask? {

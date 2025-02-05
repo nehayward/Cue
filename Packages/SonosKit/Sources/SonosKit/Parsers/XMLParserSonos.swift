@@ -95,7 +95,7 @@ final class XMLParserSonos {
             return .empty
         }
         
-        let name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text ?? "Unknown"
+        var name = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:title"].element?.text ?? "Unknown"
         let album = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["upnp:album"].element?.text
         let artist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["dc:creator"].element?.text
         let albumArtist = xmlParsed["s:Envelope"]["s:Body"]["u:GetPositionInfoResponse"]["TrackMetaData"]["DIDL-Lite"]["item"]["r:albumArtist"].element?.text
@@ -158,6 +158,10 @@ final class XMLParserSonos {
 
         if trackURI.contains("librarytrack") {
             musicService = .apple
+        }
+        
+        if trackURI.contains("x-rincon-stream") {
+            name = "Line In"
         }
 
         // TODO: Add hi res icon
@@ -293,8 +297,7 @@ final class XMLParserSonos {
             return .spotifyConnect
         }
 
-        // TODO: Figure out
-        if currentURI.contains("line-in") {
+        if currentURI.contains("x-rincon-stream") {
             return .lineIn
         }
 

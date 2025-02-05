@@ -40,7 +40,11 @@ public struct VibeSlider: View {
             self.range = range
             self.step = step
             self.baseHeight = baseHeight
+#if targetEnvironment(macCatalyst)
+            self.delayDrag = false
+#else
             self.delayDrag = delayDrag
+#endif
             self.showValue = showValue
             self.onEditingChanged = onEditingChanged
         }

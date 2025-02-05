@@ -125,10 +125,27 @@ struct SelectGroupView: View {
             .overlay(alignment: .bottom) {
                 VStack {
                     HStack {
-                        VibeSlider(value: $groupVolume, step: 1)
-                        Text(groupVolume/100, format: .percent)
-                            .animation(nil, value: groupVolume)
-                            .monospacedDigit()
+                        Button {
+                            groupVolume = max(0, groupVolume - 2)
+                        } label: {
+                            Image(systemName: "minus")
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                        .tint(.primary)
+                        .buttonStyle(.liveActivity)
+                        .buttonRepeatBehavior(.enabled)
+                        VibeSlider(value: $groupVolume, step: 1, showValue: true)
+                        Button {
+                            groupVolume = min(100, groupVolume + 2)
+                        } label: {
+                            Image(systemName: "plus")
+                                .frame(width: 24, height: 24)
+                                .bold()
+                        }
+                        .tint(.primary)
+                        .buttonStyle(.liveActivity)
+                        .buttonRepeatBehavior(.enabled)
                     }
                     .frame(height: 24)
                     .padding(.bottom)
@@ -193,7 +210,6 @@ struct SelectGroupView: View {
         }
         .animation(.default, value: sonosService.sorted)
         .animation(.default, value: selections)
-        .animation(.default, value: groupVolume)
     }
 
     var filteredAndSortedGroups: [GroupRoom] {

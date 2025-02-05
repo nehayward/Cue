@@ -13,6 +13,7 @@ struct ArtworkView: View {
     var image: Binding<UIImage?>? = nil
     var count: Binding<Int>? = nil
     var animation: TimeInterval = 0.2
+    var showBadge: Bool = true
 
     @Binding var group: GroupRoom
     @State private var alarmRunning: Bool = false
@@ -52,8 +53,19 @@ struct ArtworkView: View {
                         .foregroundStyle(.thickMaterial)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if group.coordinatorRoom.track.artworkURL == nil {
+                            if group.coordinatorRoom.track.artworkURL == nil, group.playbackService != .lineIn, showBadge {
                                 Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.primary.secondary)
+                                    .fontWeight(.light)
+                                    .frame(maxWidth: 100)
+                                    .tint(Color.primary.secondary)
+                                    .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                            }
+                            
+                            if group.playbackService == .lineIn, showBadge {
+                                Image(systemName: "audio.jack.stereo")
                                     .resizable()
                                     .scaledToFit()
                                     .foregroundStyle(.primary.secondary)
@@ -107,6 +119,24 @@ struct ArtworkView: View {
                 imageTask?.cancel()
                 imageTask = nil
             }
+            .overlay {
+                if group.isMuted, showBadge {
+                    Image(systemName: "speaker.slash.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.primary)
+                        .bold()
+                        .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .background {
+                            RoundedRectangle(cornerRadius: 8)
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                        .transition(.opacity)
+                        .tint(.primary)
+                }
+            }
+            .animation(.spring, value: group.isMuted)
         }
     }
     

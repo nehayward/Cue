@@ -13,15 +13,27 @@ public struct TidalAlbumResource: Codable {
     public let copyright: String?
     public let tidalUrl: String
     public let properties: TidalProperties?
-    public let mediaMetadata: TidalMediaMetadata?
-    
-    public var isExplicit: Bool {
-        properties?.content?.contains("explicit") ?? false
-    }
+    public let mediaMetadata: [String]?
+    public let isExplicit: Bool
+    public let popularity: Double
     
     public var releaseDateFormatted: String? {
         if let releaseDate {
             return releaseDate.components(separatedBy: "-").first
+        }
+        return nil
+    }
+    
+    public var dolbyAtmos: String? {
+        if mediaMetadata?.contains(where: { $0.caseInsensitiveCompare("dolby_atmos") == .orderedSame }) ?? false {
+            return "Dolby Atmos"
+        }
+        return nil
+    }
+    
+    public var lossless: String? {
+        if mediaMetadata?.contains(where: { $0.caseInsensitiveCompare("LOSSLESS") == .orderedSame }) ?? false {
+            return "Lossless"
         }
         return nil
     }

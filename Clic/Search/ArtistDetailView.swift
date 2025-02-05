@@ -418,24 +418,31 @@ struct ArtistDetailView: View {
 
                 if let artistID = playableContent.metadata?.artistID {
                     let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
                     self.tracks = artistTopTracks
                     if let artist {
                         self.playableContent = artist
+                        artworkURL = playableContent.artwork
                     }
                 } else {
                     guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
                     self.tracks = artistTopTracks
                     if let artist {
                         self.playableContent = artist
+                        artworkURL = playableContent.artwork
                     }
                 }
                 // MARK: Rate Limited
@@ -473,7 +480,9 @@ struct ArtistDetailView: View {
 
                 if let artistID = playableContent.metadata?.artistID {
                     let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(300))
                     let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(300))
                     let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
@@ -483,8 +492,13 @@ struct ArtistDetailView: View {
                     }
                 } else {
                     guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    try? await Task.sleep(for: .milliseconds(200))
+
                     let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
+
                     let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    try? await Task.sleep(for: .milliseconds(200))
                     let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
@@ -526,6 +540,7 @@ struct ArtistDetailView: View {
                 artworkURL = nil
                 artworkURL = playableContent.artwork
                 async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: playableContent.content.id)
+                try? await Task.sleep(for: .milliseconds(200))
                 async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: playableContent.content.id)
 
                 let artistAlbumsAwait = await artistAlbums

@@ -1,6 +1,7 @@
 
 public struct TidalResult: Codable {
-    public let albums: [TidalAlbumEntry]
-    public let artists: [TidalArtistEntry]
-    public let tracks: [TidalTrackEntry]
+    public let albums: [TidalAlbumResource]
+    public let artists: [TidalArtistResource]
+    public let tracks: [TidalTrackResource]
+    public let playlists: [TidalPlaylistResource]
 }
