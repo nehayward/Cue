@@ -1,22 +1,31 @@
+# 2025.2
+
+––New Features––
+- Fixed an issue with some Apple Music URLs not being parsed in the Queue action, it also opens Clic after being executed.
+
+––Bug Fixes––
+- Fix album art not showing on main list view
+
 # 2025.1
 
 ––New Features––
-- Introducing Clic Mini!
-- Add hover states to queue list and device list.
-- Add crossfade for album art
-- Live Activities now dismissed when paused on app launch.
-- Rewrite watch app for performance increases.
-- Updated volume controls
-- Show Line In Icon
-- Added playlist to Tidal search results
+- Introducing Clic Mini – a lightweight way to control your music effortlessly from the menu bar.
+- Added hover states to the queue list and device list for a more responsive feel.
+- Album art now crossfades for smoother transitions.
+- Live Activities will now dismiss automatically when paused on app launch.
+- Completely rewrote the watch app for better performance and a faster experience.
+- Updated volume controls for more precise adjustments.
+- Now showing a Line-In icon when available.
+- Tidal search results now include playlists.
 
 ––Bug Fixes––
-- Fix Tidal not showing results
-- Fix queueTotal not being being correct when over 1000 items.
-- Fix live activity on watch app, it will now open watch app if installed.
-- Hide NowPlaying on macOS, since it's not compatible 
-- Improve Music Service selection.
-- Performance improvements for Mac app.
+- Fixed an issue where Tidal search results wouldn’t appear.
+- Fixed queue totals displaying incorrectly when over 1000 items.
+- Live Activity on Apple Watch now correctly opens the watch app if installed.
+- NowPlaying is now hidden on macOS since it’s not supported.
+- Improved music service selection for a smoother experience.
+- Various performance improvements for the Mac app.
+
 
 # 2024.46
 

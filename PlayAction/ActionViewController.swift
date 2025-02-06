@@ -11,7 +11,11 @@ final class ActionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        queueListView = QueueListView(viewModel: viewModel, context: extensionContext)
+        queueListView = QueueListView(
+            viewModel: viewModel,
+            context: extensionContext,
+            openURL: openURL
+        )
         let hostingController = UIHostingController(rootView: queueListView)
         addChild(hostingController)
         hostingController.view.frame = self.view.bounds
@@ -42,5 +46,31 @@ final class ActionViewController: UIViewController {
                 }
             }
         }
+    }
+    
+    // Redirect To App
+    func openURL(url: URL?) {
+        guard let url else {
+            return
+        }
+        print("Redirecting to URL: \(url)")
+        openURL(url)
+    }
+
+    /// Open URL Code
+    @objc @discardableResult func openURL(_ url: URL) -> Bool {
+        var responder: UIResponder? = self
+        while responder != nil {
+            if let application = responder as? UIApplication {
+                if #available(iOS 18.0, *) {
+                    application.open(url, options: [:], completionHandler: nil)
+                    return true
+                } else {
+                    return application.perform(#selector(openURL(_:)), with: url) != nil
+                }
+            }
+            responder = responder?.next
+        }
+        return false
     }
 }

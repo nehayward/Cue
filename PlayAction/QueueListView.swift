@@ -21,12 +21,18 @@ struct QueueListView: View {
     
     var viewModel: ViewModel
     var context: NSExtensionContext?
+    var openURL: ((URL) -> Void)?
     
     private let impactFeedbackGenerator = UIImpactFeedbackGenerator()
     
-    public init(viewModel: ViewModel, context: NSExtensionContext? = nil) {
+    public init(
+        viewModel: ViewModel,
+        context: NSExtensionContext? = nil,
+        openURL: ((URL) -> Void)?
+    ) {
         self.viewModel = viewModel
         self.context = context
+        self.openURL = openURL
     }
     
     var body: some View {
@@ -78,6 +84,7 @@ struct QueueListView: View {
                     }
                 }
             }
+            .disabled(isQueueing)
             .scrollContentBackground(.hidden)
             .listRowSpacing(10)
             .foregroundStyle(.primary)
@@ -85,7 +92,7 @@ struct QueueListView: View {
             .onAppear {
                 Task {
                     if sonosService.sortedRooms.isEmpty {
-                        try? await sonosService.load(useCache: true)
+                        try? await sonosService.updateGroups()
                     }
                     rooms = sonosService.sortedRooms.filter {
                         $0.state == .active
@@ -105,6 +112,12 @@ struct QueueListView: View {
                         self.context?.completeRequest(returningItems: [])
                     }
                     .keyboardShortcut(.escape)
+                }
+                
+                ToolbarItem(placement: .topBarLeading) {
+                    Link(destination: URL(string: "clic://")!) {
+                        Text("Open Clic…")
+                    }
                 }
             }
             .background(.thinMaterial)
@@ -179,15 +192,25 @@ struct QueueListView: View {
                         isQueueing = true
                         playHistoryService.history.remove(content)
                         playHistoryService.history.insert(content, at: 0)
-                        try await sonosService.queue(playable: content, group: newGroup, position: .now)
-                        await sonosService.play(ip: newGroup.ip)
                         
-                        for room in rooms {
-                            await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
-                            await sonosService.setRoomMute(IP: room.ip, mute: false)
+                        try await sonosService.queue(playable: content, group: newGroup, position: .now)
+                        
+                        await withTaskGroup(of: Void.self) { group in
+                            group.addTask {
+                                await sonosService.play(ip: newGroup.ip)
+                            }
+                            for room in rooms {
+                                group.addTask {
+                                    await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
+                                    await sonosService.setRoomMute(IP: room.ip, mute: false)
+                                }
+                            }
                         }
+                        
                         try await Task.sleep(for: .microseconds(200))
                         await sonosService.snapShotGroup(ip: newGroup.ip)
+                        
+                        openURL?(URL(string: "clic://device?id=\(newGroup.coordinatorID)")!)
                         self.context?.completeRequest(returningItems: [])
                     }
                 } label: {
@@ -200,12 +223,12 @@ struct QueueListView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
                 .disabled(selections.isEmpty)
+                .disabled(isQueueing)
             }
             .padding()
             .background(.thinMaterial)
         }
         .accentColor(.teal)
-        .disabled(isQueueing)
     }
     
     var playEverywhereButton: some View {
@@ -236,5 +259,3 @@ struct QueueListView: View {
         var isLoading: Bool = true
     }
 }
-
-

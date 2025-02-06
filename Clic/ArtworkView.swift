@@ -113,6 +113,7 @@ struct ArtworkView: View {
 #endif
             }
             .onAppear {
+                imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
                 internalCount = 0
             }
             .onDisappear {

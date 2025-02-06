@@ -5,11 +5,8 @@ struct GroupNoLongerAvailableScreen: View {
     
     var body: some View {
         Text("Group No Longer Available")
+            .foregroundStyle(.secondary)
             .fontDesign(.rounded)
-            .font(.title)
-            .task {
-                try? await Task.sleep(for: .seconds(2))
-                dismiss()
-            }
+            .font(.title2)
     }
 }
