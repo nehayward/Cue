@@ -78,36 +78,25 @@ struct SceneView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SceneBuilderScreen()
-                            .onAppear {
-                                withAnimation {
-                                    presentationDetentSelection = .large
-                                }
-                            }
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        show = true
                     } label: {
-                        //                            Button {
-                        //                                HapticManager.shared.fireHaptic(.buttonPress)
-                        //                                show = true
-                        //                            } label: {
                         Image(systemName: "plus")
-                        //                            }
-                        //                            .bold()
-                        //                            .foregroundStyle(Color.accentColor.gradient)
+                            .accessibilityLabel("Add Scene")
+                            .bold()
+                            .foregroundStyle(Color.accentColor.gradient)
                     }
                 }
             }
-            //            .navigationDestination(for: Set<String>.self) { ids in
-            //                SceneBuilderScreen(sheetDestination: .constant(nil))
-            //            }
-            //            .sheet(isPresented: $show) {
-            //                NavigationStack {
-            //                    SceneBuilderScreen(sheetDestination: .constant(nil))
-            //                        .addDismiss {
-            //                            dismiss()
-            //                        }
-            //                }
-            //            }
+            .sheet(isPresented: $show) {
+                NavigationStack {
+                    SceneBuilderScreen()
+                        .addDismiss {
+                            dismiss()
+                        }
+                }
+            }
             .addDismiss {
                 dismiss()
             }

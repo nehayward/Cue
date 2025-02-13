@@ -48,8 +48,28 @@ struct LargePlayerView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .symbolRenderingMode(.hierarchical)
-                        .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
+                        .frame(width: isMacCatalystOrPad ? 400 : 300, height: isMacCatalystOrPad ? 400 : 300)
                         .opacity(0.2)
+                        .overlay {
+                            if group.isMuted {
+                                Image(systemName: "speaker.slash.fill")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.primary)
+                                    .bold()
+                                    .containerRelativeFrame(.horizontal) { size, axis in
+                                        size * 0.25
+                                    }
+                                    .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? 400 : 400)
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .foregroundStyle(.ultraThinMaterial)
+                                    }
+                                    .transition(.opacity)
+                                    .tint(.primary)
+                            }
+                        }
+                        .animation(.spring, value: group.isMuted)
                     TVModeView()
                     Spacer()
                 }
@@ -424,11 +444,30 @@ struct LargePlayerView: View {
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
                             .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 36, height: 36)
+                            .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
+                    
+                    Button {
+                        Task {
+                            await sonosService.setGroupMute(group: group, mute: !group.isMuted)
+                        }
+                    } label: {
+                        Label("Mute", systemImage: group.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                            .contentTransition(.symbolEffect)
+                            .font(.title)
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                            .toggleStyle(.button)
+                            .foregroundStyle(group.isMuted ? .accent : .secondary.opacity(0.8))
+                            .frame(width: 40, height: 36)
+                    }
+                    .buttonStyle(.bordered)
+                    .foregroundStyle(group.isMuted ? .accent : .secondary.opacity(0.8))
+                    .tint(group.isMuted ? .accent : nil)
+                    .animation(.spring, value: group.isMuted)
                     
                     Button {
                         Task {
@@ -442,7 +481,7 @@ struct LargePlayerView: View {
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
                             .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 36, height: 36)
+                            .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))

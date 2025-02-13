@@ -9,6 +9,8 @@ struct GroupMenuScreen: View {
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isLoading: Bool = false
     @State private var hoveredGroupId: String?
+    @State private var hoveredSceneId: String?
+    @State private var scenes: [SonosScene] = []
     
     var sizePassthroughWindow: PassthroughSubject<CGSize, Never>?
     
@@ -37,12 +39,17 @@ struct GroupMenuScreen: View {
                 sizePassthroughWindow?.send(size)
             }
             .frame(height: CGFloat(filteredDeviceBindings.count * 120 + (filteredDeviceBindings.isEmpty ? 44 : 0)))
-            .animation(.spring(response: 0.6, dampingFraction: 0.7), value: filteredDeviceBindings.count)
             .fontDesign(.rounded)
+            .onAppear {
+                guard let data = NSUbiquitousKeyValueStore.default.data(forKey: "com.clic.scenes"),
+                      let scenes = try? JSONDecoder().decode([SonosScene].self, from: data) else { return }
+                
+                self.scenes = scenes
+            }
     }
     
     var mainContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(filteredDeviceBindings) { $device in
                 GroupItemView(device: $device, hoveredGroupId: $hoveredGroupId)
                     .frame(maxHeight: 200)
@@ -65,6 +72,9 @@ struct GroupMenuScreen: View {
                 isLoading = false
             }
         }
+        .onDisappear {
+            sonosServiceMini.stopMonitor()
+        }
         .overlay {
             if isLoading, filteredDeviceBindings.isEmpty {
                 ProgressView()
@@ -82,26 +92,74 @@ struct GroupMenuScreen: View {
             }
         }
         .animation(.easeInOut, value: isLoading)
-        //        .safeAreaInset(edge: .top) {
-        //            Button("Click Me") { showList.toggle() }
-        //              .frame(width: 100, height: 20)
-        //              .overlay {
-        //                  if showList {
-        //                      List {
-        //                          Button("AA") {}
-        //                          Button("AA") {}
-        //                          Button("AA") {}
-        //                      }
-        //                      .frame(width: 200, height: 300)
-        //                      .offset(y: 160)
-        //                      .transition(.opacity)
-        //                      .padding()
-        //                      .clipShape(RoundedRectangle(cornerRadius: 12))
-        //                  }
-        //              }
-        //              .zIndex(1)
-        //              .animation(.spring, value: showList)
-        //        }
+        .overlay(alignment: .topTrailing) {
+            HStack {
+                Button {
+                    showList.toggle()
+                } label: {
+                    Image(systemName: "bolt.fill")
+                }
+                .padding([.top, .trailing], 4)
+                .overlay {
+                    if showList {
+                        ScrollView {
+                            LazyVStack {
+                                ForEach(scenes) { scene in
+                                    Button {
+                                        Task {
+                                            withAnimation {
+                                                showList = false
+                                            }
+                                            try? await sonosServiceMini.runScene(scene)
+                                        }
+                                    } label: {
+                                        Text(scene.name)
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 12)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(hoveredSceneId == scene.id.uuidString ?
+                                                          Color(nsColor: .systemFill) :
+                                                            Color.clear)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .onHover { isHovering in
+                                        hoveredSceneId = isHovering ? scene.id.uuidString : nil
+                                    }
+                                }
+                            }
+                            .padding(.bottom, 60)
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .foregroundStyle(.ultraThinMaterial)
+                                .shadow(radius: 10)
+                        )
+                        .frame(width: 200, height: 400, alignment: .trailing)
+                        .overlay(alignment: .bottom) {
+                            VStack(spacing: 0) {
+                                Rectangle()
+                                    .foregroundStyle(
+                                        .linearGradient(
+                                            colors: [.clear, .black.opacity(0.1), .black.opacity(0.3)],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .frame(height: 60)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .offset(x: -95, y: 220)
+                        .padding()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
     }
     
     @ViewBuilder
@@ -260,7 +318,7 @@ struct GroupItemView: View {
         Button {
             Task {
                 await sonosServiceMini.next(ip: device.ip)
-                try? await sonosServiceMini.updateDevices(from: [device])
+//                try? await sonosServiceMini.updateDevices(from: [device])
             }
         } label: {
             Image(systemName: "forward.fill")

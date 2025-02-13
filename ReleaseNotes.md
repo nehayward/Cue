@@ -1,10 +1,17 @@
 # 2025.2
 
 ––New Features––
-- Fixed an issue with some Apple Music URLs not being parsed in the Queue action, it also opens Clic after being executed.
+- Add Scene activation for Clic Mini
+- Add mute controls in TV Mode.
 
 ––Bug Fixes––
+- Tidal search results no longer include playlists.
+- Fixed Clic Mini not updating in some scenarios
+- Refined speaker grouping
+- Fixed Up Next not showing on Watch
+- Fixed an issue with some Apple Music URLs not being parsed in the Queue action, it also opens Clic after being executed.
 - Fix album art not showing on main list view
+- Fixed scenes not triggering on Watch in some cases
 
 # 2025.1
 

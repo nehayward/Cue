@@ -167,7 +167,7 @@ struct EditSceneScreen: View {
     Text("SceneBuilder")
         .sheet(isPresented: .constant(true)) {
             NavigationStack {
-                SceneBuilderScreen()
+//                EditSceneScreen(scene: .init(name: "Test", rooms: [SceneRoom]))
             }
         }
         .environment(SonosService())

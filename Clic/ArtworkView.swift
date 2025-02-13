@@ -92,6 +92,23 @@ struct ArtworkView: View {
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)
             }
+            .overlay {
+                if group.isMuted, showBadge {
+                    Image(systemName: "speaker.slash.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.primary)
+                        .bold()
+                        .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .background {
+                            RoundedRectangle(cornerRadius: 8)
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                        .transition(.opacity)
+                        .tint(.primary)
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
@@ -119,23 +136,6 @@ struct ArtworkView: View {
             .onDisappear {
                 imageTask?.cancel()
                 imageTask = nil
-            }
-            .overlay {
-                if group.isMuted, showBadge {
-                    Image(systemName: "speaker.slash.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.primary)
-                        .bold()
-                        .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .background {
-                            RoundedRectangle(cornerRadius: 8)
-                                .foregroundStyle(.ultraThinMaterial)
-                        }
-                        .transition(.opacity)
-                        .tint(.primary)
-                }
             }
             .animation(.spring, value: group.isMuted)
         }

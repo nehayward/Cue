@@ -204,6 +204,10 @@ public final class SonosMiniService {
         
     }
     
+    public func stopMonitor() {
+        sonosMonitor.listener.stopServer()
+    }
+    
     public func load(useCache: Bool) async throws {
         //        let newGroups = try await getGroups(useCache: useCache)
         let newDevices = try await getDevices(useCache: useCache)
@@ -481,11 +485,6 @@ public final class SonosMiniService {
             for device in newDevices {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
-                    guard let index = devices.firstIndex(where: { $0.id == device.id }) else {
-                        assertionFailure()
-                        return
-                    }
-                    
                     async let track = getTrack(ip: device.ip)
                     guard let awaitedTrack = await track else {
                         return
@@ -511,6 +510,9 @@ public final class SonosMiniService {
                         guard let newIndex = devices.firstIndex(where: { $0.id == device.id }) else { return }
                         if devices[index].rooms.contains(where: { $0.id == device.id }) {
                             return
+                        }
+                        if let removalIndex = devices[index].rooms.firstIndex(where: { $0.id == device.id }) {
+                            devices[index].rooms.remove(at: removalIndex)
                         }
                         devices[index].rooms.append(devices[newIndex])
                     } else {
@@ -1168,7 +1170,7 @@ public final class SonosMiniService {
     public func speedGroup(devices: [SonosDevice]) async -> SonosDevice? {
         // If there's only one room, ungroup it and return as a single group
         if devices.count == 1, let device = devices.first {
-            print("Ungroup")
+            print("Ungroup", device)
             await api.ungroup(IP: device.ip)
             return device
         }
@@ -1211,15 +1213,16 @@ public final class SonosMiniService {
         let nonCoordinatorRooms = devices.filter { $0.id != sonosDevice.id }
         for room in nonCoordinatorRooms {
             if !sonosDevice.rooms.contains(room) {
-                print("Group")
+                print("Group", room.name)
                 await api.group(IP: room.ip, to: sonosDevice.id)
             }
         }
         
         // Ungroup any extra rooms from the coordinator group
-        for room in sonosDevice.allDevices {
+        print(sonosDevice.allDevices)
+        for room in sonosDevice.rooms {
             if !devices.contains(room) {
-                print("Ungroup")
+                print("Ungroup", room.name)
                 await api.ungroup(IP: room.ip)
             }
         }
@@ -1300,6 +1303,11 @@ public final class SonosMiniService {
         device.groupIsMuted.toggle()
         await updateDevice(device, keyPath: \.groupIsMuted, value: device.groupIsMuted)
         await api.setGroupMute(IP: device.ip, mute: device.groupIsMuted)
+    }
+    
+    public func setGroupMute(device: SonosDevice, mute: Bool) async {
+        await updateDevice(device, keyPath: \.groupIsMuted, value: mute)
+        await api.setGroupMute(IP: device.ip, mute: mute)
     }
     
     public func setDeviceMute(device: SonosDevice, mute: Bool) async {

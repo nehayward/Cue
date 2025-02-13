@@ -13,17 +13,23 @@ struct SonosListenerConfig {
     let queueLabel: String
     let backlogSize: Int32
     let bufferSize: Int
+    let batchSize: Int  // Added for request batching
+    let maxConcurrentConnections: Int  // Added for connection pooling
     
     init(
         port: UInt16,
         queueLabel: String =  "com.clic.sonos_server",
-        backlogSize: Int32 = 128,
-        bufferSize: Int = 16384
+        backlogSize: Int32 = 256,  // Increased backlog size
+        bufferSize: Int = 32768,   // Increased buffer size
+        batchSize: Int = 10,
+        maxConcurrentConnections: Int = 50
     ) {
         self.port = port
         self.queueLabel = queueLabel
         self.backlogSize = backlogSize
         self.bufferSize = bufferSize
+        self.batchSize = batchSize
+        self.maxConcurrentConnections = maxConcurrentConnections
     }
 }
 
@@ -52,7 +58,7 @@ final class SonosListener {
     private let standardResponseString = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
     private let standardResponse = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".data(using: .utf8)!
     
-    private let bufferPool = DispatchQueue(label: "com.clic.buffer_pool")
+    private let bufferPool = BufferPool(size: 50, bufferSize: 32768)
     private var availableBuffers: [[UInt8]] = []
     private let maxBufferPoolSize = 10
     
@@ -63,9 +69,60 @@ final class SonosListener {
     private var serverMonitorTimer: DispatchSourceTimer?
     private let serverCheckInterval: TimeInterval = 30 // Check every 30 seconds
     
+    private let requestQueue = DispatchQueue(label: "com.clic.request_queue", attributes: .concurrent)
+    private let rateLimiter = RateLimiter(requestsPerSecond: 100)
+    private var pendingRequests: [(Data, String, String)] = []
+    private let batchProcessingQueue = DispatchQueue(label: "com.clic.batch_processing")
+    private var lastBatchProcessTime: TimeInterval = 0
+    private let minimumBatchInterval: TimeInterval = 0.1 // 100ms
+    
+    private var clientSources: [Int32: DispatchSourceRead] = [:] {
+        didSet {
+            // Clean up when reaching high counts
+            if clientSources.count > config.maxConcurrentConnections {
+                let excessConnections = clientSources.count - config.maxConcurrentConnections
+                let keysToRemove = Array(clientSources.keys.prefix(excessConnections))
+                keysToRemove.forEach { socket in
+                    clientSources[socket]?.cancel()
+                    clientSources.removeValue(forKey: socket)
+                }
+            }
+        }
+    }
+    
+    private var clientBuffers: [Int32: Data] = [:] {
+        didSet {
+            // Clean up when reaching high counts
+            if clientBuffers.count > config.maxConcurrentConnections {
+                let excessConnections = clientBuffers.count - config.maxConcurrentConnections
+                let keysToRemove = Array(clientBuffers.keys.prefix(excessConnections))
+                keysToRemove.forEach { socket in
+                    clientBuffers.removeValue(forKey: socket)
+                }
+            }
+        }
+    }
+    
+    private var expectedContentLengths: [Int32: Int] = [:] {
+        didSet {
+            // Clean up when reaching high counts
+            if expectedContentLengths.count > config.maxConcurrentConnections {
+                let excessConnections = expectedContentLengths.count - config.maxConcurrentConnections
+                let keysToRemove = Array(expectedContentLengths.keys.prefix(excessConnections))
+                keysToRemove.forEach { socket in
+                    expectedContentLengths.removeValue(forKey: socket)
+                }
+            }
+        }
+    }
+    
+    private let sharedBuffer: UnsafeMutablePointer<UInt8>
+    
     init(port: UInt16) {
         self.config = SonosListenerConfig(port: port)
         self.queue = DispatchQueue(label: config.queueLabel)
+        // Allocate shared buffer
+        self.sharedBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: config.bufferSize)
         #if !os(watchOS)
         setupLifecycleObservers()
         setupServer()
@@ -77,6 +134,8 @@ final class SonosListener {
         stopServerMonitoring()
         removeLifecycleObservers()
         stopServer()
+        // Deallocate shared buffer
+        sharedBuffer.deallocate()
     }
     
     private func setupLifecycleObservers() {
@@ -364,40 +423,17 @@ final class SonosListener {
     }
 
     private var readSource: DispatchSourceRead?
-    private var clientSources: [Int32: DispatchSourceRead] = [:]
-    private var clientBuffers: [Int32: Data] = [:]
-    private var expectedContentLengths: [Int32: Int] = [:]
-    
-    private func getBuffer() -> [UInt8] {
-        return bufferPool.sync {
-            if let buffer = availableBuffers.popLast() {
-                return buffer
-            }
-            return [UInt8](repeating: 0, count: config.bufferSize)
-        }
-    }
-    
-    private func recycleBuffer(_ buffer: [UInt8]) {
-        bufferPool.async {
-            if self.availableBuffers.count < self.maxBufferPoolSize {
-                self.availableBuffers.append(buffer)
-            }
-        }
-    }
     
     private func handleRead(socket: Int32) {
-        var buffer = getBuffer()
-        defer { recycleBuffer(buffer) }
-        
         repeat {
-            let bytesRead = recv(socket, &buffer, buffer.count, 0)
+            let bytesRead = recv(socket, sharedBuffer, config.bufferSize, 0)
             
             if bytesRead > 0 {
-                // Process data directly to avoid race conditions
+                // Process data directly to avoid copying
                 if clientBuffers[socket] == nil {
                     clientBuffers[socket] = Data()
                 }
-                clientBuffers[socket]?.append(contentsOf: buffer[..<bytesRead])
+                clientBuffers[socket]?.append(sharedBuffer, count: bytesRead)
                 
                 // Try to process as many complete messages as possible
                 while processBuffer(socket: socket) {}
@@ -410,7 +446,31 @@ final class SonosListener {
             }
         } while true
     }
-
+    
+    private func processPendingRequests(socket: Int32) {
+        let currentTime = Date().timeIntervalSince1970
+        guard currentTime - lastBatchProcessTime >= minimumBatchInterval else { return }
+        
+        batchProcessingQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Process pending requests in batches
+            while !self.pendingRequests.isEmpty {
+                let batchSize = min(self.config.batchSize, self.pendingRequests.count)
+                let batch = Array(self.pendingRequests.prefix(batchSize))
+                self.pendingRequests.removeFirst(batchSize)
+                
+                for (data, completeStr, clientIP) in batch {
+                    self.rateLimiter.execute { [weak self] in
+                        self?.handleSonosResponse(data, completeStr, clientIP: clientIP)
+                    }
+                }
+            }
+            
+            self.lastBatchProcessTime = currentTime
+        }
+    }
+    
     private func processBuffer(socket: Int32) -> Bool {
         guard var data = clientBuffers[socket] else { return false }
         
@@ -454,6 +514,7 @@ final class SonosListener {
         let lines = headerString.components(separatedBy: "\r\n")
         for line in lines {
             let lowercaseLine = line.lowercased()
+            
             if lowercaseLine.hasPrefix("content-length:") {
                 let value = lowercaseLine.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
                 return Int(value)
@@ -472,7 +533,8 @@ final class SonosListener {
             usleep(1000) // 1ms delay
             
             if let completeStr = String(data: data, encoding: .utf8) {
-                self?.handleSonosResponse(data, completeStr, clientIP: clientIP)
+                self?.pendingRequests.append((data, completeStr, clientIP))
+                self?.processPendingRequests(socket: socket)
             }
             
             // Send pre-computed response
@@ -532,7 +594,6 @@ final class SonosListener {
                         print("\nParsed RenderingControl Event:\n\(model)\n")
                     }
                 case "DeviceProperties":
-                    print("TODO")
                     if let model = DevicePropertiesParser.parse(xmlString: xmlContent) {
                         let event = SonosServiceEvent.deviceProperties(model)
                         eventHandler?(event, deviceID)
@@ -650,7 +711,7 @@ final class SonosListener {
         )
     }
     
-    private func stopServer() {
+    public func stopServer() {
         isRunning = false
         sourceTimer?.cancel()
         sourceTimer = nil
@@ -697,6 +758,7 @@ final class SonosListener {
     
     private func restartServer() {
         stopServer()
+        // Don't clear connections during restart
         setupServer()
         print("Server restarted successfully")
     }
@@ -730,5 +792,77 @@ final class SonosListener {
     
     public func getActiveDevices() -> Set<String> {
         return connectionQueue.sync { activeConnections }
+    }
+    
+    public func closeAllConnections() {
+        connectionQueue.sync {
+            let count = activeConnections.count
+            activeConnections.removeAll()
+            print("Manually cleared \(count) active connections")
+        }
+    }
+    
+    public func closeConnection(deviceID: String) {
+        connectionQueue.sync {
+            activeConnections.remove(deviceID)
+            print("Manually closed connection for device: \(deviceID)")
+        }
+    }
+}
+
+final class BufferPool {
+    private var availableBuffers: [(id: Int, buffer: [UInt8])] = []
+    private let semaphore: DispatchSemaphore
+    private let queue = DispatchQueue(label: "com.clic.buffer_pool")
+    
+    init(size: Int, bufferSize: Int) {
+        semaphore = DispatchSemaphore(value: size)
+        for i in 0..<size {
+            availableBuffers.append((i, [UInt8](repeating: 0, count: bufferSize)))
+        }
+    }
+    
+    func acquire() -> (id: Int, buffer: [UInt8])? {
+        guard semaphore.wait(timeout: .now() + .seconds(5)) == .success else {
+            return nil
+        }
+        
+        return queue.sync {
+            return availableBuffers.removeFirst()
+        }
+    }
+    
+    func release(_ buffer: (id: Int, buffer: [UInt8])) {
+        queue.sync {
+            availableBuffers.append(buffer)
+        }
+        semaphore.signal()
+    }
+}
+
+final class RateLimiter {
+    private let queue = DispatchQueue(label: "com.clic.rate_limiter")
+    private let requestsPerSecond: Int
+    private var lastExecutionTime: TimeInterval = 0
+    
+    init(requestsPerSecond: Int) {
+        self.requestsPerSecond = requestsPerSecond
+    }
+    
+    func execute(_ block: @escaping () -> Void) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            let currentTime = Date().timeIntervalSince1970
+            let timeSinceLastExecution = currentTime - self.lastExecutionTime
+            let minimumInterval = 1.0 / Double(self.requestsPerSecond)
+            
+            if timeSinceLastExecution < minimumInterval {
+                Thread.sleep(forTimeInterval: minimumInterval - timeSinceLastExecution)
+            }
+            
+            self.lastExecutionTime = currentTime
+            block()
+        }
     }
 }

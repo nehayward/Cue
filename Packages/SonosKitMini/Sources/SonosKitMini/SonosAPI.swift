@@ -596,7 +596,7 @@ final class SonosAPI {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            
+            print("Failed")
         }
     }
 

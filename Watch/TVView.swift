@@ -10,6 +10,7 @@ struct TVView: View {
 
     @State private var volumeTask: Task<Void, Error>?
     @State private var isIdle: Bool = true
+    @State private var showGroup: Bool = false
 
     var body: some View {
         if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
@@ -44,7 +45,20 @@ struct TVView: View {
                     }
                     .buttonBorderShape(.roundedRectangle)
                     .opacity(nightMode ? 1 : 0.5)
-         
+                    Button {
+                        Task {
+                            await sonosService.setGroupMute(device: device)
+                            try? await sonosService.updateWatchDevices(from: [device])
+                        }
+                    } label: {
+                        Label("Mute", systemImage: device.groupIsMuted ? "speaker.slash.fill" : "speaker.fill")
+                            .contentTransition(.symbolEffect)
+                            .symbolRenderingMode(.hierarchical)
+                            .labelStyle(.iconOnly)
+                    }
+                    .buttonBorderShape(.roundedRectangle)
+                    .opacity(!device.groupIsMuted ? 0.5 : 1)
+                    
                     Button {
                         Task {
                             try? await sonosService.setDialogLevel(device.ip, enabled:  !speachEnhancement)
@@ -95,6 +109,23 @@ struct TVView: View {
             }
             .animation(.spring, value: device.volume)
             .fontDesign(.rounded)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showGroup.toggle()
+                    } label: {
+                        Image(systemName: "hifispeaker.arrow.forward.fill")
+                            .symbolRenderingMode(.monochrome)
+                            .frame(width: 24)
+                            .accessibilityLabel("Group Speakers")
+                            .foregroundStyle(.white)
+                            .tint(.white)
+                    }
+                }
+            }
+            .sheet(isPresented: $showGroup) {
+                GroupScreen(id: device.id)
+            }
         }
         .onChange(of: scenePhase, initial: true) {
             if scenePhase == .active {

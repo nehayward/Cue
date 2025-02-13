@@ -148,7 +148,7 @@ struct GroupScreen: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
-        .task(id: sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID })?.rooms) {
+        .task {
             guard let foundGroup = sonosService.sorted.first(where: { $0.coordinatorID == coordinatorID }) else { return }
             group = foundGroup
             selections = Set(foundGroup.rooms.map { $0.id })

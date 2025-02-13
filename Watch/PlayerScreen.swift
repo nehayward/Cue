@@ -5,17 +5,14 @@ import NukeUI
 struct PlayerScreen: View {
     @Environment(\.dismiss) var dismiss
     @Environment(SonosMiniService.self) var sonosService: SonosMiniService
-    
-    @State var tabSelection: Int = 0
-    
-    var id: String
+    let id: String
     
     var body: some View {
         Group {
             if let index = sonosService.devices.firstIndex(where: { $0.id == id }) {
                 let device = sonosService.devices[index]
                 if !device.isHidden {
-                    TabView(selection: $tabSelection) {
+                    TabView {
                         Group {
                             if device.isTVMode {
                                 TVView(id: id)

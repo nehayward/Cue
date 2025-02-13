@@ -19,7 +19,7 @@ public final class TidalAPI {
         components.path = "/v2/searchresults/\(query)"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
-            URLQueryItem(name: "include", value: "tracks,artists,albums,playlists")
+            URLQueryItem(name: "include", value: "tracks,artists,albums")
         ]
 
         guard let url = components.url else {
