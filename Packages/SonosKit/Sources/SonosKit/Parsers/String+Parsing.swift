@@ -47,4 +47,15 @@ extension String {
         return xml
             .replacingOccurrences(of: "&", with: "&amp;amp;")
     }
+    
+    func removingHTMLEntities() -> String {
+        var result = self
+        result = result.replacingOccurrences(of: "&quot;", with: "\"")
+        result = result.replacingOccurrences(of: "&amp;", with: "&")
+        result = result.replacingOccurrences(of: "&lt;", with: "<")
+        result = result.replacingOccurrences(of: "&gt;", with: ">")
+        result = result.replacingOccurrences(of: "/&gt;", with: ">")
+        result = result.replacingOccurrences(of: "/&lt;", with: "<")
+        return result
+    }
 }

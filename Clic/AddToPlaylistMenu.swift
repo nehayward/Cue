@@ -18,6 +18,7 @@ struct AddToPlaylistMenu: View {
                         let playLists = await sonosService.sonosPlaylists()
                         guard let id = playLists.first(where: { $0.title == itemToAdd.title })?.id else { return }
                         await sonosService.addToPlaylist(playlistID: id, playableContent: itemToAdd)
+                        alertService.showAlertContent(with: itemToAdd, subtitle: "Created \(itemToAdd.title)", symbolName: "plus")
                         playlistsContainer.playlists = await sonosService.sonosPlaylists()
                     }
                 } label: {

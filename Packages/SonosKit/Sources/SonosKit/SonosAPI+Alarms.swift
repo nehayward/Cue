@@ -20,8 +20,8 @@ extension SonosAPI {
         ]
 
         if let content {
-            arguments.append(("ProgramURI", content.uri))
-            arguments.append(("ProgramMetaData", content.alarmURIMetadata))
+            arguments[6].value = content.uri
+            arguments[7].value = content.alarmURIMetadata
         }
 
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "UpdateAlarm", arguments: arguments, endpoint: "AlarmClock") else {

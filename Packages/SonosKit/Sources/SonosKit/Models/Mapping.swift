@@ -6,7 +6,7 @@ extension PlayableContent {
     public var toRadio: PlayableContent {
         let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
         let content = MediaContent(service: content.service, id: content.id + ".radio", type: type, location: nil)
-        let metadata = metadata ?? PlayableContentMetadata()
+        var metadata = metadata ?? PlayableContentMetadata()
         metadata.radioStation = true
         return PlayableContent(title: title, subtitle: title, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
     }

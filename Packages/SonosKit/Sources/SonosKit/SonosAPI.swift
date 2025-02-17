@@ -149,7 +149,7 @@ final class SonosAPI: NSObject {
         }
         
         let xml = String(decoding: data, as: UTF8.self)
-        let volume = try xmlParser.parseGroupVolume(xml: xml)
+        let volume = try xmlParser.parseVolume(xml: xml)
         return Double(volume)
     }
 
@@ -390,7 +390,7 @@ final class SonosAPI: NSObject {
             let zones = xmlParser.parseZones(xml: xmlString.unescaped)
 
             let mappedRooms = zones.flatMap { zoneGroup in
-                zoneGroup.zoneGroupMembers.compactMap {
+                zoneGroup.members.compactMap {
                     if !$0.invisible {
                         let components = URLComponents(string: $0.location)
                         if let ip = components?.host {

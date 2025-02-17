@@ -2,7 +2,7 @@ import Foundation
 
 extension ZoneGroup {
     var toGroup: GroupRoom? {
-        let speakerSubs = zoneGroupMembers.filter { $0.zoneName.lowercased().contains("sub") }
+        let speakerSubs = members.filter { $0.zoneName.lowercased().contains("sub") }
         let subs: [Sub] = speakerSubs.map {
             var ip: String = ""
             let pattern = #"http://([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):"#
@@ -15,14 +15,14 @@ extension ZoneGroup {
             return Sub(name: $0.zoneName, ip: ip)
         }
 
-        let rooms = zoneGroupMembers.compactMap { $0.toRoom(speakerSubs: subs)}
+        let rooms = members.compactMap { $0.toRoom(speakerSubs: subs)}
         if rooms.isEmpty {
             return nil
         }
 
         guard let coordinatorRoom = rooms.first(where: { $0.id == coordinator }) else { return nil }
 
-        return GroupRoom(id: ID,
+        return GroupRoom(id: id,
                          coordinatorID: coordinator,
                          rooms: rooms,
                          coordinatorRoom: coordinatorRoom

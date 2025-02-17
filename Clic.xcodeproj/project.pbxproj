@@ -14,6 +14,7 @@
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
 		0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0155DC0A2D4D47EA00A452D4 /* Kingfisher */; };
+		01582A3E2D5FAEBD007915F2 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01582A3D2D5FAEBD007915F2 /* Kingfisher */; };
 		017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 017008652D49DCB700416FD3 /* SonosKitMini */; };
 		01791F182D224223006EBC22 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01791F172D224223006EBC22 /* Kingfisher */; };
 		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
@@ -597,6 +598,7 @@
 				E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */,
 				E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */,
 				E90F315E2BC4829500884EA5 /* Analytics in Frameworks */,
+				01582A3E2D5FAEBD007915F2 /* Kingfisher in Frameworks */,
 				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
@@ -898,6 +900,7 @@
 				E93AFA762B587F1800B20AC4 /* Defaults */,
 				E90F315D2BC4829500884EA5 /* Analytics */,
 				E933FA0E2C3304E400C0D7AE /* Glur */,
+				01582A3D2D5FAEBD007915F2 /* Kingfisher */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -2845,6 +2848,11 @@
 			productName = SonosKit;
 		};
 		0155DC0A2D4D47EA00A452D4 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
+		01582A3D2D5FAEBD007915F2 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;

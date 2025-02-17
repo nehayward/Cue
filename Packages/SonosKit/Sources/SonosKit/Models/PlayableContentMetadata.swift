@@ -1,6 +1,6 @@
 import Foundation
 
-public class PlayableContentMetadata: Equatable, Codable, Hashable {
+public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     // Properties
     public let duration: Duration?
     public let popularity: Int?
@@ -10,13 +10,13 @@ public class PlayableContentMetadata: Equatable, Codable, Hashable {
     public let albumID: String?
     public let albumYear: Date?
     public let isrc: String?
-    public var position: Int?
-    public var audioCodec: String?
-    public var URIMetadata: String?
+    public let position: Int?
+    public let audioCodec: String?
+    public let URIMetadata: String?
     public var radioStation: Bool?
-    public var isPlayable: Bool? // A song might not be released so it's not playable.
-    public var isExplicit: Bool?
-    public var isSingle: Bool?
+    public let isPlayable: Bool? // A song might not be released so it's not playable.
+    public let isExplicit: Bool?
+    public let isSingle: Bool?
 
     // Initializer
     public init(
