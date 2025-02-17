@@ -71,6 +71,7 @@ struct PlayableContentView: View {
                     HStack {
                         Text(item.title)
                             .lineLimit(1)
+                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
                         if let isExplicit = item.metadata?.isExplicit, isExplicit {
                             Image(systemName: "e.square.fill")
                         }
@@ -106,7 +107,6 @@ struct PlayableContentView: View {
                 }
             }
             .fontDesign(.rounded)
-            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
         }
         .swipeActions {
             if [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum].contains(item.content.type) {

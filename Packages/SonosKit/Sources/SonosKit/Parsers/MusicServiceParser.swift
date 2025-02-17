@@ -24,8 +24,7 @@ final class MusicServiceParser {
         // Check in order of most specific to least specific patterns
         switch true {
         case trackURI.contains("airplay"):             return .airplay
-        case trackURI.contains("x-file-cifs") ||
-            trackURI.contains("x-sonos-http"):        return .library
+        case trackURI.contains("x-file-cifs"):      return .library
         case xml.lowercased().contains("tunein"):      return .tuneIn
         case trackURI.contains("%3a3%3"):             return .plex
         case trackURI.contains("librarytrack"),
