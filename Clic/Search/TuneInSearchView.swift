@@ -22,7 +22,9 @@ struct TuneInSearchView: View {
 
     var body: some View {
         ForEach(filteredResults) { item in
-            PlayableContentView(item: item)
+            VStack {
+                PlayableContentView(item: item)
+            }
         }
         .fontDesign(.rounded)
     }

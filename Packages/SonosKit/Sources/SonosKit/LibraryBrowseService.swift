@@ -19,7 +19,7 @@ public final class LibraryBrowseService {
 
     public func updateSongs(offset: Int = 0) async {
         guard let ip = sonosService.prioritizedIP() else { return }
-        let newSongs = await sonosAPI.getLibraryItems(IP: ip, type: .track, offset: offset, requestedCount: 100)
+        let newSongs = await sonosAPI.getLibraryItems(IP: ip, type: .track, offset: offset, requestedCount: 500)
         for newSong in newSongs {
             songs.updateOrAppend(newSong)
         }
@@ -27,7 +27,7 @@ public final class LibraryBrowseService {
 
     public func updateAlbum(offset: Int = 0) async {
         guard let ip = sonosService.prioritizedIP() else { return }
-        let newAlbums = await sonosAPI.getLibraryItems(IP: ip, type: .album, offset: offset, requestedCount: 100)
+        let newAlbums = await sonosAPI.getLibraryItems(IP: ip, type: .album, offset: offset, requestedCount: 500)
         for newAlbum in newAlbums {
             albums.updateOrAppend(newAlbum)
         }
@@ -35,7 +35,7 @@ public final class LibraryBrowseService {
 
     public func updateArtists(offset: Int = 0) async {
         guard let ip = sonosService.prioritizedIP() else { return }
-        let newArtists = await sonosAPI.getLibraryItems(IP: ip, type: .artist, offset: offset, requestedCount: 100)
+        let newArtists = await sonosAPI.getLibraryItems(IP: ip, type: .artist, offset: offset, requestedCount: 500)
         for newArtist in newArtists {
             artists.updateOrAppend(newArtist)
         }

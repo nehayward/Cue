@@ -36,7 +36,6 @@ struct ContentArtworkView: View {
                     }
             }
         }
-        .id(content.id)
         .clipShape([.artist, .libraryArtist, .artistRadio].contains(content.content.type) ? AnyShape(Circle()) : AnyShape(RoundedRectangle(cornerRadius: 8)))
         .shadow(radius: 2)
         .overlay(alignment: .bottomTrailing) {
@@ -44,9 +43,14 @@ struct ContentArtworkView: View {
                 Group {
                     content.content.service.icon
                         .containerRelativeFrame(.horizontal) { size, axis in
+#if targetEnvironment(macCatalyst)
+                            size * 0.02
+#else
                             size * 0.025
+#endif
                         }
                         .padding(4)
+                        .shadow(radius: 2)
                     if content.content.type == .favorite {
                         Image(systemName: "star.fill")
                             .resizable()

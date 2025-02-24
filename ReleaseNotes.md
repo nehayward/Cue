@@ -1,11 +1,14 @@
 # 2025.3
 
 ––New Features––
-- 
+- Set preferred color scheme, light, dark or system
+- Apple Music - Show latest album for artist and all albums
+- Add Login Item to Clic Mini
 
 ––Bug Fixes––
 - Fix alarms
 - Fix memory leak.
+- Performance improvements.
 
 # 2025.2
 

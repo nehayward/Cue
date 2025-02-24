@@ -91,7 +91,7 @@ struct SearchScreen: View {
                 if !musicSearchService.query.isEmpty {
                     switch musicSearchSelection {
                     case .spotify:
-                        SpotifySearchView(spotifyResults: $musicSearchService.spotifyResults, filters: $filters)
+                        SpotifySearchView(spotifyResults: musicSearchService.spotifyResults, filters: $filters)
                     case .apple:
                         AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
                     case .library:
@@ -203,7 +203,9 @@ struct SearchScreen: View {
     private var filterView: some View {
         VStack(spacing: 0) {
             HStack {
-                FilterView(selectedService: $musicSearchSelection, filters: $filters)
+                if musicSearchSelection != .tuneIn {
+                    FilterView(selectedService: $musicSearchSelection, filters: $filters)
+                }
                 Spacer()
                 Menu {
                     ForEach(MediaSearchService.allCases, id: \.self) { service in

@@ -26,10 +26,14 @@ struct PlexSearchView: View {
         }
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
-                PlayableContentView(item: item)
+                VStack {
+                    PlayableContentView(item: item)
+                }
             } else {
                 if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
-                    PlayableContentView(item: item)
+                    VStack {
+                        PlayableContentView(item: item)
+                    }
                 }
             }
         }

@@ -18,12 +18,16 @@ struct LibrarySearchView: View {
         Group {
             if filters.filter(\.isFiltered).isEmpty {
                 ForEach(librarySearchResults) { item in
-                    PlayableContentView(item: item)
+                    VStack {
+                        PlayableContentView(item: item)
+                    }
                 }
             } else {
                 ForEach(librarySearchResults) { item in
                     if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
-                        PlayableContentView(item: item)
+                        VStack {
+                            PlayableContentView(item: item)
+                        }
                     }
                 }
             }

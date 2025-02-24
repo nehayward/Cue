@@ -10,7 +10,7 @@ struct SpotifySearchView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(Router.self) var router: Router
 
-    @Binding var spotifyResults: [PlayableContent]
+    var spotifyResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var group: GroupRoom?
@@ -24,8 +24,9 @@ struct SpotifySearchView: View {
 
         Group {
             ForEach(filteredResults) { item in
-                PlayableContentView(item: item)
-                    .transition(.slide)
+                VStack {
+                    PlayableContentView(item: item)
+                }
             }
         }
         .animation(.bouncy, value: filters)

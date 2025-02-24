@@ -1035,7 +1035,7 @@ public final class SonosService {
             guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
             return await musicSearch.lookupPlexSong(with: id)?.artwork
         default:
-            print(content)
+//            print(content)
             return nil
         }
     }

@@ -2,6 +2,7 @@ import Combine
 import SwiftUI
 import SonosKitMini
 import KeyboardShortcuts
+import ServiceManagement
 
 final class StatusItemManager {
     private lazy var menuBarViewHost = NSHostingView(rootView: MenuBarView(sizePassthrough: sizePassthrough))
@@ -25,7 +26,7 @@ final class StatusItemManager {
         //        // Add the hosting view for SwiftUI content
 //        statusItem.button?.frame = menuBarViewHost.frame
 //        statusItem.button?.addSubview(menuBarViewHost)
-//        
+//
 //        sizeCancellable = sizePassthrough.sink { [weak self] size in
 //            print("Sizing")
 //            let frame = NSRect(origin: .zero, size: .init(width: size.width, height: 24))
@@ -74,6 +75,12 @@ final class StatusItemManager {
         // Add separator
         alternateMenu.addItem(NSMenuItem.separator())
         
+        // Add Launch at Login item
+        let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchAtLoginItem.target = self
+        launchAtLoginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        alternateMenu.addItem(launchAtLoginItem)
+        
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         alternateMenu.addItem(quitItem)
         
@@ -82,6 +89,20 @@ final class StatusItemManager {
         statusItem?.menu = nil
     }
     
+    @objc private func toggleLaunchAtLogin() {
+        Task {
+            do {
+                if SMAppService.mainApp.status == .enabled {
+                    try await setLaunchAtLoginEnabled(false)
+                } else {
+                    try await setLaunchAtLoginEnabled(true)
+                }
+            } catch {
+                print("Error toggling launch at login: ", error)
+            }
+        }
+    }
+
     @objc func toggleGroupMenu() {
         if statusItem?.menu != nil {
             statusItem?.menu?.cancelTracking()
@@ -99,6 +120,14 @@ final class StatusItemManager {
             statusItem?.menu = nil
         }
         
+    }
+    
+    func setLaunchAtLoginEnabled(_ enabled: Bool) async throws {
+        if enabled {
+            try? SMAppService.mainApp.register()
+        } else {
+            try? await SMAppService.mainApp.unregister()
+        }
     }
 }
 

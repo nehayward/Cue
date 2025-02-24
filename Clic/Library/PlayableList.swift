@@ -19,14 +19,16 @@ struct PlayableList: View {
     var body: some View {
         List {
             ForEach(items) { item in
-                PlayableContentView(item: item)
-                    .task {
-                        if items.firstIndex(of: item) ?? 0 >= items.count / 2 {
-                            Task {
-                                await action?(items.count)
+                VStack {
+                    PlayableContentView(item: item)
+                        .task {
+                            if items.firstIndex(of: item) ?? 0 >= items.count / 2 {
+                                Task {
+                                    await action?(items.count)
+                                }
                             }
                         }
-                    }
+                }
             }
         }
         .miniPlayerOnScrollHandler()

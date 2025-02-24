@@ -18,10 +18,14 @@ struct ArtistDetailView: View {
     @State var playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
     @State private var albums: [PlayableContent] = []
+    @State private var liveAlbums: [PlayableContent] = []
+    @State private var allAlbums: [PlayableContent] = []
+    @State private var latestRelease: PlayableContent?
+    
     @State private var artworkURL: URL?
     @State private var isLoading: Bool = false
-
-
+    @State private var albumType: Int = 0
+    
     var body: some View {
         List {
             if artworkURL != nil  {
@@ -108,95 +112,169 @@ struct ArtistDetailView: View {
 //                .listRowBackground(Color.clear)
 //                .listRowSeparator(.hidden)
 //            }
+            
+            if let latestRelease {
+                Section {
+                    PlayableContentView(item: latestRelease, hideContentType: true)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                } header: {
+                    HStack {
+                        Text("Latest")
+#if targetEnvironment(macCatalyst)
+                            .foregroundStyle(.foreground)
+                            .font(.title2)
+#endif
+                        Spacer()
+                    }
+                }
+            }
 
             if !tracks.isEmpty {
                 Section {
                     ForEach(tracks) { track in
-                        PlayableContentView(item: track, hideContentType: true)
-                            .listRowBackground(Color.clear)
+                        VStack {
+                            PlayableContentView(item: track, hideContentType: true)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
                 } header: {
                     HStack {
                         Text("Top Songs")
+#if targetEnvironment(macCatalyst)
+                            .foregroundStyle(.foreground)
+                            .font(.title2)
+#endif
                         Spacer()
                         // MARK: Add queue multiple uris
-
-//                        if !albums.isEmpty {
-//                            Button {
-//                                hideKeyboard()
-//                                Task { @MainActor in
-//                                    let queueSong: ((GroupRoom) async throws -> Void) = { group in
-//                                        HapticManager.shared.fireHaptic(.buttonPress)
-//                                        do {
-//                                            try await sonosService.queue(contents: tracks.reversed(), group: group, replaceQueue: false)
-//                                            await sonosService.play(ip: group.coordinatorRoom.ip)
-//                                        }
-//                                    }
-//                                    guard let group = selectedGroupService.group else {
-//                                        router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
-//                                        return
-//                                    }
-//                                    try await queueSong(group)
-//                                }
-//                            } label: {
-//                                Image(systemName: "play.fill")
-//                                    .foregroundStyle(.accent)
-//                            }
-//                            .bold()
-//                            .buttonStyle(.bordered)
-//                            .buttonBorderShape(.circle)
-//                            .tint(.accent)
-//                            .help("Play Discography")
-//                            .padding(.trailing, -14)
-//                        }
+                        
+                        //                        if !albums.isEmpty {
+                        //                            Button {
+                        //                                hideKeyboard()
+                        //                                Task { @MainActor in
+                        //                                    let queueSong: ((GroupRoom) async throws -> Void) = { group in
+                        //                                        HapticManager.shared.fireHaptic(.buttonPress)
+                        //                                        do {
+                        //                                            try await sonosService.queue(contents: tracks.reversed(), group: group, replaceQueue: false)
+                        //                                            await sonosService.play(ip: group.coordinatorRoom.ip)
+                        //                                        }
+                        //                                    }
+                        //                                    guard let group = selectedGroupService.group else {
+                        //                                        router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                        //                                        return
+                        //                                    }
+                        //                                    try await queueSong(group)
+                        //                                }
+                        //                            } label: {
+                        //                                Image(systemName: "play.fill")
+                        //                                    .foregroundStyle(.accent)
+                        //                            }
+                        //                            .bold()
+                        //                            .buttonStyle(.bordered)
+                        //                            .buttonBorderShape(.circle)
+                        //                            .tint(.accent)
+                        //                            .help("Play Discography")
+                        //                            .padding(.trailing, -14)
                     }
                 }
             }
 
             Section {
-                ForEach(albums) { album in
-                    PlayableContentView(item: album, hideContentType: true)
+                switch albumType {
+                case 1:
+                    ForEach(liveAlbums) { album in
+                        VStack {
+                            PlayableContentView(item: album, hideContentType: true)
+                        }
                         .listRowBackground(Color.clear)
-                }
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
+                    }
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                case 2:
+                    ForEach(allAlbums) { album in
+                        VStack {
+                            PlayableContentView(item: album, hideContentType: true)
+                        }
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                default:
+                    ForEach(albums) { album in
+                        VStack {
+                            PlayableContentView(item: album, hideContentType: true)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
                 }
             } header: {
-                HStack {
-                    Text("Albums")
-                    // MARK: Add queue multiple uris
-//                    Spacer()
-//                    if !albums.isEmpty {
-//                        Button {
-//                            hideKeyboard()
-//                            Task { @MainActor in
-//                                let queueSong: ((GroupRoom) async throws -> Void) = { group in
-//                                    HapticManager.shared.fireHaptic(.buttonPress)
-//                                    do {
-//                                        try await sonosService.queue(contents: albums.reversed(), group: group, replaceQueue: true)
-//                                        await sonosService.play(ip: group.coordinatorRoom.ip)
-//                                    }
-//                                }
-//                                guard let group = selectedGroupService.group else {
-//                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
-//                                    return
-//                                }
-//                                try await queueSong(group)
-//                            }
-//                        } label: {
-//                            Image(systemName: "play.fill")
-//                                .foregroundStyle(.accent)
-//                        }
-//                        .bold()
-//                        .buttonStyle(.bordered)
-//                        .buttonBorderShape(.circle)
-//                        .tint(.accent)
-//                        .help("Play Discography")
-//                        .padding(.trailing, -14)
-//                    }
+                if playableContent.content.service == .apple, !albums.isEmpty {
+                    Picker("Album", selection: $albumType) {
+                        Text("Album")
+                            .tag(0)
+                        Text("Live")
+                            .tag(1)
+                        Text("All")
+                            .tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                } else if !albums.isEmpty {
+                    HStack {
+                            Text("Albums")
+    #if targetEnvironment(macCatalyst)
+                                .foregroundStyle(.foreground)
+                                .font(.title2)
+    #endif
+                            
+                        // MARK: Add queue multiple uris
+                        //                    Spacer()
+                        //                    if !albums.isEmpty {
+                        //                        Button {
+                        //                            hideKeyboard()
+                        //                            Task { @MainActor in
+                        //                                let queueSong: ((GroupRoom) async throws -> Void) = { group in
+                        //                                    HapticManager.shared.fireHaptic(.buttonPress)
+                        //                                    do {
+                        //                                        try await sonosService.queue(contents: albums.reversed(), group: group, replaceQueue: true)
+                        //                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                        //                                    }
+                        //                                }
+                        //                                guard let group = selectedGroupService.group else {
+                        //                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
+                        //                                    return
+                        //                                }
+                        //                                try await queueSong(group)
+                        //                            }
+                        //                        } label: {
+                        //                            Image(systemName: "play.fill")
+                        //                                .foregroundStyle(.accent)
+                        //                        }
+                        //                        .bold()
+                        //                        .buttonStyle(.bordered)
+                        //                        .buttonBorderShape(.circle)
+                        //                        .tint(.accent)
+                        //                        .help("Play Discography")
+                        //                        .padding(.trailing, -14)
+                        //                    }
+                    }
                 }
                 
             }
@@ -292,6 +370,25 @@ struct ArtistDetailView: View {
                         return year1 > year2
                     }
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
+                
+                guard let allArtist: Artist = try? await MusicSearchService().artistCatalog(id: playableContent.content.id) else { return }
+                latestRelease = allArtist.latestRelease?.toPlayable
+    
+                if let liveAlbums = allArtist.liveAlbums {
+                    self.liveAlbums = liveAlbums.map(\.toPlayable)
+                        .sorted { (album1, album2) in
+                            let year1 = album1.metadata?.albumYear ?? .now
+                            let year2 = album2.metadata?.albumYear ?? .now
+                            return year1 > year2
+                        }
+                }
+                                
+                artworkURL = artist.artwork?.url(width: 500, height: 500)
+                playableContent = artist.toPlayable
+                
+                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: playableContent.content.id) {
+                    self.allAlbums = all
+                }
             case (.libraryArtist, .apple):
                 if let url = await MusicSearchService().appleLibraryArtistArtwork(name: playableContent.title) {
                     artworkURL = url
@@ -314,6 +411,9 @@ struct ArtistDetailView: View {
             case (.track, .apple):
                 guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = song.artists?.first?.id.description else { return }
                 guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let allArtist: Artist = try? await MusicSearchService().artistCatalog(id: artistID) else { return }
+                latestRelease = allArtist.latestRelease?.toPlayable
+                
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
@@ -323,8 +423,22 @@ struct ArtistDetailView: View {
                     let year2 = album2.metadata?.albumYear ?? .now
                     return year1 > year2
                 }
+                
+                if let liveAlbums = allArtist.liveAlbums {
+                    self.liveAlbums = liveAlbums.map(\.toPlayable)
+                        .sorted { (album1, album2) in
+                            let year1 = album1.metadata?.albumYear ?? .now
+                            let year2 = album2.metadata?.albumYear ?? .now
+                            return year1 > year2
+                        }
+                }
+                                
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
+                
+                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: artistID) {
+                    self.allAlbums = all
+                }
             case (.libraryTrack, .apple):
                 guard let catalogSong = await MusicSearchService().appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
                 guard let song: Song = try? await MusicSearchService().lookup(id: id), let artistID = song.artists?.first?.id.description else { return }
@@ -350,18 +464,34 @@ struct ArtistDetailView: View {
                 self.tracks = artistTopTracksAwait.map(\.toPlayable)
             case (.album, .apple):
                 guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
-                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let artist: Artist = try? await MusicSearchService().artistCatalog(id: artistID) else { return }
+                latestRelease = artist.latestRelease?.toPlayable
+                
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
                     .filter { !($0.metadata?.isSingle ?? false) }
                     .sorted { (album1, album2) in
-                        let year1 = album1.metadata?.albumYear ?? .now
-                        let year2 = album2.metadata?.albumYear ?? .now
-                        return year1 > year2
-                    }
+                    let year1 = album1.metadata?.albumYear ?? .now
+                    let year2 = album2.metadata?.albumYear ?? .now
+                    return year1 > year2
+                }
+                
+                if let liveAlbums = artist.liveAlbums {
+                    self.liveAlbums = liveAlbums.map(\.toPlayable)
+                        .sorted { (album1, album2) in
+                            let year1 = album1.metadata?.albumYear ?? .now
+                            let year2 = album2.metadata?.albumYear ?? .now
+                            return year1 > year2
+                        }
+                }
+                
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
+                
+                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: artistID) {
+                    self.allAlbums = all
+                }
             case (.album, .spotify):
                 guard let song = await MusicSearchService().spotifyAlbumLookup(id: playableContent.content.id),
                       let artistID = song.artists.first?.id else { return }

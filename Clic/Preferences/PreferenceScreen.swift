@@ -27,7 +27,8 @@ struct PreferenceScreen: View {
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
-
+    
+    @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
@@ -107,7 +108,7 @@ struct PreferenceScreen: View {
 //                    } header: {
 //                        Text("Debug 👾")
 //                    }
-//                    
+//
 //                    PaywallButtonView()
 //                        .environment(router)
 //                        .listRowBackground(Color.clear)
@@ -243,7 +244,7 @@ struct PreferenceScreen: View {
                         menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                     } label: {
                         Label {
-                            Text("Open Clic Mini (Menu Bar App)")
+                            Text("Open Clic Mini (Menu Bar App) when Clic Opens")
                             Spacer()
                             Toggle(isOn: $isMenuBarAppEnabled) {
                                 Text("Enable Clic Mini")
@@ -272,7 +273,7 @@ struct PreferenceScreen: View {
                     .tint(.primary)
                 }
                 #endif
-                
+                colorSchemeSection
                 Section {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
@@ -535,6 +536,35 @@ struct PreferenceScreen: View {
 #endif
         }
         .customizeWindowSizeForMacOS15()
+        .preferredColorScheme(colorScheme.scheme)
+    }
+    
+    var colorSchemeSection: some View {
+        Section {
+            Label {
+                Picker("Theme", selection: $colorScheme) {
+                    ForEach(ColorSchemePreference.allCases, id: \.hashValue) { scheme in
+                        Text(scheme.rawValue.capitalized)
+                            .tag(scheme)
+                    }
+                }
+                .pickerStyle(.segmented)
+            } icon: {
+                Image(systemName: "circle.lefthalf.filled")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.foreground)
+                    .bold()
+                    .padding(8)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .foregroundStyle(.background)
+                    )
+            }
+        } header: {
+            Text("Appearance")
+        }
     }
 }
 

@@ -38,7 +38,8 @@ struct ClicApp: App {
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
-
+    @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    
     @State var selectedID: String?
     @State private var previousCount: Int = 0
     
@@ -169,7 +170,6 @@ struct ClicApp: App {
 //                }
                 // Update SMAppService registration with proper error handling
 #if targetEnvironment(macCatalyst)
-                menuAppLaunchAtLoginManager.autoEnableIfNeeded()
                 menuAppLaunchAtLoginManager.loadDelegate()
                 if isMenuBarAppEnabled {
                     menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
@@ -202,6 +202,7 @@ struct ClicApp: App {
                     }
                 }
             }
+            .preferredColorScheme(colorScheme.scheme)
         }
         .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {

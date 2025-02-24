@@ -23,8 +23,9 @@ struct TidalSearchView: View {
 
         Group {
             ForEach(filteredResults) { item in
-                PlayableContentView(item: item)
-                    .transition(.slide)
+                VStack {
+                    PlayableContentView(item: item)
+                }
             }
         }
         .animation(.bouncy, value: filters)

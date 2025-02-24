@@ -26,6 +26,8 @@ struct PlayableContentView: View {
     var total: Int = 1
 
     var body: some View {
+//        let _ = print("\(item.title) update")
+
         Group {
             if hideDetails || item.content.service == .unknown {
                 content
@@ -48,7 +50,6 @@ struct PlayableContentView: View {
             }
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
-        .id(item.trackID)
     }
 
     private var content: some View {
@@ -99,8 +100,10 @@ struct PlayableContentView: View {
                             Image(systemName: "ellipsis")
                                 .frame(maxWidth: 50, maxHeight: .infinity)
                                 .background(.clear)
+                                .foregroundStyle(.primary)
                         }
                         .menuOrder(.priority)
+                        .tint(.primary)
                     }
                 default:
                     EmptyView()

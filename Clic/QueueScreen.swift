@@ -16,7 +16,7 @@ struct QueueScreen: View {
     @State private var isLoading: Bool = true
     @State private var clearQueueConfirmation: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
-    @State private var hoveredTrackID: String? = nil
+    @State private var hoveredTrackID: String = ""
 
     private var isCatalyst: Bool {
 #if targetEnvironment(macCatalyst)
@@ -30,7 +30,26 @@ struct QueueScreen: View {
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
-                        QueueCellView(track: track, group: $group, router: router)
+                        VStack {
+                            QueueCellView(track: track, group: group, router: router)
+                        }
+                        .listSectionSeparator(.hidden, edges: .all)
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    hoveredTrackID == track.id ? Color(uiColor: UIColor.tertiarySystemFill) : Color.clear
+                                )
+                                .padding(.horizontal, 4)
+                        )
+                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
+                        .onHover { hovering in
+                            if isCatalyst {
+                                hoveredTrackID = track.id
+                            }
+                            if !hovering {
+                                hoveredTrackID = ""
+                            }
+                        }
                     }
                     .onMove(perform: move)
                 }
@@ -234,7 +253,9 @@ struct QueueScreen: View {
                 group.coordinatorRoom.queue.remove(at: position - 1)
                 Task {
                     try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+                    group.coordinatorRoom.queueTotal = (try? await sonosService.getQueueTotal(group: group)) ?? 0
                     group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                    
                 }
             } label: {
                 Label("Remove", systemImage: "trash")

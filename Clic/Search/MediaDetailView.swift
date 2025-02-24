@@ -125,35 +125,37 @@ struct MediaDetailView: View {
             .listRowSeparator(.hidden)
 
             ForEach(tracks) { item in
-                PlayableContentView(item: item,
-                                    parent: playableContent,
-                                    hideArtwork: playableContent.content.type == .album,
-                                    hideContentType: true,
-                                    index: ((tracks.firstIndex(of: item) ?? -1) + 1),
-                                    dismissOnComplete: true,
-                                    total: totalSongs ?? tracks.count)
-                    .swipeActions(edge: .trailing) {
-                        if playableContent.content.type == .libraryPlaylist {
-                            Button(role: .destructive) {
-                                Task {
-                                    guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
-                                    try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
-                                    tracks.remove(at: index)
-                                }
-                            } label: {
-                                Label("Remove", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .disabled(!(item.metadata?.isPlayable ?? true))
-                    .task {
-                        if tracks.firstIndex(of: item) ?? 0 >= tracks.count - 1 {
+                VStack {
+                    PlayableContentView(item: item,
+                                        parent: playableContent,
+                                        hideArtwork: playableContent.content.type == .album,
+                                        hideContentType: true,
+                                        index: ((tracks.firstIndex(of: item) ?? -1) + 1),
+                                        dismissOnComplete: true,
+                                        total: totalSongs ?? tracks.count)
+                }
+                .swipeActions(edge: .trailing) {
+                    if playableContent.content.type == .libraryPlaylist {
+                        Button(role: .destructive) {
                             Task {
-                                await updateTracks(offset: tracks.count)
+                                guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
+                                try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
+                                tracks.remove(at: index)
                             }
+                        } label: {
+                            Label("Remove", systemImage: "trash")
                         }
                     }
-                    .listRowBackground(Color.clear)
+                }
+                .disabled(!(item.metadata?.isPlayable ?? true))
+                .task {
+                    if tracks.firstIndex(of: item) ?? 0 >= tracks.count - 1 {
+                        Task {
+                            await updateTracks(offset: tracks.count)
+                        }
+                    }
+                }
+                .listRowBackground(Color.clear)
             }
 
             if tracks.isEmpty, !isLoaded {

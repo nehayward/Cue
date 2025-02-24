@@ -88,6 +88,7 @@ struct GroupScreen: View {
                     .frame(height: 32)
                 }
             }
+            .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .navigationDestination(for: Set<String>.self) { ids in
                 if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
                     SceneBuilderScreen(group: .constant(foundGroup), selections: ids)

@@ -421,6 +421,52 @@ public final class MusicSearchService {
         let response = try await catalogResource.response()
         return response.items.first
     }
+    
+    public func artistCatalog(id: String) async throws -> Artist? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let albumID = MusicItemID(id)
+        var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: albumID)
+        catalogResource.properties = [.topSongs, .albums, .appearsOnAlbums, .compilationAlbums, .liveAlbums, .fullAlbums, .latestRelease, .featuredAlbums, .playlists]
+        do {
+            let response = try await catalogResource.response()
+            return response.items.first
+        } catch {
+            print(error)
+        }
+        
+        return nil
+    }
+    
+    public func allAlbums(id: String) async throws -> [PlayableContent] {
+        guard await requestMusicAuthorization() else { return [] }
+        
+        let albumID = MusicItemID(id)
+        var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: albumID)
+        catalogResource.properties = [.albums, .appearsOnAlbums, .compilationAlbums, .liveAlbums, .fullAlbums, .latestRelease, .featuredAlbums]
+        
+        let response = try await catalogResource.response()
+        guard let artist = response.items.first else { return [] }
+        
+        var allAlbums: [PlayableContent] = []
+        
+        // Combine all album types
+        if let albums = artist.albums { allAlbums.append(contentsOf: albums.map(\.toPlayable)) }
+        if let appearsOn = artist.appearsOnAlbums { allAlbums.append(contentsOf: appearsOn.map(\.toPlayable)) }
+        if let compilations = artist.compilationAlbums { allAlbums.append(contentsOf: compilations.map(\.toPlayable)) }
+        if let liveAlbums = artist.liveAlbums { allAlbums.append(contentsOf: liveAlbums.map(\.toPlayable)) }
+        if let fullAlbums = artist.fullAlbums { allAlbums.append(contentsOf: fullAlbums.map(\.toPlayable)) }
+        if let latest = artist.latestRelease { allAlbums.append(latest.toPlayable) }
+        if let featured = artist.featuredAlbums { allAlbums.append(contentsOf: featured.map(\.toPlayable)) }
+        
+        // Sort by year (descending) and deduplicate
+        return Array(Set(allAlbums))
+            .sorted { album1, album2 in
+                let year1 = album1.metadata?.albumYear ?? .now
+                let year2 = album2.metadata?.albumYear ?? .now
+                return year1 > year2
+            }
+    }
 
     public func appleLibraryLookup(id: String) async -> AppleLibraryContainer? {
         if let container = try? await apple.librarySongCatalog(id: id) {

@@ -29,6 +29,7 @@ struct LibraryBrowseScreen: View {
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .artist)) {
                     Label("Artists", systemImage: "music.mic")
                 }
+                .listRowSeparator(.hidden, edges: .top)
 
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .album)) {
                     Label("Albums", systemImage: "smallcircle.circle.fill")
@@ -59,6 +60,7 @@ struct LibraryBrowseScreen: View {
                     }
                 }
             }
+//            .foregroundStyle(.primary)
             .miniPlayerOnScrollHandler()
             .listStyle(.inset)
             .navigationTitle("Music Library")

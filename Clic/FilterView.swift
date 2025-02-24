@@ -145,10 +145,10 @@ struct FilterButton: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(filter.isFiltered ? Color.accentColor : Color.secondary.opacity(0.2))
+                    .fill(filter.isFiltered ? AnyShapeStyle(Color.primary.gradient) : AnyShapeStyle(Color.secondary.opacity(0.2)))
                     .matchedGeometryEffect(id: "filterBackground\(filter.filter.rawValue)", in: animation)
             )
-            .foregroundColor(filter.isFiltered ? .white : .secondary)
+            .foregroundStyle(filter.isFiltered ? AnyShapeStyle(.ultraThickMaterial) : AnyShapeStyle(.secondary))
         }
         .buttonStyle(.plain)
         .scaleEffect(isHovered ? 1.05 : 1.0)

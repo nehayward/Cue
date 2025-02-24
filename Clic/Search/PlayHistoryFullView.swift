@@ -27,8 +27,10 @@ struct PlayHistoryFullView: View {
                 }
             }
 
-            ForEach(filteredHistory) { item in
-                PlayableContentView(item: item)
+            ForEach(filteredHistory, id: \.trackID) { item in
+                VStack {
+                    PlayableContentView(item: item)
+                }
             }
             .fontDesign(.rounded)
         }

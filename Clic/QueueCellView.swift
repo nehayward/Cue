@@ -8,9 +8,8 @@ struct QueueCellView: View {
     @Environment(SonosService.self) var sonosService
     
     let track: PlayableContent
-    @Binding var group: GroupRoom
+    var group: GroupRoom
     var router: Router
-    @State private var isHovered = false
     
     private var isCatalyst: Bool {
 #if targetEnvironment(macCatalyst)
@@ -20,6 +19,9 @@ struct QueueCellView: View {
     }
     
     var body: some View {
+        @Bindable var group = group
+//        let _ = print("\(track.metadata?.position) update")
+
         Button {
             dismiss()
             Task {
@@ -28,16 +30,19 @@ struct QueueCellView: View {
                 await sonosService.seek(trackNumber: position, on: group)
                 await sonosService.play(ip: group.coordinatorRoom.ip)
                 group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                group.coordinatorRoom.queueTotal = (try? await sonosService.getQueueTotal(group: group)) ?? 0
             }
         } label: {
             HStack {
                 ContentArtworkView(content: track)
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 60)
+                    .frame(width: 50, height: 50)
                 VStack(alignment: .leading) {
                     Text(track.title)
                         .lineLimit(1)
+                        .foregroundStyle(isTrackPlaying ? .accent : .primary)
                     Text(track.subtitle)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -60,27 +65,15 @@ struct QueueCellView: View {
                 Task {
                     try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.ip))
+                    group.coordinatorRoom.queueTotal = (try? await sonosService.getQueueTotal(group: group)) ?? 0
                 }
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(
-                    isTrackPlaying ? Color(uiColor: UIColor.systemFill) :
-                        isHovered && isCatalyst ? Color(uiColor: UIColor.tertiarySystemFill) : Color.clear
-                )
-                .padding(.horizontal, 4)
-        )
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
-        .bold(isTrackPlaying)
         .draggable(track)
-        .onHover { hovering in
-            if isCatalyst {
-                isHovered = hovering
-            }
-        }
+       
     }
     
     private var isTrackPlaying: Bool {
@@ -113,6 +106,7 @@ struct QueueCellView: View {
                 Task {
                     try? await sonosService.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+                    group.coordinatorRoom.queueTotal = (try? await sonosService.getQueueTotal(group: group)) ?? 0
                 }
             } label: {
                 Label("Remove", systemImage: "trash")

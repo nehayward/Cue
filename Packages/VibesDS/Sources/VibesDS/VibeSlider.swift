@@ -111,7 +111,7 @@ public struct VibeSlider: View {
                         y: (isTouched || isDragging) ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
         }
-        .padding(.vertical)
+        .padding(.vertical, baseHeight/2)
         .contentShape(Rectangle()) // Make entire area draggable
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)
@@ -206,30 +206,9 @@ public struct VibeSlider: View {
     }
 }
 
-fileprivate struct Container: View {
-    @State var volume = 0.0
-    var body: some View {
-        VStack {
-            Text(volume, format: .number)
-            Slider(value: $volume, in: 0...100, step: 2)
-            VibeSlider(value: $volume)
-                .padding()
-        }
-    }
-}
-
 #Preview {
     @Previewable @State var volume = 12.0
     
     VibeSlider(value: $volume, showValue: true)
         .padding(.horizontal)
-}
-
-#Preview {
-    Container()
-}
-
-#Preview("Colors") {
-    Container(volume: 50)
-        .foregroundStyle(Color.red)
 }
