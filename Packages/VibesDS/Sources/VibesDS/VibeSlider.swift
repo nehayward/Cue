@@ -3,6 +3,8 @@ import SwiftUI
 /// A custom slider view that provides a visual and interactive representation of a value within a range.
 public struct VibeSlider: View {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
+
     @Binding private var value: Double
     @State private var width = 0.0
     @State private var isDragging: Bool = false
@@ -15,6 +17,7 @@ public struct VibeSlider: View {
     
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
+    private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
     private let delayDrag: Bool
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
@@ -105,7 +108,7 @@ public struct VibeSlider: View {
                 .foregroundStyle(.white)
                 .blendMode(.difference)
                 .frame(minWidth: 32, minHeight: baseHeight)
-                .background((isDragging || isTouched) ? Color.primary : Color.clear)
+                .background((isDragging || isTouched) ? capsuleColor : Color.clear)
                 .clipShape(Capsule())
                 .offset(x: offsetForValue,
                         y: (isTouched || isDragging) ? -24 : 0)

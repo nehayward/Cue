@@ -13,12 +13,19 @@ public struct ItunesResult: Identifiable, Decodable, Sendable {
     public let artworkUrl100: String
     public let durationInMiliSeconds: Int
     public let trackViewURL: String
+    
     public var artworkURL: String {
-        artworkUrl100.replacingOccurrences(of: "100", with: "100")
+        let components = artworkUrl100.components(separatedBy: "/")
+        guard var lastComponent = components.last else { return artworkUrl100 }
+        lastComponent = lastComponent.replacingOccurrences(of: "100", with: "100")
+        return (components.dropLast() + [lastComponent]).joined(separator: "/")
     }
     
     public func artworkURL(with size: String) -> String {
-        artworkUrl100.replacingOccurrences(of: "100", with: size)
+        let components = artworkUrl100.components(separatedBy: "/")
+        guard var lastComponent = components.last else { return artworkUrl100 }
+        lastComponent = lastComponent.replacingOccurrences(of: "100", with: size)
+        return (components.dropLast() + [lastComponent]).joined(separator: "/")
     }
 
     public init(from decoder: Decoder) throws {

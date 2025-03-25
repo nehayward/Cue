@@ -13,7 +13,11 @@ struct LaunchAppControlWidget: ControlWidget {
         ) { configuration in
             ControlWidgetButton(action: configuration) {
                 Image("clic.icon.big")
-                Text(configuration.room?.name ?? "Select Room")
+                if configuration.nowPlaying {
+                    Text("Playing Speaker")
+                } else {
+                    Text(configuration.room?.name ?? "Select Room")
+                }
             }
         }
         .displayName("Launcher")

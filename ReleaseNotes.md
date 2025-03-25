@@ -1,3 +1,15 @@
+# 2025.4
+
+––New Features––
+•	New Sorting Options – Sort speakers by what’s currently playing or alphabetically.
+•	Marquee Text – Player and mini player now support scrolling text for better readability.
+•	Launch Preferences – Choose to launch directly to the currently playing group or TV Mode.
+•	Apple Music Artwork Fix – Resolved an issue where artwork sometimes failed to display.
+•	Apple Watch Improvement – Changing the volume now automatically unmutes audio.
+
+––Bug Fixes––
+- Enhanced MiniPlayer contrast for better visibility.
+
 # 2025.3
 
 ––New Features––

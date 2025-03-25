@@ -5,5 +5,6 @@ public enum AppStorageKeys {
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
+    public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
 }
 

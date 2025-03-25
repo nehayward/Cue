@@ -39,7 +39,8 @@ struct ClicApp: App {
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
-    
+    @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+
     @State var selectedID: String?
     @State private var previousCount: Int = 0
     
@@ -283,6 +284,16 @@ struct ClicApp: App {
             if !subscriptionService.subscription.isActive {
                 return
             }
+            
+            if speedLaunchNowPlaying {
+                Task {
+                    if sonosService.groups.isEmpty {
+                        try? await sonosService.updateGroups()
+                    }
+                    try? await sonosService.updateGroupsCheckPlayback()
+                    handle(URL(string: "clic://playing")!)
+                }
+            }
 
             Task {
                 await liveActivityManager.refresh()
@@ -324,6 +335,28 @@ struct ClicApp: App {
     private func handle(_ url: URL) {
         Task { @MainActor in
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
+            
+            if components.host?.lowercased() == "playing" {
+                let playingGroups = sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.TVMode })
+                guard let group = playingGroups.first else {
+                    return
+                }
+                
+                Task {
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                    } else {
+                        selectedID = group.coordinatorID
+                    }
+                }
+                return
+            }
+            
             if components.host?.lowercased() == "alarms" {
                 router.presentedSheet = .settings(destination: .alarms)
                 return

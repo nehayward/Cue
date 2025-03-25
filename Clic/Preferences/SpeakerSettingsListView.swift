@@ -31,6 +31,7 @@ struct SpeakerSettingsListView: View {
         .task {
             sonosService.monitor()
         }
+        .contentMargins(.top, EdgeInsets(), for: .scrollContent)
     }
 }
 

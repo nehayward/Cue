@@ -29,6 +29,8 @@ struct PreferenceScreen: View {
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+    
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
@@ -388,10 +390,29 @@ struct PreferenceScreen: View {
                                             .foregroundStyle(.blue)
                                     )
                             }
+                        
+                        Label {
+                            Toggle(isOn: $speedLaunchNowPlaying) {
+                                Text("Auto Launch")
+                            }
+                            .tint(.accent)
+                        } icon: {
+                            Image(systemName: "iphone")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.blue.gradient)
+                                )
+                        }
                     }
 
                 } footer: {
-                    Text("Instantly jump to the group currently playing.")
+                    Text("Launch to the group currently playing or in TV Mode.")
                 }
 #endif
                 
@@ -540,6 +561,34 @@ struct PreferenceScreen: View {
     }
     
     var colorSchemeSection: some View {
+        Section {
+            Label {
+                Picker("Theme", selection: $colorScheme) {
+                    ForEach(ColorSchemePreference.allCases, id: \.hashValue) { scheme in
+                        Text(scheme.rawValue.capitalized)
+                            .tag(scheme)
+                    }
+                }
+                .pickerStyle(.segmented)
+            } icon: {
+                Image(systemName: "circle.lefthalf.filled")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.foreground)
+                    .bold()
+                    .padding(8)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .foregroundStyle(.background)
+                    )
+            }
+        } header: {
+            Text("Appearance")
+        }
+    }
+    
+    var speedLaunch: some View {
         Section {
             Label {
                 Picker("Theme", selection: $colorScheme) {

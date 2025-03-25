@@ -66,6 +66,15 @@ public final class SonosService {
     @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
+    
+    public var sortOption: SonosSortOption {
+        get {
+            SonosSortOption(rawValue: UserDefaults.standard.integer(forKey: "groupSortOption")) ?? .nameAscending
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "groupSortOption")
+        }
+    }
 
     public var isRunning: Bool { !sonosPulse.isCancelled }
     public var groupsChanged: (([GroupRoom]) -> ()) = { _ in }
@@ -81,9 +90,26 @@ public final class SonosService {
 
     public var sorted: [GroupRoom] {
         get {
-            let sorted = groups.sorted { $0.coordinatorRoom.name < $1.coordinatorRoom.name }
-            return sorted
-        } set {
+            switch sortOption {
+            case .nameAscending:
+                return groups.sorted(using: KeyPathComparator(\.coordinatorRoom.name))
+            case .nameDescending:
+                return groups.sorted(using: KeyPathComparator(\.coordinatorRoom.name, order: .reverse))
+            case .playing:
+                return groups.sorted { g1, g2 in
+                    // First priority: TV Mode
+                    if g1.tvSettings != nil && g2.tvSettings == nil { return true }
+                    if g1.tvSettings == nil && g2.tvSettings != nil { return false }
+                    
+                    // Second priority: Playing status
+                    if g1.coordinatorRoom.isPlaying == g2.coordinatorRoom.isPlaying {
+                        return g1.coordinatorRoom.name < g2.coordinatorRoom.name
+                    }
+                    return g1.coordinatorRoom.isPlaying && !g2.coordinatorRoom.isPlaying
+                }
+            }
+        }
+        set {
             groups = newValue
         }
     }

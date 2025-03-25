@@ -247,7 +247,7 @@ struct GroupItemView: View {
                             
                             if let trackInfo = device.currentTrackMetadata {
                                 VStack(alignment: .leading) {
-                                    Text(trackInfo.title)
+                                    MarqueeText(trackInfo.title)
                                     Text(trackInfo.creator)
                                         .foregroundStyle(.secondary)
                                 }

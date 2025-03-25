@@ -92,12 +92,16 @@ struct DeviceListMainView: View {
             .withAppRouter()
             .navigationBarTitle("", displayMode: .inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         router.presentedSheet = .settings()
                     } label: {
                         Image(systemName: "switch.2")
                     }
+                }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    SortMenu(sortOption: $sonosService.sortOption)
                 }
             }
             .overlay(alignment: .center) {
@@ -184,6 +188,7 @@ struct DeviceListMainView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .withAlert()
+        .animation(.spring, value: sonosService.sorted)
         .animation(.spring, value: sonosService.isSearching)
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemState.notFound)
@@ -225,6 +230,25 @@ struct DeviceListMainView: View {
         if subscriptionService.subscription.isActive { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
+    }
+}
+
+struct SortMenu: View {
+    @Binding var sortOption: SonosSortOption
+    
+    var body: some View {
+        Menu {
+            Picker("Sort by", selection: $sortOption) {
+                ForEach(SonosSortOption.allCases) { option in
+                    Text(option.title)
+                        .tag(option)
+                }
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down.circle.fill")
+                .accessibilityLabel(Text("Sort by"))
+        }
+        .tint(.primary)
     }
 }
 

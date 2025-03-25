@@ -16,7 +16,6 @@ struct WatchApp: App {
     private var sonosService = SonosMiniService.shared
     private var router: Router = .main
     private var popover = Popover.shared
-    private var isAutoLaunching: Bool = false
 
     var body: some Scene {
         WindowGroup {

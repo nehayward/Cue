@@ -117,6 +117,9 @@ struct PlayerView: View {
                     print("Cancelled??")
                 }
                 await sonosService.setGroupVolume(ip: device.ip, volume: volume)
+                if device.groupIsMuted {
+                    await sonosService.setGroupMute(device: device, mute: false)
+                }
             }
         }
         .navigationTitle(device.nameWithCount)

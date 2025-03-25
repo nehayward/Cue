@@ -7,17 +7,19 @@ struct MiniPlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(SubscriptionService.self) var subscriptionService
+    @Environment(\.colorScheme) var colorScheme: ColorScheme
 
     @State private var router = Router()
     @State private var selectedGroup: GroupRoom?
     
     var body: some View {
 #if !targetEnvironment(macCatalyst)
-        Group {
+        VStack {
             if let group = selectedGroup {
                 VStack(spacing: 8) {
                     groupInfoButton(for: group)
                     VolumeControlView(group: .constant(group))
+                        .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 .transition(.push(from: .bottom).combined(with: .blurReplace))
                 .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
@@ -84,7 +86,7 @@ struct MiniPlayerView: View {
             Text(group.nameWithCount)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
                 .transition(.slide)
         }
         .fontDesign(.rounded)

@@ -87,16 +87,11 @@ struct LargePlayerView: View {
                         .lineLimit(1, reservesSpace: true)
                 }
                 
-                Text(group.coordinatorRoom.track.song)
-                    .lineLimit(1, reservesSpace: true)
+                MarqueeText(group.coordinatorRoom.track.song)
                     .bold()
                     .multilineTextAlignment(.center)
                     .fontDesign(.rounded)
                     .font(.title2)
-                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
-                    .contextMenu {
-                        Text(group.coordinatorRoom.track.song)
-                    }
                 
                 Text(group.coordinatorRoom.track.artist)
                     .multilineTextAlignment(.center)
