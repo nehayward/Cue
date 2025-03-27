@@ -39,12 +39,15 @@ public struct VibeContentArtworkView: View {
         .clipShape(contentShape)
         .shadow(radius: 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onGeometryChange(for: CGSize.self) { proxy in
-            return proxy.size
-        } action: { size in
-            width = size.width
-            calculateOverlaySize(from: size)
-        }
+        .background(
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear {
+                        width = proxy.size.width
+                        calculateOverlaySize(from: proxy.size)
+                    }
+            }
+        )
         .task(id: content.id) {
             await loadImage()
         }

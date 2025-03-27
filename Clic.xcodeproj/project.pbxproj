@@ -2756,8 +2756,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/joogps/Glur";
 			requirement = {
-				kind = exactVersion;
-				version = 1.0.4;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.4;
 			};
 		};
 		E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
