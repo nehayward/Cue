@@ -9,8 +9,9 @@ struct PaywallButtonView: View {
 
     private var features = [
         ("Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
-        ("Live Activities + Dynamic Island", "Instantly adjust playback and volume from the lock screen."),
-        ("Interactive Widgets", "Convenient home screen widgets for immediate playback control."),
+        ("Cross-Platform Experience", "Enjoy seamless control on iPadOS, macOS, and watchOS"),
+        ("Live Activities", "Instantly adjust playback and volume from the lock screen."),
+        ("Widgets", "Convenient home screen widgets for immediate playback control."),
         ("Apple Watch", "Control your Sonos system with ease from your wrist."),
         ("Scenes", "Group rooms and set ideal volume with a single tap."),
         ("Apple Shortcuts", "Rapidly manage playback using the Shortcuts app.")

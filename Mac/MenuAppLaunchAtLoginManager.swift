@@ -67,22 +67,30 @@ final class MenuAppLaunchAtLoginManager {
     func loadDelegate() {
         let bundleFileName = "MacGlue.bundle"
         guard let bundleURL = Bundle.main.builtInPlugInsURL?.appendingPathComponent(bundleFileName) else {
-//            Diag.error("Failed to find MacUtils plugin, macOS-specific functions will be limited")
+            logger.error("Failed to find MacUtils plugin path")
             return
         }
         
-        guard let bundle = Bundle(url: bundleURL) else {
-//            Diag.error("Failed to load MacUtils plugin, macOS-specific functions will be limited")
-            return
+        do {
+            guard let bundle = Bundle(url: bundleURL) else {
+                logger.error("Failed to create bundle from URL: \(bundleURL.path)")
+                return
+            }
+            
+            // Load the bundle with error handling
+            try bundle.loadAndReturnError()
+            
+            let className = "MacGlue.MacUtilsImpl"
+            guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
+                logger.error("Failed to instantiate MacUtils plugin class")
+                return
+            }
+            
+            macUtils = pluginClass.init()
+            logger.debug("Successfully loaded MacUtils plugin")
+        } catch {
+            logger.error("Failed to load MacUtils plugin: \(error.localizedDescription)")
         }
-        
-        let className = "MacGlue.MacUtilsImpl"
-        guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
-            print("Failed to instantiate MacUtils plugin, macOS-specific functions will be limited")
-            return
-        }
-        
-        macUtils = pluginClass.init()
     }
 }
 

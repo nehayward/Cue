@@ -9,8 +9,9 @@ struct ClicPaywall: View {
 
     private var features = [
         (Icons.speaker.systemName, "Show All Devices", "Effortlessly manage all your Sonos devices in one place."),
-        (Icons.liveActivity.systemName, "Live Activities + Dynamic Island", "Instantly adjust playback and volume from the lock screen."),
-        (Icons.widgets.systemName, "Interactive Widgets", "Convenient home screen widgets for immediate playback control."),
+        (Icons.mac.systemName, "Cross-Platform Experience", "Enjoy seamless control on iPadOS, macOS, and watchOS"),
+        (Icons.liveActivity.systemName, "Live Activities", "Instantly adjust playback and volume from the lock screen."),
+        (Icons.widgets.systemName, "Widgets", "Convenient home screen widgets for immediate playback control."),
         (Icons.watch.systemName, "Apple Watch", "Control your Sonos system with ease from your wrist."),
         (Icons.scenes.systemName, "Scenes", "Group rooms and set ideal volume with a single tap."),
         (Icons.shortcuts.systemName, "Apple Shortcuts", "Rapidly manage playback using the Shortcuts app.")
@@ -18,40 +19,52 @@ struct ClicPaywall: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                Text("Clic Super")
-                    .bold()
-                    .font(.largeTitle)
-                    .foregroundStyle(.teal.gradient)
-                    .padding(.vertical, 24)
-                ForEach(Array(features.enumerated()), id: \.offset) { index, element in
-                    HStack(alignment: .firstTextBaseline) {
-                        Image(systemName: element.0)
-                            .foregroundStyle(.teal.gradient)
-                        VStack(alignment: .leading) {
-                            Text(element.1)
-                                .bold()
-                                .font(.title3)
-                                .foregroundStyle(.teal.gradient)
-                            Text(element.2)
-                                .lineLimit(2, reservesSpace: true)
-                                .foregroundStyle(.primary.opacity(0.8))
-                        }
-                        Spacer()
+            VStack(spacing: 32) {
+                // Hero Section
+                VStack(spacing: 8) {
+                    Text("Clic Super")
+                        .bold()
+                        .font(.system(size: 42, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text("Elevate your Sonos experience")
+                        .foregroundStyle(.secondary)
+                    
+                }
+                .padding(.top, 24)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(Array(features.enumerated()), id: \.offset) { index, element in
+                        FeatureCard(
+                            icon: element.0,
+                            title: element.1,
+                            description: element.2
+                        )
                     }
                 }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
             .padding(.bottom)
             .fontDesign(.rounded)
-            .saturation(1.2)
         }
         .frame(maxWidth: .infinity)
-        .paywallFooter(condensed: true, purchaseCompleted: { customerInfo in
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.05, green: 0.12, blue: 0.12),  // Dark emerald
+                    Color(red: 0.02, green: 0.05, blue: 0.05)   // Darker emerald
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .originalTemplatePaywallFooter(purchaseCompleted: { customerInfo in
             Analytics.shared.track(.subscribed)
             dismiss()
         })
         .fontDesign(.rounded)
+        .preferredColorScheme(.dark)
         .interactiveDismissDisabled()
         .overlay(alignment: .topTrailing) {
             Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: {
@@ -60,13 +73,46 @@ struct ClicPaywall: View {
             .labelStyle(.iconOnly)
             .padding([.top, .trailing])
             .font(.title)
-            .saturation(0.5)
-            .opacity(0.7)
+            .foregroundStyle(.secondary)
         }
         .onAppear {
             Analytics.shared.track(.viewedPaywall)
         }
         .customizeWindowSizeForMacOS15()
+    }
+}
+
+struct FeatureCard: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title)
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .bold()
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.thinMaterial.opacity(0.2))
+        )
     }
 }
 
@@ -112,7 +158,7 @@ fileprivate enum Icons {
         case .watch:
             "applewatch"
         case .speaker:
-            "hifispeaker.2.fill"
+            "hifispeaker.arrow.forward.fill"
         case .shortcuts:
             "point.topleft.down.to.point.bottomright.curvepath.fill"
         case .widgets:

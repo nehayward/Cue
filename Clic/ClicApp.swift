@@ -503,12 +503,15 @@ struct ClicApp: App {
             $0.dataCachePolicy = .automatic
             
             let dataLoader: DataLoader = {
-                let config = URLSessionConfiguration.background(withIdentifier: "com.clic.image.loader")
-                config.urlCache = nil
+                let config = URLSessionConfiguration.default
+                config.requestCachePolicy = .returnCacheDataElseLoad
+                config.timeoutIntervalForRequest = 30
+                config.timeoutIntervalForResource = 300
                 return DataLoader(configuration: config)
             }()
 
             $0.dataLoader = dataLoader
+            $0.isProgressiveDecodingEnabled = true
         }
         
         ImagePipeline.shared = pipeline
