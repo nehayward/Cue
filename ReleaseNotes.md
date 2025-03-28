@@ -1,3 +1,12 @@
+# 2025.5
+
+––New Features––
+- 
+
+––Bug Fixes––
+- Improve animation between TV Mode
+- Fix crash on Mac
+
 # 2025.4
 
 ––New Features––

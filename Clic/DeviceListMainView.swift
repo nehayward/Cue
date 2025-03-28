@@ -31,14 +31,15 @@ struct DeviceListMainView: View {
                             router.navigate(to: .player(groupID: group.coordinatorID))
                         } label: {
                             VStack(spacing: 12) {
-                                if group.tvSettings != nil {
+                                ZStack {
                                     TVModeViewCell(group: $group)
                                         .transition(.asymmetric(
                                             insertion: .opacity,
                                             removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
                                         ))
                                         .padding(.horizontal, 12)
-                                } else {
+                                        .opacity(group.TVMode ? 1 : 0)
+                                    
                                     HStack(alignment: .top) {
                                         ArtworkView(group: $group)
                                             .frame(width: 72, height: 72)
@@ -46,16 +47,12 @@ struct DeviceListMainView: View {
                                         Spacer()
                                         MediaControlsView(group: $group)
                                     }
-                                    .transition(.asymmetric(
-                                        insertion: .opacity,
-                                        removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
-                                    ))
                                     .padding(.horizontal, 12)
+                                    .opacity(group.TVMode ? 0 : 1)
                                 }
                                 VolumeControlView(group: $group, delayDrag: true)
                             }
                         }
-                        .animation(.spring, value: group.tvSettings)
                         .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))

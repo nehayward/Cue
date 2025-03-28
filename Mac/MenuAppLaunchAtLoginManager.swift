@@ -8,19 +8,17 @@ import OSLog
 
 @Observable
 final class MenuAppLaunchAtLoginManager {
-    
-    @ObservationIgnored static var appKitController: NSObject?
-    @ObservationIgnored private lazy var logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: String(describing: Self.self))
-    
-    static var shared = MenuAppLaunchAtLoginManager()
+    @ObservationIgnored static var shared = MenuAppLaunchAtLoginManager()
     var isRunning: Bool = false
     var macUtils: MacUtils?
 
     var isLaunchAtLoginEnabled: Bool { SMAppService.menuApp.status == .enabled }
+    
+    init() {
+        macUtils = Self.loadDelegate()
+    }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) async throws {
-        logger.debug("Set launch at login enabled: \(enabled, privacy: .public)")
-
         if enabled {
             try SMAppService.menuApp.register()
         } else {
@@ -54,9 +52,9 @@ final class MenuAppLaunchAtLoginManager {
     
     func monitor() {
         macUtils?.setupRunningAppsObserver()
-        macUtils?.runningUpdate(handler: { isRunning in
+        macUtils?.runningUpdate(handler: { [weak self] isRunning in
             print("----Running-----")
-            self.isRunning = isRunning
+            self?.isRunning = isRunning
         })
     }
     
@@ -64,33 +62,34 @@ final class MenuAppLaunchAtLoginManager {
         macUtils?.stopRunningAppObserver()
     }
     
-    func loadDelegate() {
+    static func loadDelegate() -> MacUtils? {
         let bundleFileName = "MacGlue.bundle"
         guard let bundleURL = Bundle.main.builtInPlugInsURL?.appendingPathComponent(bundleFileName) else {
-            logger.error("Failed to find MacUtils plugin path")
-            return
+            print("Failed to find MacGlue plugin URL")
+            return nil
         }
         
-        do {
-            guard let bundle = Bundle(url: bundleURL) else {
-                logger.error("Failed to create bundle from URL: \(bundleURL.path)")
-                return
-            }
-            
-            // Load the bundle with error handling
-            try bundle.loadAndReturnError()
-            
-            let className = "MacGlue.MacUtilsImpl"
-            guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
-                logger.error("Failed to instantiate MacUtils plugin class")
-                return
-            }
-            
-            macUtils = pluginClass.init()
-            logger.debug("Successfully loaded MacUtils plugin")
-        } catch {
-            logger.error("Failed to load MacUtils plugin: \(error.localizedDescription)")
+        guard let bundle = Bundle(url: bundleURL) else {
+            print("Failed to create bundle from URL: \(bundleURL)")
+            return nil
         }
+        
+        // Load bundle explicitly and handle errors
+        do {
+            try bundle.loadAndReturnError()
+        } catch {
+            print("Failed to load MacGlue bundle: \(error)")
+            return nil
+        }
+        
+        let className = "MacGlue.MacUtilsImpl"
+        guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
+            print("Failed to find MacUtilsImpl class in bundle")
+            return nil
+        }
+        
+        let macUtils = pluginClass.init()
+        return macUtils
     }
 }
 
