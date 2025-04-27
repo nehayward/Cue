@@ -2,7 +2,6 @@ import Foundation
 import OSLog
 
 public final class SpotifyAPI {
-
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -38,7 +37,7 @@ public final class SpotifyAPI {
         }
     }
 
-    public func search(for query: String, limit: Int = 10, types: Set<SpotifyType>) async -> SpotifyResult? {
+    public func search(for query: String, limit: Int = 50, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"

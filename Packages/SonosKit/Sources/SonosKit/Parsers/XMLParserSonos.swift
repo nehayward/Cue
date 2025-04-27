@@ -1,5 +1,4 @@
 import Foundation
-import SWXMLHash
 
 final class XMLParserSonos {
     func parseVolume(xml: String) throws -> Int {
@@ -8,21 +7,11 @@ final class XMLParserSonos {
     }
 
     func parseZones(xml: String) -> [ZoneGroup] {
-        let parser = XMLParser(data: xml.unescaped.data(using: .utf8)!)
-        let delegate = ZoneGroupStateParser()
-        parser.delegate = delegate
-        parser.parse()
-        let groups = delegate.zoneGroups
-        return groups
+        ZoneGroupStateParser().parse(xml: xml)
     }
 
     func parseVanishedDevices(xml: String) -> [VanishedDevice] {
-        guard let data = xml.unescaped.data(using: .utf8) else { return [] }
-        let parser = XMLParser(data: data)
-        let delegate = VanishedDevicesParser()
-        parser.delegate = delegate
-        parser.parse()
-        return delegate.vanishedDevices
+        VanishedDevicesParser().parse(xml: xml)
     }
 
     func parsePositionInfo(xml: String, IP: String, preferredIPForTrackAlbumArt: String?) -> Track? {

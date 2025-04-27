@@ -242,7 +242,7 @@ struct MediaDetailView: View {
         case (.album, .spotify):
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
             playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.map { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
             newTracks = playlist.map(\.toPlayable)
@@ -253,7 +253,7 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             totalSongs = playlist.total
-            newTracks = playlist.items.map { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
+            newTracks = playlist.items.compactMap { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
@@ -271,11 +271,14 @@ struct MediaDetailView: View {
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: song.album.id) else { return }
             playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.map { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.album, .library):
             newTracks = await sonosService.libraryLookup(ID: playableContent.id)
         case (.playlist, .library):
             newTracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
+        case (.libraryImportedPlaylists, .library):
+            let id = playableContent.id.replacingOccurrences(of: "x-file-cifs", with: "S")
+            newTracks = await sonosService.libraryLookup(ID: id)
         case (.track, .library):
             guard let albumName = playableContent.metadata?.album,
                   let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
@@ -313,8 +316,10 @@ struct MediaDetailView: View {
             newTracks = await musicSearchService.lookupPlexAlbumSongs(id: playableContent.content.id)
         case (.playlist, .plex):
             (totalSongs, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
+        case (.playlist, .soundcloud):
+            newTracks = await musicSearchService.lookupSoundCloudPlaylistTracks(with: playableContent.content.id)
         default:
-            break
+            assertionFailure("Implement this.")
         }
         for newTrack in newTracks {
             tracks.updateOrAppend(newTrack)

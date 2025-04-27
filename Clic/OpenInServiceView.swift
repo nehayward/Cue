@@ -31,6 +31,16 @@ struct OpenInServiceView: View {
                     }
                 }
             }
+            
+            if item.content.service == .soundcloud {
+                Link(destination: openInURL) {
+                    Label {
+                        Text("Open in SoundCloud…")
+                    } icon: {
+                        MediaSearchService.soundcloud.iconForMusicService
+                    }
+                }
+            }
         }
     }
 }

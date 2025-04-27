@@ -4,7 +4,6 @@ class SonosLogInformation {
     static let shared = SonosLogInformation()
     private var logFileURL: URL?
 
-
     func log(name: String, _ message: String) {
 #if DEBUG
         let logMessage = "\(message)"

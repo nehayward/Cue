@@ -198,7 +198,7 @@ public final class SonosMiniService {
         case .deviceProperties(let event):
             devices[index].battery = event.battery
             if let name = event.name {
-                devices[index].name = name
+                devices[index].name = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&")
             }
         }
         

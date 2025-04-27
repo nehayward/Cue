@@ -37,6 +37,9 @@ struct PreferenceScreen: View {
     @State private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
 #endif
     
+    @State private var isUploading = false
+    @State private var uploadSuccess = false
+    
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var coreFeatures = coreFeatures
@@ -214,6 +217,31 @@ struct PreferenceScreen: View {
                         }
                     }
                     .tint(.primary)
+                    
+                    Button {
+                        Task {
+                            guard let device = sonosService.setPriorityDevice() else { return }
+                            alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
+                        }
+                    } label: {
+                        Label {
+                            Text("Set Priority Device")
+                            Text("Prioritize wired connections, the latest models, and non-portable Sonos devices.")
+                        } icon: {
+                            Image(systemName: "1.circle.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.green.gradient)
+                                )
+                        }
+                    }
+                    .tint(.primary)
                 }
                 
                 
@@ -282,7 +310,7 @@ struct PreferenceScreen: View {
                             ForEach(MediaSearchService.allCases, id: \.self) { service in
                                 if coreFeatures.enabledServices(service).wrappedValue {
                                     service.iconForMusicService
-                                        .frame(width: 20, height: 20)
+                                        .frame(width: 16, height: 16)
                                 }
                             }
                         } label: {
@@ -470,7 +498,7 @@ struct PreferenceScreen: View {
                 //                        }
                 //                        UIApplication.shared.setAlternateIconName(newValue) { (error) in
                 //                            if let error = error {
-                //                                print("Failed request to update the app’s icon: \(error)")
+                //                                print("Failed request to update the app's icon: \(error)")
                 //                            }
                 //                        }
                 //                    }
@@ -511,6 +539,39 @@ struct PreferenceScreen: View {
                                     .foregroundStyle(.yellow)
                             )
                     }
+                    // MARK: Send Logs
+//                    Button {
+//                        isUploading = true
+//                        guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
+//                            print("Documents directory not found")
+//                            isUploading = false
+//                            return
+//                        }
+//
+//                        let fileURL = documentDirectory.appendingPathComponent("Groups.txt")
+//                        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
+//                            isUploading = false
+//                            return
+//                        }
+//                        Task {
+//                            await uploadLogs(text: contents)
+//                            isUploading = false
+//                            uploadSuccess = true
+//                        }
+//                    } label: {
+//                        HStack {
+//                            Image(systemName: uploadSuccess ? "checkmark.circle.fill" : "paperplane.fill")
+//                                .foregroundColor(uploadSuccess ? .green : .blue)
+//                            Text("Send Logs")
+//                            if isUploading {
+//                                Spacer()
+//                                ProgressView()
+//                            }
+//                        }
+//                        .frame(maxWidth: .infinity, alignment: .leading)
+//                        .padding()
+//                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.systemBackground)))
+//                    }
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
@@ -613,6 +674,36 @@ struct PreferenceScreen: View {
             }
         } header: {
             Text("Appearance")
+        }
+    }
+    
+    private func uploadLogs(text: String) async {
+        if text.isEmpty { return }
+        // Define the URL and request
+        guard let id =  UIDevice.current.identifierForVendor?.uuidString else { return }
+        guard let url = URL(string: "https://tight-night-3b05.nehayward.workers.dev/\(Date.now.ISO8601Format(.iso8601Date(timeZone: .current, dateSeparator: .omitted)))_\(id).txt") else {
+            fatalError("Invalid URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.addValue("Bearer clic6043", forHTTPHeaderField: "Authorization")
+        request.httpBody = text.data(using: .utf8)
+
+        // Perform the async URLSession call
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Status Code: \(httpResponse.statusCode)")
+            }
+
+            // Handle the response data
+            if let responseData = String(data: data, encoding: .utf8) {
+                print("Response Data: \(responseData)")
+            }
+        } catch {
+            print("Request failed with error: \(error)")
         }
     }
 }

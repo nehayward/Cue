@@ -1,6 +1,6 @@
 import Foundation
 
-class VanishedDevicesParser: NSObject, XMLParserDelegate {
+final class VanishedDevicesParser: NSObject, XMLParserDelegate {
     var vanishedDevices: [VanishedDevice] = []
     private var currentElement = ""
     private let dateFormatter: DateFormatter = {
@@ -9,13 +9,21 @@ class VanishedDevicesParser: NSObject, XMLParserDelegate {
         return formatter
     }()
     
+    func parse(xml: String) -> [VanishedDevice] {
+        let xmlData = xml.unescaped.ampersandSafe.data(using: .utf8)!
+        let parser = XMLParser(data: xmlData)
+        parser.delegate = self
+        parser.parse()
+        return vanishedDevices
+    }
+    
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         currentElement = elementName
         
         if elementName == "VanishedDevices" {
             guard let id = attributeDict["UUID"] else { return }
             
-            let name = attributeDict["ZoneName"]
+            let name = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
             let lastKnownIP = attributeDict["LastKnownIP"]
             let date = dateFormatter.date(from: attributeDict["LastSeenUTC"] ?? "")
             let reason = attributeDict["Reason"]

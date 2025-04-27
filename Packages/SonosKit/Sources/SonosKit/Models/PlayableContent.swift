@@ -87,6 +87,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-sonosapi-radio:radio%3A\(id)?sid=204&amp;flags=32"
         case (.libraryPlaylist, .apple):
             return "x-rincon-cpcontainer:1006206clibraryplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
+        case (.track, .soundcloud):
+            return "x-sonos-http:track-%3Esoundcloud%3Atracks%3A\(id)?sid=160&amp;flags=32"
+        case (.playlist, .soundcloud):
+            return "x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)"
         default:
             assertionFailure("Failed")
             return ""
@@ -177,7 +181,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
             &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON52231_X_#Svc52231-0-Token&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
             """
+        case (.track, .soundcloud):
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="00030020track-%3Esoundcloud%3Atracks%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON40967_X_#Svc40967-7051ab01-Token&lt;/desc&gt;&lt;res&gt;x-sonos-http:track-%3Esoundcloud%3Atracks%3A\(id)?sid=160&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        case (.playlist, .soundcloud):
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON40967_X_#Svc40967-7051ab01-Token&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
         case (_, .unknown):
+            assertionFailure("Implement \(content.type)")
             return metadata?.URIMetadata ?? ""
         default:
             return ""

@@ -53,7 +53,6 @@ final class ActionViewController: UIViewController {
         guard let url else {
             return
         }
-        print("Redirecting to URL: \(url)")
         openURL(url)
     }
 

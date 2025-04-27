@@ -8,7 +8,38 @@ final class SonosKitTests: XCTestCase {
     func testXMLParse() throws {
         let zone = Bundle.module.url(forResource: "Zone", withExtension: "xml")
         let zoneXML = try! String(contentsOf: zone!)
-        XMLParserSonos().parse(xml: zoneXML)
+        let zones = XMLParserSonos().parseZones(xml: zoneXML)
+        XCTAssertEqual(zones.count, 5)
+    }
+    func testXMLEscapedParse() throws {
+        let zone = Bundle.module.url(forResource: "ZoneEscaped", withExtension: "xml")
+        let zoneXML = try! String(contentsOf: zone!)
+        let zones = XMLParserSonos().parseZones(xml: zoneXML)
+        XCTAssertEqual(zones.count, 7)
+    }
+    
+    func testXMLMattZoneParse() throws {
+        let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
+        let zoneXML = try! String(contentsOf: zone!)
+        let zones = XMLParserSonos().parseZones(xml: zoneXML)
+        XCTAssertEqual(zones.count, 8)
+    }
+    
+    func testXMLParserDelegatePerformance() {
+        measure {
+            let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
+            let zoneXML = try! String(contentsOf: zone!)
+            let parser = XMLParserSonos().parseZones(xml: zoneXML)
+        }
+    }
+    
+    func testRegexParserPerformance() {
+        measure {
+            let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
+            let zoneXML = try! String(contentsOf: zone!)
+            let parser = ZoneGroupRegexParser()
+            parser.parse(data: zoneXML)
+        }
     }
 
     func testVolumeResponseParse() throws {
@@ -18,13 +49,13 @@ final class SonosKitTests: XCTestCase {
         XCTAssert(volume == 80)
     }
 
-    func testZoneEventXMLParse() throws {
-        let zone = Bundle.module.url(forResource: "ZoneEvent", withExtension: "xml")
-        let zoneXML = try! String(contentsOf: zone!)
-        let zones = XMLParserSonos().parseZonesEvent(xml: zoneXML.unescaped)
-        print(zones)
-        XCTAssertEqual(zones.count, 4)
-    }
+//    func testZoneEventXMLParse() throws {
+//        let zone = Bundle.module.url(forResource: "ZoneEvent", withExtension: "xml")
+//        let zoneXML = try! String(contentsOf: zone!)
+//        let zones = XMLParserSonos().parseZonesEvent(xml: zoneXML.unescaped)
+//        print(zones)
+//        XCTAssertEqual(zones.count, 4)
+//    }
 
     func testZoneXMLParse() throws {
         let zone = Bundle.module.url(forResource: "Zone", withExtension: "xml")

@@ -37,13 +37,13 @@ public final class MusicSearchService {
     private let tuneIn = TuneInAPI()
     private let sonosService = SonosService.shared
 
+    private let soundCloud = SoundCloudAPI(
+        clientId: "iJ161hwUtTqVKptbddkz1NWBYpQDDIcl",
+        clientSecret: "zCcBaeVvBKX4R0eAwypLes8PmBknZnqI"
+    )
+
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
-    private var appleSearchTask = Task<([PlayableContent])?, Never> { nil }
-    private var spotifySearchTask = Task<([PlayableContent])?, Never> { nil }
-    private var librarySearchTask = Task<([PlayableContent])?, Never> { nil }
-    private var tidalSearchTask = Task<([PlayableContent])?, Never> { nil }
-    private var plexSearchTask = Task<([PlayableContent])?, Never> { nil }
-    private var tuneInSearchTask = Task<([PlayableContent])?, Never> { nil }
+    private var searchTasks: [MediaSearchService: Task<([PlayableContent])?, Never>] = Dictionary(uniqueKeysWithValues: MediaSearchService.allCases.map { ($0, Task { nil }) } )
 
     private let debounceDuration: Duration = .milliseconds(150)
 
@@ -55,23 +55,20 @@ public final class MusicSearchService {
     public var plexResults: [PlayableContent] = []
     public var tidalResults: [PlayableContent] = []
     public var tuneInResults: [PlayableContent] = []
-
+    
+    public var searchResults: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
     public init() { }
 
-    public func search(for provider: MediaSearchService) async {
+    public func search(for providers: Set<MediaSearchService>) async {
         if query.isEmpty { return }
 
-        // Cancel the previous task if it exists
+        // Cancel the previous tasks if they exist
         searchSuggestionTask.cancel()
-        appleSearchTask.cancel()
-        spotifySearchTask.cancel()
-        librarySearchTask.cancel()
-        plexSearchTask.cancel()
-        tidalSearchTask.cancel()
-        tuneInSearchTask.cancel()
+        searchTasks.values.forEach { $0.cancel() }
 
+        // Create suggestion task
         searchSuggestionTask = Task { [weak self] in
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
@@ -80,105 +77,79 @@ public final class MusicSearchService {
             return results
         }
 
-        appleSearchTask = Task { [weak self] in
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .apple {
-                let results = await searchApple(query: query)
-                return results
+        // Create a task group for concurrent search execution
+        await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
+            // Add tasks for each provider to the group
+            for provider in providers {
+                group.addTask { [weak self] in
+                    guard let self else { return (provider, nil) }
+                    try? await Task.sleep(for: self.debounceDuration)
+                    guard !Task.isCancelled else { return (provider, nil) }
+                    
+                    let results: [PlayableContent]?
+                    switch provider {
+                    case .apple:
+                        results = await self.searchApple(query: self.query)
+                    case .spotify:
+                        results = await self.searchSpotify(query: self.query)
+                    case .library:
+                        let playableContent = await self.sonosService.librarySearch(query: self.query)
+                        results = await self.sortContentByIntelligentSearch(playableContent: playableContent, query: self.query)
+                    case .plex:
+                        results = await self.searchPlex(query: self.query)
+                    case .tidal:
+                        results = await self.searchTidal(query: self.query)
+                    case .tuneIn:
+                        results = await self.searchTuneIn(query: self.query)
+                    case .soundcloud:
+                        results = await self.searchSoundCloud(query: self.query)
+                    }
+                    return (provider, results)
+                }
             }
-            return nil
+
+            // Process results as they complete
+            for await (provider, results) in group {
+                if let results = results {
+                    switch provider {
+                    case .apple:
+                        self.appleResults = results
+                    case .spotify:
+                        self.spotifyResults = results
+                    case .library:
+                        self.librarySearchResults = results
+                    case .plex:
+                        self.plexResults = results
+                    case .tidal:
+                        self.tidalResults = results
+                    case .tuneIn:
+                        self.suggestions.removeAll()
+                        self.tuneInResults = results
+                    case .soundcloud:
+                        self.searchResults = results
+                    }
+                }
+            }
         }
 
-        spotifySearchTask = Task { [weak self] in
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .spotify {
-                let results = await searchSpotify(query: query)
-                return results
-            }
-            return nil
-        }
-
-        librarySearchTask = Task { [weak self] in
-            // Delay execution to debounce
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .library {
-                let playableContent = await sonosService.librarySearch(query: query)
-                return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
-            }
-            return nil
-        }
-
-        plexSearchTask = Task { [weak self] in
-            // Delay execution to debounce
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .plex {
-                return await searchPlex(query: query)
-            }
-            return nil
-        }
-
-        tidalSearchTask = Task { [weak self] in
-            // Delay execution to debounce
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .tidal {
-                return await searchTidal(query: query)
-            }
-            return nil
-        }
-
-        tuneInSearchTask = Task { [weak self] in
-            // Delay execution to debounce
-            guard let self else { return nil }
-            try? await Task.sleep(for: debounceDuration)
-            guard !Task.isCancelled else { return nil }
-            if provider == .tuneIn {
-                return await searchTuneIn(query: query)
-            }
-            return nil
-        }
-
-
-        // Wait for the task to complete and return the result
+        // Wait for suggestion task to complete
         if let results = await searchSuggestionTask.value {
-            if provider != .tuneIn {
+            if !providers.contains(.tuneIn) {
                 suggestions = results.0
             }
         }
-
-        switch provider {
-        case .apple:
-            guard let result = await appleSearchTask.value else { return }
-            appleResults = result
-        case .spotify:
-            guard let result = await spotifySearchTask.value else { return }
-            spotifyResults = result
-        case .library:
-            guard let librarySearchResults = await librarySearchTask.value else { return }
-            self.librarySearchResults = librarySearchResults
-        case .plex:
-            guard let plexResults = await plexSearchTask.value else { return }
-            self.plexResults = plexResults
-        case .tidal:
-            guard let tidalResults = await tidalSearchTask.value else { return }
-            self.tidalResults = tidalResults
-        case .tuneIn:
-            guard let tuneInResults = await tuneInSearchTask.value else { return }
-            suggestions.removeAll()
-            self.tuneInResults = tuneInResults
-        }
     }
 
-    public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],  
+    // Convenience methods for single provider and array of providers
+    public func search(for provider: MediaSearchService) async {
+        await search(for: [provider])
+    }
+
+    public func search(for providers: [MediaSearchService]) async {
+        await search(for: Set(providers))
+    }
+    
+    public func searchSuggestion(query: String) async -> ([MusicCatalogSearchSuggestionsResponse.Suggestion],
                                                           MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)? {
         if query.isEmpty { return ([], []) }
         guard await requestMusicAuthorization() else { return ([], []) }
@@ -255,7 +226,7 @@ public final class MusicSearchService {
         guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return playableContent }
 
         if let tracks = results.tracks?.items {
-            playableContent.append(contentsOf: tracks.map(\.toPlayable))
+            playableContent.append(contentsOf: tracks.compactMap(\.toPlayable))
         }
         if let tracks = results.albums?.items {
             playableContent.append(contentsOf: tracks.compactMap { $0?.toPlayable })
@@ -834,7 +805,72 @@ public final class MusicSearchService {
         }
         return appleMusicAuthorizationStatus
     }
+
+    // Add SoundCloud search method
+    private func searchSoundCloud(query: String) async -> [PlayableContent] {
+        var playableContent: [PlayableContent] = []
+        
+        async let tracks = soundCloud.searchTracks(for: query)
+        async let playlists = soundCloud.searchPlaylists(for: query)
+        
+        guard let trackResults = await tracks,
+              let playlistResults = await playlists else { return playableContent }
+        
+        playableContent.append(contentsOf: trackResults.tracks.map { track in
+            createSoundCloudPlayableContent(from: track)
+        })
+        
+        playableContent.append(contentsOf: playlistResults.tracks.map { track in
+            PlayableContent(
+                title: track.title,
+                subtitle: track.description ?? "",
+                thumbnail: URL(string: track.artworkUrl ?? ""),
+                artwork: track.artworkURLOriginal,
+                content: MediaContent(
+                    service: .soundcloud,
+                    id: String(track.id),
+                    type: .playlist,
+                    location: URL(string: track.permalinkUrl ?? "")
+                ),
+                metadata: .init(
+                    artist: nil,
+                    album: nil
+                )
+            )
+        })
+        
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+    }
+    
+    // SoundCloud track lookup
+    public func lookupSoundCloudTrack(with id: String) async -> PlayableContent? {
+        guard let track = await soundCloud.track(for: id) else { return nil }
+        return createSoundCloudPlayableContent(from: track)
+    }
+    
+    // SoundCloud track lookup
+    public func lookupSoundCloudPlaylistTracks(with id: String) async -> [PlayableContent] {
+        guard let tracks = await soundCloud.playlistTracks(for: id) else { return [] }
+        return tracks.map { createSoundCloudPlayableContent(from: $0) }
+    }
+    
+    // Helper method to create PlayableContent from SoundCloudTrack
+    private func createSoundCloudPlayableContent(from track: SoundCloudTrack) -> PlayableContent {
+        PlayableContent(
+            title: track.title,
+            subtitle: track.description ?? "",
+            thumbnail: URL(string: track.artworkUrl ?? ""),
+            artwork: track.artworkURLOriginal,
+            content: MediaContent(
+                service: .soundcloud,
+                id: String(track.id),
+                type: .track,
+                location: URL(string: track.permalinkUrl ?? "")
+            ),
+            metadata: .init(
+                artist: nil,
+                album: nil
+            )
+        )
+    }
 }
-
-
-

@@ -38,6 +38,8 @@ struct SearchScreen: View {
     
     @FocusState private var isSearchFieldFocused: Bool
     
+    @State private var isLoading: Bool = false
+    
     private var showAlert: Bool {
 #if targetEnvironment(macCatalyst)
         return false
@@ -102,7 +104,15 @@ struct SearchScreen: View {
                         TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
                     case .tuneIn:
                         TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
+                    case .soundcloud:
+                        ServiceSearchView(results: musicSearchService.searchResults, filters: $filters)
                     }
+                }
+
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .listRowSeparator(.hidden)
                 }
             }
             .miniPlayerOnScrollHandler()
@@ -118,23 +128,24 @@ struct SearchScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
+                isLoading = true
                 if suggestion == nil {
                     searchCompletionTapped = false
                 }
                 await musicSearchService.search(for: musicSearchSelection)
                 suggestion = nil
-
+                isLoading = false
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
             }
-            // MARK: Bring back
-            .animation(.bouncy, value: playHistoryService.history)
-            .animation(.bouncy, value: musicSearchService.appleResults)
-            .animation(.bouncy, value: musicSearchService.spotifyResults)
-            .animation(.bouncy, value: musicSearchService.librarySearchResults)
-            .animation(.bouncy, value: musicSearchService.tidalResults)
-            .animation(.bouncy, value: musicSearchService.plexResults)
-            .animation(.bouncy, value: filters)
-            .animation(.interactiveSpring, value: searchCompletionTapped)
+            .animation(.snappy, value: playHistoryService.history)
+            .animation(.snappy, value: musicSearchService.appleResults)
+            .animation(.snappy, value: musicSearchService.spotifyResults)
+            .animation(.snappy, value: musicSearchService.librarySearchResults)
+            .animation(.snappy, value: musicSearchService.tidalResults)
+            .animation(.snappy, value: musicSearchService.plexResults)
+            .animation(.snappy, value: musicSearchService.searchResults)
+            .animation(.snappy, value: filters)
+            .animation(.snappy, value: searchCompletionTapped)
             .addDismiss(override: contentToAdd != nil) {
                 dismiss()
                 closeInspector?()

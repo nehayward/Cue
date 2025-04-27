@@ -41,7 +41,7 @@ struct ArtworkView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            Group {
+            VStack {
                 if let currentImage = artwork.wrappedValue {
                     Image(uiImage: currentImage)
                         .resizable()

@@ -7,6 +7,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case spotify
     case tidal
     case tuneIn
+    case soundcloud
 
     public var title: String {
         switch self {
@@ -22,6 +23,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "Tidal"
         case .tuneIn:
             "TuneIn"
+        case .soundcloud:
+            "SoundCloud"
         }
     }
 
@@ -62,6 +65,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(.foreground)
+        default:
+            SwiftUI.Image(self.rawValue, bundle: .module)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.primary)
         }
     }
 
@@ -95,6 +104,11 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .foregroundStyle(.foreground)
         case .tuneIn:
             MediaSearchService.tuneIn.image
+        default:
+            SwiftUI.Image(self.rawValue, bundle: .module)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.primary)
         }
     }
 }

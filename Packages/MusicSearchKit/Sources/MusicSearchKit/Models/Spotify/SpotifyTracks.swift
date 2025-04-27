@@ -5,8 +5,8 @@ public struct SpotifyTracks: Equatable, Decodable, Sendable {
 }
 
 public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
-    public let id: String
-    public let href: String
+    public let id: String?
+    public let href: String?
     public let name: String
     public let album: SpotifyAlbumItem
     public let isPlayable: Bool?

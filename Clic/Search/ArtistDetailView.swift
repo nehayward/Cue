@@ -142,40 +142,37 @@ struct ArtistDetailView: View {
                 } header: {
                     HStack {
                         Text("Top Songs")
-#if targetEnvironment(macCatalyst)
+                        #if targetEnvironment(macCatalyst)
                             .foregroundStyle(.foreground)
                             .font(.title2)
-#endif
+                        #endif
                         Spacer()
-                        // MARK: Add queue multiple uris
-                        
-                        //                        if !albums.isEmpty {
-                        //                            Button {
-                        //                                hideKeyboard()
-                        //                                Task { @MainActor in
-                        //                                    let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                        //                                        HapticManager.shared.fireHaptic(.buttonPress)
-                        //                                        do {
-                        //                                            try await sonosService.queue(contents: tracks.reversed(), group: group, replaceQueue: false)
-                        //                                            await sonosService.play(ip: group.coordinatorRoom.ip)
-                        //                                        }
-                        //                                    }
-                        //                                    guard let group = selectedGroupService.group else {
-                        //                                        router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
-                        //                                        return
-                        //                                    }
-                        //                                    try await queueSong(group)
-                        //                                }
-                        //                            } label: {
-                        //                                Image(systemName: "play.fill")
-                        //                                    .foregroundStyle(.accent)
-                        //                            }
-                        //                            .bold()
-                        //                            .buttonStyle(.bordered)
-                        //                            .buttonBorderShape(.circle)
-                        //                            .tint(.accent)
-                        //                            .help("Play Discography")
-                        //                            .padding(.trailing, -14)
+                        Button {
+                            Task { @MainActor in
+                                let queueAllSongs: ((GroupRoom) async throws -> Void) = { group in
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    do {
+                                        alertService.showAlert(with: "Playing Top Songs", imageName: "star.fill")
+                                        try await sonosService.queue(contents: tracks, group: group, position: .next)
+                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                                    }
+                                }
+                                guard let group = selectedGroupService.group else {
+                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueAllSongs))
+                                    return
+                                }
+                                try await queueAllSongs(group)
+                            }
+                        } label: {
+                            Image(systemName: "play.fill")
+                                .foregroundStyle(.accent)
+                        }
+                        .bold()
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .tint(.accent)
+                        .help(Text("Play All Top Songs"))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 20))
                     }
                 }
             }
@@ -407,7 +404,7 @@ struct ArtistDetailView: View {
 
                 playableContent = artistAwait.toPlayable
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
-                self.tracks = artistTopTracksAwait.map(\.toPlayable)
+                self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
             case (.track, .apple):
                 guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = song.artists?.first?.id.description else { return }
                 guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
@@ -461,7 +458,7 @@ struct ArtistDetailView: View {
                 playableContent = artistAwait.toPlayable
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 artworkURL = artistAwait.images.biggestImageURL
-                self.tracks = artistTopTracksAwait.map(\.toPlayable)
+                self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
             case (.album, .apple):
                 guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
                 guard let artist: Artist = try? await MusicSearchService().artistCatalog(id: artistID) else { return }
@@ -506,7 +503,7 @@ struct ArtistDetailView: View {
                 playableContent = artistAwait.toPlayable
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 artworkURL = artistAwait.images.biggestImageURL
-                self.tracks = artistTopTracksAwait.map(\.toPlayable)
+                self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
             case (.track, .library):
                 artworkURL = nil
                 guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(in: .whitespacesAndNewlines) else { return }

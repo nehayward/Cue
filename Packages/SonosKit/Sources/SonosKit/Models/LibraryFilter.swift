@@ -4,6 +4,7 @@ enum LibraryFilter {
     case album
     case track
     case playlist
+    case importedPlaylists
 
     var id: String {
         switch self {
@@ -15,6 +16,8 @@ enum LibraryFilter {
             return "A:TRACKS"
         case .playlist:
             return "A:PLAYLISTS"
+        case .importedPlaylists:
+            return "A:PLAYLISTS:"
         }
     }
 }

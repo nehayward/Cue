@@ -15,6 +15,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     case libraryPlaylist
     case libraryAlbum
     case libraryArtist
+    case libraryImportedPlaylists
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -63,6 +64,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Library Album"
         case .favorite:
             "Favorite"
+        case .libraryImportedPlaylists:
+            "Imported Playlists"
         case .radio, .artistRadio, .songRadio:
             "Radio"
         }
@@ -88,6 +91,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "library-album"
         case .favorite:
             "favorite"
+        case .libraryImportedPlaylists:
+            "library-imported-playlist"
         case .radio, .artistRadio, .songRadio:
             "radio"
         }
@@ -101,7 +106,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             return "smallcircle.circle.fill"
         case .artist, .libraryArtist:
             return "music.mic"
-        case .playlist, .libraryPlaylist:
+        case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
             return "rectangle.stack.badge.play"
         case .radio, .artistRadio, .songRadio:
             return "radio.fill"

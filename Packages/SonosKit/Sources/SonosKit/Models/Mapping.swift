@@ -307,8 +307,10 @@ extension AppleLibraryArtist {
 
 // MARK: - Spotify Music Mapping
 extension SpotifyTrackItem {
-    public var toPlayable: PlayableContent {
-        PlayableContent(
+    public var toPlayable: PlayableContent? {
+        guard let id else { return nil }
+
+        return PlayableContent(
             title: name,
             subtitle: allArtists,
             thumbnail: album.images.thumbnail,
@@ -374,8 +376,9 @@ extension SpotifyAlbumDetails {
 }
 
 extension SpotifyAlbumTrackItems {
-    public func toPlayable(album: PlayableContent?, thumbnail: URL?, artwork: URL?) -> PlayableContent {
-        PlayableContent(
+    public func toPlayable(album: PlayableContent?, thumbnail: URL?, artwork: URL?) -> PlayableContent? {
+        guard let id else { return nil }
+        return PlayableContent(
             title: name,
             subtitle: allArtists,
             thumbnail: thumbnail,

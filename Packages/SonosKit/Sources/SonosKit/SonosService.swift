@@ -525,7 +525,8 @@ public final class SonosService {
 
         await withDiscardingTaskGroup { group in
             for (_, roomGroup) in groups.enumerated() {
-                group.addTask {
+                group.addTask { [weak self] in
+                    guard let self else { return }
                     async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     switch await playbackInfo {
                     case .playing:
@@ -579,7 +580,8 @@ public final class SonosService {
     public func updateGroupMuteState(for roomGroups: [GroupRoom]) async {
         await withDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
-                group.addTask {
+                group.addTask { [weak self] in
+                    guard let self else { return }
                     if roomGroup.coordinatorRoom.state == .active, let isMuted = await self.isMuted(for: roomGroup) {
                         Task { @MainActor in
                             roomGroup.isMuted = isMuted
@@ -607,7 +609,8 @@ public final class SonosService {
     func updateGroupsWatch(from roomGroups: [GroupRoom]) async throws {
         try await withThrowingDiscardingTaskGroup { group in
             for roomGroup in roomGroups {
-                group.addTask {
+                group.addTask { [weak self] in
+                    guard let self else { return }
                     // MARK: Sleeping
                     if roomGroup.coordinatorRoom.state != .active { return }
 
@@ -820,7 +823,8 @@ public final class SonosService {
         }
 
         isGroupingTask.cancel()
-        isGroupingTask = Task {
+        isGroupingTask = Task { [weak self] in
+            guard let self else { return }
             try? await Task.sleep(for: .seconds(3.5))
             if Task.isCancelled { return }
             isGrouping = false
@@ -920,6 +924,9 @@ public final class SonosService {
                 return nil
             }
             return plexSong.artwork
+        case .soundcloud:
+            guard let track = await musicSearch.lookupSoundCloudTrack(with: track.trackID) else { return nil }
+            return track.artwork
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library:
@@ -997,6 +1004,17 @@ public final class SonosService {
                 ),
                 plexSong.artwork
             )
+        case .soundcloud:
+            guard let track = await musicSearch.lookupSoundCloudTrack(with: track.trackID) else { return nil }
+            return (
+                Track.Metadata(
+                    ISRC: track.metadata?.isrc,
+                    openInURL: track.content.location,
+                    contentType: .track,
+                    song: nil
+                ),
+                track.artwork
+            )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -1004,7 +1022,7 @@ public final class SonosService {
             }
 
             return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images.biggestImageURL)
-        default:
+        case .airplay, .library:
             return (nil, nil)
         }
     }
@@ -1060,6 +1078,9 @@ public final class SonosService {
         case (.track, .plex):
             guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
             return await musicSearch.lookupPlexSong(with: id)?.artwork
+        case (.track, .soundcloud):
+            guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
+            return track.artwork
         default:
 //            print(content)
             return nil
@@ -1112,6 +1133,9 @@ public final class SonosService {
 //            guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
 ////                  let playlist = await musicSearch.lookuple(id: id) else { return nil }
 //            return album
+        case (.track, .soundcloud):
+            guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
+            return track
         default:
             return nil
         }
@@ -1392,16 +1416,20 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
     
-    // TODO: Add queue multiple uris
     public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end) async throws {
+        var hasPlayed = false
         if position == .replace {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
         for content in contents {
-            try await queuePlayable(playable: content, group: group, position: position)
-        }
-        if position == .next {
-            await next(ip: group.ip)
+            try await api.queuePlayable(playableContent: content, IP: group.ip)
+            if !hasPlayed, position == .next {
+                await next(ip: group.ip)
+                await play(ip: group.ip)
+                try? await Task.sleep(for: .milliseconds(150))
+                try? await updateGroups(from: [group])
+                hasPlayed = true
+            }
         }
         try? await Task.sleep(for: .milliseconds(150))
         try? await updateGroups(from: [group])
@@ -1663,20 +1691,62 @@ public final class SonosService {
 
     func prioritizedIP() -> String? {
         let allRooms = groups.flatMap(\.rooms)
-        guard let room = allRooms.first(where: { $0.ethernetEnabled }) else {
-            let filteredRooms = allRooms.filter { room in
-                guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-                let notTheseModels = ["roam", "move"]
-                return notTheseModels.filter { modelName.contains($0) }.count == 0
-            }
-
-            if filteredRooms.isEmpty {
-                return allRooms.first?.ip
-            }
-
-            return filteredRooms.first?.ip
+        let sortedRooms = allRooms.sorted { lhs, rhs in
+            // Ethernet-enabled rooms should come last
+            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
+            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
+            return lhsEthernet < rhsEthernet
         }
-        return room.ip
+        
+        // Filter out portable models like Roam and Move
+        let filteredRooms = sortedRooms.filter { room in
+            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
+            let excludedModels = ["roam", "move"]
+            return !excludedModels.contains { modelName.contains($0) }
+        }
+        
+        // Return the best matching room IP
+        if let bestRoom = filteredRooms.sorted(by: {
+            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
+        }).first {
+            return bestRoom.ip
+        }
+        
+        // Fallback
+        return allRooms.first?.ip
+    }
+    
+    func priorityDevice() -> Room? {
+        let allRooms = groups.flatMap(\.rooms)
+        let sortedRooms = allRooms.sorted { lhs, rhs in
+            // Ethernet-enabled rooms should come last
+            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
+            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
+            return lhsEthernet < rhsEthernet
+        }
+        
+        // Filter out portable models like Roam and Move
+        let filteredRooms = sortedRooms.filter { room in
+            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
+            let excludedModels = ["roam", "move"]
+            return !excludedModels.contains { modelName.contains($0) }
+        }
+        
+        // Return the best matching room IP
+        if let bestRoom = filteredRooms.sorted(by: {
+            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
+        }).first {
+            return bestRoom
+        }
+        
+        // Fallback
+        return allRooms.first
+    }
+    
+    public func setPriorityDevice() -> Room? {
+        guard let device = priorityDevice() else { return nil }
+        sonosSystemDiscoverService.sonosStorageIP.sonosIP = device.ip
+        return device
     }
 }
 

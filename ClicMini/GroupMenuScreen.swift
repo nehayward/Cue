@@ -105,29 +105,7 @@ struct GroupMenuScreen: View {
                         ScrollView {
                             LazyVStack {
                                 ForEach(scenes) { scene in
-                                    Button {
-                                        Task {
-                                            withAnimation {
-                                                showList = false
-                                            }
-                                            try? await sonosServiceMini.runScene(scene)
-                                        }
-                                    } label: {
-                                        Text(scene.name)
-                                            .padding(.vertical, 8)
-                                            .padding(.horizontal, 12)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(hoveredSceneId == scene.id.uuidString ?
-                                                          Color(nsColor: .systemFill) :
-                                                            Color.clear)
-                                            )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .onHover { isHovering in
-                                        hoveredSceneId = isHovering ? scene.id.uuidString : nil
-                                    }
+                                    SceneButtonView(scene: scene, showList: $showList)
                                 }
                             }
                             .padding(.bottom, 60)
@@ -350,5 +328,38 @@ struct GroupHeader: View {
         .fontDesign(.rounded)
         .foregroundStyle(.foreground)
         .font(.title2)
+    }
+}
+
+struct SceneButtonView: View {
+    var scene: SonosScene
+    @Binding var showList: Bool
+    @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var isHovering: Bool = false
+    
+    var body: some View {
+        Button {
+            Task {
+                withAnimation {
+                    showList = false
+                }
+                try? await sonosServiceMini.runScene(scene)
+            }
+        } label: {
+            Text(scene.name)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isHovering ?
+                              Color(nsColor: .systemFill) :
+                                Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering in
+            self.isHovering = isHovering
+        }
     }
 }

@@ -50,7 +50,7 @@ struct ClicApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
+            VStack {
                 if OSEnvironment.pad || UIDevice.current.userInterfaceIdiom == .vision {
                     HStack {
                         SidebarSplitView {

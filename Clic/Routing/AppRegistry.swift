@@ -124,6 +124,7 @@ extension View {
                     .environment(router)
                     .environment(selectedGroupService)
                     .customizeWindowSizeForMacOS15()
+                    .withAlert()
 
                 case let .searchAdd(adding):
                     let searchRouter = Router.search
@@ -255,6 +256,7 @@ extension View {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
                             .withAppRouter()
+                            .withAlert()
                     }
                     .scrollContentBackground(.hidden)
                     .presentationBackground(.thinMaterial)

@@ -27,27 +27,9 @@ final class SonosAPI {
                 return []
             }
             let xml = String(decoding: data, as: UTF8.self)
-            
-            // Initialize the XML parser
-            let parser = XMLParser(data: xml.unescaped.data(using: .utf8)!)
-            let delegate = ZoneGroupStateParser()
-            parser.delegate = delegate
-            
-            if parser.parse() {
-                print(delegate.zoneGroups)
-            } else {
-                print("Parsing failed with error: \(parser.parserError?.localizedDescription ?? "Unknown error")")
-            }
-            
-            
-//            SonosLogInformation.shared.log(name: "Groups.txt", xml.unescaped)
-//            let zones = xmlParser.parseZones(xml: xml.unescaped)
-//            let vanishedZones = xmlParser.parseVanishedDevices(xml: xml.unescaped).compactMap { $0.toGroup }
-            let groups = delegate.zoneGroups.compactMap { $0.toGroup }
-//            if (groups + vanishedZones).isEmpty {
-//                throw SonosServiceError.parseError(xml)
-//            }
-            return groups
+            let groups = ZoneGroupStateParser().parse(xml: xml)
+            let sonosGroups = groups.compactMap { $0.toGroup }
+            return sonosGroups
         } catch URLError.cannotConnectToHost {
 //            print("Can't connect")
 //            throw SonosServiceError.sonosSystemNotFound
@@ -74,17 +56,8 @@ final class SonosAPI {
                 return []
             }
             
-            let parser = XMLParser(data: unescapedLastChange.data(using: .utf8)!)
-            let delegate = ZoneGroupStateParser()
-            parser.delegate = delegate
-            
-            if parser.parse() {
-    //            print(delegate.zoneGroups)
-            } else {
-                print("Parsing failed with error: \(parser.parserError?.localizedDescription ?? "Unknown error")")
-            }
-            
-            let devices = delegate.zoneGroups.map { $0.toGroup }.compactMap { $0?.rooms }.flatMap { $0 }.compactMap { $0.toSonosDevice }
+            let groups = ZoneGroupStateParser().parse(xml: unescapedLastChange)
+            let devices = groups.map { $0.toGroup }.compactMap { $0?.rooms }.flatMap { $0 }.compactMap { $0.toSonosDevice }
             return devices
         } catch URLError.cannotConnectToHost {
 //            print("Can't connect")

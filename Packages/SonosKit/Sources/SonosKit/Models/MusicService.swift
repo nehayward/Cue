@@ -1,4 +1,5 @@
 import SwiftUI
+import MusicSearchKit
 
 public enum MusicService: Sendable, Codable, CaseIterable {
     case apple
@@ -8,6 +9,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case plex
     case tidal
     case tuneIn
+    case soundcloud
     case unknown
 
     public init?(service: String) {
@@ -24,6 +26,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .tidal
         case "tunein":
             self = .tuneIn
+        case "soundcloud":
+            self = .soundcloud
         default:
             return nil
         }
@@ -43,6 +47,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "tidal"
         case .tuneIn:
             "tunein"
+        case .soundcloud:
+            "soundcloud"
         default:
             nil
         }
@@ -60,6 +66,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Plex"
         case .tidal:
             "Tidal"
+        case .soundcloud:
+            "SoundCloud"
         default:
             ""
         }
@@ -79,6 +87,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "tidal"
         case .tuneIn:
             "tunein"
+        case .soundcloud:
+            "soundcloud"
         default:
             ""
         }
@@ -87,7 +97,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
 
     @ViewBuilder
     public var icon: some View {
-        Group {
+        VStack {
             switch self {
             case .apple:
                 SwiftUI.Image(systemName: "apple.logo")
@@ -119,6 +129,16 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
+            case .soundcloud:
+                SwiftUI.Image(self.sonosRawValue, bundle: .musicSearchKitBundle)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .onAppear {
+                        let musicSearchBundle = Bundle.musicSearchKitBundle
+                        print(musicSearchBundle)
+                       
+                    }
             case .airplay:
                 SwiftUI.Image(systemName: "airplayaudio")
                     .resizable()
@@ -163,6 +183,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .tuneIn:
             SwiftUI.Image(.tuneIn)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        default:
+            SwiftUI.Image(self.sonosRawValue, bundle: .musicSearchKitBundle)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         }

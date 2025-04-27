@@ -50,7 +50,7 @@ public struct SpotifyAlbumTracks: Decodable, Sendable {
 }
 
 public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
-    public let id: String
+    public let id: String?
     public let href: String
     public let name: String
     public let artists: [SpotifyArtistsInfo]

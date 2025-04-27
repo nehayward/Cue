@@ -70,6 +70,14 @@ final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
     var currentSatellites: [ZoneGroupMember] = []
     var currentElement = ""
     
+    func parse(xml: String) -> [ZoneGroup] {
+        let xmlData = xml.unescaped.ampersandSafe.data(using: .utf8)!
+        let parser = XMLParser(data: xmlData)
+        parser.delegate = self
+        parser.parse()
+        return zoneGroups
+    }
+    
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         currentElement = elementName
         
@@ -80,10 +88,9 @@ final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
         } else if elementName == "ZoneGroupMember" {
             // Reset satellites array for new member
             currentSatellites = []
-            
+            let name = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
             let uuid = attributeDict["UUID"] ?? ""
             let location = attributeDict["Location"] ?? ""
-            let zoneName = attributeDict["ZoneName"] ?? ""
             let info = attributeDict["MoreInfo"] ?? ""
             let wirelessMode = Int(attributeDict["WirelessMode"] ?? "")
             let wirelessLeafOnly = attributeDict["WirelessLeafOnly"].map { $0 == "1" } ?? false
@@ -101,7 +108,7 @@ final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
             currentMember = ZoneGroupMember(
                 UUID: uuid,
                 location: location,
-                zoneName: zoneName,
+                zoneName: name,
                 channelMap: channelMap,
                 satChannelMap: satChannelMap,
                 invisible: invisible,

@@ -23,15 +23,25 @@ final class MusicServiceParser {
     private func determineServiceType(from xml: String, trackURI: String) -> MusicService {
         // Check in order of most specific to least specific patterns
         switch true {
-        case trackURI.contains("airplay"):             return .airplay
-        case trackURI.contains("x-file-cifs"):      return .library
-        case xml.lowercased().contains("tunein"):      return .tuneIn
-        case trackURI.contains("%3a3%3"):             return .plex
+        case trackURI.contains("airplay"):
+            return .airplay
+        case trackURI.contains("x-file-cifs"):
+            return .library
+        case xml.lowercased().contains("tunein"):
+            return .tuneIn
+        case trackURI.contains("%3a3%3"):
+            return .plex
         case trackURI.contains("librarytrack"),
-             trackURI.contains("song"):                return .apple
-        case trackURI.contains("spotify"):             return .spotify
-        case isTidalTrack(trackURI):                  return .tidal
-        default:                                      return .unknown
+             trackURI.contains("song"):
+            return .apple
+        case trackURI.contains("spotify"):
+            return .spotify
+        case isTidalTrack(trackURI):
+            return .tidal
+        case trackURI.localizedCaseInsensitiveContains("soundcloud"):
+            return .soundcloud
+        default:
+            return .unknown
         }
     }
     
@@ -51,6 +61,8 @@ final class MusicServiceParser {
             return extractTidalTrackID(from: uri)
         case .plex:
             return extractPlexTrackID(from: uri)
+        case .soundcloud:
+            return extractSoundCloudID(from: uri)
         case .library:
             return uri
         case .tuneIn, .airplay, .unknown:
@@ -107,5 +119,25 @@ final class MusicServiceParser {
         else { return "" }
         
         return encoded
+    }
+    
+    private func extractSoundCloudID(from uri: String) -> TrackID {
+        guard let decodedURI = uri.removingPercentEncoding else {
+            return ""
+        }
+        
+        let pattern = "soundcloud:tracks:(\\d+)"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return ""
+        }
+        
+        let results = regex.matches(in: decodedURI, range: NSRange(decodedURI.startIndex..., in: decodedURI))
+        guard let match = results.first,
+              let range = Range(match.range(at: 1), in: decodedURI) else {
+            return ""
+        }
+        
+        let id = String(decodedURI[range])
+        return id
     }
 }

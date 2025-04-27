@@ -42,7 +42,7 @@ struct PlayableMenuView: View {
                         Label("Start Radio", systemImage: "radio.fill")
                     }
                 }
-            case .playlist, .libraryPlaylist:
+            case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
                 ControlGroup("Queue \(item.title)") {
                     Button {
                         play(position: .replace)

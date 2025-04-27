@@ -23,6 +23,7 @@ struct LibraryBrowseScreen: View {
 
     var body: some View {
         @Bindable var sonosService = sonosService
+        @Bindable var browseService = browseService
 
         NavigationStack(path: $router.path) {
             List {
@@ -37,6 +38,18 @@ struct LibraryBrowseScreen: View {
 
                 NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .track)) {
                     Label("Songs", systemImage: "music.note")
+                }
+                
+//                NavigationLink(value: RouterDestination.playableLibraryList(title: "Genres", items: $browseService.genres, action: { offset in
+//                    await browseService.updateGenres()
+//                })) {
+//                    Label("Genres", systemImage: "theatermasks.fill")
+//                }
+
+                NavigationLink(value: RouterDestination.playableLibraryList(title: "Imported Playlists", items: $browseService.importedPlaylists, action: { offset in
+                    await browseService.updateImportedPlaylists()
+                })) {
+                    Label("Imported Playlists", systemImage: "rectangle.stack.badge.play")
                 }
 
 //                NavigationLink(value: RouterDestination.playableContentList(group: selectedGroupService.group, contentType: .playlist)) {

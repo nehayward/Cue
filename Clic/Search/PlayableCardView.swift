@@ -28,7 +28,7 @@ struct PlayableCardView: View {
             } else {
                 if !hideAction {
                     switch item.content.type {
-                    case .playlist, .album, .libraryPlaylist, .libraryAlbum:
+                    case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
                         NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                             content
                         }

@@ -39,9 +39,9 @@ struct ListViewLarge: View {
                             HStack(alignment: .top) {
                                 ArtworkView(group: $group)
                                     .frame(width: 72, height: 72)
-                                ZoneView(group: $group)
+                                ZoneView(group: group)
                                 Spacer()
-                                MediaControlsView(group: $group)
+                                MediaControlsView(group: group)
                             }
                             .transition(.asymmetric(
                                 insertion: .opacity,

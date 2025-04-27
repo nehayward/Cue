@@ -68,12 +68,20 @@ struct ZoneGroup {
 }
 
 
-// Custom XMLParserDelegate to extract ZoneGroupState
-class ZoneGroupStateParser: NSObject, XMLParserDelegate {
+final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
     var zoneGroups: [ZoneGroup] = []
     var currentGroup: ZoneGroup?
     var currentMember: ZoneGroupMember?
+    var currentSatellites: [ZoneGroupMember] = []
     var currentElement = ""
+    
+    func parse(xml: String) -> [ZoneGroup] {
+        let xmlData = xml.unescaped.ampersandSafe.data(using: .utf8)!
+        let parser = XMLParser(data: xmlData)
+        parser.delegate = self
+        parser.parse()
+        return zoneGroups
+    }
     
     func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
         currentElement = elementName
@@ -83,9 +91,11 @@ class ZoneGroupStateParser: NSObject, XMLParserDelegate {
             let id = attributeDict["ID"] ?? ""
             currentGroup = ZoneGroup(coordinator: coordinator, id: id, members: [])
         } else if elementName == "ZoneGroupMember" {
+            // Reset satellites array for new member
+            currentSatellites = []
+            let name = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
             let uuid = attributeDict["UUID"] ?? ""
             let location = attributeDict["Location"] ?? ""
-            let zoneName = attributeDict["ZoneName"] ?? ""
             let info = attributeDict["MoreInfo"] ?? ""
             let wirelessMode = Int(attributeDict["WirelessMode"] ?? "")
             let wirelessLeafOnly = attributeDict["WirelessLeafOnly"].map { $0 == "1" } ?? false
@@ -99,13 +109,44 @@ class ZoneGroupStateParser: NSObject, XMLParserDelegate {
             let channelMap = attributeDict["ChannelMapSet"]
             let satChannelMap = attributeDict["HTSatChanMapSet"]
             let invisible = attributeDict["Invisible"].map { $0 == "1" } ?? false
-
-//            // TODO: satellites
-//            let satelliteElements = attributeDict["Satellite"]
-//            let satellites = satelliteElements.compactMap { ZoneGroupMember.parse(from: $0) }
-//            
-            // Return the parsed ZoneGroupMember object
+            
             currentMember = ZoneGroupMember(
+                UUID: uuid,
+                location: location,
+                zoneName: name,
+                channelMap: channelMap,
+                satChannelMap: satChannelMap,
+                invisible: invisible,
+                info: info,
+                wirelessMode: wirelessMode ?? 0,
+                wirelessLeafOnly: wirelessLeafOnly,
+                behindWifiExtender: behindWifiExtender,
+                wifiEnabled: wifiEnabled,
+                ethernetEnabled: ethernetEnabled,
+                voiceConfigState: voiceConfigState ?? 0,
+                micEnabled: micEnabled,
+                airPlayEnabled: airPlayEnabled,
+                satellites: [] // Will be populated with currentSatellites when the member ends
+            )
+        } else if elementName == "Satellite" {
+            let uuid = attributeDict["UUID"] ?? ""
+            let location = attributeDict["Location"] ?? ""
+            let zoneName = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
+            let info = attributeDict["MoreInfo"] ?? ""
+            let wirelessMode = Int(attributeDict["WirelessMode"] ?? "")
+            let wirelessLeafOnly = attributeDict["WirelessLeafOnly"].map { $0 == "1" } ?? false
+            let behindWifiExtender = attributeDict["BehindWifiExtender"].map { $0 == "1" } ?? false
+            let wifiEnabled = attributeDict["WifiEnabled"].map { $0 == "1" } ?? false
+            let ethernetEnabled = attributeDict["EthLink"].map { $0 == "1" } ?? false
+            let voiceConfigState = Int(attributeDict["VoiceConfigState"] ?? "")
+            let micEnabled = attributeDict["MicEnabled"].map { $0 == "1" } ?? false
+            let airPlayEnabled = attributeDict["AirPlayEnabled"].map { $0 == "1" } ?? false
+            
+            let channelMap = attributeDict["ChannelMapSet"]
+            let satChannelMap = attributeDict["HTSatChanMapSet"]
+            let invisible = attributeDict["Invisible"].map { $0 == "1" } ?? false
+            
+            let satellite = ZoneGroupMember(
                 UUID: uuid,
                 location: location,
                 zoneName: zoneName,
@@ -121,15 +162,19 @@ class ZoneGroupStateParser: NSObject, XMLParserDelegate {
                 voiceConfigState: voiceConfigState ?? 0,
                 micEnabled: micEnabled,
                 airPlayEnabled: airPlayEnabled,
-                satellites: [] // Populate this if satellite data is available
+                satellites: [] // Satellites don't have their own satellites
             )
+            
+            currentSatellites.append(satellite)
         }
     }
     
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        if elementName == "ZoneGroupMember", let member = currentMember {
+        if elementName == "ZoneGroupMember", var member = currentMember {
+            member.satellites = currentSatellites // Add collected satellites to the member
             currentGroup?.members.append(member)
             currentMember = nil
+            currentSatellites = []
         } else if elementName == "ZoneGroup", let group = currentGroup {
             zoneGroups.append(group)
             currentGroup = nil

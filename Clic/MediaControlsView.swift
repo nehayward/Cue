@@ -6,7 +6,7 @@ struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     
-    @Binding var group: GroupRoom
+    var group: GroupRoom
     
     var body: some View {
         VStack(alignment: .center, spacing: 16) {
@@ -39,8 +39,8 @@ struct MediaControlsView: View {
     }
 }
 
-#Preview {
-    MediaControlsView(group: .constant(.garage))
-        .environment(SonosService())
-        .environment(Router())
-}
+//#Preview {
+//    MediaControlsView(group: .constant(.garage))
+//        .environment(SonosService())
+//        .environment(Router())
+//}

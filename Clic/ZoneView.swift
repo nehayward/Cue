@@ -2,8 +2,7 @@ import SwiftUI
 import SonosKit
 
 struct ZoneView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Binding var group: GroupRoom
+    var group: GroupRoom
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -40,14 +39,14 @@ struct ZoneView: View {
     }
 }
 
-#Preview {
-    List {
-        Section {
-            ZoneView(group: .constant(.garage))
-        }
-        Section {
-            ZoneView(group: .constant(.theater))
-        }
-    }
-    .environment(SonosService())
-}
+//#Preview {
+//    List {
+//        Section {
+//            ZoneView(group: .constant(.garage))
+//        }
+//        Section {
+//            ZoneView(group: .constant(.theater))
+//        }
+//    }
+//    .environment(SonosService())
+//}
