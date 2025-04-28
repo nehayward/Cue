@@ -1,21 +1,14 @@
-# 2025.6
+# 2025.5
 
 ––New Features––
 - SoundCloud Integration: Added support for searching tracks and playlists on - SoundCloud.
-- Imported Playlists: Introduced the ability to view and manage imported - playlists in the Sonos Library.
+- Imported Playlists: Introduced the ability to view Imported Playlists in the Sonos Library.
 - Priority Device Assignment: Users can now assign a priority device in - settings, prioritizing wired connections, the latest models, and - non-portable Sonos devices.
 - Queue Popular Songs: Added functionality to queue popular songs for artists.
 
 ––Bug Fixes––
 - Spotify Playlist Loading: Resolved an issue where some Spotify playlists were not loading correctly.
 - Sonos Device Parsing: Fixed a parsing issue for Sonos devices with "&" in their names.
-
-# 2025.5
-
-––New Features––
-- 
-
-––Bug Fixes––
 - Improve animation between TV Mode
 - Fix crash on Mac
 
