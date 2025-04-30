@@ -6,7 +6,7 @@ struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     
-    var group: GroupRoom
+    @Binding var group: GroupRoom
     
     var body: some View {
         VStack(alignment: .center, spacing: 16) {

@@ -40,11 +40,9 @@ struct LibraryBrowseScreen: View {
                     Label("Songs", systemImage: "music.note")
                 }
                 
-//                NavigationLink(value: RouterDestination.playableLibraryList(title: "Genres", items: $browseService.genres, action: { offset in
-//                    await browseService.updateGenres()
-//                })) {
-//                    Label("Genres", systemImage: "theatermasks.fill")
-//                }
+                NavigationLink(value: RouterDestination.genreList) {
+                    Label("Genres", systemImage: "theatermasks.fill")
+                }
 
                 NavigationLink(value: RouterDestination.playableLibraryList(title: "Imported Playlists", items: $browseService.importedPlaylists, action: { offset in
                     await browseService.updateImportedPlaylists()

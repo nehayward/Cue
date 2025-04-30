@@ -48,6 +48,14 @@ public final class Room: Identifiable, @unchecked Sendable {
         }
         return false
     }
+    
+    public var supportsLineIn: Bool {
+        let keywords = ["Amp", "Era", "Five", "Move 2"]
+        if let info {
+            return keywords.contains(where: info.modelDisplayName.contains)
+        }
+        return false
+    }
 
     public init(
         id: String,

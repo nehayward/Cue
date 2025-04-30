@@ -1270,6 +1270,14 @@ public final class SonosService {
         guard let firstSoundBar = group.rooms.first(where: \.isSoundbar) else { return }
         await api.tvInput(IP: firstSoundBar.ip, ID: firstSoundBar.id)
     }
+    
+    public func switchToLineIn(group: GroupRoom) async {
+        await api.switchToLineIn(IP: group.ip, ID: group.coordinatorRoom.id)
+    }
+    
+    public func switchToQueueInput(group: GroupRoom) async {
+        await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+    }
 
     public func togglePlayback(ip: String) async {
         let playback =  await api.isPlaying(ipAddress: ip)

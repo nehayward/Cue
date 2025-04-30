@@ -32,18 +32,12 @@ extension View {
                     PreferenceScreen(destination: destination)
                 case let .search(group):
                     let searchRouter = Router.search
-                    let selectedGroupService = SelectedGroupService.shared
+                    let selectedGroupService = SelectedGroupService(group: group)
 
                     SearchScreen()
                         .environment(searchRouter)
                         .environment(selectedGroupService)
-                        .onAppear {
-                            if selectedGroupService.group == nil {
-                                selectedGroupService.group = group
-                            }
-                        }
                         .onDisappear {
-                            SelectedGroupService.shared.group = nil
                             Router.search.path.removeAll()
                         }
                     // MARK: Add back later maybe
@@ -145,7 +139,7 @@ extension View {
                 case let .customSleepTimer(group):
                     SleepTimerCustomView(group: group)
                 case let .browse(group: group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
                         .environment(selectedGroupService)
                 case let .newPlaylist(group: group):
@@ -195,8 +189,7 @@ extension View {
                     PreferenceScreen()
                 case let .search(group):
                     let searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService(group: group)
-
+                    let selectedGroupService = SelectedGroupService(group: group)
                     SearchScreen()
                         .environment(searchRouter)
                         .environment(selectedGroupService)
@@ -353,6 +346,9 @@ extension View {
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
+            case let .playableList(title: title, action: action):
+                PlayableListView(action: action)
+                    .navigationTitle(title)
             case let .playableGridScreen(title: title, items: items, action: action):
                 PlayableGridScreen(items: items, action: action)
                     .navigationTitle(title)
@@ -365,6 +361,8 @@ extension View {
                     SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)
                         .navigationTitle("Spotify User Playlists")
                 }
+            case .genreList:
+                GenreListView()
             }
         }
     }

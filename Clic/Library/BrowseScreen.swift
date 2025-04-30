@@ -15,17 +15,17 @@ struct BrowseScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-
+    
     @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     
     var closeInspector: (() -> Void)? = nil
-
+    
     @State private var router = Router()
     @State private var alertService = AlertService()
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
-
+    
     var body: some View {
         Group {
             switch browseMediaService {
@@ -85,12 +85,9 @@ struct BrowseScreen: View {
                 .popoverTip(AppTip.libraryMediaService)
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .trailing)
-#if !targetEnvironment(macCatalyst)
-            .offset(y: MiniPlayerManger.shared.offset)
-#endif
                 MiniPlayerView()
 #if !targetEnvironment(macCatalyst)
-            .offset(y: MiniPlayerManger.shared.offset)
+                    .offset(y: MiniPlayerManger.shared.offset)
 #endif
             }
         }

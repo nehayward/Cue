@@ -70,7 +70,7 @@ struct ContentArtworkView: View {
             imageRequest = makeImageRequest(url: content.artwork, priority: .veryLow)
             let dataCache = try? DataCache(name: "com.clic.imageCache")
             if dataCache?.containsData(for: content.id) ?? false, ![.playlist, .libraryPlaylist].contains(content.content.type) {
-//                print("Data is cached")
+                imageRequest = ImageRequest(url: dataCache?.url(for: content.id))
                 return
             }
 

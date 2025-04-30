@@ -517,6 +517,23 @@ struct PreferenceScreen: View {
                 //                }
                 //                .disabled(!subscriptionService.subscription.isActive)
                 Section {
+                    NavigationLink(destination: ReleaseNotesView()) {
+                        Label {
+                            Text("Release Notes")
+                        } icon: {
+                            Image(systemName: "doc.text")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.black.gradient)
+                                )
+                        }
+                    }
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Label {
                         HStack {

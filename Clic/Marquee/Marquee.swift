@@ -11,7 +11,7 @@ struct MarqueeText: View {
     var body: some View {
         ViewThatFits {
             Text(text)
-            ScrollView(.horizontal){
+            ScrollView(.horizontal) {
                 Text(text)
                     .lineLimit(1)
                     .fixedSize()

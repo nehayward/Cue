@@ -23,6 +23,8 @@ public enum RouterDestination: Hashable, Identifiable {
     case servicePreferenceScreen
     case houseHold
     case spotifyUserPlaylist
+    case genreList
+    case playableList(title: String, action: ((Int) async -> [PlayableContent]))
 
     public var id: String {
         switch self {
@@ -62,6 +64,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return "servicePreferenceScreen"
         case .spotifyUserPlaylist:
             return "spotifyUserPlaylist"
+        case .genreList:
+            return "genre"
+        case .playableList(let title, _):
+            return title
         }
     }
 
@@ -93,10 +99,13 @@ public enum RouterDestination: Hashable, Identifiable {
             return group1 == group2 && contentType1 == contentType2
         case let (.playableLibraryList(_, items1, _), .playableLibraryList(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
+        case let (.playableList(title, _), .playableList(title2, _)):
+            return title == title2
         case let (.playableGridScreen(_, items1, _), .playableGridScreen(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
-
         case (.fullPlayHistoryList, .fullPlayHistoryList):
+            return true
+        case (.genreList, .genreList):
             return true
         default:
             return false
@@ -145,6 +154,10 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("servicePreferenceScreen")
         case .spotifyUserPlaylist:
             hasher.combine("spotifyUserPlaylist")
+        case .genreList:
+            hasher.combine("genreList")
+        case .playableList(let title, action: _):
+            hasher.combine(title)
         }
     }
 }

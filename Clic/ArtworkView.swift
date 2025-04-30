@@ -5,7 +5,7 @@ import SonosKit
 import MusicSearchKit
 
 struct ArtworkView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
+    @Environment(SonosService.self) var sonosService
     @Environment(AlertService.self) var alertService
     
     var isDraggable: Bool = false
@@ -75,7 +75,6 @@ struct ArtworkView: View {
                                     .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
                             }
                         }
-                        .transition(.opacity)
                 }
             }
             #if DEBUG && SCREENSHOT

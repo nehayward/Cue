@@ -8,9 +8,13 @@ struct MiniPlayerView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(\.colorScheme) var colorScheme: ColorScheme
-
-    @State private var router = Router()
-    @State private var selectedGroup: GroupRoom?
+    
+    private var selectedGroup: GroupRoom? {
+        guard let groupID = selectedGroupService.group?.coordinatorID else {
+            return nil
+        }
+        return sonosService.sorted.first(where: { $0.coordinatorID == groupID })
+    }
     
     var body: some View {
 #if !targetEnvironment(macCatalyst)
@@ -21,39 +25,20 @@ struct MiniPlayerView: View {
                     VolumeControlView(group: .constant(group))
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
-                .transition(.push(from: .bottom).combined(with: .blurReplace))
                 .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
                     MiniPlayerManger.shared.offset = 0
                 }
+                .foregroundStyle(.primary)
+                .tint(.primary)
             }
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
-        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .opacity(selectedGroup == nil ? 0 : 1)
         .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
         .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
-        .onChange(of: selectedGroupService.group) {
-            updateSelectedGroup()
-        }
-        .onChange(of: sonosService.sorted) {
-            updateSelectedGroup()
-        }
-        .onAppear {
-            updateSelectedGroup()
-        }
 #endif
-    }
-    
-    // Move the logic for updating selectedGroup to a separate function
-    private func updateSelectedGroup() {
-        guard let groupID = selectedGroupService.group?.coordinatorID,
-              let group = sonosService.sorted.first(where: { $0.coordinatorID == groupID })
-        else {
-            selectedGroup = nil
-            return
-        }
-        selectedGroup = group
     }
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
@@ -84,16 +69,13 @@ struct MiniPlayerView: View {
     private func trackInfoView(for group: GroupRoom) -> some View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
-                .font(.caption)
                 .foregroundStyle(.secondary)
+                .font(.caption2)
             MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
                 .transition(.slide)
         }
         .fontDesign(.rounded)
         .lineLimit(1, reservesSpace: true)
-        .foregroundStyle(.primary)
-        .tint(.primary)
-        .transition(.slide)
     }
     
     private func playPauseButton(for group: GroupRoom) -> some View {
@@ -115,14 +97,14 @@ struct MiniPlayerView: View {
                 VibeGaugeView(
                     value: group.coordinatorRoom.track.playbackPosition,
                     total: group.coordinatorRoom.track.duration,
-                    color: group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7),
+                    color: group.coordinatorRoom.isPlaying ? .primary : .primary.opacity(0.7),
                     lineWidth: 2
                 )
                 .frame(width: 30, height: 30)
             }
             Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                 .font(.body)
-                .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .accent.opacity(0.7))
+                .foregroundStyle(group.coordinatorRoom.isPlaying ? .primary : Color.primary.opacity(0.7))
                 .contentTransition(.symbolEffect(.automatic))
         }
         .frame(width: 40, height: 40)

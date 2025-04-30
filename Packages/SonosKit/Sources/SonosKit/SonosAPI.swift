@@ -811,6 +811,20 @@ final class SonosAPI: NSObject {
 
         return ""
     }
+    
+    func switchToLineIn(IP: String, ID: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("CurrentURI", "x-rincon-stream:\(ID)"),
+            ("CurrentURIMetaData", "")
+        ]
+        
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
 
     // MARK: - Favorites
     func getFavorites(for IP: String) async -> [PlayableContent] {

@@ -1,3 +1,16 @@
+# 2025.6
+
+––New Features––
+- Added Genres in Local Library
+- Add support for switching to Line In on supported devices
+- Add ability to switch playback to Queue input
+- Add new detection method for devices that support Line In (e.g., Amp, Era, Five, Move 2)
+- Add release notes to preferences.
+
+––Bug Fixes––
+- Fix main list view not updating song titles on change.
+- Fix issue with MiniPlayerView not updating selected group properly
+
 # 2025.5
 
 ––New Features––

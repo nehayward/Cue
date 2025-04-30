@@ -20,7 +20,7 @@ struct SearchScreen: View {
     @Environment(Router.self) private var router: Router
     @Environment(PlaylistContainer.self) private var playlistsContainer
     @Environment(PlayHistoryService.self) private var playHistoryService
-    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
+    @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
@@ -194,7 +194,6 @@ struct SearchScreen: View {
                 showKeyboard()
             }
         }
-        .environment(selectedGroupService)
         .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
         .animation(.interactiveSpring, value: isSearchFieldFocused)
         .animation(.interactiveSpring, value: musicSearchService.suggestions)

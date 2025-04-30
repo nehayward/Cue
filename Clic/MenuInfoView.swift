@@ -11,7 +11,7 @@ struct MenuInfoView: View {
     
     var body: some View {
         Menu {
-            Group {
+            VStack {
                 OpenInServiceView(item:  group.coordinatorRoom.track.toPlayable)
                 if coreFeatures.nowPlaying, !group.TVMode {
                     Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
@@ -24,7 +24,7 @@ struct MenuInfoView: View {
                     } label: {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
                     }
-
+                    
                     Button {
                         router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {
@@ -48,9 +48,18 @@ struct MenuInfoView: View {
                 } label: {
                     Label("Alarms", systemImage: "alarm.fill")
                 }
-
-                SpeakerSettingsMenuView(group: group)
-
+                
+                if group.playbackService != .lineIn, group.coordinatorRoom.supportsLineIn {
+                    Button {
+                        Task {
+                            await sonosService.switchToLineIn(group: group)
+                            await sonosService.play(ip: group.ip)
+                        }
+                    } label: {
+                        Label("Switch to Line In", systemImage: "audio.jack.stereo")
+                    }
+                }
+                
                 if !group.rooms.filter(\.isSoundbar).isEmpty {
                     if group.tvSettings == nil {
                         Button {
@@ -62,7 +71,19 @@ struct MenuInfoView: View {
                         }
                     }
                 }
+                
+                if group.playbackService != .queue {
+                    Button {
+                        Task {
+                            await sonosService.switchToQueueInput(group: group)
+                        }
+                    } label: {
+                        Text("Switch to Queue")
+                    }
+                }
 
+                SpeakerSettingsMenuView(group: group)
+                
                 ControlGroup {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -83,8 +104,6 @@ struct MenuInfoView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .padding(.trailing)
-                    .hoverEffect(.automatic)
 
                     if let isCrossfaded = group.isCrossfaded {
                         Button {
@@ -108,6 +127,7 @@ struct MenuInfoView: View {
                 .padding(.vertical)
 #endif
         }
+        .id(group.coordinatorID)
 #if os(visionOS)
         .tint(.clear)
 #endif

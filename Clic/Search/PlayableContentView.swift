@@ -27,8 +27,7 @@ struct PlayableContentView: View {
 
     var body: some View {
 //        let _ = print("\(item.title) update")
-
-        Group {
+        VStack {
             if hideDetails || item.content.service == .unknown {
                 content
             } else if let add = adding?.add, add {
