@@ -13,6 +13,7 @@ struct TVApp: App {
     private var subscriptionService = SubscriptionService.shared
     private var sonosService = SonosService.shared
 
+    @State private var isLoading: Bool = true
     @State private var showGroup: Bool = false
     @ObservedObject var value = TVPlayerView.Test()
 
@@ -68,13 +69,27 @@ struct TVApp: App {
             .environment(subscriptionService)
             .tabViewStyle(.tabBarOnly)
             .task {
+                isLoading = true
+                guard let groups = try? await sonosService.getGroupsFast(), !groups.isEmpty else {
+                    isLoading = false
+                    return
+                }
+                sonosService.groups = groups
                 sonosService.monitor()
+                isLoading = false
             }
             .overlay {
-                if sonosService.sorted.isEmpty {
+                if sonosService.sorted.isEmpty, isLoading {
                     Text("Loading…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(.thickMaterial)
+                        .transition(.opacity)
+                }
+                
+                if !isLoading, sonosService.sorted.isEmpty {
+                    TVOverviewView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.regularMaterial)
                         .transition(.opacity)
                 }
             }

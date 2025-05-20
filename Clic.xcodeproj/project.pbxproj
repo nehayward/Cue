@@ -395,6 +395,7 @@
 				TVArtworkBadgeView.swift,
 				TVArtworkView.swift,
 				TVGroupScreen.swift,
+				TVOverviewView.swift,
 				TVPlayerView.swift,
 				TVSlider.swift,
 			);
