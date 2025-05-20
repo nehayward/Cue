@@ -1,5 +1,5 @@
 {
-  "originHash" : "e1cbbb6c0ab01297909323212eb6275017984a0ed1030b16c6d052d26b72a675",
+  "originHash" : "658c8aec5611b6a0738d0fb3927332cad24ee395bf46ecba6e551e473b70fa91",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections/",
       "state" : {
-        "revision" : "671108c96644956dddcd89dd59c203dcdb36cec7",
-        "version" : "1.1.4"
+        "revision" : "c1805596154bb3a265fd91b8ac0c4433b4348fb0",
+        "version" : "1.2.0"
       }
     },
     {
