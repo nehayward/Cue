@@ -8,7 +8,6 @@ import SonosKit
 import Defaults
 
 struct PlayableContentView: View {
-    @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router: Router?
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
@@ -65,7 +64,7 @@ struct PlayableContentView: View {
                 }
                 if !hideArtwork {
                     ContentArtworkView(content: item)
-                        .frame(width: 60, height: 60)
+                        .frame(width: 50, height: 50)
                 }
                 VStack(alignment: .leading) {
                     HStack {

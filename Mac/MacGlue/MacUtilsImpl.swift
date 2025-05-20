@@ -15,6 +15,10 @@ class MacUtilsImpl: NSObject, MacUtils {
 
     required override init() {
         super.init()
+//        // MARK: Hide Tool bar need to migrate everything over.
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+//            NSApplication.shared.mainWindow!.titlebarAppearsTransparent = true
+//        }
     }
     
     func isControlKeyPressed() -> Bool {

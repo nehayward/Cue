@@ -13,7 +13,6 @@ extension View {
                     PreferenceScreen()
                 case .scenes:
                     SceneView()
-//                    SceneView()
                 }
             }
             .withEnvironments()

@@ -20,7 +20,6 @@ struct ClicApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @Environment(\.scenePhase) var scenePhase
-    @Environment(\.requestReview) var requestReview
     @Environment(\.liveActivityManager) var liveActivityManager
 
     @State private var router: Router = Router.main
@@ -335,6 +334,10 @@ struct ClicApp: App {
         Task { @MainActor in
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
             
+            if sonosService.groups.isEmpty {
+                try? await sonosService.updateGroups()
+            }
+            
             if components.host?.lowercased() == "playing" {
                 let playingGroups = sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.TVMode })
                 guard let group = playingGroups.first else {
@@ -498,19 +501,23 @@ struct ClicApp: App {
             $0.imageCache = ImageCache.shared
             $0.dataCache = try? DataCache(name: "com.clic.imageCache")
             
-            // Customize caching behavior
+            // Prefer cached data whenever possible
             $0.dataCachePolicy = .automatic
             
-            let dataLoader: DataLoader = {
-                let config = URLSessionConfiguration.default
-                config.requestCachePolicy = .returnCacheDataElseLoad
-                config.timeoutIntervalForRequest = 30
-                config.timeoutIntervalForResource = 300
-                return DataLoader(configuration: config)
-            }()
-
-            $0.dataLoader = dataLoader
-            $0.isProgressiveDecodingEnabled = true
+            // Optimize the DataLoader
+            let config = URLSessionConfiguration.default
+            config.urlCache = nil // disable URLCache, rely on Nuke's DataCache
+            config.requestCachePolicy = .reloadIgnoringLocalCacheData // let Nuke handle caching
+            config.timeoutIntervalForRequest = 15
+            config.timeoutIntervalForResource = 60
+            config.waitsForConnectivity = false // fail fast
+            
+            $0.dataLoader = DataLoader(configuration: config)
+            
+            // Reduce memory footprint
+            $0.makeImageDecoder = { _ in
+                return ImageDecoders.Default()
+            }
         }
         
         ImagePipeline.shared = pipeline
@@ -551,10 +558,12 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
         if let titlebar = windowScene.titlebar {
 //            let toolbar = NSToolbar(identifier: "main")
 //            toolbar.delegate = toolbarDelegate
-//            toolbar.displayMode = .iconOnly
+//            toolbar.displayMode = .iconAndLabel
+//            
             titlebar.titleVisibility = .hidden
+            titlebar.toolbar = nil
+//            titlebar.toolbarStyle = .unifiedCompact
 //            titlebar.toolbar = toolbar
-//            titlebar.toolbarStyle = .unified
         }
 #endif
     }
@@ -574,7 +583,7 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 }
 
-class ToolbarDelegate: NSObject {
+final class ToolbarDelegate: NSObject {
     @objc func prefs(_ sender:Any) {
         Task { @MainActor in
             Router.main.presentedSheet = .settings()
@@ -586,11 +595,19 @@ class ToolbarDelegate: NSObject {
             Router.main.inspectorSheet = .search()
         }
     }
+    
+    @objc func sorting(_ sender:Any) {
+        Task { @MainActor in
+            print("HERE")
+        }
+    }
+    
 }
 
 #if targetEnvironment(macCatalyst)
 extension NSToolbarItem.Identifier {
     static let preferences = NSToolbarItem.Identifier("com.clic.preferences")
+    static let sorting = NSToolbarItem.Identifier("com.clic.sorting")
 //    static let newFolder = NSToolbarItem.Identifier("com.highcaffeinecontent.catalystexample.newfolder")
 //    static let search = NSToolbarItem.Identifier("com.clic.search")
 }
@@ -599,7 +616,7 @@ extension NSToolbarItem.Identifier {
 extension ToolbarDelegate: NSToolbarDelegate {
 
     func toolbarIdentifiers() -> [NSToolbarItem.Identifier] {
-        return [.flexibleSpace, .preferences, .toggleSidebar, .primarySidebarTrackingSeparatorItemIdentifier, .flexibleSpace]
+        return [.sorting, .flexibleSpace, .preferences, .toggleSidebar, .primarySidebarTrackingSeparatorItemIdentifier, .flexibleSpace]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -645,6 +662,14 @@ extension ToolbarDelegate: NSToolbarDelegate {
 //        else {
 //            return NSToolbarItem(itemIdentifier: itemIdentifier)
 //        }
+        
+        if itemIdentifier == .sorting {
+            let barItem = UIBarButtonItem(image: UIImage(systemName: "switch.2"), style: .plain, target: self, action: #selector(prefs(_:)))
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barItem)
+            item.accessibilityLabel = NSLocalizedString("Preferences", comment: "")
+            item.toolTip = NSLocalizedString("Preferences", comment: "")
+            return item
+        }
         return NSToolbarItem(itemIdentifier: itemIdentifier)
     }
 

@@ -3,6 +3,7 @@ import Defaults
 import SwiftUI
 import SonosKit
 
+@available(tvOS, unavailable)
 public struct SceneListView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(SonosService.self) var sonosService

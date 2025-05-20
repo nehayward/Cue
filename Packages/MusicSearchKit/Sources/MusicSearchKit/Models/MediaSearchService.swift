@@ -27,6 +27,25 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "SoundCloud"
         }
     }
+    
+    public var isBrowseSupported: Bool {
+        switch self {
+        case .apple:
+            true
+        case .library:
+            true
+        case .plex:
+            true
+        case .spotify:
+            true
+        case .tidal:
+            false
+        case .tuneIn:
+            false
+        case .soundcloud:
+            false
+        }
+    }
 
     // TODO: Add all icons
     public var icon: some View {

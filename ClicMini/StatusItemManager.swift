@@ -13,6 +13,15 @@ final class StatusItemManager {
     
     private var sizeCancellable: AnyCancellable?
     private var sizeCancellableWindow: AnyCancellable?
+    private var status: StatusBarMenuWindowController?
+    
+    
+    @objc func toggleUIVisible(_ sender: NSStatusBarButton) {
+        if status?.window?.isVisible == false {
+            status?.showWindow(self)
+        }
+    }
+    
     
     func createStatusItem() {
         if statusItem != nil { return }
@@ -22,6 +31,16 @@ final class StatusItemManager {
         statusItem.button!.sendAction(on: [.leftMouseUp, .rightMouseUp])
         statusItem.button?.image = NSImage(named: "clic.icon")?.withSymbolConfiguration(.init(pointSize: 32, weight: .black))
         
+//        statusItem.button?.action = #selector(toggleUIVisible)
+        
+        
+//        let contentView = GroupMenuScreen(sizePassthroughWindow: sizePassthroughWindow).environment(SonosMiniService.shared)
+        
+//        let contentView = GroupMenuScreen(sizePassthroughWindow: sizePassthroughWindow)
+//        status = StatusBarMenuWindowController(
+//            statusItem: statusItem,
+//            view: contentView
+//        )
         // MARK: SwiftUI Menubar View
         //        // Add the hosting view for SwiftUI content
 //        statusItem.button?.frame = menuBarViewHost.frame
@@ -40,7 +59,12 @@ final class StatusItemManager {
             print(" CHANGING SiZE WINDOW _______________")
             let frame = NSRect(origin: .zero, size: .init(width: size.width, height: size.height))
             self?.statusItem?.menu?.items.first?.view?.frame = frame
-            print(frame)
+            print("------- HERE")
+            print("-------", frame)
+            
+//
+//            let height = min(frame.height, 800)
+//            self?.status?.repositionWindow(height: height)
         }
         
         Task {

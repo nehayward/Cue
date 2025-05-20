@@ -5,18 +5,16 @@ import SonosKit
 import MusicSearchKit
 
 struct ArtworkView: View {
-    @Environment(SonosService.self) var sonosService
     @Environment(AlertService.self) var alertService
     
+    var group: GroupRoom
     var isDraggable: Bool = false
-    var useExternal: Bool = false
-    var image: Binding<UIImage?>? = nil
-    var count: Binding<Int>? = nil
-    var animation: TimeInterval = 0.2
     var showBadge: Bool = true
-
-    @Binding var group: GroupRoom
+    var shouldFade: Bool = false
+    
+    @State private var defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
+    @State private var currentImage: UIImage?
     
     // Add task cancellation
     @State private var imageTask: ImageTask? = nil {
@@ -26,28 +24,19 @@ struct ArtworkView: View {
         }
     }
     
-    // Internal state as fallback
-    @State private var internalImage: UIImage?
-    @State private var internalCount: Int = 0
-    
-    // Computed properties to handle optional bindings
-    private var artwork: Binding<UIImage?> {
-        image ?? $internalImage
-    }
-    
-    private var viewCount: Binding<Int> {
-        count ?? $internalCount
+    var cornerRadius: CGFloat {
+        UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
     }
 
     var body: some View {
         GeometryReader { proxy in
             VStack {
-                if let currentImage = artwork.wrappedValue {
+                if let currentImage = currentImage {
                     Image(uiImage: currentImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .transition(.opacity)
-                        .animation(.smooth(duration: viewCount.wrappedValue > 1 ? animation : 0), value: currentImage)
+                        .animation(.smooth(duration: shouldFade ? defaultFadeDuration : 0), value: currentImage)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
@@ -86,7 +75,9 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: $group, size: proxy.size.width, alarmRunning: $alarmRunning)
+                GeometryReader { proxy in
+                    ArtworkBadgeView(group: group, alarmRunning: alarmRunning, size: proxy.size.width)
+                }
             }
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)
@@ -113,8 +104,8 @@ struct ArtworkView: View {
                 alarmRunning = new
             }
             .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
-                if useExternal { return }
                 // Simply call loadArtwork - cancellation is handled in property observer
+                imageTask?.cancel()
                 imageTask = loadArtwork(url: newURL)
             }
             .onTapGesture(count: 2) {
@@ -129,8 +120,12 @@ struct ArtworkView: View {
 #endif
             }
             .onAppear {
-                imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
-                internalCount = 0
+                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL)
+                if let image = ImagePipeline.shared.cache[request] {
+                    currentImage = image.image
+                } else {
+                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
+                }
             }
             .onDisappear {
                 imageTask?.cancel()
@@ -140,11 +135,11 @@ struct ArtworkView: View {
         }
     }
     
-    private func loadArtwork(url: URL?) -> ImageTask? {
-        if useExternal { return nil }
+    
+    nonisolated private func loadArtwork(url: URL?) -> ImageTask? {
         guard let url else {
             Task { @MainActor in
-                artwork.wrappedValue = nil
+                currentImage = nil
             }
             return nil
         }
@@ -155,15 +150,13 @@ struct ArtworkView: View {
                 switch result {
                 case .success(let response):
                     if !Task.isCancelled {
-                        artwork.wrappedValue = response.image
-                        viewCount.wrappedValue += 1
+                        currentImage = response.image
                     }
                 case .failure:
                     if !Task.isCancelled {
-                        artwork.wrappedValue = nil
+                        currentImage = nil
                     }
                 }
-                // Set imageTask to nil after completion
                 imageTask = nil
             }
         }

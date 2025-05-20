@@ -8,7 +8,7 @@ public struct AppleLibraryContainer: Codable {
 
 public struct AppleLibraryItem: Codable {
     public let id: String
-    public let href: String
+    public let href: String?
     public let type: String
     public let attributes: Attributes
 

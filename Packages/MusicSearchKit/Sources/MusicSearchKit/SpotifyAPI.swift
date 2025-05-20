@@ -14,7 +14,8 @@ public final class SpotifyAPI {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         
         // MARK: Workaround for Spotify Limitation
-        let keys: [Data?] = ["grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8),
+        let keys: [Data?] = ["grant_type=client_credentials&client_id=77eb5452d9c04e5ca467b688ca9c59cc&client_secret=a0332c4e3f104e749eae2fb54982ac5e".data(using: .utf8),
+                    "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8),
                     "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)]
         tokenKey = keys.randomElement()?.map{ $0 }
     }
@@ -311,9 +312,9 @@ public final class SpotifyAPI {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
-            print(T.self)
-            print(error)
-            logger.error("Failed to decode ⚠️")
+//            print(T.self)
+//            print(error)
+//            logger.error("Failed to decode ⚠️")
 //            assertionFailure(String(decoding: data, as: UTF8.self))
             throw error
         }

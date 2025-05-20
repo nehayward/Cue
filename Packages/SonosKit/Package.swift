@@ -1,4 +1,4 @@
-// swift-tools-version: 5.11
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
@@ -22,7 +22,11 @@ let package = Package(
                 "CloudStorage",
                 "MusicSearchKit",
                 .product(name: "Collections", package: "swift-collections")
-            ]),
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
+            ]
+        ),
         .testTarget(
             name: "SonosKitTests",
             dependencies: [
@@ -32,6 +36,9 @@ let package = Package(
             ],
             resources: [
                 .process("Resources")
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v5)
             ]
         ),
     ]

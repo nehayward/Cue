@@ -105,6 +105,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
             return true
+        case (.spotifyUserPlaylist, .spotifyUserPlaylist):
+            return true
         case (.genreList, .genreList):
             return true
         default:

@@ -1,8 +1,6 @@
 import Foundation
-import OSLog
 
 public final class AppleMusicSearchAPI {
-    private let logger: Logger = Logger(subsystem: "AppleMusicSearchAPI", category: "AppleMusicSearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
 
@@ -36,7 +34,6 @@ public final class AppleMusicSearchAPI {
             let musicSearch = try decoder.decode(ItunesMusicSearch.self, from: data)
             return musicSearch.results
         } catch {
-            logger.error("\(error.localizedDescription)")
             return []
         }
     }
@@ -60,7 +57,6 @@ public final class AppleMusicSearchAPI {
             let musicSearch = try decoder.decode(ItunesMusicSearch.self, from: data)
             return musicSearch.results.first
         } catch {
-            logger.error("\(error.localizedDescription)")
             return nil
         }
     }

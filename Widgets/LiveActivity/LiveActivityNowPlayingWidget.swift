@@ -219,7 +219,11 @@ struct LiveActivityNowPlayingWidget: Widget {
                     }
                 }
             } minimal: {
-                Image(systemName: "hifispeaker.fill")
+                Image("clic.icon")
+                    .symbolRenderingMode(.hierarchical)
+                    .resizable()
+                    .fontDesign(.rounded)
+                    .frame(width: 18, height: 18)
             }
         }
         .supplementalActivityFamiliesBackDeployment()

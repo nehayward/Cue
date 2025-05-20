@@ -15,7 +15,7 @@ struct ServicePreferenceScreen: View {
                 ForEach(MediaSearchService.allCases, id: \.self) { service in
                     Toggle(isOn: coreFeatures.enabledServices(service)) {
                         Label {
-                            Text(service.title)
+                            Text("\(service.title)\(!service.isBrowseSupported ? " (Search Only)" : "")")
                         } icon: {
                             service.iconForMusicService
                                 .frame(width: 24, height: 24)

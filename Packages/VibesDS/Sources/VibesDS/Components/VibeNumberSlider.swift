@@ -1,6 +1,7 @@
 import SwiftUI
 import AppIntents
 
+@available(tvOS, unavailable)
 public struct VibeNumberSlider<Content: View>: View {
     @Binding var value: Double
     
@@ -82,6 +83,7 @@ public struct VibeNumberSlider<Content: View>: View {
     }
 }
 
+@available(tvOS, unavailable)
 #Preview {
     @Previewable @State var sliderValue: Double = 50
 

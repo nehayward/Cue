@@ -48,13 +48,22 @@ struct WatchApp: App {
                     try await sonosService.loadWatch(useCache: true)
                 } catch {
                     try await sonosService.loadWatch(useCache: false)
-                    print(error)
                 }
             }
         }
     }
     
     private func configureImageStorage() {
-        ImageCache.default.memoryStorage.config.totalCostLimit = 24 * 1024 * 1024
+        KingfisherManager.shared.defaultOptions = [
+            .cacheOriginalImage,
+            .cacheSerializer(FormatIndicatedCacheSerializer.jpeg),
+            .processor(DefaultImageProcessor.default), // Default is fast and non-blocking
+            .scaleFactor(WKInterfaceDevice.current().screenScale),
+            .diskCacheExpiration(.days(1)),      // Longer-term disk caching
+            .memoryCacheExpiration(.expired)
+        ]
+        ImageCache.default.memoryStorage.config.countLimit = 1
+        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024
+        ImageCache.default.diskStorage.config.expiration = .days(1)
     }
 }

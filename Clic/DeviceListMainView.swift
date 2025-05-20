@@ -19,7 +19,7 @@ struct DeviceListMainView: View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
 
-        // MARK: Add Back for Debugging
+//        // MARK: Add Back for Debugging
 //        let _ = Self._printChanges()
 
         NavigationStack(path: $router.path) {
@@ -41,16 +41,16 @@ struct DeviceListMainView: View {
                                         .opacity(group.TVMode ? 1 : 0)
                                     
                                     HStack(alignment: .top) {
-                                        ArtworkView(group: $group)
+                                        ArtworkView(group: group)
                                             .frame(width: 72, height: 72)
-                                        ZoneView(group: $group)
+                                        ZoneView(group: group)
                                         Spacer()
-                                        MediaControlsView(group: $group)
+                                        MediaControlsView(group: group)
                                     }
                                     .padding(.horizontal, 12)
                                     .opacity(group.TVMode ? 0 : 1)
                                 }
-                                VolumeControlView(group: $group, delayDrag: true)
+                                VolumeControlView(group: group, delayDrag: true)
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))

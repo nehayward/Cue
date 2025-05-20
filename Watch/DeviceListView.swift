@@ -9,8 +9,6 @@ struct DeviceListView: View {
     @Environment(Popover.self) var popover: Popover
     @Binding var activeSubscription: Bool
     @Binding var selected: String?
-
-//    @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
     
     private var filteredDeviceBindings: [SonosDevice] {
         sonosService.sortedNowPlaying.filter(\.isVisible)
@@ -19,12 +17,12 @@ struct DeviceListView: View {
     var body: some View {
         @Bindable var router = router
         
-//         MARK: Add Back for Debugging
+//        MARK: Add Back for Debugging
 //        let _ = Self._printChanges()
         NavigationSplitView {
-            List (selection: $selected) {
+            List(selection: $selected) {
                 ForEach(filteredDeviceBindings) { device in
-                    DeviceCellView(id: device.id)
+                    DeviceCellView(device: device)
                         .frame(maxHeight: 200)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.9)
@@ -36,7 +34,6 @@ struct DeviceListView: View {
                         .redacted(reason: enabled(device) ? [] : .placeholder)
                         .disabled(!enabled(device))
                         .selectionDisabled(!enabled(device))
-                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 0))
                 }
             }
             .animation(.interactiveSpring, value: filteredDeviceBindings)
@@ -56,7 +53,6 @@ struct DeviceListView: View {
                     } label: {
                         Image(systemName: "bolt.fill")
                     }
-                    Spacer()
                 }
             }
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
@@ -98,7 +94,6 @@ struct DeviceListView: View {
                         }
                     }
                     .transition(.opacity)
-       
             }
         }
     }

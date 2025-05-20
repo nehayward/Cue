@@ -87,7 +87,7 @@ public struct VibeContentArtworkView: View {
     
     // MARK: - Calculate Overlay Size
     private func calculateOverlaySize(from size: CGSize) {
-        overlaySize = size.width * 0.2
+        overlaySize = min(size.width * 0.2, 44)
     }
     
     // MARK: - Load Image

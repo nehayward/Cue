@@ -290,7 +290,7 @@ extension AppleLibraryArtist {
         return PlayableContent(
             title: attributes.name,
             subtitle: "",
-            thumbnail: nil,
+            thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: nil,
             content: MediaContent(
                 service: .apple,

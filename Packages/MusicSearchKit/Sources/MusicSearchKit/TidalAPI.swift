@@ -427,7 +427,7 @@ public final class TidalAPI {
             print(error)
             print("Failed to decode ⚠️")
             print(String(decoding: data, as: UTF8.self))
-            assertionFailure(String(decoding: data, as: UTF8.self))
+//            assertionFailure(String(decoding: data, as: UTF8.self))
             throw error
         }
     }

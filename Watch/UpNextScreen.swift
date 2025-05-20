@@ -5,37 +5,42 @@ import Collections
 import SonosKitMini
 
 struct UpNextScreen: View {
-    @Environment(\.scenePhase) var scenePhase
-    @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
-    @Environment(Popover.self) var popOver: Popover
-    
-    let id: String
+    var device: SonosDevice
     
     @State private var isLoading: Bool = false
-    
+    @State private var upNext: [PlayableContent] = []
     
     var body: some View {
-        @Bindable var sonosService = sonosService
-        
-        if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
-            deviceView(for: deviceIndex)
-        } else {
-            Text("Vanished")
-        }
-    }
-    
-    @ViewBuilder
-    func deviceView(for index: Int) -> some View {
-        let device = sonosService.devices[index]
-        
         ScrollViewReader { proxy in
             List {
-                ForEach(Array(device.queue), id: \.trackID) { track in
+                Section {
+                    HStack {
+                        ThumbnailView(device: device, size: .small)
+                            .frame(width: 40, height: 40)
+                        VStack(alignment: .leading) {
+                            Text(device.track.name)
+                                .lineLimit(1)
+                            Text(device.track.artist)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .id("Now Playing")
+                } header: {
+                    Text("Now Playing")
+                }
+                
+                ForEach(upNext, id: \.trackID) { track in
                     Button {
                         Task {
                             guard let position = track.metadata?.position else { return }
-                            await sonosService.seek(to: position, on: device)
-                            await sonosService.play(device.ip)
+                            await SonosMiniService.shared.seek(to: position, on: device)
+                            await SonosMiniService.shared.play(device.ip)
+                            upNext = await SonosMiniService.shared.getQueue(ip: device.ip, with: device.track.position)
+                            withAnimation {
+                                proxy.scrollTo("Now Playing", anchor: .top)
+                            }
                         }
                     } label: {
                         HStack {
@@ -56,33 +61,21 @@ struct UpNextScreen: View {
                         }
                     }
                 }
+                if upNext.isEmpty, !isLoading {
+                    ContentUnavailableView("Empty", systemImage: "music.note.list")
+                        .transition(.opacity)
+                }
             }
-            .saturation(device.playbackService == .queue ? 1 : 0.1 )
-            .listStyle(.plain)
-            .task {
-                isLoading = true
-                await sonosService.updateQueue(for: device, total: 50)
-                isLoading = false
-            }
-            .animation(.spring, value: device.queue)
-            .navigationBarTitle("Up Next")
         }
+        .task {
+            isLoading = true
+            upNext = await SonosMiniService.shared.getQueue(ip: device.ip, with: device.track.position)
+            isLoading = false
+        }
+        .navigationBarTitle("Up Next")
         .overlay {
-            if isLoading, device.queue.isEmpty {
+            if isLoading, upNext.isEmpty {
                 ProgressView()
-            }
-            if device.queue.isEmpty, !isLoading {
-                ContentUnavailableView("Empty", systemImage: "music.note.list")
-                    .transition(.opacity)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if device.playbackService != .queue  {
-                Text("Not Active")
-                    .padding(8)
-                    .background(.thinMaterial)
-                    .clipShape(Capsule())
-                    .offset(y: -10)
             }
         }
         .fontDesign(.rounded)

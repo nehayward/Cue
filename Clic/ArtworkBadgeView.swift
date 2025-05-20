@@ -4,36 +4,38 @@ import SonosKit
 import MusicSearchKit
 
 struct ArtworkBadgeView: View {
-    @Binding var group: GroupRoom
-    var size: Double
-    @Binding var alarmRunning: Bool
-
+    var group: GroupRoom
+    var alarmRunning: Bool
+    
+    var size: Double = 100
+    
     var body: some View {
-        if alarmRunning{
-            Image(systemName: "alarm.waves.left.and.right.fill")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.white.gradient)
-                .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                .shadow(radius: 12)
-                .padding([.bottom, .trailing], padding)
-        } else {
-            if group.playbackService == .radio {
-                Image(systemName: "radio.fill")
+        ZStack {
+            if alarmRunning{
+                Image(systemName: "alarm.waves.left.and.right.fill")
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.white.gradient)
+                    .scaledToFit()
+                    .foregroundStyle(.white)
                     .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                    .shadow(radius: 12)
                     .padding([.bottom, .trailing], padding)
             } else {
-                group.coordinatorRoom.track.musicService.icon
-                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                    .padding([.bottom, .trailing], padding)
+                if group.playbackService == .radio {
+                    Image(systemName: "radio.fill")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                        .padding([.bottom, .trailing], padding)
+                } else {
+                    group.coordinatorRoom.track.musicService.icon
+                        .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                        .padding([.bottom, .trailing], padding)
+                }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
-    
+
     private var frameSize: Double {
         max(16, size * 0.1)
     }

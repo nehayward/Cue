@@ -14,7 +14,7 @@ struct GroupVolumeControlView: View {
 
     var body: some View {
         VStack {
-            VolumeControlView(group: $group)
+            VolumeControlView(group: group)
                 .frame(height: 40)
             VStack {
                 ForEach($group.rooms) { $room in

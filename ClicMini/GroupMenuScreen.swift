@@ -5,17 +5,17 @@ import SwiftUI
 import Kingfisher
 
 struct GroupMenuScreen: View {
-    @State var showList: Bool = false
-    @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var showList: Bool = false
     @State private var isLoading: Bool = false
-    @State private var hoveredGroupId: String?
     @State private var hoveredSceneId: String?
     @State private var scenes: [SonosScene] = []
+    
+    @State private var sonosServiceMini = SonosMiniService.shared
     
     var sizePassthroughWindow: PassthroughSubject<CGSize, Never>?
     
     private var filteredDeviceBindings: [Binding<SonosDevice>] {
-        sonosServiceMini.sortedNowPlaying
+        return sonosServiceMini.sortedNowPlaying
             .enumerated()
             .filter { !$0.element.isHidden }
             .filter { $0.element.state == .active }
@@ -38,7 +38,6 @@ struct GroupMenuScreen: View {
             .onPreferenceChange(SizePreferenceKey.self) { size in
                 sizePassthroughWindow?.send(size)
             }
-            .frame(height: CGFloat(filteredDeviceBindings.count * 120 + (filteredDeviceBindings.isEmpty ? 44 : 0)))
             .fontDesign(.rounded)
             .onAppear {
                 guard let data = NSUbiquitousKeyValueStore.default.data(forKey: "com.clic.scenes"),
@@ -46,34 +45,26 @@ struct GroupMenuScreen: View {
                 
                 self.scenes = scenes
             }
+            .ignoresSafeArea()
+            .padding(.vertical)
+            .environment(sonosServiceMini)
     }
     
     var mainContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        LazyVStack(alignment: .leading, spacing: 8) {
             ForEach(filteredDeviceBindings) { $device in
-                GroupItemView(device: $device, hoveredGroupId: $hoveredGroupId)
+                GroupItemView(device: $device)
                     .frame(maxHeight: 200)
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.9)
-                            .combined(with: .opacity),
-                        removal: .scale(scale: 0.4)
-                            .combined(with: .opacity)
-                    ))
-                    .id(device.id)
             }
         }
         .padding(12)
         .frame(minWidth: 400, maxWidth: .infinity, alignment: .top)
-        .animation(.spring(response: 0.6, dampingFraction: 0.7), value: filteredDeviceBindings.map { $0.wrappedValue.id })
         .onAppear {
             Task {
                 isLoading = true
                 try? await sonosServiceMini.load(useCache: true)
                 isLoading = false
             }
-        }
-        .onDisappear {
-            sonosServiceMini.stopMonitor()
         }
         .overlay {
             if isLoading, filteredDeviceBindings.isEmpty {
@@ -99,7 +90,7 @@ struct GroupMenuScreen: View {
                 } label: {
                     Image(systemName: "bolt.fill")
                 }
-                .padding([.top, .trailing], 4)
+                .padding([.top, .trailing], 12)
                 .overlay {
                     if showList {
                         ScrollView {
@@ -164,11 +155,12 @@ struct GroupMenuScreen: View {
 }
 
 struct GroupItemView: View {
-    @State private var sonosServiceMini = SonosMiniService.shared
     @Binding var device: SonosDevice
-    @Binding var hoveredGroupId: String?
+    @State private var hovered : Bool = false
     
     var body: some View {
+        let _ = Self._printChanges()
+
         Section {
             deviceContent
         } header: {
@@ -248,10 +240,6 @@ struct GroupItemView: View {
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: device.isPlaying)
                     }
                     .foregroundStyle(.primary)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .leading).combined(with: .opacity),
-                        removal: .move(edge: .trailing).combined(with: .opacity)
-                    ))
                 } else {
                     TVView(device: $device)
                         .transition(.scale.combined(with: .opacity))
@@ -263,10 +251,10 @@ struct GroupItemView: View {
             .padding(12)
             .background {
                 RoundedRectangle(cornerRadius: 12)
-                    .foregroundStyle(hoveredGroupId == device.id ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
+                    .foregroundStyle(hovered ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
             }
             .onHover { isHovered in
-                hoveredGroupId = isHovered ? device.id : nil
+                hovered = isHovered
             }
         }
     }
@@ -274,7 +262,7 @@ struct GroupItemView: View {
     private func playPauseButton(for device: SonosDevice) -> some View {
         Button {
             Task {
-                await sonosServiceMini.togglePlayback(ip: device.ip)
+                await SonosMiniService.shared.togglePlayback(ip: device.ip)
             }
         } label: {
             playPauseLabel(for: device)
@@ -295,8 +283,8 @@ struct GroupItemView: View {
     private func nextTrackButton(for device: SonosDevice) -> some View {
         Button {
             Task {
-                await sonosServiceMini.next(ip: device.ip)
-//                try? await sonosServiceMini.updateDevices(from: [device])
+                await SonosMiniService.shared.next(ip: device.ip)
+                try? await SonosMiniService.shared.updateDevices(from: [device])
             }
         } label: {
             Image(systemName: "forward.fill")

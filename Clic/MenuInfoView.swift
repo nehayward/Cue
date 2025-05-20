@@ -3,7 +3,6 @@ import SonosKit
 import MusicSearchKit
 
 struct MenuInfoView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @State private var coreFeatures = CoreFeatures.shared
 
@@ -52,8 +51,8 @@ struct MenuInfoView: View {
                 if group.playbackService != .lineIn, group.coordinatorRoom.supportsLineIn {
                     Button {
                         Task {
-                            await sonosService.switchToLineIn(group: group)
-                            await sonosService.play(ip: group.ip)
+                            await SonosService.shared.switchToLineIn(group: group)
+                            await SonosService.shared.play(ip: group.ip)
                         }
                     } label: {
                         Label("Switch to Line In", systemImage: "audio.jack.stereo")
@@ -64,7 +63,7 @@ struct MenuInfoView: View {
                     if group.tvSettings == nil {
                         Button {
                             Task {
-                                await sonosService.tvInput(group: group)
+                                await SonosService.shared.tvInput(group: group)
                             }
                         } label: {
                             Label("Switch to TV Input", systemImage: "tv")
@@ -75,7 +74,7 @@ struct MenuInfoView: View {
                 if group.playbackService != .queue {
                     Button {
                         Task {
-                            await sonosService.switchToQueueInput(group: group)
+                            await SonosService.shared.switchToQueueInput(group: group)
                         }
                     } label: {
                         Text("Switch to Queue")
@@ -88,7 +87,7 @@ struct MenuInfoView: View {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         Task {
-                            await sonosService.setGroupMute(group: group, mute: !group.isMuted)
+                            await SonosService.shared.setGroupMute(group: group, mute: !group.isMuted)
                         }
                     } label: {
                         Label {
@@ -108,7 +107,7 @@ struct MenuInfoView: View {
                     if let isCrossfaded = group.isCrossfaded {
                         Button {
                             Task {
-                                await sonosService.setCrossfade(group: group, enabled: !isCrossfaded)
+                                await SonosService.shared.setCrossfade(group: group, enabled: !isCrossfaded)
                             }
                         } label: {
                             Label("Crossfade is \(isCrossfaded ? "On" : "Off")", systemImage: isCrossfaded ? "waveform" : "waveform.slash")

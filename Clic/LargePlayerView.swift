@@ -1,5 +1,3 @@
-import Nuke
-import NukeUI
 import SwiftUI
 import Collections
 import SonosKit
@@ -15,17 +13,13 @@ struct LargePlayerView: View {
     
     @State var test: Double = -40
     @State private var isEditing: Bool = false
-    @State private var volume: Double = 0
     @State private var isHoveringOnQueueList: Bool = false
     @State private var refreshID = UUID()
-    @State private var image: UIImage?
-    @State private var count = 0
-    @State private var imageTask: ImageTask? = nil {
-        willSet {
-            imageTask?.cancel()
-        }
-    }
+    @State private var shouldFade: Bool = false
     
+    @State private var selectionTrack: Task<Void, Never>?
+    @State private var scrubbingTask: Task<Void, Error>?
+        
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return true
@@ -42,7 +36,7 @@ struct LargePlayerView: View {
         
         VStack(alignment: .center) {
             if group.TVMode {
-                Group {
+                VStack {
                     Spacer()
                     Image(systemName: "tv")
                         .resizable()
@@ -75,7 +69,7 @@ struct LargePlayerView: View {
                 }
                 .transition(.opacity)
             } else {
-                artworkView(true)
+                ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
                     .padding(.bottom, 12)
                     .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
                 if let stationName = group.coordinatorRoom.track.metadata?.stationName {
@@ -107,7 +101,7 @@ struct LargePlayerView: View {
                 Spacer()
             }
             VStack {
-                VolumeControlView(group: $group)
+                VolumeControlView(group: group)
                     .padding(.bottom, 20)
                     .padding(.horizontal, -12)
                     .frame(maxWidth: 500)
@@ -223,11 +217,9 @@ struct LargePlayerView: View {
         }
         .frame(maxHeight: .infinity)
         .onChange(of: group, initial: true) {
-            count = 0
             sonosService.selectedGroup = group
         }
         .onDisappear {
-            count = 0
             sonosService.selectedGroup = nil
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -284,14 +276,13 @@ struct LargePlayerView: View {
         .padding(.horizontal, 32)
         .safeAreaPadding(.bottom)
         .ignoresSafeArea(.keyboard)
-        .animation(.bouncy, value: group.playMode)
-        .animation(.bouncy, value: isHoveringOnQueueList)
         .background {
             ZStack {
-                artworkView(showBadge: false)
+                ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
                     .saturation(1.3)
                     .aspectRatio(contentMode: .fill)
                     .scaleEffect(1.3)
+                    .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
                 Rectangle()
                     .foregroundStyle(.thinMaterial)
                     .scaleEffect(1.3)
@@ -299,70 +290,74 @@ struct LargePlayerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ignoresSafeArea()
         }
-        .onAppear {
-            if image == nil {
-                imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
-            }
+        .onChange(of: group) {
+            shouldFade = false
         }
-        .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
-            imageTask = loadArtwork(url: newURL)
-        }
-        .onDisappear {
-            imageTask?.cancel()
-            imageTask = nil
-            image = nil
+        .task {
+            try? await Task.sleep(for: .milliseconds(400))
+            shouldFade = true
         }
     }
     
     private func playbackView() -> some View {
         VStack(spacing: 0) {
-            if !group.coordinatorRoom.track.duration.isZero {
-                VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
-                        group.isEditingPlayback = isEditing
-                    }
-                    
-                    if !isEditing {
-                        Task { @MainActor in
-                            await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
-                        }
-                    }
+            VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
+                sonosService.isEditing = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
+                    group.isEditingPlayback = isEditing
                 }
-                .frame(maxWidth: 500)
-                .frame(height: 40)
-                .foregroundStyle(.primary)
-                .disabled(!group.availableActions.contains(.scrubbable))
                 
-                HStack {
-                    if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
-                        Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
-                        Spacer()
-                        Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
-                    } else {
-                        Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
-                        Spacer()
-                        Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
+                if !isEditing {
+                    Task { @MainActor in
+                        await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
+                        sonosService.isEditing = false
                     }
                 }
-                .frame(maxWidth: 500)
-                .monospacedDigit()
-                .font(.caption)
             }
+            .frame(maxWidth: 500)
+            .frame(height: 40)
+            .foregroundStyle(.primary)
+            .disabled(!group.availableActions.contains(.scrubbable))
+            
+            HStack {
+                if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
+                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
+                    Spacer()
+                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
+                } else {
+                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
+                    Spacer()
+                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
+                }
+            }
+            .frame(maxWidth: 500)
+            .monospacedDigit()
+            .font(.caption)
         }
         .fontDesign(.rounded)
         .frame(maxWidth: .infinity)
         .frame(height: 60)
+        .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
     }
     
     private func mediaControlsView() -> some View {
         HStack {
             Button {
-                Task {
+                selectionTrack?.cancel()
+                selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
+                    self.shouldFade = false
                     await sonosService.previous(ip: group.coordinatorRoom.ip)
-                    self.count = -1
-                    try? await sonosService.updateGroups(from: [group])
+                    sonosService.isEditing = true
+                    try? await sonosService.updateTrackInformation(for: [group])
+                    try? await Task.sleep(for: .milliseconds(200))
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    sonosService.isEditing = false
+                    self.shouldFade = true
+                    print("Updated")
                 }
             } label: {
                 Image(systemName: "backward.fill")
@@ -394,15 +389,24 @@ struct LargePlayerView: View {
             }
             .buttonStyle(.liveActivity)
             .keyboardShortcut(.space, modifiers: [])
-            .id(group.coordinatorID)
+            .id(group.coordinatorID) 
             
             Spacer()
             Button {
-                Task {
+                selectionTrack?.cancel()
+                selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
+                    self.shouldFade = false
+                    sonosService.isEditing = true
                     await sonosService.next(ip: group.coordinatorRoom.ip)
-                    self.count = -1
-                    try? await sonosService.updateGroups(from: [group])
+                    try? await sonosService.updateTrackInformation(for: [group])
+                    try? await Task.sleep(for: .milliseconds(200))
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    self.shouldFade = true
+                    sonosService.isEditing = false
+                    print("Updated")
                 }
             } label: {
                 Image(systemName: "forward.fill")
@@ -487,35 +491,6 @@ struct LargePlayerView: View {
             }
         }
         .fontDesign(.rounded)
-    }
-    
-    func artworkView(_ isDraggable: Bool = false, showBadge: Bool = true) -> some View {
-        ArtworkView(isDraggable: isDraggable, useExternal: true, image: $image, count: $count, showBadge: showBadge, group: $group)
-    }
-    
-    private func loadArtwork(url: URL?) -> ImageTask? {
-        guard let url else {
-            Task { @MainActor in
-                image = nil
-            }
-            return nil
-        }
-        
-        let imageRequest = ImageRequest(url: url, priority: .veryHigh)
-        return ImagePipeline.shared.loadImage(with: imageRequest) { result in
-            Task { @MainActor in
-                if Task.isCancelled { return }
-                
-                switch result {
-                case .success(let response):
-                    self.image = response.image
-                    self.count += 1
-                case .failure:
-                    self.image = nil
-                }
-                imageTask = nil
-            }
-        }
     }
 }
 

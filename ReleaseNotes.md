@@ -1,3 +1,18 @@
+# 2025.7
+
+––New Features––
+- Add Sorting options to Mac
+- Add service info about Tidal and Tune in on Settings page
+- Add TV Input for Amp 2
+
+––Bug Fixes––
+- Watch app performance improvements
+- Performance improvements for Clic Mini
+- Live Activities should update quicker
+- Fixed Live Activities Images not updating
+
+- Switch to SonosService shared for better SwiftUI performance 
+
 # 2025.6
 
 ––New Features––

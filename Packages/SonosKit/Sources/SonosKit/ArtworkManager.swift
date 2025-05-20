@@ -1,6 +1,5 @@
 import Foundation
 import Nuke
-import NukeUI
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -13,42 +12,70 @@ public final class ArtworkManager {
         self.containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.clic")!
     }
 
-    public func downScale(coordinatorRoom: String,  url: URL?) async {
-#if canImport(UIKit)
+    public func downScale(coordinatorRoom: String, url: URL?, trackID: String) async {
+    #if canImport(UIKit) && !targetEnvironment(macCatalyst)
         let fileURL = getFileURL(for: coordinatorRoom)
 
+        // If no URL is provided, remove the artwork
         guard let url = url else {
             removeArtwork(coordinatorRoom: coordinatorRoom)
             return
         }
-        
+
+        // Check existing trackID before downloading
+        let existingTrackID = getTrackID(for: fileURL)
+        if existingTrackID == trackID { return }
+
         do {
-            let newData = try await downloadAndProcessImage(from: url)
-            try await saveImageIfDifferent(newData, to: fileURL)
+            guard let newData = try await downloadAndProcessImage(from: url) else {
+                print("No image data downloaded.")
+                return
+            }
+
+            try newData.write(to: fileURL, options: .atomic)
+            try setTrackID(trackID, for: fileURL)
         } catch {
             print("Error saving image: \(error)")
         }
-#endif
+    #endif
+    }
+    
+    private func setTrackID(_ id: String, for fileURL: URL) throws {
+        let data = id.data(using: .utf8)!
+        let path = fileURL.path
+        let result = setxattr(path, "com.clic.trackid", (data as NSData).bytes, data.count, 0, 0)
+        if result != 0 {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: nil)
+        }
+    }
+    
+    private func getTrackID(for fileURL: URL) -> String? {
+        let path = fileURL.path
+        let size = getxattr(path, "com.clic.trackid", nil, 0, 0, 0)
+        guard size >= 0 else { return nil }
+
+        var buffer = [UInt8](repeating: 0, count: size)
+        let result = getxattr(path, "com.clic.trackid", &buffer, buffer.count, 0, 0)
+        guard result >= 0 else { return nil }
+
+        return String(bytes: buffer, encoding: .utf8)
     }
 
     private func downloadAndProcessImage(from url: URL) async throws -> Data? {
-        let request = ImageRequest(url: url, processors: [
-            ImageProcessors.Resize(size: CGSize(width: 50, height: 50)),
-        ])
+        let request = ImageRequest(
+            url: url,
+            processors: [
+                ImageProcessors.Resize(
+                    size: CGSize(width: 50, height: 50),
+                    contentMode: .aspectFit
+                )
+            ]
+        )
         
-        let image = try await ImagePipeline.shared.image(for: request)
-        return image.jpegData(compressionQuality: 1)
+        let imageContainer = try await ImagePipeline.shared.image(for: request)
+        return imageContainer.jpegData(compressionQuality: 1)
     }
     
-    private func saveImageIfDifferent(_ newData: Data?, to fileURL: URL) async throws {
-        guard let newData else { return }
-        
-        let existingData = try? Data(contentsOf: fileURL)
-        guard existingData != newData else { return }
-        
-        try newData.write(to: fileURL)
-    }
-
     public func removeArtwork(coordinatorRoom: String) {
         let fileURL = getFileURL(for: coordinatorRoom)
         try? FileManager.default.removeItem(at: fileURL)

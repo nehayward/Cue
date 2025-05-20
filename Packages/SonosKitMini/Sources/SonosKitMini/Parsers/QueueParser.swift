@@ -44,8 +44,6 @@ final class QueueParser {
                 
                 let ip = preferredIP ?? ip
                 let sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
-            
-                print(number)
 
                 let metadata = PlayableContentMetadata(
                     duration: Duration.milliseconds(duration),

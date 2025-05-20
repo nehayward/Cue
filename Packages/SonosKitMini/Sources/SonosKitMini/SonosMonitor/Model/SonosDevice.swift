@@ -8,6 +8,7 @@
 import Foundation
 
 // Device model to hold Sonos device information
+
 public struct SonosDevice: Identifiable {
     public var name: String
     public let id: String  // RINCON ID
@@ -106,20 +107,16 @@ public struct SonosDevice: Identifiable {
 }
 
 extension SonosDevice: Hashable {
-    public static func == (lhs: SonosDevice, rhs: SonosDevice) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.name == rhs.name &&
-        rhs.rooms.count == lhs.rooms.count &&
-        lhs.trackID == rhs.trackID &&
-        lhs.track.trackID == rhs.track.trackID &&
-        lhs.isPlaying == rhs.isPlaying &&
-        lhs.currentTrackMetadata == rhs.currentTrackMetadata
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(isPlaying)
-    }
+//    public static func == (lhs: SonosDevice, rhs: SonosDevice) -> Bool {
+//        
+//    }
+//
+//    public func hash(into hasher: inout Hasher) {
+//        hasher.combine(id)
+//        hasher.combine(isTVMode)
+//        hasher.combine(TVSettings)
+//        hasher.combine(groupVolume)
+//    }
 }
 
 

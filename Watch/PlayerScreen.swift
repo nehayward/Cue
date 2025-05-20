@@ -5,27 +5,27 @@ import NukeUI
 struct PlayerScreen: View {
     @Environment(\.dismiss) var dismiss
     @Environment(SonosMiniService.self) var sonosService: SonosMiniService
+    
     let id: String
     
+    @State var selection: PlayerScreenSelection = .main
+    
     var body: some View {
+        @Bindable var sonosService = sonosService
         Group {
             if let index = sonosService.devices.firstIndex(where: { $0.id == id }) {
                 let device = sonosService.devices[index]
                 if !device.isHidden {
-                    TabView {
-                        Group {
-                            if device.isTVMode {
-                                TVView(id: id)
-                                    .transition(.scale.combined(with: .opacity))
-                            } else {
-                                PlayerView(id: id)
-                                    .transition(.scale.combined(with: .opacity))
-                            }
-                        }
-                        GroupVolumeControlScreen(id: id)
-                        UpNextScreen(id: id)
+                    TabView(selection: $selection) {
+//                        PlayHistoryView(id: device.id)
+//                            .tag(PlayerScreenSelection.favorites)
+                        PlayerView(device: $sonosService.devices[index])
+                            .tag(PlayerScreenSelection.main)
+                        GroupVolumeControlScreen(device: device)
+                            .tag(PlayerScreenSelection.volume)
+                        UpNextScreen(device: device)
+                            .tag(PlayerScreenSelection.upNext)
                     }
-                    .animation(.interactiveSpring, value: device.isTVMode)
                 } else {
                     Text("No Longer Group")
                         .task {
@@ -43,7 +43,7 @@ struct PlayerScreen: View {
             if let index = sonosService.devices.firstIndex(where: { $0.id == id }) {
                 let device = sonosService.devices[index]
                 ZStack {
-                    ThumbnailView(id: device.id, size: .small)
+                    ThumbnailView(device: device, size: .small)
                         .saturation(1.3)
                         .aspectRatio(contentMode: .fill)
                         .scaleEffect(1.3)
@@ -61,5 +61,14 @@ struct PlayerScreen: View {
                     .ignoresSafeArea()
             }
         }
+    }
+}
+
+extension PlayerScreen {
+    enum PlayerScreenSelection {
+        case favorites
+        case main
+        case volume
+        case upNext
     }
 }

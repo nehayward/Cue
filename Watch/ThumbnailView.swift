@@ -5,34 +5,19 @@ import MusicKit
 import MusicSearchKit
 
 struct ThumbnailView: View {
-    @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
-
-    let id: String
+    var device: SonosDevice
     var size: Size = .medium
     
     var body: some View {
-        if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
-            deviceView(for: deviceIndex)
-        } else {
-            Text("Vanished")
-        }
-    }
-    
-    @ViewBuilder
-    func deviceView(for index: Int) -> some View {
-        let device = sonosService.devices[index]
-        Group {
+        VStack {
             KFImage.url(device.track.sonosAlbumArtURL)
                 .resizable()
-                .processingQueue(.dispatch(.global()))
-                .setProcessor(DownsamplingImageProcessor(size: size.size))
-                .cacheOriginalImage()
-                .backgroundDecode()
-                .interpolation(.low)
+                .setProcessor(DownsamplingImageProcessor(size: Size.medium.size))
+                .interpolation(.medium)
                 .placeholder {
                     Rectangle()
                         .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.thickMaterial)
+                        .foregroundStyle(.background.secondary)
                         .shadow(radius: 2)
                         .overlay {
                             if device.track.sonosAlbumArtURL == nil {
@@ -45,11 +30,12 @@ struct ThumbnailView: View {
                                     .transaction { transaction in
                                         transaction.animation = nil
                                     }
+                            } else {
+                                ProgressView()
                             }
                         }
                 }
                 .diskCacheExpiration(.days(1))
-                .fade(duration: 0.25)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
 #if DEBUG && SCREENSHOT
@@ -62,11 +48,12 @@ struct ThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(radius: 2)
         .overlay(alignment: .bottomTrailing) {
-            device.track.musicService.icon
-                .containerRelativeFrame(.horizontal) { size, axis in
-                    size * 0.05
-                }
-                .padding(4)
+            GeometryReader { proxy in
+                device.track.musicService.icon
+                    .frame(width: proxy.size.width * 0.2, height:  proxy.size.width * 0.2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(4)
+            }
         }
         .overlay {
             if device.groupIsMuted {
@@ -100,7 +87,7 @@ extension ThumbnailView {
             case .small:
                 CGSize(width: 40, height: 40)
             case .medium:
-                CGSize(width: 120, height: 120)
+                CGSize(width: 100, height: 100)
             }
         }
     }

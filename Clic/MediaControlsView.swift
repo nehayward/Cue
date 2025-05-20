@@ -6,7 +6,7 @@ struct MediaControlsView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     
-    @Binding var group: GroupRoom
+    var group: GroupRoom
     
     var body: some View {
         VStack(alignment: .center, spacing: 16) {
@@ -16,7 +16,6 @@ struct MediaControlsView: View {
                 GroupIconView()
             }
             .buttonStyle(.borderless)
-            .tint(.primary)
             Button {
                 Task {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -36,6 +35,7 @@ struct MediaControlsView: View {
             .buttonStyle(.plain)
             .buttonBorderShape(.circle)
         }
+        .tint(.primary)
     }
 }
 

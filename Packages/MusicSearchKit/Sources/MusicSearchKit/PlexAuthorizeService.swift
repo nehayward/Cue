@@ -105,6 +105,7 @@ public final class PlexAuthenticator: NSObject {
 
     private func pollForAuthToken(id: String) {
         pollTask?.cancel()
+        #if !os(tvOS)
         pollTask = Task {
             while true {
                 do {
@@ -119,6 +120,7 @@ public final class PlexAuthenticator: NSObject {
                 try await Task.sleep(for: .milliseconds(500))
             }
         }
+        #endif
     }
 
     private struct PinResponse: Codable {

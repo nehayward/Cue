@@ -37,11 +37,11 @@ struct ListViewLarge: View {
                                 .padding(.horizontal, 12)
                         } else {
                             HStack(alignment: .top) {
-                                ArtworkView(group: $group)
+                                ArtworkView(group: group)
                                     .frame(width: 72, height: 72)
-                                ZoneView(group: $group)
+                                ZoneView(group: group)
                                 Spacer()
-                                MediaControlsView(group: $group)
+                                MediaControlsView(group: group)
                             }
                             .transition(.asymmetric(
                                 insertion: .opacity,
@@ -49,7 +49,7 @@ struct ListViewLarge: View {
                             ))
                             .padding(.horizontal, 12)
                         }
-                        VolumeControlView(group: $group, delayDrag: true)
+                        VolumeControlView(group: group, delayDrag: true)
                     }
                     .animation(.spring, value: group.TVMode)
                     .tag(group.coordinatorID)
@@ -102,8 +102,8 @@ struct ListViewLarge: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
             }
         }
-        .environment(\.defaultMinListRowHeight, 40)
         .animation(.interactiveSpring, value: sonosService.groups)
+        .environment(\.defaultMinListRowHeight, 40)
         .onChange(of: sonosService.sorted) {
             if selected == nil {
                 sonosService.selectedGroup = sonosService.sorted.first
@@ -121,6 +121,14 @@ struct ListViewLarge: View {
         .listStyle(.insetGrouped)
         #endif
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Picker("Sort by", systemImage:  "arrow.up.arrow.down.circle.fill", selection: $sonosService.sortOption) {
+                    ForEach(SonosSortOption.allCases) { option in
+                        Text(option.title)
+                            .tag(option)
+                    }
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     router.presentedSheet = .settings()

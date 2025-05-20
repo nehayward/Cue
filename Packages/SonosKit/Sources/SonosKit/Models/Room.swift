@@ -42,7 +42,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var theaterSettings = TheaterSettings(isSet: false)
 
     public var isSoundbar: Bool {
-        let keywords = ["Ray", "Beam", "Playbar", "Arc"]
+        let keywords = ["Ray", "Beam", "Playbar", "Arc", "Amp"]
         if let info {
             return keywords.contains(where: info.modelDisplayName.contains)
         }

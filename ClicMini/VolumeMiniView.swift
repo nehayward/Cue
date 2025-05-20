@@ -2,7 +2,6 @@ import SwiftUI
 import SonosKitMini
 
 struct VolumeMiniView: View {
-    @Environment(SonosMiniService.self) private var sonosService
     @Binding var device: SonosDevice
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
@@ -11,14 +10,13 @@ struct VolumeMiniView: View {
         HStack(alignment: .center, spacing: 0) {
             Button {
                 Task {
-                    await sonosService.setGroupMute(device: device)
+                    await SonosMiniService.shared.setGroupMute(device: device)
                 }
             } label: {
-                Image(device.groupIsMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill", variableValue: device.groupVolume/100)
+                Image(device.groupIsMuted ? "speaker.wave.3.slash.fill" : "speaker.wave.3.fill")
                     .resizable()
                     .scaledToFit()
                     .symbolRenderingMode(device.groupIsMuted ? .hierarchical : .monochrome)
-                    .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(.primary)
                     .frame(width: 16, height: 16, alignment: .trailing)
             }
@@ -28,7 +26,7 @@ struct VolumeMiniView: View {
             VibeMiniSlider(value: $device.groupVolume, baseHeight: 20, delayDrag: false) { isEditing in
                 if device.groupIsMuted {
                     Task {
-                        await sonosService.setGroupMute(device: device)
+                        await SonosMiniService.shared.setGroupMute(device: device)
                     }
                 }
                 
@@ -41,16 +39,13 @@ struct VolumeMiniView: View {
             }
             .foregroundStyle(.teal)
             Text("\(device.groupVolume, specifier: "%03.0f")%")
-                .contentTransition(.numericText())
                 .monospacedDigit()
-                .animation(.spring.speed(2), value: device.groupVolume)
                 .frame(width: 38, alignment: .trailing)
                 .fontDesign(.rounded)
                 .bold()
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .animation(.interactiveSpring, value: device.groupVolume)
         .frame(height: 40)
         .opacity(device.groupIsMuted ? 0.6 : 1)
         .animation(.spring, value: device.groupIsMuted)
@@ -61,10 +56,10 @@ struct VolumeMiniView: View {
         volumeTask?.cancel()
         volumeTask = Task {
             try Task.checkCancellation()
-            await sonosService.setGroupVolume(ip: device.ip, volume: Int(volume))
+            await SonosMiniService.shared.setGroupVolume(ip: device.ip, volume: Int(volume))
             if volume.isZero {
                 try? await Task.sleep(for: .milliseconds(200))
-                await sonosService.setGroupMute(device: device)
+                await SonosMiniService.shared.setGroupMute(device: device)
             }
         }
     }

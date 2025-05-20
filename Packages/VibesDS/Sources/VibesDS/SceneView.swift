@@ -32,7 +32,9 @@ public struct SceneView: View {
                 }
                 .scrollTargetBehavior(.viewAligned)
                 .scrollIndicators(.hidden)
+                #if !os(tvOS)
                 .scrollContentBackground(.hidden)
+                #endif
             }
         }
     }

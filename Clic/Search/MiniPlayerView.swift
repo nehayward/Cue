@@ -22,7 +22,7 @@ struct MiniPlayerView: View {
             if let group = selectedGroup {
                 VStack(spacing: 8) {
                     groupInfoButton(for: group)
-                    VolumeControlView(group: .constant(group))
+                    VolumeControlView(group: group)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
                 }
                 .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
@@ -34,7 +34,11 @@ struct MiniPlayerView: View {
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial)
+        .background {
+            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 4, bottomLeading: 0, bottomTrailing: 0, topTrailing: 4))
+                .foregroundStyle(.ultraThinMaterial)
+                .ignoresSafeArea(.all)
+        }
         .opacity(selectedGroup == nil ? 0 : 1)
         .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
         .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
@@ -63,7 +67,7 @@ struct MiniPlayerView: View {
     
     private func artworkView(for group: GroupRoom) -> some View {
         ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
-            .frame(width: 40, height: 40)
+            .frame(width: 50, height: 50)
     }
     
     private func trackInfoView(for group: GroupRoom) -> some View {

@@ -2,7 +2,7 @@ import SwiftUI
 import SonosKit
 
 struct ZoneView: View {
-    @Binding var group: GroupRoom
+    var group: GroupRoom
 
     var body: some View {
         VStack(alignment: .leading) {

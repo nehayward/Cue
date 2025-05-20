@@ -44,7 +44,7 @@ struct Provider: AppIntentTimelineProvider {
                 let isMuted = await SonosService.shared.isMuted(for: group)
                 let playbackService = await SonosService.shared.playbackService(ip: group.ip)
                 if let artworkURL = track?.artworkURL {
-                    await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL)
+                    await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: artworkURL, trackID: track?.trackID ?? "")
                 }
                 
                 let playHistory: OrderedSet<PlayableContent> = CloudStorageSync.shared.codable(forKey: CloudKeys.playHistory) ?? []

@@ -201,14 +201,17 @@ extension Offering {
                 identifier: "com.super.clic.monthly",
                 packageType: .monthly,
                 storeProduct: Offering.monthly.toStoreProduct(),
-                offeringIdentifier: "default"
+                offeringIdentifier: "default",
+                webCheckoutUrl: nil
             ),
             .init(
                 identifier: "com.super.clic.annual",
                 packageType: .annual,
                 storeProduct: Offering.yearly.toStoreProduct(),
-                offeringIdentifier: "default"
+                offeringIdentifier: "default",
+                webCheckoutUrl: nil
             )
-        ]
+        ],
+        webCheckoutUrl: nil
     )
 }

@@ -2,7 +2,6 @@ import SwiftUI
 import SonosKit
 
 struct TVModeViewCell: View {
-    @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var routePath: Router
     @Binding var group: GroupRoom
 
@@ -15,8 +14,8 @@ struct TVModeViewCell: View {
                 HStack {
                     Button {
                         Task {
-                            try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
+                            group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -31,8 +30,8 @@ struct TVModeViewCell: View {
 
                     Button {
                         Task {
-                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
+                            group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
                     } label: {
                         Label("Dialog Mode", systemImage: "person.wave.2.fill")

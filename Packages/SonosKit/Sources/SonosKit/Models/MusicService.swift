@@ -147,12 +147,12 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 EmptyView()
             }
         }
-        #if !os(watchOS)
+        #if !os(watchOS) && !os(tvOS)
         .foregroundStyle(.bar)
         #else
         .foregroundStyle(.white.gradient)
         #endif
-        .shadow(radius: 8)
+        .shadow(radius: 1)
         .environment(\.colorScheme, .light)
     }
 

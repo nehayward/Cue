@@ -34,7 +34,7 @@ struct LiveActivityNowPlayingSmallView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             if context.state.TVSettings == nil {
                 HStack {
-                    Group {
+                    VStack {
                         if let image = ArtworkManager.shared.getImage(name: context.state.name) {
                             Image(uiImage: image)
                                 .resizable()
@@ -60,7 +60,7 @@ struct LiveActivityNowPlayingSmallView: View {
                                 }
                         }
                     }
-                    Spacer()
+                    .frame(maxWidth: .infinity)
                     HStack(spacing: 0) {
                         Button(intent: PlaybackIntent(room: context.attributes.room)) {
                             Image(systemName: "playpause.fill")

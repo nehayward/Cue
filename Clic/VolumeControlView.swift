@@ -3,23 +3,17 @@ import SonosKit
 import VibesDS
 
 struct VolumeControlView: View {
-    @Environment(SonosService.self) private var sonosService: SonosService
-    @Binding var group: GroupRoom
+    @Bindable var group: GroupRoom
+    var delayDrag: Bool = false
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    private let delayDrag: Bool
-
-    init(group: Binding<GroupRoom>, delayDrag: Bool = false) {
-        self._group = group
-        self.delayDrag = delayDrag
-    }
-
+    
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button {
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: -2)
+                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: -2)
                     group.groupVolume = max(0, group.groupVolume - 2)
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
@@ -39,7 +33,7 @@ struct VolumeControlView: View {
             VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: delayDrag, showValue: true) { isEditing in
                 if group.isMuted {
                     Task {
-                        await sonosService.setGroupMute(group: group, mute: false)
+                        await SonosService.shared.setGroupMute(group: group, mute: false)
                     }
                 }
                 
@@ -55,12 +49,12 @@ struct VolumeControlView: View {
             Button {
                 if group.isMuted {
                     Task {
-                        await sonosService.setGroupMute(group: group, mute: false)
+                        await SonosService.shared.setGroupMute(group: group, mute: false)
                     }
                 }
                 Task {
                     HapticManager.shared.fireHaptic(.selection)
-                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: 2)
+                    await SonosService.shared.setRelativeGroupVolume(ip: group.ip, volume: 2)
                     group.groupVolume = min(100, group.groupVolume + 2)
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
@@ -88,16 +82,16 @@ struct VolumeControlView: View {
         volumeTask?.cancel()
         volumeTask = Task {
             try Task.checkCancellation()
-            await sonosService.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
+            await  SonosService.shared.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
             if volume.isZero {
                 try? await Task.sleep(for: .milliseconds(200))
-                await sonosService.snapShotGroup(ip: group.coordinatorRoom.ip)
+                await  SonosService.shared.snapShotGroup(ip: group.coordinatorRoom.ip)
             }
         }
     }
 }
 
-#Preview {
-    VolumeControlView(group: .constant(.gym))
-        .withEnvironments()
-}
+//#Preview {
+//    VolumeControlView(group: GroupRoom.gym)
+//        .withEnvironments()
+//}

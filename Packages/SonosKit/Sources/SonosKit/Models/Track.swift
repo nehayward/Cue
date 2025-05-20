@@ -103,13 +103,15 @@ extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
         lhs.trackID == rhs.trackID &&
         lhs.name == rhs.name &&
-        lhs.position == rhs.position
+        lhs.position == rhs.position &&
+        lhs.playbackPosition == rhs.playbackPosition
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(name)
         hasher.combine(position)
+        hasher.combine(playbackPosition)
     }
 }
 

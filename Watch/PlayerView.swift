@@ -6,31 +6,18 @@ import SonosKitMini
 
 struct PlayerView: View {
     @Environment(\.scenePhase) var scenePhase
-    @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
     @Environment(Popover.self) var popOver: Popover
     
-    let id: String
+    @Binding var device: SonosDevice
     
     @State private var isIdle: Bool = true
     @State private var showGroup: Bool = false
     @State private var volumeTask: Task<Void, Error>?
+    @State private var selectionTrack: Task<Void, Never>?
     
     var body: some View {
-        if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
-            deviceView(for: deviceIndex)
-        } else {
-            Text("Vanished")
-        }
-    }
-    
-    @ViewBuilder
-    func deviceView(for index: Int) -> some View {
-        @Bindable var sonosService = sonosService
-        let device = sonosService.devices[index]
-        let deviceBinding = $sonosService.devices[index]
-        
         VStack(spacing: 0) {
-            ThumbnailView(id: id)
+            ThumbnailView(device: device)
             Text(device.track.song)
                 .bold()
                 .lineLimit(1)
@@ -40,9 +27,14 @@ struct PlayerView: View {
             HStack {
                 Button {
                     WKInterfaceDevice.current().play(.click)
-                    Task {
-                        await sonosService.previous(ip: device.ip)
-                        try? await sonosService.updateTracks(for: [device])
+                    selectionTrack?.cancel()
+                    selectionTrack = Task {
+                        await SonosMiniService.shared.previous(ip: device.ip)
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard !Task.isCancelled else {
+                            return
+                        }
+                        try? await SonosMiniService.shared.updateTracks(for: [device])
                     }
                 } label: {
                     Image(systemName: "backward.fill")
@@ -52,10 +44,10 @@ struct PlayerView: View {
                     Task {
                         if device.isPlaying {
                             WKInterfaceDevice.current().play(.click)
-                            await sonosService.pause(IP: device.ip)
+                            await SonosMiniService.shared.pause(IP: device.ip)
                         } else {
                             WKInterfaceDevice.current().play(.click)
-                            await sonosService.play(device.ip)
+                            await SonosMiniService.shared.play(device.ip)
                         }
                     }
                 }, label: {
@@ -70,10 +62,14 @@ struct PlayerView: View {
 
                 Button {
                     WKInterfaceDevice.current().play(.click)
-                    Task {
-                        await sonosService.next(ip: device.ip)
-                        try? await Task.sleep(for: .milliseconds(100))
-                        try? await sonosService.updateTracks(for: [device])
+                    selectionTrack?.cancel()
+                    selectionTrack = Task {
+                        await SonosMiniService.shared.next(ip: device.ip)
+                        try? await Task.sleep(for: .milliseconds(200))
+                        guard !Task.isCancelled else {
+                            return
+                        }
+                        try? await SonosMiniService.shared.updateTracks(for: [device])
                     }
                 } label: {
                     Image(systemName: "forward.fill")
@@ -116,16 +112,21 @@ struct PlayerView: View {
                     print(error)
                     print("Cancelled??")
                 }
-                await sonosService.setGroupVolume(ip: device.ip, volume: volume)
+                await SonosMiniService.shared.setGroupVolume(ip: device.ip, volume: volume)
                 if device.groupIsMuted {
-                    await sonosService.setGroupMute(device: device, mute: false)
+                    await SonosMiniService.shared.setGroupMute(device: device, mute: false)
                 }
             }
         }
         .navigationTitle(device.nameWithCount)
         .animation(.spring, value: popOver.isShowing)
         .focusable()
-        .digitalCrownRotation(detent: deviceBinding.groupVolume,
+        .overlay {
+            TVView(id: device.id)
+                .background(.thickMaterial)
+                .opacity(device.isTVMode ? 1 : 0)
+        }
+        .digitalCrownRotation(detent: $device.groupVolume,
                               from: 0,
                               through: 100,
                               by: 2,
@@ -135,7 +136,7 @@ struct PlayerView: View {
                               onChange: { crownEvent in
             isIdle = false
             popOver.isShowing = !isIdle
-            popOver.text = String(format: "%.0f", deviceBinding.groupVolume.wrappedValue)
+            popOver.text = String(format: "%.0f", device.groupVolume)
         }, onIdle: {
             isIdle = true
             withAnimation(.spring.delay(0.5)) {
@@ -145,7 +146,7 @@ struct PlayerView: View {
         .onChange(of: scenePhase, initial: true) {
             if scenePhase == .active {
                 Task {
-                    try? await sonosService.updateWatchDevices(from: [device])
+                    try? await SonosMiniService.shared.updateWatchDevices(from: [device])
                 }
             }
         }

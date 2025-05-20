@@ -29,7 +29,7 @@ struct VolumeControlsScreen: View {
                                 .fontDesign(.rounded)
                                 .bold()
                                 .padding(.leading)
-                            VolumeControlView(group: $sonosService.sorted[groupID], delayDrag: true)
+                            VolumeControlView(group: sonosService.sorted[groupID], delayDrag: true)
                                 .frame(height: 40)
                                 .listRowSeparator(.hidden)
                         }

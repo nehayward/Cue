@@ -97,8 +97,6 @@ public struct VibeMiniSlider: View {
         .hoverEffect(.highlight)
         .defaultHoverEffect(.highlight)
         #endif
-        .animation(.interactiveSpring, value: value)
-        .animation(.interactiveSpring, value: isDragging)
         .accessibilityRepresentation {
             Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
         }

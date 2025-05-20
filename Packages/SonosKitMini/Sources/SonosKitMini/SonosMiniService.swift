@@ -42,8 +42,7 @@ public final class SonosMiniService {
         }
     }
     
-    private let sonosMonitor = SonosMonitor.shared
-    
+    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
     @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private var cachedIP: String {
@@ -97,9 +96,11 @@ public final class SonosMiniService {
     
     
     @MainActor
-    private func updateDevice<T>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
+    private func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
         guard let index = self.devices.firstIndex(where: { $0.id == device.id }) else { return }
-        self.devices[index][keyPath: keyPath] = value
+        if self.devices[index][keyPath: keyPath] != value {
+            self.devices[index][keyPath: keyPath] = value
+        }
     }
     
     private init() {
@@ -108,14 +109,16 @@ public final class SonosMiniService {
     
     func setupListeners() {
         sonosMonitor.listener.eventHandler = { [weak self] event, deviceID in
-            Task { @MainActor in
-                self?.updateEvent(for: deviceID, event: event)
+            Task { [weak self] in
+                guard let self else { return }
+                await updateEvent(for: deviceID, event: event)
             }
         }
         
         sonosMonitor.listener.zoneManagementHandler = { [weak self] event in
-            Task { @MainActor in
-                self?.updateZone(event: event)
+            Task { [weak self] in
+                guard let self else { return }
+                updateZone(event: event)
             }
         }
     }
@@ -143,65 +146,166 @@ public final class SonosMiniService {
     @MainActor
     func updateEvent(for deviceId: String, event: SonosServiceEvent) {
         guard let index = devices.firstIndex(where: { $0.id == deviceId }) else { return }
+
+        var device = devices[index]
+        var changed = false
+
         switch event {
         case .groupRenderingControl(let renderingEvent):
-            if let volume = renderingEvent.groupVolume, !devices[index].isEditingVolume {
-                devices[index].groupVolume = Double(volume)
+            if let volume = renderingEvent.groupVolume, !device.isEditingVolume {
+                changed = changed || device.groupVolume != Double(volume)
+                device.groupVolume = Double(volume)
             }
-            devices[index].groupIsMuted = renderingEvent.groupMute ?? false
-            devices[index].groupVolumeChangeable = renderingEvent.groupVolumeChangeable
-            
+
+            let groupIsMuted = renderingEvent.groupMute ?? false
+            if device.groupIsMuted != groupIsMuted {
+                device.groupIsMuted = groupIsMuted
+                changed = true
+            }
+
+            if device.groupVolumeChangeable != renderingEvent.groupVolumeChangeable {
+                device.groupVolumeChangeable = renderingEvent.groupVolumeChangeable
+                changed = true
+            }
+
         case .avTransport(let avEvent):
             if let actions = avEvent.currentTransportActions {
-                let actions = actions.components(separatedBy: ",")
-                let availableActions = AvailableActions(actions.compactMap(AvailableActions.init))
-                devices[index].availableActions = availableActions
+                let available = AvailableActions(
+                    actions.components(separatedBy: ",").compactMap(AvailableActions.init)
+                )
+                if device.availableActions != available {
+                    device.availableActions = available
+                    changed = true
+                }
             }
-            devices[index].isAlarmRunning = avEvent.isAlarmRunning
-            devices[index].queueTotal = avEvent.queueTotal
-            devices[index].isHidden = avEvent.currentTrackURI.contains("x-rincon")
-            devices[index].trackID = avEvent.trackID
-            devices[index].musicServiceType = avEvent.musicService
-            
-            devices[index].currentTrackURI = avEvent.currentTrackURI
-            devices[index].transportState = avEvent.transportState ?? ""
-            devices[index].currentTrackMetadata = avEvent.currentTrackMetadata
-            devices[index].currentTrackDuration = avEvent.currentTrackDuration ?? ""
-            devices[index].isCrossfaded = avEvent.currentCrossfadeMode
-            
-            devices[index].nextTrackURI = avEvent.nextTrackURI
-            devices[index].nextTrackMetadata = avEvent.nextTrackMetadata
-            
+
+            if device.isAlarmRunning != avEvent.isAlarmRunning {
+                device.isAlarmRunning = avEvent.isAlarmRunning
+                changed = true
+            }
+
+            if device.queueTotal != avEvent.queueTotal {
+                device.queueTotal = avEvent.queueTotal
+                changed = true
+            }
+
+            let isHidden = avEvent.currentTrackURI.contains("x-rincon")
+            if device.isHidden != isHidden {
+                device.isHidden = isHidden
+                changed = true
+            }
+
+            if device.trackID != avEvent.trackID {
+                device.trackID = avEvent.trackID
+                changed = true
+            }
+
+            if device.musicServiceType != avEvent.musicService {
+                device.musicServiceType = avEvent.musicService
+                changed = true
+            }
+
+            if device.currentTrackURI != avEvent.currentTrackURI {
+                device.currentTrackURI = avEvent.currentTrackURI
+                changed = true
+            }
+
+            if device.transportState != (avEvent.transportState ?? "") {
+                device.transportState = avEvent.transportState ?? ""
+                changed = true
+            }
+
+            if device.currentTrackMetadata != avEvent.currentTrackMetadata {
+                device.currentTrackMetadata = avEvent.currentTrackMetadata
+                changed = true
+            }
+
+            if device.currentTrackDuration != (avEvent.currentTrackDuration ?? "") {
+                device.currentTrackDuration = avEvent.currentTrackDuration ?? ""
+                changed = true
+            }
+
+            if device.isCrossfaded != avEvent.currentCrossfadeMode {
+                device.isCrossfaded = avEvent.currentCrossfadeMode
+                changed = true
+            }
+
+            if device.nextTrackURI != avEvent.nextTrackURI {
+                device.nextTrackURI = avEvent.nextTrackURI
+                changed = true
+            }
+
+            if device.nextTrackMetadata != avEvent.nextTrackMetadata {
+                device.nextTrackMetadata = avEvent.nextTrackMetadata
+                changed = true
+            }
+
         case .renderingContrl(let renderingControl):
-            devices[index].volume = renderingControl.masterVolume
-            devices[index].isMuted = renderingControl.masterMute
-            
+            if device.volume != renderingControl.masterVolume {
+                device.volume = renderingControl.masterVolume
+                changed = true
+            }
+
+            if device.isMuted != renderingControl.masterMute {
+                device.isMuted = renderingControl.masterMute
+                changed = true
+            }
+
             if let nightMode = renderingControl.nightMode,
                let dialogLevel = renderingControl.dialogLevel {
-                devices[index].TVSettings = SonosTVSettings(
+                let newSettings = SonosTVSettings(
                     nightMode: nightMode,
                     dialogLevel: dialogLevel == 1,
                     audioInputFormat: nil
                 )
+                if device.TVSettings != newSettings {
+                    device.TVSettings = newSettings
+                    changed = true
+                }
             }
-            
+
         case .position(let position):
-            devices[index].currentTime = position.relativeTime
-            
+            if device.currentTime != position.relativeTime {
+                device.currentTime = position.relativeTime
+                changed = true
+            }
+
         case .isPlaying(let isPlaying):
-            devices[index].transportState = isPlaying ? "PLAYING" : "PAUSED_PLAYBACK"
-            devices[index].isPlaying = isPlaying
-            
+            let newState = isPlaying ? "PLAYING" : "PAUSED_PLAYBACK"
+            if device.transportState != newState {
+                device.transportState = newState
+                changed = true
+            }
+
+            if device.isPlaying != isPlaying {
+                device.isPlaying = isPlaying
+                changed = true
+            }
+
         case .progress(let date):
-            devices[index].lastUpdate = date
-            
+            if device.lastUpdate != date {
+                device.lastUpdate = date
+                changed = true
+            }
+
         case .deviceProperties(let event):
-            devices[index].battery = event.battery
+            if device.battery != event.battery {
+                device.battery = event.battery
+                changed = true
+            }
+
             if let name = event.name {
-                devices[index].name = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&")
+                let cleanName = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&")
+                if device.name != cleanName {
+                    device.name = cleanName
+                    changed = true
+                }
             }
         }
-        
+
+        if changed {
+            devices[index] = device
+        }
     }
     
     public func stopMonitor() {
@@ -387,19 +491,14 @@ public final class SonosMiniService {
         }
     }
     
+    @MainActor
     public func updateWatchDevices(from devices: [SonosDevice]) async throws {
-        try? await updateTracks(for: devices)
-        
         try await withThrowingDiscardingTaskGroup { taskGroup in
             for device in devices.filter(\.isVisible) {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
                     async let playbackInfo = getPlaybackInfo(ip: device.ip)
                     async let groupVolume = getGroupVolume(ip: device.ip)
-                    
-                    if let groupVolumeAwaited = try? await groupVolume, !device.isEditingVolume {
-                        await updateDevice(device, keyPath: \.groupVolume, value: groupVolumeAwaited)
-                    }
                     
                     switch await playbackInfo {
                     case .playing:
@@ -409,10 +508,14 @@ public final class SonosMiniService {
                     default:
                         break
                     }
+                    
+                    if let groupVolumeAwaited = try? await groupVolume, !device.isEditingVolume {
+                        await updateDevice(device, keyPath: \.groupVolume, value: groupVolumeAwaited)
+                    }
                 }
             }
         }
-        
+        try? await updateTracks(for: devices)
         try? await updateMuteState(for: devices)
     }
     
@@ -471,12 +574,8 @@ public final class SonosMiniService {
         if devices.isEmpty {
             try? await updateDevices(useCache: true)
         }
-        let playingIDs = try? await updatePlaybackState(for: devices)
-        
-        if let deviceID = playingIDs?.first, let device = devices.first(where: { $0.id == deviceID }) {
-            return deviceID
-        }
-        return nil
+        let playingID = try? await firstPlayingDeviceID(from: devices)
+        return playingID
     }
     
     @MainActor
@@ -745,7 +844,7 @@ public final class SonosMiniService {
                     if device.state != .active { return }
                     
                     //                    async let playbackInfo = getPlaybackInfo(ip: device.ip)
-                    //                    async let groupVolume = getGroupVolume(ip: device.ip)
+                    async let groupVolume = getGroupVolume(ip: device.ip)
                     async let track = getTrack(ip: device.ip)
                     //                    async let playMode = playMode(ip: roomGroup.coordinatorRoom.ip)
                     async let availableActions = getCurrentTransportActions(ip: device.ip)
@@ -756,11 +855,9 @@ public final class SonosMiniService {
                     //                        self?.devices[index].isPlaying = isPlaying
                     //                    }
                     //
-                    //                    if let groupVolumeAwaited = try? await groupVolume, !device.isEditingVolume {
-                    //                        lock.withLock { [weak self] in
-                    //                            self?.devices[index].groupVolume = groupVolumeAwaited
-                    //                        }
-                    //                    }
+                    if let groupVolumeAwaited = try? await groupVolume, !device.isEditingVolume {
+                        await updateDevice(device, keyPath: \.groupVolume, value: groupVolumeAwaited)
+                    }
                     
                     
                     
@@ -992,6 +1089,36 @@ public final class SonosMiniService {
             }
         }
         return ids
+    }
+    
+    public func firstPlayingDeviceID(from devices: [SonosDevice]) async throws -> String? {
+        let visibleDevices = devices.filter(\.isVisible)
+
+        return try await withThrowingTaskGroup(of: String?.self) { group in
+            for device in visibleDevices {
+                group.addTask { [weak self] in
+                    guard let self else { return nil }
+                    let playbackInfo = await self.getPlaybackInfo(ip: device.ip)
+                    if playbackInfo == .playing {
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: true)
+                        return device.id
+                    } else if playbackInfo == .paused {
+                        await self.updateDevice(device, keyPath: \.isPlaying, value: false)
+                    }
+                    return nil
+                }
+            }
+
+            // Return as soon as one task finds a playing device
+            for try await result in group {
+                if let id = result {
+                    group.cancelAll()
+                    return id
+                }
+            }
+
+            return nil // No device was playing
+        }
     }
     
     //    @MainActor
@@ -1902,9 +2029,7 @@ public final class SonosMiniService {
     //        try? await updateGroups(from: [group])
     //    }
     //
-    //    public func getQueue(ip: String) async -> [PlayableContent] {
-    //        await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP() )
-    //    }
+    
     public func updateQueue(for device: SonosDevice, total: Int = 0) async {
         async let (service, _) = api.mediaInfo(ipAddress: device.ip)
         async let queue = api.getQueue(IP: device.ip, startingIndex: device.track.position, total: total, priorityIP: prioritizedIP())
@@ -1915,6 +2040,10 @@ public final class SonosMiniService {
         }
         let queueResult = await queue
         await updateDevice(device, keyPath: \.queue, value: queueResult)
+    }
+    
+    public func getQueue(ip: String, with startingIndex: Int, total: Int = 50) async -> [PlayableContent] {
+        return await api.getQueue(IP: ip, startingIndex: startingIndex, total: total, priorityIP: prioritizedIP())
     }
     //
     //    public func clearQueue(_ IP: String) async throws {

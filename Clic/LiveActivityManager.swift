@@ -24,11 +24,26 @@ final class LiveActivityManager: LiveActivityManageable {
                 }
                 return
             }
+
+            async let track =  sonosService.getTrack(ip: group.coordinatorRoom.ip)
+            async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
+            async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
             
-            try? await sonosService.updateGroups(from: [group])
+            guard let info = try? await (track, playbackInfo, groupVolume) else { return }
+            if let track = info.0 {
+                if group.coordinatorRoom.track == track, !group.isEditingPlayback, group.coordinatorRoom.track.playbackPosition != track.playbackPosition  {
+                    group.coordinatorRoom.track.playbackPosition = track.playbackPosition
+                } else {
+                    group.coordinatorRoom.track = track
+                }
+            }
+            group.coordinatorRoom.isPlaying = info.1 == .playing
+            group.groupVolume = info.2
             
             if group.coordinatorRoom.track == .empty {
                 artworkManager.removeArtwork(coordinatorRoom: group.nameWithCount)
+            } else {
+                await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL, trackID: group.coordinatorRoom.track.trackID)
             }
 
             if group.TVMode {
@@ -58,7 +73,7 @@ final class LiveActivityManager: LiveActivityManageable {
                     continue
                 }
 
-                await artworkManager.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL)
+                await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL, trackID: group.coordinatorRoom.track.trackID)
 
                 let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
                                                                                             ip: group.coordinatorRoom.ip,

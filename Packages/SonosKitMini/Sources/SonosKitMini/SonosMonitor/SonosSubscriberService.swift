@@ -147,21 +147,21 @@ final class SonosSubscriberService {
     }
     
     @objc private func handleForeground() {
-        print("UPnPSubscriber: App entering foreground")
-        isActive = true
-        
-        // Wait for server to be ready before resubscribing
-//        SonosListener.shared.onServerReady = { [weak self] in
-            // Request fresh subscriptions
-            Task { [weak self] in
-                guard let self else { return }
-                // Clear old subscriptions
-                await self.subscriptionManager.clearAllSIDs()
-                await self.sendSubscribeRequests()
-                // Start renewal timer
-                self.startRenewalTimer()
-            }
-//        }
+//        print("UPnPSubscriber: App entering foreground")
+//        isActive = true
+//        
+//        // Wait for server to be ready before resubscribing
+////        SonosListener.shared.onServerReady = { [weak self] in
+//            // Request fresh subscriptions
+//            Task { [weak self] in
+//                guard let self else { return }
+//                // Clear old subscriptions
+//                await self.subscriptionManager.clearAllSIDs()
+//                await self.sendSubscribeRequests()
+//                // Start renewal timer
+//                self.startRenewalTimer()
+//            }
+////        }
     }
     
     func getGroups() async {

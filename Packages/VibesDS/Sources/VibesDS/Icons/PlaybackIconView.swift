@@ -13,12 +13,12 @@ public struct PlaybackIconView: View {
     }
     
     public var body: some View {
-        VibeGaugeView(value: value, total: total, color: .accentColor, lineWidth: 2)
+        VibeGaugeView(value: value, total: total, color: .primary, lineWidth: 2)
             .overlay(alignment: .center) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(isPlaying ? Color.accentColor : Color.accentColor.opacity(0.7))
+                    .foregroundStyle(isPlaying ? Color.primary : Color.secondary)
                     .contentTransition(.symbolEffect(.automatic))
                     .frame(width: 12, height: 12, alignment: .center)
                     .padding(.leading, !isPlaying ? 2 : 0)

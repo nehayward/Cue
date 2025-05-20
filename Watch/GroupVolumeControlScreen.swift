@@ -8,33 +8,21 @@ struct GroupVolumeControlScreen: View {
     @Environment(SonosMiniService.self) private var sonosService: SonosMiniService
     @Environment(Popover.self) var popOver: Popover
     
-    let id: String
+    let device: SonosDevice
 
     var body: some View {
-        Group {
-            if let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) {
-                deviceView(for: deviceIndex)
-            } else {
-                Text("Vanished")
-            }
-        }
-        .onChange(of: scenePhase, initial: true) {
-            if scenePhase == .active {
-                print("Updated \(self)")
-                updateScreen()
-            }
-        }
-    }
-    
-    @ViewBuilder
-    func deviceView(for index: Int) -> some View {
-        let device = sonosService.devices[index]
         List {
             groupVolumeControl(for: device.id)
             if !device.rooms.isEmpty {
                 ForEach(device.allDevices) { room in
                     volumeControl(for: room.id)
                 }
+            }
+        }
+        .onChange(of: scenePhase, initial: true) {
+            if scenePhase == .active {
+                print("Updated \(self)")
+                updateScreen()
             }
         }
     }
@@ -142,11 +130,6 @@ struct GroupVolumeControlScreen: View {
     
     func updateScreen() {
         Task {
-            guard let deviceIndex = sonosService.devices.firstIndex(where: { $0.id == id }) else {
-                return
-            }
-            let device = sonosService.devices[deviceIndex]
-            
             await withDiscardingTaskGroup { task in
                 task.addTask {
                     await sonosService.updateRoomVolumes(incomingDevices: device.allDevices)
@@ -159,16 +142,16 @@ struct GroupVolumeControlScreen: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        GroupVolumeControlScreen(id: "RINCON_38420B780CEA01400")
-            .environment(SonosMiniService.shared)
-            .environment(Popover.shared)
-            .task {
-                try? await SonosMiniService.shared.loadWatch(useCache: false)
-                await SonosMiniService.shared.updateRoomVolumes()
-                await SonosMiniService.shared.updateRoomMuteState()
-            }
-    }
-}
-
+//#Preview {
+//    NavigationStack {
+//        GroupVolumeControlScreen(id: "RINCON_38420B780CEA01400")
+//            .environment(SonosMiniService.shared)
+//            .environment(Popover.shared)
+//            .task {
+//                try? await SonosMiniService.shared.loadWatch(useCache: false)
+//                await SonosMiniService.shared.updateRoomVolumes()
+//                await SonosMiniService.shared.updateRoomMuteState()
+//            }
+//    }
+//}
+//
