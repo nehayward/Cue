@@ -26,6 +26,7 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
+    var favorites: Bool = false
     var closeInspector: (() -> Void)? = nil
 
     var isAlarmSearch: Bool = false
@@ -54,65 +55,81 @@ struct SearchScreen: View {
         @Bindable var sonosService = sonosService
         
         NavigationStack(path: $router.path) {
-            List {
-                filterView
-//                if musicSearchSelection == .plex {
-//                    LoggerView()
-//                }
+            ScrollViewReader { proxy in
+                List {
+                    filterView
+                    //                if musicSearchSelection == .plex {
+                    //                    LoggerView()
+                    //                }
 #if targetEnvironment(macCatalyst)
-                if !searchCompletionTapped {
-                    ForEach(musicSearchService.suggestions) { suggestion in
-                        Button {
-                            musicSearchService.query = suggestion.searchTerm
-                            self.suggestion = suggestion.searchTerm
-                            searchCompletionTapped = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                Text(suggestion.displayTerm)
-                                Spacer()
+                    if !searchCompletionTapped {
+                        ForEach(musicSearchService.suggestions) { suggestion in
+                            Button {
+                                musicSearchService.query = suggestion.searchTerm
+                                self.suggestion = suggestion.searchTerm
+                                searchCompletionTapped = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "magnifyingglass")
+                                    Text(suggestion.displayTerm)
+                                    Spacer()
+                                }
+                                .foregroundStyle(.accent)
                             }
-                            .foregroundStyle(.accent)
                         }
                     }
-                }
 #endif
-
-                if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
-                    PlayHistoryView(filters: $filters)
-                }
-                
-                if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .spotify {
-                    SpotifyUsersPlaylistView()
-                }
-
-                if musicSearchService.query.isEmpty, !isAlarmSearch {
-                    FavoritesView()
-                }
-
-                if !musicSearchService.query.isEmpty {
-                    switch musicSearchSelection {
-                    case .spotify:
-                        SpotifySearchView(spotifyResults: musicSearchService.spotifyResults, filters: $filters)
-                    case .apple:
-                        AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
-                    case .library:
-                        LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
-                    case .plex:
-                        PlexSearchView(query: $musicSearchService.query, plexResults: musicSearchService.plexResults, filters: $filters)
-                    case .tidal:
-                        TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
-                    case .tuneIn:
-                        TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
-                    case .soundcloud:
-                        ServiceSearchView(results: musicSearchService.searchResults, filters: $filters)
+                    
+                    if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
+                        PlayHistoryView(filters: $filters)
+                    }
+                    
+                    if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .spotify {
+                        SpotifyUsersPlaylistView()
+                    }
+                    
+                    if musicSearchService.query.isEmpty, !isAlarmSearch {
+                        FavoritesView()
+                            .id("favorites")
+                    }
+                    
+                    if !musicSearchService.query.isEmpty {
+                        switch musicSearchSelection {
+                        case .spotify:
+                            SpotifySearchView(spotifyResults: musicSearchService.spotifyResults, filters: $filters)
+                        case .apple:
+                            AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
+                        case .library:
+                            LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
+                        case .plex:
+                            PlexSearchView(query: $musicSearchService.query, plexResults: musicSearchService.plexResults, filters: $filters)
+                        case .tidal:
+                            TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
+                        case .tuneIn:
+                            TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
+                        case .soundcloud:
+                            ServiceSearchView(results: musicSearchService.searchResults, filters: $filters)
+                        }
+                    }
+                    
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .listRowSeparator(.hidden)
                     }
                 }
-
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .listRowSeparator(.hidden)
+                .onAppear {
+                    if favorites {
+                        searchFieldIsPresented = false
+                        Task {
+                            await sonosService.getFavoriteList()
+                            try? await Task.sleep(for: .milliseconds(300))
+                            withAnimation {
+                                proxy.scrollTo("favorites", anchor: .top)
+                            }
+                        }
+                        return
+                    }
                 }
             }
             .miniPlayerOnScrollHandler()
@@ -146,10 +163,12 @@ struct SearchScreen: View {
             .animation(.snappy, value: musicSearchService.searchResults)
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
+            #if !targetEnvironment(macCatalyst)
             .addDismiss(override: contentToAdd != nil) {
                 dismiss()
                 closeInspector?()
             }
+            #endif
             .withAppRouter()
         }
         .withAlert(enabled: showAlert)
@@ -182,6 +201,7 @@ struct SearchScreen: View {
 #endif
         }
         .onAppear {
+            if favorites { return }
             searchFieldIsPresented = true
             musicSearchService.query = ""
 
@@ -198,6 +218,16 @@ struct SearchScreen: View {
         .animation(.interactiveSpring, value: isSearchFieldFocused)
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .overlay(
+            Button(action: {
+                closeInspector?()
+            }) {
+                EmptyView()
+            }
+                .keyboardShortcut(.escape, modifiers: [])
+                .frame(width: 0, height: 0)
+                .hidden()
+        )
     }
 
     @MainActor

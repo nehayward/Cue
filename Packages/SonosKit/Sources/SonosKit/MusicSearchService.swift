@@ -59,7 +59,9 @@ public final class MusicSearchService {
     public var searchResults: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
-    public init() { }
+    public init() {
+        print(#file, #function)
+    }
 
     public func search(for providers: Set<MediaSearchService>) async {
         if query.isEmpty { return }
@@ -529,10 +531,10 @@ public final class MusicSearchService {
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
-        guard let result = await plex.lookupPlexSong(key: id) else {
+        guard let result = await plex.lookupPlexSong(key: id), let songs = result.metadata else {
             return nil
         }
-        let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
+        let playableContent: [PlayableContent] = songs.map(\.toPlayable)
         return playableContent.first
     }
 
@@ -583,9 +585,9 @@ public final class MusicSearchService {
 //        return (result.totalSize ?? result.size, playableContent, duration)
 //    }
 
-    public func lookupPlexPlaylists(id: String, offset: Int = 0) async -> (Int?, [PlayableContent], Duration?) {
+    public func lookupPlexPlaylists(id: String, plexType: PlexMediaType = .song, ascending: Bool = true, offset: Int = 0) async -> (Int?, [PlayableContent], Duration?) {
         guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,
-              let result = await plex.lookupPlaylist(key: key, offset: offset) else { return (nil, [], nil) }
+              let result = await plex.lookupPlaylist(key: key, type: plexType, ascending: ascending, offset: offset) else { return (nil, [], nil) }
 
         let playableContent: [PlayableContent] = result.metadata.map(\.toPlayable)
         var duration: Duration?

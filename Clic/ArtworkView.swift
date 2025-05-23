@@ -137,6 +137,10 @@ struct ArtworkView: View {
     
     
     nonisolated private func loadArtwork(url: URL?) -> ImageTask? {
+        if Task.isCancelled {
+            return nil
+        }
+        
         guard let url else {
             Task { @MainActor in
                 currentImage = nil
@@ -144,18 +148,16 @@ struct ArtworkView: View {
             return nil
         }
         
-        let imageRequest = ImageRequest(url: url, priority: .high)
+        let imageRequest = ImageRequest(url: url, processors: [.resize(width: 500)], priority: .high)
         return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    if !Task.isCancelled {
+                    if !Task.isCancelled, currentImage != response.image {
                         currentImage = response.image
                     }
-                case .failure:
-                    if !Task.isCancelled {
-                        currentImage = nil
-                    }
+                default:
+                    break
                 }
                 imageTask = nil
             }

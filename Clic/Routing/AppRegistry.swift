@@ -30,6 +30,18 @@ extension View {
 //                        }
                 case let .settings(destination):
                     PreferenceScreen(destination: destination)
+                case .favorites:
+                    let searchRouter = Router.search
+                    let selectedGroupService = SelectedGroupService(group: nil)
+                    SearchScreen(favorites: true)
+                        .environment(searchRouter)
+                        .environment(selectedGroupService)
+                        .onDisappear {
+                            Router.search.path.removeAll()
+                            Router.search.presentedSheet = nil
+                        }
+                    // MARK: Add back later maybe
+//                        .environment(Router.search)
                 case let .search(group):
                     let searchRouter = Router.search
                     let selectedGroupService = SelectedGroupService(group: group)
@@ -39,6 +51,7 @@ extension View {
                         .environment(selectedGroupService)
                         .onDisappear {
                             Router.search.path.removeAll()
+                            Router.search.presentedSheet = nil
                         }
                     // MARK: Add back later maybe
 //                        .environment(Router.search)

@@ -301,6 +301,7 @@
 				Library/BrowseScreen.swift,
 				Library/GenreListView.swift,
 				Library/LibraryBrowseScreen.swift,
+				Library/MediaSelector.swift,
 				Library/NewPlaylistView.swift,
 				Library/PlayableContentList.swift,
 				Library/PlayableGridScreen.swift,
@@ -470,27 +471,12 @@
 			);
 			target = E9B12B522A5F31790008868C /* Widgets (Watch) */;
 		};
-		E91B816C2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Managers/WatchHapticManager.swift,
-			);
-			target = E9BDE56B29E3396700D230A8 /* Clic */;
-		};
 		E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Managers/WatchHapticManager.swift,
 			);
 			target = E9C03AFB2A586F5E00FB9118 /* Clic (Watch) */;
-		};
-		E91B816E2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Managers/WatchHapticManager.swift,
-			);
-			target = E97562C82B699B2400787E14 /* Clic (Mac) */;
 		};
 		E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -644,7 +630,7 @@
 		01C129702D0CB4E9009F9E90 /* ClicMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicMini; sourceTree = "<group>"; };
 		01CB341F2DC4FA46006406B6 /* TV */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TV; sourceTree = "<group>"; };
 		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01CB341D2DC4F851006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
-		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816C2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B816E2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
+		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
 		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
 		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };

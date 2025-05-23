@@ -68,11 +68,8 @@ public final class SonosService {
     @ObservationIgnored public var isGrouping: Bool = false
     
     public var sortOption: SonosSortOption {
-        get {
-            SonosSortOption(rawValue: UserDefaults.standard.integer(forKey: "groupSortOption")) ?? .nameAscending
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "groupSortOption")
+        didSet {
+            UserDefaults.standard.set(sortOption.rawValue, forKey: "groupSortOption")
         }
     }
 
@@ -81,6 +78,8 @@ public final class SonosService {
 
     public init () {
         sonosPulse.cancel()
+        let raw = UserDefaults.standard.integer(forKey: "groupSortOption")
+        self.sortOption = SonosSortOption(rawValue: raw) ?? .nameAscending
     }
 
     public var system: System?
@@ -1167,7 +1166,13 @@ public final class SonosService {
             return await musicSearch.appleLibraryArtistArtwork(name: content.title)
         case (.track, .plex):
             guard let id = content.id.removingPercentEncoding?.components(separatedBy: ":").last else { return nil }
-            return await musicSearch.lookupPlexSong(with: id)?.artwork
+            
+            let track = await musicSearch.lookupPlexSong(with: id)
+            if size == 50 {
+                return track?.thumbnail
+            } else {
+                return track?.artwork
+            }
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
             return track.artwork

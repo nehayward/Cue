@@ -14,43 +14,57 @@ import AuthenticationServices
 struct PlexBrowseScreen: View {
     @Environment(\.dismiss) var dismiss
 
-    @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(PlexBrowseService.self) private var plexBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     @State private var router = Router()
+    @State private var isLoading: Bool = false
 
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
-        @Bindable var sonosService = sonosService
 
         NavigationStack(path: $router.path) {
-            ScrollView {
+            List {
                 PlexAuthorizationFlowView()
-                VStack(alignment: .leading) {
-                    if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
-                        Section {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
-                                ForEach(plexBrowseService.userPlaylists.prefix(4)) { item in
-                                    PlayableCardView(item: item)
-                                }
-                            }
-                        } header: {
-                            HStack {
-                                Text("Playlists (\(plexBrowseService.userPlaylists.count))")
-                                Spacer()
-                                NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
-                                    await plexBrowseService.updateUserPlaylists(offset: offset)
-                                })) {
-                                    Text("Show all \(Image(systemName: "chevron.right"))")
-                                }
-                            }
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical)
+                if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
+                    NavigationLink(value: RouterDestination.playableList(title: "Artists", action: { offset in
+                        await plexBrowseService.artists(offset: offset)
+                    })) {
+                        Label("Artists", systemImage: "music.mic")
+                    }
+                    
+                    NavigationLink(value: RouterDestination.playableList(title: "Albums", action: { offset in
+                        await plexBrowseService.updateUserAlbums(offset: offset)
+                    })) {
+                        Label("Albums", systemImage: "smallcircle.circle.fill")
+                    }
+                    
+                    NavigationLink(value: RouterDestination.playableList(title: "Songs", action: { offset in
+                        await plexBrowseService.songs(offset: offset)
+                    })) {
+                        Label("Songs", systemImage: "music.note")
+                    }
+                    
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $plexBrowseService.userPlaylists, action: { offset in
+                        await plexBrowseService.updateUserPlaylists(offset: offset)
+                    })) {
+                        Label("Playlists (\(plexBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
+                    }
+                    
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
+                        ForEach(plexBrowseService.userPlaylists.prefix(6)) { item in
+                            PlayableCardView(item: item)
                         }
                     }
+                    .listRowSeparator(.hidden)
+                    if plexBrowseService.userPlaylists.isEmpty {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .listRowSeparator(.hidden)
+                    }
                 }
+                
             }
             .miniPlayerOnScrollHandler()
             .contentMargins(.horizontal, 16, for: .scrollContent)
@@ -59,19 +73,29 @@ struct PlexBrowseScreen: View {
             .navigationTitle("Plex Library")
             .navigationBarTitleDisplayMode(.inline)
             .task(id: musicSearchService.plexServerID) {
+                isLoading = false
                 await updatePlexBrowseService()
+                isLoading = true
             }
             .withAppRouter()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    MediaSelector()
+                        .environment(router)
+                }
+            }
         }
+        .listStyle(.plain)
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
+            isLoading = false
             Task {
                 await updatePlexBrowseService()
             }
+            isLoading = true
         }
     }
 
-    @MainActor
     private func updatePlexBrowseService() async {
         await plexBrowseService.updateUserPlaylists()
     }

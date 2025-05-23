@@ -74,6 +74,7 @@ struct LibraryBrowseScreen: View {
 //            .foregroundStyle(.primary)
             .miniPlayerOnScrollHandler()
             .listStyle(.inset)
+            .foregroundStyle(.primary)
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)
             .fontDesign(.rounded)
@@ -81,6 +82,12 @@ struct LibraryBrowseScreen: View {
                 await browseService.updatePlaylists()
             }
             .withAppRouter()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    MediaSelector()
+                        .environment(router)
+                }
+            }
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {

@@ -8,7 +8,7 @@ public struct AppleLibraryContainer: Codable {
 
 public struct AppleLibraryItem: Codable {
     public let id: String
-    public let href: String?
+    public let href: String
     public let type: String
     public let attributes: Attributes
 
@@ -19,7 +19,7 @@ public struct AppleLibraryItem: Codable {
 
 extension AppleLibraryItem {
     public struct Attributes: Codable {
-        public let name: String
+        public let name: String?
         public let artwork: AppleLibraryArtwork?
         public let playParams: PlayParameters?
         

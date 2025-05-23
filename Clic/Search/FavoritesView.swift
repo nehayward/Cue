@@ -11,32 +11,27 @@ struct FavoritesView: View {
     @Environment(Router.self) var router: Router
 
     var body: some View {
-        Group {
-            if !sonosService.favorites.isEmpty {
-                NavigationLink {
-                    List {
-                        ForEach(sonosService.favorites) { item in
-                            PlayableContentView(item: item)
-                        }
+        if !sonosService.favorites.isEmpty {
+            NavigationLink {
+                List {
+                    ForEach(sonosService.favorites) { item in
+                        PlayableContentView(item: item)
                     }
-                    .contentMargins(.bottom, 120, for: .scrollContent)
-                    .navigationTitle("Sonos Favorites")
-                    .miniPlayerOnScrollHandler()
-                } label: {
-                    Text("Sonos Favorites")
-                        .foregroundStyle(.secondary)
-                        .fontDesign(.rounded)
-                        .bold()
                 }
-                .listRowSeparator(.hidden)
-
-                ForEach(sonosService.favorites.prefix(5)) { item in
-                    PlayableContentView(item: item)
-                }
+                .contentMargins(.bottom, 120, for: .scrollContent)
+                .navigationTitle("Sonos Favorites")
+                .miniPlayerOnScrollHandler()
+            } label: {
+                Text("Sonos Favorites")
+                    .foregroundStyle(.secondary)
+                    .fontDesign(.rounded)
+                    .bold()
             }
-        }
-        .task {
-            await sonosService.getFavoriteList()
+            .listRowSeparator(.hidden)
+            
+            ForEach(sonosService.favorites.prefix(5)) { item in
+                PlayableContentView(item: item)
+            }
         }
     }
 }

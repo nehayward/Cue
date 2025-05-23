@@ -368,9 +368,17 @@ struct ClicApp: App {
                 router.presentedSheet = .paywall
                 return
             }
+            
+            if components.host?.lowercased() == "search", url.pathComponents.contains("favorites") {
+                // Navigate to favorite search
+                router.path.removeAll()
+                router.presentedSheet = .favorites
+                return
+            }
 
             if components.host?.lowercased() == "search", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
                 router.presentedSheet = nil
+                
 
                 guard let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) else {
                     Task {
@@ -498,9 +506,14 @@ struct ClicApp: App {
     
     private func configureNuke() {
         let pipeline = ImagePipeline {
-            $0.imageCache = ImageCache.shared
+            let imageCache = ImageCache.shared
+            imageCache.costLimit = 1024 * 1024 * 50 // 50 MB max memory usage
+            imageCache.countLimit = 200             // Store up to 200 images
+            imageCache.ttl = 60 * 5                 // Keep images in
+            $0.imageCache = imageCache
+    
             $0.dataCache = try? DataCache(name: "com.clic.imageCache")
-            
+        
             // Prefer cached data whenever possible
             $0.dataCachePolicy = .automatic
             
@@ -554,16 +567,23 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         
+//#if targetEnvironment(macCatalyst)
+//        if let titlebar = windowScene.titlebar {
+////            let toolbar = NSToolbar(identifier: "main")
+////            toolbar.delegate = toolbarDelegate
+////            toolbar.displayMode = .iconAndLabel
+////            
+//            titlebar.titleVisibility = .hidden
+//            titlebar.toolbar = nil
+////            titlebar.toolbarStyle = .unifiedCompact
+////            titlebar.toolbar = toolbar
+//        }
+//#endif
+        
 #if targetEnvironment(macCatalyst)
         if let titlebar = windowScene.titlebar {
-//            let toolbar = NSToolbar(identifier: "main")
-//            toolbar.delegate = toolbarDelegate
-//            toolbar.displayMode = .iconAndLabel
-//            
             titlebar.titleVisibility = .hidden
-            titlebar.toolbar = nil
-//            titlebar.toolbarStyle = .unifiedCompact
-//            titlebar.toolbar = toolbar
+            titlebar.toolbar = nil // optional, remove toolbar if it hides the title
         }
 #endif
     }

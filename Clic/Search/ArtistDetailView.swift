@@ -356,7 +356,7 @@ struct ArtistDetailView: View {
             artworkURL = playableContent.artwork
             switch (playableContent.content.type, playableContent.content.service) {
             case (.artist, .apple):
-                guard let artist: Artist = try? await MusicSearchService().lookup(id: playableContent.content.id) else { return }
+                guard let artist: Artist = try? await MusicSearchService.shared.lookup(id: playableContent.content.id) else { return }
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
@@ -368,7 +368,7 @@ struct ArtistDetailView: View {
                     }
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 
-                guard let allArtist: Artist = try? await MusicSearchService().artistCatalog(id: playableContent.content.id) else { return }
+                guard let allArtist: Artist = try? await MusicSearchService.shared.artistCatalog(id: playableContent.content.id) else { return }
                 latestRelease = allArtist.latestRelease?.toPlayable
     
                 if let liveAlbums = allArtist.liveAlbums {
@@ -383,20 +383,20 @@ struct ArtistDetailView: View {
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
                 
-                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: playableContent.content.id) {
+                if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(id: playableContent.content.id) {
                     self.allAlbums = all
                 }
             case (.libraryArtist, .apple):
-                if let url = await MusicSearchService().appleLibraryArtistArtwork(name: playableContent.title) {
+                if let url = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title) {
                     artworkURL = url
                 }
-                if let albums = await MusicSearchService().appleLibraryArtistAlbumLookup(id: playableContent.content.id) {
+                if let albums = await MusicSearchService.shared.appleLibraryArtistAlbumLookup(id: playableContent.content.id) {
                     self.albums = albums.data.compactMap(\.toPlayable)
                 }
             case (.artist, .spotify):
-                async let artist = MusicSearchService().spotifyArtist(id: playableContent.content.id)
-                async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: playableContent.content.id)
-                async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: playableContent.content.id)
+                async let artist = MusicSearchService.shared.spotifyArtist(id: playableContent.content.id)
+                async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: playableContent.content.id)
+                async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: playableContent.content.id)
 
                 guard let artistAwait = await artist else { return }
                 guard let artistAlbumsAwait = await artistAlbums else { return }
@@ -406,9 +406,9 @@ struct ArtistDetailView: View {
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
             case (.track, .apple):
-                guard let song: Song = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = song.artists?.first?.id.description else { return }
-                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
-                guard let allArtist: Artist = try? await MusicSearchService().artistCatalog(id: artistID) else { return }
+                guard let song: Song = try? await MusicSearchService.shared.lookup(id: playableContent.content.id), let artistID = song.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService.shared.lookup(id: artistID) else { return }
+                guard let allArtist: Artist = try? await MusicSearchService.shared.artistCatalog(id: artistID) else { return }
                 latestRelease = allArtist.latestRelease?.toPlayable
                 
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
@@ -433,23 +433,23 @@ struct ArtistDetailView: View {
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
                 
-                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: artistID) {
+                if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(id: artistID) {
                     self.allAlbums = all
                 }
             case (.libraryTrack, .apple):
-                guard let catalogSong = await MusicSearchService().appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
-                guard let song: Song = try? await MusicSearchService().lookup(id: id), let artistID = song.artists?.first?.id.description else { return }
-                guard let artist: Artist = try? await MusicSearchService().lookup(id: artistID) else { return }
+                guard let catalogSong = await MusicSearchService.shared.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
+                guard let song: Song = try? await MusicSearchService.shared.lookup(id: id), let artistID = song.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService.shared.lookup(id: artistID) else { return }
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
                 self.tracks = topTracks.map(\.toPlayable)
                 self.albums = albums.map(\.toPlayable)
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
             case (.track, .spotify):
-                guard let song = await MusicSearchService().spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
-                async let artist = MusicSearchService().spotifyArtist(id: artistID)
-                async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: artistID)
-                async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: artistID)
+                guard let song = await MusicSearchService.shared.spotifyTrackLookup(id: playableContent.content.id), let artistID = song.artists.first?.id else { return }
+                async let artist = MusicSearchService.shared.spotifyArtist(id: artistID)
+                async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: artistID)
+                async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: artistID)
 
                 guard let artistAwait = await artist else { return }
                 guard let artistAlbumsAwait = await artistAlbums else { return }
@@ -460,8 +460,8 @@ struct ArtistDetailView: View {
                 artworkURL = artistAwait.images.biggestImageURL
                 self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
             case (.album, .apple):
-                guard let album: Album = try? await MusicSearchService().lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
-                guard let artist: Artist = try? await MusicSearchService().artistCatalog(id: artistID) else { return }
+                guard let album: Album = try? await MusicSearchService.shared.lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
+                guard let artist: Artist = try? await MusicSearchService.shared.artistCatalog(id: artistID) else { return }
                 latestRelease = artist.latestRelease?.toPlayable
                 
                 guard let topTracks = artist.topSongs, let albums = artist.albums else { return }
@@ -486,15 +486,15 @@ struct ArtistDetailView: View {
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
                 
-                if let all: [PlayableContent] = try? await MusicSearchService().allAlbums(id: artistID) {
+                if let all: [PlayableContent] = try? await MusicSearchService.shared.allAlbums(id: artistID) {
                     self.allAlbums = all
                 }
             case (.album, .spotify):
-                guard let song = await MusicSearchService().spotifyAlbumLookup(id: playableContent.content.id),
+                guard let song = await MusicSearchService.shared.spotifyAlbumLookup(id: playableContent.content.id),
                       let artistID = song.artists.first?.id else { return }
-                async let artist = MusicSearchService().spotifyArtist(id: artistID)
-                async let artistAlbums = MusicSearchService().spotifyArtistAlbums(id: artistID)
-                async let artistTopTracks = MusicSearchService().spotifyArtistTopTracks(id: artistID)
+                async let artist = MusicSearchService.shared.spotifyArtist(id: artistID)
+                async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: artistID)
+                async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: artistID)
 
                 guard let artistAwait = await artist else { return }
                 guard let artistAlbumsAwait = await artistAlbums else { return }
@@ -544,11 +544,11 @@ struct ArtistDetailView: View {
                 artworkURL = playableContent.artwork
 
                 if let artistID = playableContent.metadata?.artistID {
-                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistAlbums = await MusicSearchService.shared.lookupTidalArtistAlbums(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
-                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artistTopTracks = await MusicSearchService.shared.lookupTidalArtistTracks(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
-                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
                     self.tracks = artistTopTracks
@@ -557,13 +557,13 @@ struct ArtistDetailView: View {
                         artworkURL = playableContent.artwork
                     }
                 } else {
-                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    guard let artistID = await MusicSearchService.shared.lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
                     try? await Task.sleep(for: .milliseconds(200))
-                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistAlbums = await MusicSearchService.shared.lookupTidalArtistAlbums(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
-                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artistTopTracks = await MusicSearchService.shared.lookupTidalArtistTracks(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
-                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
                     self.tracks = artistTopTracks
@@ -606,11 +606,11 @@ struct ArtistDetailView: View {
                 artworkURL = playableContent.artwork
 
                 if let artistID = playableContent.metadata?.artistID {
-                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistAlbums = await MusicSearchService.shared.lookupTidalArtistAlbums(id: artistID)
                     try? await Task.sleep(for: .milliseconds(300))
-                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artistTopTracks = await MusicSearchService.shared.lookupTidalArtistTracks(id: artistID)
                     try? await Task.sleep(for: .milliseconds(300))
-                    let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupTidalArtist(id: artistID)
 
                     albums = artistAlbums
                     self.tracks = artistTopTracks
@@ -618,13 +618,13 @@ struct ArtistDetailView: View {
                         self.playableContent = artist
                     }
                 } else {
-                    guard let artistID = await MusicSearchService().lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
+                    guard let artistID = await MusicSearchService.shared.lookupTidalTrack(with: playableContent.id)?.metadata?.artistID else { return }
                     try? await Task.sleep(for: .milliseconds(200))
 
-                    let artistAlbums = await MusicSearchService().lookupTidalArtistAlbums(id: artistID)
+                    let artistAlbums = await MusicSearchService.shared.lookupTidalArtistAlbums(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
 
-                    let artistTopTracks = await MusicSearchService().lookupTidalArtistTracks(id: artistID)
+                    let artistTopTracks = await MusicSearchService.shared.lookupTidalArtistTracks(id: artistID)
                     try? await Task.sleep(for: .milliseconds(200))
                     let artist = await MusicSearchService().lookupTidalArtist(id: artistID)
 
@@ -666,9 +666,9 @@ struct ArtistDetailView: View {
             case (.artist, .tidal):
                 artworkURL = nil
                 artworkURL = playableContent.artwork
-                async let artistAlbums = MusicSearchService().lookupTidalArtistAlbums(id: playableContent.content.id)
+                async let artistAlbums = MusicSearchService.shared.lookupTidalArtistAlbums(id: playableContent.content.id)
                 try? await Task.sleep(for: .milliseconds(200))
-                async let artistTopTracks = MusicSearchService().lookupTidalArtistTracks(id: playableContent.content.id)
+                async let artistTopTracks = MusicSearchService.shared.lookupTidalArtistTracks(id: playableContent.content.id)
 
                 let artistAlbumsAwait = await artistAlbums
                 let artistTopTracksAwait = await artistTopTracks
@@ -679,8 +679,8 @@ struct ArtistDetailView: View {
             // MARK: Plex
             case (.track, .plex):
                 if let artistID = playableContent.metadata?.artistID {
-                    let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
-                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+                    let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
                     self.albums = albums
                     if let artist {
                         self.playableContent = artist
@@ -688,9 +688,9 @@ struct ArtistDetailView: View {
                     }
                 } else {
                     guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
-                          let artistID = await MusicSearchService().lookupPlexSong(with: id)?.metadata?.artistID else { return }
-                    let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
-                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+                          let artistID = await MusicSearchService.shared.lookupPlexSong(with: id)?.metadata?.artistID else { return }
+                    let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
 
                     self.albums = albums
                     if let artist {
@@ -702,17 +702,17 @@ struct ArtistDetailView: View {
                 artworkURL = nil
                 artworkURL = playableContent.artwork
                 guard let artistID = playableContent.metadata?.artistID else { return }
-                let albums = await MusicSearchService().lookupPlexArtistAlbums(id: artistID)
+                let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
                 self.albums = albums
                 if let artistID = playableContent.metadata?.artistID {
-                    let artist = await MusicSearchService().lookupPlexArtist(id: artistID)
+                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
                     if let artist {
                         self.playableContent = artist
                         artworkURL = playableContent.artwork
                     }
                 }
             case (.artist, .plex):
-                let albums = await MusicSearchService().lookupPlexArtistAlbums(id: playableContent.content.id)
+                let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: playableContent.content.id)
                 self.albums = albums
             default:
                 break

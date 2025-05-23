@@ -8,7 +8,7 @@ import MusicSearchKit
 struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
-    var preferredSize: Int = 100
+    var preferredSize: Int = 50
     
     @State private var imageRequest: ImageRequest?
     
@@ -43,10 +43,10 @@ struct ContentArtworkView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .task(id: content.id) {
-            imageRequest = makeImageRequest(url: content.thumbnail, priority: .veryLow)
-            let dataCache = try? DataCache(name: "com.clic.imageCache")
-            if dataCache?.containsData(for: content.id) ?? false, ![.playlist, .libraryPlaylist].contains(content.content.type) {
-                imageRequest = ImageRequest(url: dataCache?.url(for: content.id))
+            let cachedImageRequest = makeImageRequest(url: content.thumbnail, priority: .veryLow)
+            self.imageRequest = cachedImageRequest
+            if ImagePipeline.shared.cache.containsData(for: cachedImageRequest), ![.playlist, .libraryPlaylist].contains(content.content.type) {
+                print("Cached")
                 return
             }
 
@@ -55,8 +55,8 @@ struct ContentArtworkView: View {
                 return
             }
         
-            
-            if let url = content.thumbnail, !(content.thumbnail?.absoluteString ?? "").contains("get") {
+            let url = preferredSize > 100 ? content.artwork : content.thumbnail
+            if let url, !(content.thumbnail?.absoluteString ?? "").contains("get") {
                 imageRequest = makeImageRequest(url: url)
                 return
             }

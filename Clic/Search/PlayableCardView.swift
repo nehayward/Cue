@@ -29,13 +29,19 @@ struct PlayableCardView: View {
                 if !hideAction {
                     switch item.content.type {
                     case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                        NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                        Button {
+                            router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+                        } label: {
                             content
                         }
+                        .buttonStyle(.plain)
                     case .artist, .libraryArtist:
-                        NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                        Button {
+                            router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
+                        } label: {
                             content
                         }
+                        .buttonStyle(.plain)
                     case .track, .favorite:
                         Button {
                             play()
@@ -79,7 +85,7 @@ struct PlayableCardView: View {
     }
 
     private var content: some View {
-        ContentArtworkView(content: item, showMusicSource: false, preferredSize: 300)
+        ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
             .aspectRatio(contentMode: .fit)
             .glur(radius: 30, // The total radius of the blur effect when fully applied.
                   offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.

@@ -34,7 +34,7 @@ struct BrowseScreen: View {
             case .plex:
                 PlexBrowseScreen()
             case .spotify:
-                SpotifyPlaylistScreen()
+                SpotifyPlaylistScreen(showMediaSelector: true)
             case .library:
                 LibraryBrowseScreen()
             default:
@@ -46,57 +46,19 @@ struct BrowseScreen: View {
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
-            VStack {
-                Menu {
-                    ForEach(MediaSearchService.allCases, id: \.self) { service in
-                        if coreFeatures.enabledServices(service).wrappedValue, [
-                                MediaSearchService.apple,
-                                MediaSearchService.library,
-                                MediaSearchService.plex,
-                                .spotify
-                            ]
-                            .contains(service) {
-                            Button {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                browseMediaService = service
-                            } label: {
-                                HStack {
-                                    Text(service.title)
-                                    service.image
-                                }
-                            }
-                            .tag(service)
-                        }
-                    }
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        router.presentedSheet = .settings(destination: .servicePreferenceScreen)
-                    } label: {
-                        Text("Customize in Settings…")
-                    }
-                } label: {
-                    browseMediaService.iconForMusicService
-#if targetEnvironment(macCatalyst)
-                        .frame(width: 32, height: 32)
-#else
-                        .frame(width: 24, height: 24)
-#endif
-                }
-                .popoverTip(AppTip.libraryMediaService)
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                MiniPlayerView()
 #if !targetEnvironment(macCatalyst)
+                MiniPlayerView()
                     .offset(y: MiniPlayerManger.shared.offset)
 #endif
-            }
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+#if !targetEnvironment(macCatalyst)
         .addDismiss {
             dismiss()
             closeInspector?()
         }
+#endif
         .onChange(of: coreFeatures.features) {
             if coreFeatures.isEnabled(browseMediaService) {
                 return
@@ -104,6 +66,16 @@ struct BrowseScreen: View {
             guard let service = MediaSearchService.allCases.first(where: { coreFeatures.isEnabled($0) }) else { return }
             browseMediaService = service
         }
+        .overlay(
+            Button {
+                closeInspector?()
+            } label: {
+                EmptyView()
+            }
+                .keyboardShortcut(.escape, modifiers: [])
+                .frame(width: 0, height: 0)
+                .hidden()
+        )
     }
 }
 

@@ -9,7 +9,7 @@ struct PlexArtistContainer: Codable {
     let librarySectionUUID: String
     let mediaTagPrefix: String
     let mediaTagVersion: Int
-    let metadata: [PlexMetadata]
+    let metadata: [PlexMetadata]?
 
     enum CodingKeys: String, CodingKey {
         case size

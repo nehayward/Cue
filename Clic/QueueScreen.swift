@@ -31,7 +31,7 @@ struct QueueScreen: View {
             ScrollViewReader { proxy in
                 List {
                     ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
-                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, thumbnail: track.thumbnail)
+                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router)
                             .listSectionSeparator(.hidden, edges: .all)
                             .listRowBackground(
                                 RoundedRectangle(cornerRadius: 8)
@@ -173,10 +173,12 @@ struct QueueScreen: View {
                     group.playMode = await SonosService.shared.playMode(ip: group.ip)
                     isLoading = false
                 }
+#if !targetEnvironment(macCatalyst)
                 .addDismiss {
                     router.presentedSheet = nil
                     closeInspector?()
                 }
+#endif
             }
         }
         .presentationBackground(.thinMaterial)
@@ -205,6 +207,16 @@ struct QueueScreen: View {
         .onAppear {
             selectedGroupService.group = group
         }
+        .overlay(
+            Button(action: {
+                closeInspector?()
+            }) {
+                EmptyView()
+            }
+                .keyboardShortcut(.escape, modifiers: [])
+                .frame(width: 0, height: 0)
+                .hidden()
+        )
     }
 
     private func move(from source: IndexSet, to destination: Int) {

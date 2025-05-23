@@ -225,34 +225,44 @@ struct LargePlayerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Menu {
-                    ForEach(group.rooms) { room in
-                        Text(room.name)
-                            .bold()
-                            .fontDesign(.rounded)
+                Text(group.nameWithCount)
+                    .bold()
+                    .fontDesign(.rounded)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .tint(.primary)
+                    .overlay {
+                        Menu {
+                            ForEach(group.rooms) { room in
+                                Text(room.name)
+                                    .bold()
+                                    .fontDesign(.rounded)
+                            }
+                        } label: {
+                            Text(group.nameWithCount)
+                                .hidden()
+                                .contentShape(Rectangle())
+                        }
                     }
-                } label: {
-                    Text(group.nameWithCount)
-                        .bold()
-                        .fontDesign(.rounded)
-                        .foregroundStyle(.primary)
-                }
-                .tint(.primary)
             }
-            ToolbarItemGroup(placement: .primaryAction) {
-                if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
-                    Text(date, style: .timer)
-                        .contentTransition(.numericText(countsDown: true))
-                        .animation(.spring, value: date)
-                        .monospacedDigit()
-                        .bold()
+        
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack {
+                    if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
+                        Text(date, style: .timer)
+                            .contentTransition(.numericText(countsDown: true))
+                            .animation(.spring, value: date)
+                            .monospacedDigit()
+                            .bold()
+                            .id(refreshID)
+                    }
+                    MenuInfoView(group: group)
+                        .tint(.primary)
                         .id(refreshID)
                 }
-                MenuInfoView(group: group)
-                    .tint(.primary)
-                    .id(refreshID)
             }
         }
+        .toolbarTitleDisplayMode(.inline)
         .dropDestinationPlay(on: group)
         .task(id: group) {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)

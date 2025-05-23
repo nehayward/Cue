@@ -2,11 +2,13 @@ import Foundation
 import SwiftyBeaver
 
 public final class PlexAPI {
+    public static var shared = PlexAPI()
     private let session: URLSession
     private let decoder: JSONDecoder
     private let parser = PlexParser()
     private var plexServer: PlexServer?
     private let logger = SwiftyBeaver.self
+    private var cachedAlbumLibrarySection: String?
 
     @MainActor
     private let authenticator = PlexAuthenticator.shared
@@ -28,13 +30,15 @@ public final class PlexAPI {
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
+        self.decoder.dateDecodingStrategy = .secondsSince1970
 
         let console = ConsoleDestination()  // log to Xcode Console
         let file = FileDestination()  // log to default swiftybeaver.log file
         file.format = "$J"
         console.logPrintWay = .logger(subsystem: "Main", category: "UI")
         logger.addDestination(console)
-        logger.addDestination(file)
+//        logger.addDestination(file)
+//        print("Init")
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
@@ -96,21 +100,167 @@ public final class PlexAPI {
 
         return playlists
     }
-
-    public func albums() async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
+    
+    public enum AlbumSortOrder {
+        case titleAscending
+        case titleDescending
+        
+        var queryValue: String {
+            switch self {
+            case .titleAscending:
+                return "titleSort:asc"
+            case .titleDescending:
+                return "titleSort:desc"
+            }
+        }
+    }
+    
+    public func artists(
+        sortOrder: AlbumSortOrder = .titleAscending,
+        offset: Int = 0,
+        limit: Int = 100
+    ) async -> [PlexMetadata] {
         guard let plexServer = await getPlexServer() else {
+            return []
+        }
+        logger.info(plexServer)
+        
+        // Get and cache music library section if needed
+        if cachedAlbumLibrarySection == nil {
+           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        }
+        
+        guard let sectionKey = cachedAlbumLibrarySection,
+              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+            return []
+        }
+        
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "type", value: "8"),
+            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ]
+        albumURL.append(queryItems: queryItems)
+
+        guard let artistsContainer: PlexContainer<PlexArtistContainer> = await loadAuthorized(albumURL) else {
+            return []
+        }
+
+        guard var artists = artistsContainer.mediaContainer.metadata else { return [] }
+        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+
+        for index in artists.indices {
+            artists[index].sonosID = "\(id)%3A3%3A\(artists[index].ratingKey)"
+            guard let thumb = artists[index].thumb else { continue }
+            artists[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
+
+        return artists
+    }
+
+    
+    public func albums(
+        sortOrder: AlbumSortOrder = .titleAscending,
+        offset: Int = 0,
+        limit: Int = 100
+    ) async -> [PlexAlbumItem] {
+        guard let plexServer = await getPlexServer() else {
+            return []
+        }
+        logger.info(plexServer)
+        
+        // Get and cache music library section if needed
+        if cachedAlbumLibrarySection == nil {
+           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        }
+        
+        guard let sectionKey = cachedAlbumLibrarySection,
+              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+            return [] 
+        }
+        
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "type", value: "9"),
+            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ]
+        albumURL.append(queryItems: queryItems)
+
+        guard let playlistContainer: PlexContainer<PlexAlbumContainer> = await loadAuthorized(albumURL) else {
+            return []
+        }
+
+        guard var playlists = playlistContainer.mediaContainer.metadata else { return [] }
+        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+
+        for index in playlists.indices {
+            playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
+            guard let thumb = playlists[index].thumb else { continue }
+            playlists[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
+
+        return playlists
+    }
+    
+    public func songs(
+        sortOrder: AlbumSortOrder = .titleAscending,
+        offset: Int = 0,
+        limit: Int = 100
+    ) async -> [PlexMetadata] {
+        guard let plexServer = await getPlexServer() else {
+            return []
+        }
+        logger.info(plexServer)
+        
+        // Get and cache music library section if needed
+        if cachedAlbumLibrarySection == nil {
+           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        }
+        
+        guard let sectionKey = cachedAlbumLibrarySection,
+              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+            return []
+        }
+        
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "type", value: "10"),
+            URLQueryItem(name: "sort", value: sortOrder.queryValue),
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "\(offset)")
+        ]
+        albumURL.append(queryItems: queryItems)
+
+        guard let songContainer: PlexContainer<PlexSongItem> = await loadAuthorized(albumURL) else {
+            return []
+        }
+
+        guard var songs = songContainer.mediaContainer.metadata else { return [] }
+        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+
+        for index in songs.indices {
+            songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
+            guard let thumb = songs[index].thumb else { continue }
+            songs[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
+
+        return songs
+    }
+
+
+    private func getMusicLibrarySection() async -> String? {
+        guard let token = await authenticator.authToken,
+              let plexServer = await getPlexServer() else {
             return nil
         }
 
-        guard var playlistsURL = plexServer.baseURL?.appending(path: "playlists") else { return nil }
-        let queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "playlistType", value: "audio"),
-        ]
-        playlistsURL.append(queryItems: queryItems)
+        guard let sectionsURL = plexServer.baseURL?.appending(path: "library/sections") else {
+            return nil
+        }
 
-        var request = URLRequest(url: playlistsURL)
-        request.httpMethod = "GET"
+        var request = URLRequest(url: sectionsURL)
+        request.httpMethod = "GET" 
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -120,38 +270,17 @@ public final class PlexAPI {
         }
 
         do {
-            let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
-            return PlexLibraryItem(
-                size: container.size,
-                allowSync: container.allowSync,
-                art: container.art,
-                grandparentRatingKey: container.grandparentRatingKey,
-                grandparentThumb: container.grandparentThumb,
-                grandparentTitle: container.grandparentTitle,
-                identifier: container.identifier,
-                key: container.key,
-                librarySectionID: container.librarySectionID,
-                librarySectionTitle: container.librarySectionTitle,
-                librarySectionUUID: container.librarySectionUUID,
-                mediaTagPrefix: container.mediaTagPrefix,
-                mediaTagVersion: container.mediaTagVersion,
-                nocache: container.nocache,
-                parentIndex: container.parentIndex,
-                parentTitle: container.parentTitle,
-                parentYear: container.parentYear,
-                summary: container.summary,
-                thumb: container.thumb,
-                title1: container.title1,
-                title2: container.title2,
-                viewGroup: container.viewGroup,
-                metadata: await enrichMetadata(metadata: container.metadata)
-            )
+            let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
+            let musicSection = container.mediaContainer.Directory
+                .sorted(by: { $0.key < $1.key })
+                .first { $0.type == "artist" }
+            return musicSection?.key
         } catch {
-            print(error)
+            logger.error(error)
             return nil
         }
     }
-
+  
     public func lookupPlexSong(key: String) async -> PlexSongItem? {
         guard let token = await authenticator.authToken, let plexServer = await getPlexServer() else {
             return nil
@@ -291,13 +420,21 @@ public final class PlexAPI {
         }
     }
 
-    public func lookupPlaylist(key: String, offset: Int = 0) async -> PlexPlaylistItem? {
+    public func lookupPlaylist(key: String, type: PlexMediaType, ascending: Bool, offset: Int = 0) async -> PlexPlaylistItem? {
         guard let token = await authenticator.authToken else { return nil }
         guard let plexServer = await getPlexServer() else {
             return nil
         }
 
-        guard let playlistURL = plexServer.baseURL?.appending(path: "playlists/\(key)/items") else { return nil }
+        guard var playlistURL = plexServer.baseURL?.appending(path: "playlists/\(key)/items") else { return nil }
+        
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "type", value: type.rawValue.description),
+            URLQueryItem(name: "sort", value: ascending ? "titleSort:asc" : "titleSort:desc"),
+        ]
+        
+        playlistURL.append(queryItems: queryItems)
+
         var request = URLRequest(url: playlistURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -305,6 +442,7 @@ public final class PlexAPI {
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
         request.addValue("\(offset)", forHTTPHeaderField: "X-Plex-Container-Start")
         request.addValue("200", forHTTPHeaderField: "X-Plex-Container-Size")
+       
 
         guard let (data, _) = try? await session.data(for: request) else {
             return nil
@@ -337,7 +475,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard var artist = playlistContainer.mediaContainer.metadata.first,
+        guard var artist = playlistContainer.mediaContainer.metadata?.first,
               let token = await authenticator.authToken else { return nil }
 
         artist.sonosID = "\(id)%3A3%3A\(artist.ratingKey)"
@@ -489,6 +627,7 @@ public final class PlexAPI {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
+            print(String(decoding: data, as: UTF8.self))
             print(error)
             assertionFailure(String(decoding: data, as: UTF8.self))
             return nil
@@ -507,6 +646,11 @@ public final class PlexAPI {
             if let thumb = item.thumb {
                 updatedItem.thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
+            
+            if let art = item.art {
+                updatedItem.artImageURL = plexServer.baseURL?.appending(path: art).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            }
+            
             return updatedItem
         }
     }

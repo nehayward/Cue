@@ -30,6 +30,13 @@ struct ServicePreferenceScreen: View {
             }
             
             Section {
+                Text("To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Clic search under \"[Sonos Favorites](clic://search/favorites).\"")
+            } header: {
+                Text("Can't find the Service here?")
+            }
+            .headerProminence(.increased)
+            
+            Section {
                 Button {
                     router.presentedSheet = .plexManagement
                 } label: {

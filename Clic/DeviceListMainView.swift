@@ -96,7 +96,6 @@ struct DeviceListMainView: View {
                         Image(systemName: "switch.2")
                     }
                 }
-                
                 ToolbarItem(placement: .topBarTrailing) {
                     SortMenu(sortOption: $sonosService.sortOption)
                 }

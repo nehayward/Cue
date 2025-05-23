@@ -102,7 +102,8 @@ struct ListViewLarge: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
             }
         }
-        .animation(.interactiveSpring, value: sonosService.groups)
+        .animation(.interactiveSpring, value: sonosService.sorted)
+        .animation(.interactiveSpring, value: sonosService.sortOption)
         .environment(\.defaultMinListRowHeight, 40)
         .onChange(of: sonosService.sorted) {
             if selected == nil {

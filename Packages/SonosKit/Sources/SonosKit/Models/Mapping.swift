@@ -211,7 +211,7 @@ extension AppleLibraryItem {
         }
     
         return PlayableContent(
-            title: attributes.name,
+            title: attributes.name ?? "Unknown",
             subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
@@ -500,6 +500,30 @@ extension PlexAlbum {
             metadata: .init(
                 popularity: nil,
                 artist: artist,
+                artistID: parentRatingKey,
+                albumYear: nil
+            )
+        )
+    }
+}
+
+extension PlexAlbumItem {
+    public var toPlayable: PlayableContent? {
+        guard let id = sonosID else { return nil }
+        return PlayableContent(
+            title: title,
+            subtitle: [parentTitle, year?.description].compactMap{ $0 }.joined(separator: " • "),
+            thumbnail: thumbImageURL,
+            artwork: thumbImageURL,
+            content: .init(
+                service: .plex,
+                id: id,
+                type: .album,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: nil,
+                artist: parentTitle,
                 artistID: parentRatingKey,
                 albumYear: nil
             )

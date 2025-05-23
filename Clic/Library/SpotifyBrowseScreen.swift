@@ -22,7 +22,6 @@ struct SpotifyBrowseScreen: View {
     @State private var isLoading = true
 
     var body: some View {
-
         Button("Sign In") {
             Task {
                 do {

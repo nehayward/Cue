@@ -16,14 +16,7 @@ struct PlexSearchView: View {
     @Binding var filters: [FilterSelection]
 
     var body: some View {
-        PlexAuthorizationFlowView {
-            Task {
-                let query = query
-                self.query += " "
-                try? await Task.sleep(for: .milliseconds(400))
-                self.query = query
-            }
-        }
+        PlexAuthorizationFlowView()
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
                 VStack {

@@ -34,6 +34,7 @@ public struct PlexMetadata: Codable {
 
     public var sonosID: String?
     public var thumbImageURL: URL?
+    public var artImageURL: URL?
 
     enum CodingKeys: String, CodingKey {
         case ratingKey, key, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt

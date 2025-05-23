@@ -5,7 +5,7 @@ import MusicKit
 import MusicSearchKit
 
 struct LightArtworkView: View {
-    @Binding var thumbnail: URL?
+    @Binding var request: ImageRequest?
     var content: PlayableContent
     var id: String
     var contentType: ContentType
@@ -13,13 +13,7 @@ struct LightArtworkView: View {
     
     var body: some View {
         VStack {
-            if let thumbnail {
-                let request = ImageRequest(
-                    url: thumbnail,
-                    processors: [.resize(width: 50)],
-                    priority: .high,
-                    userInfo: [.imageIdKey: content.id]
-                )
+            if let request {
                 LazyImage(request: request) { state in
                     if let image = state.image {
                         image
@@ -42,7 +36,7 @@ struct LightArtworkView: View {
                             }
                     }
                 }
-                .id(thumbnail)
+                .id(request.url)
                 .clipShape(contentShape)
                 .shadow(radius: 1)
                 .overlay(alignment: .bottomTrailing) {
@@ -61,6 +55,7 @@ struct LightArtworkView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .clipped()
     }
     
     @ViewBuilder
@@ -70,7 +65,7 @@ struct LightArtworkView: View {
             .foregroundStyle(.ultraThinMaterial)
             .shadow(radius: 2)
             .overlay {
-                if thumbnail == nil {
+                if content.thumbnail == nil {
                     Image(systemName: "music.note")
                         .resizable()
                         .scaledToFit()

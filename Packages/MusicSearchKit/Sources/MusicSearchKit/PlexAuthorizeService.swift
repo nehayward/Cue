@@ -14,12 +14,15 @@ public final class PlexAuthenticator: NSObject {
 
 //    public var authToken: String? = "KSAM-R573sKNdDdk2i-G"
     public var authToken: String? {
-        get {
-            UserDefaults.standard.string(forKey: "com.clic.plexToken")
+        didSet {
+            UserDefaults.standard.setValue(authToken, forKey: "com.clic.plexToken")
         }
-        set {
-            UserDefaults.standard.setValue(newValue, forKey: "com.clic.plexToken")
-        }
+    }
+    
+    public override init() {
+        super.init()
+        authToken = UserDefaults.standard.string(forKey: "com.clic.plexToken")
+        print(#file)
     }
 
 #if os(iOS) || targetEnvironment(macCatalyst) || os(visionOS)

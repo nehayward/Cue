@@ -1,15 +1,19 @@
 # 2025.7
 
 ––New Features––
-- Add Sorting options to Mac
+- Add sorting option to Mac
 - Add service info about Tidal and Tune in on Settings page
 - Add TV Input for Amp 2
+- Add Album, Artists, Songs to Plex Browse
+- Add Songs to Apple Browse
 
 ––Bug Fixes––
-- Watch app performance improvements
-- Performance improvements for Clic Mini
-- Live Activities should update quicker
-- Fixed Live Activities Images not updating
+- Improved overall performance on Mac.-
+- Enhanced responsiveness of the Watch app.-
+- Performance optimizations for Clic Mini.-
+- Live Activities now update more quickly and reliably.-
+- Fixed an issue where Live Activity images were not refreshing correctly.-
+- Reduced memory usage across the app for better efficiency.
 
 - Switch to SonosService shared for better SwiftUI performance 
 

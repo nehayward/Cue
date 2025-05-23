@@ -16,6 +16,7 @@ struct SpotifyPlaylistScreen: View {
     
     @Environment(\.dismiss) private var dismiss
     
+    var showMediaSelector: Bool = false
     @State private var router = Router()
     @State private var isLoading = true
     @State private var query: String = ""
@@ -126,12 +127,18 @@ struct SpotifyPlaylistScreen: View {
             }
             .toolbar {
                 if !userID.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button {
                             showChangeUserConfirmation = true
                         } label: {
                             Image(systemName: "person.fill")
                         }
+                    }
+                }
+                if showMediaSelector {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        MediaSelector()
+                            .environment(router)
                     }
                 }
             }

@@ -5,6 +5,7 @@ enum SheetDestination: Identifiable, Equatable {
     case settings(destination: RouterDestination? = nil)
     case paywall
     case groupScreen(group: GroupRoom)
+    case favorites
     case search(group: GroupRoom? = nil)
     case sceneSearchAdd(adding: ContentToAdd)
     case queue(group: Binding<GroupRoom>)
@@ -74,6 +75,8 @@ enum SheetDestination: Identifiable, Equatable {
             "plexManagement"
         case .volumeControlsScreen:
             "volumeControlsScreen"
+        case .favorites:
+            "favorites"
         default:
             "\(self)"
         }
