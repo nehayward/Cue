@@ -1,18 +1,26 @@
+# 2025.8
+
+–– New Features ––
+
+–– Bug Fixes & Improvements ––
+- Fix image flickering on macOS on new window launch
+
 # 2025.7
 
-––New Features––
-- Add sorting option to Mac
-- Add service info about Tidal and Tune in on Settings page
-- Add TV Input for Amp 2
-- Add Album, Artists, Songs to Plex Browse
-- Add Songs to Apple Browse
+–– New Features ––
+- Added sorting options on Mac for easier browsing.
+- Added service information for Tidal and TuneIn on the Settings screen.
+- Added guidance for favoriting content in the Sonos app.
+- Introduced TV input support for Amp 2.
+- Expanded Plex Browse to include Albums, Artists, and Songs.
+- Added Songs section to the Apple Music browse view.
 
-––Bug Fixes––
-- Improved overall performance on Mac.-
-- Enhanced responsiveness of the Watch app.-
-- Performance optimizations for Clic Mini.-
-- Live Activities now update more quickly and reliably.-
-- Fixed an issue where Live Activity images were not refreshing correctly.-
+–– Bug Fixes & Improvements ––
+- Improved overall performance on Mac.
+- Enhanced responsiveness of the Watch app.
+- Performance optimizations for Clic Mini.
+- Live Activities now update more quickly and reliably.
+- Fixed an issue where Live Activity images were not refreshing correctly.
 - Reduced memory usage across the app for better efficiency.
 
 - Switch to SonosService shared for better SwiftUI performance 

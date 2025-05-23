@@ -120,7 +120,7 @@ struct ArtworkView: View {
 #endif
             }
             .onAppear {
-                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL)
+                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
                 if let image = ImagePipeline.shared.cache[request] {
                     currentImage = image.image
                 } else {
