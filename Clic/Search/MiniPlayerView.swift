@@ -17,7 +17,7 @@ struct MiniPlayerView: View {
     }
     
     var body: some View {
-#if !targetEnvironment(macCatalyst)
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
         VStack {
             if let group = selectedGroup {
                 VStack(spacing: 8) {

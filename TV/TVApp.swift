@@ -75,6 +75,8 @@ struct TVApp: App {
                     return
                 }
                 sonosService.groups = groups
+                sonosService.rooms = groups.flatMap(\.rooms)
+                sonosService.selectedGroup = sorted.first
                 sonosService.monitor()
                 isLoading = false
             }
