@@ -15,11 +15,10 @@ struct ArtworkView: View {
     @State private var defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
+    @State private var currentTrackID: String? // Track the currently displayed track ID
     
-    // Add task cancellation
     @State private var imageTask: ImageTask? = nil {
         willSet {
-            // Cancel previous task before assigning new one
             imageTask?.cancel()
         }
     }
@@ -52,7 +51,6 @@ struct ArtworkView: View {
                                     .tint(Color.primary.secondary)
                                     .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
                             }
-                            
                             if group.playbackService == .lineIn, showBadge {
                                 Image(systemName: "audio.jack.stereo")
                                     .resizable()
@@ -104,37 +102,31 @@ struct ArtworkView: View {
                 alarmRunning = new
             }
             .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
-                // Simply call loadArtwork - cancellation is handled in property observer
-                imageTask?.cancel()
-                imageTask = loadArtwork(url: newURL)
-            }
-            .onTapGesture(count: 2) {
-#if !targetEnvironment(macCatalyst)
-                if group.coordinatorRoom.track.toPlayable.content.service == .apple {
-                    Task {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        alertService.showAlert(with: "Added to Library", imageName: "star.fill")
-                        try await AppleMusicAPI().favoriteSong(songId: group.coordinatorRoom.track.toPlayable.content.id)
-                    }
+                let newTrackID = group.coordinatorRoom.track.toPlayable.content.id
+                if newTrackID != currentTrackID {
+                    currentTrackID = newTrackID
+                    imageTask?.cancel()
+                    imageTask = loadArtwork(url: newURL)
                 }
-#endif
             }
             .onAppear {
-                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
-                if let image = ImagePipeline.shared.cache[request] {
-                    currentImage = image.image
-                } else {
-                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
+                let newTrackID = group.coordinatorRoom.track.toPlayable.content.id
+                if currentTrackID != newTrackID {
+                    currentTrackID = newTrackID
+                    let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
+                    if let image = ImagePipeline.shared.cache[request], currentImage != image.image {
+                        currentImage = image.image
+                    } else {
+                        imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
+                    }
                 }
             }
             .onDisappear {
                 imageTask?.cancel()
                 imageTask = nil
             }
-            .animation(.spring, value: group.isMuted)
         }
     }
-    
     
     nonisolated private func loadArtwork(url: URL?) -> ImageTask? {
         if Task.isCancelled {
@@ -144,6 +136,7 @@ struct ArtworkView: View {
         guard let url else {
             Task { @MainActor in
                 currentImage = nil
+                currentTrackID = nil
             }
             return nil
         }
@@ -164,7 +157,6 @@ struct ArtworkView: View {
         }
     }
 }
-
 //
 //#Preview("Empty") {
 //    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))

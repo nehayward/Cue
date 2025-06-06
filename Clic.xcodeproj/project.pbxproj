@@ -265,6 +265,7 @@
 				ArtworkBadgeView.swift,
 				ArtworkLight.swift,
 				ArtworkView.swift,
+				AudioInfoView.swift,
 				Authorization/PlexAuthorizationFlowView.swift,
 				Authorization/PlexManagementView.swift,
 				BetaFeatures.swift,

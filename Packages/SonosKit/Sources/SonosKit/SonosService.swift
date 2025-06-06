@@ -41,7 +41,7 @@ public final class SonosService {
     @ObservationIgnored public lazy var networkMonitorService = NetworkMonitorService()
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
-    
+
     @MainActor
     @ObservationIgnored private lazy var musicSearch = MusicSearchService()
     @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
@@ -66,7 +66,11 @@ public final class SonosService {
     @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
+    @ObservationIgnored private lazy var webSocket = SonosWebSocket(debug: false)
+    @ObservationIgnored private var metadataTask: Task<Void, Never>?
     
+    public var songAudioInfo: AudioQuality?
+
     public var sortOption: SonosSortOption {
         didSet {
             UserDefaults.standard.set(sortOption.rawValue, forKey: "groupSortOption")
@@ -979,6 +983,33 @@ public final class SonosService {
             track.artist = trackMetadata?.artist ?? ""
         }
         return track
+    }
+    
+    @MainActor
+    public func getTrackAudioInformation(ip: String, groupID: String) {
+        metadataTask?.cancel()
+        metadataTask = Task {
+            do {
+                let metadataStream = try await webSocket.connectAndSubscribe(ipAddress: ip, groupId: groupID)
+                for await update in metadataStream {
+                    if let currentItem = update.currentItem?.track {
+                        print("Current: \(currentItem.name) by \(currentItem.artist.name)")
+                        print("Current: \(currentItem.quality)")
+                        songAudioInfo = currentItem.quality
+                    }
+                    if let currentItem = update.nextItem?.track {
+                        print("Next: \(currentItem.name) by \(currentItem.artist.name)")
+                    }
+                }
+            } catch {
+                print("Stream ended with error: \(error)")
+            }
+        }
+    }
+    
+    public func stopListening(ip: String, groupID: String) {
+        metadataTask?.cancel()
+        webSocket.close()
     }
 
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {

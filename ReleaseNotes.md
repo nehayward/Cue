@@ -1,9 +1,11 @@
 # 2025.8
 
 –– New Features ––
+- Shows audio quality on player screen: Bit depth (e.g., "24-bit"), Sample rate (e.g., "48kHz"), Lossless status, Immersive audio support.
 
 –– Bug Fixes & Improvements ––
 - Fix image flickering on macOS on new window launch
+- Fix image flicker on iOS
 
 # 2025.7
 

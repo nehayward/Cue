@@ -268,6 +268,12 @@ struct LargePlayerView: View {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
             group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
+            sonosService.stopListening(ip: group.ip, groupID: group.id)
+            sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
+        }
+        .onDisappear {
+            sonosService.songAudioInfo = nil
+            sonosService.stopListening(ip: group.ip, groupID: group.id)
         }
         .onChange(of: scenePhase) {
             if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
@@ -275,11 +281,14 @@ struct LargePlayerView: View {
             }
             if scenePhase == .active {
                 Task {
+                    sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
                     guard let track = await sonosService.getTrack(ip: group.ip) else { return }
                     if group.coordinatorRoom.track == track {
                         group.coordinatorRoom.track.playbackPosition = track.playbackPosition
                     }
                 }
+            } else if scenePhase == .background {
+                sonosService.stopListening(ip: group.ip, groupID: group.id)
             }
         }
         .environment(AlertService.shared)
@@ -331,15 +340,19 @@ struct LargePlayerView: View {
             .disabled(!group.availableActions.contains(.scrubbable))
             
             HStack {
-                if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
-                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
-                    Spacer()
-                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
-                } else {
-                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
-                    Spacer()
-                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
-                }
+                let duration = Duration.milliseconds(group.coordinatorRoom.track.duration)
+                let position = Duration.milliseconds(group.coordinatorRoom.track.playbackPosition)
+                let timeRemaining = group.coordinatorRoom.track.timeRemaining
+
+                let usesHourFormat = duration.components.seconds > 3600
+                let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
+
+                Text(position.formatted(.time(pattern: pattern)))
+                Spacer()
+                AudioInfoView()
+                    .frame(height: 12)
+                Spacer()
+                Text("-") + Text(timeRemaining.formatted(.time(pattern: pattern)))
             }
             .frame(maxWidth: 500)
             .monospacedDigit()
@@ -349,6 +362,7 @@ struct LargePlayerView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 60)
         .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
+        .animation(.spring, value: sonosService.songAudioInfo)
     }
     
     private func mediaControlsView() -> some View {
