@@ -193,7 +193,25 @@ struct PreferenceScreen: View {
                                 )
                         }
                     }
-                    
+                  
+                    // MARK: Rework for next update
+//                    NavigationLink(value: RouterDestination.connectByIP) {
+//                        Label {
+//                            Text("Connect by IP")
+//                        } icon: {
+//                            Image(systemName: "network")
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fit)
+//                                .foregroundStyle(.white)
+//                                .padding(8)
+//                                .frame(width: 32, height: 32)
+//                                .background(
+//                                    RoundedRectangle(cornerRadius: 4)
+//                                        .foregroundStyle(.gray)
+//                                )
+//                        }
+//                    }
+//                    
                     Button {
                         Task {
                             alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise")
@@ -724,7 +742,6 @@ struct PreferenceScreen: View {
         }
     }
 }
-
 
 #Preview {
     Text("Preference")

@@ -6,18 +6,32 @@ import MusicSearchKit
 import UIKit
 import SwiftUI
 
+@Observable
 final class LiveActivityManager: LiveActivityManageable {
     private let sonosService: SonosService
     private let artworkManager: ArtworkManager = .shared
-
+    private let disabledActivitiesKey = "disabledLiveActivities"
+    
     private var createTask: Task<Void,Error>? = nil
+    
+    private var disabledActivities: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(disabledActivities), forKey: disabledActivitiesKey)
+        }
+    }
 
     init(sonosService: SonosService = .shared) {
+        self.disabledActivities = Set(UserDefaults.standard.stringArray(forKey: disabledActivitiesKey) ?? [])
         self.sonosService = sonosService
     }
 
     func refresh() async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            guard !isActivityDisabled(id: activity.attributes.room.id) else {
+                await activity.end(activity.content, dismissalPolicy: .immediate)
+                continue
+            }
+            
             guard let group = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
                 for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
                     await activity.end(activity.content, dismissalPolicy: .immediate)
@@ -72,6 +86,9 @@ final class LiveActivityManager: LiveActivityManageable {
                 guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {
                     continue
                 }
+                guard !isActivityDisabled(id: group.coordinatorRoom.id) else {
+                    continue
+                }
 
                 await ArtworkManager.shared.downScale(coordinatorRoom: group.nameWithCount, url: group.coordinatorRoom.track.artworkURL, trackID: group.coordinatorRoom.track.trackID)
 
@@ -98,6 +115,8 @@ final class LiveActivityManager: LiveActivityManageable {
 
     func createActivity(id: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        guard !isActivityDisabled(id: id) else { return }
+        
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
         try? await sonosService.load(useCache: true)
 
@@ -154,6 +173,33 @@ final class LiveActivityManager: LiveActivityManageable {
         }
         
         await createActivity(id: id)
+    }
+
+    func isActivityDisabled(id: String) -> Bool {
+        return  disabledActivities.contains(id)
+    }
+    
+    func disableActivity(id: String) {
+        var current = disabledActivities
+        current.insert(id)
+        disabledActivities = current
+        Task {
+            await stop(id: id)
+        }
+    }
+    
+    func enableActivity(id: String) {
+        var current = disabledActivities
+        current.remove(id)
+        disabledActivities = current
+    }
+    
+    func toggleActivityEnabled(id: String) {
+        if isActivityDisabled(id: id) {
+            enableActivity(id: id)
+        } else {
+            disableActivity(id: id)
+        }
     }
 }
 

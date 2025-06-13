@@ -329,19 +329,19 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                                 
                                 self.debugPrint("Processing metadata update: \(metadataStatus)")
                                 
-                                if let updateData = try? JSONSerialization.data(withJSONObject: metadataStatus),
-                                   let update = try? JSONDecoder().decode(MetadataStatusUpdate.self, from: updateData) {
+                                guard let updateData = try? JSONSerialization.data(withJSONObject: metadataStatus) else { return }
+                                do {
+                                    let update = try JSONDecoder().decode(MetadataStatusUpdate.self, from: updateData)
                                     self.debugPrint("Yielding metadata update: \(update)")
                                     self.metadataStream?.yield(update)
-                                } else {
-                                    self.debugPrint("Failed to decode metadata update")
-                                }
+                                } catch {
+                                    self.debugPrint("Failed to decode metadata update:", error)
+                                }    
                             }
                         }
                         
                         // Handle command responses
-                        if let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                           let continuation = self.responseContinuation {
+                        if let continuation = self.responseContinuation {
                             self.responseContinuation = nil
                             continuation.resume(returning: data)
                         }
@@ -375,25 +375,32 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                 debugPrint("DEBUG: Sending command: \(payload)")
                 
                 let responseData = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data, Error>) in
+                    // Store the continuation
                     self.responseContinuation = continuation
                     
                     if let data = try? JSONSerialization.data(withJSONObject: payload, options: []) {
                         let message = URLSessionWebSocketTask.Message.data(data)
                         
-                        webSocketTask?.send(message) { error in
-                            if let error = error {
-                                continuation.resume(throwing: SonosWebSocketError.websocketError(error.localizedDescription))
+                        // Create a task for the timeout
+                        let timeoutTask = Task {
+                            try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                            if let continuation = self.responseContinuation {
+                                self.responseContinuation = nil
+                                continuation.resume(throwing: SonosWebSocketError.timeout)
                             }
                         }
                         
-                        Task {
-                            do {
-                                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                        // Send the message
+                        webSocketTask?.send(message) { error in
+                            // Cancel the timeout task since we got a response
+                            timeoutTask.cancel()
+                            
+                            if let error = error {
                                 if let continuation = self.responseContinuation {
                                     self.responseContinuation = nil
-                                    continuation.resume(throwing: SonosWebSocketError.timeout)
+                                    continuation.resume(throwing: SonosWebSocketError.websocketError(error.localizedDescription))
                                 }
-                            } catch {}
+                            }
                         }
                     } else {
                         continuation.resume(throwing: SonosWebSocketError.websocketError("Failed to serialize command"))

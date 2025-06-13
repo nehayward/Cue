@@ -28,6 +28,14 @@ public final class MusicSearchService {
             plex.serverID = newValue
         }
     }
+    
+    public var plexLibrarySelectionID: String? {
+        get {
+            plex.librarySelectionID
+        } set {
+            plex.librarySelectionID = newValue
+        }
+    }
 
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let apple = AppleMusicAPI()

@@ -7,6 +7,11 @@ protocol LiveActivityManageable {
     func stop(id: String) async
     func toggle(id: String) async
     func reset() async
+    
+    func isActivityDisabled(id: String) -> Bool
+    func disableActivity(id: String)
+    func enableActivity(id: String)
+    func toggleActivityEnabled(id: String)
 }
 
 struct LiveActivityManagerKey: EnvironmentKey {
@@ -32,6 +37,11 @@ final class LiveActivityManagerMock: LiveActivityManageable {
     func stop(id: String) async {}
     func toggle(id: String) async {}
     func reset() async {}
+    
+    func isActivityDisabled(id: String) -> Bool { false }
+    func disableActivity(id: String) {}
+    func enableActivity(id: String) {}
+    func toggleActivityEnabled(id: String) {}
 }
 
 struct LiveActivityManagerFactory {

@@ -8,8 +8,9 @@ import SonosKit
 struct PlexManagementView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var musicSearchService = MusicSearchService.shared
+    private var musicSearchService = MusicSearchService.shared
     @State private var servers: [PlexServer] = []
+    @State private var libraries: [String: [PlexLibrarySection]] = [:]
     @State private var isLoading = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
 
@@ -58,10 +59,10 @@ struct PlexManagementView: View {
                         .multilineTextAlignment(.center)
                     }
 
-                    // Server selection
+                    // Library selection
                     if musicSearchService.isPlexAuthorized {
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Choose Plex Server")
+                            Text("Choose Music Library")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
 
@@ -85,33 +86,46 @@ struct PlexManagementView: View {
                                 .multilineTextAlignment(.center)
                             } else {
                                 ForEach(servers, id: \.clientIdentifier) { server in
-                                    Button(action: {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchService.plexServerID = server.clientIdentifier
-                                        isLoading = true
-                                        Task {
-                                            servers = await musicSearchService.getPlexServers()
-                                            isLoading = false
-                                        }
-                                    }) {
-                                        HStack {
-                                            if server.clientIdentifier == musicSearchService.plexServerID {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundStyle(.accent)
+                                    if let serverLibraries = libraries[server.name] {
+                                        ForEach(serverLibraries, id: \.id) { library in
+                                            Button{
+                                                HapticManager.shared.fireHaptic(.buttonPress)
+                                                musicSearchService.plexServerID = server.clientIdentifier
+                                                musicSearchService.plexLibrarySelectionID = library.key
+                                            } label: {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    HStack {
+                                                        Text(library.title)
+                                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                                        
+                                                        if musicSearchService.plexLibrarySelectionID == library.key {
+                                                            Image(systemName: "checkmark.circle.fill")
+                                                                .foregroundStyle(.accent)
+                                                                .transition(.scale.combined(with: .opacity))
+                                                        }
+                                                    }
+                                                    
+                                                    Text([server.name, server.device].compactMap { $0 }.joined(separator: ", "))
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                        .transition(.opacity)
+                                                }
+                                                .padding()
+                                                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
                                             }
-                                            Text(server.name)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            .buttonStyle(.plain)
+                                            .animation(.spring(duration: 0.3), value: musicSearchService.plexLibrarySelectionID)
                                         }
-                                        .padding()
-                                        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
                         }
                         .task {
                             isLoading = true
                             servers = await musicSearchService.getPlexServers()
+                            for server in servers {
+                                libraries[server.name] = await PlexAPI().getMusicLibraries(server: server)
+                            }
                             isLoading = false
                         }
                     }

@@ -145,7 +145,7 @@ public struct MetadataStatusUpdate: Codable {
         let album: Album
         let artist: Artist
         let id: MusicObjectId
-        let service: Service
+        let service: Service?
         let durationMillis: Int
         let quality: AudioQuality?
     }

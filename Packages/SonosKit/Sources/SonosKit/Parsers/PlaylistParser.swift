@@ -55,14 +55,16 @@ final class PlaylistParser {
         var tracks: [PlayableContent] = []
         
         // First extract the Result content from SOAP envelope
-        let resultPattern = "<Result>(.*?)</Result>"
-        guard let regex = try? NSRegularExpression(pattern: resultPattern),
+        let resultPattern = "<u:BrowseResponse[^>]*>\\s*<Result>(.*?)</Result>"
+        guard let regex = try? NSRegularExpression(pattern: resultPattern, options: [.dotMatchesLineSeparators]),
               let match = regex.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
               let resultRange = Range(match.range(at: 1), in: xml) else {
             return []
         }
         
-        let didlContent = String(xml[resultRange]).unescaped
+        // Unescape the XML content inside Result
+        let escapedContent = String(xml[resultRange])
+        let didlContent = escapedContent.unescaped
         
         // Now parse each item
         let itemPattern = "<item.*?</item>"
@@ -103,7 +105,7 @@ final class PlaylistParser {
                                           artwork: extractAlbumArtURL(IP: IP, xml: itemXML),
                                           content: mediaContent,
                                           metadata: metadata)
-            
+    
             tracks.append(content)
         }
         
@@ -120,12 +122,18 @@ final class PlaylistParser {
             pattern = "<\(field)>(.*?)</\(field)>"
         }
         
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]),
               let match = regex.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
               let range = Range(match.range(at: 1), in: xml) else {
             return nil
         }
-        return String(xml[range])
+        
+        // Clean up the extracted content by removing extra whitespace and newlines
+        let content = String(xml[range])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        
+        return content
     }
     
     private func extractAttribute(name: String, from xml: String) -> String? {

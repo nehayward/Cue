@@ -787,6 +787,30 @@ final class SonosAPI: NSObject {
         return timeEnds
     }
 
+    func getSupportsOutputFixed(IP: String) async -> Bool {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0)
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetSupportsOutputFixed", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
+        if (response as? HTTPURLResponse)?.statusCode != 200 { return false }
+        let xml = String(decoding: data, as: UTF8.self)
+        guard let result = try? xmlParser.parseValue(xml: xml, named: "CurrentSupportsFixed") else { return false }
+        return result == "1"
+    }
+
+    func getOutputFixed(IP: String) async -> Bool {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0)
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "GetOutputFixed", arguments: arguments, endpoint: "MediaRenderer/RenderingControl") else { return false }
+        if (response as? HTTPURLResponse)?.statusCode != 200 { return false }
+        let xml = String(decoding: data, as: UTF8.self)
+        guard let result = try? xmlParser.parseValue(xml: xml, named: "CurrentFixed") else { return false }
+        return result == "1"
+    }
+
     func stopSleepTimer(IP: String) async {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),

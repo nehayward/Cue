@@ -376,6 +376,8 @@ extension View {
                 }
             case .genreList:
                 GenreListView()
+            case .connectByIP:
+                ConnectByIPScreen()
             }
         }
     }

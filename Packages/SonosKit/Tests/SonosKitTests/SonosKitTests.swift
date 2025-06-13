@@ -11,6 +11,14 @@ final class SonosKitTests: XCTestCase {
         let zones = XMLParserSonos().parseZones(xml: zoneXML)
         XCTAssertEqual(zones.count, 5)
     }
+    
+    func testXMLMarkParse() throws {
+        let zone = Bundle.module.url(forResource: "ZoneMark", withExtension: "xml")
+        let zoneXML = try! String(contentsOf: zone!)
+        let zones = XMLParserSonos().parseZones(xml: zoneXML)
+        XCTAssertEqual(zones.count, 7)
+    }
+    
     func testXMLEscapedParse() throws {
         let zone = Bundle.module.url(forResource: "ZoneEscaped", withExtension: "xml")
         let zoneXML = try! String(contentsOf: zone!)
@@ -33,14 +41,14 @@ final class SonosKitTests: XCTestCase {
         }
     }
     
-    func testRegexParserPerformance() {
-        measure {
-            let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
-            let zoneXML = try! String(contentsOf: zone!)
-            let parser = ZoneGroupRegexParser()
-            parser.parse(data: zoneXML)
-        }
-    }
+//    func testRegexParserPerformance() {
+//        measure {
+//            let zone = Bundle.module.url(forResource: "ZoneMatt", withExtension: "xml")
+//            let zoneXML = try! String(contentsOf: zone!)
+//            let parser = ZoneGroupRegexParser()
+//            parser.parse(data: zoneXML)
+//        }
+//    }
 
     func testVolumeResponseParse() throws {
         let getVolumeResponseXMLURL = Bundle.module.url(forResource: "GetVolumeResponse", withExtension: "xml")
@@ -191,5 +199,14 @@ final class SonosKitTests: XCTestCase {
 
         let appleMusicSongURL = URL(string: "https://music.apple.com/us/album/vampire/1694386825?i=1694386830")!
         XCTAssertEqual(sonosAPI.parse(url: appleMusicSongURL), MediaContent(service: .apple, id: "1694386830", type: .track, location: appleMusicSongURL))
+    }
+    
+    func testPlaylist() {
+        let zone = Bundle.module.url(forResource: "sonos-hos-playlist", withExtension: "xml")
+        let zoneXML = try! String(contentsOf: zone!)
+        let playlists = PlaylistParser().parsePlaylistsTracks(IP: "192.192.2", xml: zoneXML)
+        print(playlists)
+        let names = playlists.map(\.title)
+        print(names)
     }
 }

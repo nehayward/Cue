@@ -1,0 +1,165 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
+    s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+    <s:Body>
+        <u:BrowseResponse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1">
+            <Result>
+                &lt;DIDL-Lite xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;
+                xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;
+                xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;
+                xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1388%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201388%20WINTERTRONIC%204%2001%2f03%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1388%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1388%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1388 WINTERTRONIC 4
+                01/03/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a996%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17:APGM%20996%20ILLUMINATION%2011%2f29%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a996%3fchannel?sid=36&amp;amp;flags=16392&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a996%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                996 ILLUMINATION
+                11/29/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1385%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17:APGM%201385%20UNDERSCORE%203%2011%2f15%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1385%3fchannel?sid=36&amp;amp;flags=16392&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1385%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1385 UNDERSCORE 3
+                11/15/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1384%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17:APGM%201384%20AUTUMN%20TRANSIT%2011%2f01%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1384%3fchannel?sid=36&amp;amp;flags=16392&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1384%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1384 AUTUMN TRANSIT
+                11/01/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a868%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17:APGM%20868%20INTO%20THE%20STORM%20%2011%2f08%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a868%3fchannel?sid=36&amp;amp;flags=16392&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a868%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                868 INTO THE STORM
+                11/08/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1262%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17:APGM%201262%20MYSTIC%20CANYONS%2010%2f11%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1262%3fchannel?sid=36&amp;amp;flags=16392&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1262%253fchannel%3fsid%3d36%26flags%3d16392%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1262 MYSTIC CANYONS
+                10/11/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1205%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201205%20FROZEN%20TIME%2001%2f10%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1205%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1205%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1205 FROZEN TIME
+                01/10/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1122%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201122%20SUMMER&amp;apos;S%20END%2009%2f13%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1122%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1122%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1122 SUMMER&amp;apos;S END
+                09/13/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1375%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201375%20AMERICAN%20HORIZON%2006%2f28%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1375%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1375%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1375 AMERICAN HORIZON
+                06/28/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1366%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201366%20ELECTRON%20TRAVELER%206%2003%2f01%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1366%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1366%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1366 ELECTRON TRAVELER 6
+                03/01/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1203%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201203%20INFINITE%20HORIZONS%2001%2f26%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1203%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1203%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1203 INFINITE HORIZONS
+                01/26/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1343%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201343%20ELECTRON%20TRAVELER%205%2004%2f21%2f2023,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1343%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1343%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1343 ELECTRON TRAVELER 5
+                04/21/2023&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1389%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201389%20ISOLATION%2001%2f17%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1389%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1389%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1389 ISOLATION
+                01/17/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1390%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201390%20SILO%2001%2f31%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1390%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1390%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1390 SILO
+                01/31/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1068%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201068%20WINTERTONES%202%2002%2f21%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1068%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1068%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1068 WINTERTONES 2
+                02/21/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a675%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%20675%20LONG%20TONES%20(David%20Parsons%20Retrospective%20Part%201)%2003%2f07%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a675%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a675%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                675 LONG TONES (David Parsons Retrospective Part 1)
+                03/07/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1075%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201075%20DOOR%20OF%20SILENCE%2004%2f04%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1075%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1075%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1075 DOOR OF SILENCE
+                04/04/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1048%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201048%20CLOUD%20NINE%2008%2f16%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1048%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1048%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1048 CLOUD NINE
+                08/16/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1374%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201374%20ENCHANTED%20LANDS%2006%2f14%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1374%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1374%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1374 ENCHANTED LANDS
+                06/14/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a947%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%20947%20ETHEREA%2004%2f26%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a947%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a947%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                947 ETHEREA
+                04/26/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a906%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%20906%20A%20BREATH%20OF%20SPRING%2004%2f12%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a906%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a906%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                906 A BREATH OF SPRING
+                04/12/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1144%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201144%20CONFLATION%2005%2f10%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1144%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1144%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1144 CONFLATION
+                05/10/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1382%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201382%20LOVING%20EVERY%20NOTE%2010%2f04%2f2024,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1382%3fprogram?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1382%253fprogram%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1382 LOVING EVERY NOTE
+                10/04/2024&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1374%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201374%20ENCHANTED%20LANDS%2004%2f11%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1374%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1374%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1374 ENCHANTED LANDS
+                04/11/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;item
+                id=&quot;SQ:16/x-sonosapi-hls-static%3aprograms%253a1374%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17:APGM%201374%20ENCHANTED%20LANDS%2004%2f11%2f2025,,,0000003539,0&quot;
+                parentID=&quot;SQ:16&quot; restricted=&quot;true&quot;&gt;&lt;res
+                protocolInfo=&quot;sonos.com-http:*:application/x-mpegURL:*&quot;
+                duration=&quot;0:58:59&quot;&gt;x-sonosapi-hls-static:programs%3a1374%3ftwp?sid=36&amp;amp;flags=16520&amp;amp;sn=17&lt;/res&gt;&lt;upnp:albumArtURI&gt;/getaa?s=1&amp;amp;u=x-sonosapi-hls-static%3aprograms%253a1374%253ftwp%3fsid%3d36%26flags%3d16520%26sn%3d17&lt;/upnp:albumArtURI&gt;&lt;dc:title&gt;PGM
+                1374 ENCHANTED LANDS
+                04/11/2025&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</Result>
+            <NumberReturned>25</NumberReturned>
+            <TotalMatches>28</TotalMatches>
+            <UpdateID>21</UpdateID>
+        </u:BrowseResponse>
+    </s:Body>
+</s:Envelope>

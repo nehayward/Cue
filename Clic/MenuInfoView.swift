@@ -4,6 +4,7 @@ import MusicSearchKit
 
 struct MenuInfoView: View {
     @Environment(Router.self) var router: Router
+    @Environment(\.liveActivityManager) var liveActivityManager
     @State private var coreFeatures = CoreFeatures.shared
 
     var group: GroupRoom
@@ -77,10 +78,13 @@ struct MenuInfoView: View {
                             await SonosService.shared.switchToQueueInput(group: group)
                         }
                     } label: {
-                        Text("Switch to Queue")
+                        Label("Switch to Queue", image: "music.note.circle")
                     }
                 }
-
+                
+                #if os(iOS) && !targetEnvironment(macCatalyst)
+                LiveActivityMenu(group: group)
+                #endif
                 SpeakerSettingsMenuView(group: group)
                 
                 ControlGroup {
@@ -121,14 +125,42 @@ struct MenuInfoView: View {
         } label: {
 #if os(visionOS)
             Image(systemName: "ellipsis")
+            
+#elseif targetEnvironment(macCatalyst)
+            Label("Menu", systemImage: "ellipsis")
+                .padding(.vertical)
 #else
             Image(systemName: "ellipsis")
                 .padding(.vertical)
 #endif
         }
         .id(group.coordinatorID)
+        .accessibilityLabel("Menu")
+        .help("Menu")
 #if os(visionOS)
         .tint(.clear)
 #endif
+    }
+}
+
+struct LiveActivityMenu: View {
+    @Environment(\.liveActivityManager) var liveActivityManager
+    var group: GroupRoom
+
+    var body: some View {
+        Button {
+            Task {
+                if liveActivityManager.isActivityDisabled(id: group.coordinatorID) {
+                    liveActivityManager.enableActivity(id: group.coordinatorID)
+                } else {
+                    liveActivityManager.disableActivity(id: group.coordinatorID)
+                }
+            }
+        } label: {
+            Text(liveActivityManager.isActivityDisabled(id: group.coordinatorID) ? "Enable Live Activity for \(group.coordinatorRoom.name)" : "Disable Live Activity for \(group.coordinatorRoom.name)")
+            Text("Show playback controls on lock screen")
+                .foregroundStyle(.secondary)
+            Image(systemName: "inset.filled.capsule")
+        }
     }
 }

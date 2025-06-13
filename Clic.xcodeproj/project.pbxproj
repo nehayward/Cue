@@ -326,6 +326,7 @@
 				PlayerSelectionView.swift,
 				PlayGroupScreen.swift,
 				PlayHistoryService.swift,
+				Preferences/ConnectByIPScreen.swift,
 				Preferences/PreferenceScreen.swift,
 				Preferences/ReleaseNotesView.swift,
 				Preferences/ServicePreferenceScreen.swift,

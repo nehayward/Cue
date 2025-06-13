@@ -15,17 +15,17 @@ public struct PlexAlbumContainer: Codable {
 }
 
 public struct PlexAlbumItem: Codable {
-    public var ratingKey: String
-    public var key: String
-    public var parentRatingKey: String
-    public var guid: String
-    public var parentGuid: String
+    public var ratingKey: String?
+    public var key: String?
+    public var parentRatingKey: String?
+    public var guid: String?
+    public var parentGuid: String?
     public var studio: String?
-    public var type: String
-    public var title: String
-    public var parentKey: String
-    public var parentTitle: String
-    public var summary: String
+    public var type: String?
+    public var title: String?
+    public var parentKey: String?
+    public var parentTitle: String?
+    public var summary: String?
     public var index: Int
     public var rating: Double?
     public var viewCount: Int?
@@ -36,8 +36,8 @@ public struct PlexAlbumItem: Codable {
     public var art: String?
     public var parentThumb: String?
     public var originallyAvailableAt: String?
-    public var addedAt: Date
-    public var updatedAt: Date
+    public var addedAt: Date?
+    public var updatedAt: Date?
     public var genre: [PlexGenre]?
     
     public var sonosID: String?

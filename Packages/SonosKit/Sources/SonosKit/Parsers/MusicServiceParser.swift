@@ -65,7 +65,9 @@ final class MusicServiceParser {
             return extractSoundCloudID(from: uri)
         case .library:
             return uri
-        case .tuneIn, .airplay, .unknown:
+        case .unknown:
+            return uri
+        case .tuneIn, .airplay:
             return ""
         }
     }

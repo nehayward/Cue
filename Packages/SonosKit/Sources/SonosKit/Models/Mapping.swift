@@ -509,7 +509,7 @@ extension PlexAlbum {
 
 extension PlexAlbumItem {
     public var toPlayable: PlayableContent? {
-        guard let id = sonosID else { return nil }
+        guard let id = sonosID, let title else { return nil }
         return PlayableContent(
             title: title,
             subtitle: [parentTitle, year?.description].compactMap{ $0 }.joined(separator: " • "),
@@ -532,8 +532,9 @@ extension PlexAlbumItem {
 }
 
 extension PlexLibraryItem {
-    public var toPlayable: PlayableContent {
-        PlayableContent(
+    public var toPlayable: PlayableContent? {
+        guard let parentTitle else { return nil }
+        return PlayableContent(
             title: parentTitle,
             subtitle: [grandparentTitle, parentYear?.description].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: thumbImageURL,

@@ -28,11 +28,16 @@ struct ContainerLargePlayerView: View {
                             router.popover = .groupScreen(group: sonosService.sorted[group])
                         }
                     } label: {
-                        GroupIconView()
-                            .tint(.primary)
+                        Label {
+                            Text("Group")
+                        } icon: {
+                            GroupIconView()
+                        }
                     }
                     .withPopoverDestinations(popoverDestination: $router.popover)
                     .id(refreshID)
+                    .help("Group Speakers")
+                    .tint(.primary)
                     
                     Button {
                         if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -57,10 +62,11 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "magnifyingglass")
-                            .tint(.primary)
+                        Label("Search", systemImage: "magnifyingglass")
                     }
                     .id(refreshID)
+                    .help("Search")
+                    .tint(.primary)
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -71,10 +77,11 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "music.note.house.fill")
-                            .tint(.primary)
+                        Label("Browse", systemImage: "music.note.house.fill")
                     }
                     .id(refreshID)
+                    .help("Browse")
+                    .tint(.primary)
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -86,11 +93,21 @@ struct ContainerLargePlayerView: View {
                         }
                     } label: {
                         if let id, let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                            QueueIconView(group: $sonosService.sorted[groupID])
+                            #if targetEnvironment(macCatalyst)
+                            Label {
+                                Text("Queue")
+                            } icon: {
+                                QueueIconView(group: sonosService.sorted[groupID])
+                                    .tint(.primary)
+                            }
+                            #else
+                            QueueIconView(group: sonosService.sorted[groupID])
                                 .tint(.primary)
+                            #endif
                         }
                     }
                     .id(refreshID)
+                    .help("Queue")
                 }
             }
         }

@@ -6,10 +6,6 @@ public final class Track: Identifiable, Sendable {
     /// The identifier for `Identifiable` conformance.
     public var id: String { trackID + name + position.description }
 
-    private let queue = DispatchQueue(label: "Track.\(UUID().uuidString)")
-
-    @ObservationIgnored private var _playbackPosition: TimeInterval = .zero
-
     /// The unique identifier of the track.
     public let trackID: String
 
@@ -51,10 +47,7 @@ public final class Track: Identifiable, Sendable {
     public var duration: TimeInterval
 
     /// The playback position of the track, thread-safe.
-    public var playbackPosition: TimeInterval {
-        get { queue.sync { _playbackPosition } }
-        set { queue.sync { _playbackPosition = newValue } }
-    }
+    public var playbackPosition: TimeInterval
 
     public var timeRemaining: Duration {
         Duration.milliseconds(duration - playbackPosition)
@@ -104,7 +97,8 @@ extension Track: Hashable {
         lhs.trackID == rhs.trackID &&
         lhs.name == rhs.name &&
         lhs.position == rhs.position &&
-        lhs.playbackPosition == rhs.playbackPosition
+        lhs.playbackPosition == rhs.playbackPosition &&
+        lhs.artworkURL == rhs.artworkURL
     }
 
     public func hash(into hasher: inout Hasher) {

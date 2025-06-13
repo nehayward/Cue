@@ -17,6 +17,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var isPlaying: Bool = false
     public var track: Track = .empty
     public var isEditingVolume: Bool = false
+    public var isOutputFixed: Bool = false
     public var state: RoomState
     public var battery: Battery?
     public var macAddress: String?
@@ -56,6 +57,14 @@ public final class Room: Identifiable, @unchecked Sendable {
         }
         return false
     }
+    
+    public var supportsFixedOutput: Bool {
+        let keywords = ["Port", "Connect"]
+        if let info {
+            return keywords.contains(where: info.modelDisplayName.contains)
+        }
+        return false
+    }
 
     public init(
         id: String,
@@ -77,6 +86,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         micEnabled: Bool = false,
         airPlayEnabled: Bool = false,
         invisible: Bool = false,
+        isOutputFixed: Bool = false,
         subs: [Sub] = [],
         info: DeviceInfo? = nil
     ) {
@@ -98,6 +108,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.voiceConfigState = voiceConfigState
         self.micEnabled = micEnabled
         self.airPlayEnabled = airPlayEnabled
+        self.isOutputFixed = isOutputFixed
         self.invisible = invisible
         self.subs = subs
         self.info = info
@@ -139,6 +150,7 @@ extension Room {
     public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
     public static let gym = Room(id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
     public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"))
+    public static let theaterFixed = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"), isOutputFixed: true)
     public static let livingRoom = Room(id: "RINCON_949F3E6FBAE401400", ip: "192.168.4.48", name: "Living Room")
     public static let garage_kitchen_display = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Kitchen")
 }

@@ -25,6 +25,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case spotifyUserPlaylist
     case genreList
     case playableList(title: String, action: ((Int) async -> [PlayableContent]))
+    case connectByIP
 
     public var id: String {
         switch self {
@@ -68,6 +69,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return "genre"
         case .playableList(let title, _):
             return title
+        default:
+            return self.id
         }
     }
 
@@ -160,6 +163,8 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("genreList")
         case .playableList(let title, action: _):
             hasher.combine(title)
+        default:
+            hasher.combine(self)
         }
     }
 }

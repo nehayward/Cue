@@ -3,31 +3,37 @@ import VibesDS
 import SonosKit
 
 struct QueueIconView: View {
-    @Binding var group: GroupRoom
-    
+    var group: GroupRoom
+
     private var position: Double {
         Double(group.playbackService == .queue ? group.coordinatorRoom.track.position : 0)
     }
-    
+
+    @ScaledMetric(relativeTo: .caption2) private var iconSize: CGFloat = 24
+
     var body: some View {
         VibeGaugeView(value: position,
                       total: Double(group.coordinatorRoom.queueTotal),
                       color: .primary,
-                      lineWidth: 2)
+                      lineWidth: position > 99 ? 3 : 2)
         .overlay {
-            Text(position, format: .number)
-                .contentTransition(.numericText())
-                .opacity(position == 0 ? 0.4 : 1)
-                .font(.caption2)
-                .padding(.vertical, 4)
-                .bold()
+            if position < 100 {
+                Text(position, format: .number)
+                    .contentTransition(.numericText())
+                    .opacity(position == 0 ? 0.4 : 1)
+                    .font(.caption2)
+                    .padding(.vertical, 4)
+                    .bold()
+                    .scaledToFit()
+            }
         }
         .animation(.spring, value: group.coordinatorRoom.track.position)
         .fontDesign(.rounded)
-        .frame(width: 24, height: 24)
+        .frame(width: iconSize, height: iconSize)
+        .accessibilityLabel("Queue")
     }
 }
 
 #Preview {
-    QueueIconView(group: .constant(.garage))
+    QueueIconView(group: .garage)
 }

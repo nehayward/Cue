@@ -8,6 +8,9 @@ struct VolumeControlView: View {
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
     
+    @ScaledMetric(relativeTo: .body) private var sliderGestureHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40
+    @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
+
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button {
@@ -29,8 +32,7 @@ struct VolumeControlView: View {
             .buttonStyle(.liveActivity)
             .buttonRepeatBehavior(.enabled)
 
-            
-            VibeSlider(value: $group.groupVolume, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24, delayDrag: delayDrag, showValue: true) { isEditing in
+            VibeSlider(value: $group.groupVolume, baseHeight: sliderHeight, delayDrag: delayDrag, showValue: true) { isEditing in
                 if group.isMuted {
                     Task {
                         await SonosService.shared.setGroupMute(group: group, mute: false)
@@ -42,6 +44,19 @@ struct VolumeControlView: View {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     group.isEditingVolume = isEditing
+                }
+            }
+            .opacity(group.coordinatorRoom.isOutputFixed ? 0 : 1)
+            .overlay {
+                if group.coordinatorRoom.isOutputFixed {
+                    Text("Fixed Volume")
+                        .foregroundStyle(.secondary)
+                        .bold()
+                        .fontDesign(.rounded)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity)
+                        .background(.thinMaterial.opacity(0.6))
+                        .clipShape(Capsule())
                 }
             }
             .foregroundStyle(.primary)
@@ -72,10 +87,12 @@ struct VolumeControlView: View {
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .frame(height: UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40)
+        .frame(height: sliderGestureHeight)
+        .dynamicTypeSize(...DynamicTypeSize.large)
         .opacity(group.isMuted ? 0.6 : 1)
         .animation(.spring, value: group.isMuted)
         .tint(.primary)
+        .disabled(group.coordinatorRoom.isOutputFixed)
     }
 
     private func updateVolume(volume: Double) {
@@ -91,7 +108,6 @@ struct VolumeControlView: View {
     }
 }
 
-//#Preview {
-//    VolumeControlView(group: GroupRoom.gym)
-//        .withEnvironments()
-//}
+#Preview {
+    VolumeControlView(group: GroupRoom.theaterFixed)
+}

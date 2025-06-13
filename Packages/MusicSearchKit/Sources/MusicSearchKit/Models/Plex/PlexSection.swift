@@ -6,7 +6,9 @@ public struct PlexLibrarySectionContainer: Codable {
     let Directory: [PlexLibrarySection]
 }
 
-public struct PlexLibrarySection: Codable {
+public struct PlexLibrarySection: Codable, Identifiable {
+    public var id: String { uuid }
+    
     public let allowSync: Bool
     public let key: String
     public let type: String

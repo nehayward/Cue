@@ -78,4 +78,11 @@ extension GroupRoom {
                                          coordinatorID: Room.garage.id,
                                                     rooms: [.garage, .theater],
                                          coordinatorRoom: .garage)
+    
+   
+    public static let theaterFixed = GroupRoom(id: "RINCON_48A6B80D8FB401400:2447655188",
+                                          coordinatorID: Room.theaterFixed.id,
+                                          rooms: [.theaterFixed],
+                                          coordinatorRoom: .theaterFixed,
+                                          tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .unknown))
 }

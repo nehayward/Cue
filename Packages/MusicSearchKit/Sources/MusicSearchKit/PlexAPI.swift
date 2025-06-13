@@ -1,14 +1,14 @@
 import Foundation
 import SwiftyBeaver
 
+@Observable
 public final class PlexAPI {
-    public static var shared = PlexAPI()
-    private let session: URLSession
-    private let decoder: JSONDecoder
-    private let parser = PlexParser()
-    private var plexServer: PlexServer?
-    private let logger = SwiftyBeaver.self
-    private var cachedAlbumLibrarySection: String?
+    @ObservationIgnored public static var shared = PlexAPI()
+    @ObservationIgnored private let session: URLSession
+    @ObservationIgnored private let decoder: JSONDecoder
+    @ObservationIgnored private let parser = PlexParser()
+    @ObservationIgnored private var plexServer: PlexServer?
+    @ObservationIgnored private let logger = SwiftyBeaver.self
 
     @MainActor
     private let authenticator = PlexAuthenticator.shared
@@ -19,11 +19,14 @@ public final class PlexAPI {
     }
 
     public var serverID: String? {
-        get {
-            UserDefaults.standard.string(forKey: "com.clic.plexServer")
+        didSet {
+            UserDefaults.standard.set(serverID, forKey: "com.clic.plexServer")
         }
-        set {
-            UserDefaults.standard.setValue(newValue, forKey: "com.clic.plexServer")
+    }
+    
+    public var librarySelectionID: String? {
+        didSet {
+            UserDefaults.standard.set(librarySelectionID, forKey: "com.clic.plexServer.library")
         }
     }
 
@@ -37,6 +40,8 @@ public final class PlexAPI {
         file.format = "$J"
         console.logPrintWay = .logger(subsystem: "Main", category: "UI")
         logger.addDestination(console)
+        self.librarySelectionID = UserDefaults.standard.string(forKey: "com.clic.plexServer.library")
+        self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
 //        logger.addDestination(file)
 //        print("Init")
     }
@@ -126,11 +131,11 @@ public final class PlexAPI {
         logger.info(plexServer)
         
         // Get and cache music library section if needed
-        if cachedAlbumLibrarySection == nil {
-           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
         }
         
-        guard let sectionKey = cachedAlbumLibrarySection,
+        guard let sectionKey = librarySelectionID,
               var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return []
         }
@@ -171,11 +176,11 @@ public final class PlexAPI {
         logger.info(plexServer)
         
         // Get and cache music library section if needed
-        if cachedAlbumLibrarySection == nil {
-           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
         }
         
-        guard let sectionKey = cachedAlbumLibrarySection,
+        guard let sectionKey = librarySelectionID,
               var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return [] 
         }
@@ -196,7 +201,8 @@ public final class PlexAPI {
         guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
 
         for index in playlists.indices {
-            playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
+            guard let ratingKey = playlists[index].ratingKey else { continue }
+            playlists[index].sonosID = "\(id)%3A3%3A\(ratingKey)"
             guard let thumb = playlists[index].thumb else { continue }
             playlists[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
@@ -215,11 +221,11 @@ public final class PlexAPI {
         logger.info(plexServer)
         
         // Get and cache music library section if needed
-        if cachedAlbumLibrarySection == nil {
-           cachedAlbumLibrarySection = await getMusicLibrarySection()
+        if librarySelectionID == nil {
+            librarySelectionID = await getMusicLibrarySection()
         }
         
-        guard let sectionKey = cachedAlbumLibrarySection,
+        guard let sectionKey = librarySelectionID,
               var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return []
         }
@@ -247,7 +253,6 @@ public final class PlexAPI {
 
         return songs
     }
-
 
     private func getMusicLibrarySection() async -> String? {
         guard let token = await authenticator.authToken,
@@ -278,6 +283,37 @@ public final class PlexAPI {
         } catch {
             logger.error(error)
             return nil
+        }
+    }
+    
+    public func getMusicLibraries(server: PlexServer) async -> [PlexLibrarySection] {
+        guard let token = await authenticator.authToken else {
+            return []
+        }
+
+        guard let sectionsURL = server.baseURL?.appending(path: "library/sections") else {
+            return []
+        }
+
+        var request = URLRequest(url: sectionsURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return []
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
+            let libraries = container.mediaContainer.Directory
+                .sorted(by: { $0.key < $1.key })
+                .filter { $0.type == "artist" }
+            return libraries
+        } catch {
+            logger.error(error)
+            return []
         }
     }
   

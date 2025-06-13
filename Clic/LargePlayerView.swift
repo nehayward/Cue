@@ -155,7 +155,7 @@ struct LargePlayerView: View {
                         Button {
                             router.presentedSheet = .queue(group: $group)
                         } label: {
-                            QueueIconView(group: $group)
+                            QueueIconView(group: group)
                                 .fontDesign(.rounded)
                                 .font(.title3)
                                 .foregroundColor(isHoveringOnQueueList ? .accentColor : nil)

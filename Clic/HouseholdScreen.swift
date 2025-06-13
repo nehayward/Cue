@@ -9,12 +9,22 @@ struct HouseholdScreen: View {
 
     @State private var isLoaded: Bool = false
     @State private var houseHoldsIPs: Set<String> = []
-    @State private var roomsForIP: [String: String] = [:]
+    @State private var roomsForIP: [String: [Room]] = [:]
 
     var body: some View {
         List {
             ForEach(Array(houseHoldsIPs), id: \.self) { ip in
                 Section(header: Spacer(minLength: 0)) {
+                    ForEach(roomsForIP[ip] ?? []) { room in
+                        Label {
+                            Text(room.name)
+                            Text(room.ip)
+                        } icon: {
+                            Image(systemName: "hifispeaker.fill")
+                                .foregroundStyle(.primary)
+                                .tint(.primary)
+                        }
+                    }
                     Button {
                         Task {
                             sonosService.preferredHouseHold = await sonosService.getHouseID(for: ip)
@@ -22,8 +32,13 @@ struct HouseholdScreen: View {
                             try? await sonosService.load(useCache: false)
                         }
                     } label: {
-                        Text("\(roomsForIP[ip] ?? "")")
+                        Text("Household \(roomsForIP[ip]?.count ?? 0)")
+                            .bold()
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+                    .tint(.accentColor)
+                    .listRowBackground(Color.clear)
                 }
             }
         }
@@ -33,14 +48,12 @@ struct HouseholdScreen: View {
             self.houseHoldsIPs = await SonosService.shared.getAllHouseholdsIPs()
 
             for ip in houseHoldsIPs {
-                guard let group = try? await SonosService.shared.getGroups(with: ip) else {
+                guard let groups = try? await SonosService.shared.getGroups(with: ip) else {
                     print("Failed")
                     return
                 }
-                roomsForIP[ip] = group
+                roomsForIP[ip] = groups
                     .flatMap(\.rooms)
-                    .map(\.name)
-                    .joined(separator: "\n")
             }
         }
         .navigationTitle("Households")
@@ -51,6 +64,7 @@ struct HouseholdScreen: View {
             }
         }
         .environment(\.defaultMinListHeaderHeight, 0)
+        .fontDesign(.rounded)
     }
 }
 

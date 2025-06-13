@@ -15,7 +15,6 @@ struct ArtworkView: View {
     @State private var defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
-    @State private var currentTrackID: String? // Track the currently displayed track ID
     
     @State private var imageTask: ImageTask? = nil {
         willSet {
@@ -101,24 +100,17 @@ struct ArtworkView: View {
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
             }
-            .onChange(of: group.coordinatorRoom.track.artworkURL) { _, newURL in
-                let newTrackID = group.coordinatorRoom.track.toPlayable.content.id
-                if newTrackID != currentTrackID {
-                    currentTrackID = newTrackID
-                    imageTask?.cancel()
-                    imageTask = loadArtwork(url: newURL)
-                }
+            .onChange(of: group.coordinatorRoom.track.artworkURL) { old, newURL in
+                if old == newURL { return }
+                imageTask?.cancel()
+                imageTask = loadArtwork(url: newURL)
             }
             .onAppear {
-                let newTrackID = group.coordinatorRoom.track.toPlayable.content.id
-                if currentTrackID != newTrackID {
-                    currentTrackID = newTrackID
-                    let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
-                    if let image = ImagePipeline.shared.cache[request], currentImage != image.image {
-                        currentImage = image.image
-                    } else {
-                        imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
-                    }
+                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
+                if let image = ImagePipeline.shared.cache[request], currentImage != image.image {
+                    currentImage = image.image
+                } else {
+                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
                 }
             }
             .onDisappear {
@@ -129,14 +121,9 @@ struct ArtworkView: View {
     }
     
     nonisolated private func loadArtwork(url: URL?) -> ImageTask? {
-        if Task.isCancelled {
-            return nil
-        }
-        
         guard let url else {
             Task { @MainActor in
                 currentImage = nil
-                currentTrackID = nil
             }
             return nil
         }
@@ -146,13 +133,13 @@ struct ArtworkView: View {
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    if !Task.isCancelled, currentImage != response.image {
-                        currentImage = response.image
+                    if self.imageTask != nil, self.currentImage?.pngData() != response.image.pngData() {
+                        self.currentImage = response.image
                     }
                 default:
                     break
                 }
-                imageTask = nil
+                self.imageTask = nil
             }
         }
     }

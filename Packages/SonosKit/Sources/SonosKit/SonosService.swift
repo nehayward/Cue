@@ -347,43 +347,47 @@ public final class SonosService {
                 return
             }
 
-            // MARK: Debug
-//            print(roomGroup.coordinatorRoom.track.name, awaitedTrack.name)
-//            print(roomGroup.coordinatorRoom.track.position, awaitedTrack.position)
-//            print(roomGroup.coordinatorRoom.track.trackID, awaitedTrack.trackID)
-//            print("Load:", roomGroup.coordinatorRoom.name)
+            // Only get track information if the track ID has changed
+            let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.trackID != awaitedTrack.trackID
+            
+            if shouldGetTrackInfo {
+                print("Getting track info for \(awaitedTrack.trackID)")
+                guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
+                    if roomGroup.coordinatorRoom.track != awaitedTrack {
+                        roomGroup.coordinatorRoom.track = awaitedTrack
+                    } else if !roomGroup.isEditingPlayback {
+                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                    }
+                    return
+                }
 
-            guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: awaitedTrack) else {
-                if roomGroup.coordinatorRoom.track != awaitedTrack {
-                    roomGroup.coordinatorRoom.track = awaitedTrack
-                } else if !roomGroup.isEditingPlayback {
+                awaitedTrack.downloadedArtworkURL = artworkURL
+                if awaitedTrack.downloadedArtworkURL != artworkURL {
+                    awaitedTrack.downloadedArtworkURL = artworkURL
+                }
+                awaitedTrack.metadata = trackMetadata
+
+                if artworkURL != awaitedTrack.artworkURL {
+                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                }
+
+                if awaitedTrack.musicService == .tuneIn {
+                    awaitedTrack.artist = trackMetadata?.artist ?? ""
+                }
+            } else {
+                if !roomGroup.isEditingPlayback, isNowPlaying {
                     roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                 }
-                return
             }
 
             let awaitedPlayMode = await playMode
             if roomGroup.playMode != awaitedPlayMode {
                 roomGroup.playMode = awaitedPlayMode
             }
-            
-            awaitedTrack.downloadedArtworkURL = artworkURL
-            if awaitedTrack.downloadedArtworkURL != artworkURL {
-                awaitedTrack.downloadedArtworkURL = artworkURL
-            }
-            awaitedTrack.metadata = trackMetadata
 
-            if artworkURL != awaitedTrack.artworkURL {
-                roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-            }
-
-            if awaitedTrack.musicService == .tuneIn {
-                awaitedTrack.artist = trackMetadata?.artist ?? ""
-            }
-
-            if roomGroup.coordinatorRoom.track != awaitedTrack {
+            if roomGroup.coordinatorRoom.track.trackID != awaitedTrack.trackID {
                 roomGroup.coordinatorRoom.track = awaitedTrack
-                roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                roomGroup.coordinatorRoom.track.downloadedArtworkURL = awaitedTrack.downloadedArtworkURL
             }
 
             await ArtworkManager.shared.downScale(coordinatorRoom: roomGroup.nameWithCount, url: roomGroup.coordinatorRoom.track.artworkURL, trackID: roomGroup.coordinatorRoom.track.trackID)
@@ -428,6 +432,13 @@ public final class SonosService {
                             roomGroup.availableActions = awaitedActions
                         }
                     }
+                    
+                    if roomGroup.coordinatorRoom.supportsFixedOutput {
+                        let isOutputFixed = await api.getOutputFixed(IP: roomGroup.coordinatorRoom.ip)
+                        if  roomGroup.coordinatorRoom.isOutputFixed != isOutputFixed {
+                            roomGroup.coordinatorRoom.isOutputFixed = isOutputFixed
+                        }
+                    }
 
                     guard let awaitedTrack = await track else {
                         return
@@ -466,7 +477,16 @@ public final class SonosService {
 //                    print(roomGroup.coordinatorRoom.track.position, awaitedTrack.position)
 //                    print(roomGroup.coordinatorRoom.track.trackID, awaitedTrack.trackID)
 //                    print("UPDATEGROUP:", roomGroup.coordinatorRoom.name)
+                    let awaitedPlayMode = await playMode
+                    if roomGroup.playMode != awaitedPlayMode {
+                        roomGroup.playMode = awaitedPlayMode
+                    }
 
+                    // Only get track information if the track ID has changed
+                    if roomGroup.coordinatorRoom.track.trackID == awaitedTrack.trackID {
+                        return
+                    }
+                
                     guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
                         if roomGroup.coordinatorRoom.track != awaitedTrack {
                             roomGroup.coordinatorRoom.track = awaitedTrack
@@ -476,10 +496,6 @@ public final class SonosService {
                         return
                     }
 
-                    let awaitedPlayMode = await playMode
-                    if roomGroup.playMode != awaitedPlayMode {
-                        roomGroup.playMode = awaitedPlayMode
-                    }
                     
                     if awaitedTrack.downloadedArtworkURL != artworkURL {
                         awaitedTrack.downloadedArtworkURL = artworkURL
@@ -996,6 +1012,8 @@ public final class SonosService {
                         print("Current: \(currentItem.name) by \(currentItem.artist.name)")
                         print("Current: \(currentItem.quality)")
                         songAudioInfo = currentItem.quality
+                    } else {
+                        songAudioInfo = nil
                     }
                     if let currentItem = update.nextItem?.track {
                         print("Next: \(currentItem.name) by \(currentItem.artist.name)")
@@ -1881,6 +1899,11 @@ public final class SonosService {
         guard let device = priorityDevice() else { return nil }
         sonosSystemDiscoverService.sonosStorageIP.sonosIP = device.ip
         return device
+    }
+    
+    public func setStaticIP(ip: String) async {
+        sonosSystemDiscoverService.sonosStorageIP.sonosIP = ip
+        try? await load(useCache: true)
     }
 }
 

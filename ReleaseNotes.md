@@ -1,3 +1,21 @@
+# 2025.9
+
+–– New Features ––
+- Added the ability to disable Live Activities for individual speakers.
+- Introduced support for Fixed Volume speakers.
+- Added library selection for Plex integration.
+
+–– Bug Fixes & Improvements ––
+- Fixed an issue where album art would not update correctly.
+- Improved efficiency when fetching metadata.
+- Resolved an issue where albums were not showing in Plex.
+- Fixed playlists not displaying all content in certain cases.
+- Fixed a crash that could occur when backgrounding the app.
+- Resolved an issue where audio quality was not displayed for Local Library content.
+- Queue icon now dynamically scales based on content.
+- Volume slider now dynamically sizes for better usability.
+- Fix Queue, Search, and Browse not showing in compact Mac Window
+
 # 2025.8
 
 –– New Features ––
