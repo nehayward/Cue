@@ -2,9 +2,13 @@
 
 –– New Features ––
 - Improved Spotify Integration
+- Add toggle on artist detail to hide popular songs.
 
 –– Bug Fixes & Improvements ––
 - Fixed artwork not showing for some radio stations.
+
+## Internal
+- Use menu in place of context menu in List view for PlayableCardView
 
 # 2025.9
 
