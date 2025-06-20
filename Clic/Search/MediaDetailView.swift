@@ -9,8 +9,6 @@ import NukeUI
 import VibesDS
 
 struct MediaDetailView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(SonosService.self) private var sonosService
     @Environment(Router.self) private var router
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
@@ -26,7 +24,7 @@ struct MediaDetailView: View {
 
     var body: some View {
         List {
-            Group {
+            VStack {
                 LazyImage(url: playableContent.artwork) { state in
                     if let image = state.image {
                         image
@@ -139,7 +137,7 @@ struct MediaDetailView: View {
                         Button(role: .destructive) {
                             Task {
                                 guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
-                                try await sonosService.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
+                                try await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
                                 tracks.remove(at: index)
                             }
                         } label: {
@@ -253,7 +251,7 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             totalSongs = playlist.total
-            newTracks = playlist.items.compactMap { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images.thumbnail, artwork: $0.track.album?.images.thumbnail)}
+            newTracks = playlist.items.compactMap { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images?.thumbnail, artwork: $0.track.album?.images?.thumbnail)}
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
@@ -269,22 +267,23 @@ struct MediaDetailView: View {
             newTracks = tracks.map(\.toPlayable)
         case (.track, .spotify):
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
-            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: song.album.id) else { return }
+            guard let albumID = song.album.id else { return }
+            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: albumID) else { return }
             playableContent = albumDetails.toPlayable
             newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.album, .library):
-            newTracks = await sonosService.libraryLookup(ID: playableContent.id)
+            newTracks = await SonosService.shared.libraryLookup(ID: playableContent.id)
         case (.playlist, .library):
-            newTracks = await sonosService.sonosPlaylistsTracks(for: playableContent.id)
+            newTracks = await SonosService.shared.sonosPlaylistsTracks(for: playableContent.id)
         case (.libraryImportedPlaylists, .library):
             let id = playableContent.id.replacingOccurrences(of: "x-file-cifs", with: "S")
-            newTracks = await sonosService.libraryLookup(ID: id)
+            newTracks = await SonosService.shared.libraryLookup(ID: id)
         case (.track, .library):
             guard let albumName = playableContent.metadata?.album,
                   let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
 
-            newTracks = await sonosService.libraryAlbum(name: albumName)
-            guard let albumPlayable =  await sonosService.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
+            newTracks = await SonosService.shared.libraryAlbum(name: albumName)
+            guard let albumPlayable =  await SonosService.shared.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
             playableContent = albumPlayable
         case (.album, .tidal):
             newTracks = await musicSearchService.lookupTidalAlbumTracks(id: playableContent.content.id)
@@ -334,7 +333,7 @@ struct MediaDetailView: View {
 //
 //        Task {
 //            guard let sourceIndex = source.first else { return }
-//            try await sonosService.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex + 1, to: destination + 1)
+//            try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex + 1, to: destination + 1)
 //        }
 //    }
 
@@ -346,6 +345,6 @@ struct MediaDetailView: View {
 //    // https://music.apple.com/us/playlist/dua-lipa-essentials/pl.ee7b1aea4b5f42d398e6cd3084f7396b
 //    // https://music.apple.com/us/album/future-nostalgia-the-moonlight-edition/1551178998
 //    MediaDetailView(id: "1552269067", title: "Future Nostaliga", kind: .album)
-//        .environment(SonosService.shared)
+//        .environment(SonosService.shared.shared)
 //        .environment(Router())
 //}

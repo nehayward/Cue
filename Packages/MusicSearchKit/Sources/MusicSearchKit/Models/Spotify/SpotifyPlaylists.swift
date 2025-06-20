@@ -20,7 +20,7 @@ public struct SpotifyPlaylistItems: Decodable, Identifiable, Sendable {
 }
 
 public struct ExternalUrls: Equatable, Decodable, Sendable {
-    public let spotify: String
+    public let spotify: String?
 }
 
 public struct Owner: Decodable, Sendable {

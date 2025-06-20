@@ -13,6 +13,7 @@ let package = Package(
         .package(url: "https://github.com/kean/Nuke", from: "12.8.0"),
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.6"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
+        .package(url: "https://github.com/swhitty/FlyingFox.git", .upToNextMajor(from: "0.23.0")),
         .package(path: "../MusicSearchKit")
     ],
     targets: [
@@ -21,6 +22,7 @@ let package = Package(
             dependencies: [
                 "CloudStorage",
                 "MusicSearchKit",
+                "FlyingFox",
                 .product(name: "Collections", package: "swift-collections")
             ],
             swiftSettings: [

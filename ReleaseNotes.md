@@ -1,3 +1,11 @@
+# 2025.10
+
+–– New Features ––
+- Improved Spotify Integration
+
+–– Bug Fixes & Improvements ––
+- Fixed artwork not showing for some radio stations.
+
 # 2025.9
 
 –– New Features ––

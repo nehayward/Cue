@@ -41,6 +41,7 @@ public final class SonosService {
     @ObservationIgnored public lazy var networkMonitorService = NetworkMonitorService()
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
+    @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
     @MainActor
     @ObservationIgnored private lazy var musicSearch = MusicSearchService()
@@ -237,7 +238,6 @@ public final class SonosService {
             groups[index].coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
             groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
             if groups[index].coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
-                print("Update device Info")
                 // MARK: Update all rooms Info.
                 groups[index].coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
             }
@@ -264,6 +264,13 @@ public final class SonosService {
             print("Set NewGroup \(Set(newGroup).count), Old \(Set(groups).count)")
 
             print(isGrouping)
+            guard !mediaServerHandler.deviceIP.isEmpty else { return }
+            
+            // MARK: I don't want to block
+            Task {
+                try await Task.sleep(for: .milliseconds(300))
+                onServerListening()
+            }
         }
 
         await wakeSleepingRooms(rooms: rooms)
@@ -397,6 +404,28 @@ public final class SonosService {
         await updateGroupsRooms(from: groups)
         await updateGroupCheckTVMode(from: groups)
         await updateGroupMuteState(for: groups)
+    }
+    
+    public func onServerListening() {
+        // MARK: I don't want to block
+        Task {
+            await mediaServerHandler.start()
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let sonosIP = try? await getGroupsFast().first?.ip else { return }
+            let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
+            guard let deviceID = await api.getDeviceID(IP: sonosIP) else { return }
+            KeychainTokenRefreshHandler.shared.deviceId = deviceID
+            KeychainTokenRefreshHandler.shared.householdId = preferredHouseHoldName
+            try? await api.subscribeToSonos(port: mediaServerHandler.port, deviceIP: mediaServerHandler.deviceIP, sonosIP: sonosIP)
+        }
+    }
+    
+    public func getCredentials() async -> (String, String)? {
+        guard let sonosIP = try? await getGroupsFast().first?.ip else { return nil }
+        let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
+        guard let deviceID = await api.getDeviceID(IP: sonosIP) else { return nil }
+        
+        return (deviceID, preferredHouseHoldName)
     }
 
     @MainActor
@@ -1038,19 +1067,28 @@ public final class SonosService {
             }
             return url
         case .spotify:
+//            var imageURL: URL?
+//            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
+//            
+//            if let url = URL(string: spotifyTrack.albumArtURI) {
+//                imageURL = url
+//            }
+//            return imageURL
+            
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return nil }
-            if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+            guard let images = spotifyTrack.album.images else { return nil }
+            if size == 100, let image = images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
                 guard let url = URL(string: image.url) else { return nil }
                 return url
             }
 
-            if size == 200, spotifyTrack.album.images.count > 2 {
-                let image = spotifyTrack.album.images[1]
+            if size == 200, images.count > 2 {
+                let image = images[1]
                 guard let url = URL(string: image.url) else { return nil }
                 return url
             }
 
-            guard let artworkString = spotifyTrack.album.images.first?.url, let url = URL(string: artworkString) else { return nil }
+            guard let artworkString = images.first?.url, let url = URL(string: artworkString) else { return nil }
             return url
         case .tidal:
             // TODO: Add back when production is enabled for Tidal
@@ -1076,19 +1114,27 @@ public final class SonosService {
     public func getTrackInformation(from track: Track, size: Int = 500) async -> (Track.Metadata?, URL?)? {
         switch track.musicService {
         case .spotify:
+//            var imageURL: URL?
+//            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return (nil, nil) }
+//            if let url = URL(string: spotifyTrack.albumArtURI) {
+//                imageURL = url
+//            }
+//            
+//            return (nil, imageURL)
+            
             var imageURL: URL?
             guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: track.trackID) else { return (nil, nil) }
 
-            if size == 100, let image = spotifyTrack.album.images.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
+            if size == 100, let image = spotifyTrack.album.images?.sorted(by: { $0.height ?? 0 < $1.height ?? 0 } ).first {
                 imageURL = URL(string: image.url)
-            } else if size == 200, spotifyTrack.album.images.count > 2 {
-                let image = spotifyTrack.album.images[1]
+            } else if size == 200, let images = spotifyTrack.album.images, images.count > 2  {
+                let image = images[1]
                 imageURL = URL(string: image.url)
-            } else if let artworkString = spotifyTrack.album.images.first?.url {
+            } else if let images = spotifyTrack.album.images, let artworkString = images.first?.url {
                 imageURL = URL(string: artworkString)
             }
 
-            return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify), contentType: .track), imageURL)
+            return (Track.Metadata(ISRC: spotifyTrack.externalIds.isrc, openInURL: URL(string: spotifyTrack.externalUrls.spotify ?? ""), contentType: .track), imageURL)
         case .apple:
             var imageURL: URL? = nil
             if track.toPlayable.content.type == .libraryTrack {
@@ -1111,7 +1157,7 @@ public final class SonosService {
 
             if let song = tuneInTrack.stationInfo?.song, let artist = tuneInTrack.stationInfo?.artist {
                 let artworkURL = await musicSearch.searchSpotifySong(song: song, artist: artist)?.tracks?.items.first
-                imageURL = artworkURL?.album.images.biggestImageURL
+                imageURL = artworkURL?.album.images?.biggestImageURL
             }
 
             return (
@@ -1159,7 +1205,7 @@ public final class SonosService {
                 return (nil, nil)
             }
 
-            return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images.biggestImageURL)
+            return (Track.Metadata(ISRC: nil, openInURL: nil, contentType: .track), artworkURL.album.images?.biggestImageURL)
         case .airplay, .library:
             return (nil, nil)
         }
@@ -1168,26 +1214,34 @@ public final class SonosService {
     public func getArtwork(from content: PlayableContent, size: Int = 500) async -> URL? {
         switch (content.content.type, content.content.service) {
         case (.album, .spotify):
-            guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
-            if size == 50 {
-                return album.images.thumbnail
-            } else if size > 100, album.images.count > 2 {
-                let image = album.images[1]
-                return URL(string: image.url)
-            } else if size == 200 {
-                return album.images.thumbnail
-            }
-            return album.images.biggestImageURL
-        case (.track, .spotify):
-            var imageURL: URL?
-            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+            guard let album = await musicSearch.spotifyAlbumLookup(id: content.id), let images = album.images else { return nil }
 
             if size == 50 {
-                return spotifyTrack.album.images.thumbnail
-            } else if size > 100, spotifyTrack.album.images.count > 2 {
-                let image = spotifyTrack.album.images[1]
+                return images.thumbnail
+            } else if size > 100, images.count > 2 {
+                let image = images[1]
+                return URL(string: image.url)
+            } else if size == 200 {
+                return images.thumbnail
+            }
+            return images.biggestImageURL
+        case (.track, .spotify):
+//            var imageURL: URL?
+//            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
+//            
+//            if let url = URL(string: spotifyTrack.albumArtURI) {
+//                imageURL = url
+//            }
+//            return imageURL
+            var imageURL: URL?
+            guard let spotifyTrack = await musicSearch.spotifyTrackLookup(id: content.id), let images = spotifyTrack.album.images else { return nil }
+
+            if size == 50 {
+                return images.thumbnail
+            } else if size > 100, images.count > 2 {
+                let image = images[1]
                 imageURL = URL(string: image.url)
-            } else if let artworkString = spotifyTrack.album.images.first?.url {
+            } else if let artworkString = images.first?.url {
                 imageURL = URL(string: artworkString)
             }
 
@@ -1236,10 +1290,10 @@ public final class SonosService {
         switch (content.type, content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
-            return PlayableContent(title: album.name, subtitle: album.artists.first?.name ?? "", thumbnail: album.images.thumbnail, artwork: album.images.biggestImageURL, content: content)
+            return PlayableContent(title: album.name, subtitle: album.artists?.first?.name ?? "", thumbnail: album.images?.thumbnail, artwork: album.images?.biggestImageURL, content: content)
         case (.track, .spotify):
             guard let track = await musicSearch.spotifyTrackLookup(id: content.id) else { return nil }
-            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", thumbnail: track.album.images.thumbnail, artwork: track.album.images.biggestImageURL, content: content)
+            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", thumbnail: track.album.images?.thumbnail, artwork: track.album.images?.biggestImageURL, content: content)
         case (.playlist, .spotify):
             guard let playlist = await musicSearch.spotifyPlaylistLookup(id: content.id) else { return nil }
             return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, thumbnail: playlist.images?.thumbnail, artwork: playlist.images?.biggestImageURL, content: content)
@@ -1476,16 +1530,6 @@ public final class SonosService {
     public func getFavoriteList() async {
         guard let ip = prioritizedIP() else { return }
         self.favorites = await api.getFavorites(for: ip)
-    }
-
-    public func playFavorite(on group: GroupRoom, favoriteID: String) async {
-        await api.playFavorite(on: group, favoriteID: favoriteID)
-        await api.play(ipAddress: group.ip)
-    }
-
-    public func favoriteImageURL(favorite: Favorite) -> URL? {
-        guard let ip = prioritizedIP() else { return nil }
-        return api.favoriteArtwork(on: favorite, IP: ip)
     }
 
     public func deleteFavorite(on group: GroupRoom?, favoriteID: String) async {

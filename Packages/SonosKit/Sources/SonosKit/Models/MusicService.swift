@@ -191,4 +191,27 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         }
     }
+    
+    public var brandColor: Color {
+        switch self {
+        case .apple:
+                .red
+        case .spotify:
+            Color(red: 30.0 / 255.0, green: 215.0 / 255.0, blue: 96.0 / 255.0)
+        case .airplay:
+                .white
+        case .library:
+                .white
+        case .plex:
+                .orange
+        case .tidal:
+                .teal
+        case .tuneIn:
+                .white
+        case .soundcloud:
+                .black
+        case .unknown:
+                .primary
+        }
+    }
 }

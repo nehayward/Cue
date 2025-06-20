@@ -305,6 +305,130 @@ extension AppleLibraryArtist {
     }
 }
 
+// MARK: - Spotify Updated Lookup
+extension SpotifySongDetails {
+    public var toAlbumPlayable: PlayableContent {
+        PlayableContent(
+            title: album,
+            subtitle: artist,
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil)
+        )
+    }
+}
+
+extension SpotifySongDetails {
+    public var toPlayable: PlayableContent? {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: trackIDOnly, type: .track, location: nil),
+            metadata: PlayableContentMetadata(
+                duration: Duration.milliseconds(
+                    duration
+                ),
+                artist: artist,
+                album: album,
+                isExplicit: isExplicit
+            )
+        )
+    }
+}
+
+extension SpotifyTrack {
+    public var toPlayable: PlayableContent? {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: trackIdOnly, type: .track, location: nil),
+            metadata: PlayableContentMetadata(
+                duration: Duration.milliseconds(
+                    duration
+                ),
+                artist: artist,
+                album: album,
+                isExplicit: isExplicit
+            )
+        )
+    }
+}
+
+
+extension SpotifyArtist {
+    public var toPlayable: PlayableContent? {
+        guard itemType == "album" else { return nil }
+        return PlayableContent(
+            title: name,
+            subtitle: artist ?? "",
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil)
+        )
+    }
+}
+
+extension SpotifySongDetails {
+    public var toArtistPlayable: PlayableContent {
+        PlayableContent(
+            title: artist,
+            subtitle: "",
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: artistIdOnly, type: .artist, location: nil)
+        )
+    }
+}
+
+extension SpotifyAlbum {
+    public var toPlayable: PlayableContent? {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil)
+        )
+    }
+}
+
+extension SpotifyAlbumTrack {
+    public var toPlayable: PlayableContent? {
+        PlayableContent(
+            title: title,
+            subtitle: artist,
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: trackIdOnly, type: .track, location: nil),
+            metadata: PlayableContentMetadata(
+                duration: Duration.milliseconds(
+                    duration
+                ),
+                artist: artist,
+                album: album,
+                isExplicit: isExplicit
+            )
+        )
+    }
+}
+
+
+extension SpotifyPlaylist {
+    public var toPlayable: PlayableContent? {
+        PlayableContent(
+            title: title,
+            subtitle: description ?? "",
+            thumbnail: URL(string: albumArtURI),
+            artwork: URL(string: albumArtURI),
+            content: .init(service: .spotify, id: IdOnly, type: .playlist, location: nil)
+        )
+    }
+}
+
 // MARK: - Spotify Music Mapping
 extension SpotifyTrackItem {
     public var toPlayable: PlayableContent? {
@@ -313,13 +437,13 @@ extension SpotifyTrackItem {
         return PlayableContent(
             title: name,
             subtitle: allArtists,
-            thumbnail: album.images.thumbnail,
-            artwork: album.images.biggestImageURL,
+            thumbnail: album.images?.thumbnail,
+            artwork: album.images?.biggestImageURL,
             content: MediaContent(
                 service: .spotify,
                 id: id,
                 type: .track,
-                location: URL(string: externalUrls.spotify)
+                location: URL(string: externalUrls.spotify ?? "")
             ),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
@@ -336,15 +460,16 @@ extension SpotifyTrackItem {
 }
 
 extension SpotifyAlbumItem {
-    public var toPlayable: PlayableContent {
-        PlayableContent(
+    public var toPlayable: PlayableContent? {
+        guard let id else { return nil }
+        return PlayableContent(
             title: name,
-            subtitle: [artists.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
-            thumbnail: images.thumbnail,
-            artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify)),
+            subtitle: [artists?.first?.name, releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
+            thumbnail: images?.thumbnail,
+            artwork: images?.biggestImageURL,
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),
             metadata: .init(
-                artistID: artists.first?.id,
+                artistID: artists?.first?.id,
                 albumYear: releaseYear
             )
         )
@@ -358,7 +483,7 @@ extension SpotifyArtistAlbums.AlbumItem {
             subtitle: releaseDateFormatted ?? "",
             thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? ""))
         )
     }
 }
@@ -370,7 +495,7 @@ extension SpotifyAlbumDetails {
             subtitle: releaseDateFormatted ?? "",
             thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? ""))
         )
     }
 }
@@ -383,7 +508,7 @@ extension SpotifyAlbumTrackItems {
             subtitle: allArtists,
             thumbnail: thumbnail,
             artwork: artwork,
-            content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls.spotify)),
+            content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls?.spotify ?? "")),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
                     durationMs
@@ -402,7 +527,7 @@ extension SpotifyPlaylistItems {
             subtitle: owner.displayName,
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify))
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify ?? ""))
         )
     }
 }
@@ -414,7 +539,7 @@ extension SpotifyArtistsItems {
             subtitle: "",
             thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string: externalUrls.spotify)),
+            content: MediaContent(service: .spotify, id: id, type: .artist, location: URL(string:  externalUrls.spotify ?? "")),
             metadata: .init(popularity: popularity)
         )
     }
@@ -427,26 +552,8 @@ extension SpotifyUserPlaylists {
             subtitle: "",
             thumbnail: images?.thumbnail,
             artwork: images?.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify)),
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: externalUrls.spotify ?? "")),
             metadata: nil
-        )
-    }
-}
-
-// MARK: Favorites
-extension Favorite {
-    public var toPlayable: PlayableContent {
-        PlayableContent(
-            title: name,
-            subtitle: description,
-            thumbnail: SonosService.shared.favoriteImageURL(favorite: self),
-            artwork: SonosService.shared.favoriteImageURL(favorite: self),
-            content: .init(
-                service: .unknown,
-                id: id,
-                type: .favorite,
-                location: nil
-            )
         )
     }
 }

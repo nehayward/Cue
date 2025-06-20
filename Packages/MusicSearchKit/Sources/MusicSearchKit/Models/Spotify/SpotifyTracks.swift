@@ -18,5 +18,5 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let explicit: Bool
     public let popularity: Int
     public let durationMs: Int
-    public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
+    public var allArtists: String { artists.compactMap { $0.name }.joined(separator: ", ") }
 }

@@ -46,7 +46,6 @@ struct ContentArtworkView: View {
             let cachedImageRequest = makeImageRequest(url: content.thumbnail, priority: .veryLow)
             self.imageRequest = cachedImageRequest
             if ImagePipeline.shared.cache.containsData(for: cachedImageRequest), ![.playlist, .libraryPlaylist].contains(content.content.type) {
-                print("Cached")
                 return
             }
 

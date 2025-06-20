@@ -18,12 +18,6 @@ import SonosKit
 
     var dismiss: Bool = false
 
-    private let sonosService: SonosService
-
-    public init(sonosService: SonosService = .shared) {
-        self.sonosService = sonosService
-    }
-
     @MainActor
     func navigate(to: RouterDestination) {
         if !path.contains(to) {

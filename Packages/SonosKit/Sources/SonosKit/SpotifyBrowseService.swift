@@ -8,12 +8,91 @@ import MusicSearchKit
 public final class SpotifyBrowseService {
     public static var shared = SpotifyBrowseService()
 
-    @ObservationIgnored private let spotifyAPI = SpotifyAPI()
+    @ObservationIgnored private let spotifyAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
+    @ObservationIgnored private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
+
+    public var tracks: OrderedSet<PlayableContent> = []
+    public var albums: OrderedSet<PlayableContent> = []
+    public var playlists: OrderedSet<PlayableContent> = []
     public var userPlaylists: OrderedSet<PlayableContent> = []
     public var foundUser: SpotifyUser?
 
     public init() { }
+
+    public func updatePlaylists(offset: Int? = nil, limit: Int = 25) async {
+        let offset = offset ?? playlists.count
+        guard let container = try? await spotifyLookupAPI.getPlaylists(index: offset, count: limit) else { return }
+        let newUserPlaylists = container.playlists.compactMap { $0.toPlayable }
+        if offset == 0, !playlists.isEmpty {
+            for new in newUserPlaylists {
+                playlists.insert(new, at: 0)
+            }
+            
+            for playlist in playlists.prefix(10) {
+                if !newUserPlaylists.contains(playlist) {
+                    playlists.remove(playlist)
+                }
+            }
+        } else {
+            for new in newUserPlaylists {
+                playlists.updateOrAppend(new)
+            }
+        }
+    }
     
+    public func userAlbums(offset: Int? = nil, limit: Int = 25) async {
+        let offset = offset ?? playlists.count
+        guard let container = await spotifyAPI.userAlbums(offset: offset, limit: limit) else {
+            return
+        }
+        let newAlbums = container.items.compactMap { $0?.album.toPlayable }
+    
+        if offset == 0, !albums.isEmpty {
+            for new in newAlbums {
+                albums.insert(new, at: 0)
+            }
+            
+            for album in albums.prefix(10) {
+                if !newAlbums.contains(album) {
+                    albums.remove(album)
+                }
+            }
+        } else {
+            for new in newAlbums {
+                albums.updateOrAppend(new)
+            }
+        }
+    }
+
+    public func updateSongs(offset: Int? = nil, limit: Int = 25) async {
+        let offset = offset ?? tracks.count
+        guard let container = try? await spotifyLookupAPI.getMetadata(index: offset, count: limit) else { return }
+        let newTracks = container.tracks.compactMap { $0.toPlayable }
+        if offset == 0, !tracks.isEmpty, !newTracks.isEmpty {
+            for new in newTracks {
+                tracks.insert(new, at: 0)
+            }
+            
+            for track in tracks.prefix(10) {
+                if !newTracks.contains(track) {
+                    tracks.remove(track)
+                }
+            }
+        } else {
+            for new in newTracks {
+                tracks.updateOrAppend(new)
+            }
+        }
+    }
+    
+    /// Updates both playlists and songs concurrently
+    public func updatePlaylistsAndSongs(offset: Int? = nil) async {
+        await self.updatePlaylists(offset: offset, limit: 10)
+        await self.updateSongs(offset: offset, limit: 10)
+        await self.userAlbums(offset: offset, limit: 10)
+    }
+
+    @available(*, deprecated, message: "Use updateAllPlaylistsAndRecentPlayed(userID:) instead")
     public func updateUsersRecentPlayed(userID: String, offset: Int = 0) async {
         guard let container = await spotifyAPI.userPlaylists(userID: userID) else { return }
         let newUserPlaylists = container.items.compactMap { $0?.toPlayable }
@@ -21,7 +100,8 @@ public final class SpotifyBrowseService {
             userPlaylists.updateOrAppend(new)
         }
     }
-    
+
+    @available(*, deprecated, message: "User lookup is now handled internally; no need to call this directly")
     public func lookup(userID: String) async {
         guard let user = await spotifyAPI.lookupUser(for: userID) else {
             foundUser = nil

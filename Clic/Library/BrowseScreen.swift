@@ -34,7 +34,7 @@ struct BrowseScreen: View {
             case .plex:
                 PlexBrowseScreen()
             case .spotify:
-                SpotifyPlaylistScreen(showMediaSelector: true)
+                SpotifyLibraryScreen()
             case .library:
                 LibraryBrowseScreen()
             default:

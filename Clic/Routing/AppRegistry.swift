@@ -101,8 +101,6 @@ extension View {
                             .offset(y: MiniPlayerManger.shared.offset)
                     }
                     .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
-                    .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -125,8 +123,6 @@ extension View {
                             .offset(y: MiniPlayerManger.shared.offset)
                     }
                     .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
-                    .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -241,8 +237,8 @@ extension View {
                 case .scenes:
                     SceneView()
                 case let .mediaDetail(content, group):
-                    @State var router = Router()
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let router = Router()
+                    let selectedGroupService = SelectedGroupService(group: group)
 
                     NavigationStack {
                         MediaDetailView(playableContent: content)

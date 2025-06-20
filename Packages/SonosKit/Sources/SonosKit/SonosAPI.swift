@@ -17,7 +17,7 @@ final class SonosAPI: NSObject {
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForRequest = 15
         return URLSession(configuration: configuration)
     }()
 
@@ -830,7 +830,7 @@ final class SonosAPI: NSObject {
         if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
             let xmlString = String(decoding: data, as: UTF8.self)
             let houseID = xmlParser.parseHouseID(xml: xmlString)
-            return houseID
+            return houseID.components(separatedBy: ".").first ?? ""
         }
 
         return ""
@@ -872,52 +872,6 @@ final class SonosAPI: NSObject {
 
         let xml = String(decoding: data, as: UTF8.self)
         return xmlParser.parseFavorites(IP: IP, xml: xml)
-    }
-    
-
-    func playFavorite(on group: GroupRoom, favoriteID: String) async {
-        guard let url = URL(string: "https://\(group.ip):1443/api/v1/groups/\(group.id)/favorites") else { return }
-        var request = URLRequest(url: url)
-        request.addValue("00aa27d9-e053-4de9-864a-09eeda033099", forHTTPHeaderField: "X-Sonos-Api-Key")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpMethod = "POST"
-
-        struct Favorite: Codable {
-            let favoriteId: String
-        }
-
-        let favorite = Favorite(favoriteId: favoriteID)
-        request.httpBody = try? encoder.encode(favorite)
-
-        print(String(decoding: request.httpBody!, as: UTF8.self))
-
-        guard let (data, response) = try? await insecure.data(for: request) else {
-            logger.error("\(group.nameWithCount) (\(group.ip)) Failed to \(#function)")
-            return
-        }
-
-        if let httpResponse = response as? HTTPURLResponse, 200..<300 ~= httpResponse.statusCode {
-            let xml = String(decoding: data, as: UTF8.self)
-            print(xml)
-            logger.error("\(group.nameWithCount) Failed to \(#function)")
-            return
-        }
-
-
-//        guard let favoriteList = try? decoder.decode(FavoritesList.self, from: data) else { return nil }
-//        print(favoriteList)
-//        return favoriteList
-    }
-
-    func favoriteArtwork(on favorite: Favorite, IP: String) -> URL? {
-        if let sonosAlbumArtURL = URL(string: "http://\(IP):1400\(favorite.imageUrl.unescaped)") {
-            print(sonosAlbumArtURL)
-            return sonosAlbumArtURL
-        }
-
-        // MARK: Might need to reevaluate
-//        print(favorite.imageUrl)
-        return URL(string: favorite.imageUrl)
     }
     
     func deleteFavorite(IP: String, itemID: String) async {

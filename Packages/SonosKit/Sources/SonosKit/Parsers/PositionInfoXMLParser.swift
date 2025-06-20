@@ -141,7 +141,7 @@ final class SonosTrackParser {
         
         let streamContent = extractValue(between: "<r:streamContent>", and: "</r:streamContent>", from: body)
         
-        guard let streamContent, !streamContent.isEmpty else { return nil }
+        guard let streamContent, !streamContent.isEmpty, streamContent != "ZPSTR_CONNECTING" else { return nil }
         let (title, album, artist) = XMLParserSonos().parseRadioTrackInfo(information: streamContent)
         
         let contentType = ContentType(extractValue(between: "<upnp:class>", and: "</upnp:class>", from: body) ?? "")

@@ -26,6 +26,8 @@ struct ArtistDetailView: View {
     @State private var isLoading: Bool = false
     @State private var albumType: Int = 0
     
+    @AppStorage("isTopSongsExpanded") private var isTopSongsExpanded: Bool = true
+    
     var body: some View {
         List {
             if artworkURL != nil  {
@@ -141,7 +143,7 @@ struct ArtistDetailView: View {
                     }
                 } header: {
                     HStack {
-                        Text("Top Songs")
+                        Text("Popular")
                         #if targetEnvironment(macCatalyst)
                             .foregroundStyle(.foreground)
                             .font(.title2)
@@ -172,7 +174,7 @@ struct ArtistDetailView: View {
                         .buttonBorderShape(.circle)
                         .tint(.accent)
                         .help(Text("Play All Top Songs"))
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 20))
+//                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 20))
                     }
                 }
             }
@@ -346,7 +348,7 @@ struct ArtistDetailView: View {
 //            }
         }
         .miniPlayerOnScrollHandler()
-        .listStyle(.plain)
+        .listStyle(.sidebar)
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
@@ -370,7 +372,7 @@ struct ArtistDetailView: View {
                 
                 guard let allArtist: Artist = try? await MusicSearchService.shared.artistCatalog(id: playableContent.content.id) else { return }
                 latestRelease = allArtist.latestRelease?.toPlayable
-    
+                
                 if let liveAlbums = allArtist.liveAlbums {
                     self.liveAlbums = liveAlbums.map(\.toPlayable)
                         .sorted { (album1, album2) in
@@ -379,7 +381,7 @@ struct ArtistDetailView: View {
                             return year1 > year2
                         }
                 }
-                                
+                
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
                 
@@ -416,10 +418,10 @@ struct ArtistDetailView: View {
                 self.albums = albums.map(\.toPlayable)
                     .filter { !($0.metadata?.isSingle ?? false) }
                     .sorted { (album1, album2) in
-                    let year1 = album1.metadata?.albumYear ?? .now
-                    let year2 = album2.metadata?.albumYear ?? .now
-                    return year1 > year2
-                }
+                        let year1 = album1.metadata?.albumYear ?? .now
+                        let year2 = album2.metadata?.albumYear ?? .now
+                        return year1 > year2
+                    }
                 
                 if let liveAlbums = allArtist.liveAlbums {
                     self.liveAlbums = liveAlbums.map(\.toPlayable)
@@ -429,7 +431,7 @@ struct ArtistDetailView: View {
                             return year1 > year2
                         }
                 }
-                                
+                
                 artworkURL = artist.artwork?.url(width: 500, height: 500)
                 playableContent = artist.toPlayable
                 
@@ -459,6 +461,21 @@ struct ArtistDetailView: View {
                 albums = artistAlbumsAwait.items.map(\.toPlayable)
                 artworkURL = artistAwait.images.biggestImageURL
                 self.tracks = artistTopTracksAwait.compactMap(\.toPlayable)
+                
+//                guard let song = await MusicSearchService.shared.spotifyTrackLookup(id: playableContent.content.id) else { return }
+//                async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: song.artistIdOnly)
+//                async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: song.artistIdOnly)
+//                
+//                guard let artistAlbumsAwait = await artistAlbums else { return }
+//                guard let artistTopTracksAwait = await artistTopTracks else { return }
+//                
+//                print(artistAlbumsAwait)
+//                playableContent = song.toAlbumPlayable
+//                albums = artistAlbumsAwait.artists.compactMap(\.toPlayable)
+//                if let radioURL = artistTopTracksAwait.songs.first?.albumArtURI, let url = URL(string: radioURL) {
+//                    artworkURL = url
+//                }
+//                self.tracks = artistTopTracksAwait.songs.compactMap(\.toPlayable)
             case (.album, .apple):
                 guard let album: Album = try? await MusicSearchService.shared.lookup(id: playableContent.content.id), let artistID = album.artists?.first?.id.description else { return }
                 guard let artist: Artist = try? await MusicSearchService.shared.artistCatalog(id: artistID) else { return }
@@ -491,7 +508,7 @@ struct ArtistDetailView: View {
                 }
             case (.album, .spotify):
                 guard let song = await MusicSearchService.shared.spotifyAlbumLookup(id: playableContent.content.id),
-                      let artistID = song.artists.first?.id else { return }
+                      let artistID = song.artists?.first?.id else { return }
                 async let artist = MusicSearchService.shared.spotifyArtist(id: artistID)
                 async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: artistID)
                 async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: artistID)

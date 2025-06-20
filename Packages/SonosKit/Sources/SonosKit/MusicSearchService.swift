@@ -41,7 +41,8 @@ public final class MusicSearchService {
     private let apple = AppleMusicAPI()
     private let plex = PlexAPI()
     private let tidal = TidalAPI()
-    private let spotifySearchAPI = SpotifyAPI()
+    private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
+    private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let tuneIn = TuneInAPI()
     private let sonosService = SonosService.shared
 
@@ -230,7 +231,33 @@ public final class MusicSearchService {
     public func spotifyArtistTopTracks(id: String) async -> [SpotifyTrackItem] {
         await spotifySearchAPI.artistTopTracks(id: id)
     }
-
+    
+    public func spotifyGetPlaylists(offset: Int = 0) async -> SpotifyPlaylistResponse? {
+        guard let playlists = try? await spotifyLookupAPI.getPlaylists(index: offset) else {
+            return nil
+        }
+        return playlists
+    }
+    
+    public func spotifyGetLikedSongs(offset: Int = 0) async -> SpotifyMetadataResponse? {
+        guard let songs = try? await spotifyLookupAPI.getMetadata(index: offset) else {
+            return nil
+        }
+        return songs
+    }
+    
+    public func isSpotifyTrackSaved(id: String) async -> Bool {
+        await spotifySearchAPI.isTrackSaved(id: id)
+    }
+    
+    public func saveSpotifyTrack(id: String) async -> Bool {
+        await spotifySearchAPI.saveTrack(id: id)
+    }
+    
+    public func deleteSpotifyTrack(id: String) async -> Bool {
+        await spotifySearchAPI.deleteTrack(id: id)
+    }
+    
     public func searchSpotify(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []
         guard let results = await spotifySearchAPI.search(for: query, types: [.artist, .album, .playlist, .track]) else { return playableContent }
@@ -281,7 +308,7 @@ public final class MusicSearchService {
     public func searchLibraryAppleMusic(query: String) async -> [PlayableContent] {
         if query.count < 1 { return [] }
         guard await requestMusicAuthorization() else { return [] }
-        let container = try? await apple.libarySearch(term: query)
+        let container = try? await apple.librarySearch(term: query)
         var playableContent: [PlayableContent] = []
         
         if let songs = container?.results.librarySongs {

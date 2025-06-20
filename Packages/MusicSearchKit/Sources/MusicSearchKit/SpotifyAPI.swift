@@ -1,23 +1,48 @@
 import Foundation
 import OSLog
 
+// Empty response type for PUT/DELETE operations that don't return content
+private struct EmptyResponse: Codable {}
+
+/**
+ * SpotifyAPI provides access to Spotify's Web API with support for token refresh handling.
+ * 
+ * The API requires a TokenRefreshHandler to function. When initialized with a TokenRefreshHandler, the API will:
+ * - Use credentials from the handler for authentication on each request
+ * - Automatically retry requests when receiving 401 responses
+ * - Allow external token refresh responses to be processed
+ * 
+ * Example usage:
+ * ```swift
+ * let tokenHandler = KeychainTokenRefreshHandler.shared
+ * let spotifyAPI = SpotifyAPI(tokenRefreshHandler: tokenHandler)
+ * 
+ * // Search for tracks
+ * let results = await spotifyAPI.search(for: "query", types: [.track])
+ * 
+ * // Handle external token refresh (e.g., from Sonos)
+ * try await spotifyAPI.handleTokenRefreshResponse(
+ *     householdId: "household_id", 
+ *     refreshResponse: tokenRefreshResponse
+ * )
+ * ```
+ * 
+ * Note: The API will throw AuthError.missingTokenHandler if no token refresh handler is provided.
+ */
 public final class SpotifyAPI {
     private let logger: Logger = Logger(subsystem: "SpotifySearchAPI", category: "SpotifySearchAPI")
     private let session: URLSession
     private let decoder: JSONDecoder
-    private let tokenManager = TokenManager()
-    private let tokenKey: Data?
+    private let tokenRefreshHandler: TokenRefreshHandler?
+    private let maxRetries = 3
+    private let retryDelay: TimeInterval = 0.5 // 500 milliseconds
 
-    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
+    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder(), tokenRefreshHandler: TokenRefreshHandler? = nil) {
+        self.tokenRefreshHandler = tokenRefreshHandler
         self.session = session
         self.decoder = decoder
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
-        // MARK: Workaround for Spotify Limitation
-        let keys: [Data?] = ["grant_type=client_credentials&client_id=77eb5452d9c04e5ca467b688ca9c59cc&client_secret=a0332c4e3f104e749eae2fb54982ac5e".data(using: .utf8),
-                    "grant_type=client_credentials&client_id=29039f2858ac4acda410235f7a9b7996&client_secret=5414507b6dda4f8c8405d1e4e468f506".data(using: .utf8),
-                    "grant_type=client_credentials&client_id=6569f80e8a74407392c62894a4c10d8c&client_secret=215fa39804da4b2c8032cf76bc81107e".data(using: .utf8)]
-        tokenKey = keys.randomElement()?.map{ $0 }
+        decoder.dateDecodingStrategy = .iso8601
     }
 
     public func lookupUser(for userID: String) async -> SpotifyUser? {
@@ -30,7 +55,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifySearch: SpotifyUser = try await loadAuthorized(url)
+            let spotifySearch: SpotifyUser = try await authorizedRequest(url)
             return spotifySearch
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -52,7 +77,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
+            let spotifySearch: SpotifyResult = try await authorizedRequest(url)
             return spotifySearch
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -74,7 +99,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
+            let spotifySearch: SpotifyResult = try await authorizedRequest(url)
             return spotifySearch
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -91,7 +116,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifySearch: SpotifyResult = try await loadAuthorized(url)
+            let spotifySearch: SpotifyResult = try await authorizedRequest(url)
             return spotifySearch
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -107,7 +132,39 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyTrack: SpotifyTrackItem = try await loadAuthorized(url)
+            let spotifyTrack: SpotifyTrackItem = try await authorizedRequest(url)
+            return spotifyTrack
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    public func save(id: String) async -> SpotifyTrackItem? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/tracks/\(id)"
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifyTrack: SpotifyTrackItem = try await authorizedRequest(url)
+            return spotifyTrack
+        } catch {
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    public func removeTrack(id: String) async -> SpotifyTrackItem? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/tracks/\(id)"
+        guard let url = components.url else { return nil }
+
+        do {
+            let spotifyTrack: SpotifyTrackItem = try await authorizedRequest(url)
             return spotifyTrack
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -120,10 +177,12 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/playlists/\(id)"
+        components.queryItems = [URLQueryItem(name: "fields", value: "tracks,images")]
+        
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyPlaylist: SpotifyPlaylistItems = try await loadAuthorized(url)
+            let spotifyPlaylist: SpotifyPlaylistItems = try await authorizedRequest(url)
             return spotifyPlaylist
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -139,7 +198,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyPlaylist: SpotifyUserPlaylistsResponse = try await loadAuthorized(url)
+            let spotifyPlaylist: SpotifyUserPlaylistsResponse = try await authorizedRequest(url)
             return spotifyPlaylist
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -159,14 +218,35 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyPlaylist: SpotifyPlaylistsFullContainer = try await loadAuthorized(url)
+            let spotifyPlaylist: SpotifyPlaylistsFullContainer = try await authorizedRequest(url)
             return spotifyPlaylist
         } catch {
+            print(error.localizedDescription)
             logger.error("\(error.localizedDescription)")
             return nil
         }
     }
+    public func userAlbums(offset: Int = 0, limit: Int = 50) async -> SpotifyUserAlbumResponse? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/albums"
+        components.queryItems = [
+            .init(name: "offset", value: "\(offset)"),
+            .init(name: "limit", value: "\(limit)")
+        ]
+        guard let url = components.url else { return nil }
 
+        do {
+            let userAlbums: SpotifyUserAlbumResponse = try await authorizedRequest(url)
+            return userAlbums
+        } catch {
+            print(error.localizedDescription)
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
     public func album(id: String) async -> SpotifyAlbumItem? {
         var components = URLComponents()
         components.scheme = "https"
@@ -175,7 +255,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let album: SpotifyAlbumItem = try await loadAuthorized(url)
+            let album: SpotifyAlbumItem = try await authorizedRequest(url)
             return album
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -189,14 +269,13 @@ public final class SpotifyAPI {
         components.host = "api.spotify.com"
         components.path = "/v1/albums/\(id)"
         components.queryItems = [
-//            URLQueryItem(name: "market", value: ""),
             URLQueryItem(name: "limit", value: "50")
         ]
 
         guard let url = components.url else { return nil }
 
         do {
-            let spotifyAlbum: SpotifyAlbumDetails = try await loadAuthorized(url)
+            let spotifyAlbum: SpotifyAlbumDetails = try await authorizedRequest(url)
             return spotifyAlbum
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -215,7 +294,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let artist: SpotifyArtistsItems = try await loadAuthorized(url)
+            let artist: SpotifyArtistsItems = try await authorizedRequest(url)
             return artist
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -236,7 +315,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return [] }
 //
         do {
-            let spotifyArtistTopTracks: SpotifyArtistTopTracks = try await loadAuthorized(url)
+            let spotifyArtistTopTracks: SpotifyArtistTopTracks = try await authorizedRequest(url)
             return spotifyArtistTopTracks.tracks
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -257,7 +336,7 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let tracks: SpotifyArtistAlbums = try await loadAuthorized(url)
+            let tracks: SpotifyArtistAlbums = try await authorizedRequest(url)
             return tracks
         } catch {
             logger.error("\(error.localizedDescription)")
@@ -265,117 +344,121 @@ public final class SpotifyAPI {
         }
     }
 
-    func getToken() async -> SpotifyTokenResponse? {
-        guard let URL = URL(string: "https://accounts.spotify.com/api/token") else { return nil }
-        var request = URLRequest(url: URL)
-        request.httpMethod = "POST"
-        request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = tokenKey
-
-        guard let (data, _) = try? await session.data(for: request) else {
-            return nil
-        }
+    public func saveTrack(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/tracks"
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: id)
+        ]
+        guard let url = components.url else { return false }
 
         do {
-            let spotifySearch = try decoder.decode(SpotifyTokenResponse.self, from: data)
-            return spotifySearch
+            let _: EmptyResponse = try await authorizedRequest(url, method: "PUT")
+            return true
         } catch {
-            logger.error("\(error.localizedDescription)")
-            return nil
+            logger.error("Failed to save track: \(error.localizedDescription)")
+            return false
         }
     }
+    
+    public func deleteTrack(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/tracks"
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: id)
+        ]
+        guard let url = components.url else { return false }
 
-    // MARK: Token
-    private var currentToken: Token?
-    private var refreshTask: Task<Token, Error>?
+        do {
+            let _: EmptyResponse = try await authorizedRequest(url, method: "DELETE")
+            return true
+        } catch {
+            logger.error("Failed to delete track: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    public func isTrackSaved(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/tracks/contains"
+        components.queryItems = [
+            URLQueryItem(name: "ids", value: id)
+        ]
+        guard let url = components.url else { return false }
+
+        do {
+            let savedStatus: [Bool] = try await authorizedRequest(url)
+            return savedStatus.first ?? false
+        } catch {
+            logger.error("Failed to check if track is saved: \(error.localizedDescription)")
+            return false
+        }
+    }
 
     enum AuthError: Error {
         case missingToken
         case invalidToken
+        case tokenRefreshFailed
+        case missingTokenHandler
     }
 
-    func loadAuthorized<T: Decodable>(_ url: URL, allowRetry: Bool = true) async throws -> T {
-        let request = try await authorizedRequest(from: url)
-        let (data, urlResponse) = try await session.data(for: request)
+    func authorizedRequest<T: Decodable>(_ url: URL, method: String = "GET", allowRetry: Bool = true) async throws -> T {
+        guard let handler = tokenRefreshHandler else {
+            throw AuthError.missingTokenHandler
+        }
+        
+        var retryCount = 0
+        while retryCount < maxRetries {
+            if let credentials = try await handler.getCredentials() {
+                var request = try await authorizedRequest(from: url, token: credentials.token)
+                request.httpMethod = method
+                let (data, urlResponse) = try await session.data(for: request)
 
-        // check the http status code and refresh + retry if we received 401 Unauthorized
-        if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
-            if allowRetry {
-                _ = try await refreshToken()
-                return try await loadAuthorized(url, allowRetry: false)
+                // check the http status code and refresh + retry if we received 401 Unauthorized
+                if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
+                    if allowRetry {
+                        print("Received 401 Unauthorized, attempting token refresh")
+                        retryCount += 1
+                        if retryCount < maxRetries {
+                            print("FAILED TO REFRESH TOKEN")
+                            guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
+                                throw AuthError.invalidToken
+                            }
+                            try await handler.handleTokenRefresh(householdId: credentials.householdId, token: token.0, key: token.1)
+                        }
+                    }
+                    throw AuthError.invalidToken
+                }
+
+                do {
+                    let response = try decoder.decode(T.self, from: data)
+                    return response
+                } catch {
+                    print("Failed to decode response: \(error)")
+                    throw error
+                }
+            } else {
+                retryCount += 1
+                if retryCount < maxRetries {
+                    try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+                } else {
+                    throw AuthError.tokenRefreshFailed
+                }
             }
-
-            throw AuthError.invalidToken
         }
-
-        do {
-            let response = try decoder.decode(T.self, from: data)
-            return response
-        } catch {
-//            print(T.self)
-//            print(error)
-//            logger.error("Failed to decode ⚠️")
-//            assertionFailure(String(decoding: data, as: UTF8.self))
-            throw error
-        }
+        throw AuthError.tokenRefreshFailed
     }
 
-    private func authorizedRequest(from url: URL) async throws -> URLRequest {
+    private func authorizedRequest(from url: URL, token: String) async throws -> URLRequest {
         var urlRequest = URLRequest(url: url)
-        let token = try await validToken()
-        urlRequest.setValue("Bearer \(token.id)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return urlRequest
-    }
-
-    // Update the validToken method
-    func validToken() async throws -> Token {
-        return try await tokenManager.getValidToken(refreshToken: refreshToken)
-    }
-
-    // Update the refreshToken method
-    func refreshToken() async throws -> Token {
-        guard let response = await getToken() else {
-            throw AuthError.missingToken
-        }
-        
-        return Token(validUntil: Date.now.addingTimeInterval(TimeInterval(response.expiresIn)), id: response.accessToken)
-    }
-}
-
-extension SpotifyAPI {
-    struct Token {
-        let validUntil: Date
-        let id: String
-        var isValid: Bool { Date.now < validUntil }
-    }
-    
-    actor TokenManager {
-        private var currentToken: Token?
-        private var refreshTask: Task<Token, Error>?
-        
-        func getValidToken(refreshToken: @escaping () async throws -> Token) async throws -> Token {
-            if let token = currentToken, token.isValid {
-                return token
-            }
-            
-            return try await refreshTokenIfNeeded(refreshToken: refreshToken)
-        }
-        
-        private func refreshTokenIfNeeded(refreshToken: @escaping () async throws -> Token) async throws -> Token {
-            if let task = refreshTask {
-                return try await task.value
-            }
-            
-            let task = Task {
-                defer { refreshTask = nil }
-                let newToken = try await refreshToken()
-                currentToken = newToken
-                return newToken
-            }
-            
-            refreshTask = task
-            return try await task.value
-        }
     }
 }
 

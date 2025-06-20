@@ -22,47 +22,16 @@ struct PlayableCardView: View {
     var hideAction: Bool = false
 
     var body: some View {
-        Group {
+        VStack {
             if let add = adding?.add, add {
                 content
             } else {
-                if !hideAction {
-                    switch item.content.type {
-                    case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                        Button {
-                            router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
-                        } label: {
-                            content
-                        }
-                        .buttonStyle(.plain)
-                    case .artist, .libraryArtist:
-                        Button {
-                            router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
-                        } label: {
-                            content
-                        }
-                        .buttonStyle(.plain)
-                    case .track, .favorite:
-                        Button {
-                            play()
-                        } label: {
-                            content
-                        }
-                    case .radio, .artistRadio, .songRadio:
-                        Button {
-                            play()
-                        } label: {
-                            content
-                        }
-                    case .libraryTrack:
-                        content
-                    }
-                } else {
-                    Button {
-                        play()
-                    } label: {
-                        content
-                    }
+                Menu {
+                    PlayableMenuView(item: item)
+                } label: {
+                    content
+                } primaryAction: {
+                    actions()
                 }
             }
         }
@@ -111,15 +80,25 @@ struct PlayableCardView: View {
                 .foregroundStyle(.white)
             }
             .clipShape(RoundedRectangle(cornerRadius: 16))
-            .contextMenu {
-                if adding == nil {
-                    PlayableMenuView(item: item)
-                }
-            }
-            .draggable(item)
             .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
     }
-
+    
+    private func actions() {
+        if !hideAction {
+            switch item.content.type {
+            case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
+                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+            case .artist, .libraryArtist:
+                router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
+            case .track, .favorite, .radio, .artistRadio, .songRadio:
+                play()
+            case .libraryTrack:
+                break
+            }
+        } else {
+            play()
+        }
+    }
 
     private func play(position: QueuePosition = .now) {
         hideKeyboard()

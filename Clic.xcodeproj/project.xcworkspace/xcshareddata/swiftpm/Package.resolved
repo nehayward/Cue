@@ -1,5 +1,5 @@
 {
-  "originHash" : "658c8aec5611b6a0738d0fb3927332cad24ee395bf46ecba6e551e473b70fa91",
+  "originHash" : "a50436b9cd8b2358d04c8785b7dcfa21c1c3a7d1aa8c1017e670798702ed3eed",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "35700218d35579df091974b6e7765db94c83448b",
         "version" : "0.4.0"
+      }
+    },
+    {
+      "identity" : "flyingfox",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swhitty/FlyingFox.git",
+      "state" : {
+        "revision" : "523a88637425fd2a817e54b644a411ca4a353966",
+        "version" : "0.23.0"
       }
     },
     {

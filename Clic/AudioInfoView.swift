@@ -24,6 +24,7 @@ struct AudioInfoView: View {
                 } label: {
                     ZStack {
                         Text(qualityString)
+                            .padding(.horizontal, showDetails ? 0 : 4)
                             .opacity(showDetails ? 1 : 0)
 
                         // Dolby Atmos
@@ -49,12 +50,18 @@ struct AudioInfoView: View {
                     .frame(minHeight: 24)
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+                .background {
+                    Capsule()
+                        .foregroundStyle(.ultraThinMaterial)
+                }
             } else {
                 Text(qualityString)
-                    .opacity(quality == nil ? 0 : 1)
+                    .padding(.horizontal, 4)
+                    .opacity(qualityString.isEmpty ? 0 : 1)
             }
         }
         .opacity(quality == nil ? 0 : 1)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(.primary.opacity(0.8))
     }
 }

@@ -10,30 +10,111 @@ public final class AppleMusicAPI {
         self.decoder = decoder
     }
     
-    public func getStoreFront() async -> String? {
-        guard await requestMusicAuthorization() else { return nil }
-
-        let storeFrontURL = URL(string: "https://api.music.apple.com/v1/me/storefront")!
-        let request = MusicDataRequest(urlRequest: .init(url: storeFrontURL))
-        let response = try? await request.response()
-        guard let data = response?.data else { return nil }
-        return nil
-    }
-    
-    public func favoriteSong(songId: String) async throws {
-#if !targetEnvironment(macCatalyst) && !os(macOS)
-        let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songId))
-        let response = try await request.response()
-        
-        if let song = response.items.first {
-            try await MusicLibrary.shared.add(song)
-            print("Song added to library successfully")
+    /// Updates the favorite status of a song in Apple Music
+    /// - Parameters:
+    ///   - songId: The ID of the song to update
+    ///   - favorite: If true, marks the song as favorite. If false, removes favorite status
+    /// - Throws: Error if the API request fails or if the song cannot be found
+    public func updateFavoriteStatus(songId: String, favorite: Bool) async throws {
+        var id: String = songId
+        if songId.hasPrefix("i") {
+            guard let catalogSong = try? await librarySongCatalog(id: songId),
+                  let song = catalogSong.data.first else {
+                return
+            }
+            id = song.id
+            let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs/\(id)")!
+            var urlRequest = URLRequest(url: ratingURL)
+            
+            if favorite {
+                // Set favorite status with PUT
+                urlRequest.httpMethod = "PUT"
+                let body: [String: Any] = [
+                    "attributes": [
+                        "value": 1
+                    ],
+                    "type": "ratings"
+                ]
+                urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+            } else {
+                // Remove favorite status with DELETE
+                urlRequest.httpMethod = "DELETE"
+            }
+            
+            let request = MusicDataRequest(urlRequest: urlRequest)
+            guard let response = try? await request.response() else {
+                return
+            }
+            print(String(decoding: response.data, as: UTF8.self))
         } else {
-            print("Song not found")
+#if !targetEnvironment(macCatalyst) && !os(macOS)
+            let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songId))
+            let response = try await request.response()
+            
+            if let song = response.items.first {
+                print(song.id.rawValue)
+                try await MusicLibrary.shared.add(song)
+                print("Song added to library successfully")
+            } else {
+                print("Song not found")
+            }
+#endif            
         }
-#endif
     }
     
+    public func isFavorite(songId: String) async throws -> Bool {
+        guard let catalogSong = try? await librarySongCatalog(id: songId), let id = catalogSong.data.first?.id else { return false }
+        let addToPlaylistURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs?ids=\(id)")!
+        let urlRequest = URLRequest(url: addToPlaylistURL)
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        guard let response = try? await request.response() else { return false }
+        
+        struct Rating: Codable {
+            let id: String
+            let type: String
+            let href: String
+            let attributes: RatingAttributes
+        }
+        
+        struct RatingAttributes: Codable {
+            let value: Int
+        }
+        
+        struct RatingResponse: Codable {
+            let data: [Rating]
+        }
+        
+        if let ratingResponse = try? decoder.decode(RatingResponse.self, from: response.data) {
+            return !ratingResponse.data.isEmpty
+        }
+        return false
+    }
+    
+    public func addSongToPlaylist(songId: String, playlistID: String) async throws {
+        let ratingURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists/\(playlistID)/tracks")!
+        var urlRequest = URLRequest(url: ratingURL)
+        
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "data": [
+                [
+                    "id": "i.\(songId)",
+                    "type": "songs"
+                ]
+            ]
+        ]
+        
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let request = MusicDataRequest(urlRequest: urlRequest)
+        guard let response = try? await request.response() else {
+            return
+        }
+        print(String(decoding: response.data, as: UTF8.self))
+    }
+        
     public func getUserPlaylists(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
@@ -41,6 +122,24 @@ public final class AppleMusicAPI {
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            print(error)
+            print(String(decoding: response!.data, as: UTF8.self))
+            return nil
+        }
+    }
+    
+    public func getUserPlaylistsFolders(offset: Int = 0) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlist-folders?offset=\(offset)")!
+        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        print(String(decoding: data, as: UTF8.self))
         do {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
             return appleUserPlaylistContainer
@@ -264,6 +363,22 @@ public final class AppleMusicAPI {
             return nil
         }
     }
+    
+    public func catalogSong(id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        let librarySongURL = URL(string: "https://api.music.apple.com/v1/catalog/us/songs/\(id)")!
+        let request = MusicDataRequest(urlRequest: .init(url: librarySongURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        print(String(decoding: data, as: UTF8.self))
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            return nil
+        }
+    }
 
     public func librarySongCatalog(id: String) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
@@ -364,7 +479,7 @@ public final class AppleMusicAPI {
         }
     }
     
-    public func libarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
+    public func librarySearch(term: String) async throws -> AppleLibrarySearchContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
         let librarySongURL = URL(string: "https://api.music.apple.com/v1/me/library/search?term=\(term)&types=library-albums,library-artists,library-playlists,library-songs&limit=25")!

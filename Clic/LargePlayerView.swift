@@ -1,6 +1,7 @@
 import SwiftUI
 import Collections
 import SonosKit
+import MusicSearchKit
 import VibesDS
 
 struct LargePlayerView: View {
@@ -16,7 +17,8 @@ struct LargePlayerView: View {
     @State private var isHoveringOnQueueList: Bool = false
     @State private var refreshID = UUID()
     @State private var shouldFade: Bool = false
-    
+    @State private var isFavorite: Bool?
+
     @State private var selectionTrack: Task<Void, Never>?
     @State private var scrubbingTask: Task<Void, Error>?
         
@@ -256,6 +258,45 @@ struct LargePlayerView: View {
                             .bold()
                             .id(refreshID)
                     }
+                    if group.coordinatorRoom.track.musicService == .spotify {
+                        Button {
+                            if isFavorite ?? false {
+                                Task {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    await MusicSearchService.shared.deleteSpotifyTrack(id: group.coordinatorRoom.track.trackID)
+                                    isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
+                                }
+                            } else {
+                                Task {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    await MusicSearchService.shared.saveSpotifyTrack(id: group.coordinatorRoom.track.trackID)
+                                    isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "heart")
+                                .symbolVariant(isFavorite ?? false ? .fill : .none)
+                                .foregroundStyle(MusicService.spotify.brandColor.gradient)
+                                .help("Favorite Song")
+                                .accessibilityLabel("Favorite Song")
+                        }
+                    }
+                    
+                    // MARK: add Back when it's working
+//                    if group.coordinatorRoom.track.musicService == .apple {
+//                        Button {
+//                            Task {
+//                                let favorite = isFavorite ?? false
+//                                try? await AppleMusicAPI().updateFavoriteStatus(songId: group.coordinatorRoom.track.trackID, favorite: !favorite)
+//                                isFavorite = try? await AppleMusicAPI().isFavorite(songId: group.coordinatorRoom.track.trackID)
+//                            }
+//                        } label: {
+//                            Image(systemName: "star")
+//                                .symbolVariant(isFavorite ?? false ? .fill : .none)
+//                                .foregroundStyle(.red.gradient)
+//                                .animation(.spring, value: isFavorite)
+//                        }
+//                    }
                     MenuInfoView(group: group)
                         .tint(.primary)
                         .id(refreshID)
@@ -270,6 +311,19 @@ struct LargePlayerView: View {
             group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
             sonosService.stopListening(ip: group.ip, groupID: group.id)
             sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
+        }
+        .task(id: group.coordinatorRoom.track.id) {
+            if group.coordinatorRoom.track.musicService == .spotify {
+                isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
+            } else {
+                isFavorite = nil
+            }
+            // MARK: add Back when it's working
+//            if group.coordinatorRoom.track.musicService == .apple {
+//                isFavorite = try? await AppleMusicAPI().isFavorite(songId: group.coordinatorRoom.track.trackID)
+//            } else {
+//                isFavorite = nil
+//            }
         }
         .onDisappear {
             sonosService.songAudioInfo = nil

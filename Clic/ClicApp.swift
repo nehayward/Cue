@@ -279,6 +279,11 @@ struct ClicApp: App {
         switch scenePhase {
         case .active:
             sonosService.monitor()
+            Task {
+                try await Task.sleep(for: .milliseconds(300))
+                sonosService.onServerListening()
+            }
+            
             if !subscriptionService.subscription.isActive {
                 return
             }

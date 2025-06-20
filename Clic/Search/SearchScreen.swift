@@ -85,7 +85,7 @@ struct SearchScreen: View {
                     }
                     
                     if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .spotify {
-                        SpotifyUsersPlaylistView()
+                        SpotifySearchScreen()
                     }
                     
                     if musicSearchService.query.isEmpty, !isAlarmSearch {
