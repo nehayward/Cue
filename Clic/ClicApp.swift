@@ -275,7 +275,6 @@ struct ClicApp: App {
     @MainActor
     private func handleScenePhase(_ scenePhase: ScenePhase) {
 //        guard hasOnboarded else { return }
-        
         switch scenePhase {
         case .active:
             sonosService.monitor()

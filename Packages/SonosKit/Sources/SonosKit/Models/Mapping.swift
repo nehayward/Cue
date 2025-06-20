@@ -204,14 +204,14 @@ extension AppleLibraryPlaylist {
 
 extension AppleLibraryItem {
     public var toPlayable: PlayableContent? {
-        guard let contentType = ContentType(type) else { return nil }
+        guard let contentType = ContentType(type), let name = attributes.name else { return nil }
         var trackDuration: Duration? = nil
         if let duration = attributes.durationInMillis {
             trackDuration = Duration.milliseconds(duration)
         }
     
         return PlayableContent(
-            title: attributes.name ?? "Unknown",
+            title: name,
             subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
             thumbnail: attributes.artwork?.urlWithSize(width: 100, height: 100),
             artwork: attributes.artwork?.urlWithSize(width: 600, height: 600),
