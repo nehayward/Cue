@@ -85,6 +85,11 @@ struct MediaDetailView: View {
                         }
                     }
                 }
+                // MARK: Next Updating
+                #warning("2025.11 audio format")
+//                if let audioFormat = playableContent.metadata?.audioCodec {
+//                    Text(audioFormat)
+//                }
             }
             .frame(maxWidth: .infinity)
             .fontDesign(.rounded)

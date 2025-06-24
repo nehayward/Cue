@@ -35,15 +35,23 @@ public final class PlexAPI {
         self.decoder = decoder
         self.decoder.dateDecodingStrategy = .secondsSince1970
 
-        let console = ConsoleDestination()  // log to Xcode Console
-        let file = FileDestination()  // log to default swiftybeaver.log file
+        // Optimize logging configuration
+        let console = ConsoleDestination()
+        console.format = "$C$L$c $M" // Simplified format for console
+        
+        let file = FileDestination()
         file.format = "$J"
-        console.logPrintWay = .logger(subsystem: "Main", category: "UI")
+        file.logFileMaxSize = (1 * 1024 * 1024)
+        file.asynchronously = true // Async logging to avoid blocking
+        
+        // Only add destinations in debug builds to reduce overhead
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.addDestination(console)
+        logger.addDestination(file)
+        #endif
+        
         self.librarySelectionID = UserDefaults.standard.string(forKey: "com.clic.plexServer.library")
         self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
-//        logger.addDestination(file)
-//        print("Init")
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
@@ -58,11 +66,13 @@ public final class PlexAPI {
             logger.warning("Plex invalid url \(plexServer.name)")
             return nil
         }
+        
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "query", value: query),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
         search.append(queryItems: queryItems)
+        
         var request = URLRequest(url: search)
         request.httpMethod = "GET"
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
@@ -73,8 +83,11 @@ public final class PlexAPI {
             return nil
         }
 
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let xml = String(decoding: data, as: UTF8.self)
         logger.info("\(xml)")
+        #endif
+        
         return parser.parseXML(xmlData: data, plexServer: plexServer)
     }
 
@@ -82,7 +95,10 @@ public final class PlexAPI {
         guard let plexServer = await getPlexServer() else {
             return []
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.info(plexServer)
+        #endif
 
         guard var playlistsURL = plexServer.baseURL?.appending(path: "playlists") else { return [] }
         let queryItems: [URLQueryItem] = [
@@ -128,7 +144,10 @@ public final class PlexAPI {
         guard let plexServer = await getPlexServer() else {
             return []
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.info(plexServer)
+        #endif
         
         // Get and cache music library section if needed
         if librarySelectionID == nil {
@@ -173,7 +192,10 @@ public final class PlexAPI {
         guard let plexServer = await getPlexServer() else {
             return []
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.info(plexServer)
+        #endif
         
         // Get and cache music library section if needed
         if librarySelectionID == nil {
@@ -218,7 +240,10 @@ public final class PlexAPI {
         guard let plexServer = await getPlexServer() else {
             return []
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.info(plexServer)
+        #endif
         
         // Get and cache music library section if needed
         if librarySelectionID == nil {
@@ -265,7 +290,7 @@ public final class PlexAPI {
         }
 
         var request = URLRequest(url: sectionsURL)
-        request.httpMethod = "GET" 
+        request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -304,9 +329,16 @@ public final class PlexAPI {
         guard let (data, _) = try? await session.data(for: request) else {
             return []
         }
-
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
+        logger.info(String(decoding: data, as: UTF8.self))
+        #endif
+        
         do {
             let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            logger.info(container)
+            #endif
             let libraries = container.mediaContainer.Directory
                 .sorted(by: { $0.key < $1.key })
                 .filter { $0.type == "artist" }
@@ -345,7 +377,9 @@ public final class PlexAPI {
                 metadata: await enrichMetadata(metadata: mediaContainer.metadata)
             )
         } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
             print(error)
+            #endif
             return nil
         }
     }
@@ -401,7 +435,9 @@ public final class PlexAPI {
                 thumbImageURL: thumbImageURL
             )
         } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
             print(error)
+            #endif
             return nil
         }
     }
@@ -451,7 +487,9 @@ public final class PlexAPI {
                 metadata: await enrichMetadata(metadata: container.metadata)
             )
         } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
             print(error)
+            #endif
             return nil
         }
     }
@@ -495,7 +533,9 @@ public final class PlexAPI {
                 metadata: await enrichMetadata(metadata: mediaContainer.metadata)
             )
         } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
             print(error)
+            #endif
             return nil
         }
     }
@@ -561,7 +601,11 @@ public final class PlexAPI {
         guard let plexServers: [PlexServer] = await loadAuthorized(resourceURL) else {
             return []
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         logger.info(plexServers)
+        #endif
+        
         return plexServers.filter { $0.accessToken != nil }
     }
 
@@ -629,6 +673,7 @@ public final class PlexAPI {
         let plexServers = await getPlexServers()
         let preferredServer = plexServers.filter { $0.clientIdentifier == serverID }.first
         self.plexServer = preferredServer
+        
         return preferredServer
     }
 
@@ -657,15 +702,21 @@ public final class PlexAPI {
             }
             return nil
         }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
         let xml = String(decoding: data, as: UTF8.self)
         logger.info("\(xml)")
+        #endif
+        
         do {
             let response = try decoder.decode(T.self, from: data)
             return response
         } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
             print(String(decoding: data, as: UTF8.self))
             print(error)
             assertionFailure(String(decoding: data, as: UTF8.self))
+            #endif
             return nil
         }
     }

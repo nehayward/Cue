@@ -10,6 +10,7 @@ import Foundation
 final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     static var shared = KeychainTokenRefreshHandler()
     
+    fileprivate var cache = MemoryFileCache.shared
     // Cache for credentials to avoid repeated keychain access
     private var cachedCredentials: Credentials?
     
@@ -21,6 +22,7 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             UserDefaults.standard.set(newValue, forKey: "deviceID")
         }
     }
+    
     var householdId: String? {
         get {
             UserDefaults.standard.string(forKey: "householdId")
@@ -30,56 +32,116 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
         }
     }
     
+    // Note: primaryServer key format should be "serverType.rawValue + preferredHouseHoldName"
+    // Example: "Spotify + MyHousehold" or "Apple Music + Home"
+    var primaryServer: [String: String]? {
+        get {
+            cache.load(forKey: "primaryServer", as: [String: String].self) ?? [:]
+        }
+        set {
+            cache.save(newValue, forKey: "primaryServer")
+        }
+    }
+    
+    func getKey(for type: SonosServiceType) -> String? {
+        guard let householdId else { return nil }
+        return "\(type.rawValue).\(householdId)"
+    }
+    
     func handleTokenRefresh(householdId: String, token: String, key: String) async throws {
         self.householdId = householdId
-        guard var servers = KeychainManager.shared.getMediaServers(householdId: householdId),
-              let index = servers.firstIndex(where: { $0.type == .spotify }) else {
+        guard var servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
             throw SpotifyMetadataError.tokenRefreshFailed
         }
         
-        let updatedServer = servers[index]
+        let spotifyServers = servers.filter { $0.type == .spotify }
+        let targetServer: MediaServer?
+        
+        // Use primaryServer if more than 2 Spotify servers exist
+        if spotifyServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: .spotify) {
+            if let primaryUDN = primaryServer[primaryKey] {
+                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == .spotify })
+            } else {
+                targetServer = spotifyServers.first
+            }
+        } else {
+            targetServer = spotifyServers.first
+        }
+        
+        guard let targetServer = targetServer,
+              let index = servers.firstIndex(where: { $0.id == targetServer.id }) else {
+            throw SpotifyMetadataError.tokenRefreshFailed
+        }
+        
         servers[index] = MediaServer(
-            udn: updatedServer.id,
-            nickname: updatedServer.name,
+            udn: targetServer.id,
+            nickname: targetServer.name,
             token: token,
             key: key,
-            serialNum: updatedServer.serialNumber,
-            flags: updatedServer.flags,
-            tier: updatedServer.tier
+            serialNum: targetServer.serialNumber,
+            flags: targetServer.flags,
+            tier: targetServer.tier
         )
         
         KeychainManager.shared.saveMediaServers(householdId: householdId, servers: servers)
-        
-        // Invalidate cache when token is refreshed
         invalidateCache()
     }
     
     func getCredentials() async throws -> Credentials? {
-        if let cachedCredentials  {
+        if let cachedCredentials {
             return cachedCredentials
         }
         guard let deviceId, let householdId else {
             return nil
         }
         
-        guard let servers = KeychainManager.shared.getMediaServers(householdId: householdId),
-              let spotifyServer = servers.first(where: { $0.type == .spotify }) else {
+        guard let servers = KeychainManager.shared.getMediaServers(householdId: householdId) else {
+            return nil
+        }
+        
+        let spotifyServers = servers.filter { $0.type == .spotify }
+        let targetServer: MediaServer?
+        
+        // Use primaryServer if more than 2 Spotify servers exist
+        if spotifyServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: .spotify) {
+            if let primaryUDN = primaryServer[primaryKey] {
+                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == .spotify })
+            } else {
+                targetServer = spotifyServers.first
+            }
+        } else {
+            targetServer = spotifyServers.first
+        }
+        
+        guard let targetServer = targetServer else {
             return nil
         }
         
         let credentials = Credentials(
             deviceId: deviceId,
             householdId: householdId,
-            token: spotifyServer.token,
-            key: spotifyServer.key
+            token: targetServer.token,
+            key: targetServer.key
         )
         
-        // Cache the credentials
         cachedCredentials = credentials
         return credentials
     }
     
-    private func invalidateCache() {
+    func invalidateCache() {
         cachedCredentials = nil
+    }
+    
+    public func setCredentials(for server: MediaServer) {
+        guard let deviceId = deviceId, let householdId else {
+            invalidateCache()
+            return
+        }
+        self.cachedCredentials = Credentials(
+            deviceId: deviceId,
+            householdId: householdId,
+            token: server.token,
+            key: server.key
+        )
     }
 }

@@ -21,8 +21,11 @@ public final class SpotifyBrowseService {
 
     public func updatePlaylists(offset: Int? = nil, limit: Int = 25) async {
         let offset = offset ?? playlists.count
-        guard let container = try? await spotifyLookupAPI.getPlaylists(index: offset, count: limit) else { return }
-        let newUserPlaylists = container.playlists.compactMap { $0.toPlayable }
+        guard let container = await spotifyAPI.userPlaylists(offset: offset, limit: limit) else {
+            return
+        }
+        
+        let newUserPlaylists = container.items.compactMap { $0?.toPlayable }
         if offset == 0, !playlists.isEmpty {
             for new in newUserPlaylists {
                 playlists.insert(new, at: 0)
@@ -66,8 +69,8 @@ public final class SpotifyBrowseService {
 
     public func updateSongs(offset: Int? = nil, limit: Int = 25) async {
         let offset = offset ?? tracks.count
-        guard let container = try? await spotifyLookupAPI.getMetadata(index: offset, count: limit) else { return }
-        let newTracks = container.tracks.compactMap { $0.toPlayable }
+        guard let container = await spotifyAPI.userTracks(offset: offset, limit: limit) else { return }
+        let newTracks = container.items.compactMap { $0?.track.toPlayable }
         if offset == 0, !tracks.isEmpty, !newTracks.isEmpty {
             for new in newTracks {
                 tracks.insert(new, at: 0)

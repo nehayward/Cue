@@ -18,7 +18,10 @@ let package = Package(
     targets: [
         .target(
             name: "MusicSearchKit",
-            dependencies: ["SWXMLHash", "SwiftyBeaver"]),
+            dependencies: ["SWXMLHash", "SwiftyBeaver"],
+            swiftSettings: [
+                .define("MUSICSEARCHKIT_VERBOSE_LOGGING")
+            ]),
         .testTarget(
             name: "MusicSearchKitTests",
             dependencies: ["MusicSearchKit"],

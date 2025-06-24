@@ -55,8 +55,8 @@ public final class SpotifyAPI {
         guard let url = components.url else { return nil }
 
         do {
-            let spotifySearch: SpotifyUser = try await authorizedRequest(url)
-            return spotifySearch
+            let user: SpotifyUser = try await authorizedRequest(url)
+            return user
         } catch {
             logger.error("\(error.localizedDescription)")
             return nil
@@ -80,7 +80,7 @@ public final class SpotifyAPI {
             let spotifySearch: SpotifyResult = try await authorizedRequest(url)
             return spotifySearch
         } catch {
-            logger.error("\(error.localizedDescription)")
+//            logger.error("\(error.localizedDescription)")
             return nil
         }
     }
@@ -226,6 +226,49 @@ public final class SpotifyAPI {
             return nil
         }
     }
+    
+    public func userPlaylists(offset: Int = 0, limit: Int = 50) async -> SpotifyUserPlaylistsResponse? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/playlists"
+        components.queryItems = [
+            .init(name: "offset", value: "\(offset)"),
+            .init(name: "limit", value: "\(limit)")
+        ]
+        guard let url = components.url else { return nil }
+
+        do {
+            let playlists: SpotifyUserPlaylistsResponse = try await authorizedRequest(url)
+            return playlists
+        } catch {
+            print(error.localizedDescription)
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    public func userTracks(offset: Int = 0, limit: Int = 50) async -> SpotifyUserTracksResponse? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/tracks"
+        components.queryItems = [
+            .init(name: "offset", value: "\(offset)"),
+            .init(name: "limit", value: "\(limit)")
+        ]
+        guard let url = components.url else { return nil }
+
+        do {
+            let songs: SpotifyUserTracksResponse = try await authorizedRequest(url)
+            return songs
+        } catch {
+            print(error.localizedDescription)
+            logger.error("\(error.localizedDescription)")
+            return nil
+        }
+    }
+    
     public func userAlbums(offset: Int = 0, limit: Int = 50) async -> SpotifyUserAlbumResponse? {
         var components = URLComponents()
         components.scheme = "https"
@@ -440,7 +483,8 @@ public final class SpotifyAPI {
                     let response = try decoder.decode(T.self, from: data)
                     return response
                 } catch {
-                    print("Failed to decode response: \(error)")
+//                    print(String(decoding: data, as: UTF8.self))
+//                    print("Failed to decode response: \(error)")
                     throw error
                 }
             } else {

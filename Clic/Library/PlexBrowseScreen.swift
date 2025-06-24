@@ -58,7 +58,7 @@ struct PlexBrowseScreen: View {
                         }
                     }
                     .listRowSeparator(.hidden)
-                    if plexBrowseService.userPlaylists.isEmpty {
+                    if plexBrowseService.userPlaylists.isEmpty, isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                             .listRowSeparator(.hidden)
@@ -73,9 +73,9 @@ struct PlexBrowseScreen: View {
             .navigationTitle("Plex Library")
             .navigationBarTitleDisplayMode(.inline)
             .task(id: musicSearchService.plexServerID) {
-                isLoading = false
-                await updatePlexBrowseService()
                 isLoading = true
+                await updatePlexBrowseService()
+                isLoading = false
             }
             .withAppRouter()
             .toolbar {
@@ -88,11 +88,11 @@ struct PlexBrowseScreen: View {
         .listStyle(.plain)
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
-            isLoading = false
+            isLoading = true
             Task {
                 await updatePlexBrowseService()
             }
-            isLoading = true
+            isLoading = false
         }
     }
 

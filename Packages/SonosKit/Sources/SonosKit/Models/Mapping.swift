@@ -38,7 +38,8 @@ extension Song {
                 artist: artistName,
                 album: albumTitle,
                 isrc: isrc,
-                isExplicit: contentRating == .explicit
+                audioCodec: audioVariants?.first?.description,
+                isExplicit: contentRating == .explicit,
             )
         )
     }
@@ -87,6 +88,7 @@ extension MusicKit.Track {
                 artist: artistName,
                 album: albumTitle,
                 isrc: isrc,
+                audioCodec: nil,
                 isPlayable: playParameters != nil,
                 isExplicit: contentRating == .explicit
             )

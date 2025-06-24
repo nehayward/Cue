@@ -50,7 +50,7 @@ final class FavoritesParser: NSObject, XMLParserDelegate {
                 
                 let isRadioStation = currentURIMetadata.contains("audioBroadcast") || currentURIMetadata.contains("radio")
                 let mediaContent = MediaContent(service: .unknown, id: currentTrackID, type: contentType, location: nil)
-                let metadata = PlayableContentMetadata(URIMetadata: currentURIMetadata.escaped, radioStation: isRadioStation)
+                let metadata = PlayableContentMetadata(URIMetadata: currentURIMetadata.escaped.xmlAllowedString, radioStation: isRadioStation)
                 
                 let favorite = PlayableContent(
                     title: currentTitle,
@@ -68,7 +68,7 @@ final class FavoritesParser: NSObject, XMLParserDelegate {
         case "res" where isParsingResult:
             currentTrackID = tempElementContent.encodeProgramURI
         case "r:resMD" where isParsingResult:
-            currentURIMetadata = tempElementContent.unescaped
+            currentURIMetadata = tempElementContent
         case "r:description" where isParsingResult:
             currentDescription = tempElementContent
         case "upnp:albumArtURI" where isParsingResult:

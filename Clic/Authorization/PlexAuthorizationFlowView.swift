@@ -25,6 +25,15 @@ struct PlexAuthorizationFlowView: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                     
+                    Link(destination: URL(string: "https://support.plex.tv/articles/200289506-remote-access/")!) {
+                         HStack(spacing: 4) {
+                             Text("Remote Access Setup")
+                             Image(systemName: "arrow.up.forward")
+                         }
+                     }
+                     .foregroundStyle(.accent)
+                     .buttonStyle(.plain)
+                    
                     if let url = plexAuthenticator.authorizationURL {
                         Link(destination: url) {
                             Text(url.absoluteString)

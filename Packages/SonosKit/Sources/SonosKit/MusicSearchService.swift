@@ -171,7 +171,6 @@ public final class MusicSearchService {
             let response = try await request.response()
             return (response.suggestions, response.topResults)
         } catch {
-            print(error)
             return nil
         }
     }
@@ -360,7 +359,7 @@ public final class MusicSearchService {
 
         let albumID = MusicItemID(id)
         var catalogResource = MusicCatalogResourceRequest<Album>(matching: \.id, equalTo: albumID)
-        catalogResource.properties = [.tracks, .artists]
+        catalogResource.properties = [.tracks, .artists, .audioVariants]
         let response = try await catalogResource.response()
         return response.items.first
     }

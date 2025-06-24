@@ -6,6 +6,7 @@
 
 –– Bug Fixes & Improvements ––
 - Fixed artwork not showing for some radio stations.
+- Improved scrolling performanace
 
 ## Internal
 - Use menu in place of context menu in List view for PlayableCardView

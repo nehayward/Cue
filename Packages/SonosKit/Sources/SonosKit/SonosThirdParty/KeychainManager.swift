@@ -14,17 +14,30 @@ final class KeychainManager {
             let query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
-                kSecAttrAccount as String: householdId,
+                kSecAttrAccount as String: householdId
+            ]
+            
+            let attributes: [String: Any] = [
                 kSecValueData as String: data
             ]
             
-            // First try to delete any existing data
-            SecItemDelete(query as CFDictionary)
+            // Try to update existing item first
+            var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
             
-            // Then add the new data
-            let status = SecItemAdd(query as CFDictionary, nil)
+            if status == errSecItemNotFound {
+                // Item doesn't exist, so add it
+                let addQuery: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrAccount as String: householdId,
+                    kSecValueData as String: data
+                ]
+                status = SecItemAdd(addQuery as CFDictionary, nil)
+            }
+            
             if status != errSecSuccess {
-                print("❌ Failed to save media servers to keychain: \(status)")
+                let errorMessage = getKeychainErrorMessage(status)
+                print("❌ Failed to save media servers to keychain: \(status) - \(errorMessage)")
             } else {
                 print("✅ Successfully cached media servers for household: \(householdId)")
             }
@@ -46,7 +59,12 @@ final class KeychainManager {
         
         guard status == errSecSuccess,
               let data = result as? Data else {
-            print("❌ No cached media servers found for household: \(householdId)")
+            if status != errSecItemNotFound {
+                let errorMessage = getKeychainErrorMessage(status)
+                print("❌ Keychain error retrieving media servers: \(status) - \(errorMessage)")
+            } else {
+                print("❌ No cached media servers found for household: \(householdId)")
+            }
             return nil
         }
         
@@ -70,8 +88,36 @@ final class KeychainManager {
         let status = SecItemDelete(query as CFDictionary)
         if status == errSecSuccess {
             print("✅ Successfully cleared cached media servers for household: \(householdId)")
-        } else {
-            print("❌ Failed to clear cached media servers: \(status)")
+        } else if status != errSecItemNotFound {
+            let errorMessage = getKeychainErrorMessage(status)
+            print("❌ Failed to clear cached media servers: \(status) - \(errorMessage)")
+        }
+    }
+    
+    private func getKeychainErrorMessage(_ status: OSStatus) -> String {
+        switch status {
+        case errSecSuccess:
+            return "Success"
+        case errSecUnimplemented:
+            return "Function or operation not implemented"
+        case errSecParam:
+            return "One or more parameters passed to a function were not valid"
+        case errSecAllocate:
+            return "Failed to allocate memory"
+        case errSecNotAvailable:
+            return "No keychain is available"
+        case errSecDuplicateItem:
+            return "The item already exists"
+        case errSecItemNotFound:
+            return "The item cannot be found"
+        case errSecInteractionNotAllowed:
+            return "User interaction is not allowed"
+        case errSecDecode:
+            return "Unable to decode the provided data"
+        case errSecAuthFailed:
+            return "The user name or passphrase you entered is not correct"
+        default:
+            return "Unknown error"
         }
     }
 } 

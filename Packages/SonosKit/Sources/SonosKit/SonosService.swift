@@ -420,6 +420,30 @@ public final class SonosService {
         }
     }
     
+    public func services() async -> [MediaServer] {
+        guard let sonosIP = prioritizedIP() else { return [] }
+        let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
+        guard let servers = KeychainManager.shared.getMediaServers(householdId: preferredHouseHoldName) else { return [] }
+        return servers
+    }
+    
+    public func getPrimaryService(for serverType: SonosServiceType) async -> MediaServer? {
+        guard let sonosIP = prioritizedIP() else { return nil }
+        let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
+        guard let servers = KeychainManager.shared.getMediaServers(householdId: preferredHouseHoldName),
+              let primaryKey = KeychainTokenRefreshHandler.shared.getKey(for: serverType) else {
+            return nil
+        }
+        let id = KeychainTokenRefreshHandler.shared.primaryServer?[primaryKey]
+        return servers.first { $0.id == id }
+    }
+    
+    public func setPrimaryServer(for server: MediaServer) async {
+        guard let primaryKey = KeychainTokenRefreshHandler.shared.getKey(for: server.type) else { return }
+        KeychainTokenRefreshHandler.shared.primaryServer?[primaryKey] = server.id
+        KeychainTokenRefreshHandler.shared.setCredentials(for: server)
+    }
+    
     public func getCredentials() async -> (String, String)? {
         guard let sonosIP = try? await getGroupsFast().first?.ip else { return nil }
         let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)

@@ -84,8 +84,8 @@ extension View {
                 case .scenes:
                     SceneView()
                 case let .mediaDetail(content, group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
-                    @State var router = Router()
+                    let selectedGroupService = SelectedGroupService(group: group)
+                    let router = Router()
 
                     NavigationStack {
                         MediaDetailView(playableContent: content)
@@ -98,9 +98,7 @@ extension View {
                     }
                     .safeAreaInset(edge: .bottom) {
                         MiniPlayerView()
-                            .offset(y: MiniPlayerManger.shared.offset)
                     }
-                    .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -116,8 +114,8 @@ extension View {
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
-                            .miniPlayerOnScrollHandler()
                     }
+                    .miniPlayerOnScrollHandler()
                     .safeAreaInset(edge: .bottom) {
                         MiniPlayerView()
                             .offset(y: MiniPlayerManger.shared.offset)

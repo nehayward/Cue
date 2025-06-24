@@ -1,6 +1,6 @@
 import Foundation
 
-enum SonosServiceType: Codable, CaseIterable, Equatable {
+public enum SonosServiceType: Codable, CaseIterable, Equatable, Hashable {
     case appleMusic
     case spotify
     case tidal
@@ -9,9 +9,10 @@ enum SonosServiceType: Codable, CaseIterable, Equatable {
     case siriusXM
     case pandora
     case plex
+    case bandcamp
     case unknown(String)
     
-    var rawValue: String {
+    public var rawValue: String {
         switch self {
         case .appleMusic: return "Apple Music"
         case .spotify: return "Spotify"
@@ -21,12 +22,13 @@ enum SonosServiceType: Codable, CaseIterable, Equatable {
         case .siriusXM: return "SiriusXM"
         case .pandora: return "Pandora"
         case .plex: return "Plex"
+        case .bandcamp: return "Bandcamp"
         case .unknown(let id): return "Unknown (\(id))"
         }
     }
     
-    static var allCases: [SonosServiceType] {
-        [.appleMusic, .spotify, .tidal, .tunein, .soundcloud, .siriusXM, .pandora, .plex, .unknown("")]
+    public static var allCases: [SonosServiceType] {
+        [.appleMusic, .spotify, .tidal, .tunein, .soundcloud, .siriusXM, .pandora, .plex, .bandcamp, .unknown("")]
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -34,7 +36,7 @@ enum SonosServiceType: Codable, CaseIterable, Equatable {
         case serviceId
     }
     
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
         
@@ -47,11 +49,12 @@ enum SonosServiceType: Codable, CaseIterable, Equatable {
         case "SiriusXM": self = .siriusXM
         case "Pandora": self = .pandora
         case "Plex": self = .plex
+        case "Bandcamp": self = .bandcamp
         default: self = .unknown(rawValue)
         }
     }
     
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(rawValue)
     }
@@ -74,23 +77,23 @@ enum SonosServiceType: Codable, CaseIterable, Equatable {
         case "40967": return .soundcloud
         case "9479": return .siriusXM
         case "54279": return .plex
+        case "40199": return .bandcamp
         default: return .unknown(serviceId)
         }
     }
 }
 
-
-struct MediaServer: Identifiable, Codable {
-    let id: String // UDN
-    let name: String // Nickname
-    let type: SonosServiceType
-    let token: String
-    let key: String
-    let serialNumber: Int
-    let flags: Int
-    let tier: Int
+public struct MediaServer: Identifiable, Codable {
+    public let id: String // UDN
+    public let name: String // Nickname
+    public let type: SonosServiceType
+    public let token: String
+    public let key: String
+    public let serialNumber: Int
+    public let flags: Int
+    public let tier: Int
     
-    var serviceId: String {
+    public var serviceId: String {
         // Extract the service ID from the UDN
         let components = id.components(separatedBy: "_")
         guard components.count >= 2,

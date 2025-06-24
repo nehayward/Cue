@@ -25,6 +25,7 @@ struct PlayableContentView: View {
     var total: Int = 1
 
     var body: some View {
+//        let _ = Self._printChanges()
 //        let _ = print("\(item.title) update")
         VStack {
             if hideDetails || item.content.service == .unknown {
@@ -71,6 +72,7 @@ struct PlayableContentView: View {
                         Text(item.title)
                             .lineLimit(1)
                             .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
+                        Spacer()
                         if let isExplicit = item.metadata?.isExplicit, isExplicit {
                             Image(systemName: "e.square.fill")
                         }

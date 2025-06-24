@@ -25,7 +25,7 @@ struct QueueScreen: View {
     }
 
     var body: some View {
-        let _ = Self._printChanges()
+//        let _ = Self._printChanges()
 
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in

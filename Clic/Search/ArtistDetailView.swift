@@ -133,13 +133,11 @@ struct ArtistDetailView: View {
             }
 
             if !tracks.isEmpty {
-                Section {
+                Section(isExpanded: $isTopSongsExpanded) {
                     ForEach(tracks) { track in
-                        VStack {
-                            PlayableContentView(item: track, hideContentType: true)
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
+                        PlayableContentView(item: track, hideContentType: true)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
                 } header: {
                     HStack {

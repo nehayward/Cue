@@ -261,8 +261,63 @@ struct PreferenceScreen: View {
                     }
                     .tint(.primary)
                 }
-                
-                
+                Section {
+                    NavigationLink(value: RouterDestination.servicePreferenceScreen) {
+                        LabeledContent {
+                            ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                if coreFeatures.enabledServices(service).wrappedValue {
+                                    service.iconForMusicService
+                                        .frame(width: 16, height: 16)
+                                }
+                            }
+                        } label: {
+                            Label {
+                                Text("Services")
+                            } icon: {
+                                Image(systemName: "music.quarternote.3")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .bold()
+                                    .padding(8)
+                                    .frame(width: 32, height: 32)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .foregroundStyle(.accent)
+                                    )
+                            }
+                        }
+                    }
+                    NavigationLink(value: RouterDestination.manageScenes) {
+                        Label {
+                            HStack {
+                                Text("Scenes")
+                                Spacer()
+                                Text("Super")
+                                    .font(.caption)
+                                    .textCase(.uppercase)
+                                    .padding(4)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(.secondary, lineWidth: 1)
+                                    )
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "bolt.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(Color.teal)
+                                )
+                        }
+                    }.disabled(!subscriptionService.subscription.isActive)
+                }
             #if targetEnvironment(macCatalyst)
                 Section {
                     Label {
@@ -322,63 +377,6 @@ struct PreferenceScreen: View {
                 }
                 #endif
                 colorSchemeSection
-                Section {
-                    NavigationLink(value: RouterDestination.servicePreferenceScreen) {
-                        LabeledContent {
-                            ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                if coreFeatures.enabledServices(service).wrappedValue {
-                                    service.iconForMusicService
-                                        .frame(width: 16, height: 16)
-                                }
-                            }
-                        } label: {
-                            Label {
-                                Text("Services")
-                            } icon: {
-                                Image(systemName: "music.quarternote.3")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .foregroundStyle(.white)
-                                    .bold()
-                                    .padding(8)
-                                    .frame(width: 32, height: 32)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .foregroundStyle(.accent)
-                                    )
-                            }
-                        }
-                    }
-                    NavigationLink(value: RouterDestination.manageScenes) {
-                        Label {
-                            HStack {
-                                Text("Scenes")
-                                Spacer()
-                                Text("Super")
-                                    .font(.caption)
-                                    .textCase(.uppercase)
-                                    .padding(4)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(.secondary, lineWidth: 1)
-                                    )
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "bolt.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.teal)
-                                )
-                        }
-                    }.disabled(!subscriptionService.subscription.isActive)
-                }
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {

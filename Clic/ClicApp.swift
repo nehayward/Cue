@@ -505,6 +505,10 @@ struct ClicApp: App {
                     }
                 }
             }
+            
+            if components.host?.lowercased() == "services" {
+                router.presentedSheet = .settings(destination: .servicePreferenceScreen)
+            }
         }
     }
     

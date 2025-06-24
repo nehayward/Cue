@@ -14,7 +14,8 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections", from: "1.0.6"),
         .package(url: "https://github.com/nonstrict-hq/CloudStorage", from: "0.4.0"),
         .package(url: "https://github.com/swhitty/FlyingFox.git", .upToNextMajor(from: "0.23.0")),
-        .package(path: "../MusicSearchKit")
+        .package(path: "../MusicSearchKit"),
+        .package(path: "../Defaults")
     ],
     targets: [
         .target(
@@ -23,6 +24,7 @@ let package = Package(
                 "CloudStorage",
                 "MusicSearchKit",
                 "FlyingFox",
+                "Defaults",
                 .product(name: "Collections", package: "swift-collections")
             ],
             swiftSettings: [

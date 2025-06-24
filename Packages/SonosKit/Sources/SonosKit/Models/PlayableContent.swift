@@ -1,6 +1,7 @@
 import Foundation
 import CoreTransferable
 import UniformTypeIdentifiers
+import Defaults
 
 public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Sendable {
     public var id: String { content.id }
@@ -210,7 +211,12 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     private static var defaultXMLNSHeader = """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item restricted="true"
 """
-    private static var spotifyLocal = Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
+    private static var spotifyLocal: String {
+        if UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.spotifyLocale) {
+            return "2311"
+        }
+        return Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
+    }
 
     private static var defaultSpotifyXMLNSFooter = """
 &lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON\(spotifyLocal)_X_#Svc\(spotifyLocal)-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;

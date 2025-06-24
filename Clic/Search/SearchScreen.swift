@@ -58,9 +58,9 @@ struct SearchScreen: View {
             ScrollViewReader { proxy in
                 List {
                     filterView
-                    //                if musicSearchSelection == .plex {
-                    //                    LoggerView()
-                    //                }
+//                    if UIApplication.shared.isRunningInTestFlightEnvironment(), musicSearchSelection == .plex {
+//                        LoggerView()
+//                    }
 #if targetEnvironment(macCatalyst)
                     if !searchCompletionTapped {
                         ForEach(musicSearchService.suggestions) { suggestion in
@@ -191,7 +191,6 @@ struct SearchScreen: View {
         .safeAreaInset(edge: .bottom) {
             if contentToAdd == nil {
                 MiniPlayerView()
-                    .offset(y: MiniPlayerManger.shared.offset)
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -214,19 +213,18 @@ struct SearchScreen: View {
                 showKeyboard()
             }
         }
-        .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
         .animation(.interactiveSpring, value: isSearchFieldFocused)
         .animation(.interactiveSpring, value: musicSearchService.suggestions)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .overlay(
-            Button(action: {
+            Button {
                 closeInspector?()
-            }) {
+            } label: {
                 EmptyView()
             }
-                .keyboardShortcut(.escape, modifiers: [])
-                .frame(width: 0, height: 0)
-                .hidden()
+            .keyboardShortcut(.escape, modifiers: [])
+            .frame(width: 0, height: 0)
+            .hidden()
         )
     }
 

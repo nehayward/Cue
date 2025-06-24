@@ -168,7 +168,6 @@ final class SonosSystemDiscoverService {
         stopBrowsing()
         allIPs.removeAll()
         connections.removeAll()
-        print("Search All")
         let params = NWParameters()
         params.requiredInterfaceType = .wifi
         params.allowFastOpen = true
