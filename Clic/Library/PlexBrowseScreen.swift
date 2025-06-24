@@ -91,8 +91,8 @@ struct PlexBrowseScreen: View {
             isLoading = true
             Task {
                 await updatePlexBrowseService()
+                isLoading = false
             }
-            isLoading = false
         }
     }
 

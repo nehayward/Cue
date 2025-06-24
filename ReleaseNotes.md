@@ -1,12 +1,14 @@
 # 2025.10
 
 –– New Features ––
-- Improved Spotify Integration
-- Add toggle on artist detail to hide popular songs.
+- Enhanced Spotify integration with improved playback reliability and metadata handling
+- Added option to hide popular songs section on artist detail pages for a cleaner view
 
 –– Bug Fixes & Improvements ––
-- Fixed artwork not showing for some radio stations.
-- Improved scrolling performanace
+- Fixed missing artwork for certain radio stations and live streams
+- Significantly improved scrolling performance and responsiveness throughout the app
+- Resolved an issue where some favorited content would fail to play
+- Added Spotify region override option in settings for international users
 
 ## Internal
 - Use menu in place of context menu in List view for PlayableCardView
