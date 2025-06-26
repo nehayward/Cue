@@ -55,8 +55,8 @@ public final class PlexAPI {
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
-        guard let token = await authenticator.authToken,
-              let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             logger.info("No server")
             return nil
         }
@@ -92,7 +92,8 @@ public final class PlexAPI {
     }
 
     public func playlists() async -> [PlexUserPlaylist] {
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return []
         }
         
@@ -111,7 +112,7 @@ public final class PlexAPI {
         }
 
         var playlists = playlistContainer.mediaContainer.metadata
-        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let id = plexServer.clientIdentifier else { return [] }
 
         for index in playlists.indices {
             playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
@@ -141,7 +142,8 @@ public final class PlexAPI {
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexMetadata] {
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return []
         }
         
@@ -172,7 +174,7 @@ public final class PlexAPI {
         }
 
         guard var artists = artistsContainer.mediaContainer.metadata else { return [] }
-        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let id = plexServer.clientIdentifier else { return [] }
 
         for index in artists.indices {
             artists[index].sonosID = "\(id)%3A3%3A\(artists[index].ratingKey)"
@@ -189,7 +191,8 @@ public final class PlexAPI {
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexAlbumItem] {
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return []
         }
         
@@ -220,7 +223,7 @@ public final class PlexAPI {
         }
 
         guard var playlists = playlistContainer.mediaContainer.metadata else { return [] }
-        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let id = plexServer.clientIdentifier else { return [] }
 
         for index in playlists.indices {
             guard let ratingKey = playlists[index].ratingKey else { continue }
@@ -237,7 +240,8 @@ public final class PlexAPI {
         offset: Int = 0,
         limit: Int = 100
     ) async -> [PlexMetadata] {
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return []
         }
         
@@ -268,7 +272,7 @@ public final class PlexAPI {
         }
 
         guard var songs = songContainer.mediaContainer.metadata else { return [] }
-        guard let token = await authenticator.authToken, let id = plexServer.clientIdentifier else { return [] }
+        guard let id = plexServer.clientIdentifier else { return [] }
 
         for index in songs.indices {
             songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
@@ -280,8 +284,8 @@ public final class PlexAPI {
     }
 
     private func getMusicLibrarySection() async -> String? {
-        guard let token = await authenticator.authToken,
-              let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return nil
         }
 
@@ -312,7 +316,7 @@ public final class PlexAPI {
     }
     
     public func getMusicLibraries(server: PlexServer) async -> [PlexLibrarySection] {
-        guard let token = await authenticator.authToken else {
+        guard let token = server.accessToken else {
             return []
         }
 
@@ -350,7 +354,8 @@ public final class PlexAPI {
     }
   
     public func lookupPlexSong(key: String) async -> PlexSongItem? {
-        guard let token = await authenticator.authToken, let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return nil
         }
 
@@ -385,8 +390,9 @@ public final class PlexAPI {
     }
 
     public func lookupAlbum(key: String) async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
-        guard let plexServer = await getPlexServer(), let id = plexServer.clientIdentifier else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let id = plexServer.clientIdentifier else {
             return nil
         }
 
@@ -443,8 +449,8 @@ public final class PlexAPI {
     }
 
     public func lookupAlbumTracks(key: String) async -> PlexLibraryItem? {
-        guard let token = await authenticator.authToken else { return nil }
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return nil
         }
 
@@ -495,8 +501,8 @@ public final class PlexAPI {
     }
 
     public func lookupPlaylist(key: String, type: PlexMediaType, ascending: Bool, offset: Int = 0) async -> PlexPlaylistItem? {
-        guard let token = await authenticator.authToken else { return nil }
-        guard let plexServer = await getPlexServer() else {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
             return nil
         }
 
@@ -543,7 +549,8 @@ public final class PlexAPI {
     public func lookupArtist(key: String) async -> PlexMetadata? {
         guard let plexServer = await getPlexServer(),
               let artistURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)"),
-              let id = plexServer.clientIdentifier else {
+              let id = plexServer.clientIdentifier,
+              let token = plexServer.accessToken else {
             return nil
         }
 
@@ -551,8 +558,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard var artist = playlistContainer.mediaContainer.metadata?.first,
-              let token = await authenticator.authToken else { return nil }
+        guard var artist = playlistContainer.mediaContainer.metadata?.first else { return nil }
 
         artist.sonosID = "\(id)%3A3%3A\(artist.ratingKey)"
         if let thumb = artist.thumb {
@@ -597,16 +603,46 @@ public final class PlexAPI {
     }
 
     public func getPlexServers() async -> [PlexServer] {
-        let resourceURL = URL(string: "https://plex.tv/api/v2/resources")!
-        guard let plexServers: [PlexServer] = await loadAuthorized(resourceURL) else {
+        guard let token = await authenticator.authToken else { return [] }
+        var components = URLComponents(string: "https://plex.tv/api/v2/resources")!
+        components.queryItems = [.init(name: "includeHttps", value: "1"), .init(name: "includeRelay", value: "1")]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        
+        guard let (data, urlResponse) = try? await session.data(for: request) else { return [] }
+        
+        if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
+            // MARK: Reset
+            Task { @MainActor in
+                authenticator.authToken = nil
+                serverID = nil
+            }
             return []
         }
         
         #if MUSICSEARCHKIT_VERBOSE_LOGGING
-        logger.info(plexServers)
+        let xml = String(decoding: data, as: UTF8.self)
+        logger.info("\(xml)")
         #endif
         
-        return plexServers.filter { $0.accessToken != nil }
+        do {
+            let plexServers = try decoder.decode([PlexServer].self, from: data)
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            logger.info(plexServers)
+            #endif
+            
+            return plexServers.filter { $0.accessToken != nil }
+        } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            print(String(decoding: data, as: UTF8.self))
+            print(error)
+            assertionFailure(String(decoding: data, as: UTF8.self))
+            #endif
+            return []
+        }
     }
 
     private func getPlexServer() async -> PlexServer? {
@@ -673,12 +709,14 @@ public final class PlexAPI {
         let plexServers = await getPlexServers()
         let preferredServer = plexServers.filter { $0.clientIdentifier == serverID }.first
         self.plexServer = preferredServer
-        
         return preferredServer
     }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {
-        guard let token = await authenticator.authToken else { return nil }
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else { 
+            return nil
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -722,8 +760,8 @@ public final class PlexAPI {
     }
 
     private func enrichMetadata(metadata: [PlexMetadata]?) async -> [PlexMetadata] {
-        guard let token = await authenticator.authToken,
-                let plexServer = await getPlexServer(),
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
                 let clientID = plexServer.clientIdentifier,
                 let metadata else { return [] }
 

@@ -1,3 +1,15 @@
+# 2025.11
+
+–– New Features ––
+
+
+–– Bug Fixes & Improvements ––
+- Enhanced Plex integration with improved reliability and performance
+- Improved Scene functionality:
+  - Faster and more reliable Scene execution
+  - Scenes now work correctly even when device IP addresses change
+  - Better handling of device discovery and grouping
+
 # 2025.10
 
 –– New Features ––

@@ -1,6 +1,7 @@
 import Foundation
 import OSLog
 import Network
+import Defaults
 
 /// `SonosAPI` provides a set of functionalities to interact with Sonos devices over the network.
 /// It handles tasks like setting volume, getting track info, and other control actions.
@@ -27,6 +28,13 @@ final class SonosAPI: NSObject {
         configuration.timeoutIntervalForRequest = 5
         return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
     }()
+    
+    private static var spotifyLocal: String {
+        if UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.spotifyLocale) {
+            return "2311"
+        }
+        return Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
+    }
 
     func setVolume(ipAddress: String, volume: Int) async {
         let arguments: OrderedKeys = [
@@ -478,13 +486,14 @@ final class SonosAPI: NSObject {
             logger.log("Failed to group")
         }
     }
+    
     func queueSpotifyArtistTopTracks(ID: String, IP: String) async {
         let URIMetadata = """
         &lt;DIDL-Lite&#32;
                         xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;&#32;
                         xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&#32;
                         xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&#32;
-                        xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item&#32;id=&quot;1006206cspotify%3aartistTopTracks%3a\(ID)&quot;&#32;restricted=&quot;true&quot;&gt;&lt;dc:title&gt;Spotify&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;&lt;desc&#32;id=&quot;cdudn&quot;&#32;nameSpace=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&gt;SA_RINCON3079_X_#Svc3079-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+                        xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item&#32;id=&quot;1006206cspotify%3aartistTopTracks%3a\(ID)&quot;&#32;restricted=&quot;true&quot;&gt;&lt;dc:title&gt;Spotify&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;&lt;desc&#32;id=&quot;cdudn&quot;&#32;nameSpace=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&gt;SA_RINCON\(Self.spotifyLocal)_X_#Svc\(Self.spotifyLocal)-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
         """
         let URI = "x-rincon-cpcontainer:000e206cspotify%3aartistTopTracks%3a\(ID)"
         let arguments: OrderedKeys = [

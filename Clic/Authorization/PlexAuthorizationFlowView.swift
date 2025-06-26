@@ -80,6 +80,7 @@ struct PlexAuthorizationFlowView: View {
         VStack(alignment: .center, spacing: 16) {
             Text("Choose Music Library")
                 .font(.title2.bold())
+                .frame(maxWidth: .infinity, alignment: .center)
             
             if isLoading {
                 VStack {

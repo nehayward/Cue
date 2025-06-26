@@ -107,7 +107,7 @@ struct PlexManagementView: View {
                                                         Text(library.title)
                                                             .frame(maxWidth: .infinity, alignment: .leading)
                                                         
-                                                        if musicSearchService.plexLibrarySelectionID == library.key {
+                                                        if musicSearchService.plexServerID == server.clientIdentifier, musicSearchService.plexLibrarySelectionID == library.key {
                                                             Image(systemName: "checkmark.circle.fill")
                                                                 .foregroundStyle(.accent)
                                                                 .transition(.scale.combined(with: .opacity))

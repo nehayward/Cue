@@ -1,14 +1,151 @@
 import MusicSearchKit
+import XCTest
 
-// TODO: New use Test framework
-final class PlexTests {
-//    func testTidalSearch() async throws{
-//        let result = await tidal.search(for: "Du")
-//        print(result)
-//    }
-//
-//    func testAlbumTracks() async throws{
-//        let result = await tidal.albumSongs(id: "360212374")
-//        print(result)
-//    }
+final class PlexTests: XCTestCase {
+    
+    // MARK: - Test Properties
+    private let plexAPI = PlexAPI.shared
+    private let testAccessToken = "5waszmycsG4C-5j-sQL6" // Replace with your actual token
+    
+    // MARK: - Setup
+    override func setUp() async throws {
+        // Set the access token for testing
+        await MainActor.run {
+            PlexAuthenticator.shared.authToken = testAccessToken
+        }
+    }
+    
+    // MARK: - Server Tests
+    func testGetPlexServers() async throws {
+        // Given: A valid access token is set
+        
+        // When: Getting Plex servers
+        let servers = await plexAPI.getPlexServers()
+        
+        // Then: Should return servers with access tokens
+        XCTAssertFalse(servers.isEmpty, "Should return at least one server")
+        
+        for server in servers {
+            XCTAssertNotNil(server.accessToken, "Server should have an access token")
+            XCTAssertNotNil(server.name, "Server should have a name")
+            XCTAssertNotNil(server.clientIdentifier, "Server should have a client identifier")
+            XCTAssertFalse(server.externalURIs.isEmpty, "Server should have external URIs")
+            
+            print("Server: \(server.name)")
+            print("  - Client ID: \(server.clientIdentifier ?? "N/A")")
+            print("  - External URIs: \(server.externalURIs)")
+            print("  - Access Token: \(server.accessToken ?? "N/A")")
+        }
+    }
+    
+    func testGetPlexServersWithInvalidToken() async throws {
+        // Given: An invalid access token
+        await MainActor.run {
+            PlexAuthenticator.shared.authToken = "invalid_token"
+        }
+        
+        // When: Getting Plex servers
+        let servers = await plexAPI.getPlexServers()
+        
+        // Then: Should return empty array
+        XCTAssertTrue(servers.isEmpty, "Should return empty array with invalid token")
+        
+        // Reset token for other tests
+        await MainActor.run {
+            PlexAuthenticator.shared.authToken = testAccessToken
+        }
+    }
+    
+    // MARK: - Library Tests
+    func testGetMusicLibraries() async throws {
+        PlexAuthenticator.shared.authToken = testAccessToken
+        // Given: A valid access token and servers
+        let servers = await plexAPI.getPlexServers()
+        XCTAssertFalse(servers.isEmpty, "Need at least one server for library tests")
+        
+        // When: Getting music libraries for each server
+        for server in servers {
+            let libraries = await plexAPI.getMusicLibraries(server: server)
+            
+            // Then: Should return music libraries
+            print("Server: \(server.name)")
+            print("  - Music Libraries: \(libraries.count)")
+            
+            for library in libraries {
+                XCTAssertEqual(library.type, "artist", "Library should be of type 'artist'")
+                XCTAssertNotNil(library.key, "Library should have a key")
+                XCTAssertNotNil(library.title, "Library should have a title")
+                XCTAssertNotNil(library.uuid, "Library should have a UUID")
+                
+                print("    - Library: \(library.title) (Key: \(library.key))")
+            }
+        }
+    }
+    
+    func testGetMusicLibrariesWithSpecificServer() async throws {
+        // Given: A specific server (first available)
+        let servers = await plexAPI.getPlexServers()
+        guard let firstServer = servers.first else {
+            XCTSkip("No servers available for testing")
+            return
+        }
+        
+        // When: Getting music libraries for the specific server
+        let libraries = await plexAPI.getMusicLibraries(server: firstServer)
+        
+        // Then: Should return music libraries
+        XCTAssertFalse(libraries.isEmpty, "Should have at least one music library")
+        
+        print("Testing with server: \(firstServer.name)")
+        print("Found \(libraries.count) music libraries:")
+        
+        for library in libraries {
+            print("  - \(library.title) (Type: \(library.type), Key: \(library.key))")
+        }
+    }
+    
+    // MARK: - Integration Tests
+    func testCompleteWorkflow() async throws {
+        // Given: A valid access token
+        PlexAuthenticator.shared.authToken = testAccessToken
+
+        // When: Getting servers and then libraries
+        let servers = await plexAPI.getPlexServers()
+        XCTAssertFalse(servers.isEmpty, "Should have servers")
+        
+        var totalLibraries = 0
+        for server in servers {
+            let libraries = await plexAPI.getMusicLibraries(server: server)
+            totalLibraries += libraries.count
+            
+            print("Server '\(server.name)' has \(libraries.count) music libraries")
+        }
+        
+        // Then: Should have libraries across all servers
+        XCTAssertGreaterThan(totalLibraries, 0, "Should have at least one music library across all servers")
+        print("Total music libraries across all servers: \(totalLibraries)")
+    }
+    
+    // MARK: - Error Handling Tests
+    func testGetLibrariesWithNoToken() async throws {
+        
+
+        // When: Getting servers
+        let servers = await plexAPI.getPlexServers()
+        
+        // Then: Should return empty array
+        XCTAssertTrue(servers.isEmpty, "Should return empty array when no token is set")
+        
+        // Reset token for other tests
+        await MainActor.run {
+            PlexAuthenticator.shared.authToken = testAccessToken
+        }
+    }
+    
+    func testDecodeServers() async throws {
+        let plexResourceServers = Bundle.module.url(forResource: "plexResourceServers", withExtension: "json")
+        let plexResourceServerData = try! Data(contentsOf: plexResourceServers!)
+        let servers = try JSONDecoder().decode([PlexServer].self, from: plexResourceServerData)
+        XCTAssertEqual(servers.count, 9)
+    }
 }

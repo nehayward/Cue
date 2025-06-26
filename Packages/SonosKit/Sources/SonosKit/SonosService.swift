@@ -143,6 +143,22 @@ public final class SonosService {
             self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
         }
     }
+    
+    public func updateHousehold() async throws {
+        let newGroup = try await getGroups(useCache: true)
+
+        // MARK: Update Battery Info
+        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+            guard let index = groups.firstIndex(of: updateGroup) else { continue }
+            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+        }
+
+        if !newGroup.isEmpty && Set(newGroup) != Set(self.groups) {
+            self.groups = newGroup
+            self.rooms = newGroup.flatMap(\.rooms)
+            self.zones = OrderedDictionary(uniqueKeys: newGroup.map(\.coordinatorID), values: newGroup)
+        }
+    }
 
     public func group(with id: String) -> GroupRoom? {
         sorted.first(where: { $0.coordinatorID == id})
@@ -1528,17 +1544,55 @@ public final class SonosService {
             try await queue(playable: playableContent, group: group)
             await play(ip: group.ip)
         }
-
-        let rooms = scene.rooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name)}
-        let newGroup = await speedGroup(rooms: rooms)
-        for room in scene.rooms {
-            await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
-            await setRoomMute(IP: room.ip, mute: false)
+        
+        // Update household if no groups are available
+        if groups.isEmpty {
+            try await updateHousehold()
         }
         
-        guard let newGroup else { return }
-        await snapShotGroup(ip: newGroup.ip)
-        try await playlistAction(newGroup)
+        // Create a lookup dictionary for better performance
+        let roomLookup = Dictionary(uniqueKeysWithValues: rooms.map { ($0.id, $0) })
+        
+        // Map scene rooms to discovered rooms with better error handling
+        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
+            guard let existingRoom = roomLookup[sceneRoom.id] else {
+                throw SonosAPIError.deviceNotFound
+            }
+            return SceneRoom(
+                id: existingRoom.id, 
+                ip: existingRoom.ip, 
+                name: existingRoom.name, 
+                volume: sceneRoom.volume
+            )
+        }
+        
+        // Create rooms for grouping
+        let rooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
+        
+        // Create the group
+        guard let newGroup = await speedGroup(rooms: rooms) else {
+            throw SonosAPIError.deviceNotFound
+        }
+        
+        // Set volume and unmute all rooms concurrently for better performance
+        await withTaskGroup(of: Void.self) { group in
+            for room in discoveredSceneRooms {
+                group.addTask {
+                    await self.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                    await self.setRoomMute(IP: room.ip, mute: false)
+                }
+            }
+        }
+        
+        // Take snapshot and execute playlist action concurrently
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.snapShotGroup(ip: newGroup.ip)
+            }
+            group.addTask {
+                try? await playlistAction(newGroup)
+            }
+        }
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {

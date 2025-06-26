@@ -95,6 +95,20 @@ public final class SonosMiniService {
     @ObservationIgnored public var watchMonitor: Task<Void, Error> = Task { }
     
     
+    public func updateHousehold() async throws {
+        let newDevices = try await getDevices(useCache: true)
+
+        // MARK: Update Battery Info
+        for device in newDevices.filter({ $0.battery != nil }) {
+            guard let index = devices.firstIndex(of: device) else { continue }
+            devices[index].battery = device.battery
+        }
+
+        if !newDevices.isEmpty && Set(newDevices) != Set(self.devices) {
+            self.devices = newDevices
+        }
+    }
+    
     @MainActor
     private func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
         guard let index = self.devices.firstIndex(where: { $0.id == device.id }) else { return }
@@ -1876,8 +1890,30 @@ public final class SonosMiniService {
 //            try await queue(playable: playableContent, group: group)
 //            await play(ip: group.ip)
 //        }
+
+        // Update household if no groups are available
+        if devices.isEmpty {
+            try await updateHousehold()
+        }
         
-        let devices = scene.rooms.map {
+        // Create a lookup dictionary for better performance
+        let roomLookup = Dictionary(uniqueKeysWithValues: devices.map { ($0.id, $0) })
+        
+        // Map scene rooms to discovered rooms with better error handling
+        let discoveredSceneRooms = try scene.rooms.map { sceneRoom in
+            guard let existingRoom = roomLookup[sceneRoom.id] else {
+                throw SonosDiscoveryError.sonosSystemNotFound
+            }
+            return SceneRoom(
+                id: existingRoom.id,
+                ip: existingRoom.ip,
+                name: existingRoom.name,
+                volume: sceneRoom.volume
+            )
+        }
+        
+        // Create rooms for grouping
+        let devices = discoveredSceneRooms.map {
             SonosDevice(
                 name: $0.name,
                 id: $0.id,
@@ -1888,15 +1924,23 @@ public final class SonosMiniService {
                 state: .active
             )
         }
-        let newGroup = await speedGroup(devices: devices)
-        for room in scene.rooms {
-            await setDeviceVolume(ip: room.ip, volume: Int(room.volume))
-            await setRoomMute(IP: room.ip, mute: false)
+   
+        // Create the group
+        guard let newGroup = await speedGroup(devices: devices) else {
+            throw SonosDiscoveryError.sonosSystemNotFound
         }
         
-        guard let newGroup else { return }
+        // Set volume and unmute all rooms concurrently for better performance
+        await withTaskGroup(of: Void.self) { group in
+            for room in discoveredSceneRooms {
+                group.addTask {
+                    await self.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                    await self.setRoomMute(IP: room.ip, mute: false)
+                }
+            }
+        }
+
         await snapShotGroup(ip: newGroup.ip)
-//        try await playlistAction(newGroup)
     }
     //
     //    public func seek(trackNumber: Int, on group: GroupRoom) async {

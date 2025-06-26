@@ -2,6 +2,7 @@ import Foundation
 import MusicKit
 
 public final class AppleMusicAPI {
+    public static var shared = AppleMusicAPI()
     public var appleMusicAuthorizationStatus: AppleMusicAuthorization = .denied
     private let decoder: JSONDecoder
     private var storeFront: String?

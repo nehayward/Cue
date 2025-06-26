@@ -26,9 +26,7 @@ let package = Package(
             name: "MusicSearchKitTests",
             dependencies: ["MusicSearchKit"],
             resources: [
-                .copy("Resources/cryYourHeartOutSearch.json"),
-                .copy("Resources/duaLipaSpotifyPlaylistsResponse.json"),
-                .copy("Resources/plex_search_dance.xml")
+                .process("Resources")
             ]),
     ]
 )

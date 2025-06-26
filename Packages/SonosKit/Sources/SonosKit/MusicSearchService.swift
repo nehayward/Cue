@@ -38,8 +38,8 @@ public final class MusicSearchService {
     }
 
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
-    private let apple = AppleMusicAPI()
-    private let plex = PlexAPI()
+    private let apple = AppleMusicAPI.shared
+    private let plex = PlexAPI.shared
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
