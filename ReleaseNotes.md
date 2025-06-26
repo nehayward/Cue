@@ -1,7 +1,7 @@
 # 2025.11
 
 –– New Features ––
-
+- Add support for Playbase
 
 –– Bug Fixes & Improvements ––
 - Enhanced Plex integration with improved reliability and performance
