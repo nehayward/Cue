@@ -448,7 +448,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Storage.swift,
 			);
 			target = E97562C82B699B2400787E14 /* Clic (Mac) */;
 		};
@@ -456,7 +455,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Storage.swift,
 				SubscriptionDetailScreen.swift,
 			);
 			target = E92B3E862B60249B00724FA1 /* Clic (Vision) */;

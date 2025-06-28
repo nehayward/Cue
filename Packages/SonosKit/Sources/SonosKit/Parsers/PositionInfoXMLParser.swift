@@ -58,8 +58,28 @@ final class SonosTrackParser {
             if trackURI.contains("x-rincon-stream") {
                 title = "Line In"
             }
-
             
+            if trackURI.contains("sonos") {
+                // Decode HTML entities
+                let htmlDecoded = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
+
+                // Extract mark= value
+                if let markRange = htmlDecoded.range(of: "mark=") {
+                    let markEncoded = htmlDecoded[markRange.upperBound...]
+                        .components(separatedBy: "&")
+                        .first ?? ""
+                    
+                    if let decodedMark = markEncoded.removingPercentEncoding {
+                        print(decodedMark)  // ✅ Final URL
+                        sonosAlbumArtURL = URL(string: decodedMark)
+                    }
+                }
+            }
+            
+            if title.contains("bump_sonic_pre.mp3") {
+                title = ""
+            }
+
             return Track(
                 trackID: trackID,
                 name: title,

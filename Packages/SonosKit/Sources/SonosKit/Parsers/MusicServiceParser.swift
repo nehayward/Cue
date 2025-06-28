@@ -63,11 +63,13 @@ final class MusicServiceParser {
             return extractPlexTrackID(from: uri)
         case .soundcloud:
             return extractSoundCloudID(from: uri)
+        case .tuneIn:
+            return extractTuneInTrackID(from: uri)
         case .library:
             return uri
         case .unknown:
             return uri
-        case .tuneIn, .airplay:
+        case .airplay:
             return ""
         }
     }
@@ -141,5 +143,13 @@ final class MusicServiceParser {
         
         let id = String(decodedURI[range])
         return id
+    }
+    
+    private func extractTuneInTrackID(from uri: String) -> TrackID {
+        let pattern = #/:(.*?)\?/#
+        if let result = try? pattern.firstMatch(in: uri) {
+            return String(result.1)
+        }
+        return ""
     }
 }

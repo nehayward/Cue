@@ -143,8 +143,8 @@ extension View {
                                 .withAppRouter()
                         }
                     }
-                case let .customSleepTimer(group):
-                    SleepTimerCustomView(group: group)
+                case let .customSleepTimer(group, recentTimers):
+                    SleepTimerCustomView(recentTimers: recentTimers, group: group)
                 case let .browse(group: group):
                     let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
@@ -278,8 +278,8 @@ extension View {
                     NavigationStack {
                         AlarmListView()
                     }
-                case let .customSleepTimer(group):
-                    SleepTimerCustomView(group: group)
+                case let .customSleepTimer(group, recentTimers):
+                    SleepTimerCustomView(recentTimers: recentTimers, group: group)
                 case let .browse(group: group):
                     @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
@@ -379,38 +379,22 @@ extension View {
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
 #if !os(visionOS)
         inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
-            Group {
+            VStack {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):
                     SearchScreen {
                         inspectorDestination.wrappedValue = nil
                     }
-#if targetEnvironment(macCatalyst)
-                    .inspectorColumnWidth(500)
-#else
-                    .inspectorColumnWidth(400)
-#endif
                     .environment(SelectedGroupService(group: group))
                 case let .queue(group):
                     QueueScreen(closeInspector: {
                         inspectorDestination.wrappedValue = nil
                     }, group: group)
-#if targetEnvironment(macCatalyst)
-                    .inspectorColumnWidth(500)
-#else
-                    .inspectorColumnWidth(400)
-#endif
                 case let .browse(group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen {
                         inspectorDestination.wrappedValue = nil
                     }
-                    .environment(selectedGroupService)
-#if targetEnvironment(macCatalyst)
-                    .inspectorColumnWidth(500)
-#else
-                    .inspectorColumnWidth(400)
-#endif
+                    .environment(SelectedGroupService(group: group))
                 default:
                     EmptyView()
                         .onAppear {
@@ -419,6 +403,11 @@ extension View {
                 }
             }
             .withEnvironments()
+#if targetEnvironment(macCatalyst)
+            .inspectorColumnWidth(500)
+#else
+            .inspectorColumnWidth(360)
+#endif
         }
 #else
         return self

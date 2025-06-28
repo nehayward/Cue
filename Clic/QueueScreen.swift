@@ -152,7 +152,7 @@ struct QueueScreen: View {
                         Spacer()
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedSheet = .search(group: group)
+                            Router.main.presentedSheet = .search(group: group)
                         } label: {
                             Label("Search", systemImage: "magnifyingglass")
                                 .fontDesign(.rounded)
@@ -208,14 +208,14 @@ struct QueueScreen: View {
             selectedGroupService.group = group
         }
         .overlay(
-            Button(action: {
+            Button {
                 closeInspector?()
-            }) {
+            } label: {
                 EmptyView()
             }
-                .keyboardShortcut(.escape, modifiers: [])
-                .frame(width: 0, height: 0)
-                .hidden()
+            .keyboardShortcut(.escape, modifiers: [])
+            .frame(width: 0, height: 0)
+            .hidden()
         )
     }
 

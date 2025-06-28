@@ -27,7 +27,7 @@ final class LiveActivityManager: LiveActivityManageable {
 
     func refresh() async {
         for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard !isActivityDisabled(id: activity.attributes.room.id) else {
+            guard !isActivityDisabled(id: activity.attributes.room.id) || activity.attributes.requiresManualDismissal else {
                 await activity.end(activity.content, dismissalPolicy: .immediate)
                 continue
             }
@@ -39,7 +39,7 @@ final class LiveActivityManager: LiveActivityManageable {
                 return
             }
 
-            async let track =  sonosService.getTrack(ip: group.coordinatorRoom.ip)
+            async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
             async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
             
@@ -115,7 +115,6 @@ final class LiveActivityManager: LiveActivityManageable {
 
     func createActivity(id: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        guard !isActivityDisabled(id: id) else { return }
         
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
         try? await sonosService.load(useCache: true)
@@ -124,9 +123,14 @@ final class LiveActivityManager: LiveActivityManageable {
             return
         }
 
-        let sonosAttribute = ClicNowPlayingWidgetAttributes(room: SonosDeviceEntity(id: group.coordinatorRoom.id,
-                                                                                    ip: group.coordinatorRoom.ip,
-                                                                                    name: group.nameWithCount))
+        let sonosAttribute = ClicNowPlayingWidgetAttributes(
+            room: SonosDeviceEntity(
+                id: group.coordinatorRoom.id,
+                ip: group.coordinatorRoom.ip,
+                name: group.nameWithCount
+            ),
+            requiresManualDismissal: true
+        )
 
         if group.TVMode {
             group.tvSettings = try? await sonosService.getTVSettings(ip: group.ip)
@@ -163,16 +167,16 @@ final class LiveActivityManager: LiveActivityManageable {
     }
     
     func toggle(id: String) async {
-        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
-            guard let _ = sonosService.groups.first(where: { $0.coordinatorRoom.id == activity.attributes.room.id}) else {
-                continue
-            }
-
-            await activity.end(activity.content, dismissalPolicy: .immediate)
-            return
-        }
+        let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
+        let matchingActivities = activities.filter { $0.attributes.room.id == id }
         
-        await createActivity(id: id)
+        if matchingActivities.isEmpty {
+            await createActivity(id: id)
+        } else {
+            for activity in matchingActivities {
+                await activity.end(activity.content, dismissalPolicy: .immediate)
+            }
+        }
     }
 
     func isActivityDisabled(id: String) -> Bool {

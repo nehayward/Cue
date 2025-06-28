@@ -1,14 +1,26 @@
 # 2025.11
 
 –– New Features ––
-- Add support for Playbase
+- Added support for Sonos Playbase
+- Added auto-launch capability for iPad
+- Added keyboard shortcuts for quick access:
+  - Queue (press "q")
+  - Search (press "s") 
+  - Library (press "l")
+- Add Playback Menubar Controls
+  - Play/Pause  (press "spacebar")
+- Add Radio Station Name
+- Sleep Timer remembers last 3 custom timers for quick access
 
 –– Bug Fixes & Improvements ––
-- Enhanced Plex integration with improved reliability and performance
+- Enhanced Plex integration for better reliability and performance
 - Improved Scene functionality:
   - Faster and more reliable Scene execution
-  - Scenes now work correctly even when device IP addresses change
-  - Better handling of device discovery and grouping
+  - Scenes now maintain functionality when device IP addresses change
+  - Enhanced device discovery and grouping behavior
+- Fixed regression preventing manual activation of groups with disabled Live Activities via Shortcuts, Widgets, or Control Center
+- Fixed issues with Live Activities Shortcut toggle functionality
+- Fixed crash occurring on iPadOS when opening Queue, Search, or Browse panels
 
 # 2025.10
 

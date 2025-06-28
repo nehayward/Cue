@@ -191,7 +191,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON40967_X_#Svc40967-7051ab01-Token&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (_, .unknown):
-            assertionFailure("Implement \(content.type)")
+//            assertionFailure("Implement \(content.type)")
             return metadata?.URIMetadata ?? ""
         default:
             return ""

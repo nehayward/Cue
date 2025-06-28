@@ -28,12 +28,11 @@ struct ClicApp: App {
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
     @State private var playlistContainer = PlaylistContainer.shared
-    @State private var playHistoryService = PlayHistoryService()
-    @State private var miniPlayerManager = MiniPlayerManger.shared
+    private var playHistoryService = PlayHistoryService.shared
+    private var miniPlayerManager = MiniPlayerManger.shared
 
     @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
-    @CloudStorage("com.clic.plexToken") var plexToken: String = ""
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
@@ -150,12 +149,6 @@ struct ClicApp: App {
                 // MARK: Configure NukeUI
                 configureNuke()
                 
-                // MARK: Sync Plex Token with Watch
-                if let key = UserDefaults.standard.string(forKey: "com.clic.plexToken") {
-                    plexToken = key
-                }
-                
-                
                 // TODO: Add onboard
 //                if !hasOnboarded {
 //                    print(SheetDestination.onboard.id)
@@ -216,6 +209,8 @@ struct ClicApp: App {
                     router.inspectorSheet = .search(group: sonosService.sorted[group])
                 } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
                     router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                } else if let sheet = router.inspectorSheet, sheet.id == "browse" {
+                    router.inspectorSheet = .browse(group: sonosService.sorted[group])
                 }
             }
         }
@@ -242,7 +237,7 @@ struct ClicApp: App {
             SidebarCommands()
             CommandGroup(after: .sidebar) {
                 Divider()
-                Button("Show/Hide Search") {
+                Button {
                     if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                         if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
                             router.inspectorSheet = .search(group: sonosService.sorted[group])
@@ -250,8 +245,23 @@ struct ClicApp: App {
                             router.inspectorSheet = nil
                         }
                     }
+                } label: {
+                    Label("\(router.inspectorSheet?.id ?? "" == "search" ? "Hide" : "Show") Search", systemImage: "magnifyingglass")
                 }
-                .keyboardShortcut("s")
+                .keyboardShortcut("s", modifiers: [])
+                
+                Button {
+                    if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+                        if router.inspectorSheet != .browse(group: sonosService.sorted[group]) {
+                            router.inspectorSheet = .browse(group: sonosService.sorted[group])
+                        } else {
+                            router.inspectorSheet = nil
+                        }
+                    }
+                } label: {
+                    Label("\(router.inspectorSheet?.id ?? "" == "browse" ? "Hide" : "Show") Browse", systemImage: "house.fill")
+                }
+                .keyboardShortcut("b", modifiers: [])
 
                 Button {
                     if let id = selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -262,12 +272,33 @@ struct ClicApp: App {
                         }
                     }
                 } label: {
-                    Label("Show/Hide Queue", systemImage: "list.dash")
+                    Label("\(router.inspectorSheet?.id ?? "" == "queue" ? "Hide" : "Show") Queue", systemImage: "list.dash")
                 }
-                .keyboardShortcut("l")
+                .keyboardShortcut("q", modifiers: [])
             }
             CommandMenu("Playback") {
-                Text("Coming Soon…")
+                Button{
+                    Task {
+                        if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            if group.coordinatorRoom.isPlaying {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.pause(ip: group.coordinatorRoom.ip)
+                            } else {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.play(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                    }
+                } label: {
+                    if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        Label {
+                            Text("\(group.coordinatorRoom.isPlaying ? "Pause" : "Play") \(group.nameWithCount)")
+                        } icon: {
+                            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                        }
+                    }
+                }
+                .keyboardShortcut(.space, modifiers: [])
             }
         }
     }
@@ -567,6 +598,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
        sceneConfig.delegateClass = ClicSceneDelegate.self // 👈🏻
        return sceneConfig
      }
+    
+    override func buildMenu(with builder: UIMenuBuilder) {
+        /// Only operate on the main menu bar.
+        if builder.system == .main {
+            builder.remove(menu: .edit)
+            builder.remove(menu: .format)
+        }
+    }
 }
 
 class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {

@@ -120,6 +120,8 @@ struct SpotifySearchScreen: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
             .task {
                 await spotifyBrowseService.userAlbums(offset: 0, limit: 10)
             }

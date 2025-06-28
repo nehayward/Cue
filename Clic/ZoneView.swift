@@ -6,6 +6,11 @@ struct ZoneView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
+            Text(group.coordinatorRoom.track.radioStation ?? "")
+                .font(.caption.smallCaps())
+                .foregroundStyle(.secondary)
+                .tint(.secondary)
+                .lineLimit(1, reservesSpace: true)
             Text(group.coordinatorRoom.track.song)
                 .foregroundStyle(.primary)
                 .tint(.primary)
@@ -15,7 +20,6 @@ struct ZoneView: View {
                 .foregroundStyle(.secondary)
                 .tint(.secondary)
                 .lineLimit(1, reservesSpace: true)
-
         }
         .frame(alignment: .top)
         .fontDesign(.rounded)

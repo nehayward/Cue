@@ -21,7 +21,7 @@ enum InspectorDestination: Identifiable, Equatable {
 
     var id: String {
         switch self {
-        case let .browse(group: group):
+        case .browse:
             "browse"
         case .settings:
             "settings"

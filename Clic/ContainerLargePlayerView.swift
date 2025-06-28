@@ -15,7 +15,7 @@ struct ContainerLargePlayerView: View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
 
-        Group {
+        VStack {
             if let id, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 LargePlayerView(group: $sonosService.sorted[group])
             }
@@ -77,7 +77,7 @@ struct ContainerLargePlayerView: View {
                             }
                         }
                     } label: {
-                        Label("Browse", systemImage: "music.note.house.fill")
+                        Label("Browse", systemImage: "house.fill")
                     }
                     .id(refreshID)
                     .help("Browse")

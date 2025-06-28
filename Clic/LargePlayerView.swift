@@ -74,15 +74,9 @@ struct LargePlayerView: View {
                 ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
                     .padding(.bottom, 12)
                     .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-                if let stationName = group.coordinatorRoom.track.metadata?.stationName {
-                    Text(stationName)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                        .fontDesign(.rounded)
-                        .frame(maxWidth: .infinity)
-                        .lineLimit(1, reservesSpace: true)
-                }
-                
+                Text(group.coordinatorRoom.track.radioStation ?? "")
+                    .font(.caption.smallCaps())
+                    .foregroundStyle(.secondary)
                 MarqueeText(group.coordinatorRoom.track.song)
                     .bold()
                     .multilineTextAlignment(.center)
@@ -466,8 +460,10 @@ struct LargePlayerView: View {
                 
             }
             .buttonStyle(.liveActivity)
+            #if DEBUG
             .keyboardShortcut(.space, modifiers: [])
-            .id(group.coordinatorID) 
+            .id(group.coordinatorID)
+            #endif
             
             Spacer()
             Button {

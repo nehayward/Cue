@@ -84,6 +84,12 @@ struct PlexBrowseScreen: View {
                         .environment(router)
                 }
             }
+    #if !targetEnvironment(macCatalyst)
+            .addDismiss {
+                dismiss()
+                Router.main.inspectorSheet = nil
+            }
+    #endif
         }
         .listStyle(.plain)
         .environment(router)

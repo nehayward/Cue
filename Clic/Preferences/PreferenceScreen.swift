@@ -407,41 +407,13 @@ struct PreferenceScreen: View {
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone {
-//                        NavigationLink {
-//                            Form {
-//                                Toggle(isOn: $autoLaunchNowPlaying) {
-//                                    Text("Auto launch to Group/Room playing on watch")
-//                                    Text("Instantly jump to the group currently playing.")
-//                                }
-//                                .tint(.accent)
-//                            }
-//                        } label: {
-                            Label {
-                                Toggle(isOn: $autoLaunchNowPlaying) {
-                                    Text("Auto Launch Watch")
-                                }
-                                .tint(.accent)
-                            } icon: {
-                                Image(systemName: "applewatch")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .foregroundStyle(.white)
-                                    .bold()
-                                    .padding(8)
-                                    .frame(width: 32, height: 32)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .foregroundStyle(.blue)
-                                    )
-                            }
-                        
                         Label {
-                            Toggle(isOn: $speedLaunchNowPlaying) {
-                                Text("Auto Launch")
+                            Toggle(isOn: $autoLaunchNowPlaying) {
+                                Text("Auto Launch Watch")
                             }
                             .tint(.accent)
                         } icon: {
-                            Image(systemName: "iphone")
+                            Image(systemName: "applewatch")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundStyle(.white)
@@ -450,11 +422,28 @@ struct PreferenceScreen: View {
                                 .frame(width: 32, height: 32)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue.gradient)
+                                        .foregroundStyle(.blue)
                                 )
                         }
                     }
-
+                    Label {
+                        Toggle(isOn: $speedLaunchNowPlaying) {
+                            Text("Auto Launch")
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "iphone")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(.blue.gradient)
+                            )
+                    }
                 } footer: {
                     Text("Launch to the group currently playing or in TV Mode.")
                 }

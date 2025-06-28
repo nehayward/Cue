@@ -317,6 +317,7 @@ public final class SonosService {
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
             async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
             async let availableActions = self.getCurrentTransportActions(ip: roomGroup.ip)
+            async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.ip)
             await updateGroupCheckTVMode(from: [roomGroup])
 
             guard !isEditing else { return }
@@ -330,7 +331,7 @@ public final class SonosService {
             default:
                 isNowPlaying = roomGroup.coordinatorRoom.isPlaying // keep current value
             }
-
+            
             if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                 roomGroup.coordinatorRoom.isPlaying = isNowPlaying
             }
@@ -348,6 +349,15 @@ public final class SonosService {
 
             guard let awaitedTrack = await track else {
                 return
+            }
+            
+            if roomGroup.playbackService == .radio {
+                if let mediaInfo = await mediaInfo {
+                    if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
+                        roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
+                        roomGroup.coordinatorRoom.track.sonosAlbumArtURL = mediaInfo.artwork
+                    }
+                }
             }
 
             if awaitedTrack == .empty {
@@ -483,6 +493,7 @@ public final class SonosService {
                     async let playMode = playMode(ip: roomGroup.coordinatorRoom.ip)
                     async let availableActions = getCurrentTransportActions(ip: roomGroup.ip)
                     async let queueTotal = getQueueTotal(group: roomGroup)
+                    async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
                         await MainActor.run {
@@ -513,6 +524,15 @@ public final class SonosService {
                         return
                     }
 
+                    if roomGroup.playbackService == .radio {
+                        if let mediaInfo = await mediaInfo {
+                            if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
+                                roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
+                                roomGroup.coordinatorRoom.track.sonosAlbumArtURL = mediaInfo.artwork
+                            }
+                        }
+                    }
+                    
                     if awaitedTrack == .empty {
                         if roomGroup.coordinatorRoom.track != .empty {
                             ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
@@ -570,7 +590,6 @@ public final class SonosService {
                         awaitedTrack.downloadedArtworkURL = artworkURL
                     }
                     awaitedTrack.metadata = trackMetadata
-
                     if awaitedTrack.musicService == .tuneIn {
                         awaitedTrack.artist = trackMetadata?.artist ?? ""
                     }
@@ -1480,7 +1499,7 @@ public final class SonosService {
     }
 
     public func playbackService(ip: String) async -> PlaybackService? {
-        await api.mediaInfo(ipAddress: ip)
+        await api.mediaInfo(ipAddress: ip)?.playbackService
     }
 
     // MARK: TV

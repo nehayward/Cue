@@ -235,10 +235,10 @@ final class XMLParserSonos {
         return .transitioning
     }
 
-    func parseMediaInfo(xml: String) -> PlaybackService {
+    func parseMediaInfo(xml: String) -> PlaybackMediaInfo {
         // Early return if we can't parse the URI
         guard let currentURI = try? parseValue(xml: xml, named: "CurrentURI") else {
-            return .unknown
+            return PlaybackMediaInfo(playbackService: .unknown, artwork: nil, title: nil)
         }
         
         // Map URI substrings to their corresponding PlaybackService
@@ -251,8 +251,18 @@ final class XMLParserSonos {
             ("x-rincon-stream", .lineIn)
         ]
         
-        // Return first matching service or unknown
-        return serviceMapping.first { currentURI.contains($0.0) }?.1 ?? .unknown
+        let playbackService = serviceMapping.first { currentURI.contains($0.0) }?.1 ?? .unknown
+        
+        var radioTitle: String?
+        var albumArtURL: URL?
+        if let currentURIMetaData = try? parseValue(xml: xml, named: "CurrentURIMetaData").removingHTMLEntities() {
+            radioTitle = try? parseValue(xml: currentURIMetaData, named: "dc:title").removingHTMLEntities()
+            var albumArt = try? parseValue(xml: currentURIMetaData, named: "upnp:albumArtURI").removingHTMLEntities()
+            albumArt = albumArt?.replacingOccurrences(of: "logoq.png", with: "logod.jpg")
+            albumArtURL = URL(string: albumArt ?? "")
+        }
+        
+        return PlaybackMediaInfo(playbackService: playbackService, artwork: albumArtURL, title: radioTitle)
     }
 
 
@@ -990,7 +1000,6 @@ final class XMLParserSonos {
 
     // MARK: Alarm Clock
     func parseAlarmClockList(from xml: String) -> [Alarm] {
-        guard let xmlData = xml.unescaped.data(using: .utf8) else { return [] }
         let parser = AlarmListParser()
         let newAlarms = parser.parseAlarms(from: xml)
         return newAlarms

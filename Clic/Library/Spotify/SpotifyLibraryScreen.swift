@@ -11,6 +11,8 @@ import Defaults
 import TipKit
 
 struct SpotifyLibraryScreen: View {
+    @Environment(\.dismiss) var dismiss
+
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SpotifyBrowseService.self) private var spotifyBrowseService
 
@@ -122,6 +124,12 @@ struct SpotifyLibraryScreen: View {
                         .environment(router)
                 }
             }
+#if !targetEnvironment(macCatalyst)
+            .addDismiss {
+                dismiss()
+                Router.main.inspectorSheet = nil
+            }
+#endif
             .refreshable {
                 spotifyBrowseService.playlists.removeAll()
                 spotifyBrowseService.tracks.removeAll()

@@ -6,7 +6,7 @@ struct SleepTimerCustomView: View {
     @Environment(SonosService.self) var sonosService
     @Environment(\.dismiss) var dismiss
 
-//    @State private var recentTimers: Storage<Duration> = Storage("")
+    var recentTimers: Storage<Duration>
     var group: GroupRoom
 
     @State private var hours: Int = 0
@@ -15,12 +15,6 @@ struct SleepTimerCustomView: View {
     var body: some View {
         NavigationStack {
             VStack {
-                // TODO: Add later
-                //            ForEach(recentTimers.object, id: \.self) { timer in
-                //                VStack {
-                //                    Text(timer.formatted(.time(pattern: .hourMinute)))
-                //                }
-                //            }
                 HStack {
                     Picker("", selection: $hours){
                         ForEach(0..<23, id: \.self) { i in
@@ -37,29 +31,30 @@ struct SleepTimerCustomView: View {
 
                 Button {
                     Task {
-                        //                    recentTimers.object.append(Duration.seconds((hours * 60 * 60) + minutes * 60))
-                        await sonosService.sleepTimer(group: group, duration: Duration.seconds((hours * 60 * 60) + minutes * 60))
+                        let duration = Duration.seconds((hours * 60 * 60) + minutes * 60)
+                        recentTimers.object.insert(duration, at: 0)
+                        await sonosService.sleepTimer(group: group, duration: duration)
                         dismiss()
                     }
                 } label: {
                     Text("Start")
-                        .padding()
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonBorderShape(.circle)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
+                .tint(.accentColor)
+                .padding()
             }
             .addDismiss(action: dismiss.callAsFunction)
+            .presentationDetents([.fraction(0.4)])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(24)
         }
-        .presentationDetents([.fraction(0.3)])
-        .presentationBackground(.thinMaterial)
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(24)
     }
 }
 
 #Preview {
     Text("HERE")
         .sheet(isPresented: .constant(true)) {
-            SleepTimerCustomView(group: .gym)
+//            SleepTimerCustomView(group: .gym)
         }
 }

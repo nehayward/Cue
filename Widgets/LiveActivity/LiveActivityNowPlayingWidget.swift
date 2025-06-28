@@ -18,7 +18,13 @@ struct ClicNowPlayingWidgetAttributes: ActivityAttributes {
         var TVMode: Bool
         var TVSettings: TVSettings? = nil
     }
+    
+    /// The Sonos device this Live Activity is associated with
     var room: SonosDeviceEntity
+    
+    /// If true, the Live Activity will persist until manually dismissed by the user.
+    /// If false, the Live Activity will be automatically dismissed when playback stops.
+    var requiresManualDismissal: Bool = false
 }
 
 extension GroupRoom {

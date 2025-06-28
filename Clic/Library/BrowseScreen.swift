@@ -12,6 +12,8 @@ import TipKit
 
 struct BrowseScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
@@ -22,12 +24,13 @@ struct BrowseScreen: View {
     var closeInspector: (() -> Void)? = nil
     
     @State private var router = Router()
-    @State private var alertService = AlertService()
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
+
+    private var showAlert: Bool { UIDevice.current.userInterfaceIdiom == .phone }
     
     var body: some View {
-        Group {
+        VStack {
             switch browseMediaService {
             case .apple:
                 AppleLibraryBrowseScreen()
@@ -47,18 +50,14 @@ struct BrowseScreen: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
+            if horizontalSizeClass == .compact {
                 MiniPlayerView()
-                    .offset(y: MiniPlayerManger.shared.offset)
+            }
 #endif
         }
+        .withAlert(enabled: showAlert)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)
-#if !targetEnvironment(macCatalyst)
-        .addDismiss {
-            dismiss()
-            closeInspector?()
-        }
-#endif
         .onChange(of: coreFeatures.features) {
             if coreFeatures.isEnabled(browseMediaService) {
                 return
@@ -72,9 +71,9 @@ struct BrowseScreen: View {
             } label: {
                 EmptyView()
             }
-                .keyboardShortcut(.escape, modifiers: [])
-                .frame(width: 0, height: 0)
-                .hidden()
+            .keyboardShortcut(.escape, modifiers: [])
+            .frame(width: 0, height: 0)
+            .hidden()
         )
     }
 }

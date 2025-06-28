@@ -8,10 +8,24 @@ struct TimerMenuView: View {
     @Environment(AlertService.self) var alertService
     @Environment(Router.self) var router
 
+    var recentTimers: Storage<Duration> = Storage("sleep")
     var group: GroupRoom
 
     var body: some View {
         Menu {
+            if !recentTimers.object.isEmpty {
+                ControlGroup {
+                    ForEach(recentTimers.object.prefix(3), id: \.self) { timer in
+                        Button {
+                            Task {
+                                await sonosService.sleepTimer(group: group, duration: timer)
+                            }
+                        } label: {
+                            Text(timer.formatted(.units(width: .narrow)))
+                        }
+                    }
+                }.controlGroupStyle(.compactMenu)
+            }
             Button {
                 Task {
                     await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 5))
@@ -53,7 +67,7 @@ struct TimerMenuView: View {
             }
 
             Button {
-                router.presentedSheet = .customSleepTimer(group: group)
+                router.presentedSheet = .customSleepTimer(group: group, recentTimers)
             } label: {
                 Text("Custom")
             }

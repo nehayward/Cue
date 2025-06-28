@@ -19,7 +19,6 @@ struct LibraryBrowseScreen: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     @State private var router = Router()
-    @State private var alertService = AlertService()
 
     var body: some View {
         @Bindable var sonosService = sonosService
@@ -88,6 +87,12 @@ struct LibraryBrowseScreen: View {
                         .environment(router)
                 }
             }
+    #if !targetEnvironment(macCatalyst)
+            .addDismiss {
+                dismiss()
+                Router.main.inspectorSheet = nil
+            }
+    #endif
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {

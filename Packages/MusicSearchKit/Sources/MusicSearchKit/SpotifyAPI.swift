@@ -490,7 +490,7 @@ public final class SpotifyAPI {
             } else {
                 retryCount += 1
                 if retryCount < maxRetries {
-                    try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+                    try await Task.sleep(for: .microseconds(200 * retryCount))
                 } else {
                     throw AuthError.tokenRefreshFailed
                 }

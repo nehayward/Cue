@@ -17,7 +17,7 @@ public struct VibeGaugeView: View {
         ZStack {
             Circle()
                 .stroke(
-                    color.opacity(0.4),
+                    color.secondary.opacity(0.4),
                     lineWidth: lineWidth
                 )
             if value > 0 {
