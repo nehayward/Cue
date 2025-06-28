@@ -9,6 +9,11 @@
   - Library (press "l")
 - Add Playback Menubar Controls
   - Play/Pause  (press "spacebar")
+  - Previous Track (press "⌘←")
+  - Next Track (press "⌘→") 
+  - Volume Up (press "⌘↑")
+  - Volume Down (press "⌘↓")
+- Add Dolby or Lossless Icon to AudioInfo Details
 - Add Radio Station Name
 - Sleep Timer remembers last 3 custom timers for quick access
 

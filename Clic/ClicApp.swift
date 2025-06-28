@@ -19,6 +19,7 @@ import WidgetKit
 struct ClicApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @Environment(\.openWindow) var openWindow
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.liveActivityManager) var liveActivityManager
 
@@ -277,28 +278,105 @@ struct ClicApp: App {
                 .keyboardShortcut("q", modifiers: [])
             }
             CommandMenu("Playback") {
-                Button{
-                    Task {
+                let groupSelected = selectedID.flatMap { id in
+                    sonosService.sorted.first { $0.coordinatorID == id }?.nameWithCount
+                } ?? "No Group Selected"
+                ControlGroup(groupSelected) {
+                    Button{
+                        Task {
+                            if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                                if group.coordinatorRoom.isPlaying {
+                                    HapticManager.shared.fireHaptic(.selection)
+                                    await sonosService.pause(ip: group.coordinatorRoom.ip)
+                                } else {
+                                    HapticManager.shared.fireHaptic(.selection)
+                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                }
+                            }
+                        }
+                    } label: {
                         if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            if group.coordinatorRoom.isPlaying {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.pause(ip: group.coordinatorRoom.ip)
-                            } else {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.play(ip: group.coordinatorRoom.ip)
+                            Label {
+                                Text("\(group.coordinatorRoom.isPlaying ? "Pause" : "Play")")
+                            } icon: {
+                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
                             }
                         }
                     }
-                } label: {
-                    if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                        Label {
-                            Text("\(group.coordinatorRoom.isPlaying ? "Pause" : "Play") \(group.nameWithCount)")
-                        } icon: {
-                            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
+                    .keyboardShortcut(.space, modifiers: [])
+                    
+                    Button {
+                        Task {
+                            if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.previous(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                    } label: {
+                        if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            Label {
+                                Text("Previous Track")
+                            } icon: {
+                                Image(systemName: "backward.fill")
+                            }
                         }
                     }
+                    .keyboardShortcut(.leftArrow)
+                    .disabled(selectedID == nil)
+                    
+                    Button {
+                        Task {
+                            if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.next(ip: group.coordinatorRoom.ip)
+                            }
+                        }
+                    } label: {
+                        if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            Label {
+                                Text("Next Track")
+                            } icon: {
+                                Image(systemName: "forward.fill")
+                            }
+                        }
+                    }
+                    .keyboardShortcut(.rightArrow)
+                    Button {
+                        Task {
+                            if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.setRelativeGroupVolume(ip: group.ip, volume: 5)
+                            }
+                        }
+                    } label: {
+                        if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            Label {
+                                Text("Volume Up")
+                            } icon: {
+                                Image(systemName: "speaker.wave.2.fill")
+                            }
+                        }
+                    }
+                    .keyboardShortcut(.upArrow)
+                    
+                    Button {
+                        Task {
+                            if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                                HapticManager.shared.fireHaptic(.selection)
+                                await sonosService.setRelativeGroupVolume(ip: group.ip, volume: -5)
+                            }
+                        }
+                    } label: {
+                        if let id = selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            Label {
+                                Text("Volume Down")
+                            } icon: {
+                                Image(systemName: "speaker.wave.1.fill")
+                            }
+                        }
+                    }
+                    .keyboardShortcut(.downArrow)
                 }
-                .keyboardShortcut(.space, modifiers: [])
             }
         }
     }

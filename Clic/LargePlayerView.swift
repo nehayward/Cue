@@ -460,7 +460,7 @@ struct LargePlayerView: View {
                 
             }
             .buttonStyle(.liveActivity)
-            #if DEBUG
+            #if DEBUG && !targetEnvironment(macCatalyst)
             .keyboardShortcut(.space, modifiers: [])
             .id(group.coordinatorID)
             #endif

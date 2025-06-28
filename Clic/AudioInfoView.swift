@@ -17,15 +17,28 @@ struct AudioInfoView: View {
         ZStack {
             if supportsDetails {
                 Button {
-                    withAnimation(.easeInOut) {
-                        HapticManager.shared.fireHaptic(.selection)
-                        showDetails.toggle()
-                    }
+                    HapticManager.shared.fireHaptic(.selection)
+                    showDetails.toggle()
                 } label: {
                     ZStack {
-                        Text(qualityString)
-                            .padding(.horizontal, showDetails ? 0 : 4)
-                            .opacity(showDetails ? 1 : 0)
+                        HStack(spacing: 2) {
+                            if quality?.lossless ?? false {
+                                Image("lossless", bundle: .musicSearchKitBundle)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 16, height: 16)
+                                    .opacity(showDetails ? 1 : 0)
+                            } else if quality?.immersive ?? false {
+                                Image("dolby", bundle: .musicSearchKitBundle)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit) 
+                                    .frame(height: 10)
+                                    .opacity(showDetails ? 1 : 0)
+                            }
+                            Text(qualityString)
+                                .padding(.horizontal, showDetails ? 0 : 4)
+                                .opacity(showDetails ? 1 : 0)
+                        }
 
                         // Dolby Atmos
                         HStack(spacing: 6) {
@@ -33,7 +46,6 @@ struct AudioInfoView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(height: 12)
-                                
                         }
                         .opacity((quality?.immersive ?? false && !showDetails) ? 1 : 0)
 
@@ -48,6 +60,7 @@ struct AudioInfoView: View {
                         .opacity((quality?.lossless ?? false && !showDetails) ? 1 : 0)
                     }
                     .frame(minHeight: 24)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 4)
