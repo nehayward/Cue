@@ -15,7 +15,7 @@ struct PlexAuthorizationFlowView: View {
     var authenticationComplete: (() -> Void)?
 
     var body: some View {
-        Group {
+        VStack {
             if plexAuthenticator.authToken == nil {
                 VStack(alignment: .center, spacing: 16) {
                     Text("Connect Your Plex Account")
@@ -106,48 +106,65 @@ struct PlexAuthorizationFlowView: View {
             } else {
                 VStack(spacing: 12) {
                     ForEach(servers, id: \.clientIdentifier) { server in
-                        if let serverLibraries = libraries[server.name] {
-                            ForEach(serverLibraries, id: \.id) { library in
-                                Button(action: {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    musicSearchService.plexServerID = server.clientIdentifier
-                                    musicSearchService.plexLibrarySelectionID = library.key
-                                    isLoading = true
-                                    Task {
-                                        servers = await musicSearchService.getPlexServers()
-                                        isLoading = false
-                                        authenticationComplete?()
-                                    }
-                                }) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        HStack {
-                                            Text(library.title)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                            
-                                            if musicSearchService.plexLibrarySelectionID == library.key {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundStyle(.accent)
-                                                    .transition(.scale.combined(with: .opacity))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text([server.name, server.device].compactMap { $0 }.joined(separator: ", "))
+                                .font(.headline)
+                                .padding(.horizontal)
+                            
+                            if let serverLibraries = libraries[server.name] {
+                                if serverLibraries.isEmpty {
+                                    Text("No music libraries found")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal)
+                                } else {
+                                    ForEach(serverLibraries, id: \.id) { library in
+                                        Button(action: {
+                                            HapticManager.shared.fireHaptic(.buttonPress)
+                                            musicSearchService.plexServerID = server.clientIdentifier
+                                            musicSearchService.plexLibrarySelectionID = library.key
+                                            isLoading = true
+                                            Task {
+                                                servers = await musicSearchService.getPlexServers()
+                                                isLoading = false
+                                                authenticationComplete?()
                                             }
+                                        }) {
+                                            HStack {
+                                                Text(library.title)
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                
+                                                if musicSearchService.plexLibrarySelectionID == library.key {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundStyle(.accent)
+                                                        .transition(.scale.combined(with: .opacity))
+                                                }
+                                            }
+                                            .padding()
+                                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
                                         }
-                                        
-                                        Text([server.name, server.device].compactMap { $0 }.joined(separator: ", "))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .transition(.opacity)
+                                        .buttonStyle(.plain)
+                                        .animation(.spring(duration: 0.3), value: musicSearchService.plexLibrarySelectionID)
                                     }
-                                    .padding()
-                                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
                                 }
-                                .buttonStyle(.plain)
-                                .animation(.spring(duration: 0.3), value: musicSearchService.plexLibrarySelectionID)
+                            } else {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
                             }
                         }
                     }
                 }
                 .task {
-                    for server in servers {
-                        libraries[server.name] = await PlexAPI().getMusicLibraries(server: server)
+                    await withTaskGroup(of: Void.self) { group in
+                        for server in servers {
+                            group.addTask {
+                                let musicLibraries = await PlexAPI().getMusicLibraries(server: server)
+                                await MainActor.run {
+                                    libraries[server.name] = musicLibraries
+                                }
+                            }
+                        }
                     }
                 }
             }
