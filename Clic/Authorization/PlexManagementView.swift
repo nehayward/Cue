@@ -12,6 +12,7 @@ struct PlexManagementView: View {
     @State private var servers: [PlexServer] = []
     @State private var libraries: [String: [PlexLibrarySection]] = [:]
     @State private var isLoading = false
+    @State private var isReloadingLibraries = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
 
     var body: some View {
@@ -71,13 +72,70 @@ struct PlexManagementView: View {
                     // Library selection
                     if musicSearchService.isPlexAuthorized {
                         VStack(alignment: .leading, spacing: 16) {
+                            Text("Connection Type")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("Choose how to connect to your Plex server:")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            ForEach(PlexAPI.ConnectionPreference.allCases, id: \.self) { preference in
+                                Button(action: {
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    musicSearchService.plexConnectionPreference = preference
+                                }) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack {
+                                                Text(preference.displayName)
+                                                    .font(.body.bold())
+                                                    .foregroundStyle(.primary)
+                                                
+                                                if preference == .nonLocal {
+                                                    Text("(Recommended)")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.accent)
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 2)
+                                                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.accent.opacity(0.1)))
+                                                }
+                                            }
+                                            
+                                            Text(preference.description)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if musicSearchService.plexConnectionPreference == preference {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(.accent)
+                                                .transition(.scale.combined(with: .opacity))
+                                        }
+                                    }
+                                    .padding()
+                                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            
                             Text("Choose Music Library")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
 
-                            if isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
+                            if isLoading || isReloadingLibraries {
+                                VStack {
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity)
+                                    if isReloadingLibraries {
+                                        Text("Reloading libraries...")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
                             } else if servers.isEmpty {
                                 VStack(alignment: .center, spacing: 8) {
                                     Text("No Plex servers found.")
@@ -113,11 +171,6 @@ struct PlexManagementView: View {
                                                             HapticManager.shared.fireHaptic(.buttonPress)
                                                             musicSearchService.plexServerID = server.clientIdentifier
                                                             musicSearchService.plexLibrarySelectionID = library.key
-                                                            isLoading = true
-                                                            Task {
-                                                                servers = await musicSearchService.getPlexServers()
-                                                                isLoading = false
-                                                            }
                                                         }) {
                                                             HStack {
                                                                 Text(library.title)
@@ -162,12 +215,17 @@ struct PlexManagementView: View {
                             }
                         }
                         .task {
-                            isLoading = true
                             servers = await musicSearchService.getPlexServers()
-                            for server in servers {
-                                libraries[server.name] = await PlexAPI().getMusicLibraries(server: server)
+                            await withTaskGroup(of: Void.self) { group in
+                                for server in servers {
+                                    group.addTask {
+                                        let musicLibraries = await PlexAPI().getMusicLibraries(server: server)
+                                        await MainActor.run {
+                                            libraries[server.name] = musicLibraries
+                                        }
+                                    }
+                                }
                             }
-                            isLoading = false
                         }
                     }
 

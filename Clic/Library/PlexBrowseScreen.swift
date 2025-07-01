@@ -52,12 +52,23 @@ struct PlexBrowseScreen: View {
                         Label("Playlists (\(plexBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
                     
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
-                        ForEach(plexBrowseService.userPlaylists.prefix(6)) { item in
-                            PlayableCardView(item: item)
+                    VStack(spacing: 16) {
+                        HStack(spacing: 12) {
+                            ForEach(plexBrowseService.userPlaylists.prefix(3)) { item in
+                                PlayableCardView(item: item)
+                                    .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                            }
+                        }
+                        HStack(spacing: 12) {
+                            ForEach(plexBrowseService.userPlaylists.suffix(3)) { item in
+                                PlayableCardView(item: item)
+                                    .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                            }
                         }
                     }
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    
                     if plexBrowseService.userPlaylists.isEmpty, isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)

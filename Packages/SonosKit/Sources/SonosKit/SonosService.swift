@@ -355,7 +355,6 @@ public final class SonosService {
                 if let mediaInfo = await mediaInfo {
                     if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
                         roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
-                        roomGroup.coordinatorRoom.track.sonosAlbumArtURL = mediaInfo.artwork
                     }
                 }
             }
@@ -528,7 +527,6 @@ public final class SonosService {
                         if let mediaInfo = await mediaInfo {
                             if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
                                 roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
-                                roomGroup.coordinatorRoom.track.sonosAlbumArtURL = mediaInfo.artwork
                             }
                         }
                     }

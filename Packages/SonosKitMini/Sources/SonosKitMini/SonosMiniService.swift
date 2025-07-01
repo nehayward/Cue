@@ -309,7 +309,7 @@ public final class SonosMiniService {
             }
 
             if let name = event.name {
-                let cleanName = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&")
+                let cleanName = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&").replacingOccurrences(of: "&apos;", with: "'")
                 if device.name != cleanName {
                     device.name = cleanName
                     changed = true

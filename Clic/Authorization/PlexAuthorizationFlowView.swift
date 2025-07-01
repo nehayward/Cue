@@ -10,6 +10,7 @@ struct PlexAuthorizationFlowView: View {
     @State private var servers: [PlexServer] = []
     @State private var libraries: [String: [PlexLibrarySection]] = [:]
     @State private var isLoading = false
+    @State private var isReloadingLibraries = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
     
     var authenticationComplete: (() -> Void)?
@@ -67,6 +68,7 @@ struct PlexAuthorizationFlowView: View {
             }
 
             if musicSearchService.isPlexAuthorized && musicSearchService.plexServerID == nil {
+                connectionPreferenceView
                 serverSelectionView
             }
         }
@@ -82,11 +84,11 @@ struct PlexAuthorizationFlowView: View {
                 .font(.title2.bold())
                 .frame(maxWidth: .infinity, alignment: .center)
             
-            if isLoading {
+            if isLoading || isReloadingLibraries {
                 VStack {
                     ProgressView()
                         .frame(maxWidth: .infinity)
-                    Text("Loading servers...")
+                    Text(isReloadingLibraries ? "Reloading libraries..." : "Loading servers...")
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
@@ -175,5 +177,78 @@ struct PlexAuthorizationFlowView: View {
             servers = await musicSearchService.getPlexServers()
             isLoading = false
         }
+    }
+    
+    private var connectionPreferenceView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Connection Type")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            
+            Text("Choose how to connect to your Plex server:")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            
+            ForEach(PlexAPI.ConnectionPreference.allCases, id: \.self) { preference in
+                Button(action: {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    musicSearchService.plexConnectionPreference = preference
+                    
+                    // Reload libraries when connection preference changes
+                    Task {
+                        isReloadingLibraries = true
+                        libraries.removeAll()
+                        servers = await musicSearchService.getPlexServers()
+                        await withTaskGroup(of: Void.self) { group in
+                            for server in servers {
+                                group.addTask {
+                                    let musicLibraries = await PlexAPI().getMusicLibraries(server: server)
+                                    await MainActor.run {
+                                        libraries[server.name] = musicLibraries
+                                    }
+                                }
+                            }
+                        }
+                        isReloadingLibraries = false
+                    }
+                }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(preference.displayName)
+                                    .font(.body.bold())
+                                    .foregroundStyle(.primary)
+                                
+                                if preference == .nonLocal {
+                                    Text("(Recommended)")
+                                        .font(.caption)
+                                        .foregroundStyle(.accent)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.accent.opacity(0.1)))
+                                }
+                            }
+                            
+                            Text(preference.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if musicSearchService.plexConnectionPreference == preference {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.accent)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                }
+                .buttonStyle(.plain)
+                .animation(.spring(duration: 0.3), value: musicSearchService.plexConnectionPreference)
+            }
+        }
+        .padding(.horizontal)
     }
 }

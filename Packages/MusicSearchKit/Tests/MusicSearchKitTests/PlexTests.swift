@@ -148,4 +148,58 @@ final class PlexTests: XCTestCase {
         let servers = try JSONDecoder().decode([PlexServer].self, from: plexResourceServerData)
         XCTAssertEqual(servers.count, 9)
     }
+    
+    // MARK: - Artist Albums Tests
+    func testGetArtistAlbums() async throws {
+        // Given: A valid access token and a known artist key
+        PlexAuthenticator.shared.authToken = testAccessToken
+        
+        // Use a known artist key (Dua Lipa from the example)
+        let artistKey = "1695"
+        
+        // When: Getting artist albums
+        let albumHubs = await plexAPI.getArtistAlbums(key: artistKey)
+        
+        // Then: Should return album hubs
+        XCTAssertNotNil(albumHubs, "Should return album hubs")
+        
+        if let hubs = albumHubs {
+            XCTAssertFalse(hubs.isEmpty, "Should have at least one album hub")
+            
+            print("Found \(hubs.count) album hubs for artist:")
+            
+            for hub in hubs {
+                print("  - \(hub.title) (\(hub.size) albums)")
+                XCTAssertNotNil(hub.title, "Hub should have a title")
+                XCTAssertNotNil(hub.type, "Hub should have a type")
+                XCTAssertNotNil(hub.hubIdentifier, "Hub should have an identifier")
+                
+                // Check if hub has albums
+                if let albums = hub.metadata {
+                    XCTAssertEqual(albums.count, hub.size, "Hub size should match actual album count")
+                    
+                    for album in albums.prefix(3) { // Show first 3 albums
+                        print("    - \(album.title ?? "Unknown") (\(album.year ?? 0))")
+                        XCTAssertNotNil(album.ratingKey, "Album should have a rating key")
+                        XCTAssertNotNil(album.sonosID, "Album should have a Sonos ID")
+                    }
+                    
+                    if albums.count > 3 {
+                        print("    ... and \(albums.count - 3) more albums")
+                    }
+                }
+            }
+        }
+    }
+    
+    func testGetArtistAlbumsWithInvalidKey() async throws {
+        // Given: A valid access token but invalid artist key
+        PlexAuthenticator.shared.authToken = testAccessToken
+        
+        // When: Getting artist albums with invalid key
+        let albumHubs = await plexAPI.getArtistAlbums(key: "invalid_key")
+        
+        // Then: Should return nil or empty array
+        XCTAssertTrue(albumHubs == nil || albumHubs?.isEmpty == true, "Should return nil or empty array for invalid key")
+    }
 }

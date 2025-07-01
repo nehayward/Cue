@@ -251,7 +251,14 @@ final class XMLParserSonos {
             ("x-rincon-stream", .lineIn)
         ]
         
-        let playbackService = serviceMapping.first { currentURI.contains($0.0) }?.1 ?? .unknown
+        var playbackService = serviceMapping.first { currentURI.contains($0.0) }?.1 ?? .unknown
+        
+        // MARK: Sonifiy Fix
+        if playbackService == .queue {
+            if !currentURI.hasSuffix("#0") {
+                playbackService = .unknown
+            }
+        }
         
         var radioTitle: String?
         var albumArtURL: URL?

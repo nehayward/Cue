@@ -37,6 +37,14 @@ public final class MusicSearchService {
         }
     }
 
+    public var plexConnectionPreference: PlexAPI.ConnectionPreference {
+        get {
+            plex.connectionPreference
+        } set {
+            plex.connectionPreference = newValue
+        }
+    }
+
     private let appleMusicSearchAPI = AppleMusicSearchAPI()
     private let apple = AppleMusicAPI.shared
     private let plex = PlexAPI.shared
@@ -596,6 +604,31 @@ public final class MusicSearchService {
         }
         let playableContent: [PlayableContent] = metadata.map(\.toPlayable)
         return playableContent
+    }
+    
+    public func getPlexArtistAllAlbums(id: String) async -> (live: [PlayableContent], remixesAndSingles: [PlayableContent], others: [PlayableContent]) {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return ([], [], []) }
+        guard let result = await plex.getArtistAlbums(key: key) else {
+            return ([], [], [])
+        }
+        
+        var liveAlbums: [PlayableContent] = []
+        var remixesAndSingles: [PlayableContent] = []
+        var others: [PlayableContent] = []
+        
+        for section in result {
+            if let identifier = section.hubIdentifier {
+                if identifier.contains("live") {
+                    liveAlbums.append(contentsOf: section.metadata?.map(\.toPlayable!) ?? [])
+                } else if identifier.contains("singles") || identifier.contains("remix") {
+                    remixesAndSingles.append(contentsOf: section.metadata?.map(\.toPlayable!) ?? [])
+                } else if identifier.contains("soundtrack") || identifier.contains("compilation") || identifier.contains("demo") {
+                    others.append(contentsOf: section.metadata?.map(\.toPlayable!) ?? [])
+                }
+            }
+        }
+        
+        return (liveAlbums, remixesAndSingles, others)
     }
 
     public func lookupPlexArtist(id: String) async -> PlayableContent? {

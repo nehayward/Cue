@@ -8,10 +8,10 @@ import MusicSearchKit
 struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
-    var preferredSize: Int = 50
+    var preferredSize: Int = 100
     
     @State private var imageRequest: ImageRequest?
-    
+
     var body: some View {
         LazyImage(request: imageRequest) { state in
             if let image = state.image {
@@ -54,7 +54,7 @@ struct ContentArtworkView: View {
                 return
             }
         
-            let url = preferredSize > 100 ? content.artwork : content.thumbnail
+            let url = preferredSize >= 100 ? content.artwork : content.thumbnail
             if let url, !(content.thumbnail?.absoluteString ?? "").contains("get") {
                 imageRequest = makeImageRequest(url: url)
                 return

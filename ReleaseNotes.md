@@ -16,6 +16,7 @@
 - Add Dolby or Lossless Icon to AudioInfo Details
 - Add Radio Station Name
 - Sleep Timer remembers last 3 custom timers for quick access
+- Adds support for local network option for Plex
 
 –– Bug Fixes & Improvements ––
 - Enhanced Plex integration for better reliability and performance
@@ -26,6 +27,8 @@
 - Fixed regression preventing manual activation of groups with disabled Live Activities via Shortcuts, Widgets, or Control Center
 - Fixed issues with Live Activities Shortcut toggle functionality
 - Fixed crash occurring on iPadOS when opening Queue, Search, or Browse panels
+- Fixed a hitch occurring on main player screen.
+- Fixed rendering glitch in Clic mini where apostrophes were not displaying correctly
 
 # 2025.10
 

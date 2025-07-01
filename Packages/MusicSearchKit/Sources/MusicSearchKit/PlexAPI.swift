@@ -30,6 +30,35 @@ public final class PlexAPI {
         }
     }
 
+    public var connectionPreference: ConnectionPreference {
+        didSet {
+            UserDefaults.standard.set(connectionPreference.rawValue, forKey: "com.clic.plexServer.connectionPreference")
+        }
+    }
+    
+    public enum ConnectionPreference: String, CaseIterable {
+        case nonLocal = "nonLocal"
+        case local = "local"
+        
+        public var displayName: String {
+            switch self {
+            case .local:
+                return "Local Network"
+            case .nonLocal:
+                return "Remote Access"
+            }
+        }
+        
+        public var description: String {
+            switch self {
+            case .local:
+                return "Use local network connection (faster, requires same network)"
+            case .nonLocal:
+                return "Use remote access (works from anywhere, may be slower)"
+            }
+        }
+    }
+
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
         self.session = session
         self.decoder = decoder
@@ -52,6 +81,8 @@ public final class PlexAPI {
         
         self.librarySelectionID = UserDefaults.standard.string(forKey: "com.clic.plexServer.library")
         self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
+        let rawValue = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference") ?? ConnectionPreference.nonLocal.rawValue
+        self.connectionPreference =  ConnectionPreference(rawValue: rawValue) ?? .nonLocal
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
@@ -61,7 +92,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard var search = plexServer.baseURL?.appending(path: "hubs/search") else {
+        guard var search = getBaseURL(for: plexServer)?.appending(path: "hubs/search") else {
             logger.warning("Token: \(token)")
             logger.warning("Plex invalid url \(plexServer.name)")
             return nil
@@ -88,7 +119,7 @@ public final class PlexAPI {
         logger.info("\(xml)")
         #endif
         
-        return parser.parseXML(xmlData: data, plexServer: plexServer)
+        return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference)
     }
 
     public func playlists() async -> [PlexUserPlaylist] {
@@ -101,7 +132,7 @@ public final class PlexAPI {
         logger.info(plexServer)
         #endif
 
-        guard var playlistsURL = plexServer.baseURL?.appending(path: "playlists") else { return [] }
+        guard var playlistsURL = getBaseURL(for: plexServer)?.appending(path: "playlists") else { return [] }
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "playlistType", value: "audio")
         ]
@@ -117,7 +148,7 @@ public final class PlexAPI {
         for index in playlists.indices {
             playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
             guard let composite = playlists[index].composite else { continue }
-            playlists[index].thumbImageURL = plexServer.baseURL?.appending(path:  composite).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            playlists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path:  composite).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
         return playlists
@@ -157,7 +188,7 @@ public final class PlexAPI {
         }
         
         guard let sectionKey = librarySelectionID,
-              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+              var albumURL = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return []
         }
         
@@ -179,7 +210,7 @@ public final class PlexAPI {
         for index in artists.indices {
             artists[index].sonosID = "\(id)%3A3%3A\(artists[index].ratingKey)"
             guard let thumb = artists[index].thumb else { continue }
-            artists[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            artists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
         return artists
@@ -206,7 +237,7 @@ public final class PlexAPI {
         }
         
         guard let sectionKey = librarySelectionID,
-              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+              var albumURL = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return [] 
         }
         
@@ -229,7 +260,7 @@ public final class PlexAPI {
             guard let ratingKey = playlists[index].ratingKey else { continue }
             playlists[index].sonosID = "\(id)%3A3%3A\(ratingKey)"
             guard let thumb = playlists[index].thumb else { continue }
-            playlists[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            playlists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
         return playlists
@@ -255,7 +286,7 @@ public final class PlexAPI {
         }
         
         guard let sectionKey = librarySelectionID,
-              var albumURL = plexServer.baseURL?.appending(path: "/library/sections/\(sectionKey)/all") else {
+              var albumURL = getBaseURL(for: plexServer)?.appending(path: "/library/sections/\(sectionKey)/all") else {
             return []
         }
         
@@ -277,7 +308,7 @@ public final class PlexAPI {
         for index in songs.indices {
             songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
             guard let thumb = songs[index].thumb else { continue }
-            songs[index].thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            songs[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
 
         return songs
@@ -289,7 +320,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard let sectionsURL = plexServer.baseURL?.appending(path: "library/sections") else {
+        guard let sectionsURL = getBaseURL(for: plexServer)?.appending(path: "library/sections") else {
             return nil
         }
 
@@ -320,7 +351,7 @@ public final class PlexAPI {
             return []
         }
 
-        guard let sectionsURL = server.baseURL?.appending(path: "library/sections") else {
+        guard let sectionsURL = server.baseURL(preferring: connectionPreference)?.appending(path: "library/sections") else {
             return []
         }
 
@@ -359,9 +390,10 @@ public final class PlexAPI {
             return nil
         }
 
-        guard let songURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)") else {
+        guard let songURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)") else {
             return nil
         }
+        
         var request = URLRequest(url: songURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -396,7 +428,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard let albumURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)/children") else { return nil }
+        guard let albumURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)/children") else { return nil }
         var request = URLRequest(url: albumURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -411,7 +443,7 @@ public final class PlexAPI {
             let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
             var thumbImageURL: URL? = nil
             if let thumb = container.thumb {
-                thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+                thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
             return PlexLibraryItem(
                 size: container.size,
@@ -454,7 +486,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard let albumURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)/children") else { return nil }
+        guard let albumURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)/children") else { return nil }
         var request = URLRequest(url: albumURL)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -506,7 +538,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard var playlistURL = plexServer.baseURL?.appending(path: "playlists/\(key)/items") else { return nil }
+        guard var playlistURL = getBaseURL(for: plexServer)?.appending(path: "playlists/\(key)/items") else { return nil }
         
         let queryItems: [URLQueryItem] = [
             URLQueryItem(name: "type", value: type.rawValue.description),
@@ -548,7 +580,7 @@ public final class PlexAPI {
 
     public func lookupArtist(key: String) async -> PlexMetadata? {
         guard let plexServer = await getPlexServer(),
-              let artistURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)"),
+              let artistURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)"),
               let id = plexServer.clientIdentifier,
               let token = plexServer.accessToken else {
             return nil
@@ -562,9 +594,98 @@ public final class PlexAPI {
 
         artist.sonosID = "\(id)%3A3%3A\(artist.ratingKey)"
         if let thumb = artist.thumb {
-            artist.thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            artist.thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
         return artist
+    }
+
+    public func getArtistAlbums(key: String) async -> [PlexAlbumHub]? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
+            return nil
+        }
+
+        guard var artistURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)") else {
+            return nil
+        }
+        
+        let queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "includeRelated", value: "1"),
+            URLQueryItem(name: "includeRelatedCount", value: "999"),
+            URLQueryItem(name: "excludeFields", value: "art,guid,lastRatedAt,loudnessAnalysisVersion,musicAnalysisVersion,parentGuid,parentKey,parentThumb,skipCount,studio,summary,updatedAt,viewCount"),
+            URLQueryItem(name: "excludeElements", value: "Country,Director,Guid,Image,Location,Mood,Similar,Style,UltraBlurColors")
+        ]
+        artistURL.append(queryItems: queryItems)
+
+        var request = URLRequest(url: artistURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, urlResponse) = try? await session.data(for: request) else {
+            return nil
+        }
+        
+        if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
+            // MARK: Reset
+            Task { @MainActor in
+                authenticator.authToken = nil
+                serverID = nil
+            }
+            return nil
+        }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
+        let json = String(decoding: data, as: UTF8.self)
+        logger.info("\(json)")
+        #endif
+        
+        do {
+            let container = try decoder.decode(PlexContainer<PlexArtistAlbumsContainer>.self, from: data)
+            guard let artistMetadata = container.mediaContainer.metadata?.first,
+                  let related = artistMetadata.related,
+                  let hubs = related.hub else {
+                return []
+            }
+            
+            // Enrich the album metadata with Sonos IDs and image URLs
+            var enrichedHubs = hubs
+            guard let clientID = plexServer.clientIdentifier else { return enrichedHubs }
+            
+            for hubIndex in enrichedHubs.indices {
+                guard let albums = enrichedHubs[hubIndex].metadata else { continue }
+                var enrichedAlbums = albums
+                
+                for albumIndex in enrichedAlbums.indices {
+                    enrichedAlbums[albumIndex].sonosID = "\(clientID)%3A3%3A\(enrichedAlbums[albumIndex].ratingKey ?? "")"
+                    if let thumb = enrichedAlbums[albumIndex].thumb {
+                        enrichedAlbums[albumIndex].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+                    }
+                }
+                
+                enrichedHubs[hubIndex] = PlexAlbumHub(
+                    hubKey: enrichedHubs[hubIndex].hubKey,
+                    key: enrichedHubs[hubIndex].key,
+                    title: enrichedHubs[hubIndex].title,
+                    type: enrichedHubs[hubIndex].type,
+                    hubIdentifier: enrichedHubs[hubIndex].hubIdentifier,
+                    context: enrichedHubs[hubIndex].context,
+                    size: enrichedHubs[hubIndex].size,
+                    more: enrichedHubs[hubIndex].more,
+                    style: enrichedHubs[hubIndex].style,
+                    metadata: enrichedAlbums
+                )
+            }
+            
+            return enrichedHubs
+        } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            print(String(decoding: data, as: UTF8.self))
+            print(error)
+            #endif
+            return nil
+        }
     }
 
     public func lookupArtistAlbums(key: String) async -> PlexLibraryItem? {
@@ -572,7 +693,7 @@ public final class PlexAPI {
             return nil
         }
 
-        guard let artistURL = plexServer.baseURL?.appending(path: "library/metadata/\(key)/children") else { return nil }
+        guard let artistURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)/children") else { return nil }
         guard let plexContainer: PlexContainer<PlexLibraryItem> = await loadAuthorized(artistURL) else { return nil }
         let container = plexContainer.mediaContainer
         return PlexLibraryItem(
@@ -711,6 +832,10 @@ public final class PlexAPI {
         self.plexServer = preferredServer
         return preferredServer
     }
+    
+    private func getBaseURL(for plexServer: PlexServer) -> URL? {
+        return plexServer.baseURL(preferring: connectionPreference)
+    }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {
         guard let plexServer = await getPlexServer(),
@@ -769,11 +894,11 @@ public final class PlexAPI {
             var updatedItem = item
             updatedItem.sonosID = "\(clientID)%3A3%3A\(item.ratingKey)"
             if let thumb = item.thumb {
-                updatedItem.thumbImageURL = plexServer.baseURL?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+                updatedItem.thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
             
             if let art = item.art {
-                updatedItem.artImageURL = plexServer.baseURL?.appending(path: art).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+                updatedItem.artImageURL = getBaseURL(for: plexServer)?.appending(path: art).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
             
             return updatedItem

@@ -19,6 +19,7 @@ struct ArtistDetailView: View {
     @State private var tracks: [PlayableContent] = []
     @State private var albums: [PlayableContent] = []
     @State private var liveAlbums: [PlayableContent] = []
+    @State private var singles: [PlayableContent] = []
     @State private var allAlbums: [PlayableContent] = []
     @State private var latestRelease: PlayableContent?
     
@@ -194,6 +195,20 @@ struct ArtistDetailView: View {
                             .listRowBackground(Color.clear)
                     }
                 case 2:
+                    ForEach(singles) { album in
+                        VStack {
+                            PlayableContentView(item: album, hideContentType: true)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                case 3:
                     ForEach(allAlbums) { album in
                         VStack {
                             PlayableContentView(item: album, hideContentType: true)
@@ -223,14 +238,16 @@ struct ArtistDetailView: View {
                     }
                 }
             } header: {
-                if playableContent.content.service == .apple, !albums.isEmpty {
+                if [.apple, .plex].contains(playableContent.content.service), !albums.isEmpty {
                     Picker("Album", selection: $albumType) {
                         Text("Album")
                             .tag(0)
                         Text("Live")
                             .tag(1)
-                        Text("All")
+                        Text("Singles")
                             .tag(2)
+                        Text("All")
+                            .tag(3)
                     }
                     .pickerStyle(.segmented)
                 } else if !albums.isEmpty {
@@ -351,6 +368,7 @@ struct ArtistDetailView: View {
         .navigationTitle(playableContent.title)
         .headerProminence(.increased)
         .contentMargins(.bottom, 120, for: .scrollContent)
+        .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .task {
             isLoading = true
             artworkURL = playableContent.artwork
@@ -694,22 +712,37 @@ struct ArtistDetailView: View {
             // MARK: Plex
             case (.track, .plex):
                 if let artistID = playableContent.metadata?.artistID {
-                    let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
-                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
-                    self.albums = albums
-                    if let artist {
-                        self.playableContent = artist
+                    async let albums = MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
+                    async let (live, singles, others) = MusicSearchService.shared.getPlexArtistAllAlbums(id: artistID)
+                    async let artist = MusicSearchService.shared.lookupPlexArtist(id: artistID)
+                    
+                    let (albumsResult, (liveResult, singlesResult, othersResult), artistResult) = await (albums, (live, singles, others), artist)
+                    
+                    self.allAlbums = albumsResult + liveResult + singlesResult + othersResult
+                    self.liveAlbums = liveResult
+                    self.singles = singlesResult
+                    
+                    if let artistResult {
+                        self.playableContent = artistResult
                         artworkURL = playableContent.artwork
                     }
                 } else {
                     guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
                           let artistID = await MusicSearchService.shared.lookupPlexSong(with: id)?.metadata?.artistID else { return }
-                    let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
-                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
-
-                    self.albums = albums
-                    if let artist {
-                        self.playableContent = artist
+                    
+                    async let albums = MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
+                    async let (live, singles, others) = MusicSearchService.shared.getPlexArtistAllAlbums(id: artistID)
+                    async let artist = MusicSearchService.shared.lookupPlexArtist(id: artistID)
+                    
+                    let (albumsResult, (liveResult, singlesResult, othersResult), artistResult) = await (albums, (live, singles, others), artist)
+                    
+                    self.albums = albumsResult
+                    self.allAlbums = albumsResult + liveResult + singlesResult + othersResult
+                    self.liveAlbums = liveResult
+                    self.singles = singlesResult
+                    
+                    if let artistResult {
+                        self.playableContent = artistResult
                         artworkURL = playableContent.artwork
                     }
                 }
@@ -717,18 +750,32 @@ struct ArtistDetailView: View {
                 artworkURL = nil
                 artworkURL = playableContent.artwork
                 guard let artistID = playableContent.metadata?.artistID else { return }
-                let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
-                self.albums = albums
-                if let artistID = playableContent.metadata?.artistID {
-                    let artist = await MusicSearchService.shared.lookupPlexArtist(id: artistID)
-                    if let artist {
-                        self.playableContent = artist
-                        artworkURL = playableContent.artwork
-                    }
+                
+                async let albums = MusicSearchService.shared.lookupPlexArtistAlbums(id: artistID)
+                async let (live, singles, others) = MusicSearchService.shared.getPlexArtistAllAlbums(id: artistID)
+                async let artist = MusicSearchService.shared.lookupPlexArtist(id: artistID)
+                
+                let (albumsResult, (liveResult, singlesResult, othersResult), artistResult) = await (albums, (live, singles, others), artist)
+                
+                self.albums = albumsResult
+                self.allAlbums = albumsResult + liveResult + singlesResult + othersResult
+                self.liveAlbums = liveResult
+                self.singles = singlesResult
+                
+                if let artistResult {
+                    self.playableContent = artistResult
+                    artworkURL = playableContent.artwork
                 }
             case (.artist, .plex):
-                let albums = await MusicSearchService.shared.lookupPlexArtistAlbums(id: playableContent.content.id)
-                self.albums = albums
+                async let albums = MusicSearchService.shared.lookupPlexArtistAlbums(id: playableContent.content.id)
+                async let (live, singles, others) = MusicSearchService.shared.getPlexArtistAllAlbums(id: playableContent.content.id)
+                
+                let (albumsResult, (liveResult, singlesResult, othersResult)) = await (albums, (live, singles, others))
+                
+                self.albums = albumsResult
+                self.allAlbums = albumsResult + liveResult + singlesResult + othersResult
+                self.liveAlbums = liveResult
+                self.singles = singlesResult
             default:
                 break
             }

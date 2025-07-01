@@ -26,13 +26,28 @@ public struct PlexServer: Codable {
     public let natLoopbackSupported: Bool?
     public let connections: [PlexConnection]
 
-    public var externalURIs: [String] {
+    public var localURIs: [String] {
+        connections.filter({ $0.local }).map(\.uri)
+    }
+
+    public var nonLocalURIs: [String] {
         connections.filter({ !$0.local }).filter({ !$0.address.lowercased().contains("quick") }).map(\.uri)
     }
 
-    var baseURL: URL? {
-        guard let connection = externalURIs.first else { return nil }
-        return URL(string: "\(connection)")
+    func baseURL(preferring connectionType: PlexAPI.ConnectionPreference) -> URL? {
+        switch connectionType {
+        case .local:
+            guard let connection = localURIs.first else { 
+                return nil
+            }
+            return URL(string: connection)
+        case .nonLocal:
+            guard let connection = nonLocalURIs.first else { 
+                // Fallback to local if no non-local connection available
+                return localURIs.first.flatMap { URL(string: $0) }
+            }
+            return URL(string: connection)
+        }
     }
 }
 

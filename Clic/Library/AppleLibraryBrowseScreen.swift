@@ -50,9 +50,18 @@ struct AppleLibraryBrowseScreen: View {
                 
                 Section {
                     if !appleMusicBrowseService.userPlaylists.isEmpty {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
-                            ForEach(appleMusicBrowseService.userPlaylists.prefix(numberOfItemsInGrid)) { item in
-                                PlayableCardView(item: item)
+                        VStack(spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.userPlaylists.prefix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.userPlaylists.suffix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
                             }
                         }
                         .listRowBackground(Color.clear)
@@ -74,9 +83,18 @@ struct AppleLibraryBrowseScreen: View {
                 
                 Section {
                     if !appleMusicBrowseService.usersRecents.isEmpty {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
-                            ForEach(appleMusicBrowseService.usersRecents.prefix(numberOfItemsInGrid)) { item in
-                                PlayableCardView(item: item)
+                        VStack(spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.usersRecents.prefix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.usersRecents.suffix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
                             }
                         }
                         .listRowBackground(Color.clear)
@@ -98,9 +116,18 @@ struct AppleLibraryBrowseScreen: View {
                 
                 Section {
                     if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {                        ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(numberOfItemsInGrid)) { item in
-                                PlayableCardView(item: item)
-                                    .buttonStyle(.plain)
+                        VStack(spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.usersRecentsAdded.suffix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
                             }
                         }
                         .listRowBackground(Color.clear)
@@ -120,14 +147,23 @@ struct AppleLibraryBrowseScreen: View {
                 .headerProminence(.increased)
                 
                 Section {
-                       if !appleMusicBrowseService.userStations.isEmpty {
-                           LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16)], spacing: 16) {
-                               ForEach(appleMusicBrowseService.userStations.prefix(numberOfItemsInGrid)) { item in
-                                   PlayableCardView(item: item)
-                               }
-                           }
-                           .listRowBackground(Color.clear)
-                       }
+                    if !appleMusicBrowseService.userStations.isEmpty {
+                        VStack(spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.userStations.prefix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.userStations.suffix(3)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                    }
                 } header: {
                     NavigationLink(value: RouterDestination.playableGridScreen(title: "Personal Stations", items: $appleMusicBrowseService.userStations, action: { offset in
                         await appleMusicBrowseService.updateRadioStations(offset: offset)

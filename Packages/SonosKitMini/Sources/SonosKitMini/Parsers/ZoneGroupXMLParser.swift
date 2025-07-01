@@ -93,7 +93,7 @@ final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
         } else if elementName == "ZoneGroupMember" {
             // Reset satellites array for new member
             currentSatellites = []
-            let name = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
+            let name = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&").replacingOccurrences(of: "&apos;", with: "'")
             let uuid = attributeDict["UUID"] ?? ""
             let location = attributeDict["Location"] ?? ""
             let info = attributeDict["MoreInfo"] ?? ""
@@ -131,7 +131,7 @@ final class ZoneGroupStateParser: NSObject, XMLParserDelegate {
         } else if elementName == "Satellite" {
             let uuid = attributeDict["UUID"] ?? ""
             let location = attributeDict["Location"] ?? ""
-            let zoneName = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&")
+            let zoneName = (attributeDict["ZoneName"] ?? "").replacingOccurrences(of: "%26", with: "&").replacingOccurrences(of: "&apos;", with: "'")
             let info = attributeDict["MoreInfo"] ?? ""
             let wirelessMode = Int(attributeDict["WirelessMode"] ?? "")
             let wirelessLeafOnly = attributeDict["WirelessLeafOnly"].map { $0 == "1" } ?? false

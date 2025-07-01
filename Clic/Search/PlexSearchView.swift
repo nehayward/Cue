@@ -16,7 +16,6 @@ struct PlexSearchView: View {
     @Binding var filters: [FilterSelection]
 
     var body: some View {
-        PlexAuthorizationFlowView()
         ForEach(plexResults) { item in
             if filters.filter(\.isFiltered).isEmpty {
                 VStack {
@@ -31,5 +30,6 @@ struct PlexSearchView: View {
             }
         }
         .fontDesign(.rounded)
+        PlexAuthorizationFlowView()
     }
 }

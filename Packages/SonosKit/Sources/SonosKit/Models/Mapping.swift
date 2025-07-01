@@ -735,6 +735,26 @@ extension PlexUserPlaylist {
     }
 }
 
+extension PlexAlbumHub {
+    public var toPlayable: PlayableContent {
+        return PlayableContent(
+            title: title,
+            subtitle: "\(size) albums",
+            thumbnail: nil,
+            artwork: nil,
+            content: .init(
+                service: .plex,
+                id: hubIdentifier ?? title,
+                type: .album,
+                location: nil
+            ),
+            metadata: .init(
+                popularity: size
+            )
+        )
+    }
+}
+
 extension PlexArtist {
     public var toPlayable: PlayableContent {
         PlayableContent(
