@@ -53,8 +53,8 @@ public final class AppleMusicBrowseService {
         }
     }
 
-    public func updateUsersApplePlaylists() async {
-        guard let container = try? await apple.getUserPlaylists(offset: offsets["updateUsersApplePlaylists", default: 0]) else { return }
+    public func updateUsersApplePlaylists(offset: Int, limit: Int? = nil) async {
+        guard let container = try? await apple.getUserPlaylists(offset: offset, limit: limit) else { return }
         let offset = Int(container.next?.components(separatedBy: "=").last ?? "0") ?? 0
         offsets["updateUsersApplePlaylists"] = offset
         let newUserPlaylists = container.data.compactMap(\.toPlayable)
@@ -63,7 +63,7 @@ public final class AppleMusicBrowseService {
         }
     }
 
-    public func updateUsersRecentPlayed(offset: Int = 0) async {
+    public func updateUsersRecentPlayed(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupUsersRecentPlayed(offset: offset) else { return }
         let newUsersRecents = container.data.compactMap(\.toPlayable)
         for newUsersRecent in newUsersRecents {
@@ -71,23 +71,23 @@ public final class AppleMusicBrowseService {
         }
     }
 
-    public func updateUsersRecentAddedTracks(offset: Int = 0) async {
-        guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset) else { return }
+    public func updateUsersRecentAddedTracks(offset: Int = 0, limit: Int? = nil) async {
+        guard let container = try? await apple.lookupUsersRecentAddedTracks(offset: offset, limit: limit) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
         for newUsersRecentsTrack in newUsersRecentsTracks {
             usersRecentsAdded.updateOrAppend(newUsersRecentsTrack)
         }
     }
     
-    public func updateUsersRadioStations(offset: Int = 0) async {
-        guard let container = try? await apple.lookupUsersRecentRadioStations(offset: offset) else { return }
+    public func updateUsersRadioStations(offset: Int = 0, limit: Int? = nil) async {
+        guard let container = try? await apple.lookupUsersRecentRadioStations(offset: offset, limit: limit) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
         for newUsersRecentsTrack in newUsersRecentsTracks {
             userRadioStations.updateOrAppend(newUsersRecentsTrack)
         }
     }
     
-    public func updateRadioStations(offset: Int = 0) async {
+    public func updateRadioStations(offset: Int = 0, limit: Int? = nil) async {
         guard let container = try? await apple.lookupAppleRadioStations(offset: offset) else { return }
         let newUsersRecentsTracks = container.data.compactMap(\.toPlayable)
         for newUsersRecentsTracks in newUsersRecentsTracks {

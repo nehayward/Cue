@@ -17,6 +17,14 @@
 - Add Radio Station Name
 - Sleep Timer remembers last 3 custom timers for quick access
 - Adds support for local network option for Plex
+- Added comprehensive album support for Plex artists:
+  - Studio albums
+  - Live albums
+  - Singles & Remixes
+  - Soundtracks & Compilations
+- Mac app now remembers window size and position between launches
+- Fixed duplicate items appearing in Apple Music and Plex libraries
+- Improved visual contrast in light mode across multiple screens for better readability
 
 –– Bug Fixes & Improvements ––
 - Enhanced Plex integration for better reliability and performance

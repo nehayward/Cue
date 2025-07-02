@@ -9,7 +9,7 @@ final class SonosAPI: NSObject {
     typealias OrderedKeys = [(key: String, value: Any)]
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
     private lazy var session: URLSession = privateSession
-    private lazy var insecure: URLSession = insecureSession
+    private lazy var queueSession: URLSession = queueSessionConfig
 
     var xmlParser = XMLParserSonos()
     lazy var decoder = JSONDecoder()
@@ -22,11 +22,11 @@ final class SonosAPI: NSObject {
         return URLSession(configuration: configuration)
     }()
 
-    private lazy var insecureSession: URLSession = {
+    private lazy var queueSessionConfig: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 5
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        configuration.timeoutIntervalForRequest = 60
+        return URLSession(configuration: configuration)
     }()
     
     private static var spotifyLocal: String {
@@ -534,7 +534,7 @@ final class SonosAPI: NSObject {
             ("EnqueueAsNext", 1)
         ]
 
-        guard let (data, response) = try await sendSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+        guard let (data, response) = try await sendQueueSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
             throw SonosServiceError.timeout
         }
 
@@ -957,6 +957,28 @@ final class SonosAPI: NSObject {
         }
         do {
             let response = try await session.data(for: request)
+            return response
+        } catch URLError.cancelled {
+            // MARK: Add Back for Debug
+//            var body = ""
+//            if let httpBody = request.httpBody {
+//                body = String(decoding: httpBody, as: UTF8.self)
+//            }
+//            print("Cancelled:", request, body)
+        } catch {
+            logger.error("\(request) Failed to \(#function)")
+            print(request, error.localizedDescription)
+            throw error
+        }
+        return nil
+    }
+    
+    @discardableResult func sendQueueSoapRequest(ip: String, action: String, arguments: [(key: String, value: Any)], endpoint: String) async throws -> (Data, URLResponse)? {
+        guard let request = createSoapRequest(ip: ip, action: action, arguments: arguments, endpoint: endpoint) else {
+            return nil
+        }
+        do {
+            let response = try await queueSession.data(for: request)
             return response
         } catch URLError.cancelled {
             // MARK: Add Back for Debug

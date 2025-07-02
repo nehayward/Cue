@@ -58,7 +58,7 @@ struct ListViewLarge: View {
                             .fill(
                                 group.coordinatorID == selected ? Color(uiColor: .systemFill) :
                                     hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :
-                                    Color(UIColor.secondarySystemGroupedBackground)
+                                    Color(UIColor.secondarySystemBackground)
                             )
                     )
                     .onHover { isHovered in
@@ -76,7 +76,7 @@ struct ListViewLarge: View {
                     Text(group.coordinatorRoom.state.reason)
                         .selectionDisabled()
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 10, trailing: 12))
-                        .listRowBackground(Color(UIColor.secondarySystemGroupedBackground).clipShape(RoundedRectangle(cornerRadius: 16)))
+                        .listRowBackground(Color(UIColor.secondarySystemBackground).clipShape(RoundedRectangle(cornerRadius: 16)))
                         .paywall(enabled(group: group))
                 }
             } header: {

@@ -9,7 +9,7 @@ struct QueueScreen: View {
     
     var closeInspector: (() -> Void)? = nil
     
-    @Binding var group: GroupRoom
+    var group: GroupRoom
     @State private var router = Router()
     @State private var isLoading: Bool = true
     @State private var clearQueueConfirmation: Bool = false

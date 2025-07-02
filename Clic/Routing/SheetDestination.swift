@@ -3,12 +3,12 @@ import SwiftUI
 
 enum SheetDestination: Identifiable, Equatable {
     case settings(destination: RouterDestination? = nil)
-    case paywall
-    case groupScreen(group: GroupRoom)
-    case favorites
+    case queue(group: GroupRoom)
     case search(group: GroupRoom? = nil)
+    case groupScreen(group: GroupRoom)
+    case paywall
+    case favorites
     case sceneSearchAdd(adding: ContentToAdd)
-    case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(url: URL)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)

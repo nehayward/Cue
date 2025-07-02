@@ -52,15 +52,9 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.userPlaylists.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userPlaylists.prefix(3)) { item in
+                                ForEach(appleMusicBrowseService.userPlaylists.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                                }
-                            }
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userPlaylists.suffix(3)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -68,7 +62,7 @@ struct AppleLibraryBrowseScreen: View {
                     }
                 } header: {
                     NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
-                        await appleMusicBrowseService.updateUsersApplePlaylists()
+                        await appleMusicBrowseService.updateUsersApplePlaylists(offset: offset)
                     })) {
                         HStack {
                             Text("Playlists")
@@ -85,15 +79,9 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.usersRecents.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecents.prefix(3)) { item in
+                                ForEach(appleMusicBrowseService.usersRecents.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                                }
-                            }
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecents.suffix(3)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -118,15 +106,9 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(3)) { item in
+                                ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                                }
-                            }
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecentsAdded.suffix(3)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -150,15 +132,9 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.userStations.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userStations.prefix(3)) { item in
+                                ForEach(appleMusicBrowseService.userStations.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                                }
-                            }
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userStations.suffix(3)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -217,28 +193,30 @@ struct AppleLibraryBrowseScreen: View {
         }
     }
     
-    @MainActor
     private func updateAppleMusicBrowseService() async {
         isLoading = true
         await withTaskGroup(of: Void.self) { group in
             group.addTask {
-                await appleMusicBrowseService.updateUsersApplePlaylists()
+                await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 4)
             }
             group.addTask {
-                await appleMusicBrowseService.updateUsersRecentPlayed()
+                await appleMusicBrowseService.updateUsersRecentPlayed(offset: 0, limit: 4)
             }
             group.addTask {
-                await appleMusicBrowseService.updateUsersRecentAddedTracks()
+                await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: 0, limit: 4)
             }
+            
+            group.addTask {
+                await appleMusicBrowseService.updateRadioStations(offset: 0, limit: 4)
+            }
+        
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleAlbums()
             }
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleArtists()
             }
-            group.addTask {
-                await appleMusicBrowseService.updateRadioStations()
-            }
+          
         }
         isLoading = false
     }

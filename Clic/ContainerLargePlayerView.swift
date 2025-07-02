@@ -85,8 +85,8 @@ struct ContainerLargePlayerView: View {
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                            if router.inspectorSheet != .queue(group: $sonosService.sorted[group]) {
-                                router.inspectorSheet = .queue(group: $sonosService.sorted[group])
+                            if router.inspectorSheet != .queue(group: sonosService.sorted[group]) {
+                                router.inspectorSheet = .queue(group: sonosService.sorted[group])
                             } else {
                                 router.inspectorSheet = nil
                             }

@@ -143,7 +143,7 @@ struct PlexAuthorizationFlowView: View {
                                                 }
                                             }
                                             .padding()
-                                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
                                         }
                                         .buttonStyle(.plain)
                                         .animation(.spring(duration: 0.3), value: musicSearchService.plexLibrarySelectionID)
@@ -243,7 +243,7 @@ struct PlexAuthorizationFlowView: View {
                         }
                     }
                     .padding()
-                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
                 }
                 .buttonStyle(.plain)
                 .animation(.spring(duration: 0.3), value: musicSearchService.plexConnectionPreference)

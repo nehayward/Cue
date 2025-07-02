@@ -149,7 +149,7 @@ struct LargePlayerView: View {
                         
                         Spacer()
                         Button {
-                            router.presentedSheet = .queue(group: $group)
+                            router.presentedSheet = .queue(group: group)
                         } label: {
                             QueueIconView(group: group)
                                 .fontDesign(.rounded)

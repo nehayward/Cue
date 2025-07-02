@@ -248,6 +248,7 @@ final class XMLParserSonos {
             ("airplay", .airplay),
             ("queue", .queue),
             ("spotify", .spotifyConnect),
+            ("x-sonosapi-stream", .radio),
             ("x-rincon-stream", .lineIn)
         ]
         

@@ -3,11 +3,11 @@ import SwiftUI
 
 enum InspectorDestination: Identifiable, Equatable {
     case settings
-    case paywall
     case groupScreen(group: GroupRoom)
     case search(group: GroupRoom? = nil)
+    case queue(group: GroupRoom)
+    case paywall
     case sceneSearchAdd(adding: ContentToAdd)
-    case queue(group: Binding<GroupRoom>)
     case playContent(content: PlayableContent)
     case playMedia(content: MediaContent)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)

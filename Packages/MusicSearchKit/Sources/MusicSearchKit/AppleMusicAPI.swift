@@ -116,15 +116,22 @@ public final class AppleMusicAPI {
         print(String(decoding: response.data, as: UTF8.self))
     }
         
-    public func getUserPlaylists(offset: Int = 0) async throws -> AppleLibraryContainer? {
+    public func getUserPlaylists(offset: Int = 0, limit: Int? = nil) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/playlists?offset=\(offset)")!
-        let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
+        var urlComponents = URLComponents(string: "https://api.music.apple.com/v1/me/library/playlists")!
+        var queryItems = [URLQueryItem(name: "offset", value: String(offset))]
+        if let limit {
+            queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+        }
+        urlComponents.queryItems = queryItems
+        
+        let request = MusicDataRequest(urlRequest: .init(url: urlComponents.url!))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
         do {
             let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            print(appleUserPlaylistContainer.data.count)
             return appleUserPlaylistContainer
         } catch {
             print(error)
@@ -252,8 +259,7 @@ public final class AppleMusicAPI {
 
     public func lookupUsersRecentPlayed(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
-
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/recent/played?offset=\(offset)&limit=10")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/recent/played?offset=\(offset)")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -266,10 +272,10 @@ public final class AppleMusicAPI {
         }
     }
 
-    public func lookupUsersRecentAddedTracks(offset: Int = 0) async throws -> AppleLibraryContainer? {
+    public func lookupUsersRecentAddedTracks(offset: Int = 0, limit: Int? = nil) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/recently-added?offset=\(offset)&limit=25")!
+        let playlistsURL = URL(string: "https://api.music.apple.com/v1/me/library/recently-added?offset=\(offset)&limit=\(limit ?? 25)")!
         let request = MusicDataRequest(urlRequest: .init(url: playlistsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -282,10 +288,10 @@ public final class AppleMusicAPI {
         }
     }
     
-    public func lookupUsersRecentRadioStations(offset: Int = 0) async throws -> AppleLibraryContainer? {
+    public func lookupUsersRecentRadioStations(offset: Int = 0, limit: Int? = nil) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
-        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/me/recent/radio-stations?offset=\(offset)&limit=25")!
+        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/me/recent/radio-stations?offset=\(offset)&limit=\(limit ?? 25)")!
         let request = MusicDataRequest(urlRequest: .init(url: radioStationsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -299,11 +305,11 @@ public final class AppleMusicAPI {
         }
     }
     
-    public func lookupAppleRadioStations(offset: Int = 0) async throws -> AppleLibraryContainer? {
+    public func lookupAppleRadioStations(offset: Int = 0, limit: Int? = nil) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 
         let region = (Locale.current.region?.identifier ?? "US").lowercased()
-        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/catalog/\(region)/stations?filter[identity]=personal")!
+        let radioStationsURL = URL(string: "https://api.music.apple.com/v1/catalog/\(region)/stations?filter[identity]=personal&offset=\(offset)&limit=\(limit ?? 25)")!
         let request = MusicDataRequest(urlRequest: .init(url: radioStationsURL))
         let response = try? await request.response()
         guard let data = response?.data else { return nil }
@@ -315,7 +321,6 @@ public final class AppleMusicAPI {
             return nil
         }
     }
-    
     public func lookupUsersNew(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

@@ -215,8 +215,7 @@ extension View {
                             Router.search.path.removeAll()
                         }
                 case let .queue(group):
-                    @State var selectedGroupService = SelectedGroupService(group: group.wrappedValue)
-
+                    var selectedGroupService = SelectedGroupService(group: group)
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
                         .environment(selectedGroupService)
@@ -409,8 +408,6 @@ extension View {
             .inspectorColumnWidth(360)
 #endif
         }
-#else
-        return self
 #endif
     }
 

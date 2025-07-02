@@ -54,15 +54,9 @@ struct PlexBrowseScreen: View {
                     
                     VStack(spacing: 16) {
                         HStack(spacing: 12) {
-                            ForEach(plexBrowseService.userPlaylists.prefix(3)) { item in
+                            ForEach(plexBrowseService.userPlaylists.prefix(4)) { item in
                                 PlayableCardView(item: item)
-                                    .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
-                            }
-                        }
-                        HStack(spacing: 12) {
-                            ForEach(plexBrowseService.userPlaylists.suffix(3)) { item in
-                                PlayableCardView(item: item)
-                                    .containerRelativeFrame(.horizontal, count: 3, spacing: 12)
+                                    .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                             }
                         }
                     }

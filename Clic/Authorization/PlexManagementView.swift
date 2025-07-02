@@ -116,12 +116,12 @@ struct PlexManagementView: View {
                                         }
                                     }
                                     .padding()
-                                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                                    .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
                                 }
                                 .buttonStyle(.plain)
                             }
                             
-                            Text("Choose Music Library")
+                            Text("Select Music Library")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
 
@@ -183,7 +183,7 @@ struct PlexManagementView: View {
                                                                 }
                                                             }
                                                             .padding()
-                                                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemGroupedBackground)))
+                                                            .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
                                                         }
                                                         .buttonStyle(.plain)
                                                         .animation(.spring(duration: 0.3), value: musicSearchService.plexLibrarySelectionID)
