@@ -66,7 +66,7 @@ struct ContainerLargePlayerView: View {
                     }
                     .id(refreshID)
                     .help("Search")
-                    .tint(.primary)
+                    .tint(router.inspectorSheet?.id == "search" ? .accentColor : .primary)
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -81,7 +81,7 @@ struct ContainerLargePlayerView: View {
                     }
                     .id(refreshID)
                     .help("Browse")
-                    .tint(.primary)
+                    .tint(router.inspectorSheet?.id == "browse" ? .accentColor : .primary)
 
                     Button {
                         if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -98,11 +98,11 @@ struct ContainerLargePlayerView: View {
                                 Text("Queue")
                             } icon: {
                                 QueueIconView(group: sonosService.sorted[groupID])
-                                    .tint(.primary)
+                                    .tint(router.inspectorSheet?.id == "queue" ? .accentColor : .primary)
                             }
                             #else
                             QueueIconView(group: sonosService.sorted[groupID])
-                                .tint(.primary)
+                                .tint(router.inspectorSheet?.id == "queue" ? .accentColor : .primary)
                             #endif
                         }
                     }

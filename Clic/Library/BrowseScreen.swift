@@ -50,9 +50,7 @@ struct BrowseScreen: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
-            if horizontalSizeClass == .compact {
-                MiniPlayerView()
-            }
+            MiniPlayerView()
 #endif
         }
         .withAlert(enabled: showAlert)

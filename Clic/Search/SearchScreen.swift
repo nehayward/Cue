@@ -14,7 +14,6 @@ import TipKit
 struct SearchScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dismissSearch) private var dismissSearch
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(MusicSearchService.self) var musicSearchService
@@ -190,9 +189,11 @@ struct SearchScreen: View {
             dismiss()
         }
         .safeAreaInset(edge: .bottom) {
-            if contentToAdd == nil, horizontalSizeClass == .compact {
+#if !targetEnvironment(macCatalyst)
+            if contentToAdd == nil{
                 MiniPlayerView()
             }
+#endif
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .overlay(alignment: .bottom) {

@@ -8,7 +8,8 @@ struct MiniPlayerView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(\.colorScheme) var colorScheme: ColorScheme
-    
+    @Environment(\.dismiss) var dismiss
+
     private var selectedGroup: GroupRoom? {
         guard let groupID = selectedGroupService.group?.coordinatorID else {
             return nil
@@ -51,6 +52,7 @@ struct MiniPlayerView: View {
                 Router.main.sheet(to: .paywall)
                 return
             }
+            Router.main.inspectorSheet = nil
             Router.main.show(destination: .player(groupID: group.coordinatorID))
         } label: {
             HStack {

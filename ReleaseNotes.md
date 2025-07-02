@@ -25,6 +25,7 @@
 - Mac app now remembers window size and position between launches
 - Fixed duplicate items appearing in Apple Music and Plex libraries
 - Improved visual contrast in light mode across multiple screens for better readability
+- Added highlight state to Search, Queue, and Browse
 
 –– Bug Fixes & Improvements ––
 - Enhanced Plex integration for better reliability and performance
@@ -37,6 +38,7 @@
 - Fixed crash occurring on iPadOS when opening Queue, Search, or Browse panels
 - Fixed a hitch occurring on main player screen.
 - Fixed rendering glitch in Clic mini where apostrophes were not displaying correctly
+- Large playlists now load more reliably and efficiently
 
 # 2025.10
 
