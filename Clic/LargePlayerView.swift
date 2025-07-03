@@ -215,9 +215,11 @@ struct LargePlayerView: View {
         .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
         }
+        #if !targetEnvironment(macCatalyst)
         .onDisappear {
             sonosService.selectedGroup = nil
         }
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {

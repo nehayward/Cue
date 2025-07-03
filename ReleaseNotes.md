@@ -7,16 +7,16 @@
   - Queue (press "q")
   - Search (press "s") 
   - Library (press "l")
-- Add Playback Menubar Controls
-  - Play/Pause  (press "spacebar")
+- Added Playback Menubar Controls
+  - Play/Pause (press "spacebar")
   - Previous Track (press "⌘←")
   - Next Track (press "⌘→") 
   - Volume Up (press "⌘↑")
   - Volume Down (press "⌘↓")
-- Add Dolby or Lossless Icon to AudioInfo Details
-- Add Radio Station Name
+- Added Dolby or Lossless Icon to AudioInfo Details
+- Added Radio Station Name
 - Sleep Timer remembers last 3 custom timers for quick access
-- Adds support for local network option for Plex
+- Added support for local network option for Plex
 - Added comprehensive album support for Plex artists:
   - Studio albums
   - Live albums
@@ -36,8 +36,8 @@
 - Fixed regression preventing manual activation of groups with disabled Live Activities via Shortcuts, Widgets, or Control Center
 - Fixed issues with Live Activities Shortcut toggle functionality
 - Fixed crash occurring on iPadOS when opening Queue, Search, or Browse panels
-- Fixed a hitch occurring on main player screen.
-- Fixed rendering glitch in Clic mini where apostrophes were not displaying correctly
+- Fixed a hitch occurring on main player screen
+- Fixed rendering glitch in Clic Mini where apostrophes were not displaying correctly
 - Large playlists now load more reliably and efficiently
 
 # 2025.10

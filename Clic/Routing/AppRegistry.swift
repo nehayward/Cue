@@ -406,6 +406,7 @@ extension View {
             .inspectorColumnWidth(500)
 #else
             .inspectorColumnWidth(360)
+            .presentationBackgroundInteraction(.disabled)
 #endif
         }
 #endif

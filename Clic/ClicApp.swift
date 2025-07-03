@@ -27,8 +27,8 @@ struct ClicApp: App {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
-    @State private var playlistContainer = PlaylistContainer.shared
     
+    private var playlistContainer = PlaylistContainer.shared
     private var sonosService = SonosService.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
@@ -379,7 +379,23 @@ struct ClicApp: App {
                     .keyboardShortcut(.downArrow)
                 }
             }
+//            CommandGroup(after: .windowArrangement) {
+//                Button {
+//                    openWindow(id: "mini")
+//                } label: {
+//                    Text("Mini Player")
+//                }
+//                .keyboardShortcut("0")
+//            }
         }
+//        WindowGroup(id: "mini") {
+//            VStack {
+//                MiniPlayerView()
+//                    .environment(SelectedGroupService(group: sonosService.selectedGroup))
+//                    .withEnvironments()
+//            }
+//        }
+//        .windowResizability(.contentSize)
     }
 
     @MainActor
