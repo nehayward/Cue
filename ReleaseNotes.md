@@ -1,3 +1,12 @@
+# 2025.12
+
+–– New Features ––
+- 
+
+–– Bug Fixes & Improvements ––
+- 
+
+
 # 2025.11
 
 –– New Features ––

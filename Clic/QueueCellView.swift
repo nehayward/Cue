@@ -6,15 +6,12 @@ import Nuke
 
 struct QueueCellView: View {
     var track: PlayableContent
-    var group: GroupRoom
+    @Bindable var group: GroupRoom
     var currentTrackID: String
     var router: Router
-    @State var imageRequest: ImageRequest?
     
     var body: some View {
-        @Bindable var group = group
 //        let _ = Self._printChanges()
-
 //        let _ = print("\(track.metadata?.position) update")
         Button {
             Task {
@@ -27,7 +24,7 @@ struct QueueCellView: View {
             }
         } label: {
             HStack {
-                LightArtworkView(request: $imageRequest, content: track, id: track.id, contentType: track.content.type, showMusicSource: true)
+                LightArtworkView(content: track, id: track.id, contentType: track.content.type, showMusicSource: true)
                     .frame(width: 50, height: 50)
                 VStack(alignment: .leading) {
                     Text(track.title)
@@ -65,21 +62,6 @@ struct QueueCellView: View {
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
         .draggable(track)
-        .task {
-            let cachedImageRequest = makeImageRequest(id: track.id, url: track.thumbnail, priority: .high)
-            self.imageRequest = cachedImageRequest
-            if ImagePipeline.shared.cache.containsData(for: cachedImageRequest) {
-                return
-            }
-            
-            guard let thumbnail = await SonosService.shared.getArtwork(from: track, size: 50) else {
-                self.imageRequest = makeImageRequest(id: track.id, url: track.thumbnail)
-                return
-            }
-            
-            self.imageRequest = makeImageRequest(id: track.id, url: thumbnail)
-        }
-       
     }
     
     private var isTrackPlaying: Bool {
@@ -117,22 +99,6 @@ struct QueueCellView: View {
                 Label("Remove", systemImage: "trash")
             }
         }
-    }
-    
-    private func makeImageRequest(id: String, url: URL?, priority: ImageRequest.Priority = .veryHigh) -> ImageRequest {
-        let request = ImageRequest(
-            url: url,
-            processors: [
-                ImageProcessors.Resize(
-                    size: CGSize(width: 50, height: 50),
-                    contentMode: .aspectFit
-                )
-            ],
-            priority: priority,
-            userInfo: [.imageIdKey: id]
-        )
-        
-        return request
     }
 }
 

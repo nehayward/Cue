@@ -11,9 +11,6 @@ public final class Track: Identifiable, Sendable {
 
     /// The name of the track.
     public var name: String
-    
-    /// Radio Station Name
-    public var radioStation: String?
 
     public var song: String { metadata?.song ?? name }
 
@@ -73,7 +70,6 @@ public final class Track: Identifiable, Sendable {
         name: String = "",
         artist: String = "",
         album: String = "",
-        radioStation: String? = nil,
         artworkURL: URL? = nil,
         musicService: MusicService = .unknown,
         duration: TimeInterval = .zero,
@@ -99,7 +95,6 @@ public final class Track: Identifiable, Sendable {
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
         lhs.trackID == rhs.trackID &&
-        lhs.radioStation == rhs.radioStation &&
         lhs.name == rhs.name &&
         lhs.position == rhs.position &&
         lhs.playbackPosition == rhs.playbackPosition &&
@@ -107,7 +102,6 @@ extension Track: Hashable {
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(radioStation)
         hasher.combine(id)
         hasher.combine(name)
         hasher.combine(position)

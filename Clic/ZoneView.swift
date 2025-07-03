@@ -6,7 +6,7 @@ struct ZoneView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text(group.coordinatorRoom.track.radioStation ?? "")
+            Text(group.coordinatorRoom.radioStation ?? "")
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
                 .tint(.secondary)

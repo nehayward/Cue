@@ -1,79 +1,66 @@
 import SwiftUI
 import NukeUI
+import Nuke
 import SonosKit
 import MusicKit
 import MusicSearchKit
 
 struct LightArtworkView: View {
-    @Binding var request: ImageRequest?
     var content: PlayableContent
     var id: String
     var contentType: ContentType
     var showMusicSource: Bool
+    @State var thumbnail: URL?
     
     var body: some View {
         VStack {
-            if let request {
-                LazyImage(request: request) { state in
-                    if let image = state.image {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        Rectangle()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.ultraThinMaterial)
-                            .shadow(radius: 2)
-                            .overlay {
-                                if state.error != nil {
-                                    Image(systemName: "music.note")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .foregroundStyle(.foreground)
-                                        .frame(width: 24, height: 24)
-                                        .bold()
-                                }
+            LazyImage(request: ImageRequest(url: thumbnail, processors: [.resize(width: 50)], userInfo: [.imageIdKey: content.id])) { state in
+                if let image = state.image {
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Rectangle()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.ultraThinMaterial)
+                        .shadow(radius: 2)
+                        .overlay {
+                            if content.thumbnail == nil || state.error != nil {
+                                Image(systemName: "music.note")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 24, height: 24)
+                                    .bold()
                             }
-                    }
-                }
-                .id(request.url)
-                .clipShape(contentShape)
-                .shadow(radius: 1)
-                .overlay(alignment: .bottomTrailing) {
-                    if showMusicSource {
-                        overlayIcons
-                    }
-                }
-            } else {
-                placeholderView
-                    .clipShape(contentShape)
-                    .overlay(alignment: .bottomTrailing) {
-                        if showMusicSource {
-                            overlayIcons
                         }
-                    }
+                }
+            }
+        }
+        .id(thumbnail)
+        .clipShape(contentShape)
+        .shadow(radius: 1)
+        .overlay(alignment: .bottomTrailing) {
+            if showMusicSource {
+                OverlayIcons(content: content)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
-    }
-    
-    @ViewBuilder
-    private var placeholderView: some View {
-        Rectangle()
-            .aspectRatio(contentMode: .fit)
-            .foregroundStyle(.ultraThinMaterial)
-            .shadow(radius: 2)
-            .overlay {
-                if content.thumbnail == nil {
-                    Image(systemName: "music.note")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.foreground)
-                        .frame(width: 24, height: 24)
-                        .bold()
+        .onAppear {
+            Task {
+                if ImagePipeline.shared.cache.containsData(for: ImageRequest(url: thumbnail, processors: [.resize(width: 50)], userInfo: [.imageIdKey: content.id])) {
+                    return
                 }
+                
+                guard let thumbnail = await SonosService.shared.getArtwork(from: content, size: 50) else {
+                    self.thumbnail = content.artwork
+                    return
+                }
+                
+                self.thumbnail = thumbnail
             }
+        }
     }
     
     private var contentShape: some Shape {
@@ -83,10 +70,13 @@ struct LightArtworkView: View {
             return AnyShape(RoundedRectangle(cornerRadius: 8))
         }
     }
-    
-    @ViewBuilder
-    private var overlayIcons: some View {
-        Group {
+}
+
+fileprivate struct OverlayIcons: View {
+    let content: PlayableContent  // Replace with your actual content type
+
+    var body: some View {
+        ZStack {
             content.content.service.icon
                 .containerRelativeFrame(.horizontal) { size, _ in
 #if targetEnvironment(macCatalyst)

@@ -41,11 +41,11 @@ struct ArtworkView: View {
                         .foregroundStyle(.thickMaterial)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if group.coordinatorRoom.track.artworkURL == nil, group.playbackService != .lineIn, showBadge {
+                            if group.coordinatorRoom.track.artworkURL == nil || group.playbackService != .lineIn || showBadge || currentImage == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
-                                    .foregroundStyle(.primary.secondary)
+                                    .foregroundStyle(.secondary)
                                     .fontWeight(.light)
                                     .frame(maxWidth: 100)
                                     .tint(Color.primary.secondary)
@@ -142,6 +142,8 @@ struct ArtworkView: View {
                         self.currentImageHash = response.image.lightweightHash()
                     }
                 default:
+                    currentImage = nil
+                    currentImageHash = nil
                     break
                 }
                 self.imageTask = nil

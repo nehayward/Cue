@@ -8,12 +8,10 @@ import MusicSearchKit
 struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
-    var preferredSize: Int = 100
+    var preferredSize: Double = 50.0
     
-    @State private var imageRequest: ImageRequest?
-
     var body: some View {
-        LazyImage(request: imageRequest) { state in
+        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: content.id])) { state in
             if let image = state.image {
                 image
                     .resizable()
@@ -24,11 +22,11 @@ struct ContentArtworkView: View {
                     .foregroundStyle(.ultraThinMaterial)
                     .shadow(radius: 2)
                     .overlay {
-                        if content.thumbnail == nil {
+                        if content.thumbnail == nil || state.error != nil {
                             Image(systemName: "music.note")
                                 .resizable()
                                 .scaledToFit()
-                                .foregroundStyle(.foreground)
+                                .foregroundStyle(.secondary)
                                 .frame(width: 24, height: 24)
                                 .bold()
                         }
@@ -38,55 +36,10 @@ struct ContentArtworkView: View {
         .clipShape(contentShape)
         .overlay(alignment: .bottomTrailing) {
             if showMusicSource {
-                overlayIcons
+                OverlayIcons(content: content)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .task(id: content.id) {
-            let cachedImageRequest = makeImageRequest(url: content.thumbnail, priority: .veryLow)
-            self.imageRequest = cachedImageRequest
-            if ImagePipeline.shared.cache.containsData(for: cachedImageRequest), ![.playlist, .libraryPlaylist].contains(content.content.type) {
-                return
-            }
-
-            guard !content.id.isEmpty else {
-                imageRequest = nil
-                return
-            }
-        
-            let url = preferredSize >= 100 ? content.artwork : content.thumbnail
-            if let url, !(content.thumbnail?.absoluteString ?? "").contains("get") {
-                imageRequest = makeImageRequest(url: url)
-                return
-            }
-            
-            guard let artworkURL = await SonosService.shared.getArtwork(from: content, size: preferredSize) else {
-                if let artworkURL = content.thumbnail {
-                    imageRequest = makeImageRequest(url: artworkURL)
-                }
-                return
-            }
-            if let url = content.thumbnail {
-                ImagePipeline.shared.imageTask(with: url).cancel()
-            }
-            imageRequest = makeImageRequest(url: artworkURL)
-        }
-    }
-    
-    private func makeImageRequest(url: URL?, priority: ImageRequest.Priority = .veryHigh) -> ImageRequest {
-        let request = ImageRequest(
-            url: url,
-            processors: [
-                ImageProcessors.Resize(
-                    size: CGSize(width: preferredSize, height: preferredSize),
-                    contentMode: .aspectFit
-                )
-            ],
-            priority: priority,
-            userInfo: [.imageIdKey: content.id]
-        )
-        
-        return request
     }
     
     private var contentShape: some Shape {
@@ -96,9 +49,12 @@ struct ContentArtworkView: View {
             return AnyShape(RoundedRectangle(cornerRadius: 4))
         }
     }
-    
-    @ViewBuilder
-    private var overlayIcons: some View {
+}
+
+fileprivate struct OverlayIcons: View {
+    let content: PlayableContent  // Replace with your actual content type
+
+    var body: some View {
         GeometryReader { proxy in
             ZStack {
                 content.content.service.icon
@@ -106,7 +62,7 @@ struct ContentArtworkView: View {
                     .shadow(radius: 1)
                     .padding(2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                
+
                 if [.songRadio, .radio, .artistRadio].contains(content.content.type) {
                     Image(systemName: "radio.fill")
                         .resizable()

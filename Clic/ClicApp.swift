@@ -642,10 +642,8 @@ struct ClicApp: App {
         let pipeline = ImagePipeline {
             let imageCache = ImageCache.shared
             imageCache.costLimit = 1024 * 1024 * 50 // 50 MB max memory usage
-            imageCache.countLimit = 200             // Store up to 200 images
-            imageCache.ttl = 60 * 5                 // Keep images in
+            imageCache.countLimit = 500             // Store up to 300 images
             $0.imageCache = imageCache
-    
             $0.dataCache = try? DataCache(name: "com.clic.imageCache")
         
             // Prefer cached data whenever possible
@@ -665,6 +663,10 @@ struct ClicApp: App {
             $0.makeImageDecoder = { _ in
                 return ImageDecoders.Default()
             }
+        }
+        
+        if let dataCache = try? DataCache(name: "com.clic.imageCache") {
+            print("📂 Nuke DataCache location: \(dataCache.path)")
         }
         
         ImagePipeline.shared = pipeline

@@ -352,11 +352,13 @@ public final class SonosService {
             }
             
             if roomGroup.playbackService == .radio {
-                if let mediaInfo = await mediaInfo {
-                    if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
-                        roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
+                if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
+                    if roomGroup.coordinatorRoom.radioStation != title {
+                        roomGroup.coordinatorRoom.radioStation = mediaInfo.title
                     }
                 }
+            } else {
+                roomGroup.coordinatorRoom.radioStation = nil
             }
 
             if awaitedTrack == .empty {
@@ -524,11 +526,13 @@ public final class SonosService {
                     }
 
                     if roomGroup.playbackService == .radio {
-                        if let mediaInfo = await mediaInfo {
-                            if roomGroup.coordinatorRoom.track.radioStation != mediaInfo.title {
-                                roomGroup.coordinatorRoom.track.radioStation = mediaInfo.title
+                        if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
+                            if roomGroup.coordinatorRoom.radioStation != title {
+                                roomGroup.coordinatorRoom.radioStation = mediaInfo.title
                             }
                         }
+                    } else {
+                        roomGroup.coordinatorRoom.radioStation = nil
                     }
                     
                     if awaitedTrack == .empty {

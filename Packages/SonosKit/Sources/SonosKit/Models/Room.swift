@@ -16,6 +16,8 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var isMuted: Bool = false
     public var isPlaying: Bool = false
     public var track: Track = .empty
+    /// Radio Station Name
+    public var radioStation: String?
     public var isEditingVolume: Bool = false
     public var isOutputFixed: Bool = false
     public var state: RoomState
