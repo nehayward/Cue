@@ -263,7 +263,6 @@
 				AlertView.swift,
 				AppTips.swift,
 				ArtworkBadgeView.swift,
-				ArtworkLight.swift,
 				ArtworkView.swift,
 				AudioInfoView.swift,
 				Authorization/PlexAuthorizationFlowView.swift,

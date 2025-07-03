@@ -1,0 +1,136 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Clic is a multi-platform SwiftUI music controller app for Sonos speakers that integrates with Apple Music, Spotify, Plex, Tidal, TuneIn, and other music services. It provides native apps for iOS, iPadOS, macOS, tvOS, watchOS, and includes widgets, live activities, and a menu bar app (Clic Mini).
+
+## Build & Development Commands
+
+This is an Xcode project with multiple targets and schemes:
+
+### Build Commands
+- **Open in Xcode**: `open Clic.xcodeproj`
+- **Build main app**: Use Xcode's build system (⌘+B) or select specific schemes
+- **Available schemes**: Clic, Clic (Mac), Clic (TV), Clic (Watch), Clic Mini, Clic [Free], Vision [Free], QueueAction, Widgets
+
+### Testing
+- **Run tests**: Use Xcode's test navigator or ⌘+U
+- **Package tests**: Each Swift package in `/Packages` has its own test suite
+- **Integration tests**: Located in package test directories (e.g., `Packages/SonosKit/Tests`)
+
+### Configuration
+- **Debug**: Uses `Configuration/Debug.xcconfig`
+- **Beta**: Uses `Configuration/Beta.xcconfig`  
+- **Release**: Uses `Configuration/Release.xcconfig`
+
+## Architecture
+
+### Core Package Structure
+The app is built around several Swift packages in `/Packages`:
+
+1. **SonosKit** - Core Sonos integration and device communication
+   - `SonosService` - Main service class managing Sonos system state
+   - `SonosAPI` - Network communication with Sonos devices
+   - XML parsers for Sonos responses
+   - Device discovery and monitoring
+
+2. **MusicSearchKit** - Music service integrations
+   - Apple Music, Spotify, Plex, Tidal, TuneIn, SoundCloud APIs
+   - Authentication services for each platform
+   - Search result parsing and models
+
+3. **SubscriptionKit** - In-app purchase management
+   - RevenueCat integration for subscriptions
+
+4. **Defaults** - Centralized app settings and storage keys
+   - `AppStorageKeys`, `CloudKeys`, `GroupStorageKeys`
+   - Feature flags and preferences
+
+5. **Analytics** - Event tracking and analytics
+   - User behavior and app usage metrics
+
+6. **VibesDS** - Custom UI design system
+   - Reusable SwiftUI components and styles
+
+### Main App Structure
+- **ClicApp.swift** - Main app entry point with shared services
+- **Router.swift** - Navigation and routing system
+- **Services/** - Core app services (ImageCache, Queue, PlayHistory)
+- **Search/** - Search functionality across music services
+- **Library/** - Music library browsing and management
+- **Routing/** - App navigation and destination management
+
+### Platform-Specific Apps
+- **ClicMini/** - macOS menu bar app for quick controls
+- **Watch/** - watchOS app with simplified controls
+- **TV/** - tvOS app optimized for Apple TV
+- **Widgets/** - iOS/macOS widgets and live activities
+- **PlayAction/** - Share sheet extension for queuing music
+
+### Key Services
+- `SonosService.shared` - Central Sonos system management
+- `MusicSearchService.shared` - Music service search coordination
+- `SubscriptionService.shared` - Subscription and paywall management
+- `PlayHistoryService.shared` - Track play history
+- `AlertService.shared` - App-wide alert handling
+
+## Development Guidelines
+
+### Code Organization
+- Use `@Observable` for SwiftUI state management
+- Services follow singleton pattern with `.shared` instances
+- UI components are organized by feature area
+- Packages are used for modular, reusable functionality
+
+### Key Patterns
+- **Router-based navigation** using `RouterDestination` enums
+- **Service injection** through SwiftUI environment
+- **CloudStorage** for synced user preferences
+- **AppStorage** for local device settings
+
+### Music Service Integration
+- All music services implement common protocols in MusicSearchKit
+- Authentication flows are handled per-service
+- Search results are normalized to `PlayableContent` models
+- Artwork is cached and managed through `ImageCacheService`
+
+### Sonos Integration
+- Real-time device discovery and monitoring
+- XML parsing for Sonos API responses
+- Group management and speaker coordination
+- Queue management and playback control
+
+### Testing
+- Unit tests for core business logic in packages
+- Integration tests for API interactions
+- UI tests for critical user flows
+- Mock services for testing without real hardware
+
+## Common Tasks
+
+### Adding New Music Service
+1. Add API client to `MusicSearchKit/Sources/MusicSearchKit/`
+2. Create models in `MusicSearchKit/Sources/MusicSearchKit/Models/`
+3. Add authentication service if needed
+4. Update `MusicSearchService` to include new service
+5. Add UI components in main app
+
+### Modifying Sonos Integration
+1. Update `SonosAPI` for new endpoints
+2. Add XML parsers if needed in `SonosKit/Sources/SonosKit/Parsers/`
+3. Update models in `SonosKit/Sources/SonosKit/Models/`
+4. Test with real Sonos hardware
+
+### Adding New Settings
+1. Define keys in appropriate `Defaults` package file
+2. Add UI in `Preferences/PreferenceScreen.swift`
+3. Use `@AppStorage` or `@CloudStorage` as appropriate
+4. Update settings screen layout
+
+### Platform-Specific Features
+- **iOS**: Focus on mobile-optimized UI and live activities
+- **macOS**: Leverage menu bar app and Mac-specific controls
+- **tvOS**: Optimize for remote control navigation
+- **watchOS**: Keep UI minimal and focused on essential controls
