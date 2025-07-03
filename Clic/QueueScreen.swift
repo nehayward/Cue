@@ -26,7 +26,6 @@ struct QueueScreen: View {
 
     var body: some View {
 //        let _ = Self._printChanges()
-
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List {
@@ -286,28 +285,29 @@ struct QueueScreen: View {
     }
 }
 
-//fileprivate struct ContainerView: View {
-//    @State var group: GroupRoom = .garage
-//
-//    var body: some View {
-//        QueueScreen(group: $group)
-//            .environment(SonosService.shared)
-//            .presentationDetents([.medium, .large])
-//    }
-//}
-//
-//#Preview("Queue Garage") {
-//    Text("Queue...")
-//        .sheet(isPresented: .constant(true)) {
-//            QueueScreen(group: .constant(.garage))
-//                .environment(SonosService.shared)
-//                .presentationDetents([.medium, .large])
-//        }
-//}
+#Preview("Queue with History") {
+    @Previewable var group = GroupRoom.garage
+    
+    Text("Queue...")
+        .sheet(isPresented: .constant(true)) {
+            QueueScreen(group: group)
+                .presentationDetents([.medium, .large])
+                .onAppear {
+//                    group.coordinatorRoom.queue = [.init(title: "Hello", subtitle: "Here", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "132", type: .track, location: nil))]
+                    
+                    group.coordinatorRoom.queue = PlayHistoryService.shared.history
+                }
+        }
+        .environment(PlayHistoryService.shared)
 
-//#Preview {
-//    Text("Queue...")
-//        .sheet(isPresented: .constant(true)) {
-//            ContainerView()
-//        }
-//}
+}
+
+#Preview("Queue Empty") {
+    Text("Queue...")
+        .sheet(isPresented: .constant(true)) {
+            QueueScreen(group: .garage)
+                .presentationDetents([.medium, .large])
+        }
+        .environment(PlayHistoryService.shared)
+
+}

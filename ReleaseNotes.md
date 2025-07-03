@@ -4,8 +4,11 @@
 - 
 
 –– Bug Fixes & Improvements ––
-- 
+- Fixed Radio Station Name not displaying in some cases
+- Improved image loading and caching
 
+## ChangeLog
+- Moved radio station to room, since it doesn't change track-to-track
 
 # 2025.11
 
