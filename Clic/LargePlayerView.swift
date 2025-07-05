@@ -334,7 +334,7 @@ struct LargePlayerView: View {
                 Task {
                     sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
                     guard let track = await sonosService.getTrack(ip: group.ip) else { return }
-                    if group.coordinatorRoom.track == track {
+                    if group.coordinatorRoom.track.trackID == track.trackID {
                         group.coordinatorRoom.track.playbackPosition = track.playbackPosition
                     }
                 }

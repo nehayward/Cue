@@ -175,7 +175,7 @@ struct TVPlayerView: View {
             if scenePhase == .active {
                 Task {
                     guard let track = await SonosService.shared.getTrack(ip: group.ip) else { return }
-                    if group.coordinatorRoom.track == track {
+                    if group.coordinatorRoom.track.trackID == track.trackID {
                         group.coordinatorRoom.track.playbackPosition = track.playbackPosition
                     }
                 }

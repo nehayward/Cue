@@ -14,7 +14,7 @@ struct LightArtworkView: View {
     
     var body: some View {
         VStack {
-            LazyImage(request: ImageRequest(url: thumbnail, processors: [.resize(width: 50)], userInfo: [.imageIdKey: content.id])) { state in
+            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -49,7 +49,7 @@ struct LightArtworkView: View {
         .clipped()
         .onAppear {
             Task {
-                if ImagePipeline.shared.cache.containsData(for: ImageRequest(url: thumbnail, processors: [.resize(width: 50)], userInfo: [.imageIdKey: content.id])) {
+                if ImagePipeline.shared.cache.containsData(for: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) {
                     return
                 }
                 

@@ -66,6 +66,16 @@ final class QueueParser {
         return tracks
     }
     
+    private func generateTrackFingerprint(title: String, artist: String, album: String, duration: String) -> String {
+        // Use Swift's Hasher for fast, stable hashing
+        var hasher = Hasher()
+        hasher.combine(title.trimmingCharacters(in: .whitespacesAndNewlines))
+        hasher.combine(artist.trimmingCharacters(in: .whitespacesAndNewlines))
+        hasher.combine(album.trimmingCharacters(in: .whitespacesAndNewlines))
+        hasher.combine(duration)
+        return String(abs(hasher.finalize()))
+    }
+    
     // Helper functions
     private func extract(field: String, from xml: String) -> String? {
         let pattern: String

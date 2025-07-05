@@ -17,6 +17,7 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
     public let isPlayable: Bool? // A song might not be released so it's not playable.
     public let isExplicit: Bool?
     public let isSingle: Bool?
+    public let fingerprint: String?
 
     // Initializer
     public init(
@@ -34,7 +35,8 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         radioStation: Bool? = nil,
         isPlayable: Bool? = true,
         isExplicit: Bool? = false,
-        isSingle: Bool? = false
+        isSingle: Bool? = false,
+        fingerprint: String? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -51,6 +53,7 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         self.isPlayable = isPlayable
         self.isExplicit = isExplicit
         self.isSingle = isSingle
+        self.fingerprint = fingerprint
     }
 
     // Equatable conformance
@@ -69,7 +72,8 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         lhs.radioStation == rhs.radioStation &&
         lhs.isPlayable == rhs.isPlayable &&
         lhs.isExplicit == rhs.isExplicit &&
-        lhs.isSingle == rhs.isSingle
+        lhs.isSingle == rhs.isSingle &&
+        lhs.fingerprint == rhs.fingerprint
     }
 
     // Hashable conformance
@@ -89,5 +93,6 @@ public struct PlayableContentMetadata: Equatable, Codable, Hashable {
         hasher.combine(isPlayable)
         hasher.combine(isExplicit)
         hasher.combine(isSingle)
+        hasher.combine(fingerprint)
     }
 }

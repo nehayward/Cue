@@ -63,6 +63,7 @@ extension String {
         result = result.replacingOccurrences(of: "&gt;", with: ">")
         result = result.replacingOccurrences(of: "/&gt;", with: ">")
         result = result.replacingOccurrences(of: "/&lt;", with: "<")
+        result = result.replacingOccurrences(of: "&apos;", with: "'")
         return result
     }
 }
