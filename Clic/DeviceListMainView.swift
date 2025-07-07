@@ -56,7 +56,6 @@ struct DeviceListMainView: View {
                         .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
-                        .listRowBackground(Color(UIColor.secondarySystemBackground))
                     } else {
                         Text(group.coordinatorRoom.state.reason)
                             .padding(.vertical, 8)

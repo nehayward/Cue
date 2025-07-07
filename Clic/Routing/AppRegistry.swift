@@ -215,7 +215,7 @@ extension View {
                             Router.search.path.removeAll()
                         }
                 case let .queue(group):
-                    var selectedGroupService = SelectedGroupService(group: group)
+                    let selectedGroupService = SelectedGroupService(group: group)
                     QueueScreen(group: group)
                         .presentationDetents([.medium, .large])
                         .environment(selectedGroupService)
@@ -386,9 +386,9 @@ extension View {
                     }
                     .environment(SelectedGroupService(group: group))
                 case let .queue(group):
-                    QueueScreen(closeInspector: {
+                    QueueScreen(group: group) {
                         inspectorDestination.wrappedValue = nil
-                    }, group: group)
+                    }
                 case let .browse(group):
                     BrowseScreen {
                         inspectorDestination.wrappedValue = nil

@@ -5,12 +5,17 @@ import SonosKit
 import MusicKit
 import MusicSearchKit
 
-struct LightArtworkView: View {
+struct LightArtworkView: View, Equatable {
+    static func == (lhs: LightArtworkView, rhs: LightArtworkView) -> Bool {
+        lhs.id == rhs.id
+    }
+    
     var content: PlayableContent
     var id: String
     var contentType: ContentType
     var showMusicSource: Bool
     @State var thumbnail: URL?
+    @State private var artworkTask: Task<Void, Never>?
     
     var body: some View {
         VStack {
@@ -48,18 +53,30 @@ struct LightArtworkView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
         .onAppear {
-            Task {
-                if ImagePipeline.shared.cache.containsData(for: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) {
+            artworkTask = Task {
+                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: nil, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) {
                     return
                 }
-                
+                print("Failed")
                 guard let thumbnail = await SonosService.shared.getArtwork(from: content, size: 50) else {
-                    self.thumbnail = content.artwork
+                    if !Task.isCancelled {
+                        self.thumbnail = content.artwork
+                    } else {
+                        print("Cancelled thumbnail download")
+                    }
                     return
                 }
                 
-                self.thumbnail = thumbnail
+                if !Task.isCancelled {
+                    self.thumbnail = thumbnail
+                } else {
+                    print("Cancelled thumbnail download")
+                }
             }
+        }
+        .onDisappear {
+            artworkTask?.cancel()
+            artworkTask = nil
         }
     }
     

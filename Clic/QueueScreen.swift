@@ -6,16 +6,17 @@ import Collections
 
 struct QueueScreen: View {
     @Environment(PlayHistoryService.self) var playHistoryService
-    
+    @State private var editMode: EditMode = .inactive
+
+    var group: GroupRoom
     var closeInspector: (() -> Void)? = nil
     
-    var group: GroupRoom
     @State private var router = Router()
-    @State private var isLoading: Bool = true
-    @State private var clearQueueConfirmation: Bool = false
+    @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
     @State private var hoveredTrackID: String = ""
     @State private var currentTrackID: String = ""
+    @State private var selection: Set<String> = []
     
     private var isCatalyst: Bool {
 #if targetEnvironment(macCatalyst)
@@ -28,9 +29,9 @@ struct QueueScreen: View {
 //        let _ = Self._printChanges()
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
-                List {
+                List(selection: $selection) {
                     ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
-                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router)
+                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing)
                             .listSectionSeparator(.hidden, edges: .all)
                             .listRowBackground(
                                 RoundedRectangle(cornerRadius: 8)
@@ -46,10 +47,10 @@ struct QueueScreen: View {
                                     hoveredTrackID = ""
                                 }
                             }
-                            
                     }
                     .onMove(perform: move)
                 }
+                .environment(\.editMode, $editMode)
                 .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
                     Task {
                         group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.ip))
@@ -100,9 +101,11 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                                try? await Task.sleep(for: .milliseconds(500))
+                                try? await SonosService.shared.updateTrackInformation(for: [group])
+                                let id = group.coordinatorRoom.track.toPlayable.trackID
+                                currentTrackID = id
+                                try? await Task.sleep(for: .milliseconds(50))
                                 withAnimation {
-                                    let id = group.coordinatorRoom.track.toPlayable.trackID
                                     proxy.scrollTo(id)
                                 }
                             }
@@ -131,41 +134,24 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+                                try? await SonosService.shared.updateTrackInformation(for: [group])
+                                let id = group.coordinatorRoom.track.toPlayable.trackID
+                                currentTrackID = id
+                                try? await Task.sleep(for: .milliseconds(50))
+                                withAnimation {
+                                    proxy.scrollTo(id)
+                                }
                             }
                         } label: {
                             Image(systemName: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
                                 .foregroundStyle(group.playMode.rawValue > 2 ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
-                    }
-
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        Button {
-                            Task {
-                                router.presentedSheet = .newPlaylist(group: group)
-                            }
-                        } label: {
-                            Text("Save")
-                        }
-                        .disabled(group.coordinatorRoom.queue.isEmpty)
-                        Spacer()
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            Router.main.presentedSheet = .search(group: group)
-                        } label: {
-                            Label("Search", systemImage: "magnifyingglass")
-                                .fontDesign(.rounded)
-                        }
-                        Spacer()
-                        Button(role: .destructive) {
-                            clearQueueConfirmation.toggle()
-                        } label: {
-                            Text("Clear")
-                        }
-                        .disabled(group.coordinatorRoom.queue.isEmpty)
+                        MoreInfoView(group: group, router: router, editMode: $editMode)
                     }
                 }
                 .task(id: group.coordinatorRoom.track.trackID) {
+                    isLoading = true
                     let trackID: String = "\(group.coordinatorRoom.track.trackID).\(group.coordinatorRoom.track.position.description)"
                     currentTrackID = trackID
                     await scrollToNowPlaying(proxy)
@@ -187,20 +173,6 @@ struct QueueScreen: View {
             }
         }
         .fontDesign(.rounded)
-        .animation(isCatalyst ? nil : .default, value: group.playbackService)
-        .animation(isCatalyst ? nil : .spring, value: group.coordinatorRoom.queue)
-        .animation(isCatalyst ? nil : .spring, value: isLoading)
-        .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
-            Button {
-                Task {
-                    try await SonosService.shared.clearQueue(group.coordinatorRoom.ip)
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                }
-            } label: {
-                Text("Clear Queue")
-                    .bold()
-            }
-        }
         .environment(router)
         .environment(selectedGroupService)
         .onAppear {
@@ -216,6 +188,46 @@ struct QueueScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
+        .safeAreaInset(edge: .bottom) {
+            Button(role: .destructive) {
+                Task {
+                    // Get selected tracks in reverse order to avoid index shifting issues
+                    let selectedTracks = selection.compactMap { trackID in
+                        group.coordinatorRoom.queue.elements.first { $0.trackID == trackID }
+                    }.sorted { track1, track2 in
+                        (track1.metadata?.position ?? 0) > (track2.metadata?.position ?? 0)
+                    }
+                    
+                    // Remove tracks from queue
+                    for track in selectedTracks {
+                        guard let position = track.metadata?.position else { return }
+                        group.coordinatorRoom.queue.remove(at: position)
+                        
+                        if let position = track.metadata?.position {
+                            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+                        }
+                    }
+                    
+                    // Update queue and total
+                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+                    
+                    // Clear selection
+                    selection.removeAll()
+                }
+            } label: {
+                Text("Delete Selected (\(selection.count))")
+                    .frame(maxWidth: .infinity)
+                    .monospacedDigit()
+                    .bold()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal)
+            .offset(y: !selection.isEmpty ? 0 : 200)
+#if targetEnvironment(macCatalyst)
+            .padding(.bottom)
+#endif
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {
@@ -273,15 +285,71 @@ struct QueueScreen: View {
     }
     
     private func scrollToNowPlaying(_ proxy: ScrollViewProxy) async {
-        let id = group.coordinatorRoom.track.toPlayable.trackID
         let queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
         if self.group.coordinatorRoom.queue != queue, !queue.isEmpty {
             self.group.coordinatorRoom.queue = queue
         }
-        try? await Task.sleep(for: .milliseconds(100))
-        withAnimation {
-            proxy.scrollTo(id, anchor: .top)
+        try? await Task.sleep(for: .milliseconds(10))
+        let id = group.coordinatorRoom.track.toPlayable.trackID
+        currentTrackID = id
+        proxy.scrollTo(id, anchor: .top)
+    }
+}
+
+fileprivate struct MoreInfoView: View {
+    var group: GroupRoom
+    var router: Router
+    @Binding var editMode: EditMode
+    @State private var clearQueueConfirmation: Bool = false
+
+    var body: some View {
+        Menu {
+            Button(editMode.isEditing ? "Done" : "Edit") {
+                withAnimation {
+                    editMode = editMode.isEditing ? .inactive : .active
+                }
+            }
+            Button {
+                Task {
+                    router.presentedSheet = .newPlaylist(group: group)
+                }
+            } label: {
+                Text("Save Queue")
+                Text("Create Sonos Playlist")
+            }
+            .disabled(group.coordinatorRoom.queue.isEmpty)
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                Router.main.presentedSheet = .search(group: group)
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+                    .fontDesign(.rounded)
+            }
+            Button(role: .destructive) {
+                clearQueueConfirmation.toggle()
+            } label: {
+                Text("Clear Queue")
+            }
+            .disabled(group.coordinatorRoom.queue.isEmpty)
+            
+        } label: {
+            Image(systemName: "ellipsis")
+                .frame(height: 44)
+                .contentShape(.rect)
         }
+        .help("Info")
+        .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
+            Button {
+                Task {
+                    try await SonosService.shared.clearQueue(group.coordinatorRoom.ip)
+                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+                }
+            } label: {
+                Text("Clear Queue")
+                    .bold()
+            }
+        }
+        .tint(.primary)
     }
 }
 
@@ -293,13 +361,23 @@ struct QueueScreen: View {
             QueueScreen(group: group)
                 .presentationDetents([.medium, .large])
                 .onAppear {
-//                    group.coordinatorRoom.queue = [.init(title: "Hello", subtitle: "Here", thumbnail: nil, artwork: nil, content: .init(service: .apple, id: "132", type: .track, location: nil))]
-                    
-                    group.coordinatorRoom.queue = PlayHistoryService.shared.history
+                    group.coordinatorRoom.queue = [
+                        .init(title: "Bohemian Rhapsody", subtitle: "Queen", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e8b066f70c206551210d902b"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e8b066f70c206551210d902b"), content: .init(service: .spotify, id: "3z8h0TU7ReDPLIbEnYhWZb", type: .track, location: nil)),
+                        .init(title: "Shape of You", subtitle: "Ed Sheeran", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02ba5db46f4b838ef6027e6f96"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96"), content: .init(service: .spotify, id: "7qiZfU4dY1lWllzX7mPBI3", type: .track, location: nil)),
+                        .init(title: "Blinding Lights", subtitle: "The Weeknd", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e6f407c7f3a0ec98845e4431"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e6f407c7f3a0ec98845e4431"), content: .init(service: .spotify, id: "0VjIjW4GlUZAMYd2vXMi3b", type: .track, location: nil)),
+                        .init(title: "Bad Guy", subtitle: "Billie Eilish", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02847a57e3d2d6ea1f49b5f621"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273847a57e3d2d6ea1f49b5f621"), content: .init(service: .spotify, id: "2Fxmhks0bxGSBdJ92vM42m", type: .track, location: nil)),
+                        .init(title: "Uptown Funk", subtitle: "Mark Ronson ft. Bruno Mars", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e7a385c0b9061386c084da87"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e7a385c0b9061386c084da87"), content: .init(service: .spotify, id: "32OlwWuMpZ6b0aN2RZOeMS", type: .track, location: nil)),
+                        .init(title: "Someone Like You", subtitle: "Adele", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e0248f5def6c9b22592e3e7c8ea"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b27348f5def6c9b22592e3e7c8ea"), content: .init(service: .spotify, id: "1HNE2PX70ztbEl6MLxrpNL", type: .track, location: nil)),
+                        .init(title: "Sweet Child O' Mine", subtitle: "Guns N' Roses", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e44963b8bb127552ac761873"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e44963b8bb127552ac761873"), content: .init(service: .spotify, id: "7o2CTH4ctstm8TNelqjb51", type: .track, location: nil)),
+                        .init(title: "Shake It Off", subtitle: "Taylor Swift", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e11a75a2f2ff39cec788c5e8"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e11a75a2f2ff39cec788c5e8"), content: .init(service: .spotify, id: "0cqRj7pUJDkTCEsJkx8snD", type: .track, location: nil)),
+                        .init(title: "Smells Like Teen Spirit", subtitle: "Nirvana", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02e175a19e530c898d167d39bf"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273e175a19e530c898d167d39bf"), content: .init(service: .spotify, id: "5ghIJDpPoe3CfHMGu71E6T", type: .track, location: nil)),
+                        .init(title: "Billie Jean", subtitle: "Michael Jackson", thumbnail: URL(string: "https://i.scdn.co/image/ab67616d00001e02de437d960dda1ac0a3586d97"), artwork: URL(string: "https://i.scdn.co/image/ab67616d0000b273de437d960dda1ac0a3586d97"), content: .init(service: .spotify, id: "5ChkMS8OtdzJeqyybCc9R5", type: .track, location: nil))
+                    ]
+//                    group.coordinatorRoom.queue = PlayHistoryService.shared.history
                 }
         }
         .environment(PlayHistoryService.shared)
-
+        .withEnvironments()
 }
 
 #Preview("Queue Empty") {
@@ -309,5 +387,6 @@ struct QueueScreen: View {
                 .presentationDetents([.medium, .large])
         }
         .environment(PlayHistoryService.shared)
+        .withEnvironments()
 
 }

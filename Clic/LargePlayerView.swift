@@ -347,18 +347,7 @@ struct LargePlayerView: View {
         .safeAreaPadding(.bottom)
         .ignoresSafeArea(.keyboard)
         .background {
-            ZStack {
-                ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
-                    .saturation(1.3)
-                    .aspectRatio(contentMode: .fill)
-                    .scaleEffect(1.3)
-                    .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
-                Rectangle()
-                    .foregroundStyle(.thinMaterial)
-                    .scaleEffect(1.3)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .ignoresSafeArea()
+            BackgroundView(group: group, shouldFade: shouldFade)
         }
         .onChange(of: group) {
             shouldFade = false
@@ -571,6 +560,25 @@ struct LargePlayerView: View {
     }
 }
 
+fileprivate struct BackgroundView: View {
+    var group: GroupRoom
+    var shouldFade: Bool
+    
+    var body: some View {
+        ZStack {
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+                .saturation(1.3)
+                .aspectRatio(contentMode: .fill)
+                .scaleEffect(1.3)
+                .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
+            Rectangle()
+                .foregroundStyle(.thinMaterial)
+                .scaleEffect(1.3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+    }
+}
 
 fileprivate struct TVContainer: View {
     @State var group: GroupRoom = .theater

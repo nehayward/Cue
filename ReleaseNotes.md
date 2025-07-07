@@ -1,14 +1,18 @@
 # 2025.12
 
 –– New Features ––
-- 
+- Added batch editing functionality to Queue for managing multiple tracks at once
 
 –– Bug Fixes & Improvements ––
+- Improve cell contrasts
 - Fixed Radio Station Name not displaying in some cases
 - Improved image loading and caching
 
 ## ChangeLog
 - Moved radio station to room, since it doesn't change track-to-track
+- Improved queue screen performance and identity handling for better track management
+- Add AudioPlayback service
+- Add previewURL to spotify
 
 # 2025.11
 

@@ -13,6 +13,7 @@ public struct SpotifyTrackItem: Equatable, Decodable, Identifiable, Sendable {
     public let artists: [SpotifyArtistsInfo]
     public let externalUrls: ExternalUrls
     public let externalIds: SpotifyExternalIDS
+    public let previewUrl: String?
     public let type: String
     public let uri: String
     public let explicit: Bool

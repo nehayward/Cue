@@ -10,8 +10,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     public let thumbnail: URL?
     public let artwork: URL?
     public let content: MediaContent
+    public var previewURL: URL?
     public var metadata: PlayableContentMetadata?
-    
+
     public var trackID: String { "\(content.id).\(metadata?.position?.description ?? "")" }
     
     public var radioID: String {
@@ -24,6 +25,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         thumbnail: URL?,
         artwork: URL?,
         content: MediaContent,
+        previewURL: URL? = nil,
         metadata: PlayableContentMetadata? = nil
     ) {
         self.title = title
@@ -31,6 +33,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         self.thumbnail = thumbnail
         self.artwork = artwork
         self.content = content
+        self.previewURL = previewURL
         self.metadata = metadata
     }
     

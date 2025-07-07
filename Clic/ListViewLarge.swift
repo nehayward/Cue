@@ -10,11 +10,22 @@ struct ListViewLarge: View {
     @Environment(SubscriptionService.self) var subscriptionService: SubscriptionService
     @Environment(AlertService.self) var alertService: AlertService
     @Environment(Router.self) var router: Router
+    
+    @Environment(\.colorScheme) private var colorScheme
+    
     @Binding var selected: String?
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
     
     @State private var hoveredID: String? = nil
+    
+    private var listRowBackground: Color {
+        #if targetEnvironment(macCatalyst)
+        Color(UIColor.secondarySystemBackground)
+        #else
+        colorScheme == .light ? Color.white : Color(uiColor: .secondarySystemFill)
+        #endif
+    }
 
     var body: some View {
         @Bindable var alertService = alertService
@@ -58,7 +69,7 @@ struct ListViewLarge: View {
                             .fill(
                                 group.coordinatorID == selected ? Color(uiColor: .systemFill) :
                                     hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :
-                                    Color(UIColor.secondarySystemBackground)
+                                    listRowBackground
                             )
                     )
                     .onHover { isHovered in

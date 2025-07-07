@@ -376,9 +376,18 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.track.downloadedArtworkURL = previousArtwork
             }
 
-            if roomGroup.coordinatorRoom.track.trackID == awaitedTrack.trackID, !roomGroup.isEditingPlayback {
-                roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                return
+            let currentTrack = roomGroup.coordinatorRoom.track
+            if currentTrack.trackID == awaitedTrack.trackID {
+                if !roomGroup.isEditingPlayback,
+                   currentTrack.playbackPosition != awaitedTrack.playbackPosition {
+                    currentTrack.playbackPosition = awaitedTrack.playbackPosition
+                    return
+                }
+                
+                if currentTrack.position != awaitedTrack.position {
+                    currentTrack.position = awaitedTrack.position
+                    return
+                }
             }
 
             // Only get track information if the track ID has changed
@@ -631,9 +640,18 @@ public final class SonosService {
                         return
                     }
 
-                    if roomGroup.coordinatorRoom.track.trackID == awaitedTrack.trackID, !roomGroup.isEditingPlayback,  roomGroup.coordinatorRoom.track.playbackPosition != awaitedTrack.playbackPosition  {
-                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        return
+                    let currentTrack = roomGroup.coordinatorRoom.track
+                    if currentTrack.trackID == awaitedTrack.trackID {
+                        if !roomGroup.isEditingPlayback,
+                           currentTrack.playbackPosition != awaitedTrack.playbackPosition {
+                            currentTrack.playbackPosition = awaitedTrack.playbackPosition
+                            return
+                        }
+                        
+                        if currentTrack.position != awaitedTrack.position {
+                            currentTrack.position = awaitedTrack.position
+                            return
+                        }
                     }
                     
 //                    print(roomGroup.coordinatorRoom.track.name, awaitedTrack.name)

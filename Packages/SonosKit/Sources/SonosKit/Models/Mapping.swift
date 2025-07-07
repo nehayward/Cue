@@ -34,6 +34,7 @@ extension Song {
             thumbnail: artwork?.url(width: 100, height: 100),
             artwork: artwork?.url(width: 600, height: 600),
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            previewURL: previewAssets?.first?.url,
             metadata: PlayableContentMetadata(
                 artist: artistName,
                 album: albumTitle,
@@ -447,6 +448,7 @@ extension SpotifyTrackItem {
                 type: .track,
                 location: URL(string: externalUrls.spotify ?? "")
             ),
+            previewURL: URL(string: previewUrl ?? ""),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
                     durationMs

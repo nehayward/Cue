@@ -28,6 +28,7 @@ struct ClicApp: App {
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
     
+    private var audioPlaybackService = AudioPlaybackService.shared
     private var playlistContainer = PlaylistContainer.shared
     private var sonosService = SonosService.shared
     private var playHistoryService = PlayHistoryService.shared
@@ -72,9 +73,9 @@ struct ClicApp: App {
                                     }
                                     .environment(SelectedGroupService(group: group))
                                 case let .queue(group):
-                                    QueueScreen(closeInspector: {
+                                    QueueScreen(group: group) {
                                         router.inspectorSheet = nil
-                                    }, group: group)
+                                    }
                                 case let .browse(group):
                                     @State var selectedGroupService = SelectedGroupService(group: group)
                                     BrowseScreen {
@@ -109,6 +110,7 @@ struct ClicApp: App {
             .environment(subscriptionService)
             .environment(alertService)
             .environment(musicSearchService)
+            .environment(audioPlaybackService)
             .environment(playlistContainer)
             .environment(playHistoryService)
             .environment(miniPlayerManager)
@@ -139,6 +141,9 @@ struct ClicApp: App {
                     WidgetCenter.shared.reloadAllTimelines()
 #endif
                 }
+                
+                // MARK: Jump to queue
+//                handle(URL(string: "clic://Kitchen/queue")!)
                 
                 try? Tips.configure(
                     [
@@ -578,6 +583,80 @@ struct ClicApp: App {
                 } else {
                     selectedID = group.coordinatorID
                 }
+            }
+            
+            if let roomName = components.host {
+                // URL decode room name to handle spaces and special characters
+                let decodedRoomName = roomName.removingPercentEncoding ?? roomName
+                guard let room = sonosService.rooms.first(where: { $0.name.lowercased() == decodedRoomName.lowercased() }) else { return }
+                
+                guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: room.id) else {
+                    return
+                }
+                            
+                // Check for different actions
+                if url.pathComponents.contains("queue") || components.queryItems?.contains(where: { $0.name == "showqueue" }) == true {
+                    // Show queue
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.presentedSheet = .queue(group: sonosService.groups[groupIndex])
+                    } else {
+                        selectedID = group.coordinatorID
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.inspectorSheet = .queue(group: sonosService.groups[groupIndex])
+                    }
+                } else if url.pathComponents.contains("search") || components.queryItems?.contains(where: { $0.name == "showsearch" }) == true {
+                    // Show search
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.presentedSheet = .search(group: sonosService.groups[groupIndex])
+                    } else {
+                        selectedID = group.coordinatorID
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.inspectorSheet = .search(group: sonosService.groups[groupIndex])
+                    }
+                } else if url.pathComponents.contains("browse") || components.queryItems?.contains(where: { $0.name == "showbrowse" }) == true {
+                    // Show browse
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.presentedSheet = .browse(group: sonosService.groups[groupIndex])
+                    } else {
+                        selectedID = group.coordinatorID
+                        guard let groupIndex = sonosService.groups.firstIndex(where: { $0.coordinatorID == group.coordinatorID }) else { return }
+                        router.inspectorSheet = .browse(group: sonosService.groups[groupIndex])
+                    }
+                } else {
+                    // Default: just navigate to the room
+                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
+                        if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+                            router.path.removeAll()
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        } else if router.path.isEmpty {
+                            router.navigate(to: .player(groupID: group.coordinatorID))
+                        }
+                    } else {
+                        selectedID = group.coordinatorID
+                    }
+                }
+                return
             }
 
             if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
