@@ -5,11 +5,7 @@ import SonosKit
 import MusicKit
 import MusicSearchKit
 
-struct LightArtworkView: View, Equatable {
-    static func == (lhs: LightArtworkView, rhs: LightArtworkView) -> Bool {
-        lhs.id == rhs.id
-    }
-    
+struct LightArtworkView: View {
     var content: PlayableContent
     var id: String
     var contentType: ContentType

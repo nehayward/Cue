@@ -4,12 +4,7 @@ import SonosKit
 import OrderedCollections
 import Nuke
 
-struct QueueCellView: View, Equatable {
-    static func == (lhs: QueueCellView, rhs: QueueCellView) -> Bool {
-        lhs.track.id == rhs.track.id &&
-        lhs.isEditing == rhs.isEditing
-    }
-    
+struct QueueCellView: View {
     var track: PlayableContent
     @Bindable var group: GroupRoom
     var currentTrackID: String
