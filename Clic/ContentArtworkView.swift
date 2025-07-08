@@ -11,7 +11,7 @@ struct ContentArtworkView: View {
     var preferredSize: Double = 50.0
     
     var body: some View {
-        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: content.id])) { state in
+        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: content.metadata?.album ?? content.id])) { state in
             if let image = state.image {
                 image
                     .resizable()

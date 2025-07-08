@@ -34,13 +34,13 @@ final class SonosSystemDiscoveryService {
         if useCache, !discoveredIPs.isEmpty {
             return discoveredIPs.first ?? ""
         }
-        let discoveredIPs = try await discoverDevices(timeout: 8)
+        let discoveredIPs = try await discoverDevices(timeout: 15)
         return discoveredIPs.first ?? ""
     }
     
     /// Discover all Sonos devices on the network
     func discoverAllDevices() async throws -> [String] {
-        return Array(try await discoverDevices(timeout: 3))
+        return Array(try await discoverDevices(timeout: 5))
     }
     
     /// Sends a Wake-on-LAN packet to the specified MAC address

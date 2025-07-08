@@ -10,6 +10,7 @@ struct QueueCellView: View {
     var currentTrackID: String
     var router: Router
     var isEditing: Bool
+    var onLocalDelete: ((PlayableContent) -> Void)? = nil
     
     var body: some View {
 //        let _ = Self._printChanges()
@@ -23,7 +24,7 @@ struct QueueCellView: View {
             }
         } label: {
             HStack {
-                LightArtworkView(content: track, id: track.id, contentType: track.content.type, showMusicSource: true)
+                LightArtworkView(content: track, contentType: track.content.type, showMusicSource: true)
                     .frame(width: 50, height: 50)
                 VStack(alignment: .leading) {
                     Text(track.title)
@@ -36,7 +37,7 @@ struct QueueCellView: View {
                 }
                 Spacer()
                 Menu {
-                    QueueCellMenuView(track: track, group: group, router: router)
+                    QueueCellMenuView(track: track, group: group, router: router, onLocalDelete: onLocalDelete)
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(maxWidth: 50, maxHeight: .infinity)
@@ -51,11 +52,13 @@ struct QueueCellView: View {
         }
         .swipeActions {
             Button(role: .destructive) {
-                guard let position = track.metadata?.position else { return }
-                group.coordinatorRoom.queue.remove(at: position - 1)
                 Task {
+                    guard let position = track.metadata?.position else { return }
+                    
+                    // Remove from local array first for immediate UI feedback
+                    onLocalDelete?(track)
+                    
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.ip))
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
                 }
             } label: {
@@ -75,6 +78,7 @@ fileprivate struct QueueCellMenuView: View {
     let track: PlayableContent
     @Bindable var group: GroupRoom
     let router: Router
+    var onLocalDelete: ((PlayableContent) -> Void)? = nil
     
     var body: some View {
         VStack {
@@ -95,11 +99,13 @@ fileprivate struct QueueCellMenuView: View {
             }
 
             Button(role: .destructive) {
-                guard let position = track.metadata?.position else { return }
-                group.coordinatorRoom.queue.remove(at: position - 1)
                 Task {
+                    guard let position = track.metadata?.position else { return }
+                    
+                    // Remove from local array first for immediate UI feedback
+                    onLocalDelete?(track)
+                    
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
                 }
             } label: {

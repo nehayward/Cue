@@ -28,8 +28,8 @@ final class LibraryParser {
             
             // Extract required fields
             let title = extract(field: "dc:title", from: itemXML) ?? ""
-            let artist = extract(field: "dc:creator", from: itemXML) ?? ""
-            let album = extract(field: "upnp:album", from: itemXML) ?? ""
+            let artist = extract(field: "dc:creator", from: itemXML)
+            let album = extract(field: "upnp:album", from: itemXML)
             var contentType = ContentType(extract(field: "upnp:class", from: itemXML) ?? "") ?? .track
             if itemXML.contains("A:PLAYLISTS") {
                 contentType = .libraryImportedPlaylists
@@ -43,10 +43,10 @@ final class LibraryParser {
                                             location: nil)
             
             let metadata = PlayableContentMetadata(artist: artist,
-                                                   album: album)
+                                                   album: contentType == .album ? title : album)
             
             let content = PlayableContent(title: title.removingHTMLEntities(),
-                                          subtitle: [artist.removingHTMLEntities(), album.removingHTMLEntities()].filter { !$0.isEmpty }.joined(separator: " • "),
+                                          subtitle: [artist, album].compactMap { $0?.removingHTMLEntities() }.filter { !$0.isEmpty }.joined(separator: " • "),
                                           thumbnail: extractAlbumArtURL(IP: IP, xml: itemXML),
                                           artwork: extractAlbumArtURL(IP: IP, xml: itemXML),
                                           content: mediaContent,

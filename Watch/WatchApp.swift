@@ -2,7 +2,6 @@ import Observation
 import Kingfisher
 import Defaults
 import SwiftUI
-import SonosKit
 import SonosKitMini
 import WidgetKit
 import CloudStorage
@@ -59,11 +58,11 @@ struct WatchApp: App {
             .cacheSerializer(FormatIndicatedCacheSerializer.jpeg),
             .processor(DefaultImageProcessor.default), // Default is fast and non-blocking
             .scaleFactor(WKInterfaceDevice.current().screenScale),
-            .diskCacheExpiration(.days(1)),      // Longer-term disk caching
+            .diskCacheExpiration(.days(30)),      // Longer-term disk caching
             .memoryCacheExpiration(.expired)
         ]
-        ImageCache.default.memoryStorage.config.countLimit = 1
+        ImageCache.default.memoryStorage.config.countLimit = 10
         ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024
-        ImageCache.default.diskStorage.config.expiration = .days(1)
+        ImageCache.default.diskStorage.config.expiration = .days(30)
     }
 }

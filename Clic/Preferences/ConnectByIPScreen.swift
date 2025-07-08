@@ -1,8 +1,12 @@
 import SwiftUI
+import CloudStorage
 import SonosKit
 
 struct ConnectByIPScreen: View {
-    @Environment(SonosService.self) private var sonosService: SonosService
+    @Environment(SonosService.self) private var sonosService
+    @Environment(AlertService.self) private var alertService
+    
+    @CloudStorage("sonos_ip") var sonosIP = ""
 
     @State private var manualConnectIPAddress: String = ""
     @State private var discoveredIPs: [String] = []
@@ -54,16 +58,38 @@ struct ConnectByIPScreen: View {
                 }
             }
             
-            ForEach(sonosService.rooms) { room in
-                Label {
-                    Text(room.name)
-                    Text(room.ip)
-                        .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
-                } icon: {
-                    Image(systemName: "hifispeaker.fill")
-                        .foregroundStyle(.primary)
-                        .tint(.primary)
+            Button {
+                Task {
+                    guard let device = sonosService.setPriorityDevice() else { return }
+                    alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
                 }
+            } label: {  
+                Text("Set Priority Device")
+                Text("Prioritize wired connections, the latest models, and non-portable Sonos devices.")
+            }
+            
+            ForEach(sonosService.sortedRooms) { room in
+                Button {
+                    Task {
+                        await sonosService.setStaticIP(ip: room.ip)
+                        alertService.showAlert(with: "Assigning Priority to \(room.name)", imageName: "1.circle.fill")
+                    }
+                } label: {
+                    Label {
+                        Text(room.name)
+                        if let info = room.info {
+                            Text("\(info.modelDisplayName)")
+                        }
+                        Text(room.ip)
+                            .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
+                    } icon: {
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(.accent)
+                            .transition(.scale.combined(with: .opacity))
+                            .symbolVariant(sonosIP == room.ip  ? .fill : .none)
+                    }
+                }
+                .tint(.primary)
             }
             
             if let error = errorMessage {

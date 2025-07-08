@@ -628,6 +628,29 @@ final class SonosAPI: NSObject {
         SonosLogInformation.shared.log(name: "\(IP)_queue.txt", xml.unescaped)
         return queue
     }
+    
+    func getQueue(IP: String, startingIndex: Int, total: Int, priorityIP: String? = nil) async -> [PlayableContent] {
+        let arguments: OrderedKeys = [
+            ("ObjectID", "Q:0"),
+            ("BrowseFlag", "BrowseDirectChildren"),
+            ("Filter", "*"),
+            ("StartingIndex", startingIndex),
+            ("RequestedCount", total),
+            ("SortCriteria", "")
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
+            return []
+        }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let queue = xmlParser.parseQueue(IP: IP, xml: xml, preferredIPForTrackAlbumArt: priorityIP)
+        return queue
+    }
 
     func getQueueCount(IP: String) async -> Int? {
         let arguments: OrderedKeys = [

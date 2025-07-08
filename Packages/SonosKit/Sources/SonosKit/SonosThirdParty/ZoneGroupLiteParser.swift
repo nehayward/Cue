@@ -16,7 +16,9 @@ class ZoneGroupLiteParser {
 //              let zoneGroupStateRange = decodedXML.range(of: "<ZoneGroupState>.*?</ZoneGroupState>", options: .regularExpression),
               let museHouseholdIdRange = decodedXML.range(of: "<MuseHouseholdId>.*?</MuseHouseholdId>", options: .regularExpression),
               let thirdPartyMediaServersRange = decodedXML.range(of: "<ThirdPartyMediaServersX>.*?</ThirdPartyMediaServersX>", options: .regularExpression) else {
-            print("❌ Failed to find required XML elements")
+            
+            // MARK: Improve this
+//            print("❌ Failed to find required XML elements")
             return nil
         }
         

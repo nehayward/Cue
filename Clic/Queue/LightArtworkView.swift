@@ -7,15 +7,13 @@ import MusicSearchKit
 
 struct LightArtworkView: View {
     var content: PlayableContent
-    var id: String
     var contentType: ContentType
     var showMusicSource: Bool
     @State var thumbnail: URL?
-    @State private var artworkTask: Task<Void, Never>?
     
     var body: some View {
         VStack {
-            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) { state in
+            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.metadata?.album ?? content.id, .thumbnailKey: true])) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -48,31 +46,17 @@ struct LightArtworkView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
-        .onAppear {
-            artworkTask = Task {
-                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: nil, userInfo: [.imageIdKey: content.id, .thumbnailKey: true])) {
-                    return
-                }
-                print("Failed")
-                guard let thumbnail = await SonosService.shared.getArtwork(from: content, size: 50) else {
-                    if !Task.isCancelled {
-                        self.thumbnail = content.artwork
-                    } else {
-                        print("Cancelled thumbnail download")
-                    }
-                    return
-                }
-                
-                if !Task.isCancelled {
-                    self.thumbnail = thumbnail
-                } else {
-                    print("Cancelled thumbnail download")
-                }
+        .task {
+            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: content.metadata?.album ?? content.id, .thumbnailKey: true])) {
+                return
             }
-        }
-        .onDisappear {
-            artworkTask?.cancel()
-            artworkTask = nil
+            
+            guard let newThumbnail = await SonosService.shared.getArtwork(from: content, size: 50) else {
+                self.thumbnail = content.artwork
+                return
+            }
+            
+            self.thumbnail = newThumbnail
         }
     }
     

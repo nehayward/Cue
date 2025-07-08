@@ -1748,8 +1748,12 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
 
-    public func getQueue(ip: String) async -> [PlayableContent] {
-        await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP() )
+    public func getQueue(ip: String, with startingIndex: Int? = nil, total: Int = 50) async -> [PlayableContent] {
+        if let startingIndex = startingIndex {
+            return await api.getQueue(IP: ip, startingIndex: startingIndex, total: total, priorityIP: prioritizedIP())
+        } else {
+            return await api.getQueue(IP: ip, prioritizedAlbumArtIP: prioritizedIP())
+        }
     }
 
     public func clearQueue(_ IP: String) async throws {

@@ -2,17 +2,22 @@
 
 –– New Features ––
 - Added batch editing functionality to Queue for managing multiple tracks at once
+- Added Up Next view to display upcoming items in the queue
+- Added Connectivity screen, allowing manual IP address assignment
 
 –– Bug Fixes & Improvements ––
 - Improve cell contrasts
 - Fixed Radio Station Name not displaying in some cases
 - Improved image loading and caching
+- Improve Connectivty on Apple Watch
+- Improve metadata performance
 
 ## ChangeLog
 - Moved radio station to room, since it doesn't change track-to-track
 - Improved queue screen performance and identity handling for better track management
 - Add AudioPlayback service
 - Add previewURL to spotify
+- Add Up Next View
 
 # 2025.11
 

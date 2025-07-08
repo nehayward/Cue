@@ -17,7 +17,7 @@ final class SonosAPI {
     private lazy var privateSession: URLSession = {
         let configuration: URLSessionConfiguration = .default
         configuration.allowsCellularAccess = false
-        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForRequest = 20
         return URLSession(configuration: configuration)
     }()
     

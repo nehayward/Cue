@@ -303,11 +303,10 @@ struct LargePlayerView: View {
         .toolbarTitleDisplayMode(.inline)
         .dropDestinationPlay(on: group)
         .task(id: group) {
-            group.isCrossfaded = await sonosService.isCrossfaded(for: group)
-            await sonosService.getSleepTimer(group: group)
-            group.coordinatorRoom.queue = OrderedSet(await sonosService.getQueue(ip: group.coordinatorRoom.ip))
             sonosService.stopListening(ip: group.ip, groupID: group.id)
             sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
+            group.isCrossfaded = await sonosService.isCrossfaded(for: group)
+            await sonosService.getSleepTimer(group: group)
         }
         .task(id: group.coordinatorRoom.track.id) {
             if group.coordinatorRoom.track.musicService == .spotify {

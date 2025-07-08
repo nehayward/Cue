@@ -143,6 +143,23 @@ struct PreferenceScreen: View {
                             )
                     }
                     
+                    NavigationLink(value: RouterDestination.connectByIP) {
+                        Label {
+                            Text("Connectivity")
+                        } icon: {
+                            Image(systemName: "network")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.secondary)
+                                )
+                        }
+                    }
+                    
                     NavigationLink(value: RouterDestination.speakerSettingsList) {
                         Label {
                             Text("Speaker Settings")
@@ -193,25 +210,7 @@ struct PreferenceScreen: View {
                                 )
                         }
                     }
-                  
-                    // MARK: Rework for next update
-//                    NavigationLink(value: RouterDestination.connectByIP) {
-//                        Label {
-//                            Text("Connect by IP")
-//                        } icon: {
-//                            Image(systemName: "network")
-//                                .resizable()
-//                                .aspectRatio(contentMode: .fit)
-//                                .foregroundStyle(.white)
-//                                .padding(8)
-//                                .frame(width: 32, height: 32)
-//                                .background(
-//                                    RoundedRectangle(cornerRadius: 4)
-//                                        .foregroundStyle(.gray)
-//                                )
-//                        }
-//                    }
-//                    
+ 
                     Button {
                         Task {
                             alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise")
@@ -231,31 +230,6 @@ struct PreferenceScreen: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.blue)
-                                )
-                        }
-                    }
-                    .tint(.primary)
-                    
-                    Button {
-                        Task {
-                            guard let device = sonosService.setPriorityDevice() else { return }
-                            alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
-                        }
-                    } label: {
-                        Label {
-                            Text("Set Priority Device")
-                            Text("Prioritize wired connections, the latest models, and non-portable Sonos devices.")
-                        } icon: {
-                            Image(systemName: "1.circle.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.green.gradient)
                                 )
                         }
                     }

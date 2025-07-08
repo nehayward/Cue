@@ -15,17 +15,15 @@ struct QueueIconView: View {
         VibeGaugeView(value: position,
                       total: Double(group.coordinatorRoom.queueTotal),
                       color: .primary,
-                      lineWidth: position > 99 ? 3 : 2)
+                      lineWidth: 2)
         .overlay {
-            if position < 100 {
-                Text(position, format: .number)
-                    .contentTransition(.numericText())
-                    .opacity(position == 0 ? 0.4 : 1)
-                    .font(.caption2)
-                    .padding(.vertical, 4)
-                    .bold()
-                    .scaledToFit()
-            }
+            Text(position, format: .number)
+                .minimumScaleFactor(0.5)
+                .padding(.horizontal, 4)
+                .allowsTightening(true)
+                .contentTransition(.numericText())
+                .font(.caption2.monospacedDigit())
+                
         }
         .animation(.spring, value: group.coordinatorRoom.track.position)
         .fontDesign(.rounded)

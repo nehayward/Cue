@@ -38,14 +38,14 @@ struct MediaDetailView: View {
                             .shadow(radius: 2)
                     } else {
                         Rectangle()
-                            .foregroundStyle(.accent.gradient.secondary)
+                            .foregroundStyle(.ultraThickMaterial)
                             .aspectRatio(contentMode: .fit)
                             .overlay {
                                 if state.error != nil {
                                     Image(systemName: "music.note")
                                         .resizable()
                                         .scaledToFit()
-                                        .foregroundStyle(.regularMaterial)
+                                        .foregroundStyle(.secondary)
                                         .frame(width: 100, height: 100)
                                 }
                             }
@@ -192,7 +192,9 @@ struct MediaDetailView: View {
                         .background(.clear)
                         .bold()
                         .foregroundStyle(.foreground)
+                        .contentShape(.rect)
                 }
+                .contentShape(.rect)
             }
         }
     }

@@ -108,7 +108,7 @@ struct ArtworkView: View {
             }
             .onAppear {
                 let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
-                if let image = ImagePipeline.shared.cache[request], currentImage != image.image {
+                if let image = ImagePipeline.shared.cache.cachedImage(for: request), currentImage != image.image {
                     currentImage = image.image
                     currentImageHash = image.image.lightweightHash()
                 } else {

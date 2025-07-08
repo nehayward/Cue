@@ -1,9 +1,10 @@
 import CloudStorage
 import SwiftUI
-import SonosKit
+import SonosKitMini
 
 struct PreferenceScreen: View {
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
+    @CloudStorage("sonos_ip") var sonosIP = ""
 
     var body: some View {
         NavigationStack {
@@ -15,6 +16,21 @@ struct PreferenceScreen: View {
                     .tint(.accent)
                 } footer: {
                     Text("Instantly jump to the group currently playing.")
+                }
+                
+                Section {
+                    if let group = SonosMiniService.shared.sorted.first(where: { $0.ip == sonosIP }) {
+                        VStack(alignment: .leading) {
+                            Text(group.nameWithCount)
+                                .foregroundStyle(.primary)
+                            Text(group.ip)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Text("Current Sonos IP \(sonosIP)")
+                    }
+                } header: {
+                    Text("Hub")
                 }
                 
                 VStack(alignment: .center) {
@@ -30,11 +46,11 @@ struct PreferenceScreen: View {
 }
 
 
-#Preview {
-    PreferenceScreen()
-        .withEnvironments()
-        .onAppear {
-            SonosService.shared.monitor()
-        }
-}
+//#Preview {
+//    PreferenceScreen()
+//        .withEnvironments()
+//        .onAppear {
+//            SonosService.shared.monitor()
+//        }
+//}
 
