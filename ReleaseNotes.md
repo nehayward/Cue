@@ -5,6 +5,7 @@
 - Added Up Next view to display upcoming items in the queue
 - Added Connectivity screen, allowing manual IP address assignment
 - Added Recommended Albums section to Apple Music library with personalized album suggestions
+- Add Mute Button to Live Activity and Speaker List
 
 –– Bug Fixes & Improvements ––
 - Improve cell contrasts
@@ -12,6 +13,8 @@
 - Improved image loading and caching
 - Improve Connectivty on Apple Watch
 - Improve metadata performance
+- Extracted TV mode controls into reusable components for better SwiftUI performance
+- Fixed icon sizing inconsistency in TV mode controls
 
 ## ChangeLog
 - Moved radio station to room, since it doesn't change track-to-track

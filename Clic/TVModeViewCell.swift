@@ -19,14 +19,18 @@ struct TVModeViewCell: View {
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
+                            .font(.title)
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
                             .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
+                            .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
+                    
+                    MuteButton(group: group)
 
                     Button {
                         Task {
@@ -35,9 +39,12 @@ struct TVModeViewCell: View {
                         }
                     } label: {
                         Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                            .font(.title)
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
+                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                            .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
                     .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))

@@ -66,7 +66,7 @@ struct LargePlayerView: View {
                             }
                         }
                         .animation(.spring, value: group.isMuted)
-                    TVModeView()
+                    TVModeView(group: group)
                     Spacer()
                 }
                 .transition(.opacity)
@@ -486,7 +486,13 @@ struct LargePlayerView: View {
         .padding(.horizontal, 60)
     }
     
-    private func TVModeView() -> some View {
+}
+
+fileprivate struct TVModeView: View {
+    @Environment(SonosService.self) var sonosService: SonosService
+    @Bindable var group: GroupRoom
+    
+    var body: some View {
         VStack(alignment: .center) {
             if let settings = group.tvSettings {
                 Text(settings.audioInputFormat.description)
@@ -506,7 +512,6 @@ struct LargePlayerView: View {
                             .font(.title)
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
                             .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
                             .frame(width: 40, height: 36)
                     }
@@ -514,25 +519,8 @@ struct LargePlayerView: View {
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
                     
-                    Button {
-                        Task {
-                            await sonosService.setGroupMute(group: group, mute: !group.isMuted)
-                        }
-                    } label: {
-                        Label("Mute", systemImage: group.isMuted ? "speaker.slash.fill" : "speaker.fill")
-                            .contentTransition(.symbolEffect)
-                            .font(.title)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
-                            .foregroundStyle(group.isMuted ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 40, height: 36)
-                    }
-                    .buttonStyle(.bordered)
-                    .foregroundStyle(group.isMuted ? .accent : .secondary.opacity(0.8))
-                    .tint(group.isMuted ? .accent : nil)
-                    .animation(.spring, value: group.isMuted)
-                    
+                    MuteButton(group: group)
+
                     Button {
                         Task {
                             try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
@@ -543,7 +531,6 @@ struct LargePlayerView: View {
                             .font(.title)
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
-                            .toggleStyle(.button)
                             .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
                             .frame(width: 40, height: 36)
                     }
@@ -551,7 +538,6 @@ struct LargePlayerView: View {
                     .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
                     .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.dialogLevel.wrappedValue)
-                    
                 }
             }
         }

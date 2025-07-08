@@ -169,7 +169,7 @@ struct ClicApp: App {
 //                    }
 //                }
                 // Update SMAppService registration with proper error handling
-#if targetEnvironment(macCatalyst)
+#if targetEnvironment(macCatalyst) && !DEBUG
                 if isMenuBarAppEnabled {
                     menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                 }
