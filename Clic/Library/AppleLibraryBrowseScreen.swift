@@ -129,6 +129,32 @@ struct AppleLibraryBrowseScreen: View {
                 .headerProminence(.increased)
                 
                 Section {
+                    if !appleMusicBrowseService.recommendedAlbums.isEmpty {
+                        VStack(spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.recommendedAlbums.prefix(4)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                } header: {
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Recommended Albums", items: $appleMusicBrowseService.recommendedAlbums, action: { offset in
+                        await appleMusicBrowseService.updateRecommendedAlbums(offset: offset)
+                    })) {
+                        HStack {
+                            Text("Recommended Albums")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .headerProminence(.increased)
+                
+                Section {
                     if !appleMusicBrowseService.userStations.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
@@ -156,6 +182,7 @@ struct AppleLibraryBrowseScreen: View {
                 
             }
             .miniPlayerOnScrollHandler()
+            .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
@@ -208,6 +235,10 @@ struct AppleLibraryBrowseScreen: View {
             
             group.addTask {
                 await appleMusicBrowseService.updateRadioStations(offset: 0, limit: 4)
+            }
+            
+            group.addTask {
+                await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: 4)
             }
         
             group.addTask {

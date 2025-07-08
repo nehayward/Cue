@@ -4,6 +4,7 @@
 - Added batch editing functionality to Queue for managing multiple tracks at once
 - Added Up Next view to display upcoming items in the queue
 - Added Connectivity screen, allowing manual IP address assignment
+- Added Recommended Albums section to Apple Music library with personalized album suggestions
 
 –– Bug Fixes & Improvements ––
 - Improve cell contrasts

@@ -354,6 +354,52 @@ public final class AppleMusicAPI {
         return nil
     }
 
+    public func getUserRecommendations(offset: Int = 0, limit: Int = 25) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        var urlComponents = URLComponents(string: "https://api.music.apple.com/v1/me/recommendations")!
+        var queryItems = [
+            URLQueryItem(name: "include", value: "albums"),
+            URLQueryItem(name: "offset", value: String(offset)),
+            URLQueryItem(name: "limit", value: String(limit))
+        ]
+        
+        // Add localization if available
+        if let languageCode = Locale.current.language.languageCode?.identifier,
+           let regionCode = Locale.current.region?.identifier {
+            queryItems.append(URLQueryItem(name: "l", value: "\(languageCode)-\(regionCode)"))
+        }
+        
+        urlComponents.queryItems = queryItems
+        
+        let request = MusicDataRequest(urlRequest: .init(url: urlComponents.url!))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let recommendationsResponse = try decoder.decode(AppleRecommendationsResponse.self, from: data)
+            
+            // Filter and collect all album items from all recommendations
+            var albumItems: [AppleLibraryItem] = []
+            
+            for recommendation in recommendationsResponse.data {
+                let albums = recommendation.relationships.contents.data.filter { $0.type == "albums" }
+                albumItems.append(contentsOf: albums)
+            }
+            
+            // Create a container with the filtered album items
+            return AppleLibraryContainer(
+                data: albumItems,
+                meta: nil,
+                next: recommendationsResponse.next
+            )
+        } catch {
+            print("Error decoding user recommendations: \(error)")
+            print("Response data: \(String(decoding: data, as: UTF8.self))")
+            return nil
+        }
+    }
+
     public func librarySong(id: String) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

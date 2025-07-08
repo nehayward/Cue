@@ -53,3 +53,38 @@ extension AppleLibraryItem {
         public let catalog: AppleLibraryContainer
     }
 }
+
+// MARK: - Recommendations Response Models
+public struct AppleRecommendationsResponse: Codable {
+    public let data: [PersonalRecommendation]
+    public let next: String?
+}
+
+public struct PersonalRecommendation: Codable {
+    public let id: String
+    public let type: String
+    public let href: String
+    public let attributes: RecommendationAttributes
+    public let relationships: RecommendationRelationships
+}
+
+public struct RecommendationAttributes: Codable {
+    public let isGroupRecommendation: Bool
+    public let resourceTypes: [String]
+    public let nextUpdateDate: String
+    public let title: RecommendationTitle
+    public let kind: String
+}
+
+public struct RecommendationTitle: Codable {
+    public let stringForDisplay: String
+}
+
+public struct RecommendationRelationships: Codable {
+    public let contents: RecommendationContents
+}
+
+public struct RecommendationContents: Codable {
+    public let href: String
+    public let data: [AppleLibraryItem]
+}

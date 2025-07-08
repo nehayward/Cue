@@ -20,6 +20,7 @@ public final class AppleMusicBrowseService {
     public var usersRecentsAdded: OrderedSet<PlayableContent> = []
     public var userRadioStations: OrderedSet<PlayableContent> = []
     public var userStations: OrderedSet<PlayableContent> = []
+    public var recommendedAlbums: OrderedSet<PlayableContent> = []
 
     var offsets: [String: Int] = [:]
 
@@ -112,5 +113,13 @@ public final class AppleMusicBrowseService {
     public func albumLookup(id: String) async -> [PlayableContent] {
         guard let container = try? await apple.lookupUsersLibraryAlbum(id: id) else { return [] }
         return container.data.compactMap(\.toPlayable)
+    }
+
+    public func updateRecommendedAlbums(offset: Int = 0, limit: Int = 25) async {
+        guard let container = try? await apple.getUserRecommendations(offset: offset, limit: limit) else { return }
+        let newRecommendedAlbums = container.data.compactMap(\.toPlayable)
+        for newRecommendedAlbum in newRecommendedAlbums {
+            recommendedAlbums.updateOrAppend(newRecommendedAlbum)
+        }
     }
 }
