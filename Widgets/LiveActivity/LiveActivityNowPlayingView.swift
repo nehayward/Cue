@@ -97,18 +97,6 @@ struct LiveActivityNowPlayingView: View {
                         .tint(.primary)
                         .buttonStyle(.liveActivity)
                         
-                        Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
-                            Image(systemName: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
-                                .frame(width: 24, height: 24)
-                        }
-                        .tint(context.state.isMuted ? .accent : .primary)
-                        .labelStyle(.iconOnly)
-                        .symbolRenderingMode(.hierarchical)
-                        .toggleStyle(.button)
-                        .frame(width: 48, height: 32)
-                        .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
-
-                        
                         Button(intent: NextIntent(room: context.attributes.room)) {
                             Image(systemName: "forward.fill")
                                 .frame(width: 24, height: 24)

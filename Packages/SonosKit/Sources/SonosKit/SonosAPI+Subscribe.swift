@@ -15,7 +15,7 @@ extension SonosAPI {
         request.setValue("Second-500", forHTTPHeaderField: "TIMEOUT")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw NSError(domain: "MediaServerHandler", code: -2, userInfo: [NSLocalizedDescriptionKey: "Invalid response type"])

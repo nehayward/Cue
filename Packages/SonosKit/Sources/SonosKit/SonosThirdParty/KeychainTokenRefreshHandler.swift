@@ -13,6 +13,7 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     fileprivate var cache = MemoryFileCache.shared
     // Cache for credentials to avoid repeated keychain access
     private var cachedCredentials: [SonosServiceType: Credentials] = [:]
+    private let credentialsQueue = DispatchQueue(label: "com.clic.credentials", attributes: .concurrent)
     
     var deviceId: String? {
         get {
@@ -97,7 +98,7 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     }
     
     func getCredentials(for serviceType: SonosServiceType) async throws -> Credentials? {
-        if let cachedCredentials = cachedCredentials[serviceType] {
+        if let cachedCredentials = credentialsQueue.sync(execute: { cachedCredentials[serviceType] }) {
             return cachedCredentials
         }
         
@@ -134,7 +135,9 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             key: targetServer.key
         )
         
-        cachedCredentials[serviceType] = credentials
+        credentialsQueue.async(flags: .barrier) { [weak self] in
+            self?.cachedCredentials[serviceType] = credentials
+        }
         return credentials
     }
     
@@ -146,11 +149,15 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     }
     
     func invalidateCache() {
-        cachedCredentials.removeAll()
+        credentialsQueue.async(flags: .barrier) { [weak self] in
+            self?.cachedCredentials.removeAll()
+        }
     }
     
     func invalidateCache(for serviceType: SonosServiceType) {
-        cachedCredentials.removeValue(forKey: serviceType)
+        credentialsQueue.async(flags: .barrier) { [weak self] in
+            self?.cachedCredentials.removeValue(forKey: serviceType)
+        }
     }
     
     public func setCredentials(for server: MediaServer) {
@@ -164,6 +171,8 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             token: server.token,
             key: server.key
         )
-        cachedCredentials[server.type] = credentials
+        credentialsQueue.async(flags: .barrier) { [weak self] in
+            self?.cachedCredentials[server.type] = credentials
+        }
     }
 }

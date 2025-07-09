@@ -8,7 +8,7 @@ import Defaults
 final class SonosAPI: NSObject {
     typealias OrderedKeys = [(key: String, value: Any)]
     private let logger: Logger = Logger(subsystem: "com.sonos.nick", category: "SonosAPI")
-    private lazy var session: URLSession = privateSession
+    lazy var session: URLSession = privateSession
     private lazy var queueSession: URLSession = queueSessionConfig
 
     var xmlParser = XMLParserSonos()

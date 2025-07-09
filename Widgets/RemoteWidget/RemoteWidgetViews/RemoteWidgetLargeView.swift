@@ -74,6 +74,20 @@ struct RemoteWidgetLargeView: View {
                         )
                         .opacity(theater.nightMode ? 1 : 0.4)
                         .invalidatableContent()
+                        
+                        Toggle(isOn: entry.isMuted, intent: MuteIntent(room: room, mute: .toggle)) {
+                            Image(systemName: entry.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                                .frame(width: 24, height: 24)
+                        }
+                        .labelStyle(.iconOnly)
+                        .toggleStyle(.button)
+                        .frame(width: 40, height: 40) // Makes it a perfect circle
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(.fill)
+                        )
+                        .invalidatableContent()
 
                         Toggle(isOn: theater.dialogLevel, intent: SetSpeechEnhancementIntent(room: room, speechEnhancement: !theater.dialogLevel)) {
                             Label("Speech Enhancement", systemImage: "person.wave.2.fill")
