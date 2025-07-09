@@ -1,6 +1,7 @@
 # 2025.12
 
 –– New Features ––
+- Added SoundCloud browse library with liked tracks integration
 - Added batch editing functionality to Queue for managing multiple tracks at once
 - Added Up Next view to display upcoming items in the queue
 - Added Connectivity screen, allowing manual IP address assignment
@@ -15,6 +16,9 @@
 - Improve metadata performance
 
 ## ChangeLog
+- Added SoundCloud browse library with OAuth token support and secure keychain storage
+- Enhanced KeychainTokenRefreshHandler to support multiple music services
+- Updated SoundCloud API with dual authentication system (direct OAuth + Sonos service tokens)
 - Moved radio station to room, since it doesn't change track-to-track
 - Improved queue screen performance and identity handling for better track management
 - Add AudioPlayback service

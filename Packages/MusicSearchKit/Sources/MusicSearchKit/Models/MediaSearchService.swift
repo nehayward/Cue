@@ -43,7 +43,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .tuneIn:
             false
         case .soundcloud:
-            false
+            true
         }
     }
 

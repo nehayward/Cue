@@ -34,11 +34,11 @@ class MediaServerParser {
         let serialNumPattern = "SerialNum0=\"([^\"]+)\""
         let flagsPattern = "Flags0=\"([^\"]+)\""
         let tierPattern = "Tier0=\"([^\"]+)\""
-        
+//        <Service UDN=\"SA_RINCON40967_X_#Svc40967-7051ab01-Token\" NumAccounts=\"1\" Md0=\"\" Username0=\"X_#Svc40967-7051ab01-Token\" Nickname0=\"SoundCloud\" SerialNum0=\"23\" Flags0=\"4\" Tier0=\"0\" Token0=\"2-293826-573903807-gVpfW0z1P3iSGk\" Key0=\"\"/>
+
         guard let udn = extractValue(from: entry, pattern: udnPattern),
               let nickname = extractValue(from: entry, pattern: nicknamePattern),
               let token = extractValue(from: entry, pattern: tokenPattern),
-              let key = extractValue(from: entry, pattern: keyPattern),
               let serialNumStr = extractValue(from: entry, pattern: serialNumPattern),
               let flagsStr = extractValue(from: entry, pattern: flagsPattern),
               let tierStr = extractValue(from: entry, pattern: tierPattern),
@@ -47,12 +47,12 @@ class MediaServerParser {
               let tier = Int(tierStr) else {
             return nil
         }
-        
+        let key = extractValue(from: entry, pattern: keyPattern)
         return MediaServer(
             udn: udn,
             nickname: nickname,
             token: token,
-            key: key,
+            key: key ?? "",
             serialNum: serialNum,
             flags: flags,
             tier: tier

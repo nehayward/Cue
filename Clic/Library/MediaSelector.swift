@@ -23,10 +23,11 @@ struct MediaSelector: View {
         Menu {
             ForEach(MediaSearchService.allCases, id: \.self) { service in
                 if coreFeatures.enabledServices(service).wrappedValue, [
-                        MediaSearchService.apple,
-                        MediaSearchService.library,
-                        MediaSearchService.plex,
-                        .spotify
+                        .apple,
+                        .library,
+                        .plex,
+                        .spotify,
+                        .soundcloud
                     ]
                     .contains(service) {
                     Button {

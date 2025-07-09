@@ -56,7 +56,8 @@ public final class MusicSearchService {
 
     private let soundCloud = SoundCloudAPI(
         clientId: "iJ161hwUtTqVKptbddkz1NWBYpQDDIcl",
-        clientSecret: "zCcBaeVvBKX4R0eAwypLes8PmBknZnqI"
+        clientSecret: "zCcBaeVvBKX4R0eAwypLes8PmBknZnqI",
+        tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
@@ -923,11 +924,20 @@ public final class MusicSearchService {
         return tracks.map { createSoundCloudPlayableContent(from: $0) }
     }
     
+    // SoundCloud liked tracks
+    public func getSoundCloudLikedTracks() async -> [PlayableContent] {
+        guard let tracks = await soundCloud.getLikedTracks() else { return [] }
+        return tracks.map { createSoundCloudPlayableContent(from: $0) }
+    }
+    
     // Helper method to create PlayableContent from SoundCloudTrack
     private func createSoundCloudPlayableContent(from track: SoundCloudTrack) -> PlayableContent {
-        PlayableContent(
+        let artist = track.metadataArtist ?? track.user?.username ?? ""
+        let subtitle = artist.isEmpty ? (track.description ?? "") : artist
+        
+        return PlayableContent(
             title: track.title,
-            subtitle: track.description ?? "",
+            subtitle: subtitle,
             thumbnail: URL(string: track.artworkUrl ?? ""),
             artwork: track.artworkURLOriginal,
             content: MediaContent(
@@ -937,7 +947,7 @@ public final class MusicSearchService {
                 location: URL(string: track.permalinkUrl ?? "")
             ),
             metadata: .init(
-                artist: nil,
+                artist: artist.isEmpty ? nil : artist,
                 album: nil
             )
         )

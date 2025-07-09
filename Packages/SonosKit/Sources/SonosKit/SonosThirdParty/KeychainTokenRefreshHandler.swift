@@ -12,7 +12,7 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     
     fileprivate var cache = MemoryFileCache.shared
     // Cache for credentials to avoid repeated keychain access
-    private var cachedCredentials: Credentials?
+    private var cachedCredentials: [SonosServiceType: Credentials] = [:]
     
     var deviceId: String? {
         get {
@@ -88,9 +88,19 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     }
     
     func getCredentials() async throws -> Credentials? {
-        if let cachedCredentials {
+        return try await getCredentials(for: .spotify)
+    }
+    
+    func getCredentials(for service: String) async throws -> Credentials? {
+        // MARK: Fix for remaining services
+        return try await getCredentials(for: .soundcloud)
+    }
+    
+    func getCredentials(for serviceType: SonosServiceType) async throws -> Credentials? {
+        if let cachedCredentials = cachedCredentials[serviceType] {
             return cachedCredentials
         }
+        
         guard let deviceId, let householdId else {
             return nil
         }
@@ -99,18 +109,18 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             return nil
         }
         
-        let spotifyServers = servers.filter { $0.type == .spotify }
+        let serviceServers = servers.filter { $0.type == serviceType }
         let targetServer: MediaServer?
         
-        // Use primaryServer if more than 2 Spotify servers exist
-        if spotifyServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: .spotify) {
+        // Use primaryServer if more than 2 servers of this type exist
+        if serviceServers.count > 1, let primaryServer = primaryServer, let primaryKey = getKey(for: serviceType) {
             if let primaryUDN = primaryServer[primaryKey] {
-                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == .spotify })
+                targetServer = servers.first(where: { $0.id == primaryUDN && $0.type == serviceType })
             } else {
-                targetServer = spotifyServers.first
+                targetServer = serviceServers.first
             }
         } else {
-            targetServer = spotifyServers.first
+            targetServer = serviceServers.first
         }
         
         guard let targetServer = targetServer else {
@@ -124,12 +134,23 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             key: targetServer.key
         )
         
-        cachedCredentials = credentials
+        cachedCredentials[serviceType] = credentials
         return credentials
     }
     
+    func getAccessToken(for serviceType: SonosServiceType) async throws -> String? {
+        guard let credentials = try await getCredentials(for: serviceType) else {
+            return nil
+        }
+        return credentials.token
+    }
+    
     func invalidateCache() {
-        cachedCredentials = nil
+        cachedCredentials.removeAll()
+    }
+    
+    func invalidateCache(for serviceType: SonosServiceType) {
+        cachedCredentials.removeValue(forKey: serviceType)
     }
     
     public func setCredentials(for server: MediaServer) {
@@ -137,11 +158,12 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
             invalidateCache()
             return
         }
-        self.cachedCredentials = Credentials(
+        let credentials = Credentials(
             deviceId: deviceId,
             householdId: householdId,
             token: server.token,
             key: server.key
         )
+        cachedCredentials[server.type] = credentials
     }
 }

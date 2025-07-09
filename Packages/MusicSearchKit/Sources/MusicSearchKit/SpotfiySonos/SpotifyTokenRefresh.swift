@@ -18,6 +18,7 @@ public struct Credentials {
 public protocol TokenRefreshHandler {
     func handleTokenRefresh(householdId: String, token: String, key: String) async throws
     func getCredentials() async throws -> Credentials?
+    func getCredentials(for service: String) async throws -> Credentials?
 }
 
 public struct SpotifyTokenRefreshResponse {
