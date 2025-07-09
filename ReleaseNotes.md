@@ -13,8 +13,6 @@
 - Improved image loading and caching
 - Improve Connectivty on Apple Watch
 - Improve metadata performance
-- Extracted TV mode controls into reusable components for better SwiftUI performance
-- Fixed icon sizing inconsistency in TV mode controls
 
 ## ChangeLog
 - Moved radio station to room, since it doesn't change track-to-track
@@ -22,6 +20,8 @@
 - Add AudioPlayback service
 - Add previewURL to spotify
 - Add Up Next View
+- Extracted TV mode controls into reusable components for better SwiftUI performance
+- Fixed icon sizing inconsistency in TV mode controls
 
 # 2025.11
 

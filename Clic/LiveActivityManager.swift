@@ -42,8 +42,9 @@ final class LiveActivityManager: LiveActivityManageable {
             async let track = sonosService.getTrack(ip: group.coordinatorRoom.ip)
             async let playbackInfo = sonosService.getPlaybackInfo(ip: group.coordinatorRoom.ip)
             async let groupVolume = sonosService.getGroupVolume(ip: group.coordinatorRoom.ip)
-            
-            guard let info = try? await (track, playbackInfo, groupVolume) else { return }
+            async let isMuted = sonosService.isMuted(for: group)
+
+            guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { return }
             if let track = info.0 {
                 if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback, group.coordinatorRoom.track.playbackPosition != track.playbackPosition  {
                     group.coordinatorRoom.track.playbackPosition = track.playbackPosition
@@ -53,6 +54,7 @@ final class LiveActivityManager: LiveActivityManageable {
             }
             group.coordinatorRoom.isPlaying = info.1 == .playing
             group.groupVolume = info.2
+            group.isMuted = info.3 ?? false
             
             if group.coordinatorRoom.track == .empty {
                 artworkManager.removeArtwork(coordinatorRoom: group.nameWithCount)
