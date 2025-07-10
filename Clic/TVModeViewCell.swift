@@ -3,18 +3,19 @@ import SonosKit
 
 struct TVModeViewCell: View {
     @Environment(Router.self) var routePath: Router
-    @Binding var group: GroupRoom
+    var group: GroupRoom
 
     var body: some View {
         VStack {
-            if let settings = Binding<TVSettings>($group.tvSettings) {
-                Text(settings.wrappedValue.audioInputFormat.description)
+            if let settings = group.tvSettings {
+                Text(settings.audioInputFormat.description)
                     .bold()
                     .tint(.primary)
                 HStack {
                     Button {
                         Task {
-                            try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
                             group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
                     } label: {
@@ -23,18 +24,19 @@ struct TVModeViewCell: View {
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .foregroundStyle(settings.nightMode.wrappedValue ? .accent : .secondary.opacity(0.8))
+                            .foregroundStyle(settings.nightMode ? .accent : .secondary.opacity(0.8))
                             .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
-                    .tint(settings.nightMode.wrappedValue ? .accent : nil)
-                    .animation(.spring, value: settings.nightMode.wrappedValue)
+                    .tint(settings.nightMode ? .accent : nil)
+                    .animation(.spring, value: settings.nightMode)
                     
                     MuteButton(group: group)
 
                     Button {
                         Task {
-                            try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel)
                             group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                         }
                     } label: {
@@ -43,13 +45,13 @@ struct TVModeViewCell: View {
                             .symbolRenderingMode(.hierarchical)
                             .labelStyle(.iconOnly)
                             .toggleStyle(.button)
-                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                            .foregroundStyle(settings.dialogLevel ? .accent : .secondary.opacity(0.8))
                             .frame(width: 40, height: 36)
                     }
                     .buttonStyle(.bordered)
-                    .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                    .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
-                    .animation(.spring, value: settings.dialogLevel.wrappedValue)
+                    .foregroundStyle(settings.dialogLevel ? .accent : .secondary.opacity(0.8))
+                    .tint(settings.dialogLevel ? .accent : nil)
+                    .animation(.spring, value: settings.dialogLevel)
                 }
             }
         }
@@ -72,7 +74,7 @@ struct TVModeViewCell: View {
 
 #Preview {
     List {
-        TVModeViewCell(group: .constant(.theater))
+        TVModeViewCell(group: .theater)
             .environment(SonosService())
     }
 }

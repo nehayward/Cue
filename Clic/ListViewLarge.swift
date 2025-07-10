@@ -40,7 +40,7 @@ struct ListViewLarge: View {
                 if group.coordinatorRoom.state == .active {
                     VStack(spacing: 12) {
                         if group.TVMode {
-                            TVModeViewCell(group: $group)
+                            TVModeViewCell(group: group)
                                 .transition(.asymmetric(
                                     insertion: .opacity,
                                     removal: .opacity.animation(.snappy(duration: 0))

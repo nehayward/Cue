@@ -10,8 +10,15 @@ struct ContentArtworkView: View {
     var showMusicSource: Bool = true
     var preferredSize: Double = 50.0
     
+    fileprivate var imageIDKey: String {
+        if let albumID = content.metadata?.album, !albumID.isEmpty {
+            return albumID
+        }
+        return content.id
+    }
+    
     var body: some View {
-        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: content.metadata?.album ?? content.id])) { state in
+        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: imageIDKey])) { state in
             if let image = state.image {
                 image
                     .resizable()

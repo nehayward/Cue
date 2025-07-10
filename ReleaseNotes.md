@@ -6,7 +6,8 @@
 - Added Up Next view to display upcoming items in the queue
 - Added Connectivity screen, allowing manual IP address assignment
 - Added Recommended Albums section to Apple Music library with personalized album suggestions
-- Add Mute Button to Live Activity and Speaker List
+- Add Mute Button to Live Activity, Speaker List, and Widgets
+- Add pull to refresh Local Sonos Library
 
 –– Bug Fixes & Improvements ––
 - Fixed an issue where tracks were not updating correctly when using Spotify Connect

@@ -32,7 +32,7 @@ struct DeviceListMainView: View {
                         } label: {
                             VStack(spacing: 12) {
                                 ZStack {
-                                    TVModeViewCell(group: $group)
+                                    TVModeViewCell(group: group)
                                         .transition(.asymmetric(
                                             insertion: .opacity,
                                             removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
