@@ -11,7 +11,7 @@ final class SonosTrackParser {
         
         let position = Int(extractValue(between: "<Track>", and: "</Track>", from: bodyContent) ?? "0") ?? 0
         let trackDuration = extractValue(between: "<TrackDuration>", and: "</TrackDuration>", from: bodyContent)
-        let trackURI = extractValue(between: "<TrackURI>", and: "</TrackURI>", from: bodyContent) ?? ""
+        var trackURI = extractValue(between: "<TrackURI>", and: "</TrackURI>", from: bodyContent) ?? ""
         
         // Extract metadata section
         if let metadataContent = extractValue(between: "<TrackMetaData>", and: "</TrackMetaData>", from: bodyContent.unescaped),
@@ -33,7 +33,7 @@ final class SonosTrackParser {
                 albumArtURI: albumArtURI,
                 streamInfo: streamContent.isEmpty ? nil : SonosAudioStreamInfo.parse(from: streamContent)
             )
-            let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
+            var (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
 
             let ip = preferredIP ?? ip
             let albumArtURL: URL?
@@ -45,6 +45,22 @@ final class SonosTrackParser {
                 albumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
             }
 
+            
+            // If trackID is empty and it's a Sonos service, extract from <res> tag
+            if trackID.isEmpty, musicServiceType == .spotify {
+                if let resContent = extractValue(between: "<res", and: "</res>", from: itemContent),
+                   let resStart = resContent.range(of: ">")?.upperBound {
+                    let resURI = String(resContent[resStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    // Extract track ID from res URI like "x-sonos-spotify:spotify:track:0vOkmmJEtjuFZDzrQSFzEE"
+                    if let trackMatch = resURI.range(of: "track:") {
+                        let afterTrack = resURI[trackMatch.upperBound...]
+                        let extractedID = String(afterTrack.prefix(while: { $0.isLetter || $0.isNumber }))
+                        if !extractedID.isEmpty {
+                            trackID = extractedID
+                        }
+                    }
+                }
+            }
             
             return SonosTrack(
                 trackID: trackID,
@@ -95,7 +111,9 @@ final class SonosTrackParser {
               let endRange = text[range...].range(of: endTag)?.lowerBound else {
             return nil
         }
-        return String(text[range..<endRange])
+        
+        let content = String(text[range..<endRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return content.isEmpty ? nil : content
     }
     
     // Helper function to parse track metadata

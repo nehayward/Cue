@@ -35,10 +35,25 @@ final class SonosTrackParser {
             let albumArtist = extractValue(between: "<r:albumArtist>", and: "</r:albumArtist>", from: itemContent)
             let albumArtURI = extractValue(between: "<upnp:albumArtURI>", and: "</upnp:albumArtURI>", from: itemContent) ?? ""
             
-            
             let duration = parseTime(bodyContent.unescaped, for: "TrackDuration")
             let playbackPosition = parseTime(bodyContent.unescaped)
-            let (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
+            var (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
+            
+            // If trackID is empty and it's a Sonos service, extract from <res> tag
+            if trackID.isEmpty, musicServiceType == .spotify {
+                if let resContent = extractValue(between: "<res", and: "</res>", from: itemContent),
+                   let resStart = resContent.range(of: ">")?.upperBound {
+                    let resURI = String(resContent[resStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    // Extract track ID from res URI like "x-sonos-spotify:spotify:track:0vOkmmJEtjuFZDzrQSFzEE"
+                    if let trackMatch = resURI.range(of: "track:") {
+                        let afterTrack = resURI[trackMatch.upperBound...]
+                        let extractedID = String(afterTrack.prefix(while: { $0.isLetter || $0.isNumber }))
+                        if !extractedID.isEmpty {
+                            trackID = extractedID
+                        }
+                    }
+                }
+            }
             
             let ip = preferredIP ?? ip
             var sonosAlbumArtURL: URL?
@@ -59,7 +74,7 @@ final class SonosTrackParser {
                 title = "Line In"
             }
             
-            if trackURI.contains("sonos") {
+            if trackURI.contains("sonos"), musicServiceType != .spotify {
                 // Decode HTML entities
                 let htmlDecoded = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
 

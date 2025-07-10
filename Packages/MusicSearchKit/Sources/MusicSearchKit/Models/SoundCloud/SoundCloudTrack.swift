@@ -40,3 +40,27 @@ public struct SoundCloudUser: Codable {
     public let trackCount: Int?
     public let playlistCount: Int?
 }
+
+// MARK: - Paginated Response Models
+public struct SoundCloudPaginatedResponse<T: Codable>: Codable {
+    public let collection: [T]
+    public let nextHref: String?
+    
+    public var hasMore: Bool {
+        return nextHref != nil
+    }
+    
+    public var nextCursor: String? {
+        guard let nextHref = nextHref else { return nil }
+        return extractCursor(from: nextHref)
+    }
+    
+    private func extractCursor(from urlString: String) -> String? {
+        guard let url = URL(string: urlString),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let cursorItem = components.queryItems?.first(where: { $0.name == "cursor" }) else {
+            return nil
+        }
+        return cursorItem.value
+    }
+}

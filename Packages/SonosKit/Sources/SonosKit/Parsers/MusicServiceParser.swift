@@ -97,10 +97,19 @@ final class MusicServiceParser {
     }
     
     private func extractSpotifyTrackID(from uri: String) -> TrackID {
-        let pattern = #/track:(\w*)/#
-        if let result = try? pattern.firstMatch(in: uri) {
-            return String(result.1)
+        let targetURI = uri
+        // Handle x-sonos-vli format (e.g., "x-sonos-vli:RINCON_...:2,spotify:28099c6bb26870fe799d4e6daf684823")
+        if uri.contains("x-sonos-vli:") && uri.contains(",") {
+            return ""
         }
+        
+        // Extract Spotify track ID using regex pattern
+        let pattern = #/spotify:track:(\w+)|track:(\w+)/#
+        if let result = try? pattern.firstMatch(in: targetURI) {
+            // Return the first non-nil capture group
+            return String(result.1 ?? result.2 ?? "")
+        }
+        
         return ""
     }
     

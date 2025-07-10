@@ -117,20 +117,26 @@ public final class SoundCloudAPI {
         }
     }
     
-    public func getLikedTracks(limit: Int = 50, offset: Int = 0) async -> [SoundCloudTrack]? {
+    public func getLikedTracks(limit: Int = 50, cursor: String? = nil) async -> SoundCloudPaginatedResponse<SoundCloudTrack>? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.soundcloud.com"
         components.path = "/me/likes/tracks"
         components.queryItems = [
+            URLQueryItem(name: "linked_partitioning", value: "true"),
             URLQueryItem(name: "limit", value: "\(limit)")
         ]
+        
+        // Only add cursor if it's not nil
+        if let cursor = cursor {
+            components.queryItems?.append(URLQueryItem(name: "cursor", value: cursor))
+        }
         
         guard let url = components.url else { return nil }
         
         do {
-            let tracks: [SoundCloudTrack] = try await authorizedRequestWithDirectToken(url)
-            return tracks
+            let response: SoundCloudPaginatedResponse<SoundCloudTrack> = try await authorizedRequestWithDirectToken(url)
+            return response
         } catch {
             print(error)
             logger.error("Get liked tracks failed: \(error.localizedDescription)")

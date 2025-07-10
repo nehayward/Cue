@@ -925,9 +925,13 @@ public final class MusicSearchService {
     }
     
     // SoundCloud liked tracks
-    public func getSoundCloudLikedTracks() async -> [PlayableContent] {
-        guard let tracks = await soundCloud.getLikedTracks() else { return [] }
-        return tracks.map { createSoundCloudPlayableContent(from: $0) }
+    public func getSoundCloudLikedTracks(cursor: String? = nil) async -> (tracks: [PlayableContent], nextCursor: String?) {
+        guard let response = await soundCloud.getLikedTracks(cursor: cursor) else { 
+            return (tracks: [], nextCursor: nil) 
+        }
+        
+        let tracks = response.collection.map { createSoundCloudPlayableContent(from: $0) }
+        return (tracks: tracks, nextCursor: response.nextCursor)
     }
     
     // Helper method to create PlayableContent from SoundCloudTrack

@@ -21,6 +21,19 @@ final class MusicServiceParser {
     // MARK: - Private Methods
     
     private func determineServiceType(from xml: String, trackURI: String) -> SonosMusicServiceType {
+        // Handle x-sonos-vli format first (e.g., "x-sonos-vli:RINCON_...:2,spotify:...")
+        if trackURI.contains("x-sonos-vli:") && trackURI.contains(",") {
+            let components = trackURI.components(separatedBy: ",")
+            if components.count > 1 {
+                let serviceURI = components[1]
+                if serviceURI.contains("spotify") {
+                    return .spotify
+                } else if serviceURI.contains("apple") || serviceURI.contains("song") {
+                    return .apple
+                }
+            }
+        }
+        
         // Check in order of most specific to least specific patterns
         switch true {
         case trackURI.contains("airplay"):             return .airplay
@@ -79,10 +92,27 @@ final class MusicServiceParser {
     }
     
     private func extractSpotifyTrackID(from uri: String) -> TrackID {
-        let pattern = #/track:(\w*)/#
-        if let result = try? pattern.firstMatch(in: uri) {
-            return String(result.1)
+        var targetURI = uri
+        
+        // Handle x-sonos-vli format (e.g., "x-sonos-vli:RINCON_...:2,spotify:28099c6bb26870fe799d4e6daf684823")
+        if uri.contains("x-sonos-vli:") && uri.contains(",") {
+            let components = uri.components(separatedBy: ",")
+            if components.count > 1 {
+                targetURI = components[1]
+                // For VLI format like "spotify:28099c6bb26870fe799d4e6daf684823", extract just the ID
+                if targetURI.hasPrefix("spotify:") && !targetURI.contains("track:") {
+                    return String(targetURI.dropFirst("spotify:".count))
+                }
+            }
         }
+        
+        // Extract Spotify track ID using regex pattern
+        let pattern = #/spotify:track:(\w+)|track:(\w+)/#
+        if let result = try? pattern.firstMatch(in: targetURI) {
+            // Return the first non-nil capture group
+            return String(result.1 ?? result.2 ?? "")
+        }
+        
         return ""
     }
     

@@ -28,12 +28,21 @@ struct SoundCloudBrowseScreen: View {
                         .scrollClipDisabled()
                     } header: {
                         NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Liked Tracks", action: { offset in
-                            await soundCloudBrowseService.updateLikedTracks()
-                            return Array(soundCloudBrowseService.likedTracks)
+                            // If we need more tracks and can load more, load them
+                            if offset >= soundCloudBrowseService.likedTracks.count && soundCloudBrowseService.canLoadMore {
+                                await soundCloudBrowseService.loadMoreTracks()
+                            }
+                            // Return the tracks up to the requested offset
+                            return Array(soundCloudBrowseService.likedTracks.prefix(offset + 50))
                         })) {
                             HStack {
                                 Label("Liked Tracks", systemImage: "heart.fill")
                                 Spacer()
+                                if soundCloudBrowseService.canLoadMore {
+                                    Text("\(soundCloudBrowseService.loadedTrackCount)+")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                                 Image(systemName: "chevron.right")
                             }
                             .frame(maxWidth: .infinity)

@@ -38,7 +38,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     // MARK: - Initialization
     override init() {
         super.init()
-        setupAudioSession()
     }
     
     // MARK: - Public Methods
@@ -83,6 +82,11 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         duration = 0
         currentTrack = nil
         stopProgressObserver()
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+        } catch {
+            print(error)
+        }
     }
     
     @MainActor
@@ -95,16 +99,17 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     // MARK: - Private Methods
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             print("Failed to setup audio session: \(error)")
         }
     }
-    
-    
+        
     @MainActor
     private func playAudioData(_ data: Data) async throws {
+        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
+        try AVAudioSession.sharedInstance().setActive(true)
         audioPlayer = try AVAudioPlayer(data: data)
         audioPlayer?.delegate = self
         audioPlayer?.volume = volume

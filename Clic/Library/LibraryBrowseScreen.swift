@@ -77,6 +77,10 @@ struct LibraryBrowseScreen: View {
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)
             .fontDesign(.rounded)
+            .refreshable {
+                AlertService.shared.showAlert(with: "Refreshing Library")
+                await SonosService.shared.refreshLibrary()
+            }
             .task {
                 await browseService.updatePlaylists()
             }

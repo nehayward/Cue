@@ -1,7 +1,7 @@
 # 2025.12
 
 –– New Features ––
-- Added SoundCloud browse library with liked tracks integration
+- Added SoundCloud browse library to show Liked Tracks
 - Added batch editing functionality to Queue for managing multiple tracks at once
 - Added Up Next view to display upcoming items in the queue
 - Added Connectivity screen, allowing manual IP address assignment
@@ -9,6 +9,8 @@
 - Add Mute Button to Live Activity and Speaker List
 
 –– Bug Fixes & Improvements ––
+- Fixed an issue where tracks were not updating correctly when using Spotify Connect
+- Fix bug from stopping playback from other apps.
 - Improve cell contrasts
 - Fixed Radio Station Name not displaying in some cases
 - Improved image loading and caching
@@ -16,6 +18,7 @@
 - Improve metadata performance
 
 ## ChangeLog
+- Fix pagination for Soundcloud, they use cursor pagination
 - Added SoundCloud browse library with OAuth token support and secure keychain storage
 - Enhanced KeychainTokenRefreshHandler to support multiple music services
 - Updated SoundCloud API with dual authentication system (direct OAuth + Sonos service tokens)
