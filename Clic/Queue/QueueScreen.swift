@@ -412,8 +412,6 @@ fileprivate struct MoreInfoView: View {
             } label: {
                 Text("Clear Queue")
             }
-            .disabled(group.coordinatorRoom.queue.isEmpty)
-            
         } label: {
             Image(systemName: "ellipsis")
                 .frame(height: 44)

@@ -10,6 +10,9 @@ struct ContentArtworkView: View {
     var showMusicSource: Bool = true
     var preferredSize: Double = 50.0
     
+    @State private var fetchedArtworkURL: URL?
+    @State private var isLoadingArtwork = false
+    
     fileprivate var imageIDKey: String {
         if let albumID = content.metadata?.album, !albumID.isEmpty {
             return albumID
@@ -17,8 +20,22 @@ struct ContentArtworkView: View {
         return content.id
     }
     
+    private var artworkURL: URL? {
+        // First try the original thumbnail
+        if let thumbnail = content.thumbnail {
+            return thumbnail
+        }
+        
+        // If no thumbnail and this is a library artist, try the fetched artwork
+        if content.content.type == .artist, content.content.service == .library {
+            return fetchedArtworkURL
+        }
+        
+        return nil
+    }
+
     var body: some View {
-        LazyImage(request: ImageRequest(url: content.thumbnail, processors: [.resize(width: preferredSize)], userInfo: [.imageIdKey: imageIDKey])) { state in
+        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) { state in
             if let image = state.image {
                 image
                     .resizable()
@@ -40,13 +57,25 @@ struct ContentArtworkView: View {
                     }
             }
         }
+        .id(fetchedArtworkURL)
         .clipShape(contentShape)
         .overlay(alignment: .bottomTrailing) {
             if showMusicSource {
                 OverlayIcons(content: content)
             }
+            if isLoadingArtwork {
+                ProgressView()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .task {
+            if content.content.type == .artist, content.content.service == .library {
+                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) {
+                    return
+                }
+                await fetchArtworkIfNeeded()
+            }
+        }
     }
     
     private var contentShape: some Shape {
@@ -55,6 +84,17 @@ struct ContentArtworkView: View {
         } else {
             return AnyShape(RoundedRectangle(cornerRadius: 4))
         }
+    }
+    
+    private func fetchArtworkIfNeeded() async {
+        guard fetchedArtworkURL == nil, content.thumbnail == nil else {
+            return
+        }
+        
+        isLoadingArtwork = true
+        let artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
+        fetchedArtworkURL = artworkURL
+        isLoadingArtwork = false
     }
 }
 

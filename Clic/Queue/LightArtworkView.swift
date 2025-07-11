@@ -11,9 +11,16 @@ struct LightArtworkView: View {
     var showMusicSource: Bool
     @State var thumbnail: URL?
     
+    fileprivate var imageIDKey: String {
+        if let albumID = content.metadata?.album, !albumID.isEmpty {
+            return albumID
+        }
+        return content.id
+    }
+    
     var body: some View {
         VStack {
-            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.metadata?.album ?? content.id, .thumbnailKey: true])) { state in
+            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) { state in
                 if let image = state.image {
                     image
                         .resizable()
@@ -47,7 +54,7 @@ struct LightArtworkView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
         .task {
-            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: content.metadata?.album ?? content.id, .thumbnailKey: true])) {
+            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) {
                 return
             }
             

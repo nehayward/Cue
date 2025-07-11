@@ -17,6 +17,7 @@
 - Improved image loading and caching
 - Improve Connectivty on Apple Watch
 - Improve metadata performance
+- Resolved an issue where artwork was not displayed for library artists
 
 ## ChangeLog
 - Fix pagination for Soundcloud, they use cursor pagination
