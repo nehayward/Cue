@@ -63,7 +63,7 @@ public final class SpotifyAPI {
         }
     }
 
-    public func search(for query: String, limit: Int = 50, types: Set<SpotifyType>) async -> SpotifyResult? {
+    public func search(for query: String, limit: Int = 30, types: Set<SpotifyType>) async -> SpotifyResult? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"

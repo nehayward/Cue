@@ -43,6 +43,10 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
                         content
                     }
+                case .folder:
+                    NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
+                        folderContent
+                    }
                 case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack:
                     content
                 }
@@ -128,6 +132,26 @@ struct PlayableContentView: View {
         .draggable(item)
         .listRowSeparator(.hidden, edges: .all)
         .animation(.snappy, value: selectedGroupService?.group?.coordinatorRoom.track.trackID)
+    }
+    
+    private var folderContent: some View {
+        Label {
+            Text(item.title)
+            Text(item.content.type.title)
+                .truncationMode(.head)
+                .foregroundStyle(.secondary)
+        } icon: {
+            Image(systemName: "folder.fill")
+                .foregroundStyle(.accent)
+                .frame(width: 50, height: 50)
+        }
+        .lineLimit(1)
+        .fontDesign(.rounded)
+        .contextMenu {
+            if adding == nil, !hideDetails {
+                PlayableMenuView(item: item)
+            }
+        }
     }
 
     private func play(position: QueuePosition = .now) {

@@ -35,7 +35,12 @@ final class LibraryParser {
                 contentType = .libraryImportedPlaylists
             }
             
-            let resourceURI = extract(field: "res", from: itemXML) ?? ""
+            var resourceURI = extract(field: "res", from: itemXML) ?? ""
+            
+            // For containers (folders), extract the ID from the container element instead of res
+            if contentType == .folder {
+                resourceURI = extractAttribute(name: "id", from: itemXML) ?? ""
+            }
             
             let mediaContent = MediaContent(service: .library,
                                             id: resourceURI,
@@ -43,7 +48,8 @@ final class LibraryParser {
                                             location: nil)
             
             let metadata = PlayableContentMetadata(artist: artist,
-                                                   album: contentType == .album ? title : album)
+                                                   album: contentType == .album ? title : album,
+                                                   URIMetadata: "")
             
             let content = PlayableContent(title: title.removingHTMLEntities(),
                                           subtitle: [artist, album].compactMap { $0?.removingHTMLEntities() }.filter { !$0.isEmpty }.joined(separator: " • "),

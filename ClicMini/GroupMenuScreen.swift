@@ -241,7 +241,7 @@ struct GroupItemView: View {
                     }
                     .foregroundStyle(.primary)
                 } else {
-                    TVView(device: $device)
+                    TVView(device: device)
                         .transition(.scale.combined(with: .opacity))
                 }
                 

@@ -369,6 +369,8 @@ extension View {
                 }
             case .genreList:
                 GenreListView()
+            case let .folderBrowse(item: item, title: title):
+                FolderBrowseView(item: item, title: title)
             case .connectByIP:
                 ConnectByIPScreen()
             }

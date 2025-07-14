@@ -25,6 +25,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case spotifyUserPlaylist
     case genreList
     case playableList(title: String, action: ((Int) async -> [PlayableContent]))
+    case folderBrowse(item: PlayableContent, title: String)
     case connectByIP
 
     public var id: String {
@@ -69,8 +70,10 @@ public enum RouterDestination: Hashable, Identifiable {
             return "genre"
         case .playableList(let title, _):
             return title
-        default:
-            return self.id
+        case .folderBrowse(let item, _):
+            return item.id
+        case .connectByIP:
+            return "connectByIP"
         }
     }
 
@@ -104,6 +107,8 @@ public enum RouterDestination: Hashable, Identifiable {
             return items1.wrappedValue == items2.wrappedValue
         case let (.playableList(title, _), .playableList(title2, _)):
             return title == title2
+        case let (.folderBrowse(folderID1, title1), .folderBrowse(folderID2, title2)):
+            return folderID1 == folderID2 && title1 == title2
         case let (.playableGridScreen(_, items1, _), .playableGridScreen(_, items2, _)):
             return items1.wrappedValue == items2.wrappedValue
         case (.fullPlayHistoryList, .fullPlayHistoryList):
@@ -163,8 +168,11 @@ public enum RouterDestination: Hashable, Identifiable {
             hasher.combine("genreList")
         case .playableList(let title, action: _):
             hasher.combine(title)
-        default:
-            hasher.combine(self)
+        case .folderBrowse(let folderID, let title):
+            hasher.combine(folderID)
+            hasher.combine(title)
+        case .connectByIP:
+            hasher.combine("connectByIP")
         }
     }
 }

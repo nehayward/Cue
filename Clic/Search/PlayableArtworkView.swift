@@ -44,6 +44,8 @@ struct PlayableArtworkView: View {
     
     private func primaryAction() {
         switch item.content.type {
+        case .folder:
+            router?.navigate(to: .folderBrowse(item: item, title: item.title))
         case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
             router?.navigate(to: .mediaDetail(content: item, group: selectedGroupService?.group))
         case .artist, .libraryArtist:

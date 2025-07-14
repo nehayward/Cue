@@ -138,7 +138,7 @@ struct PlayableMenuView: View {
 //                    }
 //                }
 //                #endif
-            case .radio, .favorite:
+            case .radio, .favorite, .folder:
                 Button {
                     play()
                 } label: {

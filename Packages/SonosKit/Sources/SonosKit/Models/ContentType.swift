@@ -16,6 +16,7 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     case libraryAlbum
     case libraryArtist
     case libraryImportedPlaylists
+    case folder
 
     public init?(_ type: String) {
         switch type.lowercased() {
@@ -39,6 +40,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             self = .radio
         case let str where str.contains("favorite"):
             self = .favorite
+        case let str where str == "object.container":
+            self = .folder
         default:
             return nil
         }
@@ -68,6 +71,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Imported Playlists"
         case .radio, .artistRadio, .songRadio:
             "Radio"
+        case .folder:
+            "Folder"
         }
     }
     
@@ -95,6 +100,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "library-imported-playlist"
         case .radio, .artistRadio, .songRadio:
             "radio"
+        case .folder:
+            "folder"
         }
     }
     
@@ -112,6 +119,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             return "radio.fill"
         case .favorite:
             return "star.fill"
+        case .folder:
+            return "folder.fill"
         }
     }
     

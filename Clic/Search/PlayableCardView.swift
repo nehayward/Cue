@@ -92,6 +92,8 @@ struct PlayableCardView: View {
                 router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
             case .track, .favorite, .radio, .artistRadio, .songRadio:
                 play()
+            case .folder:
+                router.navigate(to: .folderBrowse(item: item, title: item.title))
             case .libraryTrack:
                 break
             }

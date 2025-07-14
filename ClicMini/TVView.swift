@@ -3,7 +3,7 @@ import SonosKitMini
 
 struct TVView: View {
     @Environment(SonosMiniService.self) var sonosService
-    @Binding var device: SonosDevice
+    var device: SonosDevice
     
     var body: some View {
         VStack {

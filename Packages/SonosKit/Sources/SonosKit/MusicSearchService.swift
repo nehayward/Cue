@@ -813,10 +813,10 @@ public final class MusicSearchService {
         let normalizedPopularity = min(popularityScore / maxPopularity, 1.0)
         
         // Weighting factors
-        let titleWeight = 0.25
+        let titleWeight = 0.3
         let subtitleWeight = 0.10
-        let popularityWeight = 0.40
-        let libraryWeight = 0.25
+        let popularityWeight = 0.5
+        let libraryWeight = 0.1
         
         // Calculate weighted score
         let weightedScore =

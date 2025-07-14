@@ -399,7 +399,7 @@ fileprivate struct MoreInfoView: View {
                 Text("Save Queue")
                 Text("Create Sonos Playlist")
             }
-            .disabled(group.coordinatorRoom.queue.isEmpty)
+
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Router.main.presentedSheet = .search(group: group)

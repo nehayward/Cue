@@ -393,7 +393,7 @@ struct ClicApp: App {
 //                .keyboardShortcut("0")
 //            }
         }
-//        WindowGroup(id: "mini") {
+//        Window(id: "mini") {
 //            VStack {
 //                MiniPlayerView()
 //                    .environment(SelectedGroupService(group: sonosService.selectedGroup))

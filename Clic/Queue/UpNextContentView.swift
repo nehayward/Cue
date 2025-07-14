@@ -108,6 +108,7 @@ struct UpNextContentView: View {
         isPaginating = false // Reset pagination state
         currentStartingIndex = group.coordinatorRoom.track.position // Start from current track position (0-based for API)
         upNext = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: currentStartingIndex, total: pageSize)
+        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
         isLoading = false
     }
     

@@ -16,6 +16,7 @@ public final class LibraryBrowseService {
     public var genres: OrderedSet<PlayableContent> = []
     public var playlists: OrderedSet<PlayableContent> = []
     public var importedPlaylists: OrderedSet<PlayableContent> = []
+    public var folders: OrderedSet<PlayableContent> = []
 
     public init() { }
 
@@ -67,5 +68,20 @@ public final class LibraryBrowseService {
         guard let ip = sonosService.prioritizedIP() else { return }
         let newPlaylists = await sonosAPI.getLibraryItems(IP: ip, type: .playlist, offset: 0, requestedCount: 0)
         playlists = OrderedSet(newPlaylists)
+    }
+    
+    @MainActor
+    public func updateFolders(offset: Int = 0) async {
+        guard let ip = sonosService.prioritizedIP() else { return }
+        let newFolders = await sonosAPI.getLibraryItems(IP: ip, type: "S:", offset: offset, requestedCount: 500)
+        for newFolder in newFolders {
+            folders.updateOrAppend(newFolder)
+        }
+    }
+    
+    @MainActor
+    public func browseFolder(folderID: String, offset: Int = 0) async -> [PlayableContent] {
+        guard let ip = sonosService.prioritizedIP() else { return [] }
+        return await sonosAPI.getLibraryItems(IP: ip, type: folderID, offset: offset, requestedCount: 500)
     }
 }

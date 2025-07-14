@@ -43,6 +43,12 @@ struct LibraryBrowseScreen: View {
                     Label("Genres", systemImage: "theatermasks.fill")
                 }
 
+                NavigationLink(value: RouterDestination.playableLibraryList(title: "Folders", items: $browseService.folders, action: { offset in
+                    await browseService.updateFolders(offset: offset)
+                })) {
+                    Label("Folders", systemImage: "folder.fill")
+                }
+
                 NavigationLink(value: RouterDestination.playableLibraryList(title: "Imported Playlists", items: $browseService.importedPlaylists, action: { offset in
                     await browseService.updateImportedPlaylists()
                 })) {

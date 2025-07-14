@@ -10,6 +10,7 @@
 - Add pull to refresh Local Sonos Library
 
 –– Bug Fixes & Improvements ––
+- Resolved an issue where artwork was not displayed for library artists
 - Fixed an issue where tracks were not updating correctly when using Spotify Connect
 - Fix bug from stopping playback from other apps.
 - Improve cell contrasts
@@ -17,7 +18,6 @@
 - Improved image loading and caching
 - Improve Connectivty on Apple Watch
 - Improve metadata performance
-- Resolved an issue where artwork was not displayed for library artists
 
 ## ChangeLog
 - Fix pagination for Soundcloud, they use cursor pagination
@@ -95,6 +95,7 @@
 - Added the ability to disable Live Activities for individual speakers.
 - Introduced support for Fixed Volume speakers.
 - Added library selection for Plex integration.
+- Add Library Folder support.
 
 –– Bug Fixes & Improvements ––
 - Fixed an issue where album art would not update correctly.

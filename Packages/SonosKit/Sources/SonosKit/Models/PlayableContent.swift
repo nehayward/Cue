@@ -65,6 +65,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)"
         case (.favorite, _):
             return id
+        case (.folder, .library):
+            return "x-rincon-playlist:RINCON_C43875EE4CCE01400#\(id)"
         case (_, .library):
             return id
         case (.track, .plex):
@@ -251,6 +253,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "object.container.album"
         case (.playlist, .library):
             return "object.container.playlistContainer"
+        case (.folder, .library):
+            return "object.container"
         default:
             return ""
         }
