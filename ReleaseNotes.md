@@ -8,6 +8,8 @@
 - Added Recommended Albums section to Apple Music library with personalized album suggestions
 - Add Mute Button to Live Activity, Speaker List, and Widgets
 - Add pull to refresh Local Sonos Library
+- Add Apple Music Playlist folders
+- Add Library Folders
 
 –– Bug Fixes & Improvements ––
 - Resolved an issue where artwork was not displayed for library artists
