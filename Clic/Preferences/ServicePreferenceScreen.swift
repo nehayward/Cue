@@ -84,6 +84,21 @@ struct ServicePreferenceScreen: View {
                     }
                 }
             }
+            #if DEBUG
+            Section("Discovered") {
+                ForEach(servers) { server in
+                    VStack(alignment: .leading) {
+                        Text(server.type.rawValue)
+                        Text(server.name)
+                        Text(server.id)
+                        Text("\(server.token)")
+                            .textSelection(.enabled)
+                        Text("Region: \(Locale.current.region?.identifier ?? "Unknown")")
+                        Text("Current: \(Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311")")
+                    }
+                }
+            }
+            #endif
             Section {
                 Text("To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Clic search under \"[Sonos Favorites](clic://search/favorites).\"")
             } header: {

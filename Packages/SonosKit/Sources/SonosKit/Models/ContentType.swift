@@ -22,6 +22,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
         switch type.lowercased() {
         case let str where str.contains("library-songs"):
             self = .libraryTrack
+        case let str where str.contains("library-playlist-folders"):
+            self = .folder
         case let str where str.contains("library-playlist"):
             self = .libraryPlaylist
         case let str where str.contains("library-album"):

@@ -49,6 +49,32 @@ struct AppleLibraryBrowseScreen: View {
                 }
                 
                 Section {
+                    if !appleMusicBrowseService.userPlaylistFolders.isEmpty {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 12) {
+                                ForEach(appleMusicBrowseService.userPlaylistFolders.prefix(4)) { item in
+                                    PlayableCardView(item: item)
+                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                } header: {
+                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
+                        await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)
+                    })) {
+                        HStack {
+                            Text("Playlist Folders")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .headerProminence(.increased)
+                
+                Section {
                     if !appleMusicBrowseService.userPlaylists.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
@@ -227,6 +253,9 @@ struct AppleLibraryBrowseScreen: View {
                 await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 4)
             }
             group.addTask {
+                await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: 0)
+            }
+            group.addTask {
                 await appleMusicBrowseService.updateUsersRecentPlayed(offset: 0, limit: 4)
             }
             group.addTask {
@@ -244,6 +273,7 @@ struct AppleLibraryBrowseScreen: View {
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleAlbums()
             }
+             
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleArtists()
             }
