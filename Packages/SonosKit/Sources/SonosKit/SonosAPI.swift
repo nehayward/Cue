@@ -540,10 +540,22 @@ final class SonosAPI: NSObject {
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
-            print((response as? HTTPURLResponse)?.statusCode ?? 0)
-            print(String(decoding: data, as: UTF8.self))
+            let body = String(decoding: data, as: UTF8.self)
+            let errorCode = extractErrorCode(from: body) // 800 not authorized
             throw SonosServiceError.serviceUnavailable
         }
+    }
+    
+    func extractErrorCode(from xml: String) -> String? {
+        let pattern = "<errorCode>(\\d+)</errorCode>"
+        let regex = try? NSRegularExpression(pattern: pattern)
+        let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
+        
+        if let match = regex?.firstMatch(in: xml, options: [], range: range),
+           let codeRange = Range(match.range(at: 1), in: xml) {
+            return String(xml[codeRange])
+        }
+        return nil
     }
 
     func replaceQueue(playableContent: PlayableContent, IP: String, index: Int = 0) async throws {

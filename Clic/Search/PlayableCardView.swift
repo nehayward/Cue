@@ -53,58 +53,59 @@ struct PlayableCardView: View {
         }
     }
 
-    @ViewBuilder
     private var content: some View {
-        if item.content.type == .folder {
-            PlaylistFolderCollageView(folderID: item.content.id)
-                .overlay {
-                    LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
-                }
-                .overlay(alignment: .bottomLeading) {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .bold()
-                        if !item.subtitle.isEmpty {
-                            Text(item.subtitle)
-                                .opacity(0.8)
-                        }
+        VStack {
+            if item.content.type == .folder {
+                PlaylistFolderCollageView(folderID: item.content.id)
+                    .overlay {
+                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
                     }
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-                    .fontDesign(.rounded)
-                    .padding([.horizontal, .bottom], 12)
-                    .foregroundStyle(.white)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
-        } else {
-            ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
-                .aspectRatio(contentMode: .fit)
-                .glur(radius: 30, // The total radius of the blur effect when fully applied.
-                      offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                      interpolation: 0.3, // The distance from the offset to where the effect is fully applied, relative to the view's size.
-                      direction: .down // The direction in which the effect is applied.
-                )
-                .overlay {
-                    LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
-                }
-                .overlay(alignment: .bottomLeading) {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .bold()
-                        if !item.subtitle.isEmpty {
-                            Text(item.subtitle)
-                                .opacity(0.8)
+                    .overlay(alignment: .bottomLeading) {
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .bold()
+                            if !item.subtitle.isEmpty {
+                                Text(item.subtitle)
+                                    .opacity(0.8)
+                            }
                         }
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                        .fontDesign(.rounded)
+                        .padding([.horizontal, .bottom], 12)
+                        .foregroundStyle(.white)
                     }
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-                    .fontDesign(.rounded)
-                    .padding([.horizontal, .bottom], 12)
-                    .foregroundStyle(.white)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
+            } else {
+                ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
+                    .aspectRatio(contentMode: .fit)
+                    .glur(radius: 30, // The total radius of the blur effect when fully applied.
+                          offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
+                          interpolation: 0.3, // The distance from the offset to where the effect is fully applied, relative to the view's size.
+                          direction: .down // The direction in which the effect is applied.
+                    )
+                    .overlay {
+                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .bold()
+                            if !item.subtitle.isEmpty {
+                                Text(item.subtitle)
+                                    .opacity(0.8)
+                            }
+                        }
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                        .fontDesign(.rounded)
+                        .padding([.horizontal, .bottom], 12)
+                        .foregroundStyle(.white)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
+            }
         }
     }
     

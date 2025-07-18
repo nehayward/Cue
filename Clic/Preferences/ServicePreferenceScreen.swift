@@ -12,6 +12,7 @@ struct ServicePreferenceScreen: View {
     @State private var servers: [MediaServer] = []
     @State private var primaryServices: [SonosServiceType: MediaServer] = [:]
     @AppStorage(Defaults.AppStorageKeys.spotifyLocale) private var overrideSpotifyLocale: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.appleMusicTokenID) private var appleMusicTokenID: String = ""
 
     var body: some View {
         @Bindable var coreFeatures = coreFeatures
@@ -19,11 +20,13 @@ struct ServicePreferenceScreen: View {
             Section {
                 ForEach(MediaSearchService.allCases, id: \.self) { service in
                     Toggle(isOn: coreFeatures.enabledServices(service)) {
-                        let servers = servers.filter { $0.type == .spotify }
-                        if service == .spotify, servers.count > 1 {
+                        let spotifyServers = servers.filter { $0.type == .spotify }
+                        let appleServers = servers.filter { $0.type == .appleMusic }
+                        
+                        if service == .spotify, spotifyServers.count > 1 {
                             Label {
                                 Menu {
-                                    ForEach(servers) { server in
+                                    ForEach(spotifyServers) { server in
                                         Button {
                                             Task {
                                                 await sonosService.setPrimaryServer(for: server)
@@ -41,11 +44,45 @@ struct ServicePreferenceScreen: View {
                                     }
                                 } label: {
                                     VStack(alignment: .leading) {
-                                        Text("\(service.title) (\(servers.count))")
+                                        Text("\(service.title) (\(spotifyServers.count))")
                                         if let primaryServer = primaryServices[.spotify] {
                                             Text(primaryServer.name.trimmingCharacters(in: .whitespacesAndNewlines))
                                                 .font(.caption)
-                                        } else if let defaultService = servers.first(where: { $0.type == .spotify })?.name {
+                                        } else if let defaultService = spotifyServers.first?.name {
+                                            Text(defaultService)
+                                                .font(.caption)
+                                        }
+                                    }
+                                }
+                            } icon: {
+                                service.iconForMusicService
+                                    .frame(width: 24, height: 24)
+                            }
+                        } else if appleServers.count > 1, service == .apple {
+                            Label {
+                                Menu {
+                                    ForEach(appleServers) { server in
+                                        Button {
+                                            Task {
+                                                await sonosService.setPrimaryServer(for: server)
+                                                primaryServices[server.type] = server
+                                                appleMusicTokenID = server.id
+                                                UserDefaults.standard.synchronize()
+                                            }
+                                        } label: {
+                                            VStack {
+                                                Text(server.name)
+                                                Text(server.id)
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    VStack(alignment: .leading) {
+                                        Text("\(service.title) (\(appleServers.count))")
+                                        if let primaryServer = primaryServices[.appleMusic] {
+                                            Text(primaryServer.name.trimmingCharacters(in: .whitespacesAndNewlines))
+                                                .font(.caption)
+                                        } else if let defaultService = appleServers.first?.name {
                                             Text(defaultService)
                                                 .font(.caption)
                                         }

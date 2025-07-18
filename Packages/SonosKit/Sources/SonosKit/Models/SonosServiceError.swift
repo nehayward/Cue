@@ -1,5 +1,5 @@
 
-enum SonosServiceError: Error {
+public enum SonosServiceError: Error {
     case noWifi
     case sonosSystemNotFound
     case permissionDenied

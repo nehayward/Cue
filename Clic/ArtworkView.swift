@@ -146,7 +146,6 @@ struct ArtworkView: View {
                     currentImageHash = nil
                     break
                 }
-                self.imageTask = nil
             }
         }
     }

@@ -59,6 +59,7 @@ struct AppleLibraryBrowseScreen: View {
                             }
                         }
                         .listRowBackground(Color.clear)
+                        .frame(height: 120)
                     }
                 } header: {
                     NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in

@@ -18,7 +18,7 @@ final class SonosTrackParser {
            let itemContent = extractValue(between: "<item", and: "</item>", from: metadataContent) {
             
             // Parse track metadata
-            let title = extractValue(between: "<dc:title>", and: "</dc:title>", from: itemContent) ?? ""
+            var title = extractValue(between: "<dc:title>", and: "</dc:title>", from: itemContent) ?? ""
             let creator = extractValue(between: "<dc:creator>", and: "</dc:creator>", from: itemContent) ?? ""
             let album = extractValue(between: "<upnp:album>", and: "</upnp:album>", from: itemContent) ?? ""
             let albumArtURI = extractValue(between: "<upnp:albumArtURI>", and: "</upnp:albumArtURI>", from: itemContent) ?? ""
@@ -36,13 +36,34 @@ final class SonosTrackParser {
             var (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
 
             let ip = preferredIP ?? ip
-            let albumArtURL: URL?
-            if let url = URL(string: albumArtURI.unescaped), url.scheme != nil {
-                // If it's already a valid URL with a scheme (http/https), use it directly
-                albumArtURL = url
-            } else {
-                // Otherwise, construct the Sonos-specific URL
-                albumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            var sonosAlbumArtURL: URL?
+            if !albumArtURI.unescaped.isEmpty {
+                sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            }
+            
+            if trackURI.contains("x-rincon-stream") {
+                title = "Line In"
+            }
+            
+            if trackURI.contains("sonos"), musicServiceType != .spotify {
+                // Decode HTML entities
+                let htmlDecoded = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
+
+                // Extract mark= value
+                if let markRange = htmlDecoded.range(of: "mark=") {
+                    let markEncoded = htmlDecoded[markRange.upperBound...]
+                        .components(separatedBy: "&")
+                        .first ?? ""
+                    
+                    if let decodedMark = markEncoded.removingPercentEncoding {
+                        print(decodedMark)  // ✅ Final URL
+                        sonosAlbumArtURL = URL(string: decodedMark)
+                    }
+                }
+            }
+            
+            if title.contains("bump_sonic_pre.mp3") {
+                title = ""
             }
 
             
@@ -72,7 +93,7 @@ final class SonosTrackParser {
                 duration: .zero,
                 playbackPosition: .zero,
                 position: position,
-                sonosAlbumArtURL: albumArtURL,
+                sonosAlbumArtURL: sonosAlbumArtURL,
                 metadata: nil,
                 albumArtURI: albumArtURI
             )

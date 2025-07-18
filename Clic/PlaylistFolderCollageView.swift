@@ -9,85 +9,47 @@ struct PlaylistFolderCollageView: View {
     @State private var isLoading = false
     
     var body: some View {
-        VStack {
-            if artworkURLs.isEmpty && !isLoading {
-                Rectangle()
-                    .foregroundStyle(.ultraThinMaterial)
-                    .overlay {
-                        Image(systemName: "folder.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                            .bold()
-                    }
-            } else if isLoading {
-                Rectangle()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.ultraThinMaterial)
-                    .overlay {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                    }
-            } else {
-                VStack(spacing: 1) {
-                    HStack(spacing: 1) {
-                        ForEach(0..<2, id: \.self) { index in
-                            if index < artworkURLs.count {
-                                LazyImage(url: artworkURLs[index]) { state in
-                                    imageView(state: state)
+        Rectangle()
+            .aspectRatio(contentMode: .fit)
+            .foregroundStyle(.ultraThinMaterial)
+            .overlay {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                } else if !artworkURLs.isEmpty {
+                    Grid(horizontalSpacing: 1, verticalSpacing: 1) {
+                        ForEach(0..<2, id: \.self) { row in
+                            GridRow {
+                                ForEach(0..<2, id: \.self) { column in
+                                    let index = row * 2 + column
+                                    if index < artworkURLs.count {
+                                        LazyImage(url: artworkURLs[index]) { state in
+                                            if let image = state.image {
+                                                image
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .containerRelativeFrame(.horizontal, alignment: .center) { size, horizontal in
+                                                        size / 2
+                                                    }
+                                            }
+                                        }
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .foregroundStyle(.clear)
+                                    }
                                 }
-                            } else {
-                                Rectangle()
-                                    .foregroundStyle(.clear)
                             }
                         }
                     }
-                    HStack(spacing: 1) {
-                        ForEach(2..<4, id: \.self) { index in
-                            if index < artworkURLs.count {
-                                LazyImage(url: artworkURLs[index]) { state in
-                                    imageView(state: state)
-                                }
-                            } else {
-                                Rectangle()
-                                    .foregroundStyle(.clear)
-                            }
-                        }
-                    }
+                    .padding(8)
+                } else {
+                    Image(systemName: "folder.fill")
+                        .font(.title)
                 }
             }
-        }
-        .task {
-            await loadArtwork()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-    
-    @ViewBuilder
-    private func imageView(state: LazyImageState) -> some View {
-        if let image = state.image {
-            image
-                .resizable()
-                .scaledToFit()
-        } else if state.isLoading {
-            Rectangle()
-                .foregroundStyle(.gray.opacity(0.3))
-                .overlay {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.5)
-                }
-        } else {
-            // Fallback for failed/empty images
-            Rectangle()
-                .foregroundStyle(.gray.opacity(0.2))
-                .overlay {
-                    Image(systemName: "music.note")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                }
-        }
+            .task {
+                await loadArtwork()
+            }
     }
     
     func loadArtwork() async {

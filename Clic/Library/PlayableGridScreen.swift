@@ -16,7 +16,7 @@ struct PlayableGridScreen: View {
     @Binding var items: OrderedSet<PlayableContent>
 
     var action: ((Int) async -> ())? = nil
-    private let adaptiveColumn = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
+    private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
 
     var body: some View {
         ScrollView {

@@ -12,7 +12,7 @@ struct PlayerScreen: View {
     
     var body: some View {
         @Bindable var sonosService = sonosService
-        Group {
+        VStack {
             if let index = sonosService.devices.firstIndex(where: { $0.id == id }) {
                 let device = sonosService.devices[index]
                 if !device.isHidden {

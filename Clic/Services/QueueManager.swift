@@ -80,7 +80,19 @@ final class QueueManager {
     
     @MainActor
     private func handleError(for item: PlayableContent, error: Error) {
-        alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+        guard let error = error as? SonosServiceError else {
+            alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+            return
+        }
+        
+        switch error {
+        case .timeout:
+            alertService.showAlert(with: "Timed out waiting for Sonos to respond", imageName: "exclamationmark.triangle.fill")
+        case .serviceUnavailable:
+            alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+        default:
+            alertService.showAlert(with: "Failed to queue  \(item.content.service.title), ensure service is authorized", imageName: "exclamationmark.triangle.fill")
+        }
     }
 }
 

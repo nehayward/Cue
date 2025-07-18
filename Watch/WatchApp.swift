@@ -9,16 +9,20 @@ import CloudStorage
 @main
 struct WatchApp: App {
     @Environment(\.scenePhase) var scenePhase
+    #if DEBUG
+    @CloudStorage(CloudKeys.hasSubscription) var activeSubscription: Bool = true
+    #else
     @CloudStorage(CloudKeys.hasSubscription) var activeSubscription: Bool = false
+    #endif
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
 
     private var sonosService = SonosMiniService.shared
-    private var router: Router = .main
     private var popover = Popover.shared
+    
+    @State private var router: Router = .main
 
     var body: some Scene {
         WindowGroup {
-            @Bindable var router = router
             DeviceListView(activeSubscription: $activeSubscription, selected: $router.selectedID)
                 .environment(router)
                 .withEnvironments()

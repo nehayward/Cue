@@ -10,8 +10,10 @@
 - Add pull to refresh Local Sonos Library
 - Add Apple Music Playlist folders
 - Add Library Folders
+- Support multiple Apple accounts.
 
 –– Bug Fixes & Improvements ––
+- Fixed an issue where some speakers would be hidden on Watch and Clic Mini with radio playback
 - Resolved an issue where artwork was not displayed for library artists
 - Fixed an issue where tracks were not updating correctly when using Spotify Connect
 - Fix bug from stopping playback from other apps.

@@ -21,6 +21,19 @@ struct DeviceListView: View {
 //        let _ = Self._printChanges()
         NavigationSplitView {
             List(selection: $selected) {
+                if filteredDeviceBindings.isEmpty {
+                    Label("Searching", systemImage: "waveform.badge.magnifyingglass")
+                        .imageScale(.large)
+                        .symbolEffect(.variableColor)
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                        .transition(.opacity)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                }
                 ForEach(filteredDeviceBindings) { device in
                     DeviceCellView(device: device)
                         .frame(maxHeight: 200)
@@ -62,19 +75,6 @@ struct DeviceListView: View {
             } else {
                 Text("Group No Longer Available")
                     .navigationBarTitleDisplayMode(.inline)
-            }
-        }
-        .overlay {
-            if filteredDeviceBindings.isEmpty {
-                Label("Searching", systemImage: "waveform.badge.magnifyingglass")
-                    .imageScale(.large)
-                    .symbolEffect(.variableColor)
-                    .padding()
-                    .background {
-                        Capsule()
-                            .foregroundStyle(.ultraThinMaterial)
-                    }
-                    .transition(.opacity)
             }
         }
         .overlay {

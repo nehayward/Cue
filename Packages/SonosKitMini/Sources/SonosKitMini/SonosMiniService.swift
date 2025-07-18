@@ -46,9 +46,9 @@ public final class SonosMiniService {
     @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private var cachedIP: String {
-//#if DEBUG
-//            return "192.168.4.153"
-//#endif
+#if DEBUG
+            return "192.168.4.153"
+#endif
         NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip") ?? ""
     }
     
@@ -203,7 +203,7 @@ public final class SonosMiniService {
                 changed = true
             }
 
-            let isHidden = avEvent.currentTrackURI.contains("x-rincon")
+            let isHidden = avEvent.currentTrackURI.contains("x-rincon:RINCON")
             if device.isHidden != isHidden {
                 device.isHidden = isHidden
                 changed = true
@@ -602,7 +602,8 @@ public final class SonosMiniService {
                     guard let awaitedTrack = await track else {
                         return
                     }
-                    await updateDevice(device, keyPath: \.isHidden, value: awaitedTrack.trackURI.contains("x-rincon"))
+
+                    await updateDevice(device, keyPath: \.isHidden, value: awaitedTrack.trackURI.contains("x-rincon:RINCON"))
                     await updateDevice(device, keyPath: \.currentTrackURI, value: awaitedTrack.trackURI)
 
                     if device.track != awaitedTrack {

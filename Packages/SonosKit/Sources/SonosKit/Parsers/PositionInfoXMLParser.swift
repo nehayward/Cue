@@ -57,9 +57,11 @@ final class SonosTrackParser {
             
             let ip = preferredIP ?? ip
             var sonosAlbumArtURL: URL?
-            sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            if !albumArtURI.unescaped.isEmpty {
+                sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+            }
 
-            if sonosAlbumArtURL == nil {
+            if sonosAlbumArtURL == nil, !albumArtURI.unescaped.isEmpty {
                 sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
                 // MARK: Upscale
                 if let sonosAlbumArt = sonosAlbumArtURL?.absoluteString {
