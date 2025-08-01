@@ -48,6 +48,8 @@ struct SpotifyLibraryScreen: View {
                             .frame(maxWidth: .infinity)
                         }
                     }
+                    .listRowSeparator(.hidden)
+                    .listSectionSeparator(.hidden)
                 }
                 
                 if !spotifyBrowseService.albums.isEmpty {

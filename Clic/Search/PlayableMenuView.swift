@@ -105,7 +105,7 @@ struct PlayableMenuView: View {
                     }
                 }
                 
-                if item.content.type == .album {
+                if ![.track, .libraryTrack].contains(item.content.type) {
                     Button {
                         play(position: .replace)
                     } label: {

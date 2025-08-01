@@ -473,6 +473,7 @@ extension SpotifyAlbumItem {
             artwork: images?.biggestImageURL,
             content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls?.spotify ?? "")),
             metadata: .init(
+                artist: artists?.first?.name,
                 artistID: artists?.first?.id,
                 albumYear: releaseYear
             )
@@ -499,13 +500,20 @@ extension SpotifyAlbumDetails {
             subtitle: releaseDateFormatted ?? "",
             thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? ""))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? "")),
+            metadata: PlayableContentMetadata(
+                duration: Duration.milliseconds(
+                    durationMs ?? 0
+                ),
+                artist: artists?.first?.name,
+                isExplicit: explicit
+            )
         )
     }
 }
 
 extension SpotifyAlbumTrackItems {
-    public func toPlayable(album: PlayableContent?, thumbnail: URL?, artwork: URL?) -> PlayableContent? {
+    public func toPlayable(album: PlayableContent?, thumbnail: URL?, artwork: URL?, fingerprint: String? = nil) -> PlayableContent? {
         guard let id else { return nil }
         return PlayableContent(
             title: name,
@@ -518,7 +526,8 @@ extension SpotifyAlbumTrackItems {
                     durationMs
                 ),
                 artist: artists.first?.name,
-                isExplicit: explicit
+                isExplicit: explicit,
+                fingerprint: fingerprint
             )
         )
     }

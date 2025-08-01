@@ -255,45 +255,7 @@ struct LargePlayerView: View {
                             .bold()
                             .id(refreshID)
                     }
-                    if group.coordinatorRoom.track.musicService == .spotify {
-                        Button {
-                            if isFavorite ?? false {
-                                Task {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    await MusicSearchService.shared.deleteSpotifyTrack(id: group.coordinatorRoom.track.trackID)
-                                    isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
-                                }
-                            } else {
-                                Task {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    await MusicSearchService.shared.saveSpotifyTrack(id: group.coordinatorRoom.track.trackID)
-                                    isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "heart")
-                                .symbolVariant(isFavorite ?? false ? .fill : .none)
-                                .foregroundStyle(MusicService.spotify.brandColor.gradient)
-                                .help("Favorite Song")
-                                .accessibilityLabel("Favorite Song")
-                        }
-                    }
-                    
-                    // MARK: add Back when it's working
-//                    if group.coordinatorRoom.track.musicService == .apple {
-//                        Button {
-//                            Task {
-//                                let favorite = isFavorite ?? false
-//                                try? await AppleMusicAPI().updateFavoriteStatus(songId: group.coordinatorRoom.track.trackID, favorite: !favorite)
-//                                isFavorite = try? await AppleMusicAPI().isFavorite(songId: group.coordinatorRoom.track.trackID)
-//                            }
-//                        } label: {
-//                            Image(systemName: "star")
-//                                .symbolVariant(isFavorite ?? false ? .fill : .none)
-//                                .foregroundStyle(.red.gradient)
-//                                .animation(.spring, value: isFavorite)
-//                        }
-//                    }
+                    LikeButtonView(group: group)
                     MenuInfoView(group: group)
                         .tint(.primary)
                         .id(refreshID)
@@ -307,19 +269,6 @@ struct LargePlayerView: View {
             sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
-        }
-        .task(id: group.coordinatorRoom.track.id) {
-            if group.coordinatorRoom.track.musicService == .spotify {
-                isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: group.coordinatorRoom.track.trackID)
-            } else {
-                isFavorite = nil
-            }
-            // MARK: add Back when it's working
-//            if group.coordinatorRoom.track.musicService == .apple {
-//                isFavorite = try? await AppleMusicAPI().isFavorite(songId: group.coordinatorRoom.track.trackID)
-//            } else {
-//                isFavorite = nil
-//            }
         }
         .onDisappear {
             sonosService.songAudioInfo = nil

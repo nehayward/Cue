@@ -36,7 +36,7 @@ struct PlayableArtworkView: View {
         Menu {
             PlayableMenuView(item: item)
         } label: {
-            ContentArtworkView(content: item)
+            ContentArtworkView(content: item, preferredSize: 100)
         } primaryAction: {
             primaryAction()
         }

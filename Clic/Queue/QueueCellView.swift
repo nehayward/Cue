@@ -57,7 +57,6 @@ struct QueueCellView: View {
                     
                     // Remove from local array first for immediate UI feedback
                     onLocalDelete?(track)
-                    
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
                 }

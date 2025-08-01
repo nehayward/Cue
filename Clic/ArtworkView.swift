@@ -26,6 +26,15 @@ struct ArtworkView: View {
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
     }
+    
+    fileprivate var imageIDKey: String {
+        let suffix = "player"
+        if let albumID = group.coordinatorRoom.track.toPlayable.metadata?.album, !albumID.isEmpty {
+            let artist = group.coordinatorRoom.track.toPlayable.metadata?.artist
+            return [albumID, artist, suffix].compactMap { $0 }.joined(separator: ".")
+        }
+        return group.coordinatorRoom.track.trackID + suffix
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -41,7 +50,7 @@ struct ArtworkView: View {
                         .foregroundStyle(.thickMaterial)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if group.coordinatorRoom.track.artworkURL == nil || group.playbackService != .lineIn || showBadge || currentImage == nil {
+                            if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil || showBadge || currentImage == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
@@ -107,7 +116,10 @@ struct ArtworkView: View {
                 imageTask = loadArtwork(url: newURL)
             }
             .onAppear {
-                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL, processors: [.resize(width: 500)], priority: .high)
+                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL,
+                                           processors: [.resize(width: 500)],
+                                           priority: .high,
+                                           userInfo: [.imageIdKey: imageIDKey])
                 if let image = ImagePipeline.shared.cache.cachedImage(for: request), currentImage != image.image {
                     currentImage = image.image
                     currentImageHash = image.image.lightweightHash()
@@ -131,7 +143,10 @@ struct ArtworkView: View {
             return nil
         }
         
-        let imageRequest = ImageRequest(url: url, processors: [.resize(width: 500)], priority: .high)
+        let imageRequest = ImageRequest(url: url,
+                                        processors: [.resize(width: 500)],
+                                        priority: .high,
+                                        userInfo: [.imageIdKey: imageIDKey])
         return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
                 switch result {

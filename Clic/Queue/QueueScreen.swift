@@ -214,16 +214,40 @@ struct QueueScreen: View {
                     
                     // Remove from local arrays first for immediate UI feedback
                     if queueMode == .upNext {
-                        for track in selectedTracks {
+                        for track in sortedTracks {
                             upNextTracks.removeAll { $0.trackID == track.trackID }
+                        }
+                        // MARK: Update Track Position
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(200))
+                            guard let position = sortedTracks.last?.metadata?.position else { return }
+                            for index in upNextTracks.indices {
+                                if let currentPosition = upNextTracks[index].metadata?.position, currentPosition >= position {
+                                    upNextTracks[index].metadata?.position = currentPosition - sortedTracks.count
+                                }
+                            }
                         }
                     } else {
                         for track in sortedTracks {
-                            guard let position = track.metadata?.position else { return }
-                            group.coordinatorRoom.queue.remove(at: position - 1)
+                            group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
+                        }
+                        
+                        Task {
+                            try? await Task.sleep(for: .milliseconds(200))
+                            guard let position = sortedTracks.last?.metadata?.position else { return }
+                            for index in group.coordinatorRoom.queue.indices {
+                                guard let currentPosition = group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position else { continue }
+                                var currentItem = group.coordinatorRoom.queue[index]
+                                group.coordinatorRoom.queue.remove(currentItem)
+                                currentItem.metadata?.position = currentPosition - sortedTracks.count
+                                group.coordinatorRoom.queue.insert(currentItem, at: index)
+                            }
+                            try? await SonosService.shared.updateTrackInformation(for: [group])
+                            let id = group.coordinatorRoom.track.toPlayable.trackID
+                            currentTrackID = id
                         }
                     }
-                    
+            
                     // Remove tracks using their actual queue positions
                     for track in sortedTracks {
                         guard let position = track.metadata?.position else { continue }
@@ -291,8 +315,8 @@ struct QueueScreen: View {
         }
         .task(id: group.coordinatorRoom.track.trackID) {
             isLoading = true
-            let trackID: String = "\(group.coordinatorRoom.track.trackID).\(group.coordinatorRoom.track.position.description)"
-            currentTrackID = trackID
+            let id = group.coordinatorRoom.track.toPlayable.trackID
+            currentTrackID = id
             await scrollToNowPlaying(proxy)
             group.playMode = await SonosService.shared.playMode(ip: group.ip)
             isLoading = false
@@ -300,8 +324,24 @@ struct QueueScreen: View {
     }
     
     private func handleLocalDelete(_ track: PlayableContent) {
-        guard let position = track.metadata?.position else { return }
-        group.coordinatorRoom.queue.remove(at: position - 1)
+        group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
+        
+        Task {
+            try await Task.sleep(for: .milliseconds(200))
+            guard let position = track.metadata?.position else { return }
+            
+            for index in group.coordinatorRoom.queue.indices {
+                if let currentPosition =  group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position {
+                    var currentItem = group.coordinatorRoom.queue[index]
+                    group.coordinatorRoom.queue.remove(currentItem)
+                    currentItem.metadata?.position = currentPosition - 1
+                    group.coordinatorRoom.queue.insert(currentItem, at: index)
+                }
+            }
+            try? await SonosService.shared.updateTrackInformation(for: [group])
+            let id = group.coordinatorRoom.track.toPlayable.trackID
+            currentTrackID = id
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {

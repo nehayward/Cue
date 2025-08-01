@@ -46,9 +46,9 @@ final class LiveActivityManager: LiveActivityManageable {
 
             guard let info = try? await (track, playbackInfo, groupVolume, isMuted) else { return }
             if let track = info.0 {
-                if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback, group.coordinatorRoom.track.playbackPosition != track.playbackPosition  {
+                if group.coordinatorRoom.track.trackID == track.trackID, !group.isEditingPlayback  {
                     group.coordinatorRoom.track.playbackPosition = track.playbackPosition
-                } else {
+                } else if group.coordinatorRoom.track.trackID != track.trackID {
                     group.coordinatorRoom.track = track
                 }
             }

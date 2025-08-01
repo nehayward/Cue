@@ -220,8 +220,8 @@ public final class MusicSearchService {
         await spotifySearchAPI.album(id: id)
     }
 
-    public func spotifyAlbumTracksLookup(id: String) async -> SpotifyAlbumDetails? {
-        await spotifySearchAPI.albumDetails(id: id)
+    public func spotifyAlbumTracksLookup(id: String, offset: Int = 0, limit: Int = 100) async -> SpotifyAlbumDetails? {
+        await spotifySearchAPI.albumDetails(id: id, offset: offset, limit: limit)
     }
 
     public func spotifyPlaylist(id: String) async -> SpotifyPlaylistItems? {
@@ -919,7 +919,7 @@ public final class MusicSearchService {
     }
     
     // SoundCloud track lookup
-    public func lookupSoundCloudPlaylistTracks(with id: String) async -> [PlayableContent] {
+    public func lookupSoundCloudPlaylistTracks(with id: String, nextCursor: String?) async -> [PlayableContent] {
         guard let tracks = await soundCloud.playlistTracks(for: id) else { return [] }
         return tracks.map { createSoundCloudPlayableContent(from: $0) }
     }
@@ -932,6 +932,47 @@ public final class MusicSearchService {
         
         let tracks = response.collection.map { createSoundCloudPlayableContent(from: $0) }
         return (tracks: tracks, nextCursor: response.nextCursor)
+    }
+    
+    public func likeSoundCloudTrack(id: String) async -> Bool {
+        return await soundCloud.likeTrack(trackId: id)
+    }
+    
+    public func unlikeSoundCloudTrack(id: String) async -> Bool {
+        return await soundCloud.unlikeTrack(trackId: id)
+    }
+    
+    public func isSoundCloudTrackLiked(id: String) async -> Bool? {
+        let (tracks, _) = await getSoundCloudLikedTracks()
+        return tracks.contains { $0.content.id == id }
+    }
+    
+    public func getSoundCloudLikedPlaylists(cursor: String? = nil) async -> (playlists: [PlayableContent], nextCursor: String?) {
+        guard let response = await soundCloud.getLikedPlaylists(cursor: cursor) else { 
+            return (playlists: [], nextCursor: nil) 
+        }
+        
+        let playlists = response.collection.map { createSoundCloudPlayableContentFromPlaylist(from: $0) }
+        return (playlists: playlists, nextCursor: response.nextCursor)
+    }
+    
+    // Helper method to create PlayableContent from SoundCloudPlaylist
+    private func createSoundCloudPlayableContentFromPlaylist(from playlist: SoundCloudPlaylist) -> PlayableContent {
+        let artist = playlist.user?.username ?? ""
+        let subtitle = artist.isEmpty ? (playlist.description ?? "") : artist
+        
+        return PlayableContent(
+            title: playlist.title,
+            subtitle: subtitle,
+            thumbnail: URL(string: playlist.artworkUrl ?? ""),
+            artwork: playlist.artworkURLOriginal,
+            content: MediaContent(
+                service: .soundcloud,
+                id: String(playlist.id),
+                type: .playlist,
+                location: URL(string: playlist.permalinkUrl ?? "")
+            )
+        )
     }
     
     // Helper method to create PlayableContent from SoundCloudTrack
@@ -952,7 +993,8 @@ public final class MusicSearchService {
             ),
             metadata: .init(
                 artist: artist.isEmpty ? nil : artist,
-                album: nil
+                album: nil,
+                fingerprint: String(track.id)
             )
         )
     }

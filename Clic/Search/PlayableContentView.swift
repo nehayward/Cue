@@ -60,9 +60,9 @@ struct PlayableContentView: View {
             play(position: item.content.type == .playlist ? .replace : .now)
         } label: {
             HStack {
-                if let index, hideArtwork {
+                if let index {
                     Text(index, format: .number) // Display the number without leading zeros
-                        .monospacedDigit()
+                        .font(.caption.monospacedDigit())
                         .multilineTextAlignment(.center) // Center the text
                         .frame(width: 30, alignment: .center) // Ensure fixed width for 3 characters
                         .foregroundStyle(.secondary)
@@ -75,7 +75,7 @@ struct PlayableContentView: View {
                     HStack {
                         Text(item.title)
                             .lineLimit(1)
-                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id  ? .accent : .primary)
+                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding  ? .accent : .primary)
                         Spacer()
                         if let isExplicit = item.metadata?.isExplicit, isExplicit {
                             Image(systemName: "e.square.fill")

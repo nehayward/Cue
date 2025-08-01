@@ -15,12 +15,16 @@ struct ContentArtworkView: View {
     
     fileprivate var imageIDKey: String {
         if let albumID = content.metadata?.album, !albumID.isEmpty {
-            return albumID
+            let artist = content.metadata?.artist
+            return [albumID, artist, preferredSize.description].compactMap { $0 }.joined(separator: ".")
         }
         return content.id
     }
     
     private var artworkURL: URL? {
+        if preferredSize != 50, let artwork = content.artwork {
+            return artwork
+        }
         // First try the original thumbnail
         if let thumbnail = content.thumbnail {
             return thumbnail
@@ -35,7 +39,7 @@ struct ContentArtworkView: View {
     }
 
     var body: some View {
-        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) { state in
+        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: preferredSize == 50])) { state in
             if let image = state.image {
                 image
                     .resizable()
@@ -70,7 +74,7 @@ struct ContentArtworkView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .task {
             if content.content.type == .artist, content.content.service == .library {
-                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) {
+                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: preferredSize == 50])) {
                     return
                 }
                 await fetchArtworkIfNeeded()

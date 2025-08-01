@@ -51,7 +51,11 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
     public let releaseDate: String
     public let images: [SpotifyImage]
     public let tracks: SpotifyAlbumTracks
-    
+    public let artists: [SpotifyArtistsInfo]?
+    public var allArtists: String? { artists?.compactMap(\.name).joined(separator: ", ") }
+    public let durationMs: Int?
+    public let explicit: Bool?
+
     public var releaseDateFormatted: String? {
         return releaseDate.components(separatedBy: "-").first
     }

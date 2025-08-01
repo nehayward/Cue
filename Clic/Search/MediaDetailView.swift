@@ -17,13 +17,16 @@ struct MediaDetailView: View {
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
 
     @State var playableContent: PlayableContent
-    @State private var tracks: OrderedSet<PlayableContent> = []
+    @State private var editMode: EditMode = .inactive
+    @State private var tracks: [PlayableContent] = []
     @State private var isLoaded: Bool = false
+    @State private var isLoadingMore: Bool = false
     @State private var totalSongs: Int?
     @State private var duration: Duration?
+    @State private var selection: Set<Int> = []
 
     var body: some View {
-        List {
+        List(selection: $selection) {
             VStack {
                 LazyImage(url: playableContent.artwork) { state in
                     if let image = state.image {
@@ -69,7 +72,28 @@ struct MediaDetailView: View {
             .listRowBackground(Color.clear)
 
             VStack {
-                Text("\(playableContent.subtitle)")
+                Text(playableContent.subtitle)
+                // MARK: Add back
+//                if let artist = playableContent.metadata?.artist {
+//                    ZStack {
+//                        NavigationLink(value: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group)) {
+//                            EmptyView()
+//                        }
+//                        .opacity(0)
+//                        Button {
+//                            router.navigate(to: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group))
+//                        } label: {
+//                            Text(artist)
+//                                .multilineTextAlignment(.center)
+//                                .fontDesign(.rounded)
+//                                .font(.title3)
+//                                .frame(maxWidth: .infinity)
+//                                .lineLimit(1, reservesSpace: true)
+//                                .foregroundStyle(.accent)
+//                        }
+//                    }
+//                }
+//
                 HStack(spacing: 0) {
                     if let totalSongs {
                         Text(totalSongs, format: .number)
@@ -85,8 +109,6 @@ struct MediaDetailView: View {
                         }
                     }
                 }
-                // MARK: Next Updating
-                #warning("2025.11 audio format")
 //                if let audioFormat = playableContent.metadata?.audioCodec {
 //                    Text(audioFormat)
 //                }
@@ -127,21 +149,21 @@ struct MediaDetailView: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
 
-            ForEach(tracks) { item in
+            ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
                 VStack {
                     PlayableContentView(item: item,
                                         parent: playableContent,
                                         hideArtwork: playableContent.content.type == .album,
                                         hideContentType: true,
-                                        index: ((tracks.firstIndex(of: item) ?? -1) + 1),
+                                        index: index + 1,
                                         dismissOnComplete: true,
                                         total: totalSongs ?? tracks.count)
                 }
+                .tag(index)
                 .swipeActions(edge: .trailing) {
-                    if playableContent.content.type == .libraryPlaylist {
+                    if playableContent.isSonosPlaylist {
                         Button(role: .destructive) {
                             Task {
-                                guard let index = tracks.firstIndex(where: { $0 == item }) else { return }
                                 try await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
                                 tracks.remove(at: index)
                             }
@@ -152,7 +174,15 @@ struct MediaDetailView: View {
                 }
                 .disabled(!(item.metadata?.isPlayable ?? true))
                 .task {
-                    if tracks.firstIndex(of: item) ?? 0 >= tracks.count - 1 {
+                    guard playableContent.content.type.isPlaylist else {
+                        return
+                    }
+                    
+                    if playableContent.content.type == .playlist && playableContent.content.service == .apple {
+                        return
+                    }
+                    
+                    if index >= tracks.count - 1 && !isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
                         Task {
                             await updateTracks(offset: tracks.count)
                         }
@@ -160,6 +190,7 @@ struct MediaDetailView: View {
                 }
                 .listRowBackground(Color.clear)
             }
+            .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
 
             if tracks.isEmpty, !isLoaded {
                 ProgressView()
@@ -167,9 +198,45 @@ struct MediaDetailView: View {
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             }
+            
+            if isLoadingMore {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .environment(\.editMode, $editMode)
+        .safeAreaInset(edge: .bottom) {
+            Button(role: .destructive) {
+                Task {
+                    // Remove tracks using their actual queue positions
+                    for index in Array(selection).sorted(by: >) {
+                        try await SonosService.shared.removeTrackFromPlaylist(
+                            playlistID: playableContent.id,
+                            index: index
+                        )
+                        tracks.remove(at: index)
+                    }
+                    
+                    // Clear selection
+                    selection.removeAll()
+                }
+            } label: {
+                Text("Delete Selected (\(selection.count))")
+                    .frame(maxWidth: .infinity)
+                    .monospacedDigit()
+                    .bold()
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal)
+            .offset(y: !selection.isEmpty ? 0 : 200)
+#if targetEnvironment(macCatalyst)
+            .padding(.bottom)
+#endif
         }
         .task {
-            await updateTracks()
+            await updateTracks(offset: tracks.count)
         }
         .miniPlayerOnScrollHandler()
         .listStyle(.plain)
@@ -183,7 +250,14 @@ struct MediaDetailView: View {
                     .multilineTextAlignment(.center)
             }
 
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if playableContent.isSonosPlaylist {
+                    Button(editMode.isEditing ? "Done" : "Edit") {
+                        withAnimation {
+                            editMode = editMode.isEditing ? .inactive : .active
+                        }
+                    }
+                }
                 Menu {
                     PlayableMenuView(item: playableContent)
                 } label: {
@@ -230,9 +304,11 @@ struct MediaDetailView: View {
     }
 
     private func updateTracks(offset: Int = 0) async {
-        isLoaded = false
+        if offset > 0, !playableContent.content.type.isPlaylist {
+            return
+        }
+        
         var newTracks: [PlayableContent] = []
-
         switch (playableContent.content.type, playableContent.content.service) {
         case (.album, .apple):
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
@@ -258,7 +334,15 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             totalSongs = playlist.total
-            newTracks = playlist.items.compactMap { $0.track.toPlayable(album: nil, thumbnail: $0.track.album?.images?.thumbnail, artwork: $0.track.album?.images?.thumbnail)}
+            newTracks = playlist.items
+                .compactMap {
+                    $0.track.toPlayable(
+                        album: nil,
+                        thumbnail: $0.track.album?.images?.thumbnail,
+                        artwork: $0.track.album?.images?.thumbnail,
+                        fingerprint: $0.uid
+                    )
+                }
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
@@ -281,7 +365,7 @@ struct MediaDetailView: View {
         case (.album, .library):
             newTracks = await SonosService.shared.libraryLookup(ID: playableContent.id)
         case (.playlist, .library):
-            newTracks = await SonosService.shared.sonosPlaylistsTracks(for: playableContent.id)
+            newTracks = await SonosService.shared.sonosPlaylistsTracks(for: playableContent.id, offset: tracks.count, limit: 100)
         case (.libraryImportedPlaylists, .library):
             let id = playableContent.id.replacingOccurrences(of: "x-file-cifs", with: "S")
             newTracks = await SonosService.shared.libraryLookup(ID: id)
@@ -323,35 +407,36 @@ struct MediaDetailView: View {
         case (.playlist, .plex):
             (totalSongs, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
         case (.playlist, .soundcloud):
-            newTracks = await musicSearchService.lookupSoundCloudPlaylistTracks(with: playableContent.content.id)
+            newTracks = await musicSearchService.lookupSoundCloudPlaylistTracks(with: playableContent.content.id, nextCursor: nil)
         default:
             assertionFailure("Implement this.")
         }
-        for newTrack in newTracks {
-            tracks.updateOrAppend(newTrack)
-        }
+        appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
         isLoaded = true
+        isLoadingMore = false
+    }
+    
+    func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
+        var idCounts: [String: Int] = [:]
+
+        for var newTrack in newTracks {
+            let originalID = newTrack.id
+            let existingCount = idCounts[originalID] ?? tracks.filter { $0.id == originalID }.count
+
+            if existingCount > 0 {
+                newTrack.metadata?.position = existingCount + 1
+            }
+
+            idCounts[originalID] = existingCount + 1
+            tracks.append(newTrack)
+        }
     }
 
-    // TODO: Add later
-//    private func move(from source: IndexSet, to destination: Int) {
-//        // TODO: Fix swap positions
-//        tracks.move(fromOffsets: source, toOffset: destination)
-//
-//        Task {
-//            guard let sourceIndex = source.first else { return }
-//            try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex + 1, to: destination + 1)
-//        }
-//    }
-
+    private func move(from source: IndexSet, to destination: Int) {
+        tracks.move(fromOffsets: source, toOffset: destination)
+        Task {
+            guard let sourceIndex = source.first else { return }
+            try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+        }
+    }
 }
-
-
-
-//#Preview {
-//    // https://music.apple.com/us/playlist/dua-lipa-essentials/pl.ee7b1aea4b5f42d398e6cd3084f7396b
-//    // https://music.apple.com/us/album/future-nostalgia-the-moonlight-edition/1551178998
-//    MediaDetailView(id: "1552269067", title: "Future Nostaliga", kind: .album)
-//        .environment(SonosService.shared.shared)
-//        .environment(Router())
-//}

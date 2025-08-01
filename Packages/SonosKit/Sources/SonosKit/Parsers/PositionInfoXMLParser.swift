@@ -171,7 +171,7 @@ final class SonosTrackParser {
     
     
     private static func checkForTV(uri: String) -> Track? {
-        uri.contains("htastream") ? Track(trackID: "") : nil
+        uri.contains("x-sonos-htastream") ? .tv : nil
     }
     
     private static func checkForRadio(body: String, trackURI: String) -> Track? {

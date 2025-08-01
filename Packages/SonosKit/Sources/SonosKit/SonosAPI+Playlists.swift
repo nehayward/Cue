@@ -23,17 +23,21 @@ extension SonosAPI {
         return xmlParser.parsePlaylists(IP: IP, xml: xml)
     }
 
-    func sonosPlaylistsTracks(IP: String, id: String) async -> [PlayableContent] {
-        guard let objectID = id.components(separatedBy: "#").last else {
+    func sonosPlaylistsTracks(IP: String, id: String, offset: Int = 0, limit: Int = 100) async -> [PlayableContent] {
+        guard var objectID = id.components(separatedBy: "#").last else {
             return []
         }
         
+        if !objectID.contains("A:ALBUMARTIST") {
+            objectID = "SQ:" + objectID
+        }
+        
         let arguments: OrderedKeys = [
-            ("ObjectID", "SQ:" + objectID),
+            ("ObjectID", objectID),
             ("BrowseFlag", "BrowseDirectChildren"),
             ("Filter", "*"),
-            ("StartingIndex", 0),
-            ("RequestedCount", 0),
+            ("StartingIndex", offset),
+            ("RequestedCount", limit),
             ("SortCriteria", "")
         ]
 

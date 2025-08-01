@@ -316,8 +316,15 @@ struct SpeakerSettingsView: View {
             }
             
             Section {
-                Text(room.ip)
-                    .textSelection(.enabled)
+                HStack {
+                    Text(room.ip)
+                        .textSelection(.enabled)
+                    Spacer()
+                    if room.ethernetEnabled {
+                        Image(systemName: "wifi.router.fill")
+                    }
+                }
+                
                 // MARK: Add Back
                 if let channelMap = room.channelMap {
                     Text(channelMap)

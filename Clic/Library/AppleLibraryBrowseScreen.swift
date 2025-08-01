@@ -48,32 +48,11 @@ struct AppleLibraryBrowseScreen: View {
                     Label("Songs", systemImage: "music.note")
                 }
                 
-                Section {
-                    if !appleMusicBrowseService.userPlaylistFolders.isEmpty {
-                        VStack(spacing: 0) {
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userPlaylistFolders.prefix(4)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                        .frame(height: 120)
-                    }
-                } header: {
-                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
-                        await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)
-                    })) {
-                        HStack {
-                            Text("Playlist Folders")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                    }
-                    .foregroundStyle(.secondary)
+                NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlist Folders", items: $appleMusicBrowseService.userPlaylistFolders, action: { offset in
+                    await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: offset)
+                })) {
+                    Label("Playlist Folders", systemImage: "folder.fill")
                 }
-                .headerProminence(.increased)
                 
                 Section {
                     if !appleMusicBrowseService.userPlaylists.isEmpty {

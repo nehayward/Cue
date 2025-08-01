@@ -209,7 +209,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .tuneIn:
                 .white
         case .soundcloud:
-                .black
+            Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
         case .unknown:
                 .primary
         }

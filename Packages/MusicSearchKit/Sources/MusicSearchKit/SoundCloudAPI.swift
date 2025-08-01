@@ -48,7 +48,7 @@ public final class SoundCloudAPI {
         guard let url = components.url else { return nil }
         
         do {
-            let searchResult: [SoundCloudTrack] = try await loadAuthorized(url)
+            let searchResult: [SoundCloudTrack] = try await authorizedRequestWithDirectToken(url)
             return SoundCloudSearchResult(tracks: searchResult)
         } catch {
             logger.error("Search failed: \(error.localizedDescription)")
@@ -72,7 +72,7 @@ public final class SoundCloudAPI {
         guard let url = components.url else { return nil }
         
         do {
-            let searchResult: [SoundCloudTrack] = try await loadAuthorized(url)
+            let searchResult: [SoundCloudTrack] = try await authorizedRequestWithDirectToken(url)
             return SoundCloudSearchResult(tracks: searchResult)
         } catch {
             logger.error("Search failed: \(error.localizedDescription)")
@@ -90,27 +90,32 @@ public final class SoundCloudAPI {
         guard let url = components.url else { return nil }
         
         do {
-            return try await loadAuthorized(url)
+            return try await authorizedRequestWithDirectToken(url)
         } catch {
             logger.error("Track lookup failed: \(error.localizedDescription)")
             return nil
         }
     }
     
-    public func playlistTracks(for playlistId: String, limit: Int = 50, offset: Int = 0) async -> [SoundCloudTrack]? {
+    public func playlistTracks(for playlistId: String, limit: Int = 50, cursor: String? = nil) async -> [SoundCloudTrack]? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.soundcloud.com"
         components.path = "/playlists/\(playlistId)/tracks"
         components.queryItems = [
-            URLQueryItem(name: "limit", value: "\(limit)"),
-            URLQueryItem(name: "offset", value: "\(offset)")
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "limit", value: "\(limit)")
         ]
+        
+        // Only add cursor if it's not nil
+        if let cursor = cursor {
+            components.queryItems?.append(URLQueryItem(name: "cursor", value: cursor))
+        }
         
         guard let url = components.url else { return nil }
         
         do {
-            return try await loadAuthorized(url)
+            return try await authorizedRequestWithDirectToken(url)
         } catch {
             logger.error("Playlist tracks lookup failed: \(error.localizedDescription)")
             return nil
@@ -141,6 +146,68 @@ public final class SoundCloudAPI {
             print(error)
             logger.error("Get liked tracks failed: \(error.localizedDescription)")
             return nil
+        }
+    }
+    
+    public func getLikedPlaylists(limit: Int = 50, cursor: String? = nil) async -> SoundCloudPaginatedResponse<SoundCloudPlaylist>? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.soundcloud.com"
+        components.path = "/me/likes/playlists"
+        components.queryItems = [
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "limit", value: "\(limit)")
+        ]
+        
+        // Only add cursor if it's not nil
+        if let cursor = cursor {
+            components.queryItems?.append(URLQueryItem(name: "cursor", value: cursor))
+        }
+        
+        guard let url = components.url else { return nil }
+        
+        do {
+            let response: SoundCloudPaginatedResponse<SoundCloudPlaylist> = try await authorizedRequestWithDirectToken(url)
+            return response
+        } catch {
+            logger.error("Get liked playlists failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    public func likeTrack(trackId: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.soundcloud.com"
+        components.path = "/likes/tracks/soundcloud:tracks:\(trackId)"
+        
+        guard let url = components.url else { return false }
+        
+        do {
+            let _: EmptyResponse = try await authorizedRequestWithDirectToken(url, method: "POST")
+            logger.info("Successfully liked track: \(trackId)")
+            return true
+        } catch {
+            logger.error("Like track failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
+    public func unlikeTrack(trackId: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.soundcloud.com"
+        components.path = "/likes/tracks/soundcloud:tracks:\(trackId)"
+        
+        guard let url = components.url else { return false }
+        
+        do {
+            let _: EmptyResponse = try await authorizedRequestWithDirectToken(url, method: "DELETE")
+            logger.info("Successfully unliked track: \(trackId)")
+            return true
+        } catch {
+            logger.error("Unlike track failed: \(error.localizedDescription)")
+            return false
         }
     }
     
@@ -253,9 +320,17 @@ public final class SoundCloudAPI {
                 throw AuthError.invalidToken
             }
             
-            guard let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            // For POST/DELETE requests, accept 200, 201, 204 status codes
+            let successStatusCodes = method == "GET" ? [200] : [200, 201, 204]
+            guard let httpResponse = urlResponse as? HTTPURLResponse, 
+                  successStatusCodes.contains(httpResponse.statusCode) else {
                 logger.error("SoundCloud request failed with status code: \((urlResponse as? HTTPURLResponse)?.statusCode ?? 0)")
                 throw URLError(.badServerResponse)
+            }
+            
+            // Handle empty responses for POST/DELETE
+            if data.isEmpty && T.self == EmptyResponse.self {
+                return EmptyResponse() as! T
             }
             
             return try decoder.decode(T.self, from: data)
@@ -272,4 +347,8 @@ fileprivate struct SoundCloudAuthResponse: Codable {
     let expiresIn: Int
     let tokenType: String
     let scope: String
+}
+
+fileprivate struct EmptyResponse: Codable {
+    init() {}
 }

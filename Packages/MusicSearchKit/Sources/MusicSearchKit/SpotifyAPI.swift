@@ -177,7 +177,6 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/playlists/\(id)"
-        components.queryItems = [URLQueryItem(name: "fields", value: "tracks,images")]
         
         guard let url = components.url else { return nil }
 
@@ -306,13 +305,14 @@ public final class SpotifyAPI {
         }
     }
 
-    public func albumDetails(id: String) async -> SpotifyAlbumDetails? {
+    public func albumDetails(id: String, offset: Int = 0, limit: Int = 50) async -> SpotifyAlbumDetails? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/albums/\(id)"
         components.queryItems = [
-            URLQueryItem(name: "limit", value: "50")
+            .init(name: "offset", value: "\(offset)"),
+            .init(name: "limit", value: "\(limit)")
         ]
 
         guard let url = components.url else { return nil }

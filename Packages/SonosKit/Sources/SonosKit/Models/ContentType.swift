@@ -129,4 +129,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     public var isRadio: Bool {
         [.radio, .artistRadio, .songRadio].contains(self)
     }
+    
+    public var isPlaylist: Bool {
+        [.playlist, .libraryImportedPlaylists, .libraryPlaylist].contains(self)
+    }
 }

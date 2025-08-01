@@ -116,8 +116,9 @@ struct ListViewLarge: View {
         .animation(.interactiveSpring, value: sonosService.sorted)
         .animation(.interactiveSpring, value: sonosService.sortOption)
         .environment(\.defaultMinListRowHeight, 40)
-        .onChange(of: sonosService.sorted) {
+        .task(id: sonosService.sorted) {
             if selected == nil {
+                try? await Task.sleep(for: .milliseconds(400))
                 sonosService.selectedGroup = sonosService.sorted.first
                 selected = sonosService.sorted.first?.coordinatorID
             }

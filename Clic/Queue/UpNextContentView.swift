@@ -151,6 +151,17 @@ struct UpNextContentView: View {
     
     private func handleLocalDelete(_ track: PlayableContent) {
         upNext.removeAll { $0.trackID == track.trackID }
+        
+        Task {
+            try await Task.sleep(for: .milliseconds(200))
+            guard let position = track.metadata?.position else { return }
+            
+            for index in upNext.indices {
+                if let currentPosition = upNext[index].metadata?.position, currentPosition >= position {
+                    upNext[index].metadata?.position = currentPosition - 1
+                }
+            }
+        }
     }
     
     private func move(from source: IndexSet, to destination: Int) {

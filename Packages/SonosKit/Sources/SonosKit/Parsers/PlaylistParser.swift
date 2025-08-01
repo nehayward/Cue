@@ -78,9 +78,9 @@ final class PlaylistParser {
             let itemXML = String(didlContent[itemRange])
             
             // Extract required fields
-            let title = extract(field: "dc:title", from: itemXML) ?? ""
-            let artist = extract(field: "dc:creator", from: itemXML) ?? ""
-            let album = extract(field: "upnp:album", from: itemXML) ?? ""
+            let title = extract(field: "dc:title", from: itemXML)?.removingHTMLEntities() ?? ""
+            let artist = extract(field: "dc:creator", from: itemXML)?.removingHTMLEntities() ?? ""
+            let album = extract(field: "upnp:album", from: itemXML)?.removingHTMLEntities() ?? ""
             let contentType = ContentType(extract(field: "upnp:class", from: itemXML) ?? "") ?? .track
             
             // Extract resource URI and duration

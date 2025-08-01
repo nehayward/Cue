@@ -328,6 +328,11 @@ extension UTType {
     public static var playableContent: UTType { UTType(exportedAs: "com.clic.playableContent") }
 }
 
+extension PlayableContent {
+    public var isSonosPlaylist: Bool {
+        content.type == .playlist && content.service == .library
+    }
+}
 
 /// TODO: ADD
 /// 

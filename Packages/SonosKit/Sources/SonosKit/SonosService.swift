@@ -438,9 +438,9 @@ public final class SonosService {
             }
             return
         }
+        await updateGroupCheckTVMode(from: groups)
         try await updateGroups(from: groups)
         await updateGroupsRooms(from: groups)
-        await updateGroupCheckTVMode(from: groups)
         await updateGroupMuteState(for: groups)
     }
     
@@ -541,6 +541,11 @@ public final class SonosService {
                     }
 
                     guard let awaitedTrack = await track else {
+                        return
+                    }
+                    
+                    if awaitedTrack == .tv {
+                        roomGroup.playbackService = .tv
                         return
                     }
                     
@@ -1731,9 +1736,15 @@ public final class SonosService {
     
     public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end) async throws {
         var hasPlayed = false
+        let queueActive = group.playbackService == .queue
         if position == .replace {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
+
+        if !queueActive {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
+        
         for content in contents {
             try await api.queuePlayable(playableContent: content, IP: group.ip)
             if !hasPlayed, position == .next {
@@ -1867,9 +1878,9 @@ public final class SonosService {
         return await api.sonosPlaylists(IP: ip)
     }
 
-    public func sonosPlaylistsTracks(for id: String) async -> [PlayableContent] {
+    public func sonosPlaylistsTracks(for id: String, offset: Int = 0, limit: Int = 100) async -> [PlayableContent] {
         guard let ip = prioritizedIP() else { return [] }
-        return await api.sonosPlaylistsTracks(IP: ip, id: id)
+        return await api.sonosPlaylistsTracks(IP: ip, id: id, offset: offset, limit: limit)
     }
 
     public func createPlaylist(title: String) async {

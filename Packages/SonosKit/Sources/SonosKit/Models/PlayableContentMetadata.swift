@@ -10,7 +10,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
     public let albumID: String?
     public let albumYear: Date?
     public let isrc: String?
-    public let position: Int?
+    public var position: Int?
     public let audioCodec: String?
     public let URIMetadata: String?
     public var radioStation: Bool?

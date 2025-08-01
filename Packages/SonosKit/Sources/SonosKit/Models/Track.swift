@@ -94,7 +94,7 @@ public final class Track: Identifiable, Sendable {
 
 extension Track: Hashable {
     public static func == (lhs: Track, rhs: Track) -> Bool {
-        lhs.trackID == rhs.trackID &&
+        lhs.id == rhs.id &&
         lhs.name == rhs.name &&
         lhs.position == rhs.position &&
         lhs.playbackPosition == rhs.playbackPosition &&
@@ -113,4 +113,5 @@ public extension Track {
     /// A static instance of `Track` representing an empty state.
     static let empty = Track(trackID: "", name: "")
     static let alarm = Track(trackID: "x-rincon-buzzer:0", name: "Alarm")
+    static let tv = Track(trackID: "x-sonos-htastream", name: "TV")
 }

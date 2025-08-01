@@ -78,7 +78,7 @@ struct MenuInfoView: View {
                             await SonosService.shared.switchToQueueInput(group: group)
                         }
                     } label: {
-                        Label("Switch to Queue", image: "music.note.circle")
+                        Label("Switch to Queue", systemImage: "music.note.list")
                     }
                 }
                 

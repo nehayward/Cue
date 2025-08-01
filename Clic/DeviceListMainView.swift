@@ -23,7 +23,7 @@ struct DeviceListMainView: View {
 //        let _ = Self._printChanges()
 
         NavigationStack(path: $router.path) {
-            List ($sonosService.sorted) { $group in
+            List (sonosService.sorted) { group in
                 Section {
                     if group.coordinatorRoom.state == .active {
                         Button {
@@ -164,6 +164,7 @@ struct DeviceListMainView: View {
                     } label: {
                         Image(systemName: "bolt.fill")
                     }
+                    .tint(.primary)
                     Spacer()
                     Button{
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -171,6 +172,7 @@ struct DeviceListMainView: View {
                     } label: {
                         Image(systemName: "magnifyingglass")
                     }
+                    .tint(.primary)
                     Spacer()
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -178,6 +180,7 @@ struct DeviceListMainView: View {
                     } label: {
                         Image(systemName: "music.note.house.fill")
                     }
+                    .tint(.primary)
                 }
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)

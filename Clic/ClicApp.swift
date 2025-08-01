@@ -27,10 +27,10 @@ struct ClicApp: App {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var alertService = AlertService.shared
     @State private var musicSearchService = MusicSearchService.shared
-    
+    @State private var sonosService = SonosService.shared
+
     private var audioPlaybackService = AudioPlaybackService.shared
     private var playlistContainer = PlaylistContainer.shared
-    private var sonosService = SonosService.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
 
@@ -414,12 +414,9 @@ struct ClicApp: App {
                 sonosService.onServerListening()
             }
             
-            if !subscriptionService.subscription.isActive {
-                return
-            }
-            
             if speedLaunchNowPlaying {
                 Task {
+                    try? await Task.sleep(for: .milliseconds(200))
                     if sonosService.groups.isEmpty {
                         try? await sonosService.updateGroups()
                     }
@@ -427,7 +424,11 @@ struct ClicApp: App {
                     handle(URL(string: "clic://playing")!)
                 }
             }
-
+            
+            if !subscriptionService.subscription.isActive {
+                return
+            }
+            
             Task {
                 await liveActivityManager.refresh()
 
@@ -465,8 +466,9 @@ struct ClicApp: App {
         }
     }
 
+    @MainActor
     private func handle(_ url: URL) {
-        Task { @MainActor in
+        Task {
             guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
             
             if sonosService.groups.isEmpty {

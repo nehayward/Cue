@@ -19,7 +19,7 @@ public final class SpotifyBrowseService {
 
     public init() { }
 
-    public func updatePlaylists(offset: Int? = nil, limit: Int = 25) async {
+    public func updatePlaylists(offset: Int? = nil, limit: Int = 5) async {
         let offset = offset ?? playlists.count
         guard let container = await spotifyAPI.userPlaylists(offset: offset, limit: limit) else {
             return
@@ -43,7 +43,7 @@ public final class SpotifyBrowseService {
         }
     }
     
-    public func userAlbums(offset: Int? = nil, limit: Int = 25) async {
+    public func userAlbums(offset: Int? = nil, limit: Int = 5) async {
         let offset = offset ?? playlists.count
         guard let container = await spotifyAPI.userAlbums(offset: offset, limit: limit) else {
             return
