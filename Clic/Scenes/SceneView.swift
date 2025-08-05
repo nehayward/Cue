@@ -45,7 +45,6 @@ struct SceneView: View {
                                 .padding()
                         }
                     }
-//                    .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden, edges: .all)
                 }
                 .onMove(perform: move)

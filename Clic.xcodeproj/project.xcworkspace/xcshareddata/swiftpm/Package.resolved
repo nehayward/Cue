@@ -1,5 +1,5 @@
 {
-  "originHash" : "a50436b9cd8b2358d04c8785b7dcfa21c1c3a7d1aa8c1017e670798702ed3eed",
+  "originHash" : "5567003e7094b32311f1ce8248349355a6f8f21f3bcd9947474fdfccf20a7c96",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swhitty/FlyingFox.git",
       "state" : {
-        "revision" : "523a88637425fd2a817e54b644a411ca4a353966",
-        "version" : "0.23.0"
+        "revision" : "de429870282bed7b01bf6c384f5f29d55907aa10",
+        "version" : "0.24.1"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Kingfisher",
       "state" : {
-        "revision" : "7deda23bbdca612076c5c315003d8638a08ed0f1",
-        "version" : "8.3.2"
+        "revision" : "2015fda791daa72c8058619545a593bf8c1dd59f",
+        "version" : "8.5.0"
       }
     },
     {
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "cdfe7100fc8cca4a655a9c0f1d34e1fcbc40edd0",
-        "version" : "5.28.1"
+        "revision" : "d9155fd20755ce900878275d56e4878c7fdfe2c1",
+        "version" : "5.34.0"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections/",
       "state" : {
-        "revision" : "c1805596154bb3a265fd91b8ac0c4433b4348fb0",
-        "version" : "1.2.0"
+        "revision" : "8c0c0a8b49e080e54e5e328cc552821ff07cd341",
+        "version" : "1.2.1"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/drmohundro/SWXMLHash",
       "state" : {
-        "revision" : "6ae7b83692c4a2ed53ea2cb0e6cda20768800a99",
-        "version" : "8.1.0"
+        "revision" : "9cfb8730651ae7f57a6f5d413e2f07be7d7dbd41",
+        "version" : "8.1.1"
       }
     }
   ],
