@@ -430,8 +430,6 @@ struct ClicApp: App {
             }
             
             Task {
-                await liveActivityManager.refresh()
-
                 for group in sonosService.groups {
                     if !group.coordinatorRoom.isPlaying {
                         await liveActivityManager.stop(id: group.coordinatorRoom.id)
@@ -664,7 +662,11 @@ struct ClicApp: App {
             if components.host?.lowercased() == "scene", let name = components.queryItems?.first(where: { $0.name == "name" })?.value, !name.isEmpty {
                 guard let scene = scenes.first(where: { $0.name == name }) else { return }
                 Task {
-                    alertService.showAlert(with: "Running \(scene.name)")
+                    if let content = scene.playableContent {
+                        alertService.showAlertContent(with: content, subtitle: "Running \(scene.name)", symbolName: "bolt.fill")
+                    } else {
+                        alertService.showAlert(with: "Running \(scene.name)")
+                    }
                     try await sonosService.runScene(scene)
                 }
             }

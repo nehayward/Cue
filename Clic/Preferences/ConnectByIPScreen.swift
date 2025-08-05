@@ -58,14 +58,28 @@ struct ConnectByIPScreen: View {
                 }
             }
             
-            Button {
-                Task {
-                    guard let device = sonosService.setPriorityDevice() else { return }
-                    alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
-                }
-            } label: {  
-                Text("Set Priority Device")
-                Text("Prioritize wired connections, the latest models, and non-portable Sonos devices.")
+            Section {
+                VStack(spacing: 8) {
+                     Button {
+                         Task {
+                             guard let device = sonosService.setPriorityDevice() else { return }
+                             alertService.showAlert(with: "Assigning Priority to \(device.name)", imageName: "1.circle.fill")
+                         }
+                     } label: {
+                         Text("Set Priority Device")
+                             .bold()
+                             .fontDesign(.rounded)
+                             .frame(maxWidth: .infinity)
+                     }
+                     .buttonStyle(.borderedProminent)
+
+                     Text("Prefers wired devices, newer models, and excludes portable speakers like Roam or Move.")
+                         .font(.caption2)
+                         .foregroundStyle(.secondary)
+                         .multilineTextAlignment(.leading)
+                 }
+                 .listRowBackground(Color.clear)
+                 .listRowInsets(EdgeInsets())
             }
             
             ForEach(sonosService.sortedRooms) { room in
@@ -77,13 +91,15 @@ struct ConnectByIPScreen: View {
                 } label: {
                     Label {
                         Text(room.name)
-                        if let info = room.info {
-                            Text("\(info.modelDisplayName)")
+                        HStack(spacing: 0) {
+                            if let info = room.info {
+                                Text("\(info.modelDisplayName) • ")
+                            }
+                            Text(room.ip)
+                                .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
                         }
-                        Text(room.ip)
-                            .foregroundStyle(manualConnectIPAddress == room.ip ? .green : .secondary)
                     } icon: {
-                        Image(systemName: "checkmark.circle")
+                        Image(systemName: "circle")
                             .foregroundStyle(.accent)
                             .transition(.scale.combined(with: .opacity))
                             .symbolVariant(sonosIP == room.ip  ? .fill : .none)

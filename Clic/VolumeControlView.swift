@@ -8,7 +8,6 @@ struct VolumeControlView: View {
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
     
-    @ScaledMetric(relativeTo: .body) private var sliderGestureHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 32 : 40
     @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
 
     var body: some View {
@@ -60,7 +59,6 @@ struct VolumeControlView: View {
                 }
             }
             .foregroundStyle(.primary)
-            
             Button {
                 if group.isMuted {
                     Task {
@@ -87,7 +85,6 @@ struct VolumeControlView: View {
         }
         .font(.caption)
         .fontDesign(.rounded)
-        .frame(height: sliderGestureHeight)
         .dynamicTypeSize(...DynamicTypeSize.large)
         .opacity(group.isMuted ? 0.6 : 1)
         .animation(.spring, value: group.isMuted)

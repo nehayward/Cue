@@ -39,10 +39,9 @@ public struct SceneListView: View {
                     #if !os(watchOS) && !os(macOS)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
-                        // TODO: Edit scene
-//                        Button("Edit") {
-//                            editScene(scene)
-//                        }
+                        Button("Edit") {
+                            editScene(scene)
+                        }
                         Button("Remove", role: .destructive) {
                             scenes.removeAll { sceneSearch in
                                 sceneSearch.id == scene.id

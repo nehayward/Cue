@@ -31,7 +31,15 @@ public struct PlexServer: Codable {
     }
 
     public var nonLocalURIs: [String] {
-        connections.filter({ !$0.local }).filter({ !$0.address.lowercased().contains("quick") }).map(\.uri)
+        connections
+            .filter { !$0.local }
+            .filter { !$0.address.lowercased().contains("quick") }
+            .filter { $0.port != 443 }
+            .sorted {
+                // Prioritize 32400
+                ($0.port == 32400 ? 0 : 1) < ($1.port == 32400 ? 0 : 1)
+            }
+            .map(\.uri)
     }
 
     func baseURL(preferring connectionType: PlexAPI.ConnectionPreference) -> URL? {

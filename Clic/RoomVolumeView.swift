@@ -86,7 +86,7 @@ struct RoomVolumeView: View {
         .font(.caption)
         .fontDesign(.rounded)
         .animation(.interactiveSpring, value: room.isMuted)
-        .frame(height: 60)
+        .frame(height: 48)
     }
 
     private func updateVolume(volume: Double) {

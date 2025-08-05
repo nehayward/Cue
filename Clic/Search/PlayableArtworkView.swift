@@ -43,6 +43,10 @@ struct PlayableArtworkView: View {
     }
     
     private func primaryAction() {
+        if let add = adding?.add, add {
+            adding?.content = item
+            return
+        }
         switch item.content.type {
         case .folder:
             router?.navigate(to: .folderBrowse(item: item, title: item.title))

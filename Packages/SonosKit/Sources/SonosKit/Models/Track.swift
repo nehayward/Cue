@@ -97,12 +97,14 @@ extension Track: Hashable {
         lhs.id == rhs.id &&
         lhs.name == rhs.name &&
         lhs.position == rhs.position &&
+        lhs.artist == rhs.artist &&
         lhs.playbackPosition == rhs.playbackPosition &&
         lhs.artworkURL == rhs.artworkURL
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
+        hasher.combine(artist)
         hasher.combine(name)
         hasher.combine(position)
         hasher.combine(playbackPosition)

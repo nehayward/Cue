@@ -301,6 +301,10 @@ struct LargePlayerView: View {
             shouldFade = false
         }
         .task {
+            let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
+            if group.playMode != awaitedPlayMode {
+                group.playMode = awaitedPlayMode
+            }
             try? await Task.sleep(for: .milliseconds(400))
             shouldFade = true
         }

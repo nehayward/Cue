@@ -20,13 +20,16 @@ struct PlexBrowseScreen: View {
 
     @State private var router = Router()
     @State private var isLoading: Bool = false
+    @State private var plexAuthenticator = PlexAuthenticator.shared
 
     var body: some View {
         @Bindable var plexBrowseService = plexBrowseService
 
         NavigationStack(path: $router.path) {
             List {
-                PlexAuthorizationFlowView()
+                if plexAuthenticator.authToken == nil {
+                    PlexAuthorizationFlowView()
+                }
                 if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
                     NavigationLink(value: RouterDestination.playableList(title: "Artists", action: { offset in
                         await plexBrowseService.artists(offset: offset)
@@ -52,25 +55,20 @@ struct PlexBrowseScreen: View {
                         Label("Playlists (\(plexBrowseService.userPlaylists.count))", systemImage: "rectangle.stack.badge.play")
                     }
                     
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            ForEach(plexBrowseService.userPlaylists.prefix(4)) { item in
-                                PlayableCardView(item: item)
-                                    .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
-                            }
+                    if !plexBrowseService.userPlaylists.isEmpty {
+                        ForEach(plexBrowseService.userPlaylists.prefix(5)) { item in
+                            PlayableContentView(item: item)
                         }
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                     
                     if plexBrowseService.userPlaylists.isEmpty, isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity)
-                            .listRowSeparator(.hidden)
                     }
                 }
-                
             }
+            .navigationBarTitleDisplayMode(.inline)
+            .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
@@ -96,7 +94,6 @@ struct PlexBrowseScreen: View {
             }
     #endif
         }
-        .listStyle(.plain)
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
             isLoading = true

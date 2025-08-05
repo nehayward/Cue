@@ -77,9 +77,7 @@ struct LibraryBrowseScreen: View {
                     }
                 }
             }
-//            .foregroundStyle(.primary)
             .miniPlayerOnScrollHandler()
-            .listStyle(.inset)
             .foregroundStyle(.primary)
             .navigationTitle("Music Library")
             .navigationBarTitleDisplayMode(.inline)

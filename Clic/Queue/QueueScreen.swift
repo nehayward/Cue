@@ -124,10 +124,10 @@ struct QueueScreen: View {
                         Button {
                             var currentPlayMode = group.playMode
                             
-                            if currentPlayMode.contains(.normal) || currentPlayMode.rawValue == 1 {
+                            if currentPlayMode.contains(.normal) && !currentPlayMode.isRepeatEnabled {
                                 currentPlayMode.remove(.normal)
                                 currentPlayMode.insert(.repeatAll)
-                            } else if currentPlayMode.contains(.repeatAll) {
+                            } else if currentPlayMode.isRepeatAllEnabled {
                                 currentPlayMode.remove(.normal)
                                 currentPlayMode.remove(.repeatAll)
                                 currentPlayMode.insert(.repeatOne)
@@ -150,7 +150,7 @@ struct QueueScreen: View {
                             }
                         } label: {
                             Image(systemName: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
-                                .foregroundStyle(group.playMode.rawValue > 2 ? .accent : .secondary)
+                                .foregroundStyle(group.playMode.isRepeatEnabled ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
                         

@@ -13,7 +13,7 @@ enum SheetDestination: Identifiable, Equatable {
     case playMedia(url: URL)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
-    case createScene
+    case createScene(content: PlayableContent?)
     case editScene(SonosScene)
     case scenes
     case searchAdd(adding: ContentToAdd)

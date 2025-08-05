@@ -6,7 +6,7 @@ import SonosKit
 struct ManageSceneScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-    @State private var selectedScene: SonosScene?
+    @State private var sceneToDelete: SonosScene?
 
     var body: some View {
         List {
@@ -14,10 +14,8 @@ struct ManageSceneScreen: View {
                 HStack {
                     Text(scene.name)
                     Spacer()
-                    Button {
-                        scenes.removeAll { sceneSearch in
-                            sceneSearch.id == scene.id
-                        }
+                    Button(role: .destructive) {
+                        sceneToDelete = scene
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -30,6 +28,23 @@ struct ManageSceneScreen: View {
             EditButton()
         }
         .navigationTitle("Scenes")
+        .confirmationDialog(
+            "Delete Scene",
+            isPresented: .constant(sceneToDelete != nil),
+            presenting: sceneToDelete
+        ) { scene in
+            Button("Delete '\(scene.name)'", role: .destructive) {
+                scenes.removeAll { sceneSearch in
+                    sceneSearch.id == scene.id
+                }
+                sceneToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                sceneToDelete = nil
+            }
+        } message: { scene in
+            Text("Are you sure you want to delete the scene '\(scene.name)'? This action cannot be undone.")
+        }
     }
 
     func moveItem(from source: IndexSet, to destination: Int) {

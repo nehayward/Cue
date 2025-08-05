@@ -53,7 +53,7 @@ struct DeviceListMainView: View {
                                 VolumeControlView(group: group, delayDrag: true)
                             }
                         }
-                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: group.TVMode ? 12 : 10, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
                     } else {
@@ -154,15 +154,40 @@ struct DeviceListMainView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    Button {
+                    Menu {
+                        ForEach(scenes) { scene in
+                            SceneButton(scene: scene) {
+                                if let content = scene.playableContent {
+                                    alertService.showAlertContent(with: content, subtitle: "Running \(scene.name)", symbolName: "bolt.fill")
+                                } else {
+                                    alertService.showAlert(with: "Running \(scene.name)")
+                                }
+                                Task {
+                                    try? await sonosService.runScene(scene)
+                                }
+                            }
+                        }
+                    } label: {
+                        if !scenes.isEmpty {
+                            Image(systemName: "bolt.fill")
+                        } else {
+                            VStack {
+                                Image(systemName: "bolt.fill")
+                                Text("Create Scene")
+                                    .font(.caption2)
+                            }
+                        }
+                    } primaryAction: {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         if subscriptionService.subscription.isActive {
-                            router.sheet(to: .scenes)
+                            if !scenes.isEmpty {
+                                router.sheet(to: .scenes)
+                            } else {
+                                router.sheet(to: .createScene(content: nil))
+                            }
                         } else {
                             router.sheet(to: .paywall)
                         }
-                    } label: {
-                        Image(systemName: "bolt.fill")
                     }
                     .tint(.primary)
                     Spacer()

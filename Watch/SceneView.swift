@@ -2,11 +2,12 @@ import CloudStorage
 import Defaults
 import SwiftUI
 import VibesDS
+import SonosKit
 import SonosKitMini
 
 public struct SceneView: View {
     @Environment(SonosMiniService.self) var sonosService
-    @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
+    @CloudStorage(CloudKeys.scenes) var scenes: [SonosKit.SonosScene] = []
     @Environment(\.dismiss) var dismiss
 
     public var body: some View {
@@ -19,7 +20,7 @@ public struct SceneView: View {
                         ForEach(scenes) { scene in
                             Button {
                                 Task {      
-                                    try? await sonosService.runScene(scene)
+                                    try? await SonosService.shared.runScene(scene)
                                     dismiss()
                                     try? await sonosService.loadWatch(useCache: true)
                                 }

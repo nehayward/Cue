@@ -15,75 +15,79 @@ struct SceneView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 12) {
-                    ForEach(scenes) { scene in
-                        SceneButton(scene: scene) {
-                            dismiss()
+            List {
+                ForEach(scenes) { scene in
+                    SceneButton(scene: scene) {
+                        dismiss()
+                        if let content = scene.playableContent {
+                            alertService.showAlertContent(with: content, subtitle: "Running \(scene.name)", symbolName: "bolt.fill")
+                        } else {
                             alertService.showAlert(with: "Running \(scene.name)")
-                            Task {
-                                try? await sonosService.runScene(scene)
+                        }
+                        Task {
+                            try? await sonosService.runScene(scene)
+                        }
+                    }
+                    .contentShape(.contextMenuPreview, Capsule())
+                    .contextMenu {
+                        Button("Edit") {
+                            Router.main.sheet(to: .editScene(scene))
+                        }
+                        Button("Remove", role: .destructive) {
+                            scenes.removeAll { sceneSearch in
+                                sceneSearch.id == scene.id
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .contentShape(.contextMenuPreview, Capsule())
-                        .contextMenu {
-                            // TODO: Add
-//                            Button("Edit") {
-//                                Router.main.sheet(to: .editScene(scene))
-//                            }
-                            Button("Remove", role: .destructive) {
-                                scenes.removeAll { sceneSearch in
-                                    sceneSearch.id == scene.id
-                                }
-                            }
-                        } preview: {
+                    } preview: {
+                        HStack {
                             Text(scene.description)
                                 .fontDesign(.rounded)
                                 .padding()
                         }
                     }
-                    if scenes.isEmpty {
-                        ContentUnavailableView {
-                            Label("Add Scene", systemImage: "bolt.fill")
-                        } description: {
-                            Text("Create a scene, to automate grouping and volume.")
-                        } actions: {
-                            NavigationLink {
-                                SceneBuilderScreen()
-                                    .onAppear {
-                                        withAnimation {
-                                            presentationDetentSelection = .large
-                                        }
-                                    }
-                            } label: {
-                                Label("Add Scene", systemImage: "plus.circle.fill")
-
-                                //                            Button {
-                                //                                HapticManager.shared.fireHaptic(.buttonPress)
-                                //                                show = true
-                                //                            } label: {
-                                //                                    Image(systemName: "plus.circle.fill")
-                                //                                        .font(.title)
-                                //                            }
-                                //                            .bold()
-                                //                            .foregroundStyle(Color.accentColor.gradient)
-                            }
-                        }
-                        .padding(.vertical)
-                    }
+//                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden, edges: .all)
                 }
+                .onMove(perform: move)
+
+                if scenes.isEmpty {
+                    ContentUnavailableView {
+                        Label("Create Scene", systemImage: "bolt.fill")
+                    } description: {
+                        Text("Create a scene, to automate grouping and volume.")
+                    } actions: {
+                        NavigationLink {
+                            SceneBuilderScreen()
+                                .onAppear {
+                                    withAnimation {
+                                        presentationDetentSelection = .large
+                                    }
+                                }
+                        } label: {
+                            Label("Create Scene", systemImage: "plus.circle.fill")
+                        }
+                    }
+                    .padding(.vertical)
+                }
+                
             }
+            .listRowSpacing(0)
+            .listStyle(.plain)
             .navigationTitle("Scenes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if !scenes.isEmpty {
+                        EditButton()
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         show = true
                     } label: {
                         Image(systemName: "plus")
-                            .accessibilityLabel("Add Scene")
+                            .accessibilityLabel("Create Scene")
                             .bold()
                             .foregroundStyle(Color.accentColor.gradient)
                     }
@@ -100,9 +104,14 @@ struct SceneView: View {
             .addDismiss {
                 dismiss()
             }
+            .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         }
         .presentationDetents([.medium, .large], selection: $presentationDetentSelection)
         .presentationDragIndicator(.hidden)
+    }
+    
+    private func move(from source: IndexSet, to destination: Int) {
+        scenes.move(fromOffsets: source, toOffset: destination)
     }
 }
 
@@ -143,7 +152,7 @@ struct SceneView: View {
     SceneView(
         scenes: []
     )
-    .environment(SonosService())
-    .environment(AlertService())
+    .withEnvironments()
     .padding()
 }
+

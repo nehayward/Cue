@@ -30,7 +30,7 @@ struct PlayableContentView: View {
         VStack {
             if hideDetails || item.content.service == .unknown {
                 content
-            } else if let add = adding?.add, add {
+            } else if let add = adding?.add, add, !item.content.type.isArtist {
                 content
             } else {
                 switch item.content.type {

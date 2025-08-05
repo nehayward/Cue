@@ -40,7 +40,7 @@ extension Song {
                 album: albumTitle,
                 isrc: isrc,
                 audioCodec: audioVariants?.first?.description,
-                isExplicit: contentRating == .explicit,
+                isExplicit: contentRating == .explicit
             )
         )
     }

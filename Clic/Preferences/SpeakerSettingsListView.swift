@@ -5,8 +5,6 @@ import SwiftUI
 import SonosKit
 import RevenueCat
 import MusicSearchKit
-import SubscriptionKit
-import RevenueCatUI
 
 struct SpeakerSettingsListView: View {
     @Environment(SonosService.self) var sonosService: SonosService

@@ -17,10 +17,11 @@ struct PlayableMenuView: View {
 
     var body: some View {
         VStack {
-            // TODO: Add scene playlist
-            //                NavigationLink(value: RouterDestination.createScene(content: item)) {
-            //                    Label("Create Scene", systemImage: "bolt.fill")
-            //                }
+            Button {
+                router.sheet(to: .createScene(content: item))
+            } label: {
+                Label("Create Scene", systemImage: "bolt.fill")
+            }
             switch item.content.type {
             case .artistRadio, .songRadio:
                 if [.spotify, .apple].contains(item.content.service) {

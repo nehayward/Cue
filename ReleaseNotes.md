@@ -1,19 +1,20 @@
 # 2025.13
 
 –– New Features ––
-- Add abiliity to Like/Remove Soundcloud Songs
-- Add, Remove, Reorder Songs in Sonos Playlist
+- Added ability to like and remove SoundCloud songs
+- Added support to add, remove, and reorder songs in Sonos playlists
 
 –– Bug Fixes & Improvements ––
-- Fix Open In 'Music Service' disappearing
-- Fix duplicates not showing in playlists
-- Fixed sorting on Mac and iPad for Now Playing
-- Fix "Replace Queue" not being included for library albums
-- Fix swipe to delete on queue not deleting correct item.
-- Fix Play Popular Songs not switching to queue
-- Fix all in local library not showing
-- Speed improvements. Reach out if it's slow.
-- Improved drag and drop functionality for playing tracks from Spotify and Apple Music
+- Fixed issue where "Open In Music Service" would disappear
+- Fixed issue where duplicates were not shown in playlists
+- Fixed Now Playing sorting on Mac and iPad
+- Fixed "Replace Queue" not appearing for library albums
+- Fixed swipe to delete in queue not removing the correct item
+- Fixed Play Popular Songs not switching to the queue
+- Fixed issue where "All" in local library was not displayed
+- Improved overall speed and performance
+- Improved drag and drop for playing tracks from Spotify and Apple Music
+- Fixed a case where Plex server couldn't be discovered.
 
 ## ChangeLog
 

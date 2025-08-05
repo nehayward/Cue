@@ -39,6 +39,17 @@ final class QueueManager {
         }
     }
     
+    func add(items: [QueueItem]) {
+        for item in items {
+            continuation?.yield(item)
+            Task { @MainActor in
+                if !item.showBanner {
+                    self.lastQueuedItem = item
+                }
+            }
+        }
+    }
+    
     @MainActor
     private func processQueue() async {
         guard let queue = queue else { return }

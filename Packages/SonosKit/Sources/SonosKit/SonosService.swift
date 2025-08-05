@@ -315,7 +315,6 @@ public final class SonosService {
             async let track = self.getTrack(ip: roomGroup.coordinatorRoom.ip)
             async let playbackInfo = self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
             async let groupVolume = self.getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
-            async let playMode = self.playMode(ip: roomGroup.coordinatorRoom.ip)
             async let availableActions = self.getCurrentTransportActions(ip: roomGroup.ip)
             async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.ip)
             await updateGroupCheckTVMode(from: [roomGroup])
@@ -423,11 +422,6 @@ public final class SonosService {
                 }
             }
 
-            let awaitedPlayMode = await playMode
-            if roomGroup.playMode != awaitedPlayMode {
-                roomGroup.playMode = awaitedPlayMode
-            }
-
             if roomGroup.coordinatorRoom.track.trackID != awaitedTrack.trackID {
                 roomGroup.coordinatorRoom.track = awaitedTrack
                 roomGroup.coordinatorRoom.track.downloadedArtworkURL = awaitedTrack.downloadedArtworkURL
@@ -438,10 +432,33 @@ public final class SonosService {
             }
             return
         }
-        await updateGroupCheckTVMode(from: groups)
-        try await updateGroups(from: groups)
-        await updateGroupsRooms(from: groups)
-        await updateGroupMuteState(for: groups)
+        
+        try await withThrowingTaskGroup(of: Void.self) { [weak self] group in
+            guard let self = self else { return }
+            group.addTask { [weak self] in
+                guard let self = self else { return }
+                try await self.updateTrackInformation(for: self.groups)
+            }
+            
+            group.addTask { [weak self] in
+                guard let self = self else { return }
+                try await self.updateGroups(from: self.groups)
+            }
+            
+            group.addTask { [weak self] in
+                guard let self = self else { return }
+                await self.updateGroupCheckTVMode(from: self.groups)
+            }
+            group.addTask { [weak self] in
+                guard let self = self else { return }
+                await self.updateGroupsRooms(from: self.groups)
+            }
+            group.addTask { [weak self] in
+                guard let self = self else { return }
+                await self.updateGroupMuteState(for: self.groups)
+            }
+            try await group.waitForAll()
+        }
     }
     
     public func onServerListening() {
@@ -495,17 +512,17 @@ public final class SonosService {
         await withDiscardingTaskGroup { group in
             for roomGroup in groups {
                 group.addTask { [weak self] in
+                    try? await self?.updateTrackInformation(for: [roomGroup])
+                }
+                group.addTask { [weak self] in
                     guard let self else { return }
                     // MARK: Sleeping or Off
                     if roomGroup.coordinatorRoom.state != .active { return }
 
-                    async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let playbackInfo = getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
                     async let groupVolume = getGroupVolume(ip: roomGroup.coordinatorRoom.ip)
-                    async let playMode = playMode(ip: roomGroup.coordinatorRoom.ip)
                     async let availableActions = getCurrentTransportActions(ip: roomGroup.ip)
                     async let queueTotal = getQueueTotal(group: roomGroup)
-                    async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
                     if let groupVolumeAwaited = try? await groupVolume, !roomGroup.isEditingVolume, roomGroup.groupVolume != groupVolumeAwaited {
                         roomGroup.groupVolume = groupVolumeAwaited
@@ -539,6 +556,21 @@ public final class SonosService {
                     if roomGroup.coordinatorRoom.isPlaying != isNowPlaying {
                         roomGroup.coordinatorRoom.isPlaying = isNowPlaying
                     }
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    public func updateTrackInformation(for groups: [GroupRoom]) async throws {
+        await withDiscardingTaskGroup { group in
+            for roomGroup in groups {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    // MARK: Sleeping or Off
+                    if roomGroup.coordinatorRoom.state != .active { return }
+                    async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
+                    async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
                     guard let awaitedTrack = await track else {
                         return
@@ -546,6 +578,10 @@ public final class SonosService {
                     
                     if awaitedTrack == .tv {
                         roomGroup.playbackService = .tv
+                     
+                        if let settings = try? await getTVSettings(ip: roomGroup.ip), roomGroup.tvSettings != settings {
+                            roomGroup.tvSettings = settings
+                        }
                         return
                     }
                     
@@ -569,86 +605,9 @@ public final class SonosService {
                         return
                     }
 
-                    if roomGroup.coordinatorRoom.track.trackID == awaitedTrack.trackID, !roomGroup.isEditingPlayback,  roomGroup.coordinatorRoom.track.playbackPosition != awaitedTrack.playbackPosition  {
-                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        return
-                    }
-                    
-//                    print(roomGroup.coordinatorRoom.track.name, awaitedTrack.name)
-//                    print(roomGroup.coordinatorRoom.track.position, awaitedTrack.position)
-//                    print(roomGroup.coordinatorRoom.track.trackID, awaitedTrack.trackID)
-//                    print("UPDATEGROUP:", roomGroup.coordinatorRoom.name)
-                    let awaitedPlayMode = await playMode
-                    if roomGroup.playMode != awaitedPlayMode {
-                        roomGroup.playMode = awaitedPlayMode
-                    }
-
-                    // Only get track information if the track ID has changed
-                    if roomGroup.coordinatorRoom.track.trackID == awaitedTrack.trackID {
-                        return
-                    }
-                    
-                    if roomGroup.coordinatorRoom.id != awaitedTrack.trackID {
-                      roomGroup.coordinatorRoom.track = awaitedTrack
-                    }
-                
-                    guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
-                        if roomGroup.coordinatorRoom.track.id != awaitedTrack.id {
-                            roomGroup.coordinatorRoom.track = awaitedTrack
-                        } else if !roomGroup.isEditingPlayback {
-                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
-                        }
-                        return
-                    }
-                    
-                    if awaitedTrack.downloadedArtworkURL != artworkURL {
-                        awaitedTrack.downloadedArtworkURL = artworkURL
-                    }
-                    
-                    awaitedTrack.metadata = trackMetadata
-                    if awaitedTrack.musicService == .tuneIn {
-                        awaitedTrack.artist = trackMetadata?.artist ?? ""
-                    }
-      
-                    roomGroup.coordinatorRoom.track = awaitedTrack
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-                    
-                    Task {
-                        await ArtworkManager.shared.downScale(coordinatorRoom: roomGroup.nameWithCount, url: roomGroup.coordinatorRoom.track.artworkURL, trackID: roomGroup.coordinatorRoom.track.trackID)
-                    }
-                }
-            }
-        }
-    }
-    
-    @MainActor
-    public func updateTrackInformation(for groups: [GroupRoom]) async throws {
-        await withDiscardingTaskGroup { group in
-            for roomGroup in groups {
-                group.addTask { [weak self] in
-                    guard let self else { return }
-                    // MARK: Sleeping or Off
-                    if roomGroup.coordinatorRoom.state != .active { return }
-                    async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
-
-                    guard let awaitedTrack = await track else {
-                        return
-                    }
-
-                    if awaitedTrack == .empty {
-                        if roomGroup.coordinatorRoom.track != .empty {
-                            ArtworkManager.shared.removeArtwork(coordinatorRoom: roomGroup.nameWithCount)
-                            roomGroup.coordinatorRoom.track = .empty
-                            roomGroup.coordinatorRoom.track.downloadedArtworkURL = nil
-                            roomGroup.coordinatorRoom.track.sonosAlbumArtURL = nil
-                        }
-                        return
-                    }
-
                     let currentTrack = roomGroup.coordinatorRoom.track
                     if currentTrack.trackID == awaitedTrack.trackID {
-                        if !roomGroup.isEditingPlayback,
-                           currentTrack.playbackPosition != awaitedTrack.playbackPosition {
+                        if !roomGroup.isEditingPlayback, currentTrack.playbackPosition != awaitedTrack.playbackPosition {
                             currentTrack.playbackPosition = awaitedTrack.playbackPosition
                             return
                         }
@@ -657,13 +616,11 @@ public final class SonosService {
                             currentTrack.position = awaitedTrack.position
                             return
                         }
+                        return
+                    } else {
+                        roomGroup.coordinatorRoom.track = awaitedTrack
                     }
-                    
-//                    print(roomGroup.coordinatorRoom.track.name, awaitedTrack.name)
-//                    print(roomGroup.coordinatorRoom.track.position, awaitedTrack.position)
-//                    print(roomGroup.coordinatorRoom.track.trackID, awaitedTrack.trackID)
-//                    print("UPDATEGROUP:", roomGroup.coordinatorRoom.name)
-
+                
                     guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
                         if roomGroup.coordinatorRoom.track.id != awaitedTrack.trackID {
                             roomGroup.coordinatorRoom.track = awaitedTrack
@@ -683,10 +640,8 @@ public final class SonosService {
                     }
 
                     if roomGroup.coordinatorRoom.track.trackID != awaitedTrack.trackID {
-                        Task { @MainActor in
-                            roomGroup.coordinatorRoom.track = awaitedTrack
-                            roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-                        }
+                        roomGroup.coordinatorRoom.track = awaitedTrack
+                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
                     }
                     Task {
                         await ArtworkManager.shared.downScale(coordinatorRoom: roomGroup.nameWithCount, url: roomGroup.coordinatorRoom.track.artworkURL, trackID: roomGroup.coordinatorRoom.track.trackID)
@@ -1585,7 +1540,10 @@ public final class SonosService {
         let playlistAction = { [weak self] (group: GroupRoom) in
             guard let self else { return }
             guard let playableContent = scene.playableContent else { return }
-            try await queue(playable: playableContent, group: group)
+            if let playMode = scene.playMode {
+                await setPlayMode(group.ip, mode: playMode)
+            }
+            try await queue(playable: playableContent, group: group, position: scene.position ?? .now)
             await play(ip: group.ip)
         }
         
@@ -1614,6 +1572,18 @@ public final class SonosService {
         let rooms = discoveredSceneRooms.map { Room(id: $0.id, ip: $0.ip, name: $0.name) }
         
         // Create the group
+        if scene.volumeOnly {
+            // Set volume and unmute all rooms concurrently for better performance
+            await withTaskGroup(of: Void.self) { group in
+                for room in discoveredSceneRooms {
+                    group.addTask {
+                        await self.setDeviceVolume(ip: room.ip, volume: Int(room.volume))
+                        await self.setRoomMute(IP: room.ip, mute: false)
+                    }
+                }
+            }
+            return
+        }
         guard let newGroup = await speedGroup(rooms: rooms) else {
             throw SonosAPIError.deviceNotFound
         }
@@ -1746,7 +1716,7 @@ public final class SonosService {
         }
         
         for content in contents {
-            try await api.queuePlayable(playableContent: content, IP: group.ip)
+            try await api.queuePlayable(playableContent: content, IP: group.ip, position: .end)
             if !hasPlayed, position == .next {
                 await next(ip: group.ip)
                 await play(ip: group.ip)
@@ -2045,30 +2015,30 @@ public final class SonosService {
     }
     
     func priorityDevice() -> Room? {
+        let excludedModels = ["roam", "move"]
+        
         let allRooms = groups.flatMap(\.rooms)
-        let sortedRooms = allRooms.sorted { lhs, rhs in
-            // Ethernet-enabled rooms should come last
-            let lhsEthernet = lhs.ethernetEnabled ? 1 : 0
-            let rhsEthernet = rhs.ethernetEnabled ? 1 : 0
-            return lhsEthernet < rhsEthernet
+        
+        // Filter out portable models
+        let nonPortableRooms = allRooms.filter { room in
+            guard let modelName = room.info?.modelDisplayName.lowercased() else { return true }
+            return !excludedModels.contains(where: { modelName.contains($0) })
         }
         
-        // Filter out portable models like Roam and Move
-        let filteredRooms = sortedRooms.filter { room in
-            guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move"]
-            return !excludedModels.contains { modelName.contains($0) }
+        // Prefer Ethernet-enabled devices first
+        let sortedRooms = nonPortableRooms.sorted { lhs, rhs in
+            switch (lhs.ethernetEnabled, rhs.ethernetEnabled) {
+            case (true, false): return true
+            case (false, true): return false
+            default:
+                // If both are equal in ethernet priority, sort by model name
+                let lhsModel = lhs.info?.model ?? ""
+                let rhsModel = rhs.info?.model ?? ""
+                return lhsModel.localizedStandardCompare(rhsModel) == .orderedDescending
+            }
         }
         
-        // Return the best matching room IP
-        if let bestRoom = filteredRooms.sorted(by: {
-            ($0.info?.model ?? "").localizedStandardCompare($1.info?.model ?? "") == .orderedDescending
-        }).first {
-            return bestRoom
-        }
-        
-        // Fallback
-        return allRooms.first
+        return sortedRooms.first ?? allRooms.first
     }
     
     public func setPriorityDevice() -> Room? {

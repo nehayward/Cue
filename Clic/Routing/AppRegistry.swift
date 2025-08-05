@@ -77,9 +77,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case .createScene:
+                case let .createScene(content):
                     NavigationStack {
-                        SceneBuilderScreen()
+                        SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
                     }
                 case .scenes:
                     SceneView()
@@ -175,7 +175,9 @@ extension View {
                 case .spotifyUserPlaylists:
                     SpotifyPlaylistScreen()
                 case let .editScene(scene):
-                    EditSceneScreen(scene: scene)
+                    NavigationStack {
+                        SceneBuilderScreen(edit: true, scene: scene)
+                    }
                 }
             }
             .withEnvironments()
@@ -227,9 +229,9 @@ extension View {
                             .navigationBarTitleDisplayMode(.inline)
                             .navigationTitle("Choose Group")
                     }
-                case .createScene:
+                case let .createScene(content):
                     NavigationStack {
-                        SceneBuilderScreen()
+                        SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
                     }
                 case .scenes:
                     SceneView()
@@ -319,8 +321,10 @@ extension View {
                 MediaDetailView(playableContent: content)
             case let .artistDetail(content, _):
                 ArtistDetailView(playableContent: content)
-            case .createScene:
-                SceneBuilderScreen()
+            case let .createScene(content):
+                NavigationStack {
+                    SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
+                }
             case .alarms:
                 AlarmListView()
             case let .addAlarm(group):

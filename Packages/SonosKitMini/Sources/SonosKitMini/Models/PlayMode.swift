@@ -1,77 +1,71 @@
-//
-//  PlayMode.swift
-//  SonosKitMini
-//
-//  Created by Nick Hayward on 12/20/24.
-//
-
-public struct PlayMode: OptionSet, Hashable, Sendable {
+public struct PlayMode: Codable, OptionSet, Hashable, Sendable {
     public let rawValue: Int
 
-//    NORMAL / REPEAT_ALL / REPEAT_ONE / SHUFFLE_NOREPEAT / SHUFFLE / SHUFFLE_REPEAT_ONE
-    public static let normal = Self(rawValue: 1 << 0)
-    public static let shuffle = Self(rawValue: 1 << 1)
-    public static let repeatOne = Self(rawValue: 1 << 2)
-    public static let repeatAll = Self(rawValue: 1 << 3)
+    // MARK: - Flags
+    public static let normal: PlayMode = []
+    public static let shuffle = PlayMode(rawValue: 1 << 0)
+    public static let repeatOne = PlayMode(rawValue: 1 << 1)
+    public static let repeatAll = PlayMode(rawValue: 1 << 2)
 
     public init(rawValue: Int) {
         self.rawValue = rawValue
     }
 
-    public init?(mode: String) {
-        switch mode.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) {
-        case "normal":
+    // MARK: - Initializer from Sonos Mode String
+    public init?(sonosMode: String) {
+        switch sonosMode.uppercased().trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "NORMAL":
             self = .normal
-        case "repeat_all":
-            self = .repeatAll
-        case "repeat_one":
-            self = .repeatOne
-        case "shuffle":
+        case "REPEAT_ALL":
+            self = [.repeatAll]
+        case "REPEAT_ONE":
+            self = [.repeatOne]
+        case "SHUFFLE_NOREPEAT":
+            self = [.shuffle]
+        case "SHUFFLE":
             self = [.shuffle, .repeatAll]
-        case "shuffle_norepeat":
-            self = .shuffle
-        case "shuffle_repeat_one":
+        case "SHUFFLE_REPEAT_ONE":
             self = [.shuffle, .repeatOne]
         default:
             return nil
         }
     }
 
+    // MARK: - Sonos Mode String
     public var sonosMode: String {
-        return switch self {
+        switch self {
         case .normal:
-            "normal"
-        case .repeatAll:
-            "repeat_all"
-        case .repeatOne:
-            "repeat_one"
+            return "NORMAL"
+        case [.repeatAll]:
+            return "REPEAT_ALL"
+        case [.repeatOne]:
+            return "REPEAT_ONE"
+        case [.shuffle]:
+            return "SHUFFLE_NOREPEAT"
         case [.shuffle, .repeatAll]:
-            "shuffle"
-        case [.normal, .shuffle]:
-            "shuffle_norepeat"
+            return "SHUFFLE"
         case [.shuffle, .repeatOne]:
-            "shuffle_repeat_one"
+            return "SHUFFLE_REPEAT_ONE"
         default:
-            "normal"
+            return "NORMAL" // fallback
         }
+    }
+
+    // MARK: - Helpers
+    public var isShuffleEnabled: Bool {
+        contains(.shuffle)
+    }
+
+    public var isRepeatOneEnabled: Bool {
+        contains(.repeatOne)
+    }
+
+    public var isRepeatAllEnabled: Bool {
+        contains(.repeatAll)
     }
 }
 
 extension PlayMode: CustomStringConvertible, CustomDebugStringConvertible {
-    static public var debugDescriptions: [(Self, String)] = [
-        (.normal, "normal"),
-        (.repeatAll, "repeatAll")
-    ]
-
-    public var debugDescription: String {
-        let result: [String] = Self.debugDescriptions.filter { contains($0.0) }.map { $0.1 }
-        let printable = result.joined(separator: ", ")
-        return "\(printable)"
-    }
-
-    public var description: String {
-        let result: [String] = Self.debugDescriptions.filter { contains($0.0) }.map { $0.1 }
-        let printable = result.joined(separator: ", ")
-        return "\(printable)"
-    }
+    public var description: String { sonosMode }
+    public var debugDescription: String { sonosMode }
 }

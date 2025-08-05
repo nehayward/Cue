@@ -257,37 +257,6 @@ struct ArtistDetailView: View {
                                 .foregroundStyle(.foreground)
                                 .font(.title2)
     #endif
-                            
-                        // MARK: Add queue multiple uris
-                        //                    Spacer()
-                        //                    if !albums.isEmpty {
-                        //                        Button {
-                        //                            hideKeyboard()
-                        //                            Task { @MainActor in
-                        //                                let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                        //                                    HapticManager.shared.fireHaptic(.buttonPress)
-                        //                                    do {
-                        //                                        try await sonosService.queue(contents: albums.reversed(), group: group, replaceQueue: true)
-                        //                                        await sonosService.play(ip: group.coordinatorRoom.ip)
-                        //                                    }
-                        //                                }
-                        //                                guard let group = selectedGroupService.group else {
-                        //                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
-                        //                                    return
-                        //                                }
-                        //                                try await queueSong(group)
-                        //                            }
-                        //                        } label: {
-                        //                            Image(systemName: "play.fill")
-                        //                                .foregroundStyle(.accent)
-                        //                        }
-                        //                        .bold()
-                        //                        .buttonStyle(.bordered)
-                        //                        .buttonBorderShape(.circle)
-                        //                        .tint(.accent)
-                        //                        .help("Play Discography")
-                        //                        .padding(.trailing, -14)
-                        //                    }
                     }
                 }
                 
@@ -327,40 +296,37 @@ struct ArtistDetailView: View {
             //            }
             
             // MARK: Add queue multiple uris
-//            if !albums.isEmpty {
-//                HStack {
-//                    Button {
-//                        hideKeyboard()
-//                        Task { @MainActor in
-//                            let queueSong: ((GroupRoom) async throws -> Void) = { group in
-//                                HapticManager.shared.fireHaptic(.buttonPress)
-//                                do {
-//                                    try await sonosService.clearQueue(group.ip)
-//                                    for album in albums.reversed() {
-//                                        try await sonosService.queue(playable: album, group: group, position: .end, replaceQueue: false)
-//                                    }
-//                                    await sonosService.play(ip: group.coordinatorRoom.ip)
-//                                }
-//                            }
-//                            guard let group = selectedGroupService.group else {
-//                                router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong))
-//                                return
-//                            }
-//                            try await queueSong(group)
-//                        }
-//                    } label: {
-//                        Text("Play Discography")
-//                            .frame(maxWidth: .infinity, alignment: .center)
-//                            .foregroundStyle(.foreground)
-//                    }
-//                    .bold()
-//                    .buttonStyle(.bordered)
-//                    .tint(.accent)
-//                }
-//                .frame(maxWidth: .infinity)
-//                .listRowBackground(Color.clear)
-//                .listRowSeparator(.hidden)
-//            }
+            if !albums.isEmpty {
+                HStack {
+                    Button {
+                        Task { @MainActor in
+                            let queueAll: ((GroupRoom) async throws -> Void) = { group in
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                do {
+                                    alertService.showAlert(with: "Playing \(albums.count) albums", imageName: "figure.dance")
+                                    try await sonosService.queue(contents: albums.reversed(), group: group, position: .replace)
+                                    await sonosService.play(ip: group.coordinatorRoom.ip)
+                                }
+                            }
+                            guard let group = selectedGroupService.group else {
+                                router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueAll))
+                                return
+                            }
+                            try await queueAll(group)
+                        }
+                    } label: {
+                        Text("Play Discography")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .foregroundStyle(.foreground)
+                    }
+                    .bold()
+                    .buttonStyle(.bordered)
+                    .tint(.accent)
+                }
+                .frame(maxWidth: .infinity)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            }
         }
         .miniPlayerOnScrollHandler()
         .listStyle(.sidebar)
@@ -802,7 +768,7 @@ struct ArtistDetailView: View {
                 location: nil
             ))
         )
-        .environment(SonosService.shared)
-        .environment(Router())
+        .withEnvironments()
+        .environment(SelectedGroupService())
     }
 }

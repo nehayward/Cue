@@ -5,8 +5,7 @@
 //  Created by Nick Hayward on 1/30/25.
 //
 
-
-public enum SonosQueuePlacement {
+public enum SonosQueuePlacement: Codable {
     case front
     case end
     case next

@@ -1,4 +1,4 @@
-public enum QueuePosition {
+public enum QueuePosition: Codable {
     case front
     case end
     case next
@@ -9,15 +9,15 @@ public enum QueuePosition {
     public var title: String {
         switch self {
         case .front:
-            return "Added to the front of the queue"
+            return "Add to the front of the queue"
         case .end:
-            return "Playing last"
+            return "Play last"
         case .next:
-            return "Playing next"
+            return "Play next"
         case .now:
-            return "Playing now"
+            return "Play"
         case .replace:
-            return "Queue replaced"
+            return "Replace queue"
         }
     }
 }

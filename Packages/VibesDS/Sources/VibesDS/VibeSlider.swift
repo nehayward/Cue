@@ -116,7 +116,6 @@ public struct VibeSlider: View {
                 .opacity(showValue ? 1 : 0)
         }
         .padding(.vertical, baseHeight/2)
-        .contentShape(Rectangle()) // Make entire area draggable
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)
         .simultaneousGesture(

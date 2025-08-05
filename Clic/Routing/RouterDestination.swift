@@ -8,7 +8,7 @@ public enum RouterDestination: Hashable, Identifiable {
     case player(groupID: String)
     case groupDestination(content: PlayableContent, position: QueuePosition = .now)
     case manageScenes
-    case createScene
+    case createScene(content: PlayableContent?)
     case mediaDetail(content: PlayableContent, group: GroupRoom?)
     case artistDetail(content: PlayableContent, group: GroupRoom?)
     case alarms

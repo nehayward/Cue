@@ -90,9 +90,7 @@ struct GroupScreen: View {
             }
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .navigationDestination(for: Set<String>.self) { ids in
-                if let foundGroup = SonosService.shared.sorted.first(where: { $0.coordinatorID == coordinatorID }) {
-                    SceneBuilderScreen(group: .constant(foundGroup), selections: ids)
-                }
+                SceneBuilderScreen(selections: ids)
             }
             .listRowSpacing(10)
             .toolbar {
@@ -111,13 +109,13 @@ struct GroupScreen: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     if subscriptionService.subscription.isActive {
-                        NavigationLink("Add Scene", value: selections)
+                        NavigationLink("Create Scene", value: selections)
                             .animation(.spring, value: selections.isEmpty)
                     } else {
                         Button {
                             sheetDestination = .paywall
                         } label: {
-                            Text("Add Scene")
+                            Text("Create Scene")
                         }
                     }
                 }
@@ -128,14 +126,16 @@ struct GroupScreen: View {
                         SceneListView(editScene: { scene in
                             Router.main.sheet(to: .editScene(scene))
                         }, sceneActivated: { scene in
-                            alertService.showAlert(with: "Running \(scene.name)")
+                            if let content = scene.playableContent {
+                                alertService.showAlertContent(with: content, subtitle: "Running \(scene.name)", symbolName: "bolt.fill")
+                            } else {
+                                alertService.showAlert(with: "Running \(scene.name)")
+                            }
                         })
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets.init(top: 12, leading: 0, bottom: 12, trailing: 0))
                     }
-                    .padding()
+                    .padding([.top, .horizontal])
                     .background {
-                        RoundedRectangle(cornerRadius: 20)
+                        RoundedRectangle(cornerRadius: 16)
                             .foregroundStyle(.ultraThinMaterial)
                             .edgesIgnoringSafeArea(.bottom)
                             .shadow(radius: 1)
