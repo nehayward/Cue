@@ -81,38 +81,22 @@ struct SpotifyLibraryScreen: View {
                     }
                 }
                 
+                NavigationLink(value: RouterDestination.playableList(title: "Spotify Playlists", action: { offset in
+                    await spotifyBrowseService.updatePlaylists(offset: offset)
+                    return Array(spotifyBrowseService.playlists)
+                })) {
+
+                    Label("Playlists", systemImage: "rectangle.stack.badge.play")
+                }
+                .listRowSeparator(.hidden)
                 if !spotifyBrowseService.playlists.isEmpty {
-                    Section {
-                        ScrollView(.horizontal) {
-                            HStack {
-                                ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
-                                    PlayableArtworkView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 4)
-                                        .listRowInsets(EdgeInsets())
-                                }
-                            }
-                        }
-                        .scrollIndicators(.hidden)
-                        .scrollClipDisabled()
-                    } header: {
-                        NavigationLink(value: RouterDestination.playableList(title: "Spotify Playlists", action: { offset in
-                            print(offset)
-                            await spotifyBrowseService.updatePlaylists()
-                            return Array(spotifyBrowseService.playlists)
-                        })) {
-                            HStack {
-                                Label("Playlists", systemImage: "rectangle.stack.badge.play")
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
+                    ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
+                        PlayableContentView(item: item)
                     }
                 }
             }
             .headerProminence(.increased)
             .miniPlayerOnScrollHandler()
-            .listStyle(.sidebar)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Spotify Library")

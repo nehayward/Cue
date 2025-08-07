@@ -13,4 +13,13 @@ extension View {
         self
 #endif
     }
+    
+    @ViewBuilder
+    func presentationSizingiOS18() -> some View {
+        if #available(iOS 18, *) {
+            presentationSizing(.page)
+        } else {
+            self
+        }
+    }
 }

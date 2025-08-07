@@ -132,7 +132,7 @@ struct ClicApp: App {
 
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }
-                    liveActivityManager.createActivity()
+                    liveActivityManager.createActivity(shouldLoad: false)
                 }
 
                 SubscriptionService.shared.subscriptionUpdated = { subscription in

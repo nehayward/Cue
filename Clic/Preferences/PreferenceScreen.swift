@@ -614,6 +614,7 @@ struct PreferenceScreen: View {
 #endif
         }
         .customizeWindowSizeForMacOS15()
+        .presentationSizingiOS18()
         .preferredColorScheme(colorScheme.scheme)
     }
     

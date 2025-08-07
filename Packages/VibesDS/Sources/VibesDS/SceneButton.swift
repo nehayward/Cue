@@ -65,7 +65,6 @@ public struct SceneButton: View {
                     }
                 }
             }
-            .frame(maxWidth: 400)
         }
         .buttonStyle(.scene)
 //        .overlay(alignment: .trailing) {

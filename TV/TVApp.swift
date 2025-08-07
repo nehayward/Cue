@@ -15,7 +15,9 @@ struct TVApp: App {
 
     @State private var isLoading: Bool = true
     @State private var showGroup: Bool = false
+    @State private var showSettings: Bool = false
     @ObservedObject var value = TVPlayerView.Test()
+    @AppStorage("disableScreenSaver") var disableScreenSaver = false
 
     public var sorted: [GroupRoom] {
         get {
@@ -49,7 +51,7 @@ struct TVApp: App {
             @Bindable var sonosService = sonosService
             TabView(selection: $sonosService.selectedGroup) {
                 ForEach(sorted) { group in
-                    TVPlayerView(group: group, showGroup: $showGroup, value: value)
+                    TVPlayerView(group: group, showGroup: $showGroup, showSettings: $showSettings, value: value)
                         .tabItem {
                             Label(group.nameWithCount, systemImage: "hifispeaker.fill")
                         }
@@ -65,10 +67,14 @@ struct TVApp: App {
                     }
                 }
             }
+            .fullScreenCover(isPresented: $showSettings){
+                TVSettingsScreen()
+            }
             .environment(sonosService)
             .environment(subscriptionService)
             .tabViewStyle(.tabBarOnly)
             .task {
+                UIApplication.shared.isIdleTimerDisabled = disableScreenSaver
                 isLoading = true
                 guard let groups = try? await sonosService.getGroupsFast(), !groups.isEmpty else {
                     isLoading = false

@@ -83,6 +83,7 @@ struct GroupMenuScreen: View {
             }
         }
         .animation(.easeInOut, value: isLoading)
+        .animation(.easeInOut, value: sonosServiceMini.devices)
         .overlay(alignment: .topTrailing) {
             HStack {
                 Button {
@@ -253,6 +254,7 @@ struct GroupItemView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .foregroundStyle(hovered ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
             }
+            .geometryGroup()
             .onHover { isHovered in
                 hovered = isHovered
             }

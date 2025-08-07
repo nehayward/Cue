@@ -2,7 +2,7 @@ import SwiftUI
 
 protocol LiveActivityManageable {
     func refresh() async
-    func createActivity()
+    func createActivity(shouldLoad: Bool)
     func createActivity(id: String) async
     func stop(id: String) async
     func toggle(id: String) async
@@ -32,7 +32,7 @@ extension EnvironmentValues {
 
 final class LiveActivityManagerMock: LiveActivityManageable {
     func refresh() async { }
-    func createActivity() { }
+    func createActivity(shouldLoad: Bool) { }
     func createActivity(id: String) async {}
     func stop(id: String) async {}
     func toggle(id: String) async {}

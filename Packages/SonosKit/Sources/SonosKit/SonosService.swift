@@ -204,8 +204,8 @@ public final class SonosService {
                         continue
                     }
                     // MARK: Update room volumes
-                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
                     try await load(useCache: useCache)
+                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
 
                     useCache = true
                 } catch SonosServiceError.permissionDenied {
@@ -289,7 +289,7 @@ public final class SonosService {
             }
         }
 
-        await wakeSleepingRooms(rooms: rooms)
+        wakeSleepingRooms(rooms: rooms)
 
         if let selectedGroup, !refreshGroup {
             guard let groupIndex = groups.firstIndex(where: { group in
@@ -437,25 +437,21 @@ public final class SonosService {
             guard let self = self else { return }
             group.addTask { [weak self] in
                 guard let self = self else { return }
-                try await self.updateTrackInformation(for: self.groups)
+                try await self.updateGroups(from: sorted)
             }
             
             group.addTask { [weak self] in
                 guard let self = self else { return }
-                try await self.updateGroups(from: self.groups)
+                await self.updateGroupCheckTVMode(from: sorted)
             }
             
             group.addTask { [weak self] in
                 guard let self = self else { return }
-                await self.updateGroupCheckTVMode(from: self.groups)
+                await self.updateGroupsRooms(from: sorted)
             }
             group.addTask { [weak self] in
                 guard let self = self else { return }
-                await self.updateGroupsRooms(from: self.groups)
-            }
-            group.addTask { [weak self] in
-                guard let self = self else { return }
-                await self.updateGroupMuteState(for: self.groups)
+                await self.updateGroupMuteState(for: sorted)
             }
             try await group.waitForAll()
         }
@@ -514,6 +510,7 @@ public final class SonosService {
                 group.addTask { [weak self] in
                     try? await self?.updateTrackInformation(for: [roomGroup])
                 }
+                
                 group.addTask { [weak self] in
                     guard let self else { return }
                     // MARK: Sleeping or Off
@@ -768,12 +765,14 @@ public final class SonosService {
     }
 
     @MainActor
-    public func wakeSleepingRooms(rooms: [Room]) async {
-        await withDiscardingTaskGroup { taskGroup in
-            for room in rooms {
-                taskGroup.addTask { [weak self] in
-                    if let macAddress = room.macAddress, room.state == .sleeping {
-                        self?.sonosSystemDiscoverService.sendWakeOnLANPacket(macAddress: macAddress)
+    public func wakeSleepingRooms(rooms: [Room]) {
+        Task {
+            await withDiscardingTaskGroup { taskGroup in
+                for room in rooms {
+                    taskGroup.addTask { [weak self] in
+                        if let macAddress = room.macAddress, room.state == .sleeping {
+                            self?.sonosSystemDiscoverService.sendWakeOnLANPacket(macAddress: macAddress)
+                        }
                     }
                 }
             }

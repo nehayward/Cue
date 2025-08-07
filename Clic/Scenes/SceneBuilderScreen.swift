@@ -191,6 +191,11 @@ struct SceneBuilderScreen: View {
             }
             if !edit, firstAppear {
                 scene.name = rooms.map(\.name).joined(separator: " + ")
+                let rooms = rooms.filter { room in
+                    selections.contains(room.id)
+                }
+                let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+                scene.rooms = sceneRooms
                 firstAppear = false
             } else {
                 contentToAdd.content = scene.playableContent
@@ -210,6 +215,10 @@ struct SceneBuilderScreen: View {
             NavigationStack {
                 RoomSpeakerScreen(scene: $scene, selections: $selections, rooms: $rooms)
             }
+        }
+        .presentationSizingiOS18()
+        .addDismiss {
+            dismiss()
         }
     }
     

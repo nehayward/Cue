@@ -76,13 +76,15 @@ final class LiveActivityManager: LiveActivityManageable {
         }
     }
 
-    func createActivity() {
+    func createActivity(shouldLoad: Bool = true ) {
         createTask?.cancel()
         createTask = Task {
             if Task.isCancelled { return }
             guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
-            try? await sonosService.load(useCache: true)
+            if shouldLoad {
+                try? await sonosService.load(useCache: true)
+            }
 
             for group in sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.TVMode }) {
                 guard !activities.contains(where: { $0.attributes.room.id == group.coordinatorRoom.id }) else {

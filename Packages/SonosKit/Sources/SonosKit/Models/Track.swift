@@ -106,6 +106,7 @@ extension Track: Hashable {
         hasher.combine(id)
         hasher.combine(artist)
         hasher.combine(name)
+        hasher.combine(album)
         hasher.combine(position)
         hasher.combine(playbackPosition)
     }

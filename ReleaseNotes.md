@@ -1,8 +1,12 @@
 # 2025.13
 
 –– New Features ––
-- Added ability to like and remove SoundCloud songs
-- Added support to add, remove, and reorder songs in Sonos playlists
+- Add music to scenes
+- Create scenes from music
+- Rearrange and edit scenes
+- Add ability to like and remove SoundCloud songs
+- Add support to add, remove, and reorder songs in Sonos playlists
+- Add discography button to artist pages
 
 –– Bug Fixes & Improvements ––
 - Fixed issue where "Open In Music Service" would disappear
@@ -14,7 +18,9 @@
 - Fixed issue where "All" in local library was not displayed
 - Improved overall speed and performance
 - Improved drag and drop for playing tracks from Spotify and Apple Music
-- Fixed a case where Plex server couldn't be discovered.
+- Fixed a case where Plex server could not be discovered
+- Fixed issue with blank album art line
+
 
 ## ChangeLog
 

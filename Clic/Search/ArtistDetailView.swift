@@ -237,6 +237,48 @@ struct ArtistDetailView: View {
                             .listRowBackground(Color.clear)
                     }
                 }
+                if !albums.isEmpty {
+                    HStack {
+                        Button {
+                            Task { @MainActor in
+                                let queueAll: ((GroupRoom) async throws -> Void) = { group in
+                                    HapticManager.shared.fireHaptic(.buttonPress)
+                                    do {
+                                        var albums: [PlayableContent] = albums
+                                        switch albumType {
+                                        case 1:
+                                            albums = liveAlbums
+                                        case 2:
+                                            albums = singles
+                                        case 3:
+                                            albums = allAlbums
+                                        default:
+                                            break
+                                        }
+                                        alertService.showAlert(with: "Playing \(albums.count) albums", imageName: "figure.dance")
+                                        try await sonosService.queue(contents: albums.reversed(), group: group, position: .replace)
+                                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                                    }
+                                }
+                                guard let group = selectedGroupService.group else {
+                                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueAll))
+                                    return
+                                }
+                                try await queueAll(group)
+                            }
+                        } label: {
+                            Text("Play Discography")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .foregroundStyle(.foreground)
+                        }
+                        .bold()
+                        .buttonStyle(.bordered)
+                        .tint(.accent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
             } header: {
                 if [.apple, .plex].contains(playableContent.content.service), !albums.isEmpty {
                     Picker("Album", selection: $albumType) {
@@ -260,72 +302,6 @@ struct ArtistDetailView: View {
                     }
                 }
                 
-            }
-
-            //            Section {
-            //                ForEach(tracks) { track in
-            //                   PlayableContentView(item: track, group: group)
-            //                }
-            //                if tracks.isEmpty {
-            //                    ProgressView()
-            //                        .frame(maxWidth: .infinity, alignment: .center)
-            //                        .listRowSeparator(.hidden)
-            //                }
-            //                ForEach(albums) { album in
-            //                    PlayableContentView(item: album, group: group)
-            //                }
-            //                if tracks.isEmpty {
-            //                    ProgressView()
-            //                        .frame(maxWidth: .infinity, alignment: .center)
-            //                        .listRowSeparator(.hidden)
-            //                }
-            //            } header: {
-            // MARK: Add back when queue multiple songs
-            //                Button {
-            //                    play(content: playableContent)
-            //                } label: {
-            //                    Text("Play Artist Top Tracks")
-            //                }
-            //                .padding()
-            //                .background(
-            //                    .ultraThinMaterial,
-            //                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-            //                )
-            //                .padding(.vertical)
-            //                .frame(maxWidth: .infinity, alignment: .center)
-            //            }
-            
-            // MARK: Add queue multiple uris
-            if !albums.isEmpty {
-                HStack {
-                    Button {
-                        Task { @MainActor in
-                            let queueAll: ((GroupRoom) async throws -> Void) = { group in
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                do {
-                                    alertService.showAlert(with: "Playing \(albums.count) albums", imageName: "figure.dance")
-                                    try await sonosService.queue(contents: albums.reversed(), group: group, position: .replace)
-                                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                                }
-                            }
-                            guard let group = selectedGroupService.group else {
-                                router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueAll))
-                                return
-                            }
-                            try await queueAll(group)
-                        }
-                    } label: {
-                        Text("Play Discography")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .foregroundStyle(.foreground)
-                    }
-                    .bold()
-                    .buttonStyle(.bordered)
-                    .tint(.accent)
-                }
-                .frame(maxWidth: .infinity)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
             }
         }
         .miniPlayerOnScrollHandler()

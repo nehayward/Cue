@@ -36,6 +36,7 @@ public struct SceneListView: View {
                             try? await sonosService.runScene(scene)
                         }
                     }
+                    .frame(maxWidth: 400)
                     #if !os(watchOS) && !os(macOS)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {

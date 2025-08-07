@@ -9,6 +9,7 @@ struct SoundCloudBrowseScreen: View {
     @Environment(SoundCloudBrowseService.self) private var soundCloudBrowseService
     
     @State private var router = Router()
+    @State private var isLoading: Bool = true
     
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -72,7 +73,7 @@ struct SoundCloudBrowseScreen: View {
                         }
                         .padding()
                     }
-                } else {
+                } else if !isLoading {
                     Section {
                         VStack(spacing: 16) {
                             Image(systemName: "heart.slash")
@@ -99,7 +100,9 @@ struct SoundCloudBrowseScreen: View {
             .navigationTitle("SoundCloud Library")
             .navigationBarTitleDisplayMode(.inline)
             .task {
+                isLoading = true
                 await soundCloudBrowseService.updateLikedTracks()
+                isLoading = false
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

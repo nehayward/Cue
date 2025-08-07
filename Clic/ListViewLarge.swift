@@ -1,4 +1,5 @@
 import CloudStorage
+import VibesDS
 import SwiftUI
 import SonosKit
 import SubscriptionKit
@@ -134,20 +135,62 @@ struct ListViewLarge: View {
         .listStyle(.insetGrouped)
         #endif
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(scenes) { scene in
+                        SceneButton(scene: scene) {
+                            if let content = scene.playableContent {
+                                alertService.showAlertContent(with: content, subtitle: "Running \(scene.name)", symbolName: "bolt.fill")
+                            } else {
+                                alertService.showAlert(with: "Running \(scene.name)")
+                            }
+                            Task {
+                                try? await sonosService.runScene(scene)
+                            }
+                        }
+                    }
+                } label: {
+                    if !scenes.isEmpty {
+                        Image(systemName: "bolt.fill")
+                    } else {
+                        VStack {
+                            Image(systemName: "bolt.fill")
+                            Text("Create Scene")
+                                .font(.caption2)
+                        }
+                    }
+                } primaryAction: {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    if subscriptionService.subscription.isActive {
+                        if !scenes.isEmpty {
+                            router.sheet(to: .scenes)
+                        } else {
+                            router.sheet(to: .createScene(content: nil))
+                        }
+                    } else {
+                        router.sheet(to: .paywall)
+                    }
+                }
+                .tint(.primary)
                 Picker("Sort by", systemImage:  "arrow.up.arrow.down.circle.fill", selection: $sonosService.sortOption) {
                     ForEach(SonosSortOption.allCases) { option in
                         Text(option.title)
                             .tag(option)
                     }
                 }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
+                .tint(.primary)
                 Button {
                     router.presentedSheet = .settings()
                 } label: {
                     Image(systemName: "switch.2")
                 }
+                .tint(.primary)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+             
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+               
             }
         }
         .overlay(alignment: .center) {

@@ -28,10 +28,12 @@ struct ArtworkView: View {
     
     fileprivate var imageIDKey: String {
         let suffix = "player"
-        if let albumID = group.coordinatorRoom.track.toPlayable.metadata?.album, !albumID.isEmpty {
-            let artist = group.coordinatorRoom.track.toPlayable.metadata?.artist
-            return [albumID, artist, suffix].compactMap { $0 }.joined(separator: ".")
+        if !group.coordinatorRoom.track.album.isEmpty {
+            let album = group.coordinatorRoom.track.album
+            let artist = group.coordinatorRoom.track.artist
+            return [album, artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
+        
         return group.coordinatorRoom.track.trackID + suffix
     }
 
@@ -144,6 +146,7 @@ struct ArtworkView: View {
                                         processors: [.resize(width: 500)],
                                         priority: .high,
                                         userInfo: [.imageIdKey: imageIDKey])
+        
         return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
                 switch result {
@@ -158,46 +161,6 @@ struct ArtworkView: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - UIImage Extension for Efficient Comparison
-extension UIImage {
-    /// Creates a lightweight hash for image comparison - much faster than pngData()
-    func lightweightHash() -> Int {
-        var hasher = Hasher()
-        
-        // Hash basic properties
-        hasher.combine(size.width)
-        hasher.combine(size.height)
-        hasher.combine(scale)
-        
-        // Sample a few pixels for content comparison (much faster than full data)
-        if let cgImage = self.cgImage {
-            hasher.combine(cgImage.width)
-            hasher.combine(cgImage.height)
-            hasher.combine(cgImage.bitsPerComponent)
-            hasher.combine(cgImage.bitsPerPixel)
-            
-            // For additional uniqueness, we could sample corner pixels
-            // This is still much faster than converting the entire image
-            if let dataProvider = cgImage.dataProvider,
-               let data = dataProvider.data {
-                let bytes = CFDataGetBytePtr(data)
-                let length = CFDataGetLength(data)
-                
-                // Sample first few bytes and last few bytes for a lightweight signature
-                if length > 0 {
-                    hasher.combine(bytes?[0] ?? 0)
-                    if length > 10 {
-                        hasher.combine(bytes?[10] ?? 0)
-                        hasher.combine(bytes?[length - 1] ?? 0)
-                    }
-                }
-            }
-        }
-        
-        return hasher.finalize()
     }
 }
 

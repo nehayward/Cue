@@ -14,6 +14,7 @@ struct TVPlayerView: View {
     
     @Bindable var group: GroupRoom
     @Binding var showGroup: Bool
+    @Binding var showSettings: Bool
     @ObservedObject var value: Test
     
     @State private var hideControls: Bool = false
@@ -23,7 +24,7 @@ struct TVPlayerView: View {
     @State private var selectionTrack: Task<Void, Never>?
     
     enum FocusedField: Equatable {
-        case artwork, previous, next, play, volume, group
+        case artwork, previous, next, play, volume, group, settings
     }
     
     @FocusState private var focusedField: FocusedField?
@@ -204,6 +205,18 @@ struct TVPlayerView: View {
         .focusSection()
         .safeAreaInset(edge: .top) {
             ZStack {
+                Button {
+                    showSettings.toggle()
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                        .labelStyle(.iconOnly)
+                }
+                .focused($focusedField, equals: .settings)
+                .buttonBorderShape(.circle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .focusSection()
+                .padding([.top, .leading], 60)
+                .ignoresSafeArea()
                 Text(group.nameWithCount)
                     .padding(.top, 24)
                     .ignoresSafeArea()

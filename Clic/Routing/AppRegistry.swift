@@ -181,6 +181,7 @@ extension View {
                 }
             }
             .withEnvironments()
+            .presentationSizingiOS18()
             .frame(idealWidth: 800, idealHeight: 800)
         }
     }

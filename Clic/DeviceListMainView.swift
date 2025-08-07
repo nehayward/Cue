@@ -56,6 +56,7 @@ struct DeviceListMainView: View {
                         .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
                         .dropDestinationPlay(on: group)
                         .paywall(enabled(group: group))
+                        .id(group.coordinatorRoom.track.trackID)
                     } else {
                         Text(group.coordinatorRoom.state.reason)
                             .padding(.vertical, 8)
@@ -63,6 +64,7 @@ struct DeviceListMainView: View {
                             .paywall(enabled(group: group))
                             .listRowBackground(Color(UIColor.secondarySystemBackground))
                             .frame(maxWidth: .infinity, alignment: .center)
+                            .id(group.coordinatorRoom.track.trackID)
                     }
                 } header: {
                     HStack {
@@ -83,6 +85,7 @@ struct DeviceListMainView: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 }
             }
+            .geometryGroup()
             .animation(.interactiveSpring, value: sonosService.sorted)
             .environment(\.defaultMinListRowHeight, 40)
             .withAppRouter()
