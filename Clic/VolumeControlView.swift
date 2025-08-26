@@ -7,7 +7,8 @@ struct VolumeControlView: View {
     var delayDrag: Bool = false
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
-    
+    @State private var lastSentVolume: Int?
+
     @ScaledMetric(relativeTo: .caption) private var sliderHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 20 : 24
 
     var body: some View {
@@ -93,13 +94,21 @@ struct VolumeControlView: View {
     }
 
     private func updateVolume(volume: Double) {
+        let intVolume = Int(volume)
+        
+        guard lastSentVolume != intVolume else { return }
+        lastSentVolume = intVolume
+        
         volumeTask?.cancel()
         volumeTask = Task {
-            try Task.checkCancellation()
-            await  SonosService.shared.setGroupVolume(ip: group.coordinatorRoom.ip, volume: Int(volume))
+            try? await Task.sleep(for: .milliseconds(50))
+            try? Task.checkCancellation()
+            await SonosService.shared.setGroupVolume(ip: group.coordinatorRoom.ip, volume: intVolume)
+            
             if volume.isZero {
                 try? await Task.sleep(for: .milliseconds(200))
-                await  SonosService.shared.snapShotGroup(ip: group.coordinatorRoom.ip)
+                try Task.checkCancellation()
+                await SonosService.shared.snapShotGroup(ip: group.coordinatorRoom.ip)
             }
         }
     }

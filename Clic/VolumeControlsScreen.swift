@@ -8,8 +8,10 @@ struct VolumeControlsScreen: View {
     @State var isEditingGroupVolume = false
     @State var isEditingRoomVolume = false
 
+    @State private var updateRoomVolumeTask: Task<Void, Error>?
     @State private var volumeTask: Task<Void, Error>?
-    
+    @State private var lastSentVolume: Int?
+
     private var isMacCatalyst: Bool {
 #if targetEnvironment(macCatalyst)
         return true
@@ -32,6 +34,21 @@ struct VolumeControlsScreen: View {
                             VolumeControlView(group: sonosService.sorted[groupID], delayDrag: true)
                                 .frame(height: 40)
                                 .listRowSeparator(.hidden)
+                                .onChange(of: sonosService.sorted[groupID].groupVolume) {
+                                    let intVolume = Int(sonosService.sorted[groupID].groupVolume)
+                                    // Only update if the volume changed
+                                    guard lastSentVolume != intVolume else { return }
+                                    lastSentVolume = intVolume
+
+                                    updateRoomVolumeTask?.cancel()
+                                    updateRoomVolumeTask = Task {
+                                        try? Task.checkCancellation()
+                                        await sonosService.updateRoomVolumes(for: sonosService.sorted[groupID])
+                                        try? Task.checkCancellation()
+                                        try await Task.sleep(for: .milliseconds(200), tolerance: .milliseconds(100))
+                                        await sonosService.updateRoomVolumes(for: sonosService.sorted[groupID])
+                                    }
+                                }
                         }
                         .listRowBackground(isMacCatalyst ? Color.clear : nil)
                         .listRowSeparator(.hidden)
@@ -45,9 +62,13 @@ struct VolumeControlsScreen: View {
                             RoomVolumeView(room: $room) {
                                 volumeTask?.cancel()
                                 volumeTask = Task {
-                                    try await Task.sleep(for: .milliseconds(300))
-                                    try Task.checkCancellation()
+                                    sonosService.sorted[groupID].isEditingVolume = true
+                                    if let volume = try? await sonosService.getGroupVolume(ip: sonosService.sorted[groupID].ip), volume != sonosService.sorted[groupID].groupVolume {
+                                        sonosService.sorted[groupID].groupVolume = volume
+                                    }
+                                    try? await Task.sleep(for: .milliseconds(400), tolerance: .milliseconds(100))
                                     await sonosService.snapShotGroup(ip: sonosService.sorted[groupID].coordinatorRoom.ip)
+                                    sonosService.sorted[groupID].isEditingVolume = false
                                 }
                             }
                         }
@@ -63,11 +84,11 @@ struct VolumeControlsScreen: View {
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
                     if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                        
                         Button {
                             syncVolumes()
                         } label: {
                             Text("Set all to\(sonosService.sorted[groupID].groupVolume, specifier: "%03.0f")%")
+                                .monospacedDigit()
                                 .frame(maxWidth: .infinity)
                                 .padding(.horizontal)
                                 .fontDesign(.rounded)

@@ -549,6 +549,11 @@ public final class MusicSearchService {
         guard let artist = await tidal.artist(with: id) else { return nil }
         return artist.toPlayable
     }
+    
+    public func lookupTidalPlaylist(id: String) async -> [PlayableContent] {
+        let songs = await tidal.playlist(with: id)
+        return songs?.compactMap(\.toPlayable) ?? []
+    }
 
     private func searchTidal(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []

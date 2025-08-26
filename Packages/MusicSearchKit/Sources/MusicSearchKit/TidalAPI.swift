@@ -16,10 +16,10 @@ public final class TidalAPI {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/v2/searchresults/\(query)"
+        components.path = "/v2/searchResults/\(query)"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
-            URLQueryItem(name: "include", value: "tracks,artists,albums")
+            URLQueryItem(name: "include", value: "tracks,artists,albums,playlists")
         ]
 
         guard let url = components.url else {
@@ -373,7 +373,32 @@ public final class TidalAPI {
         
         return artist
     }
+    
+    public func playlist(with id: String) async -> [TidalTrackResource]? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "openapi.tidal.com"
+        components.path = "/v2/playlists/\(id)"
+        components.queryItems = [
+            URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
+            URLQueryItem(name: "include", value: "items"),
+            
+        ]
+        
+        guard let url = components.url else {
+            return nil
+        }
 
+        do {
+            guard let tidalResponse: TidalApiResponse? = try await loadAuthorized(url) else {
+                return nil
+            }
+            return tidalResponse?.toTidalResult.tracks
+        } catch {
+
+            return nil
+        }
+    }
 
     func getToken() async -> TidalTokenResponse? {
         guard let URL = URL(string: "https://auth.tidal.com/v1/oauth2/token") else { return nil }

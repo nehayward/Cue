@@ -1,3 +1,13 @@
+# 2025.14
+
+–– New Features ––
+- 
+
+–– Bug Fixes & Improvements ––
+- Improve volume controls
+- Fix Line In support for Connect
+- Fix Tidal not showing search results
+
 # 2025.13
 
 –– New Features ––

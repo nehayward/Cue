@@ -682,6 +682,22 @@ public final class SonosService {
             }
         }
     }
+    
+    @MainActor
+    public func updateRoomVolumes(for groupRoom: GroupRoom) async {
+        await withDiscardingTaskGroup { group in
+            for room in groupRoom.rooms {
+                group.addTask { [weak self] in
+                    if room.state != .active { return }
+                    if Task.isCancelled { return }
+                    guard let self else { return }
+                    if let volume = try? await getVolume(ip: room.ip), !room.isEditingVolume, room.volume != volume {
+                        room.volume = volume
+                    }
+                }
+            }
+        }
+    }
 
     @MainActor
     public func updateGroupsCheckPlayback() async throws {

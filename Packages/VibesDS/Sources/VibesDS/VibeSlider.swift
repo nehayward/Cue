@@ -96,25 +96,27 @@ public struct VibeSlider: View {
                             }
 #endif
                             .frame(width: calculateProgressWidth(), height: baseHeight)
+                            .animation(.interactiveSpring, value: value)
                     }
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
 #if !os(watchOS) && !os(macOS)
                 .contentShape(.hoverEffect, .capsule)
 #endif
-            Text("\(value, specifier: "%03.0f")%")
+            Text("\(Int(value))")
                 .monospacedDigit()
                 .fontDesign(.rounded)
                 .bold()
                 .foregroundStyle(.white)
                 .blendMode(.difference)
-                .frame(minWidth: 32, minHeight: baseHeight)
+                .frame(minWidth: 28, minHeight: baseHeight)
                 .background((isDragging || isTouched) ? capsuleColor : Color.clear)
-                .clipShape(Capsule())
+                .clipShape(.capsule)
                 .offset(x: offsetForValue,
                         y: (isTouched || isDragging) ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
         }
+        .geometryGroup()
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)
@@ -205,7 +207,7 @@ public struct VibeSlider: View {
     }
     
     private var offsetForValue: Double {
-        min(max(0, calculateProgressWidth() - 32), width - 36)
+        min(max(0, calculateProgressWidth() - 28), width - 28)
     }
 }
 

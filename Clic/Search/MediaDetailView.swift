@@ -389,7 +389,10 @@ struct MediaDetailView: View {
                 newTracks = await musicSearchService.lookupTidalAlbumTracks(id: albumID)
                 playableContent = album
             }
-            // MARK: Plex
+        case (.playlist, .tidal):
+//            newTracks = await musicSearchService.lookupTidalPlaylist(id: playableContent.content.id)
+            break
+        // MARK: Plex
         case (.track, .plex):
             if let albumID = playableContent.metadata?.albumID {
                 guard let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
