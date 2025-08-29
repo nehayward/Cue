@@ -238,17 +238,19 @@ struct PreferenceScreen: View {
                 Section {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
                         LabeledContent {
-                            ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                if coreFeatures.enabledServices(service).wrappedValue {
-                                    service.iconForMusicService
-                                        .frame(width: 16, height: 16)
+                            HStack {
+                                ForEach(MediaSearchService.allCases, id: \.self) { service in
+                                    if coreFeatures.enabledServices(service).wrappedValue {
+                                        service.iconForMusicService
+                                            .frame(width: 16, height: 16)
+                                    }
                                 }
                             }
                         } label: {
                             Label {
                                 Text("Services")
                             } icon: {
-                                Image(systemName: "music.quarternote.3")
+                                Image(systemName: "music.note")
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .foregroundStyle(.white)

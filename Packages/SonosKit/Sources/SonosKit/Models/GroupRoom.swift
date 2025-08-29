@@ -35,6 +35,24 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     }
 }
 
+extension GroupRoom {
+    public var isActive: Bool {
+        coordinatorRoom.state == .active
+    }
+    
+    public var nameWithCount: String {
+        switch rooms.count {
+        case 0...1:
+            "\(coordinatorRoom.name)"
+        case 1...2:
+            "\(coordinatorRoom.name) + \(rooms.filter { $0.id != coordinatorRoom.id }.map(\.name).joined())"
+        default:
+            "\(coordinatorRoom.name) + \(rooms.count - 1)"
+        }
+    }
+}
+
+
 extension GroupRoom: Hashable {
     public static func == (lhs: GroupRoom, rhs: GroupRoom) -> Bool {
         lhs.coordinatorID == rhs.coordinatorID &&

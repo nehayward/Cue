@@ -106,8 +106,7 @@ struct AudioPlaybackServicePreview: View {
                                     if !isScrubbing {
                                         isScrubbing = true
                                         // Provide haptic feedback when starting scrub
-                                        let impact = UIImpactFeedbackGenerator(style: .medium)
-                                        impact.impactOccurred()
+                                        HapticManager.shared.fireHaptic(.dataRefresh(intensity: 1))
                                     }
                                     
                                     let progress = max(0, min(1, value.location.x / geometry.size.width))
@@ -115,8 +114,7 @@ struct AudioPlaybackServicePreview: View {
                                     
                                     // Light haptic feedback during scrub
                                     if abs(progress - scrubbingProgress) > 0.05 {
-                                        let impact = UIImpactFeedbackGenerator(style: .light)
-                                        impact.impactOccurred()
+                                        HapticManager.shared.fireHaptic(.dataRefresh(intensity: 0.5))
                                     }
                                 }
                                 .onEnded { value in
@@ -130,8 +128,7 @@ struct AudioPlaybackServicePreview: View {
                                     }
                                     
                                     // Final haptic feedback
-                                    let impact = UIImpactFeedbackGenerator(style: .medium)
-                                    impact.impactOccurred()
+                                    HapticManager.shared.fireHaptic(.dataRefresh(intensity: 1))
                                 }
                         )
                     }

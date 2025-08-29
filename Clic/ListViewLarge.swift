@@ -118,11 +118,13 @@ struct ListViewLarge: View {
         .animation(.interactiveSpring, value: sonosService.sortOption)
         .environment(\.defaultMinListRowHeight, 40)
         .task(id: sonosService.sorted) {
+            #if targetEnvironment(macCatalyst)
             if selected == nil {
                 try? await Task.sleep(for: .milliseconds(400))
                 sonosService.selectedGroup = sonosService.sorted.first
                 selected = sonosService.sorted.first?.coordinatorID
             }
+            #endif
         }
         .onChange(of: selected) {
             if let id = selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
@@ -135,7 +137,7 @@ struct ListViewLarge: View {
         .listStyle(.insetGrouped)
         #endif
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarLeading) {
                 Menu {
                     ForEach(scenes) { scene in
                         SceneButton(scene: scene) {
@@ -153,7 +155,7 @@ struct ListViewLarge: View {
                     if !scenes.isEmpty {
                         Image(systemName: "bolt.fill")
                     } else {
-                        VStack {
+                        HStack {
                             Image(systemName: "bolt.fill")
                             Text("Create Scene")
                                 .font(.caption2)
@@ -171,9 +173,12 @@ struct ListViewLarge: View {
                         router.sheet(to: .paywall)
                     }
                 }
-                .tint(.primary)
+                .tint(.primary)   
+            }
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 Picker("Sort by", systemImage:  "arrow.up.arrow.down.circle.fill", selection: $sonosService.sortOption) {
                     ForEach(SonosSortOption.allCases) { option in
+                        Image(systemName: "textformat.size.larger")
                         Text(option.title)
                             .tag(option)
                     }
@@ -182,15 +187,9 @@ struct ListViewLarge: View {
                 Button {
                     router.presentedSheet = .settings()
                 } label: {
-                    Image(systemName: "switch.2")
+                    Label("Settings", systemImage: "switch.2")
                 }
                 .tint(.primary)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-             
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-               
             }
         }
         .overlay(alignment: .center) {

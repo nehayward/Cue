@@ -1,3 +1,4 @@
+import SwiftUI
 
 public enum SonosSortOption: Int, CaseIterable, Identifiable {
     public var id: Self { self }
@@ -9,11 +10,22 @@ public enum SonosSortOption: Int, CaseIterable, Identifiable {
     public var title: String {
         switch self {
         case .nameAscending:
-            return "Name (A-Z)"
+            return "A–Z"
         case .nameDescending:
-            return "Name (Z-A)"
+            return "Z–A"
         case .playing:
-            return "Now Playing"
+            return "Playing"
+        }
+    }
+    
+    public var icon: Image {
+        switch self {
+        case .nameAscending:
+            Image("a.down")
+        case .nameDescending:
+            Image("a.up")
+        case .playing:
+            Image(systemName: "play.fill")
         }
     }
 }

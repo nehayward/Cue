@@ -60,7 +60,6 @@ struct QueueScreen: View {
                         fullQueueView(proxy: proxy)
                     } else {
                         UpNextContentView(editMode: $editMode, group: group, currentTrackID: currentTrackID, router: router, selection: $selection, upNext: $upNextTracks)
-                            .scrollContentBackground(.hidden)
                             .listStyle(.plain)
                     }
                 }
@@ -71,23 +70,26 @@ struct QueueScreen: View {
                 })
                 .withAppRouter()
                 .saturation(group.playbackService == .queue ? 1 : 0.1 )
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItemGroup(placement: .navigation) {
+                    ToolbarItemGroup(placement: .principal) {
                         VStack(alignment: .leading) {
                             Text("\(queueMode.title)" + (group.playbackService != .queue ? " not active" : ""))
                                 .bold()
-                            HStack(spacing: 0) {
-                                Text(group.coordinatorRoom.queueTotal, format: .number)
-                                    .contentTransition(.numericText())
-                                Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
-                                if totalDuration.components.seconds > 0  {
-                                    Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                            if queueMode == .full {
+                                HStack(spacing: 0) {
+                                    Text(group.coordinatorRoom.queueTotal, format: .number)
+                                        .contentTransition(.numericText())
+                                    Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
+                                    if totalDuration.components.seconds > 0  {
+                                        Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                                    }
                                 }
+                                .foregroundStyle(.secondary)
                             }
-                            .foregroundStyle(.secondary)
                         }
                     }
-
+                    
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button {
                             var currentPlayMode = group.playMode
@@ -165,7 +167,6 @@ struct QueueScreen: View {
 #endif
             }
         }
-        .presentationBackground(.thinMaterial)
         .overlay {
             if isLoading, group.coordinatorRoom.queue.isEmpty {
                 ProgressView()
@@ -280,6 +281,7 @@ struct QueueScreen: View {
         List(selection: $selection) {
             ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
                 QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
+                    .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 8)

@@ -29,9 +29,8 @@ struct SidebarSplitView: View, UIViewControllerRepresentable {
         splitViewController.preferredDisplayMode = .oneBesideSecondary
         splitViewController.preferredSplitBehavior = .tile
         splitViewController.maximumPrimaryColumnWidth = 600
-        splitViewController.minimumPrimaryColumnWidth = 320
-
-        splitViewController.preferredPrimaryColumnWidthFraction = 0.3
+        splitViewController.minimumPrimaryColumnWidth = 350
+        splitViewController.preferredPrimaryColumnWidthFraction = 0.32
         return splitViewController
     }
 

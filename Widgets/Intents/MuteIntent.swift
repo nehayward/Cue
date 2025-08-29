@@ -52,7 +52,9 @@ struct MuteIntent: LiveActivityIntent {
         }
         await Self.liveActivityManager.refresh()
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+        if #available(visionOS 26.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         #endif
         return .result()
     }

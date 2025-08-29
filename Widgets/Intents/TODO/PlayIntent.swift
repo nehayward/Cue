@@ -55,7 +55,10 @@ struct PlayIntent: LiveActivityIntent {
         await SonosService.shared.play(ip: group.coordinatorRoom.ip)
         
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+
+        if #available(visionOS 26.0, *) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         #endif
         return .result()
     }

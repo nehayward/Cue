@@ -44,7 +44,6 @@ struct LargePlayerView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .symbolRenderingMode(.hierarchical)
-                        .frame(width: isMacCatalystOrPad ? 400 : 300, height: isMacCatalystOrPad ? 400 : 300)
                         .opacity(0.2)
                         .overlay {
                             if group.isMuted {
@@ -230,6 +229,7 @@ struct LargePlayerView: View {
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .tint(.primary)
+#if !os(visionOS)
                     .overlay {
                         Menu {
                             ForEach(group.rooms) { room in
@@ -243,11 +243,12 @@ struct LargePlayerView: View {
                                 .contentShape(Rectangle())
                         }
                     }
+#endif
             }
-        
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack {
-                    if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
+            
+            if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarItem {
                         Text(date, style: .timer)
                             .contentTransition(.numericText(countsDown: true))
                             .animation(.spring, value: date)
@@ -255,11 +256,32 @@ struct LargePlayerView: View {
                             .bold()
                             .id(refreshID)
                     }
-                    LikeButtonView(group: group)
-                    MenuInfoView(group: group)
-                        .tint(.primary)
-                        .id(refreshID)
+                    .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem {
+                        Text(date, style: .timer)
+                            .contentTransition(.numericText(countsDown: true))
+                            .animation(.spring, value: date)
+                            .monospacedDigit()
+                            .bold()
+                            .id(refreshID)
+                    }
                 }
+            }
+           
+            if #available(iOS 26.0, visionOS 26.0, *) {
+                ToolbarSpacer(.fixed)
+            }
+            ToolbarItem {
+                LikeButtonView(group: group)
+            }
+            if #available(iOS 26.0, visionOS 26.0, *) {
+                ToolbarSpacer(.fixed)
+            }
+            ToolbarItem {
+                MenuInfoView(group: group)
+                    .tint(.primary)
+                    .id(refreshID)
             }
         }
         .toolbarTitleDisplayMode(.inline)

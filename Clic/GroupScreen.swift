@@ -26,6 +26,16 @@ struct GroupScreen: View {
         self._sheetDestination = sheetDestination
     }
     
+    @ViewBuilder
+    var backgroundShape: some View {
+        if #available(iOS 26.0, visionOS 26.0, macOS 26.0, *) {
+            RoundedRectangle(cornerRadius: 12)
+                .glassEffect(in: .rect)
+        } else {
+            RoundedRectangle(cornerRadius: 12).foregroundStyle(.placeholder)
+        }
+    }
+
     var body: some View {
         @Bindable var sonosService = sonosService
         NavigationStack(path: $path) {
@@ -38,11 +48,11 @@ struct GroupScreen: View {
                         } label: {
                             HStack {
                                 Text(room.name)
-                                    .font(.title3)
-                                    .bold()
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                                    .symbolEffect(.bounce, options: .speed(3), value: selections.contains(room.id))
+                                    .contentTransition(.symbolEffect(.replace))
                                     .font(.title2)
                                     .opacity(isSelected(room) ? 1 : 0.8)
                             }
@@ -56,9 +66,7 @@ struct GroupScreen: View {
                         RoomVolumeView(room: $room, delayDrag: true)
                             .foregroundStyle(.primary)
                     }
-                    .listRowBackground(selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                        .foregroundStyle(.placeholder)
-                    : nil)
+                    .listRowBackground(selections.contains(room.id) ? backgroundShape : nil)
                     .listRowInsets(EdgeInsets())
                 }
                 VStack {

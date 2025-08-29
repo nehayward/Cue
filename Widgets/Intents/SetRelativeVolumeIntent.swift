@@ -57,7 +57,9 @@ struct SetRelativeGroupVolumeIntent: SetValueIntent, LiveActivityIntent {
             try? await Task.sleep(for: .milliseconds(100))
             await Self.liveActivityManager.refresh()
     #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
+            if #available(visionOS 26.0, *) {
+                WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
+            }
     #endif
             return .result()
         }
@@ -70,7 +72,9 @@ struct SetRelativeGroupVolumeIntent: SetValueIntent, LiveActivityIntent {
         try? await Task.sleep(for: .milliseconds(100))
         await Self.liveActivityManager.refresh()
 #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
+        if #available(visionOS 26.0, *) {
+            WidgetCenter.shared.reloadTimelines(ofKind: "RemoteWidget")
+        }
 #endif
         return .result()
     }

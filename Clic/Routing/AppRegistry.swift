@@ -158,12 +158,10 @@ extension View {
                         SpeakerSettingsView(room: room)
                     }
                     .presentationDetents([.medium, .large])
-                    .presentationBackground(.thinMaterial)
                     .presentationCornerRadius(24)
                 case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
                     SelectGroupView(content: content, onSelection: onSelection)
                         .presentationDetents([.fraction(0.8), .large])
-                        .presentationBackground(.thinMaterial)
                         .presentationCornerRadius(24)
                         .environment(selectedGroupService)
                 case .plexManagement:
@@ -246,7 +244,6 @@ extension View {
                             .withAppRouter()
                     }
                     .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .environment(router)
                     .environment(selectedGroupService)
 
@@ -261,7 +258,6 @@ extension View {
                             .withAlert()
                     }
                     .scrollContentBackground(.hidden)
-                    .presentationBackground(.thinMaterial)
                     .safeAreaInset(edge: .bottom) {
                         MiniPlayerView()
                     }
@@ -416,6 +412,8 @@ extension View {
             .presentationBackgroundInteraction(.disabled)
 #endif
         }
+#else
+        self
 #endif
     }
 

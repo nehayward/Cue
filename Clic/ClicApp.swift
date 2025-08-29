@@ -2,6 +2,7 @@ import Analytics
 import Defaults
 import Nuke
 import CloudStorage
+import VibesDS
 import RevenueCat
 import RevenueCatUI
 import SonosKit
@@ -15,6 +16,7 @@ import CoreSpotlight
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
+
 @main
 struct ClicApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -51,60 +53,69 @@ struct ClicApp: App {
 
     var body: some Scene {
         WindowGroup {
-            VStack {
-                if OSEnvironment.pad || UIDevice.current.userInterfaceIdiom == .vision {
-                    HStack {
-                        SidebarSplitView {
-                            ListViewLarge(selected: $selectedID)
-                            ContainerLargePlayerView(id: $selectedID)
-                            DeviceListMainView()    
-                        }
-#if !os(visionOS)
-                        .withInspector(inspectorDestination: $router.inspectorSheet)
-                        .ignoresSafeArea()
-#endif
-#if os(visionOS)
-                        .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
-                            Group {
-                                switch router.inspectorSheet {
-                                case let .search(group):
-                                    SearchScreen {
-                                        router.inspectorSheet = nil
-                                    }
-                                    .environment(SelectedGroupService(group: group))
-                                case let .queue(group):
-                                    QueueScreen(group: group) {
-                                        router.inspectorSheet = nil
-                                    }
-                                case let .browse(group):
-                                    @State var selectedGroupService = SelectedGroupService(group: group)
-                                    BrowseScreen {
-                                        router.inspectorSheet = nil
-                                    }
-                                    .environment(selectedGroupService)
-                                default:
-                                    EmptyView()
-                                        .onAppear {
-                                            router.inspectorSheet = nil
-                                        }
-                                }
-                            }
-                            .glassBackgroundEffect()
-                            .frame(minWidth: 400, minHeight: 800)
-                            .offset(x: router.inspectorSheet != nil ? 0 : -400)
-                            .offset(z: router.inspectorSheet != nil ? 0 : -64)
-                            .opacity(router.inspectorSheet != nil ? 1 : 0)
-                            .animation(.spring, value: router.inspectorSheet)
-                            .withEnvironments()
-                        }
-#endif
-                    }
-                    .withAlert()
-                    .animation(.spring, value: alertService.alert.isShowing)
-                } else {
-                    DeviceListMainView()
-                }
+            NavigationSplitView {
+                SpeakerListScreen(selected: $selectedID)
+                    .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 400)
+            } detail: {
+                ContainerLargePlayerView(id: $selectedID)
             }
+            .navigationSplitViewStyle(.balanced)
+            .withInspector(inspectorDestination: $router.inspectorSheet)
+            .visionOrnament(router: router)
+            .withAlert()
+//            VStack {
+//                if OSEnvironment.pad || UIDevice.current.userInterfaceIdiom == .vision {
+//                    HStack {
+//                        SidebarSplitView {
+//                            ListViewLarge(selected: $selectedID)
+//                            ContainerLargePlayerView(id: $selectedID)
+//                            DeviceListMainView()    
+//                        }
+//#if !os(visionOS)
+//                        .withInspector(inspectorDestination: $router.inspectorSheet)
+//#endif
+//#if os(visionOS)
+//                        .ornament(visibility: .visible, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
+//                            Group {
+//                                switch router.inspectorSheet {
+//                                case let .search(group):
+//                                    SearchScreen {
+//                                        router.inspectorSheet = nil
+//                                    }
+//                                    .environment(SelectedGroupService(group: group))
+//                                case let .queue(group):
+//                                    QueueScreen(group: group) {
+//                                        router.inspectorSheet = nil
+//                                    }
+//                                case let .browse(group):
+//                                    @State var selectedGroupService = SelectedGroupService(group: group)
+//                                    BrowseScreen {
+//                                        router.inspectorSheet = nil
+//                                    }
+//                                    .environment(selectedGroupService)
+//                                default:
+//                                    EmptyView()
+//                                        .onAppear {
+//                                            router.inspectorSheet = nil
+//                                        }
+//                                }
+//                            }
+//                            .glassBackgroundEffect()
+//                            .frame(minWidth: 400, minHeight: 800)
+//                            .offset(x: router.inspectorSheet != nil ? 0 : -400)
+//                            .offset(z: router.inspectorSheet != nil ? 0 : -64)
+//                            .opacity(router.inspectorSheet != nil ? 1 : 0)
+//                            .animation(.spring, value: router.inspectorSheet)
+//                            .withEnvironments()
+//                        }
+//#endif
+//                    }
+//                    .withAlert()
+//                    .animation(.spring, value: alertService.alert.isShowing)
+//                } else {
+//                    DeviceListMainView()
+//                }
+//            }
             .environment(router)
             .environment(sonosService)
             .environment(subscriptionService)
@@ -138,7 +149,9 @@ struct ClicApp: App {
                 SubscriptionService.shared.subscriptionUpdated = { subscription in
                     activeSubscription = subscription.isActive
 #if canImport(WidgetKit)
-                    WidgetCenter.shared.reloadAllTimelines()
+                    if #available(visionOS 26.0, *) {
+                        WidgetCenter.shared.reloadAllTimelines()
+                    }
 #endif
                 }
                 
@@ -174,6 +187,14 @@ struct ClicApp: App {
                     menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                 }
 #endif
+            
+                if UIDevice.current.userInterfaceIdiom == .pad, selectedID == nil {
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        sonosService.selectedGroup = sonosService.sorted.first
+                        selectedID = sonosService.sorted.first?.coordinatorID
+                    }
+                }
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)
@@ -448,7 +469,9 @@ struct ClicApp: App {
         case .inactive:
             print("Inactive")
 #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
+            if #available(visionOS 26.0, *) {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
 #endif
             Task {
                 await liveActivityManager.refresh()
@@ -520,13 +543,14 @@ struct ClicApp: App {
                         guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: id) else {
                             return
                         }
+                        selectedID = group.coordinatorID
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                                router.path.removeAll()
-                                router.navigate(to: .player(groupID: group.coordinatorID))
-                            } else if router.path.isEmpty {
-                                router.navigate(to: .player(groupID: group.coordinatorID))
-                            }
+//                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+//                                router.path.removeAll()
+////                                router.navigate(to: .player(groupID: group.coordinatorID))
+//                            } else if router.path.isEmpty {
+////                                router.navigate(to: .player(groupID: group.coordinatorID))
+//                            }
                             router.presentedSheet = .search(group: group)
                         } else {
                             selectedID = group.coordinatorID
@@ -535,17 +559,17 @@ struct ClicApp: App {
                     }
                     return
                 }
+                selectedID = group.coordinatorID
                 
                 if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                        router.path.removeAll()
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    } else if router.path.isEmpty {
-                        router.navigate(to: .player(groupID: group.coordinatorID))
-                    }
+//                    if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+//                        router.path.removeAll()
+//                        router.navigate(to: .player(groupID: group.coordinatorID))
+//                    } else if router.path.isEmpty {
+//                        router.navigate(to: .player(groupID: group.coordinatorID))
+//                    }
                     router.presentedSheet = .search(group: group)
                 } else {
-                    selectedID = group.coordinatorID
                     router.inspectorSheet = .search(group: group)
                 }
                 return
@@ -699,12 +723,13 @@ struct ClicApp: App {
                     try await sonosService.load(useCache: true)
                     if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {
                         if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
-                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
-                                router.path.removeAll()
-                                router.navigate(to: .player(groupID: group.coordinatorID))
-                            } else if router.path.isEmpty {
-                                router.navigate(to: .player(groupID: group.coordinatorID))
-                            }
+//                            if let currentPath = router.path.last, currentPath != .player(groupID: group.coordinatorID) {
+//                                router.path.removeAll()
+//                                router.navigate(to: .player(groupID: group.coordinatorID))
+//                            } else if router.path.isEmpty {
+//                                router.navigate(to: .player(groupID: group.coordinatorID))
+//                            }
+                            selectedID = group.coordinatorID
                             router.presentedSheet = .groupScreen(group: group)
                         } else {
                             selectedID = group.coordinatorID

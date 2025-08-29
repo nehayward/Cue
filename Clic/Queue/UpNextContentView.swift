@@ -32,14 +32,14 @@ struct UpNextContentView: View {
             List(selection: $selection) {
                 ForEach(Array(upNext.enumerated()), id: \.element.trackID) { index, track in
                     HStack(spacing: 0) {
-                        // Position number with smart width handling
                         Text(formatPosition(group.coordinatorRoom.track.position + index + 1))
-                            .font(.caption.monospacedDigit())
+                            .font(.caption.monospacedDigit().smallCaps())
                             .frame(width: positionWidth, alignment: .trailing)
                             .padding(.trailing, 8)
                         
                         QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
                     }
+                    .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 8)

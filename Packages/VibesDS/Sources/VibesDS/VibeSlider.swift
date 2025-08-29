@@ -139,10 +139,6 @@ public struct VibeSlider: View {
         }
 #endif
 #if !os(watchOS) && !os(macOS)
-        .hoverEffect(.highlight)
-        .defaultHoverEffect(.highlight)
-#endif
-#if !os(watchOS) && !os(macOS)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovered = hovering
