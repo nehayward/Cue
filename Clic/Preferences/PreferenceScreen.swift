@@ -198,7 +198,7 @@ struct PreferenceScreen: View {
                         Label {
                             Text("Switch Households")
                         } icon: {
-                            Image(systemName: "house.fill")
+                            Image("home.fill")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundStyle(.white)

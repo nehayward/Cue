@@ -22,106 +22,99 @@ struct SelectGroupView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-//                if onSelection != nil {
-//                    Text("Select Group To Play")
-//                        .bold()
-//                        .font(.title)
-//                        .multilineTextAlignment(.center)
-//                        .listRowBackground(Color.clear)
-//                        .frame(maxWidth: .infinity, alignment: .center)
-//                }
-                if let content {
-                    PlayableContentView(item: content, hideDetails: true)
-                        .listRowBackground(Color.clear)
-                        .padding(.leading, -20)
-
-//                    HStack {
-//                        ContentArtworkView(content: content)
-//                            .frame(width: 50, height: 50)
-//                            .background(.red)
-//                        VStack {
-//                            Text(content.title)
-//                            Text(content.subtitle)
-//                                .foregroundStyle(.secondary)
-//                        }
-//                    }
-//                    .listRowBackground(Capsule().foregroundStyle(.thickMaterial))
-                }
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    for room in rooms {
-                        if groupVolume.isZero {
-                            groupVolume = room.volume
-                        }
-                        selections.insert(room.id)
+            ScrollView {
+                LazyVStack {
+                    if let content {
+                        PlayableContentView(item: content, hideDetails: true)
+                            .padding()
+                            .glass26()
+                            .padding(.vertical)
+                            .padding(.horizontal)
                     }
-                } label: {
-                    Text("Everywhere")
-                        .frame(maxWidth: .infinity)
-                        .bold()
-                }
-                .buttonStyle(.bordered)
-                .fontDesign(.rounded)
-                .tint(.accent)
-                .foregroundStyle(.accent)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-                
-                ForEach($rooms) { $room in
-                    VStack {
-                        Button {
-                            HapticManager.shared.fireHaptic(.selection)
-                            if selections.contains(room.id) {
-                                selections.remove(room.id)
-                            } else {
-                                selections.insert(room.id)
-                                if groupVolume.isZero {
-                                    groupVolume = room.volume
+                    
+                    ScrollView(.horizontal) {
+                        HStack {
+                            ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in
+                                Button {
+                                    play(group: group)
+                                } label: {
+                                    VStack {
+                                        Text(group.nameWithCount)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .lineLimit(1)
+                                        HStack {
+                                            Text(group.groupVolume, format: .number)
+                                                .foregroundStyle(.secondary)
+                                                .font(.caption)
+                                            ProgressView(value: group.groupVolume / 100)
+                                                .foregroundStyle(.primary)
+                                        }
+                                    }
+                                    .padding()
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .foregroundStyle(.thinMaterial)
+                                    }
+                                    .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
+                                        length / 1.75
+                                    }
                                 }
                             }
-                        } label: {
-                            HStack {
-                                Text(room.name)
-                                    .bold()
-                                Spacer()
-                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                                    .symbolRenderingMode(.hierarchical)
-//                                    .symbolEffect(.automatic, options: .speed(5), value: selections.contains(room.id))
-                                    .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
-                            }
-                            .fontDesign(.rounded)
-                 
                         }
-                        //                        RoomVolumeView(room: $room, touchDelay: 0.05)
-                        //                            .foregroundStyle(selections.contains(room.id) ? .black : .primary)
-                        //                            .tint(selections.contains(room.id) ? .black : .accentColor)
+                        .padding(.horizontal)
                     }
-                    //                    .listRowBackground(
-                    //                        selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)
-                    //                            .foregroundStyle(Color.accentColor.gradient.opacity(0.8))
-                    //                        : nil
-                    //                    )
+                    .scrollIndicators(.hidden)
+                    .scrollClipDisabled()
+                    Divider()
+                    Button {
+                        HapticManager.shared.fireHaptic(.selection)
+                        for room in rooms {
+                            if groupVolume.isZero {
+                                groupVolume = room.volume
+                            }
+                            selections.insert(room.id)
+                        }
+                    } label: {
+                        Text("Everywhere")
+                            .frame(maxWidth: .infinity)
+                            .bold()
+                    }
+                    .buttonStyle(.bordered)
+                    .fontDesign(.rounded)
+                    .tint(.accent)
+                    .foregroundStyle(.accent)
+                    .padding(.horizontal)
+                    
+                    ForEach($rooms) { $room in
+                        VStack {
+                            Button {
+                                HapticManager.shared.fireHaptic(.selection)
+                                if selections.contains(room.id) {
+                                    selections.remove(room.id)
+                                } else {
+                                    selections.insert(room.id)
+                                    if groupVolume.isZero {
+                                        groupVolume = room.volume
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(room.name)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .contentTransition(.symbolEffect(.replace))
+                                        .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                                }
+                                .fontDesign(.rounded)
+                                .padding()
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
                 }
             }
-//            .toolbar {
-//                ToolbarItem(placement: .bottomBar) {
-//                    VStack {
-//                        VibeSlider(value: .constant(12), step: 1)
-//                        Button {
-//                            print("group")
-//                        } label: {
-//                            Text("Play")
-//                                .frame(maxWidth: .infinity)
-//                                .tint(.accent)
-//                        }
-//                        .transition(.slide)
-//                        .buttonStyle(.bordered)
-//                    }
-//                    .padding()
-//                }
-//            }
-//            .conditionalToolbarModifier(isSearching: search)
             .overlay(alignment: .bottom) {
                 VStack {
                     HStack {
@@ -147,7 +140,7 @@ struct SelectGroupView: View {
                         .buttonStyle(.liveActivity)
                         .buttonRepeatBehavior(.enabled)
                     }
-                    .frame(height: 24)
+                    .frame(height: 20)
                     .padding(.bottom)
                     Button {
                         Task {
@@ -186,11 +179,8 @@ struct SelectGroupView: View {
                 }
                 .padding()
                 .background(.thinMaterial)
-//                .clipShape(UnevenRoundedRectangle(cornerRadii: RectangleCornerRadii(topLeading: 12, bottomLeading: 0, bottomTrailing: 0, topTrailing: 12)))
             }
         }
-        .scrollContentBackground(.hidden)
-        .listRowSpacing(10)
         .foregroundStyle(.primary)
         .fontDesign(.rounded)
         .task {
@@ -217,21 +207,19 @@ struct SelectGroupView: View {
         let nonFiltered = sonosService.sorted.filter { $0.nameWithCount.range(of: filter, options: .caseInsensitive) == nil }
         return (filtered + nonFiltered).sorted { $0.coordinatorRoom.isPlaying && !$1.coordinatorRoom.isPlaying }
     }
-}
-
-extension View {
-    @ViewBuilder
-    func conditionalToolbarModifier(isSearching: Bool) -> some View {
-        if #available(iOS 18.0, *) {
-//            self.toolbarVisibility(selections.isEmpty ? .hidden : .visible, for: .bottomBar)
-            self.toolbarVisibility(isSearching ? .visible : .hidden, for: .navigationBar)
-//            self.toolbarVisibility(.hidden, for: .navigationBar)
-        } else {
-            self // fallback behavior for earlier versions
+    
+    func play(group: GroupRoom) {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        withAnimation {
+            dismiss()
+        } completion: {
+            Task {
+                selectedGroupService.group = group
+                try await onSelection?(group)
+            }
         }
     }
 }
-
 
 #Preview {
     @Previewable @State var group: GroupRoom? = nil

@@ -15,7 +15,7 @@ struct SceneView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            ScrollView {
                 ForEach(scenes) { scene in
                     SceneButton(scene: scene) {
                         dismiss()
@@ -70,8 +70,7 @@ struct SceneView: View {
                 }
                 
             }
-            .listRowSpacing(0)
-            .listStyle(.plain)
+            .padding(.horizontal)
             .navigationTitle("Scenes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

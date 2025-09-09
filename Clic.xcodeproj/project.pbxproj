@@ -18,6 +18,8 @@
 		017297652DD3C708003E7FFB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 017297642DD3C708003E7FFB /* Kingfisher */; };
 		0186C9672DD82EC2009F8A66 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9662DD82EC2009F8A66 /* Kingfisher */; };
 		0186C9692DD83E34009F8A66 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9682DD83E34009F8A66 /* Nuke */; };
+		0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D9492E674B47001387F1 /* FocusOnAppear */; };
+		0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D94B2E674B4F001387F1 /* FocusOnAppear */; };
 		01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01AB21432DD0F9B1004BFEE4 /* Kingfisher */; };
 		01CB34052DC4F851006406B6 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F62DC4F851006406B6 /* SubscriptionKit */; };
@@ -29,6 +31,7 @@
 		01CB340F2DC4F851006406B6 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F32DC4F851006406B6 /* CloudStorage */; };
 		01CB34112DC4F851006406B6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = E9684B692BE42C4E00F37AC3 /* PrivacyInfo.xcprivacy */; };
 		01CB34292DC4FE57006406B6 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB34282DC4FE57006406B6 /* VibesDS */; };
+		01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 01E3D31C2E6FD74F005E769A /* FocusOnAppear */; };
 		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
 		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
@@ -566,6 +569,7 @@
 				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
 				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
 				E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */,
+				0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -598,6 +602,7 @@
 				E97563332B699B2400787E14 /* RevenueCatUI in Frameworks */,
 				E97563342B699B2400787E14 /* VibesDS in Frameworks */,
 				E97563352B699B2400787E14 /* SonosKit in Frameworks */,
+				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
 				E97563362B699B2400787E14 /* CloudStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -641,6 +646,7 @@
 				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
+				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -812,6 +818,7 @@
 				E9D49E4D2BC9D21B0084185E /* Analytics */,
 				E9C2C4372C580FE000ABC177 /* Glur */,
 				017297642DD3C708003E7FFB /* Kingfisher */,
+				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
 			);
 			productName = Sonos;
 			productReference = E92B3EFB2B60249B00724FA1 /* Clic.app */;
@@ -879,6 +886,7 @@
 				E97562DD2B699B2400787E14 /* Defaults */,
 				E90F315F2BC48ADD00884EA5 /* Analytics */,
 				E933FA102C3304EE00C0D7AE /* Glur */,
+				0186D9492E674B47001387F1 /* FocusOnAppear */,
 			);
 			productName = Sonos;
 			productReference = E97563432B699B2400787E14 /* Clic.app */;
@@ -969,6 +977,7 @@
 				E93AFA762B587F1800B20AC4 /* Defaults */,
 				E90F315D2BC4829500884EA5 /* Analytics */,
 				E933FA0E2C3304E400C0D7AE /* Glur */,
+				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -1055,6 +1064,7 @@
 				018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */,
 				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
 			);
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
@@ -2985,6 +2995,14 @@
 				minimumVersion = 8.1.3;
 			};
 		};
+		0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/naan/FocusOnAppear";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
 		01CB33F42DC4F851006406B6 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -3169,6 +3187,16 @@
 			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
 			productName = Nuke;
 		};
+		0186D9492E674B47001387F1 /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
+		};
+		0186D94B2E674B4F001387F1 /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
+		};
 		01AB21432DD0F9B1004BFEE4 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */;
@@ -3208,6 +3236,11 @@
 		01CB34282DC4FE57006406B6 /* VibesDS */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = VibesDS;
+		};
+		01E3D31C2E6FD74F005E769A /* FocusOnAppear */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
+			productName = FocusOnAppear;
 		};
 		01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;

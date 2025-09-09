@@ -74,7 +74,7 @@ public enum AudioInputFormat: Int, Codable, Hashable, Equatable {
     @ViewBuilder
     public var icon: some View {
         if self.description.contains("Dolby") {
-            SwiftUI.Image(.dolby)
+            SwiftUI.Image("dolby", bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

@@ -28,11 +28,8 @@ struct PlayHistoryFullView: View {
             }
 
             ForEach(filteredHistory, id: \.trackID) { item in
-                VStack {
-                    PlayableContentView(item: item)
-                }
+                PlayableContentView(item: item)
             }
-            .fontDesign(.rounded)
         }
         .miniPlayerOnScrollHandler()
         .toolbar {
@@ -41,20 +38,20 @@ struct PlayHistoryFullView: View {
                     Button(role: .destructive) {
                         clearHistoryConfirmation.toggle()
                     } label: {
-                        Text("Remove All")
+                        Label("Remove All", systemImage: "trash.fill")
+                    }
+                    .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
+                        Button {
+                            playHistoryService.history.removeAll()
+                        } label: {
+                            Text("Remove Play History")
+                                .bold()
+                        }
                     }
                 }
             }
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle("Play History")
-        .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
-            Button {
-                playHistoryService.history.removeAll()
-            } label: {
-                Text("Remove Play History")
-                    .bold()
-            }
-        }
     }
 }

@@ -14,22 +14,23 @@ final class KeychainTokenRefreshHandler: TokenRefreshHandler {
     // Cache for credentials to avoid repeated keychain access
     private var cachedCredentials: [SonosServiceType: Credentials] = [:]
     private let credentialsQueue = DispatchQueue(label: "com.clic.credentials", attributes: .concurrent)
+    private let defaultGroup = UserDefaults(suiteName: "group.com.clic")
     
     var deviceId: String? {
         get {
-            UserDefaults.standard.string(forKey: "deviceID")
+            defaultGroup?.string(forKey: "deviceID")
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "deviceID")
+            defaultGroup?.set(newValue, forKey: "deviceID")
         }
     }
     
     var householdId: String? {
         get {
-            UserDefaults.standard.string(forKey: "householdId")
+            defaultGroup?.string(forKey: "householdId")
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "householdId")
+            defaultGroup?.set(newValue, forKey: "householdId")
         }
     }
     

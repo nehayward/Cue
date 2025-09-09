@@ -62,34 +62,16 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "apple.logo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .spotify:
-            SwiftUI.Image(.spotify)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
         case .library:
             SwiftUI.Image(systemName: "books.vertical.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .plex:
-            SwiftUI.Image(.plex)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        case .tidal:
-            SwiftUI.Image(.tidal)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        case .tuneIn:
-            SwiftUI.Image(.tuneIn)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
         default:
-            SwiftUI.Image(self.rawValue, bundle: .module)
+            SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.primary)
+                .foregroundStyle(brandColor.gradient)
         }
     }
 
@@ -99,35 +81,37 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .apple:
             Image(systemName: "apple.logo")
                 .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
-        case .spotify:
-            SwiftUI.Image(.spotify)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
         case .library:
             Image(systemName: "books.vertical.fill")
                 .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
-        case .plex:
-            SwiftUI.Image(.plex)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.orange.gradient)
-        case .tidal:
-            SwiftUI.Image(.tidal)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.foreground)
-        case .tuneIn:
-            MediaSearchService.tuneIn.image
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
         default:
-            SwiftUI.Image(self.rawValue, bundle: .module)
+            SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
                 .resizable()
-                .aspectRatio(contentMode: .fit)
-                .foregroundStyle(.primary)
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
+        }
+    }
+    
+    public var brandColor: Color {
+        switch self {
+        case .apple:
+            Color(red: 255.0 / 255.0, green: 78 / 255.0, blue: 107 / 255.0)
+        case .spotify:
+            Color(red: 30.0 / 255.0, green: 215.0 / 255.0, blue: 96.0 / 255.0)
+        case .library:
+                .primary
+        case .plex:
+                .orange
+        case .tidal:
+                .primary
+        case .tuneIn:
+                .primary
+        case .soundcloud:
+            Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
         }
     }
 }

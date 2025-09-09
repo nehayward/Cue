@@ -141,7 +141,7 @@ struct LargePlayerView: View {
                             HapticManager.shared.fireHaptic(.buttonPress)
                             router.sheet(to: .browse(group: group))
                         } label: {
-                            Image(systemName: "music.note.house.fill")
+                            Image("home.fill")
                                 .fontDesign(.rounded)
                         }
                         .buttonStyle(.plain)
@@ -535,6 +535,7 @@ fileprivate struct BackgroundView: View {
                 .foregroundStyle(.thinMaterial)
                 .scaleEffect(1.3)
         }
+        .backgroundExtension26()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
     }

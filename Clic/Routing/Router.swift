@@ -8,8 +8,8 @@ import SonosKit
     static var main = Router()
     static var search = Router()
     
+    var selectedID: String?
     var path: [RouterDestination] = []
-    var selection: RouterDestination?
     var presentedSheet: SheetDestination?
     
     @MainActor var inspectorSheet: InspectorDestination?
@@ -31,18 +31,14 @@ import SonosKit
     
     @MainActor
     func show(destination: RouterDestination) {
-        if UIDevice.current.userInterfaceIdiom != .phone {
-            return
-        }
-        
         Router.main.sheet(to: nil)
-        if Router.main.path.last == destination {
-            return
-        } else {
-            Router.main.path.removeAll()
-            Router.main.navigate(to: destination)
+        
+        switch destination {
+            case let .player(groupID: id):
+            selectedID = id
+        default:
+            break
         }
-        return
     }
 }
 

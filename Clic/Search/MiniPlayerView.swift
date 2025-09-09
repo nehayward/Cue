@@ -25,21 +25,24 @@ struct MiniPlayerView: View {
                     groupInfoButton(for: group)
                     VolumeControlView(group: group)
                         .foregroundStyle(colorScheme == .dark ? .white : .black)
-                }
-                .onChange(of: selectedGroupService.group?.coordinatorRoom.track) {
-                    MiniPlayerManger.shared.offset = 0
+                        .frame(height: 12)
                 }
                 .foregroundStyle(.primary)
                 .tint(.primary)
             }
         }
-        .padding([.top, .horizontal])
-        .frame(maxWidth: .infinity)
+        .padding()
+        .frame(maxWidth: 600)
         .background {
-            UnevenRoundedRectangle(cornerRadii: .init(topLeading: 4, bottomLeading: 0, bottomTrailing: 0, topTrailing: 4))
-                .foregroundStyle(.ultraThinMaterial)
-                .ignoresSafeArea(.all)
+            if #available(iOS 26.0, *) {
+                Capsule()
+                    .glassEffect(.regular.interactive())
+            } else {
+                Capsule()
+                    .foregroundStyle(.ultraThinMaterial)
+            }
         }
+        .padding(.horizontal, 8)
         .opacity(selectedGroup == nil ? 0 : 1)
         .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
         .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
@@ -69,16 +72,19 @@ struct MiniPlayerView: View {
     
     private func artworkView(for group: GroupRoom) -> some View {
         ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
-            .frame(width: 50, height: 50)
+            .frame(width: 40, height: 40)
     }
     
     private func trackInfoView(for group: GroupRoom) -> some View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
-                .foregroundStyle(.secondary)
                 .font(.caption2)
-            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+            // Add back after optimization
+//            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+            Text([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
                 .transition(.slide)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .fontDesign(.rounded)
         .lineLimit(1, reservesSpace: true)

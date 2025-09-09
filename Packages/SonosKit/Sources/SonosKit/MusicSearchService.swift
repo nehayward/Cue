@@ -806,7 +806,6 @@ public final class MusicSearchService {
         let titleScore = fuzzyMatchScore(source: item.title, query: query)
         let subtitleScore = fuzzyMatchScore(source: item.subtitle, query: query)
         let popularityScore = Double(item.metadata?.popularity ?? 0)
-        let isInLibrary = item.content.type == .libraryArtist ? 1.0 : 0.0
         
         // Normalize scores
         let maxTitleScore = Double(query.count) // Maximum possible title score
@@ -821,14 +820,12 @@ public final class MusicSearchService {
         let titleWeight = 0.3
         let subtitleWeight = 0.10
         let popularityWeight = 0.5
-        let libraryWeight = 0.1
         
         // Calculate weighted score
         let weightedScore =
             normalizedTitleScore * titleWeight +
             normalizedSubtitleScore * subtitleWeight +
-            normalizedPopularity * popularityWeight +
-            isInLibrary * libraryWeight
+            normalizedPopularity * popularityWeight
         
         return weightedScore
     }

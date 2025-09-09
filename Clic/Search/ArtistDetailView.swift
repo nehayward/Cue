@@ -52,6 +52,7 @@ struct ArtistDetailView: View {
                 .frame(maxWidth: .infinity)
                 .listSectionSeparator(.hidden)
                 .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
             }
 
             if [.spotify, .apple].contains(playableContent.content.service) && playableContent.content.type != .libraryArtist {
@@ -76,7 +77,7 @@ struct ArtistDetailView: View {
                     } label: {
                         Text("Start Radio \(Image(systemName: "radio.fill"))")
                             .padding(.horizontal)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 4)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .foregroundStyle(.foreground)
                     }
@@ -87,6 +88,7 @@ struct ArtistDetailView: View {
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 4, trailing: 20))
             }
 
             // TODO: Add Later

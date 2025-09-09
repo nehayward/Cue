@@ -104,41 +104,16 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            case .spotify:
-                SwiftUI.Image(.spotify)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
             case .library:
                 SwiftUI.Image(systemName: "books.vertical.fill")
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            case .plex:
-                SwiftUI.Image(.plex)
+            case .plex, .tidal, .tuneIn, .soundcloud, .spotify:
+                SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            case .tidal:
-                SwiftUI.Image(.tidal)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .tuneIn:
-                SwiftUI.Image(.tuneIn)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .soundcloud:
-                SwiftUI.Image(self.sonosRawValue, bundle: .musicSearchKitBundle)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .onAppear {
-                        let musicSearchBundle = Bundle.musicSearchKitBundle
-                        print(musicSearchBundle)
-                       
-                    }
             case .airplay:
                 SwiftUI.Image(systemName: "airplayaudio")
                     .resizable()
@@ -163,39 +138,26 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "apple.logo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .spotify:
-            SwiftUI.Image(.spotify)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
         case .library:
             SwiftUI.Image(systemName: "books.vertical.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .plex:
-            SwiftUI.Image(.plex)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:
             EmptyView()
-        case .tidal:
-            SwiftUI.Image(.tidal)
+        case .plex, .tidal, .tuneIn, .soundcloud, .spotify:
+            SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
+                .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn:
-            SwiftUI.Image(.tuneIn)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        default:
-            SwiftUI.Image(self.sonosRawValue, bundle: .musicSearchKitBundle)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor)
+                .tint(brandColor)
         }
     }
     
     public var brandColor: Color {
         switch self {
         case .apple:
-                .red
+            Color(red: 255.0 / 255.0, green: 78 / 255.0, blue: 107 / 255.0)
         case .spotify:
             Color(red: 30.0 / 255.0, green: 215.0 / 255.0, blue: 96.0 / 255.0)
         case .airplay:
@@ -205,9 +167,9 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .plex:
                 .orange
         case .tidal:
-                .teal
+                .primary
         case .tuneIn:
-                .white
+                .primary
         case .soundcloud:
             Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
         case .unknown:

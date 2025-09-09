@@ -54,32 +54,7 @@ struct AppleLibraryBrowseScreen: View {
                     Label("Playlist Folders", systemImage: "folder.fill")
                 }
                 
-                Section {
-                    if !appleMusicBrowseService.userPlaylists.isEmpty {
-                        VStack(spacing: 16) {
-                            HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userPlaylists.prefix(4)) { item in
-                                    PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
-                                }
-                            }
-                        }
-                        .listRowBackground(Color.clear)
-                    }
-                } header: {
-                    NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
-                        await appleMusicBrowseService.updateUsersApplePlaylists(offset: offset)
-                    })) {
-                        HStack {
-                            Text("Playlists")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                .headerProminence(.increased)
-                
+                ApplePlaylistsView()
                 
                 Section {
                     if !appleMusicBrowseService.usersRecents.isEmpty {
@@ -87,7 +62,6 @@ struct AppleLibraryBrowseScreen: View {
                             HStack(spacing: 12) {
                                 ForEach(appleMusicBrowseService.usersRecents.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -114,7 +88,6 @@ struct AppleLibraryBrowseScreen: View {
                             HStack(spacing: 12) {
                                 ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -140,7 +113,6 @@ struct AppleLibraryBrowseScreen: View {
                             HStack(spacing: 12) {
                                 ForEach(appleMusicBrowseService.recommendedAlbums.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -166,7 +138,6 @@ struct AppleLibraryBrowseScreen: View {
                             HStack(spacing: 12) {
                                 ForEach(appleMusicBrowseService.userStations.prefix(4)) { item in
                                     PlayableCardView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 12)
                                 }
                             }
                         }
@@ -229,9 +200,6 @@ struct AppleLibraryBrowseScreen: View {
     private func updateAppleMusicBrowseService() async {
         isLoading = true
         await withTaskGroup(of: Void.self) { group in
-            group.addTask {
-                await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 4)
-            }
             group.addTask {
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: 0)
             }

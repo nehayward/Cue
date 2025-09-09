@@ -106,7 +106,7 @@ public struct VibeSlider: View {
             Text("\(Int(value))")
                 .monospacedDigit()
                 .fontDesign(.rounded)
-                .bold()
+                .fontWeight(.heavy)
                 .foregroundStyle(.white)
                 .blendMode(.difference)
                 .frame(minWidth: 28, minHeight: baseHeight)

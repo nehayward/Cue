@@ -4,6 +4,7 @@ import Security
 final class KeychainManager {
     static let shared = KeychainManager()
     private let service = "com.sonos.mediaservers"
+    private let accessGroup = "group.com.clic"
     
     private init() {}
     
@@ -11,10 +12,12 @@ final class KeychainManager {
         let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(servers)
+            
             let query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
-                kSecAttrAccount as String: householdId
+                kSecAttrAccount as String: householdId,
+                kSecAttrAccessGroup as String: accessGroup
             ]
             
             let attributes: [String: Any] = [
@@ -26,12 +29,8 @@ final class KeychainManager {
             
             if status == errSecItemNotFound {
                 // Item doesn't exist, so add it
-                let addQuery: [String: Any] = [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: service,
-                    kSecAttrAccount as String: householdId,
-                    kSecValueData as String: data
-                ]
+                var addQuery = query
+                addQuery[kSecValueData as String] = data
                 status = SecItemAdd(addQuery as CFDictionary, nil)
             }
             
@@ -51,6 +50,7 @@ final class KeychainManager {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: householdId,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecReturnData as String: true
         ]
         
@@ -82,7 +82,8 @@ final class KeychainManager {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: householdId
+            kSecAttrAccount as String: householdId,
+            kSecAttrAccessGroup as String: accessGroup
         ]
         
         let status = SecItemDelete(query as CFDictionary)
@@ -96,28 +97,17 @@ final class KeychainManager {
     
     private func getKeychainErrorMessage(_ status: OSStatus) -> String {
         switch status {
-        case errSecSuccess:
-            return "Success"
-        case errSecUnimplemented:
-            return "Function or operation not implemented"
-        case errSecParam:
-            return "One or more parameters passed to a function were not valid"
-        case errSecAllocate:
-            return "Failed to allocate memory"
-        case errSecNotAvailable:
-            return "No keychain is available"
-        case errSecDuplicateItem:
-            return "The item already exists"
-        case errSecItemNotFound:
-            return "The item cannot be found"
-        case errSecInteractionNotAllowed:
-            return "User interaction is not allowed"
-        case errSecDecode:
-            return "Unable to decode the provided data"
-        case errSecAuthFailed:
-            return "The user name or passphrase you entered is not correct"
-        default:
-            return "Unknown error"
+        case errSecSuccess: return "Success"
+        case errSecUnimplemented: return "Function or operation not implemented"
+        case errSecParam: return "Invalid parameter"
+        case errSecAllocate: return "Failed to allocate memory"
+        case errSecNotAvailable: return "No keychain is available"
+        case errSecDuplicateItem: return "The item already exists"
+        case errSecItemNotFound: return "The item cannot be found"
+        case errSecInteractionNotAllowed: return "User interaction not allowed"
+        case errSecDecode: return "Unable to decode the provided data"
+        case errSecAuthFailed: return "Authentication failed"
+        default: return "Unknown error"
         }
     }
-} 
+}

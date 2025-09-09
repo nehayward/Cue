@@ -39,6 +39,7 @@ struct MediaSelector: View {
                             service.image
                         }
                     }
+                    .tint(service.brandColor)
                     .tag(service)
                 }
             }
@@ -46,11 +47,12 @@ struct MediaSelector: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
             } label: {
-                Text("Customize in Settings…")
+                Label("Setting…", systemImage: "gear")
             }
         } label: {
             browseMediaService.iconForMusicService
                 .frame(width: 24, height: 24)
+                .toolbarBackground(in: .circle)
         }
         .contentShape(Rectangle())
         .popoverTip(AppTip.libraryMediaService)

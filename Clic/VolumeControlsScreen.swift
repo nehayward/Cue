@@ -50,7 +50,7 @@ struct VolumeControlsScreen: View {
                                     }
                                 }
                         }
-                        .listRowBackground(isMacCatalyst ? Color.clear : nil)
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
                     
@@ -72,7 +72,7 @@ struct VolumeControlsScreen: View {
                                 }
                             }
                         }
-                        .listRowBackground(isMacCatalyst ? Color.clear : nil)
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
                 }

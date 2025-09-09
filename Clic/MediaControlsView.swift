@@ -39,8 +39,8 @@ struct MediaControlsView: View {
     }
 }
 
-//#Preview {
-//    MediaControlsView(group: .constant(.garage))
-//        .environment(SonosService())
-//        .environment(Router())
-//}
+#Preview {
+    MediaControlsView(group: .garage)
+        .environment(SonosService())
+        .environment(Router())
+}

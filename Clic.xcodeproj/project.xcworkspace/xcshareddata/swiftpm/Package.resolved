@@ -1,5 +1,5 @@
 {
-  "originHash" : "5567003e7094b32311f1ce8248349355a6f8f21f3bcd9947474fdfccf20a7c96",
+  "originHash" : "5925a423314c4c6c692271b124845bec59b4ae626f025c536262da235bbb03c6",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -17,6 +17,15 @@
       "state" : {
         "revision" : "de429870282bed7b01bf6c384f5f29d55907aa10",
         "version" : "0.24.1"
+      }
+    },
+    {
+      "identity" : "focusonappear",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/naan/FocusOnAppear",
+      "state" : {
+        "revision" : "f7a3e8a9de5f254af89c0fa9f4ee510cd81a9021",
+        "version" : "1.2.0"
       }
     },
     {

@@ -38,7 +38,6 @@ struct PlayableContentView: View {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
                         content
                     }
-                    .listRowSeparator(.hidden, edges: .all)
                 case .artist, .libraryArtist:
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
                         content
@@ -53,6 +52,7 @@ struct PlayableContentView: View {
             }
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
+        .listRowSeparator(.hidden)
     }
 
     private var content: some View {

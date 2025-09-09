@@ -8,7 +8,6 @@ struct ContainerLargePlayerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
-    @Binding var id: String?
     @State var refreshID = UUID()
     
     var body: some View {
@@ -16,7 +15,7 @@ struct ContainerLargePlayerView: View {
         @Bindable var router = router
         
         VStack {
-            if let id, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+            if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 LargePlayerView(group: $sonosService.sorted[group])
                     .toolbar {
                         ToolbarItemGroup(placement: .primaryAction) {
@@ -75,7 +74,7 @@ struct ContainerLargePlayerView: View {
                                         }
                                     }
                                 } label: {
-                                    Label("Browse", systemImage: "house.fill")
+                                    Label("Browse", image: "home.fill")
                                 }
                                 .id(refreshID)
                                 .help("Browse")

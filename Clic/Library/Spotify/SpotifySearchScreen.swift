@@ -18,11 +18,26 @@ struct SpotifySearchScreen: View {
         if !spotifyBrowseService.tracks.isEmpty {
             Section {
                 ScrollView(.horizontal) {
-                    HStack {
+                    LazyHStack {
                         ForEach(spotifyBrowseService.tracks.prefix(10)) { item in
-                            PlayableArtworkView(item: item)
-                                .containerRelativeFrame(.horizontal, count: 4, spacing: 4)
-                                .listRowInsets(EdgeInsets())
+                            VStack {
+                                PlayableArtworkView(item: item)
+                                Text(item.title)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                    .lineLimit(2, reservesSpace: true)
+                                    .fontDesign(.rounded)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .containerRelativeFrame(
+                                .horizontal, alignment: .topLeading
+                            ) { length, axis in
+                                if axis == .vertical {
+                                    return length / 3.0
+                                } else {
+                                    return length / 4.5
+                                }
+                            }
                         }
                         NavigationLink(value: RouterDestination.playableList(title: "Songs", action: { offset in
                             await spotifyBrowseService.updateSongs()
@@ -39,9 +54,13 @@ struct SpotifySearchScreen: View {
                     await spotifyBrowseService.updateSongs()
                     return Array(spotifyBrowseService.tracks)
                 })) {
-                    Label("Songs", systemImage: "music.note")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 2) {
+                        Text("Liked Songs")
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .listRowSeparator(.hidden)
@@ -56,16 +75,32 @@ struct SpotifySearchScreen: View {
                 .task {
                     await spotifyBrowseService.updateSongs(offset: 0, limit: 10)
                 }
+                .listRowSeparator(.hidden)
         }
         
         if !spotifyBrowseService.playlists.isEmpty {
             Section {
                 ScrollView(.horizontal) {
-                    HStack {
+                    LazyHStack {
                         ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
-                            PlayableArtworkView(item: item)
-                                .containerRelativeFrame(.horizontal, count: 4, spacing: 4)
-                                .listRowInsets(EdgeInsets())
+                            VStack {
+                                PlayableArtworkView(item: item)
+                                Text(item.title)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                    .lineLimit(2, reservesSpace: true)
+                                    .fontDesign(.rounded)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .containerRelativeFrame(
+                                .horizontal, alignment: .topLeading
+                            ) { length, axis in
+                                if axis == .vertical {
+                                    return length / 3.0
+                                } else {
+                                    return length / 2.5
+                                }
+                            }
                         }
                     }
                 }
@@ -77,9 +112,13 @@ struct SpotifySearchScreen: View {
                     await spotifyBrowseService.updatePlaylists()
                     return Array(spotifyBrowseService.playlists)
                 })) {
-                    Label("Playlists", systemImage: "rectangle.stack.badge.play")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 2) {
+                        Text("Playlists")
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .listRowSeparator(.hidden)
@@ -94,16 +133,32 @@ struct SpotifySearchScreen: View {
                 .task {
                     await spotifyBrowseService.updatePlaylists(offset: 0, limit: 10)
                 }
+                .listRowSeparator(.hidden)
         }
         
         if !spotifyBrowseService.albums.isEmpty {
             Section {
                 ScrollView(.horizontal) {
-                    HStack {
+                    LazyHStack {
                         ForEach(spotifyBrowseService.albums.prefix(10)) { item in
-                            PlayableArtworkView(item: item)
-                                .containerRelativeFrame(.horizontal, count: 4, spacing: 4)
-                                .listRowInsets(EdgeInsets())
+                            VStack {
+                                PlayableArtworkView(item: item)
+                                Text(item.title)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                    .lineLimit(2, reservesSpace: true)
+                                    .fontDesign(.rounded)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .containerRelativeFrame(
+                                .horizontal, alignment: .topLeading
+                            ) { length, axis in
+                                if axis == .vertical {
+                                    return length / 3.0
+                                } else {
+                                    return length / 2.5
+                                }
+                            }
                         }
                     }
                 }
@@ -115,9 +170,13 @@ struct SpotifySearchScreen: View {
                     await spotifyBrowseService.userAlbums()
                     return Array(spotifyBrowseService.albums)
                 })) {
-                    Label("Albums", systemImage: "smallcircle.circle.fill")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 2) {
+                        Text("Albums")
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .listRowSeparator(.hidden)
@@ -132,6 +191,7 @@ struct SpotifySearchScreen: View {
                 .task {
                     await spotifyBrowseService.userAlbums(offset: 0, limit: 10)
                 }
+                .listRowSeparator(.hidden)
         }
     }
 }

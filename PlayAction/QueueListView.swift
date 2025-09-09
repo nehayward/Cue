@@ -37,92 +37,126 @@ struct QueueListView: View {
     
     var body: some View {
         NavigationStack {
-            List {
-                if let playableContent = content {
-                    HStack(alignment: .top) {
-                        VibeContentArtworkView(content: playableContent)
-                            .frame(width: 80, height: 80)
-                            .environment(sonosService)
-                        VStack(alignment: .leading) {
-                            Text(playableContent.title)
-                            Text(playableContent.subtitle)
-                                .foregroundStyle(.secondary)
+            ScrollView {
+                LazyVStack {
+                    if let playableContent = content {
+                        HStack(alignment: .top) {
+                            VibeContentArtworkView(content: playableContent)
+                                .frame(width: 80, height: 80)
+                                .environment(sonosService)
+                            VStack(alignment: .leading) {
+                                Text(playableContent.title)
+                                Text(playableContent.subtitle)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fontDesign(.rounded)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fontDesign(.rounded)
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden, edges: .all)
-                    .listRowInsets(EdgeInsets())
-                    
-                    playEverywhereButton
-                    
-                    ForEach($rooms) { $room in
-                        VStack {
-                            Button {
-                                impactFeedbackGenerator.impactOccurred()
-                                if selections.contains(room.id) {
-                                    selections.remove(room.id)
-                                } else {
-                                    selections.insert(room.id)
-                                    if groupVolume.isZero {
-                                        groupVolume = room.volume
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden, edges: .all)
+                        .listRowInsets(EdgeInsets())
+                        
+                        ScrollView(.horizontal) {
+                            HStack {
+                                ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in
+                                    Button {
+                                        play(group: group)
+                                    } label: {
+                                        VStack {
+                                            Text(group.nameWithCount)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(1)
+                                            HStack {
+                                                Text(group.groupVolume, format: .number)
+                                                    .foregroundStyle(.secondary)
+                                                    .font(.caption)
+                                                ProgressView(value: group.groupVolume / 100)
+                                                    .foregroundStyle(.primary)
+                                            }
+                                        }
+                                        .padding()
+                                        .background {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .foregroundStyle(.thinMaterial)
+                                        }
+                                        .containerRelativeFrame(.horizontal, count: 2, span: 1, spacing: 12, alignment: .topLeading)
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Text(room.name)
-                                        .bold()
-                                    Spacer()
-                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                            }
+                        }
+                        .scrollIndicators(.hidden)
+                        .scrollClipDisabled()
+                        
+                        playEverywhereButton
+                        
+                        ForEach($rooms) { $room in
+                            VStack {
+                                Button {
+                                    impactFeedbackGenerator.impactOccurred()
+                                    if selections.contains(room.id) {
+                                        selections.remove(room.id)
+                                    } else {
+                                        selections.insert(room.id)
+                                        if groupVolume.isZero {
+                                            groupVolume = room.volume
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(room.name)
+                                            .bold()
+                                        Spacer()
+                                        Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                            .symbolRenderingMode(.hierarchical)
+                                            .contentTransition(.symbolEffect(.replace))
+                                            .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                                    }
+                                    .fontDesign(.rounded)
+                                    .padding()
                                 }
-                                .fontDesign(.rounded)
                             }
                         }
                     }
                 }
-            }
-            .disabled(isQueueing)
-            .scrollContentBackground(.hidden)
-            .listRowSpacing(10)
-            .foregroundStyle(.primary)
-            .fontDesign(.rounded)
-            .onAppear {
-                Task {
-                    if sonosService.sortedRooms.isEmpty {
-                        try? await sonosService.updateGroups()
-                    }
-                    rooms = sonosService.sortedRooms.filter {
-                        $0.state == .active
-                    }.map {
-                        let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
-                        room.volume = $0.volume
-                        return room
+                .disabled(isQueueing)
+                .fontDesign(.rounded)
+                .onAppear {
+                    Task {
+                        if sonosService.sortedRooms.isEmpty {
+                            try? await sonosService.updateGroups()
+                        }
+                        rooms = sonosService.sortedRooms.filter {
+                            $0.state == .active
+                        }.map {
+                            let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
+                            room.volume = $0.volume
+                            return room
+                        }
                     }
                 }
-            }
-            .animation(.default, value: sonosService.sorted)
-            .animation(.default, value: selections)
-            .animation(.default, value: groupVolume)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        self.context?.completeRequest(returningItems: [])
+                .animation(.default, value: sonosService.sorted)
+                .animation(.default, value: selections)
+                .animation(.default, value: groupVolume)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            self.context?.completeRequest(returningItems: [])
+                        }
+                        .keyboardShortcut(.escape)
                     }
-                    .keyboardShortcut(.escape)
-                }
-                
-                ToolbarItem(placement: .topBarLeading) {
-                    Link(destination: URL(string: "clic://")!) {
-                        Text("Open Clic…")
+                    
+                    ToolbarItem(placement: .topBarLeading) {
+                        Link(destination: URL(string: "clic://")!) {
+                            Text("Open Clic…")
+                        }
                     }
                 }
+                .navigationBarTitleDisplayMode(.inline)
             }
-            .background(.thinMaterial)
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .foregroundStyle(.primary)
+        .scrollContentBackground(.hidden)
+        .padding(.horizontal)
         .overlay {
             if isQueueing {
                 ProgressView()
@@ -138,13 +172,10 @@ struct QueueListView: View {
             try? await sonosService.load(useCache: true)
             impactFeedbackGenerator.prepare()
         }
-        .onChange(of: viewModel.url) {
+        .onChange(of: viewModel.url) { newValue in
             Task {
-                guard let url = viewModel.url, let playableContent = await sonosService.getContent(from: url) else {
-                    viewModel.isLoading = false
-                    return
-                }
-                self.content = playableContent
+                viewModel.isLoading = true
+                self.content = await fetchContentWithRetry(from: newValue)
                 viewModel.isLoading = false
             }
         }
@@ -253,9 +284,38 @@ struct QueueListView: View {
         .listRowInsets(EdgeInsets())
     }
     
+    func play(group: GroupRoom) {
+        Task {
+            guard let content else { return }
+            impactFeedbackGenerator.impactOccurred()
+
+            isQueueing = true
+            playHistoryService.history.remove(content)
+            playHistoryService.history.insert(content, at: 0)
+            
+            try await sonosService.queue(playable: content, group: group, position: .now)
+            await sonosService.play(ip: group.ip)
+    
+            openURL?(URL(string: "clic://device?id=\(group.coordinatorID)")!)
+            self.context?.completeRequest(returningItems: [])
+        }
+    }
+    
     @Observable
     final class ViewModel {
         var url: URL?
         var isLoading: Bool = true
+    }
+    
+    
+    @MainActor
+    private func fetchContentWithRetry(from url: URL?) async -> PlayableContent? {
+        guard let url else { return nil }
+
+        if let content = await sonosService.getContent(from: url) {
+            return content
+        }
+        // Retry once
+        return await sonosService.getContent(from: url)
     }
 }

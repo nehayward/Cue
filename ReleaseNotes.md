@@ -1,12 +1,14 @@
 # 2025.14
 
 –– New Features ––
-- 
+- Add grouped speakers to speaker selection screen
 
 –– Bug Fixes & Improvements ––
 - Improve volume controls
 - Fix Line In support for Connect
 - Fix Tidal not showing search results
+- Fix Play Action not showing Spotify
+- Fix Tidal Results not showing
 
 # 2025.13
 

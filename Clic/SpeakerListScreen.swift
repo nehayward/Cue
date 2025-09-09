@@ -16,8 +16,6 @@ struct SpeakerListScreen: View {
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
     
-    @Binding var selected: String?
-    
     @State private var hoveredID: String? = nil
     
     private var listRowBackground: Color {
@@ -33,11 +31,11 @@ struct SpeakerListScreen: View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
         
-        List (sonosService.sorted, selection: $selected) { group in
+        List(sonosService.sorted, selection: $router.selectedID) { group in
             Section {
                 Button {
                     HapticManager.shared.fireHaptic(.selection)
-                    selected = group.coordinatorID
+                    router.selectedID = group.coordinatorID
                 } label: {
                     VStack(spacing: 12) {
                         ZStack {
@@ -235,15 +233,22 @@ struct SpeakerListScreen: View {
                             }
                         }
                     }
+                    Button {
+                        router.sheet(to: .createScene(content: nil))
+                    } label: {
+                        Label("Create Scene", systemImage: "plus")
+                    }
                 } label: {
                     if !scenes.isEmpty {
                         Image(systemName: "bolt.fill")
+                            .allowsHitTesting(false)
                     } else {
                         VStack {
                             Image(systemName: "bolt.fill")
                             Text("Create Scene")
                                 .font(.caption2)
                         }
+                        .allowsHitTesting(false)
                     }
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -263,7 +268,7 @@ struct SpeakerListScreen: View {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     router.sheet(to: .search())
                 } label: {
-                    Image(systemName: "magnifyingglass")
+                    Label("Search", systemImage: "magnifyingglass")
                 }
                 .tint(.primary)
                 Spacer()
@@ -271,7 +276,7 @@ struct SpeakerListScreen: View {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     router.sheet(to: .browse())
                 } label: {
-                    Image(systemName: "music.note.house.fill")
+                    Image("home.fill")
                 }
                 .tint(.primary)
             }
@@ -314,8 +319,8 @@ struct SpeakerListScreen: View {
                 }
             }
         }
-        .onChange(of: selected) {
-            if let id = selected, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
+        .onChange(of: router.selectedID) {
+            if let id = router.selectedID, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 sonosService.selectedGroup = sonosService.sorted[index]
             }
         }
@@ -331,7 +336,7 @@ struct SpeakerListScreen: View {
     private func background(group: GroupRoom) -> some View {
         RoundedRectangle(cornerRadius: 16)
             .fill(
-                group.coordinatorID == selected ? Color(uiColor: .systemFill) :
+                group.coordinatorID == router.selectedID ? Color(uiColor: .systemFill) :
                     hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :
                     listRowBackground
             )

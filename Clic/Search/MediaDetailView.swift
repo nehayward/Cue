@@ -27,7 +27,7 @@ struct MediaDetailView: View {
 
     var body: some View {
         List(selection: $selection) {
-            VStack {
+            VStack(spacing: 0) {
                 LazyImage(url: playableContent.artwork) { state in
                     if let image = state.image {
                         image
@@ -70,8 +70,9 @@ struct MediaDetailView: View {
             .frame(maxWidth: .infinity, minHeight: 250, maxHeight: 250)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
 
-            VStack {
+            VStack(spacing: 0) {
                 Text(playableContent.subtitle)
                 // MARK: Add back
 //                if let artist = playableContent.metadata?.artist {
@@ -117,6 +118,7 @@ struct MediaDetailView: View {
             .fontDesign(.rounded)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
 
             HStack {
                 Button {
@@ -124,7 +126,7 @@ struct MediaDetailView: View {
                 } label: {
                     Text("Play")
                         .padding(.horizontal)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 4)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .foregroundStyle(.foreground)
                 }
@@ -137,7 +139,7 @@ struct MediaDetailView: View {
                 } label: {
                     Text("Shuffle")
                         .padding(.horizontal)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 4)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .foregroundStyle(.foreground)
                 }
@@ -148,6 +150,7 @@ struct MediaDetailView: View {
             .frame(maxWidth: .infinity)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
 
             ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
                 VStack {
@@ -189,6 +192,8 @@ struct MediaDetailView: View {
                     }
                 }
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
             .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
 
@@ -206,6 +211,9 @@ struct MediaDetailView: View {
                     .listRowBackground(Color.clear)
             }
         }
+        .listRowSpacing(2)
+        .contentMargins(.horizontal, EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20), for: .scrollContent)
+        .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .environment(\.editMode, $editMode)
         .safeAreaInset(edge: .bottom) {
             Button(role: .destructive) {
@@ -238,7 +246,6 @@ struct MediaDetailView: View {
         .task {
             await updateTracks(offset: tracks.count)
         }
-        .miniPlayerOnScrollHandler()
         .listStyle(.plain)
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)

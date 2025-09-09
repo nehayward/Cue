@@ -13,17 +13,34 @@ struct SoundCloudBrowseScreen: View {
     
     var body: some View {
         NavigationStack(path: $router.path) {
-            List {
+            ScrollView {
                 if !soundCloudBrowseService.likedTracks.isEmpty {
                     Section {
                         ScrollView(.horizontal) {
-                            HStack {
+                            LazyHStack {
                                 ForEach(soundCloudBrowseService.likedTracks.prefix(10)) { item in
-                                    PlayableArtworkView(item: item)
-                                        .containerRelativeFrame(.horizontal, count: 4, spacing: 4)
-                                        .listRowInsets(EdgeInsets())
+                                    VStack {
+                                        PlayableArtworkView(item: item)
+                                        Text(item.title)
+                                            .foregroundStyle(.secondary)
+                                            .font(.caption)
+                                            .lineLimit(2, reservesSpace: true)
+                                            .fontDesign(.rounded)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .containerRelativeFrame(
+                                        .horizontal, alignment: .topLeading
+                                    ) { length, axis in
+                                        if axis == .vertical {
+                                            return length / 3.0
+                                        } else {
+                                            return length / 2.5
+                                        }
+                                    }
+                                    .draggable(item)
                                 }
                             }
+                            .padding(.horizontal, 16)
                         }
                         .scrollIndicators(.hidden)
                         .scrollClipDisabled()
@@ -36,19 +53,17 @@ struct SoundCloudBrowseScreen: View {
                             // Return the tracks up to the requested offset
                             return Array(soundCloudBrowseService.likedTracks.prefix(offset + 50))
                         })) {
-                            HStack {
-                                Label("Liked Tracks", systemImage: "heart.fill")
-                                Spacer()
-                                if soundCloudBrowseService.canLoadMore {
-                                    Text("\(soundCloudBrowseService.loadedTrackCount)+")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                            HStack(spacing: 2) {
+                                Text("Liked Songs")
                                 Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
                             }
-                            .frame(maxWidth: .infinity)
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .padding(.horizontal, 16)
                     }
+                    .listRowBackground(Color.clear)
                 } else if let error = soundCloudBrowseService.error {
                     Section {
                         VStack(spacing: 16) {
@@ -94,7 +109,7 @@ struct SoundCloudBrowseScreen: View {
             }
             .headerProminence(.increased)
             .miniPlayerOnScrollHandler()
-            .listStyle(.sidebar)
+            .listStyle(.plain)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("SoundCloud Library")
