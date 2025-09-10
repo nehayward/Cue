@@ -33,33 +33,28 @@ struct SpeakerListScreen: View {
         
         List(sonosService.sorted, selection: $router.selectedID) { group in
             Section {
-                Button {
-                    HapticManager.shared.fireHaptic(.selection)
-                    router.selectedID = group.coordinatorID
-                } label: {
-                    VStack(spacing: 12) {
-                        ZStack {
-                            TVModeViewCell(group: group)
-                                .transition(.asymmetric(
-                                    insertion: .opacity,
-                                    removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
-                                ))
-                                .opacity(group.TVMode ? 1 : 0)
-                            
-                            HStack(alignment: .top) {
-                                ArtworkView(group: group)
-                                    .frame(width: 72, height: 72)
-                                ZoneView(group: group)
-                                Spacer()
-                                MediaControlsView(group: group)
-                            }
-                            .opacity(group.TVMode ? 0 : 1)
+                VStack(spacing: 12) {
+                    ZStack {
+                        TVModeViewCell(group: group)
+                            .transition(.asymmetric(
+                                insertion: .opacity,
+                                removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
+                            ))
+                            .opacity(group.TVMode ? 1 : 0)
+                        
+                        HStack(alignment: .top) {
+                            ArtworkView(group: group)
+                                .frame(width: 72, height: 72)
+                            ZoneView(group: group)
+                            Spacer()
+                            MediaControlsView(group: group)
                         }
-                        .padding(.horizontal, 12)
-                        VolumeControlView(group: group, delayDrag: true)
+                        .opacity(group.TVMode ? 0 : 1)
                     }
-                    .padding(.top, 12)
+                    .padding(.horizontal, 12)
+                    VolumeControlView(group: group, delayDrag: true)
                 }
+                .padding(.top, 12)
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .dropDestinationPlay(on: group)
                 .paywall(enabled(group: group))
@@ -81,6 +76,7 @@ struct SpeakerListScreen: View {
                         }
                     }
                 }
+                .tag(group.coordinatorID)
             } header: {
                 HStack {
                     Text(group.nameWithCount)
