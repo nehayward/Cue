@@ -1,0 +1,14 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="272" cy="624" r="40" transform="rotate(90 272 624)" fill="#BDF5F8"/>
+<circle cx="272" cy="512" r="40" transform="rotate(90 272 512)" fill="#BDF5F8"/>
+<circle cx="272" cy="400" r="40" transform="rotate(90 272 400)" fill="#BDF5F8"/>
+<rect width="636" height="80" rx="40" transform="matrix(0 -1 -1 0 472 830)" fill="url(#paint0_linear_1013_66)"/>
+<rect width="445.2" height="80" rx="40" transform="matrix(0 -1 -1 0 632 734.6)" fill="#BDF5F8"/>
+<rect width="212" height="80" rx="40" transform="matrix(0 -1 -1 0 792 618)" fill="#BDF5F8"/>
+<defs>
+<linearGradient id="paint0_linear_1013_66" x1="636" y1="40.0001" x2="0" y2="40.0001" gradientUnits="userSpaceOnUse">
+<stop stop-color="#5DE4E9"/>
+<stop offset="1" stop-color="#A5FCFF"/>
+</linearGradient>
+</defs>
+</svg>
