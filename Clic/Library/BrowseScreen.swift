@@ -51,7 +51,7 @@ struct BrowseScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)
-        .safeAreaInset(edge: .bottom) {
+        .safeArea(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
             MiniPlayerView()
 #endif

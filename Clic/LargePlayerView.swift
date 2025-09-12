@@ -35,7 +35,8 @@ struct LargePlayerView: View {
     
     var body: some View {
         @Bindable var sonosService = sonosService
-        
+        @Bindable var router = router
+
         VStack(alignment: .center) {
             if group.TVMode {
                 VStack {
@@ -115,7 +116,7 @@ struct LargePlayerView: View {
                         if group.rooms.count > 1 {
                             Spacer()
                             Button {
-                                router.sheet(to: .volumeControlsScreen(groupID: group.coordinatorID))
+                                router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
                             } label: {
                                 Label("Room Volume", systemImage: "speaker.wave.2.fill")
                                     .symbolRenderingMode(.hierarchical)
@@ -124,6 +125,7 @@ struct LargePlayerView: View {
                             }
                             .buttonStyle(.plain)
                             .imageScale(.large)
+                            .withPopoverDestinations(popoverDestination: $router.volumePopover)
                         }
                         Spacer()
                         Button {
@@ -207,6 +209,41 @@ struct LargePlayerView: View {
                             }
                             isHoveringOnQueueList = isTargeted
                         }
+                    }
+                } else {
+                    HStack {
+                        if group.rooms.count > 1 {
+                            Button {
+                                router.volumePopover = .volumeControlsScreen(groupID: group.coordinatorID)
+                            } label: {
+                                Label("Room Volume", systemImage: "speaker.wave.2.fill")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .frame(width: 24, height: 24)
+                                    .labelStyle(.iconOnly)
+                                    .fontDesign(.rounded)
+                            }
+                            .glassButton()
+                            .withPopoverDestinations(popoverDestination: $router.volumePopover)
+                            .help("Speaker Control")
+                        }
+                        
+                        
+                        Button {
+                            router.popover = .groupScreen(group: group)
+                        } label: {
+                            Label {
+                                Text("Group")
+                            } icon: {
+                                GroupIconView()
+                                    .frame(width: 24, height: 24)
+                                    .labelStyle(.iconOnly)
+                                    .fontDesign(.rounded)
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                        .glassButton()
+                        .withPopoverDestinations(popoverDestination: $router.popover)
+                        .help("Group Speakers")
                     }
                 }
             }

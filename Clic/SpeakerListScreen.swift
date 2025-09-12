@@ -77,6 +77,7 @@ struct SpeakerListScreen: View {
                     }
                 }
                 .tag(group.coordinatorID)
+                .foregroundStyle(.primary)
             } header: {
                 HStack {
                     Text(group.nameWithCount)
@@ -330,7 +331,7 @@ struct SpeakerListScreen: View {
     
     
     private func background(group: GroupRoom) -> some View {
-        RoundedRectangle(cornerRadius: 16)
+        RoundedRectangle(cornerRadius: 12)
             .fill(
                 group.coordinatorID == router.selectedID ? Color(uiColor: .systemFill) :
                     hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :

@@ -22,36 +22,6 @@ struct ContainerLargePlayerView: View {
                             if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision, horizontalSizeClass != .compact {
                                 Button {
                                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        router.popover = .groupScreen(group: sonosService.sorted[group])
-                                    }
-                                } label: {
-                                    Label {
-                                        Text("Group")
-                                    } icon: {
-                                        GroupIconView()
-                                    }
-                                }
-                                .withPopoverDestinations(popoverDestination: $router.popover)
-                                .id(refreshID)
-                                .help("Group Speakers")
-                                .tint(.primary)
-                                
-                                Button {
-                                    if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                                        router.volumePopover = .volumeControlsScreen(groupID: sonosService.sorted[groupID].coordinatorID)
-                                    }
-                                } label: {
-                                    Label("Room Volume", systemImage: "speaker.wave.2.fill")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .labelStyle(.iconOnly)
-                                        .fontDesign(.rounded)
-                                        .tint(.primary)
-                                }
-                                .withPopoverDestinations(popoverDestination: $router.volumePopover)
-                                .tint(.primary)
-                                
-                                Button {
-                                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                                         if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
                                             router.inspectorSheet = .search(group: sonosService.sorted[group])
                                         } else {

@@ -96,7 +96,7 @@ extension View {
                             }
                             .miniPlayerOnScrollHandler()
                     }
-                    .safeAreaInset(edge: .bottom) {
+                    .safeArea(edge: .bottom) {
                         MiniPlayerView()
                     }
                     .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -116,9 +116,8 @@ extension View {
                             }
                     }
                     .miniPlayerOnScrollHandler()
-                    .safeAreaInset(edge: .bottom) {
+                    .safeArea(edge: .bottom) {
                         MiniPlayerView()
-                            .offset(y: MiniPlayerManger.shared.offset)
                     }
                     .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -258,7 +257,7 @@ extension View {
                             .withAlert()
                     }
                     .scrollContentBackground(.hidden)
-                    .safeAreaInset(edge: .bottom) {
+                    .safeArea(edge: .bottom) {
                         MiniPlayerView()
                     }
                     .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -288,7 +287,8 @@ extension View {
                     NewPlaylistView(playlist: content)
                 case let .volumeControlsScreen(groupID: groupID):
                     VolumeControlsScreen(groupID: groupID)
-                        .frame(idealWidth: 400, idealHeight: 800)
+                        .frame(idealWidth: 400)
+                        .presentationCompactAdaptation(.popover)
                 case .onboard:
                     OnboardView()
                 default:

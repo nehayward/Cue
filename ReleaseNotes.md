@@ -2,6 +2,9 @@
 
 –– New Features ––
 - Add grouped speakers to speaker selection screen
+- Add popover for room speakers
+- New design for iOS 26:
+  - MiniPlayer Updated
 
 –– Bug Fixes & Improvements ––
 - Improve volume controls

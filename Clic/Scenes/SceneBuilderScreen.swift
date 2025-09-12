@@ -133,7 +133,7 @@ struct SceneBuilderScreen: View {
                 .padding(.vertical)
             }
         }
-        .safeAreaInset(edge: .bottom) {
+        .safeArea(edge: .bottom) {
             VStack {
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -286,7 +286,7 @@ fileprivate struct RoomSpeakerScreen: View {
             }
         }
         .listRowSpacing(8)
-        .safeAreaInset(edge: .bottom) {
+        .safeArea(edge: .bottom) {
             VStack {
                 Text("Selected Speakers")
                     .bold()

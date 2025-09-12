@@ -7,7 +7,6 @@ public struct GroupIconView: View {
     public var body: some View {
         Image("hifispeaker.arrow.forward.fill")
             .symbolRenderingMode(.monochrome)
-            .frame(width: 24)
             .accessibilityLabel("Group Speakers")
     }
 }

@@ -215,7 +215,7 @@ struct MediaDetailView: View {
         .contentMargins(.horizontal, EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20), for: .scrollContent)
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .environment(\.editMode, $editMode)
-        .safeAreaInset(edge: .bottom) {
+        .safeArea(edge: .bottom) {
             Button(role: .destructive) {
                 Task {
                     // Remove tracks using their actual queue positions

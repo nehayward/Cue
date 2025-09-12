@@ -38,4 +38,30 @@ extension View {
             self
         }
     }
+    
+    @ViewBuilder
+    func glassButton() -> some View {
+        if #available(iOS 26.0, *) {
+            self
+                .buttonStyle(.plain)
+                .padding(8)
+                .glassEffect(.clear.interactive())
+        } else {
+            self
+                .buttonStyle(.plain)
+                .padding(8)
+                .background(.thickMaterial, in: .circle)
+        }
+    }
+    
+    @ViewBuilder
+    func safeArea<V>(edge: VerticalEdge, alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> V) -> some View where V : View {
+        if #available(iOS 26.0, *) {
+            self
+                .safeAreaBar(edge: edge, content: content)
+        } else {
+            self
+                .safeAreaInset(edge: edge, content: content)
+        }
+    }
 }

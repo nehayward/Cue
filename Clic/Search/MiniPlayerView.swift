@@ -19,33 +19,36 @@ struct MiniPlayerView: View {
     
     var body: some View {
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-        VStack {
-            if let group = selectedGroup {
-                VStack(spacing: 8) {
-                    groupInfoButton(for: group)
-                    VolumeControlView(group: group)
-                        .foregroundStyle(colorScheme == .dark ? .white : .black)
-                        .frame(height: 12)
+        if selectedGroup != nil {
+            VStack {
+                if let group = selectedGroup {
+                    VStack(spacing: 8) {
+                        groupInfoButton(for: group)
+                        VolumeControlView(group: group)
+                            .foregroundStyle(colorScheme == .dark ? .white : .black)
+                            .frame(height: 12)
+                    }
+                    .foregroundStyle(.primary)
+                    .tint(.primary)
                 }
-                .foregroundStyle(.primary)
-                .tint(.primary)
             }
-        }
-        .padding()
-        .frame(maxWidth: 600)
-        .background {
-            if #available(iOS 26.0, *) {
-                Capsule()
-                    .glassEffect(.regular.interactive())
-            } else {
-                Capsule()
-                    .foregroundStyle(.ultraThinMaterial)
+            .padding()
+            .frame(maxWidth: 600)
+            .background {
+                if #available(iOS 26.0, *) {
+                    Capsule()
+                        .glassEffect(.regular.interactive())
+                } else {
+                    Capsule()
+                        .foregroundStyle(.ultraThinMaterial)
+                }
             }
+            .padding(.horizontal, 8)
+            .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
+            .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
+        } else {
+            EmptyView()
         }
-        .padding(.horizontal, 8)
-        .opacity(selectedGroup == nil ? 0 : 1)
-        .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
-        .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
 #endif
     }
     

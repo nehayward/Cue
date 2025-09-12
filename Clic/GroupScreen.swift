@@ -128,7 +128,7 @@ struct GroupScreen: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
+            .safeArea(edge: .bottom) {
                 if !scenes.isEmpty {
                     VStack {
                         SceneListView(editScene: { scene in

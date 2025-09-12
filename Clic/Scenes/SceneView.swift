@@ -15,7 +15,7 @@ struct SceneView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            List {
                 ForEach(scenes) { scene in
                     SceneButton(scene: scene) {
                         dismiss()
@@ -28,6 +28,8 @@ struct SceneView: View {
                             try? await sonosService.runScene(scene)
                         }
                     }
+                    .contentShape(.capsule)
+                    .listRowBackground(Color.clear)
                     .contentShape(.contextMenuPreview, Capsule())
                     .contextMenu {
                         Button("Edit") {
@@ -70,7 +72,7 @@ struct SceneView: View {
                 }
                 
             }
-            .padding(.horizontal)
+            .listRowSpacing(0)
             .navigationTitle("Scenes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,6 +105,7 @@ struct SceneView: View {
                 dismiss()
             }
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
+            .listStyle(.plain)
         }
         .presentationDetents([.medium, .large], selection: $presentationDetentSelection)
         .presentationDragIndicator(.hidden)

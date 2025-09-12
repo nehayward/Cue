@@ -257,7 +257,7 @@ struct SearchScreen: View {
         .onChange(of: contentToAdd?.content) {
             dismiss()
         }
-        .safeAreaInset(edge: .bottom) {
+        .safeArea(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
             if contentToAdd == nil{
                 MiniPlayerView()

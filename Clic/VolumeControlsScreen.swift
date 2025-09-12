@@ -4,59 +4,26 @@ import SonosKit
 struct VolumeControlsScreen: View {
     @Environment(SonosService.self) var sonosService: SonosService
     var groupID: String
-
+    
     @State var isEditingGroupVolume = false
     @State var isEditingRoomVolume = false
-
+    
     @State private var updateRoomVolumeTask: Task<Void, Error>?
     @State private var volumeTask: Task<Void, Error>?
     @State private var lastSentVolume: Int?
 
-    private var isMacCatalyst: Bool {
-#if targetEnvironment(macCatalyst)
-        return true
-        #else
-        return false
-        #endif
-    }
+    @State private var subHeight: CGFloat = 0
 
     var body: some View {
         @Bindable var sonosService = sonosService
-        NavigationStack {
-            List {
+        
+        ScrollView {
+            VStack {
                 if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                    if sonosService.sorted[groupID].rooms.count > 1 {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(sonosService.sorted[groupID].nameWithCount)
-                                .fontDesign(.rounded)
-                                .bold()
-                                .padding(.leading)
-                            VolumeControlView(group: sonosService.sorted[groupID], delayDrag: true)
-                                .frame(height: 40)
-                                .listRowSeparator(.hidden)
-                                .onChange(of: sonosService.sorted[groupID].groupVolume) {
-                                    let intVolume = Int(sonosService.sorted[groupID].groupVolume)
-                                    // Only update if the volume changed
-                                    guard lastSentVolume != intVolume else { return }
-                                    lastSentVolume = intVolume
-
-                                    updateRoomVolumeTask?.cancel()
-                                    updateRoomVolumeTask = Task {
-                                        try? Task.checkCancellation()
-                                        await sonosService.updateRoomVolumes(for: sonosService.sorted[groupID])
-                                        try? Task.checkCancellation()
-                                        try await Task.sleep(for: .milliseconds(200), tolerance: .milliseconds(100))
-                                        await sonosService.updateRoomVolumes(for: sonosService.sorted[groupID])
-                                    }
-                                }
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
-                    
                     ForEach($sonosService.sorted[groupID].rooms) { $room in
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 0) {
                             Text(room.name)
+                                .fontWeight(.semibold)
                                 .fontDesign(.rounded)
                                 .padding(.leading)
                             RoomVolumeView(room: $room) {
@@ -77,31 +44,30 @@ struct VolumeControlsScreen: View {
                     }
                 }
             }
-            .listStyle(.plain)
-            .listRowSpacing(-10)
-            .navigationTitle("Room Volume Controls")
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                        Button {
-                            syncVolumes()
-                        } label: {
-                            Text("Set all to\(sonosService.sorted[groupID].groupVolume, specifier: "%03.0f")%")
-                                .monospacedDigit()
-                                .frame(maxWidth: .infinity)
-                                .padding(.horizontal)
-                                .fontDesign(.rounded)
-                                .bold()
-                        }
-                        .buttonBorderShape(.capsule)
-                        .buttonStyle(.bordered)
-                        .tint(.accent)
+        }
+        .padding([.top, .horizontal])
+        .safeArea(edge: .bottom) {
+            if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
+                Button {
+                    syncVolumes()
+                } label: {
+                    VStack {
+                        Text("Sync")
+                            .fontWeight(.semibold)
+                        Text("Set all to \(Int(sonosService.sorted[groupID].groupVolume))")
+                            .font(.caption.smallCaps())
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal)
+                            .fontDesign(.rounded)
+                            .bold()
                     }
                 }
+                .glassButton()
+                .padding([.horizontal, .bottom])
             }
         }
-        .presentationDetents([.medium, .large])
         .presentationCornerRadius(24)
     }
     
@@ -129,4 +95,3 @@ struct VolumeControlsScreen: View {
                 .environment(SelectedGroupService(group: .garagePlusTheater))
         }
 }
-

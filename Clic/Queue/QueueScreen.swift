@@ -193,86 +193,88 @@ struct QueueScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
-        .safeAreaInset(edge: .bottom) {
-            Button(role: .destructive) {
-                Task {
-                    // Get selected tracks from the appropriate source
-                    let selectedTracks: [PlayableContent]
-                    if queueMode == .full {
-                        selectedTracks = selection.compactMap { trackID in
-                            group.coordinatorRoom.queue.elements.first { $0.trackID == trackID }
-                        }
-                    } else {
-                        selectedTracks = upNextTracks.filter { track in
-                            selection.contains(track.trackID)
-                        }
-                    }
-                    
-                    // Sort by position (descending) to avoid index shifting issues
-                    let sortedTracks = selectedTracks.sorted { track1, track2 in
-                        (track1.metadata?.position ?? 0) > (track2.metadata?.position ?? 0)
-                    }
-                    
-                    // Remove from local arrays first for immediate UI feedback
-                    if queueMode == .upNext {
-                        for track in sortedTracks {
-                            upNextTracks.removeAll { $0.trackID == track.trackID }
-                        }
-                        // MARK: Update Track Position
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(200))
-                            guard let position = sortedTracks.last?.metadata?.position else { return }
-                            for index in upNextTracks.indices {
-                                if let currentPosition = upNextTracks[index].metadata?.position, currentPosition >= position {
-                                    upNextTracks[index].metadata?.position = currentPosition - sortedTracks.count
-                                }
+        .safeArea(edge: .bottom) {
+            if !selection.isEmpty {
+                Button(role: .destructive) {
+                    Task {
+                        // Get selected tracks from the appropriate source
+                        let selectedTracks: [PlayableContent]
+                        if queueMode == .full {
+                            selectedTracks = selection.compactMap { trackID in
+                                group.coordinatorRoom.queue.elements.first { $0.trackID == trackID }
                             }
-                        }
-                    } else {
-                        for track in sortedTracks {
-                            group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
+                        } else {
+                            selectedTracks = upNextTracks.filter { track in
+                                selection.contains(track.trackID)
+                            }
                         }
                         
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(200))
-                            guard let position = sortedTracks.last?.metadata?.position else { return }
-                            for index in group.coordinatorRoom.queue.indices {
-                                guard let currentPosition = group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position else { continue }
-                                var currentItem = group.coordinatorRoom.queue[index]
-                                group.coordinatorRoom.queue.remove(currentItem)
-                                currentItem.metadata?.position = currentPosition - sortedTracks.count
-                                group.coordinatorRoom.queue.insert(currentItem, at: index)
-                            }
-                            try? await SonosService.shared.updateTrackInformation(for: [group])
-                            let id = group.coordinatorRoom.track.toPlayable.trackID
-                            currentTrackID = id
+                        // Sort by position (descending) to avoid index shifting issues
+                        let sortedTracks = selectedTracks.sorted { track1, track2 in
+                            (track1.metadata?.position ?? 0) > (track2.metadata?.position ?? 0)
                         }
+                        
+                        // Remove from local arrays first for immediate UI feedback
+                        if queueMode == .upNext {
+                            for track in sortedTracks {
+                                upNextTracks.removeAll { $0.trackID == track.trackID }
+                            }
+                            // MARK: Update Track Position
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(200))
+                                guard let position = sortedTracks.last?.metadata?.position else { return }
+                                for index in upNextTracks.indices {
+                                    if let currentPosition = upNextTracks[index].metadata?.position, currentPosition >= position {
+                                        upNextTracks[index].metadata?.position = currentPosition - sortedTracks.count
+                                    }
+                                }
+                            }
+                        } else {
+                            for track in sortedTracks {
+                                group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
+                            }
+                            
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(200))
+                                guard let position = sortedTracks.last?.metadata?.position else { return }
+                                for index in group.coordinatorRoom.queue.indices {
+                                    guard let currentPosition = group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position else { continue }
+                                    var currentItem = group.coordinatorRoom.queue[index]
+                                    group.coordinatorRoom.queue.remove(currentItem)
+                                    currentItem.metadata?.position = currentPosition - sortedTracks.count
+                                    group.coordinatorRoom.queue.insert(currentItem, at: index)
+                                }
+                                try? await SonosService.shared.updateTrackInformation(for: [group])
+                                let id = group.coordinatorRoom.track.toPlayable.trackID
+                                currentTrackID = id
+                            }
+                        }
+                        
+                        // Remove tracks using their actual queue positions
+                        for track in sortedTracks {
+                            guard let position = track.metadata?.position else { continue }
+                            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+                        }
+                        
+                        // Update queue total
+                        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+                        
+                        // Clear selection
+                        selection.removeAll()
                     }
-            
-                    // Remove tracks using their actual queue positions
-                    for track in sortedTracks {
-                        guard let position = track.metadata?.position else { continue }
-                        try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    }
-                    
-                    // Update queue total
-                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
-                    
-                    // Clear selection
-                    selection.removeAll()
+                } label: {
+                    Text("Delete Selected (\(selection.count))")
+                        .frame(maxWidth: .infinity)
+                        .monospacedDigit()
+                        .bold()
                 }
-            } label: {
-                Text("Delete Selected (\(selection.count))")
-                    .frame(maxWidth: .infinity)
-                    .monospacedDigit()
-                    .bold()
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
-            .offset(y: !selection.isEmpty ? 0 : 200)
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .offset(y: !selection.isEmpty ? 0 : 200)
 #if targetEnvironment(macCatalyst)
-            .padding(.bottom)
+                .padding(.bottom)
 #endif
+            }
         }
     }
     
