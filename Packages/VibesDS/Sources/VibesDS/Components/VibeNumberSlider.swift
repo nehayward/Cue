@@ -28,14 +28,14 @@ public struct VibeNumberSlider<Content: View>: View {
         HStack(spacing: 5) {
             ForEach(visibleRange, id: \.self) { number in
                 ZStack {
-                    if isSelected(number) {
-                        Circle()
-                            .foregroundStyle(.teal.secondary)
-                            .matchedGeometryEffect(id: "indicator", in: animation)
-                            .frame(width: 38, height: 38)
-                            .shadow(radius: 10)
-                    }
-                    
+                    Text(isSelected(number) ? Int(value) : Int(number), format: .number)
+                        .opacity(0)
+                        .padding()
+                        .background(.thickMaterial, in: .circle)
+                        .frame(width: 38, height: 38)
+                        .shadow(radius: 1)
+                        .scaleEffect(isSelected(number) ? 1.2 : 0)
+
                     Text(isSelected(number) ? Int(value) : Int(number), format: .number)
                         .contentTransition(.numericText(value: number))
                         .font(.caption)
@@ -47,10 +47,10 @@ public struct VibeNumberSlider<Content: View>: View {
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.circle)
                         .tint(.clear)
-//                        .opacity(0.01)
                 }
                 .frame(maxWidth: .infinity)
-                .transition(.scale.combined(with: .opacity))
+                .geometryGroup()
+                .animation(.interactiveSpring, value: number)
             }
         }
         .frame(maxWidth: .infinity)
@@ -58,8 +58,10 @@ public struct VibeNumberSlider<Content: View>: View {
         .background(
             Capsule()
                 .fill(.quaternary)
+                .opacity(0.7)
         )
-        .animation(.easeInOut(duration: 0.3), value: value)
+        .animation(.interactiveSpring, value: value)
+        .geometryGroup()
         .gesture(
             DragGesture()
                 .onChanged { gesture in

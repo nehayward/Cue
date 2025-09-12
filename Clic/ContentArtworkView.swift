@@ -62,6 +62,12 @@ struct ContentArtworkView: View {
             }
         }
         .id(fetchedArtworkURL)
+        #if DEBUG && SCREENSHOT
+        .overlay {
+            Rectangle()
+                .foregroundStyle(.ultraThinMaterial)
+        }
+        #endif
         .clipShape(contentShape)
         .overlay(alignment: .bottomTrailing) {
             if showMusicSource {

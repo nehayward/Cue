@@ -51,11 +51,12 @@ struct BrowseScreen: View {
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .contentMargins(.bottom, 120, for: .scrollContent)
-        .safeArea(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
+        .safeArea(edge: .bottom) {
             MiniPlayerView()
-#endif
+
         }
+#endif
         .withAlert(enabled: showAlert)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .ignoresSafeArea(.keyboard, edges: .bottom)

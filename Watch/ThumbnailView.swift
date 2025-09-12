@@ -41,7 +41,7 @@ struct ThumbnailView: View {
 #if DEBUG && SCREENSHOT
                 .overlay {
                     RoundedRectangle(cornerRadius: 4)
-                        .foregroundStyle(.ultraThinMaterial)
+                        .foregroundStyle(.ultraThinMaterial.opacity(0.96))
                 }
 #endif
         }

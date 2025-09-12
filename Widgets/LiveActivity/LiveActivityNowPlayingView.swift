@@ -56,6 +56,12 @@ struct LiveActivityNowPlayingView: View {
                                         .padding([.bottom, .trailing], 4)
                                 }
                                 .animation(.spring, value: context.state)
+#if DEBUG && SCREENSHOT
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.ultraThinMaterial)
+                                }
+#endif
                             //                        // MARK: For Screenshots
                             //                        #if DEBUG
                             //                        .overlay {

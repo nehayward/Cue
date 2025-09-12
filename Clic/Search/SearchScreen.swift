@@ -257,13 +257,13 @@ struct SearchScreen: View {
         .onChange(of: contentToAdd?.content) {
             dismiss()
         }
-        .safeArea(edge: .bottom) {
 #if !targetEnvironment(macCatalyst)
+        .safeArea(edge: .bottom) {
             if contentToAdd == nil{
                 MiniPlayerView()
             }
-#endif
         }
+#endif
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             if favorites { return }

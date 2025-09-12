@@ -82,9 +82,9 @@ struct MenuInfoView: View {
                     }
                 }
                 
-                #if os(iOS) && !targetEnvironment(macCatalyst)
-                LiveActivityMenu(group: group)
-                #endif
+//                #if os(iOS) && !targetEnvironment(macCatalyst)
+//                LiveActivityMenu(group: group)
+//                #endif
                 SpeakerSettingsMenuView(group: group)
                 
                 ControlGroup {

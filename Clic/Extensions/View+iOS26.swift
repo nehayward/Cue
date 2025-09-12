@@ -64,4 +64,16 @@ extension View {
                 .safeAreaInset(edge: edge, content: content)
         }
     }
+    
+    @ViewBuilder
+    func glassForegroundAudio() -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: .capsule)
+        } else {
+            self.background {
+                Capsule()
+                    .foregroundStyle(.ultraThinMaterial)
+            }
+        }
+    }
 }

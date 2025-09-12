@@ -26,6 +26,12 @@ struct QueueCellView: View {
             HStack {
                 LightArtworkView(content: track, contentType: track.content.type, showMusicSource: true)
                     .frame(width: 50, height: 50)
+                    #if DEBUG && SCREENSHOT
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .foregroundStyle(.ultraThinMaterial)
+                    }
+                    #endif
                 VStack(alignment: .leading) {
                     Text(track.title)
                         .lineLimit(1)

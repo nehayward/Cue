@@ -64,10 +64,7 @@ struct AudioInfoView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 4)
-                .background {
-                    Capsule()
-                        .foregroundStyle(.ultraThinMaterial)
-                }
+                .glassForegroundAudio()
             } else {
                 Text(qualityString)
                     .padding(.horizontal, 4)

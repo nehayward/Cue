@@ -221,6 +221,12 @@ struct LiveActivityNowPlayingWidget: Widget {
                                         .padding([.bottom, .trailing], 1)
                                     
                                 }
+                                #if DEBUG && SCREENSHOT
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.ultraThinMaterial)
+                                }
+                                #endif
                         } else {
                             RoundedRectangle(cornerRadius: 4)
                                 .frame(width: 20, height: 20)
