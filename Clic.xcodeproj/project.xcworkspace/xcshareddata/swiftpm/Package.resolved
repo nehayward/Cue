@@ -1,5 +1,5 @@
 {
-  "originHash" : "5925a423314c4c6c692271b124845bec59b4ae626f025c536262da235bbb03c6",
+  "originHash" : "877a561fb9942421ce1df7a61ad83a8cce1e14856f1932be0e9bd3ec98752c46",
   "pins" : [
     {
       "identity" : "cloudstorage",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swhitty/FlyingFox.git",
       "state" : {
-        "revision" : "de429870282bed7b01bf6c384f5f29d55907aa10",
-        "version" : "0.24.1"
+        "revision" : "76b2d2d0eb54f0b53e8b661cc8007c487d94f8da",
+        "version" : "0.25.0"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
       "state" : {
-        "revision" : "045cf174010beb335fa1d2567d18c057b8787165",
-        "version" : "2.3.0"
+        "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
+        "version" : "2.4.0"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/RevenueCat/purchases-ios.git",
       "state" : {
-        "revision" : "d9155fd20755ce900878275d56e4878c7fdfe2c1",
-        "version" : "5.34.0"
+        "revision" : "02614406b9661ac7ca10e0b873ab0062ed5ae844",
+        "version" : "5.39.3"
       }
     },
     {
