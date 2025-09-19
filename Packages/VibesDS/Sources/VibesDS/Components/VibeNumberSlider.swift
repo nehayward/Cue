@@ -49,7 +49,6 @@ public struct VibeNumberSlider<Content: View>: View {
                         .tint(.clear)
                 }
                 .frame(maxWidth: .infinity)
-                .geometryGroup()
                 .animation(.interactiveSpring, value: number)
             }
         }

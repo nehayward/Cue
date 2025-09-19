@@ -50,6 +50,7 @@ struct SpeakerListScreen: View {
                             MediaControlsView(group: group)
                         }
                         .opacity(group.TVMode ? 0 : 1)
+                        .id(group.coordinatorRoom.track.trackID)
                     }
                     .padding(.horizontal, 12)
                     VolumeControlView(group: group, delayDrag: true)

@@ -115,38 +115,36 @@ struct LiveActivityNowPlayingView: View {
             if let settings = context.state.TVSettings {
                 Text(settings.audioInputFormat.description)
                 HStack(spacing: 24) {
-                    Group {
-                        Toggle(isOn: settings.nightMode, intent: SetNightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
-                            Label("Night Mode", systemImage: "moon.zzz.fill")
-                        }
-                        .labelStyle(.iconOnly)
-                        .symbolRenderingMode(.hierarchical)
-                        .toggleStyle(.button)
-                        .frame(width: 48, height: 32)
-                        .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
-                        
-                        Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
-                            Image(systemName: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
-                                .frame(width: 24, height: 24)
-                        }
-                        .tint(context.state.isMuted ? .accent : .primary)
-                        .labelStyle(.iconOnly)
-                        .symbolRenderingMode(.hierarchical)
-                        .toggleStyle(.button)
-                        .frame(width: 48, height: 32)
-                        .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
-
-                        Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
-                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                        }
-                        .symbolRenderingMode(.hierarchical)
-                        .labelStyle(.iconOnly)
-                        .toggleStyle(.button)
-                        .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
-                        .frame(width: 48, height: 32)
+                    Toggle(isOn: settings.nightMode, intent: SetNightModeIntent(room: context.attributes.room, nightMode: !settings.nightMode)) {
+                        Label("Night Mode", systemImage: "moon.zzz.fill")
                     }
-                    .tint(.teal)
+                    .labelStyle(.iconOnly)
+                    .symbolRenderingMode(.hierarchical)
+                    .toggleStyle(.button)
+                    .frame(width: 48, height: 32)
+                    .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
+                    
+                    Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
+                        Image(systemName: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                            .frame(width: 24, height: 24)
+                    }
+                    .tint(context.state.isMuted ? .accent : .primary)
+                    .labelStyle(.iconOnly)
+                    .symbolRenderingMode(.hierarchical)
+                    .toggleStyle(.button)
+                    .frame(width: 48, height: 32)
+                    .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
+                    
+                    Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
+                        Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                    }
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+                    .toggleStyle(.button)
+                    .foregroundStyle(settings.dialogLevel ? Color.primary : .secondary.opacity(0.8))
+                    .frame(width: 48, height: 32)
                 }
+                .tint(.black)
             }
             if !isCompact {
                 HStack {

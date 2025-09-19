@@ -116,7 +116,6 @@ public struct VibeSlider: View {
                         y: (isTouched || isDragging) ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
         }
-        .geometryGroup()
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)

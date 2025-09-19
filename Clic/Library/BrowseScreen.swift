@@ -54,7 +54,6 @@ struct BrowseScreen: View {
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
             MiniPlayerView()
-
         }
 #endif
         .withAlert(enabled: showAlert)
