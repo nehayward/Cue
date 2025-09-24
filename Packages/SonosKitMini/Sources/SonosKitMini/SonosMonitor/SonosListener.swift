@@ -174,6 +174,17 @@ final class SonosListener {
         NotificationCenter.default.removeObserver(self)
     }
     
+    func stop() {
+        print("HTTPServer: App entering background")
+        stopServer()
+        // Clear all connections
+        connectionQueue.sync {
+            let count = activeConnections.count
+            activeConnections.removeAll()
+            print("Cleared \(count) active connections")
+        }
+    }
+    
     @objc private func handleBackground() {
         print("HTTPServer: App entering background")
         stopServer()
@@ -609,7 +620,7 @@ final class SonosListener {
         let event = SonosServiceEvent.avTransport(model)
         
         eventHandler?(event, deviceID)
-        print("------- \(model.transportState?.lowercased()) ----------")
+        print("------- \(model.transportState?.lowercased(), default: "") ----------")
         
         if model.currentTrackURI.contains("rincon") {
             print("Yahoo!")
@@ -620,7 +631,7 @@ final class SonosListener {
             zoneManagementHandler?(removeFromGroupsEvent)
         }
         eventHandler?(event, deviceID)
-        print("------- \(model.transportState?.lowercased()) ----------")
+        print("------- \(model.transportState?.lowercased(), default: "") ----------")
         
         Task {
             if let transportState = model.transportState?.lowercased(), transportState == "transitioning" {

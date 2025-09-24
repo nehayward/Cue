@@ -82,9 +82,7 @@ struct MiniPlayerView: View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
                 .font(.caption2)
-            // Add back after optimization
-//            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
-            Text([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
                 .transition(.slide)
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -107,22 +105,12 @@ struct MiniPlayerView: View {
     }
     
     private func playPauseLabel(for group: GroupRoom) -> some View {
-        ZStack {
-            if group.coordinatorRoom.track.duration > 0 {
-                VibeGaugeView(
-                    value: group.coordinatorRoom.track.playbackPosition,
-                    total: group.coordinatorRoom.track.duration,
-                    color: group.coordinatorRoom.isPlaying ? .primary : .primary.opacity(0.7),
-                    lineWidth: 2
-                )
-                .frame(width: 30, height: 30)
-            }
-            Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                .font(.body)
-                .foregroundStyle(group.coordinatorRoom.isPlaying ? .primary : Color.primary.opacity(0.7))
-                .contentTransition(.symbolEffect(.automatic))
-        }
-        .frame(width: 40, height: 40)
+        PlaybackIconView(
+            value: group.coordinatorRoom.track.playbackPosition,
+            total: group.coordinatorRoom.track.duration,
+            isPlaying: group.coordinatorRoom.isPlaying
+        )
+        .font(.title)
     }
     
     private func nextTrackButton(for group: GroupRoom) -> some View {

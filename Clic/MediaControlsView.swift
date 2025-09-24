@@ -31,6 +31,7 @@ struct MediaControlsView: View {
                     total: group.coordinatorRoom.track.duration,
                     isPlaying: group.coordinatorRoom.isPlaying
                 )
+                .font(.title)
             }
             .buttonStyle(.plain)
             .buttonBorderShape(.circle)

@@ -1,3 +1,11 @@
+//
+//  PlaybackIconView.swift
+//  Clic
+//
+//  Created by Nick Hayward on 9/24/25.
+//
+
+
 import SwiftUI
 
 
@@ -18,18 +26,14 @@ public struct PlaybackIconView: View {
                 .contentTransition(.symbolEffect(.automatic))
                 .symbolVariableValueMode(.draw)
                 .foregroundStyle(isPlaying ? Color.primary : .secondary, isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
+                .font(.title)
         } else {
-            VibeGaugeView(value: value, total: total, color: .primary, lineWidth: 2.5)
-                .overlay(alignment: .center) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(width: 24, height: 24, alignment: .center)
-                        .padding(.leading, !isPlaying ? 2 : 0)
-                }
-                .frame(width: 32, height: 32)
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 16, height: 16, alignment: .center)
         }
     }
 }

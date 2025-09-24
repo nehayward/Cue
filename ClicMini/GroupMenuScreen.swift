@@ -5,14 +5,17 @@ import SwiftUI
 import Kingfisher
 
 struct GroupMenuScreen: View {
-    @State private var showList: Bool = false
+    @Environment(\.openWindow) private var openWindow
+
+    @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isLoading: Bool = false
     @State private var hoveredSceneId: String?
     @State private var scenes: [SonosScene] = []
-    
-    @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var isVisible = false
+    @State private var show: Bool = false
     
     var sizePassthroughWindow: PassthroughSubject<CGSize, Never>?
+    
     
     private var filteredDeviceBindings: [Binding<SonosDevice>] {
         return sonosServiceMini.sortedNowPlaying
@@ -48,17 +51,28 @@ struct GroupMenuScreen: View {
             .ignoresSafeArea()
             .padding(.vertical)
             .environment(sonosServiceMini)
+            .task {
+                try? await SonosMiniService.shared.loadWatch(useCache: true)
+            }
+            .onAppear {
+                isVisible = true
+            }
+            .onDisappear {
+                isVisible = false
+            }
     }
     
     var mainContent: some View {
-        LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(filteredDeviceBindings) { $device in
-                GroupItemView(device: $device)
-                    .frame(maxHeight: 200)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(filteredDeviceBindings) { $device in
+                    GroupItemView(isVisible: $isVisible, device: $device)
+                        .frame(maxHeight: 200)
+                }
             }
+            .padding(12)
         }
-        .padding(12)
-        .frame(minWidth: 400, maxWidth: .infinity, alignment: .top)
+        .frame(minWidth: 400, minHeight: 800)
         .onAppear {
             Task {
                 isLoading = true
@@ -82,53 +96,89 @@ struct GroupMenuScreen: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut, value: isLoading)
-        .animation(.easeInOut, value: sonosServiceMini.devices)
-        .overlay(alignment: .topTrailing) {
-            HStack {
-                Button {
-                    showList.toggle()
-                } label: {
-                    Image(systemName: "bolt.fill")
-                }
-                .padding([.top, .trailing], 12)
-                .overlay {
-                    if showList {
-                        ScrollView {
-                            LazyVStack {
-                                ForEach(scenes) { scene in
-                                    SceneButtonView(scene: scene, showList: $showList)
-                                }
-                            }
-                            .padding(.bottom, 60)
+        .animation(.snappy, value: isLoading)
+        .animation(.snappy, value: sonosServiceMini.devices)
+//        .overlay(alignment: .topTrailing) {
+//            HStack {
+//                Button {
+//                    showList.toggle()
+//                } label: {
+//                    Image(systemName: "bolt.fill")
+//                }
+//                .padding([.top, .trailing], 12)
+//                .overlay {
+//                    if showList {
+//                        ScrollView {
+//                            LazyVStack {
+//                                ForEach(scenes) { scene in
+//                                    SceneButtonView(scene: scene, showList: $showList)
+//                                }
+//                            }
+//                            .padding(.bottom, 60)
+//                        }
+//                        .background(
+//                            RoundedRectangle(cornerRadius: 12)
+//                                .foregroundStyle(.ultraThinMaterial)
+//                                .shadow(radius: 10)
+//                        )
+//                        .frame(width: 200, height: 400, alignment: .trailing)
+//                        .overlay(alignment: .bottom) {
+//                            VStack(spacing: 0) {
+//                                Rectangle()
+//                                    .foregroundStyle(
+//                                        .linearGradient(
+//                                            colors: [.clear, .black.opacity(0.1), .black.opacity(0.3)],
+//                                            startPoint: .top,
+//                                            endPoint: .bottom
+//                                        )
+//                                    )
+//                                    .frame(height: 60)
+//                                    .allowsHitTesting(false)
+//                            }
+//                        }
+//                        .clipShape(RoundedRectangle(cornerRadius: 12))
+//                        .offset(x: -95, y: 220)
+//                        .padding()
+//                    }
+//                }
+//            }
+//            .frame(maxWidth: .infinity, alignment: .trailing)
+        .safeArea(edge: .top) {
+//            if #available(macOS 26.0, *) {
+                HStack {
+//                    Button {
+//                        show.toggle()
+//                    } label: {
+//                        Text("Group")
+//                    }
+//                    .popover(isPresented: $show) {
+//                        Text("HER?")
+//                    }
+                    Menu {
+                        ForEach(scenes) { scene in
+                            SceneButtonView(scene: scene)
                         }
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .foregroundStyle(.ultraThinMaterial)
-                                .shadow(radius: 10)
-                        )
-                        .frame(width: 200, height: 400, alignment: .trailing)
-                        .overlay(alignment: .bottom) {
-                            VStack(spacing: 0) {
-                                Rectangle()
-                                    .foregroundStyle(
-                                        .linearGradient(
-                                            colors: [.clear, .black.opacity(0.1), .black.opacity(0.3)],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-                                    .frame(height: 60)
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .offset(x: -95, y: 220)
-                        .padding()
+                    } label: {
+                        Image(systemName: "bolt.fill")
                     }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal)
+//                .buttonStyle(.glassProminent)
+//                .buttonBorderShape(.circle)
+//            }
+        }
+        .safeArea(edge: .bottom) {
+            if #available(macOS 26.0, *) {
+                HStack {
+                   SettingsMenuView()
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal)
+
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
     
@@ -156,8 +206,9 @@ struct GroupMenuScreen: View {
 }
 
 struct GroupItemView: View {
+    @Binding var isVisible: Bool
     @Binding var device: SonosDevice
-    @State private var hovered : Bool = false
+    @State private var hovered: Bool = false
     
     var body: some View {
         let _ = Self._printChanges()
@@ -175,7 +226,7 @@ struct GroupItemView: View {
                 if !device.isTVMode {
                     HStack(spacing: 0) {
                         Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
-                            KFImage.url(device.sonosAlbumARTURL)
+                            KFImage.url(device.track.sonosAlbumArtURL)
                                 .placeholder {
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.thinMaterial)
@@ -216,22 +267,26 @@ struct GroupItemView: View {
                                 }
 #endif
                             
-                            if let trackInfo = device.currentTrackMetadata {
-                                VStack(alignment: .leading) {
-                                    MarqueeText(trackInfo.title)
-                                    Text(trackInfo.creator)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .lineLimit(1, reservesSpace: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
+//                            if let trackInfo = device.currentTrackMetadata {
+//                                VStack(alignment: .leading) {
+//                                    MarqueeText(trackInfo.title)
+//                                    Text(trackInfo.creator)
+//                                        .foregroundStyle(.secondary)
+//                                }
+//                                .lineLimit(1, reservesSpace: true)
+//                                .frame(maxWidth: .infinity, alignment: .leading)
+//                            }
                             
-                            //                                        VStack(alignment: .leading) {
-                            //                                            Text(device.track.song)
-                            //                                            Text(device.track.artist)
-                            //                                                .foregroundStyle(.secondary)
-                            //                                        }
-                            //                                        .lineLimit(1, reservesSpace: true)
+                            VStack(alignment: .leading) {
+                                if isVisible {
+                                    MarqueeText(device.track.song)
+                                } else {
+                                    Text(device.track.song)
+                                }
+                                Text(device.track.artist)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .lineLimit(1, reservesSpace: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         HStack {
@@ -246,8 +301,11 @@ struct GroupItemView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
                 
-                VolumeMiniView(device: $device)
+                VolumeControlView(device: $device)
                     .frame(height: 16)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
             }
             .padding(12)
             .background {
@@ -267,12 +325,10 @@ struct GroupItemView: View {
                 await SonosMiniService.shared.togglePlayback(ip: device.ip)
             }
         } label: {
-            playPauseLabel(for: device)
-                .frame(minWidth: 44, maxHeight: .infinity)
-                .contentShape(Rectangle())
+            PlaybackIconView(value: Double(device.track.elapsed.components.seconds), total: Double(device.track.duration.components.seconds), isPlaying: device.isPlaying)
         }
         .buttonStyle(.plain)
-        .buttonBorderShape(.circle)
+        .contentShape(.rect)
         .disabled(!device.availableActions.contains(.play))
     }
     
@@ -286,7 +342,7 @@ struct GroupItemView: View {
         Button {
             Task {
                 await SonosMiniService.shared.next(ip: device.ip)
-                try? await SonosMiniService.shared.updateDevices(from: [device])
+                try? await SonosMiniService.shared.updateWatchDevices(from: [device])
             }
         } label: {
             Image(systemName: "forward.fill")
@@ -323,33 +379,42 @@ struct GroupHeader: View {
 
 struct SceneButtonView: View {
     var scene: SonosScene
-    @Binding var showList: Bool
+    
     @State private var sonosServiceMini = SonosMiniService.shared
-    @State private var isHovering: Bool = false
     
     var body: some View {
         Button {
             Task {
-                withAnimation {
-                    showList = false
-                }
                 try? await sonosServiceMini.runScene(scene)
             }
         } label: {
             Text(scene.name)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isHovering ?
-                              Color(nsColor: .systemFill) :
-                                Color.clear)
-                )
+            if let url = scene.playableContent?.thumbnail, !url.absoluteString.isEmpty {
+                KFImage.url(url)
+                    .setProcessors([
+                        RoundCornerImageProcessor(cornerRadius: .infinity),
+                        ResizingImageProcessor(referenceSize: CGSize(width: 24, height: 24), mode: .aspectFit)
+                    ])
+                    .cancelOnDisappear(true)
+                    .resizable() // Needed to allow resizing in SwiftUI
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .clipShape(.circle)
+            }
+            
         }
-        .buttonStyle(.plain)
-        .onHover { isHovering in
-            self.isHovering = isHovering
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func safeArea<V>(edge: VerticalEdge, alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> V) -> some View where V : View {
+        if #available(iOS 26.0, macOS 26, *) {
+            self
+                .safeAreaBar(edge: edge, content: content)
+        } else {
+            self
+                .safeAreaInset(edge: edge, content: content)
         }
     }
 }

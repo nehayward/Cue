@@ -104,9 +104,12 @@ public struct VibeSlider: View {
                 .contentShape(.hoverEffect, .capsule)
 #endif
             Text("\(Int(value))")
+#if targetEnvironment(macCatalyst)
+                .font(.subheadline)
+#endif
                 .monospacedDigit()
                 .fontDesign(.rounded)
-                .fontWeight(.heavy)
+                .fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .blendMode(.difference)
                 .frame(minWidth: 28, minHeight: baseHeight)

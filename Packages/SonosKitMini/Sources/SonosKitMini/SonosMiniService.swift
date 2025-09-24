@@ -48,8 +48,10 @@ public final class SonosMiniService {
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG
             return "192.168.4.153"
-#endif
+#else
         NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip") ?? ""
+#endif
+
     }
     
     //
@@ -135,6 +137,10 @@ public final class SonosMiniService {
                 updateZone(event: event)
             }
         }
+    }
+    
+    func stopListen() {
+        sonosMonitor.listener.stop()
     }
     
     func updateZone(event: SonosZoneEvent) {
@@ -341,51 +347,18 @@ public final class SonosMiniService {
             print(newDeviceIDs)
             print(currentDeviceIDs)
         }
-        setupListeners()
+//        setupListeners()
         
-        Task {
-            await sonosMonitor.startListening()
-            print("Started")
-            sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
-            sonosMonitor.subscriber.subscribe()
-        }
+//        Task {
+//            await sonosMonitor.startListening()
+//            print("Started")
+//            sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
+//            sonosMonitor.subscriber.subscribe()
+//        }
+//        
+//        snapShotVolume(for: devices)
         
-        snapShotVolume(for: devices)
-        
-        for device in devices {
-            guard let index = devices.firstIndex(of: device) else { continue }
-            
-            // Update coordinator room properties
-            //            if keyPaths.contains(\SonosGroup.coordinatorRoom.ethernetEnabled) {
-            //                household.devices.update(with: group)
-            //            }
-            //
-            //            if keyPaths.contains(\SonosGroup.coordinatorRoom.micEnabled) {
-            //                household.devices[index].coordinatorRoom.micEnabled = newGroup.coordinatorRoom.micEnabled
-            //            }
-            //            if keyPaths.contains(\SonosGroup.coordinatorRoom.battery) {
-            //                household.devices[index].coordinatorRoom.battery = newGroup.coordinatorRoom.battery
-            //            }
-            //            if keyPaths.contains(\SonosGroup.coordinatorRoom.info),
-            //               currentGroup.coordinatorRoom.info == nil,
-            //               newGroup.coordinatorRoom.state == .active {
-            //                currentGroup.coordinatorRoom.info = await api.deviceInfo(IP: newGroup.coordinatorRoom.ip)
-            //            }
-            
-            //            // Update room properties
-            //            for roomIndex in currentGroup.rooms.indices {
-            //                let currentRoom = currentGroup.rooms[roomIndex]
-            //                let newRoom = newGroup.rooms[roomIndex]
-            //
-            //                if keyPaths.contains(\Room.info), currentRoom.info == nil, newGroup.coordinatorRoom.state == .active {
-            //                    currentRoom.info = await api.deviceInfo(IP: currentRoom.ip)
-            //                }
-            //                if keyPaths.contains(\Room.settings), !currentRoom.settings.isSet {
-            //                    currentRoom.settings = await getSpeakerSettings(room: currentRoom)
-            //                }
-            //            }
-        }
-        
+       
         //        // Check for new or changed devices
         //        if !newGroups.isEmpty, Set(newGroups) != Set(devices), !isGrouping {
         //            await updateGroupsRooms(from: newGroups)
@@ -508,11 +481,20 @@ public final class SonosMiniService {
     @MainActor
     public func updateWatchDevices(from devices: [SonosDevice]) async throws {
         try await withThrowingDiscardingTaskGroup { taskGroup in
+            taskGroup.addTask { [weak self] in
+                guard let self else { return }
+                try? await updateTracks(for: devices)
+            }
+            taskGroup.addTask { [weak self] in
+                guard let self else { return }
+                try? await updateMuteState(for: devices)
+            }
             for device in devices.filter(\.isVisible) {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
                     async let playbackInfo = getPlaybackInfo(ip: device.ip)
                     async let groupVolume = getGroupVolume(ip: device.ip)
+                    async let availableActions = getCurrentTransportActions(ip: device.ip)
                     
                     switch await playbackInfo {
                     case .playing:
@@ -526,11 +508,14 @@ public final class SonosMiniService {
                     if let groupVolumeAwaited = try? await groupVolume, !device.isEditingVolume {
                         await updateDevice(device, keyPath: \.groupVolume, value: groupVolumeAwaited)
                     }
+                    
+                    if let awaitedActions = await availableActions {
+                        await updateDevice(device, keyPath: \.availableActions, value: awaitedActions)
+                    }
                 }
             }
         }
-        try? await updateTracks(for: devices)
-        try? await updateMuteState(for: devices)
+       
     }
     
     public func updateRoomVolumes(incomingDevices: [SonosDevice]? = nil) async {

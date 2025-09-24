@@ -1,3 +1,13 @@
+# 2025.15
+
+–– New Features ––
+- Clic Mini Updated for os 26 with HotKeys
+- Playback now accented when playing.
+
+–– Bug Fixes & Improvements ––
+- More improvements for os 26
+- Update MarqueeText for better performance
+
 # 2025.14
 
 –– New Features ––
