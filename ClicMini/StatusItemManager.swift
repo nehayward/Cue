@@ -15,6 +15,8 @@ final class StatusItemManager {
     private var sizeCancellableWindow: AnyCancellable?
     private var status: StatusBarMenuWindowController?
     
+    private let settingsService = MiniSettingsService.shared
+    
     
     @objc func toggleUIVisible(_ sender: NSStatusBarButton) {
         if status?.window?.isVisible == false {
@@ -102,8 +104,16 @@ final class StatusItemManager {
         // Add Launch at Login item
         let launchAtLoginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         launchAtLoginItem.target = self
-        launchAtLoginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        launchAtLoginItem.state = settingsService.launchAtLogin ? .on : .off
         alternateMenu.addItem(launchAtLoginItem)
+        
+        // Add Preferences item
+        let preferencesItem = NSMenuItem(title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ",")
+        preferencesItem.target = self
+        alternateMenu.addItem(preferencesItem)
+        
+        // Add separator before quit
+        alternateMenu.addItem(NSMenuItem.separator())
         
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         alternateMenu.addItem(quitItem)
@@ -114,17 +124,14 @@ final class StatusItemManager {
     }
     
     @objc private func toggleLaunchAtLogin() {
-        Task {
-            do {
-                if SMAppService.mainApp.status == .enabled {
-                    try await setLaunchAtLoginEnabled(false)
-                } else {
-                    try await setLaunchAtLoginEnabled(true)
-                }
-            } catch {
-                print("Error toggling launch at login: ", error)
-            }
+        Task { @MainActor in
+            await settingsService.toggleLaunchAtLogin()
         }
+    }
+    
+    @MainActor
+    @objc private func openPreferences() {
+        WindowManager.shared.openPreferences()
     }
 
     @objc func toggleGroupMenu() {
@@ -144,14 +151,6 @@ final class StatusItemManager {
             statusItem?.menu = nil
         }
         
-    }
-    
-    func setLaunchAtLoginEnabled(_ enabled: Bool) async throws {
-        if enabled {
-            try? SMAppService.mainApp.register()
-        } else {
-            try? await SMAppService.mainApp.unregister()
-        }
     }
 }
 

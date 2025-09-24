@@ -5,8 +5,6 @@ import SwiftUI
 import Kingfisher
 
 struct GroupMenuScreen: View {
-    @Environment(\.openWindow) private var openWindow
-
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isLoading: Bool = false
     @State private var hoveredSceneId: String?
@@ -70,8 +68,8 @@ struct GroupMenuScreen: View {
                         .frame(maxHeight: 200)
                 }
             }
-            .padding(12)
         }
+        .padding(.horizontal, 12)
         .frame(minWidth: 400, minHeight: 800)
         .onAppear {
             Task {
@@ -415,6 +413,32 @@ extension View {
         } else {
             self
                 .safeAreaInset(edge: edge, content: content)
+        }
+    }
+}
+
+struct PreferencesCogButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(isHovered ? .accentColor : .secondary)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Preferences")
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
         }
     }
 }

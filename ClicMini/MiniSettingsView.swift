@@ -1,28 +1,69 @@
 import SwiftUI
+import KeyboardShortcuts
 
 struct MiniSettingsView: View {
-    @AppStorage("launchAtStartup") private var launchAtStartup = false
-    @AppStorage("defaultVolume") private var defaultVolume = 50.0
+    @State private var settingsService = MiniSettingsService.shared
     
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Launch at startup", isOn: $launchAtStartup)
-            }
-            
-            Section("Audio") {
-                VStack(alignment: .leading) {
-                    Text("Default Volume")
-                    Slider(value: $defaultVolume, in: 0...100) {
-                        Text("Default Volume")
+            Toggle("Launch at login", isOn: $settingsService.launchAtLogin)
+                .onChange(of: settingsService.launchAtLogin) { _, newValue in
+                    Task {
+                        try? await settingsService.setLaunchAtLoginEnabled(newValue)
                     }
-                    Text("\(Int(defaultVolume))%")
-                        .foregroundStyle(.secondary)
+                }
+                .toggleStyle(.switch)
+            Section("Keyboard Shortcuts") {
+                KeyboardShortcuts.Recorder(for: .toggleClicMini) {
+                    Text("Show/Hide Clic Mini")
+                    Text("Use this shortcut to quickly show/hide the Clic Mini menu from anywhere.")
+                }
+                
+                KeyboardShortcuts.Recorder(for: .volumeUp) {
+                    Text("Volume Up")
+                    Text("Increase volume of playing group")
+                }
+                
+                KeyboardShortcuts.Recorder(for: .volumeDown) {
+                    Text("Volume Down")
+                    Text("Decrease volume of playing group")
+                }
+                
+                KeyboardShortcuts.Recorder(for: .nextTrack) {
+                    Text("Next Track")
+                    Text("Skip to next track on playing speaker")
+                }
+                
+                KeyboardShortcuts.Recorder(for: .previousTrack) {
+                    Text("Previous Track")
+                    Text("Go to previous track on playing speaker")
                 }
             }
+            
+//            VStack(alignment: .leading, spacing: 20) {
+//                VStack(alignment: .leading, spacing: 12) {
+//                    Text("General")
+//                        .font(.headline)
+//                   
+//                }
+//                
+//                VStack(alignment: .leading, spacing: 12) {
+//                    Text("Keyboard Shortcuts")
+//                        .font(.headline)
+//                    VStack(alignment: .leading, spacing: 8) {
+//                        KeyboardShortcuts.Recorder("Toggle Clic Mini:", name: .toggleClicMini)
+//                        Text("Use this shortcut to quickly show/hide the Clic Mini menu from anywhere.")
+//                            .font(.caption)
+//                            .foregroundStyle(.secondary)
+//                    }
+//                }
+//                
+//            }
+//            .padding()
+
         }
-        .padding()
-        .frame(width: 350, height: 200)
+        .frame(width: 400, height: 480)
+        .formStyle(.grouped)
     }
 }
 

@@ -4,6 +4,8 @@ import KeyboardShortcuts
 
 @main
 struct ClicMiniApp: App {
+    private let globalMediaControlService = GlobalMediaControlService.shared
+    
     init() {
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
             let statusItem = NSApp.windows.first?.value(forKey: "statusItem") as? NSStatusItem

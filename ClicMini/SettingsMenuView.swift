@@ -9,10 +9,12 @@ struct SettingsMenuView: View {
     var body: some View {
         Menu {
             Button {
-                NSApp.setActivationPolicy(.regular)
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                // Switch to regular activation policy so the window can be focused
-                openWindow(id: "settings")
+//                NSApp.setActivationPolicy(.regular)
+//                NSApplication.shared.activate(ignoringOtherApps: true)
+//                // Switch to regular activation policy so the window can be focused
+//                openWindow(id: "settings")
+//                
+                WindowManager.shared.openPreferences()
             } label: {
                 Label("Open Settings", systemImage: "gear")
             }
@@ -64,6 +66,10 @@ struct SettingsMenuView: View {
         } else {
             try? await SMAppService.mainApp.unregister()
         }
+    }
+    
+    private func openPreferences() {
+        WindowManager.shared.openPreferences()
     }
 }
 

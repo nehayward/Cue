@@ -1290,7 +1290,7 @@
 		01C1297B2D0CB4E9009F9E90 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = IconMini;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -1332,7 +1332,7 @@
 		01C1297C2D0CB4E9009F9E90 /* Beta */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = IconMini;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -1373,7 +1373,7 @@
 		01C1297D2D0CB4E9009F9E90 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = IconMini;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = Accent;
 				CODE_SIGN_ENTITLEMENTS = ClicMini/ClicMini.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
