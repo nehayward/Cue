@@ -15,7 +15,8 @@ extension ZoneGroup {
             return Sub(name: $0.zoneName, ip: ip)
         }
 
-        let rooms = members.compactMap { $0.toRoom(groupID: coordinator, speakerSubs: subs)}
+        let rooms = members.compactMap { $0.toRoom(groupID: id, speakerSubs: subs)}
+        
         if rooms.isEmpty {
             return nil
         }
@@ -103,6 +104,7 @@ extension SonosRoom {
         return SonosDevice(
             name: name,
             id: id,
+            groupID: groupID,
             ip: ip,
             isHidden: id != groupID,
             channelMap: channelMap,

@@ -32,7 +32,7 @@ class SonosXMLParser: NSObject, XMLParserDelegate {
                     id: id,
                     coordinatorID: coordinator,
                     rooms: [],
-                    coordinatorRoom: SonosRoom(id: coordinator, groupID: coordinator, ip: "", name: "")
+                    coordinatorRoom: SonosRoom(id: coordinator, groupID: id, ip: "", name: "")
                 )
             }
         case "ZoneGroupMember":

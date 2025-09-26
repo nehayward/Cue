@@ -12,10 +12,52 @@ import Foundation
 public struct SonosDevice: Identifiable {
     public var name: String
     public let id: String  // RINCON ID
+    public let groupID: String
     public let ip: String
     public var isHidden: Bool
     public var isVisible: Bool { !isHidden }
-
+    
+    public var currentPosition: Int = 0
+    public var totalDuration: Int = 0
+    public var lastPositionUpdate: Date = Date()
+    
+    /// Computed property for smooth position that interpolates between updates
+    public var smoothCurrentPosition: Int {
+        guard isPlaying else { return currentPosition }
+        
+        let timeSinceUpdate = Date().timeIntervalSince(lastPositionUpdate)
+        let interpolatedMs = Int(timeSinceUpdate * 1000)
+        return min(currentPosition + interpolatedMs, totalDuration)
+    }
+    
+    /// Computed property for current time as formatted string
+    public var current: String {
+        formatDuration(smoothCurrentPosition)
+    }
+    
+    /// Computed property for time left as formatted string
+    public var timeLeft: String {
+        let remaining = max(0, totalDuration - smoothCurrentPosition)
+        return "-" + formatDuration(remaining)
+    }
+    
+    /// Computed property for total duration as formatted string
+    public var total: String {
+        formatDuration(totalDuration)
+    }
+    
+    /// Computed property for current progress (0.0 to 1.0)
+    public var progress: Double {
+        guard totalDuration > 0 else { return 0.0 }
+        return Double(smoothCurrentPosition) / Double(totalDuration)
+    }
+    
+    /// Helper function to format time using Duration - handles hours automatically
+    private func formatDuration(_ milliseconds: Int) -> String {
+        let duration = Duration.milliseconds(milliseconds)
+        return duration.formatted(.time(pattern: .minuteSecond(padMinuteToLength: 1)))
+    }
+    
     // Volume properties
     public var groupVolume: Double = 0
     public var groupIsMuted: Bool = false

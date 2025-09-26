@@ -101,13 +101,15 @@ public struct SonosTrack: Identifiable, Sendable {
 
 extension SonosTrack: Hashable {
     public static func == (lhs: SonosTrack, rhs: SonosTrack) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id &&
+        lhs.elapsed == rhs.elapsed
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(name)
         hasher.combine(position)
+        hasher.combine(elapsed)
     }
 }
 
@@ -115,4 +117,10 @@ public extension SonosTrack {
     /// A static instance of `Track` representing an empty state.
     static let empty = SonosTrack(trackID: "", trackURI: "", name: "")
     static let alarm = SonosTrack(trackID: "x-rincon-buzzer:0", trackURI: "", name: "Alarm")
+}
+
+extension Track {
+    var toSonosTrack: SonosTrack {
+        SonosTrack(trackID: id?.objectId ?? "", trackURI: id?.objectId ?? "")
+    }
 }

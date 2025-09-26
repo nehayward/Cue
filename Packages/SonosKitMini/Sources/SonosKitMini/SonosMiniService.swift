@@ -42,8 +42,8 @@ public final class SonosMiniService {
         }
     }
     
-    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
-    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
+//    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
+//    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG
@@ -53,6 +53,9 @@ public final class SonosMiniService {
 #endif
 
     }
+    
+    @ObservationIgnored lazy var streamingService = SonosStreamingService(eventHandler: self)
+
     
     //
     //    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
@@ -123,26 +126,26 @@ public final class SonosMiniService {
         watchMonitor.cancel()
     }
     
-    func setupListeners() {
-        sonosMonitor.listener.eventHandler = { [weak self] event, deviceID in
-            Task { [weak self] in
-                guard let self else { return }
-                await updateEvent(for: deviceID, event: event)
-            }
-        }
-        
-        sonosMonitor.listener.zoneManagementHandler = { [weak self] event in
-            Task { [weak self] in
-                guard let self else { return }
-                updateZone(event: event)
-            }
-        }
-    }
-    
-    func stopListen() {
-        sonosMonitor.listener.stop()
-    }
-    
+//    func setupListeners() {
+//        sonosMonitor.listener.eventHandler = { [weak self] event, deviceID in
+//            Task { [weak self] in
+//                guard let self else { return }
+//                await updateEvent(for: deviceID, event: event)
+//            }
+//        }
+//        
+//        sonosMonitor.listener.zoneManagementHandler = { [weak self] event in
+//            Task { [weak self] in
+//                guard let self else { return }
+//                updateZone(event: event)
+//            }
+//        }
+//    }
+//    
+//    func stopListen() {
+//        sonosMonitor.listener.stop()
+//    }
+//    
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
             print(deviceID, newID)
@@ -328,10 +331,10 @@ public final class SonosMiniService {
         }
     }
     
-    public func stopMonitor() {
-        sonosMonitor.listener.stopServer()
-    }
-    
+//    public func stopMonitor() {
+//        sonosMonitor.listener.stopServer()
+//    }
+//    
     public func load(useCache: Bool) async throws {
         //        let newGroups = try await getGroups(useCache: useCache)
         let newDevices = try await getDevices(useCache: useCache)
@@ -396,6 +399,12 @@ public final class SonosMiniService {
         
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
+        
+        let configs = devices.map(\.toConfig)
+//        await streamingService.addPlayers(configs, events: [.volume, .playback, .metadata, .groupVolume])
+//        try await Task.sleep(for: .seconds(2))
+        await streamingService.addPlayers(configs)
+
     }
     
     @MainActor
@@ -515,7 +524,6 @@ public final class SonosMiniService {
                 }
             }
         }
-       
     }
     
     public func updateRoomVolumes(incomingDevices: [SonosDevice]? = nil) async {
@@ -593,8 +601,6 @@ public final class SonosMiniService {
 
                     if device.track != awaitedTrack {
                         await updateDevice(device, keyPath: \.track, value: awaitedTrack)
-                    } else {
-                        await updateDevice(device, keyPath: \.track.elapsed, value: awaitedTrack.elapsed)
                     }
                     
                     if awaitedTrack.trackURI.contains("x-sonos-htastream") {
@@ -1903,6 +1909,7 @@ public final class SonosMiniService {
             SonosDevice(
                 name: $0.name,
                 id: $0.id,
+                groupID: $0.id,
                 ip: $0.ip,
                 isHidden: false,
                 channelMap: nil,

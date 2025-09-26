@@ -69,11 +69,7 @@ struct MenuBarView: View {
             .overlay(
                 GeometryReader { geometryProxy in
                     Color.clear
-                        .preference(key: SizePreferenceKey.self, value: geometryProxy.size)
                 }
             )
-            .onPreferenceChange(SizePreferenceKey.self) { size in
-                sizePassthrough.send(size)
-            }
     }
 }
