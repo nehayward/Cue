@@ -152,35 +152,35 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     private func startMessageReceiver() {
         guard messageReceiveTask == nil else { return }
         
-        messageReceiveTask = Task {
+        messageReceiveTask = Task { [weak self] in
             var isAlive = true
             
-            while isAlive && task?.closeCode == .invalid {
+            while isAlive && self?.task?.closeCode == .invalid {
                 do {
-                    guard let value = try await task?.receive() else { return }
+                    guard let value = try await self?.task?.receive() else { return }
                     
                     // Mark as connected on successful receive
-                    if !isConnected {
-                        isConnected = true
-                        reconnectAttempts = 0
-                        if debug {
+                    if self?.isConnected == false {
+                        self?.isConnected = true
+                        self?.reconnectAttempts = 0
+                        if self?.debug == true {
                             print("DEBUG: WebSocket connected successfully")
                         }
                     }
                     
                     if case let .string(message) = value {
-                        if debug {
+                        if self?.debug == true {
 //                            print(message.prettyPrinted)
                         }
-                        await dispatchMessage(message)
+                        await self?.dispatchMessage(message)
                     }
                 } catch {
-                    isConnected = false
+                    self?.isConnected = false
                     
                     // Check if this is a "Socket is not connected" error (NSPOSIXErrorDomain Code=57)
                     let isSocketNotConnectedError = (error as NSError).domain == NSPOSIXErrorDomain && (error as NSError).code == 57
                     
-                    if debug && !isSocketNotConnectedError {
+                    if self?.debug == true && !isSocketNotConnectedError {
                         print("DEBUG: WebSocket error: \(error)")
                     }
                     
@@ -189,21 +189,21 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                        urlError.code == .networkConnectionLost ||
                        (error as NSError).code == 54 { // Connection reset by peer
                         
-                        if debug {
+                        if self?.debug == true {
                             print("DEBUG: Connection reset detected, attempting reconnection...")
                         }
                         
                         // Don't finish continuations immediately, try to reconnect
-                        await attemptReconnection()
+                        await self?.attemptReconnection()
                     } else if isSocketNotConnectedError {
                         // Socket not connected - likely during graceful shutdown, just exit quietly
                         isAlive = false
                     } else {
                         // Other errors - finish continuations
-                        volumeContinuation?.finish(throwing: error)
-                        playbackContinuation?.finish(throwing: error)
-                        trackInfoContinuation?.finish(throwing: error)
-                        groupVolumeContinuation?.finish(throwing: error)
+                        self?.volumeContinuation?.finish(throwing: error)
+                        self?.playbackContinuation?.finish(throwing: error)
+                        self?.trackInfoContinuation?.finish(throwing: error)
+                        self?.groupVolumeContinuation?.finish(throwing: error)
                         isAlive = false
                     }
                 }
@@ -359,30 +359,30 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     }
 
     private lazy var volumeStream: SonosVolumeWebSocketStream = {
-        return SonosVolumeWebSocketStream { continuation in
-            self.volumeContinuation = continuation
-            self.startMessageReceiver()
+        return SonosVolumeWebSocketStream { [weak self] continuation in
+            self?.volumeContinuation = continuation
+            self?.startMessageReceiver()
         }
     }()
     
     private lazy var groupVolumeStream: SonosVolumeWebSocketStream = {
-        return SonosVolumeWebSocketStream { continuation in
-            self.groupVolumeContinuation = continuation
-            self.startMessageReceiver()
+        return SonosVolumeWebSocketStream { [weak self] continuation in
+            self?.groupVolumeContinuation = continuation
+            self?.startMessageReceiver()
         }
     }()
     
     private lazy var playbackStream: SonosPlaybackWebSocketStream = {
-        return SonosPlaybackWebSocketStream { continuation in
-            self.playbackContinuation = continuation
-            self.startMessageReceiver()
+        return SonosPlaybackWebSocketStream { [weak self] continuation in
+            self?.playbackContinuation = continuation
+            self?.startMessageReceiver()
         }
     }()
     
     private lazy var trackStream: SonosTrackWebSocketStream = {
-        return SonosTrackWebSocketStream { continuation in
-            self.trackInfoContinuation = continuation
-            self.startMessageReceiver()
+        return SonosTrackWebSocketStream { [weak self] continuation in
+            self?.trackInfoContinuation = continuation
+            self?.startMessageReceiver()
         }
     }()
     
@@ -444,11 +444,23 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     }
     
     deinit {
+        // Cancel WebSocket task
+        if let currentTask = task, currentTask.closeCode == .invalid {
+            currentTask.cancel(with: .normalClosure, reason: nil)
+        }
+        
+        // Finish all continuations
         trackInfoContinuation?.finish()
         playbackContinuation?.finish()
         volumeContinuation?.finish()
+        groupVolumeContinuation?.finish()
+        
+        // Cancel background tasks
         messageReceiveTask?.cancel()
         reconnectTask?.cancel()
+        
+        // Invalidate session
+        session?.invalidateAndCancel()
     }
     
     
