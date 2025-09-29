@@ -444,6 +444,10 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     }
     
     deinit {
+        if debug {
+            print("DEBUG: SonosWebSocket for \(ipAddress) is being deallocated")
+        }
+        
         // Cancel WebSocket task
         if let currentTask = task, currentTask.closeCode == .invalid {
             currentTask.cancel(with: .normalClosure, reason: nil)
@@ -482,12 +486,32 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         if let currentTask = task, currentTask.closeCode == .invalid {
             currentTask.cancel(with: .normalClosure, reason: nil)
         }
+        
+        // Finish all stream continuations
         trackInfoContinuation?.finish()
         playbackContinuation?.finish()
         volumeContinuation?.finish()
         groupVolumeContinuation?.finish()
+        
+        // Cancel background tasks
         messageReceiveTask?.cancel()
         reconnectTask?.cancel()
+        
+        // Clear all references
+        trackInfoContinuation = nil
+        playbackContinuation = nil
+        volumeContinuation = nil
+        groupVolumeContinuation = nil
+        messageReceiveTask = nil
+        reconnectTask = nil
+        task = nil
+        
+        // Invalidate session
+        session?.invalidateAndCancel()
+        session = nil
+        
+        // Clear active subscriptions
+        activeSubscriptions.removeAll()
     }
     
     /**
@@ -511,8 +535,34 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         if let currentTask = task, currentTask.closeCode == .invalid {
             currentTask.cancel(with: .normalClosure, reason: nil)
         }
+        
+        // Finish all stream continuations to break retain cycles
+        trackInfoContinuation?.finish()
+        playbackContinuation?.finish()
+        volumeContinuation?.finish()
+        groupVolumeContinuation?.finish()
+        
+        // Cancel background tasks
         messageReceiveTask?.cancel()
         reconnectTask?.cancel()
+        
+        // Clear continuation references
+        trackInfoContinuation = nil
+        playbackContinuation = nil
+        volumeContinuation = nil
+        groupVolumeContinuation = nil
+        messageReceiveTask = nil
+        reconnectTask = nil
+        
+        // Clear task reference
+        task = nil
+        
+        // Invalidate and clear session to break all references
+        session?.invalidateAndCancel()
+        session = nil
+        
+        // Clear active subscriptions
+        activeSubscriptions.removeAll()
     }
     
     public func connectAndSubscribeToGroupVolume(groupId: String) async throws -> SonosVolumeWebSocketStream? {

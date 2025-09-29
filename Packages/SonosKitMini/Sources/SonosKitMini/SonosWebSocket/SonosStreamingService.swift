@@ -27,7 +27,7 @@ public struct SonosPlayerConfig {
  * All callback methods are optional and called on the main actor for UI updates.
  */
 @MainActor
-public protocol SonosEventHandler {
+public protocol SonosEventHandler: AnyObject {
     /// Called when volume changes for a player or group
     func onVolumeUpdate(playerId: String, event: VolumeEvent)
     
@@ -47,6 +47,14 @@ public protocol SonosEventHandler {
     /// This provides smooth position updates between actual Sonos position reports
     /// Default interval is 0.1 seconds (10 times per second) for smooth UI animations
     func onPositionTick(playerId: String, currentPositionMillis: Int, isPlaying: Bool)
+}
+
+
+final class WeakBox<T: AnyObject> {
+    weak var value: T?
+    init(_ value: T) {
+        self.value = value
+    }
 }
 
 // Default implementations (all optional)
@@ -97,17 +105,18 @@ public final class SonosStreamingService: @unchecked Sendable {
     }
     
     private let lock = OSAllocatedUnfairLock()
-    private var connections: [String: SonosWebSocket] = [:]
+    private var connections: [String: WeakBox<SonosWebSocket>] = [:]
     private var connectionTasks: [String: Task<Void, Never>] = [:]
     
     // Connection refresh timer management
     private var refreshTask: Task<Void, Never>?
     private var playerConfigs: [String: SonosPlayerConfig] = [:]
     private let connectionRefreshInterval: Duration = .seconds(60 * 1)
+    private var isRefreshing: Bool = false
     
     private let apiKey: String
     private let debug: Bool
-    private var eventHandler: SonosEventHandler?
+    private weak var eventHandler: SonosEventHandler?
     
     /**
      * Creates a new SonosStreamingService with the specified event handler.
@@ -134,11 +143,23 @@ public final class SonosStreamingService: @unchecked Sendable {
     public func addPlayer(_ config: SonosPlayerConfig) async {
         let playerId = config.playerId
         
+        // Check if player already exists
+        let existingSocket = lock.withLock {
+            connections[playerId]
+        }
+        
+        if existingSocket != nil {
+            if debug {
+                print("DEBUG: Player \(playerId) already exists, skipping duplicate creation. Current connections: \(connections.count)")
+            }
+            return
+        }
+        
         // Create WebSocket connection
         guard let socket = SonosWebSocket(
             ipAddress: config.ipAddress,
             apiKey: apiKey,
-            debug: debug
+            debug: false
         ) else {
             await notifyError(playerId: playerId, error: NSError(domain: "SonosStreamingService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create WebSocket"]))
             return
@@ -146,10 +167,10 @@ public final class SonosStreamingService: @unchecked Sendable {
         
         // Store connection and config
         lock.withLock {
-            connections[playerId] = socket
+            connections[playerId] =  WeakBox(socket)
             playerConfigs[playerId] = config
         }
-        
+   
         // Start monitoring events specified in config
         await startMonitoring(playerId: playerId, config: config, socket: socket, events: config.events)
         
@@ -168,18 +189,32 @@ public final class SonosStreamingService: @unchecked Sendable {
             (connectionTasks[playerId], connections[playerId])
         }
         
-        // Cancel tasks
+        // Cancel tasks first to stop monitoring loops
         connectionTask?.cancel()
         
-        // Close connection gracefully
+        // Wait a brief moment for tasks to finish cancellation
+        do {
+            try await Task.sleep(for: .milliseconds(100))
+        } catch {
+            // Ignore cancellation errors
+        }
+        
+        // Close connection gracefully and clear the weak reference
         if let socket = socket {
-            socket.close() // Use close() instead of cancel() to avoid throwing on closed sockets
+            socket.value?.close() // This now properly finishes all continuations and clears references
+            socket.value = nil // Explicitly clear the weak reference
+            if debug {
+                print("DEBUG: Closed and cleared socket for player \(playerId)")
+            }
         }
         
         // Clean up connection state but preserve player configs for reconnection
         lock.withLock {
             connectionTasks.removeValue(forKey: playerId)
-            connections.removeValue(forKey: playerId)
+            let removedSocket = connections.removeValue(forKey: playerId)
+            if debug && removedSocket != nil {
+                print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
+            }
             // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
         }
         
@@ -201,16 +236,20 @@ public final class SonosStreamingService: @unchecked Sendable {
         // Cancel tasks
         connectionTask?.cancel()
         
-        // Close connection
+        // Close connection and clear weak reference
         if let socket = socket {
-            try? await socket.cancel()
+            try? await socket.value?.cancel()
+            socket.value = nil // Explicitly clear the weak reference
         }
         
         // Clean up
         lock.withLock {
             connectionTasks.removeValue(forKey: playerId)
-            connections.removeValue(forKey: playerId)
+            let removedSocket = connections.removeValue(forKey: playerId)
             playerConfigs.removeValue(forKey: playerId)
+            if debug && removedSocket != nil {
+                print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
+            }
         }
         
         // Stop refresh timer if no more players
@@ -224,25 +263,25 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Start monitoring specified event types for a player
     private func startMonitoring(playerId: String, config: SonosPlayerConfig, socket: SonosWebSocket, events: Set<EventType>) async {
-        let task = Task {
+        let task = Task { [weak self] in
             await withTaskGroup(of: Void.self) { group in
                 for eventType in events {
                     switch eventType {
                     case .volume:
                         group.addTask {
-                            await self.monitorVolume(playerId: playerId, socket: socket)
+                            await self?.monitorVolume(playerId: playerId, socket: socket)
                         }
                     case .groupVolume:
                         group.addTask {
-                            await self.monitorGroupVolume(playerId: playerId, groupId: config.groupId, socket: socket)
+                            await self?.monitorGroupVolume(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .playback:
                         group.addTask {
-                            await self.monitorPlayback(playerId: playerId, groupId: config.groupId, socket: socket)
+                            await self?.monitorPlayback(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .metadata:
                         group.addTask {
-                            await self.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
+                            await self?.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     }
                 }
@@ -262,7 +301,9 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToMetadata(groupId: groupId) else { return }
             
             for try await event in stream {
-                await eventHandler?.onMetadataUpdate(playerId: playerId, event: event)
+                // Safely access eventHandler to avoid crashes if it becomes nil
+                guard let handler = eventHandler else { break }
+                await handler.onMetadataUpdate(playerId: playerId, event: event)
             }
         } catch {
             await notifyError(playerId: playerId, error: error)
@@ -275,7 +316,9 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToPlayback(groupID: groupId) else { return }
             
             for try await event in stream {
-                await eventHandler?.onPlaybackUpdate(playerId: playerId, event: event)
+                // Safely access eventHandler to avoid crashes if it becomes nil
+                guard let handler = eventHandler else { break }
+                await handler.onPlaybackUpdate(playerId: playerId, event: event)
             }
         } catch {
             await notifyError(playerId: playerId, error: error)
@@ -288,7 +331,9 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToPlayerVolume(playerId: playerId) else { return }
             
             for try await event in stream {
-                await eventHandler?.onVolumeUpdate(playerId: playerId, event: event)
+                // Safely access eventHandler to avoid crashes if it becomes nil
+                guard let handler = eventHandler else { break }
+                await handler.onVolumeUpdate(playerId: playerId, event: event)
             }
         } catch {
             await notifyError(playerId: playerId, error: error)
@@ -301,7 +346,9 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToGroupVolume(groupId: groupId) else { return }
             
             for try await event in stream {
-                await eventHandler?.onVolumeUpdate(playerId: playerId, event: event)
+                // Safely access eventHandler to avoid crashes if it becomes nil
+                guard let handler = eventHandler else { break }
+                await handler.onVolumeUpdate(playerId: playerId, event: event)
             }
         } catch {
             await notifyError(playerId: playerId, error: error)
@@ -315,7 +362,10 @@ public final class SonosStreamingService: @unchecked Sendable {
         let count = lock.withLock {
             connections.count
         }
-        await eventHandler?.onConnectionStatusChanged(isConnected: count > 0, connectionCount: count)
+        
+        // Safely access eventHandler to avoid crashes if it becomes nil
+        guard let handler = eventHandler else { return }
+        await handler.onConnectionStatusChanged(isConnected: count > 0, connectionCount: count)
     }
     
     /// Notify event handler of an error
@@ -323,7 +373,10 @@ public final class SonosStreamingService: @unchecked Sendable {
         if debug {
             print("Error for \(playerId): \(error)")
         }
-        await eventHandler?.onError(playerId: playerId, error: error)
+        
+        // Safely access eventHandler to avoid crashes if it becomes nil
+        guard let handler = eventHandler else { return }
+        await handler.onError(playerId: playerId, error: error)
     }
     
     // MARK: - Connection Refresh Timer Management
@@ -361,6 +414,26 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Refresh all connections by disconnecting and reconnecting all players
     private func refreshAllConnections() async {
+        // Prevent concurrent refresh operations
+        let shouldRefresh = lock.withLock {
+            guard !isRefreshing else { return false }
+            isRefreshing = true
+            return true
+        }
+        
+        guard shouldRefresh else {
+            if debug {
+                print("DEBUG: Refresh already in progress, skipping")
+            }
+            return
+        }
+        
+        defer {
+            lock.withLock {
+                isRefreshing = false
+            }
+        }
+        
         if debug {
             print("DEBUG: Refreshing all connections...")
         }
@@ -414,7 +487,7 @@ public final class SonosStreamingService: @unchecked Sendable {
             throw SonosWebSocketError.connectionNotFound
         }
         
-        try await socket.seek(groupID: config.groupId, positionMillis: positionMillis)
+        try await socket.value?.seek(groupID: config.groupId, positionMillis: positionMillis)
     }
     
     /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
@@ -423,11 +496,18 @@ public final class SonosStreamingService: @unchecked Sendable {
             Array(connections.keys)
         }
         
-        await withTaskGroup(of: Void.self) { group in
+        await withTaskGroup(of: Void.self) { [weak self] group in
             for playerId in playerIds {
                 group.addTask {
-                    await self.gracefulRemovePlayer(playerId)
+                    await self?.gracefulRemovePlayer(playerId)
                 }
+            }
+        }
+        
+        // Additional cleanup to ensure all weak references are cleared
+        lock.withLock {
+            for (_, weakSocket) in connections {
+                weakSocket.value = nil
             }
         }
     }
@@ -441,10 +521,10 @@ public final class SonosStreamingService: @unchecked Sendable {
         // Stop refresh timer
         stopConnectionRefreshTimer()
         
-        await withTaskGroup(of: Void.self) { group in
+        await withTaskGroup(of: Void.self) { [weak self] group in
             for playerId in playerIds {
                 group.addTask {
-                    await self.removePlayer(playerId)
+                    await self?.removePlayer(playerId)
                 }
             }
         }
@@ -479,10 +559,10 @@ extension SonosStreamingService {
      *   - configs: Array of player configurations (each containing their own event types to monitor)
      */
     public func addPlayers(_ configs: [SonosPlayerConfig]) async {
-        await withTaskGroup(of: Void.self) { group in
+        await withTaskGroup(of: Void.self) { [weak self] group in
             for config in configs {
-                group.addTask {
-                    await self.addPlayer(config)
+                group.addTask { [ weak self] in
+                    await self?.addPlayer(config)
                 }
             }
         }

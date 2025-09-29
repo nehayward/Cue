@@ -14,7 +14,7 @@ extension SonosMiniService: SonosEventHandler {
                 return
             }
             guard let groupVolume = event.volumeState?.volume else { return }
-            devices[index].groupVolume = Double(groupVolume)
+            updateDevice(devices[index], keyPath: \.groupVolume, value: Double(groupVolume))
         }
     }
     
@@ -53,7 +53,6 @@ extension SonosMiniService: SonosEventHandler {
     }
     
     public func onMetadataUpdate(playerId: String, event: TrackEvent) {
-        print(playerId, event)
         if event.info.type == "metadataStatus", let metadata = event.metadata {
             guard let index = devices.firstIndex(where: { $0.id == playerId }) else {
                 return

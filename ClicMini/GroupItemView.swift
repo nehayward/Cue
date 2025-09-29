@@ -6,11 +6,11 @@ struct GroupItemView: View {
     @Binding var isVisible: Bool
     @Binding var device: SonosDevice
     @State private var hovered: Bool = false
-    @State private var metadataTask: Task<Void, Never>? = nil
     @State private var showing: Bool = false
     @State private var updateTrigger = false
     @State private var timer: Timer?
     @State private var isTimerEnabled = true
+    @State private var miniSettingsService = MiniSettingsService.shared
 
     var body: some View {
         //        let _ = Self._printChanges()
@@ -119,6 +119,12 @@ struct GroupItemView: View {
             .background {
                 RoundedRectangle(cornerRadius: 12)
                     .foregroundStyle(hovered ? Color(nsColor: .systemFill) : Color(nsColor: NSColor.secondarySystemFill))
+                    .overlay {
+                        if miniSettingsService.isSpeakerPinned(id: device.id) {
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.accent.opacity(0.5), lineWidth: 1.5)
+                        }
+                    }
             }
             .geometryGroup()
             .onHover { isHovered in

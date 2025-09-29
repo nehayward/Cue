@@ -65,7 +65,6 @@ final class SonosTrackParser {
             if title.contains("bump_sonic_pre.mp3") {
                 title = ""
             }
-
             
             // If trackID is empty and it's a Sonos service, extract from <res> tag
             if trackID.isEmpty, musicServiceType == .spotify {

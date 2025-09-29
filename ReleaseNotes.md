@@ -2,12 +2,20 @@
 
 –– New Features ––
 - Clic Mini Updated for os 26 with HotKeys
+- Clic Mini has been completely rebuilt for a faster, more reliable, and more responsive experience. Enjoy smoother performance, improved stability, and a more intuitive interface throughout the app.
 - Playback icon now accented when playing
+- Pin Speaker Feature: Pin any speaker to prioritize it for menu bar display and keyboard shortcuts
+- Menu Bar Song Title Toggle: Option to hide/show song titles in the menu bar
+- Enhanced Global Media Controls: Keyboard shortcuts now prioritize pinned speakers
+- Improved Pin Button: Larger tap target for easier interaction
 
 –– Bug Fixes & Improvements ––
 - More improvements for os 26
 - Update MarqueeText for better performance
 - Improved Clic Mini Performance
+- Enhanced Settings View: Added pinned speaker management and clearer keyboard shortcut descriptions
+- Visual Feedback: Pinned speakers now show subtle accent border for better identification
+- Persistent Settings: Pin preferences and menu bar display options saved between app launches
 
 # 2025.14
 

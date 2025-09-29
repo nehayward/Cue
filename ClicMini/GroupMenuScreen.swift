@@ -187,12 +187,31 @@ struct GroupMenuScreen: View {
 
 struct GroupHeader: View {
     let device: SonosDevice
+    @State private var miniSettingsService = MiniSettingsService.shared
     
     var body: some View {
         HStack {
             Text(device.nameWithCount)
+            
+            Spacer()
+            
+            // Pin button
+            Button {
+                if miniSettingsService.isSpeakerPinned(id: device.id) {
+                    miniSettingsService.unpinSpeaker()
+                } else {
+                    miniSettingsService.pinSpeaker(id: device.id)
+                }
+            } label: {
+                Image(systemName: miniSettingsService.isSpeakerPinned(id: device.id) ? "pin.fill" : "pin")
+                    .foregroundStyle(miniSettingsService.isSpeakerPinned(id: device.id) ? AnyShapeStyle(.accent.gradient) : AnyShapeStyle(.secondary))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(miniSettingsService.isSpeakerPinned(id: device.id) ? "Unpin from menu bar" : "Pin to menu bar")
+            
             if let battery = device.battery {
-                Spacer()
                 Text((battery.percentage / 100), format: .percent)
                     .foregroundStyle(.secondary)
                 if battery.chargingState == .charging {

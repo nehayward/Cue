@@ -115,7 +115,7 @@ public final class SonosMiniService {
     }
     
     @MainActor
-    private func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
+    internal func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
         guard let index = self.devices.firstIndex(where: { $0.id == device.id }) else { return }
         if self.devices[index][keyPath: keyPath] != value {
             self.devices[index][keyPath: keyPath] = value
@@ -498,7 +498,7 @@ public final class SonosMiniService {
                 guard let self else { return }
                 try? await updateMuteState(for: devices)
             }
-            for device in devices.filter(\.isVisible) {
+            for device in devices {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
                     async let playbackInfo = getPlaybackInfo(ip: device.ip)
