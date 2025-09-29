@@ -19,6 +19,9 @@ struct MiniSettingsView: View {
             Toggle("Show song title in menu bar", isOn: $settingsService.showSongTitleInMenuBar)
                 .toggleStyle(.switch)
             
+            Toggle("Show track change notifications", isOn: $settingsService.showTrackChangeHUD)
+                .toggleStyle(.switch)
+            
             Section("Pinned Speaker") {
                 VStack(alignment: .leading, spacing: 8) {
                     if let pinnedId = settingsService.pinnedSpeakerId,
@@ -99,7 +102,7 @@ struct MiniSettingsView: View {
 //            .padding()
 
         }
-        .frame(width: 400, height: 480)
+        .frame(width: 400, height: 700)
         .formStyle(.grouped)
     }
 }

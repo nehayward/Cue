@@ -2,6 +2,18 @@ import SwiftUI
 import SonosKitMini
 import KeyboardShortcuts
 
+@MainActor
+@Observable
+final class MenuVisibilityService {
+    static let shared = MenuVisibilityService()
+    private(set) var isMenuVisible = false
+    private init() {}
+    
+    func setMenuVisible(_ visible: Bool) {
+        isMenuVisible = visible
+    }
+}
+
 @main
 struct ClicMiniApp: App {
     private let globalMediaControlService = GlobalMediaControlService.shared
@@ -12,6 +24,23 @@ struct ClicMiniApp: App {
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
             let statusItem = NSApp.windows.first?.value(forKey: "statusItem") as? NSStatusItem
             statusItem?.button?.performClick(nil)
+        }
+        
+        // Set up track change callback to show HUD
+        sonosServiceMini.onTrackChanged = { group, track in
+            Task { @MainActor in
+                // Only show HUD if setting is enabled and menu is not visible
+                if MiniSettingsService.shared.showTrackChangeHUD && !MenuVisibilityService.shared.isMenuVisible {
+                    HudWindowManager.shared.extendVisibility()
+                    
+                    // Show track change indicator
+                    HudWindowManager.shared.showMediaIndicator(
+                        speakerName: group.nameWithCount,
+                        action: .nextTrack(trackName: track.name, imageURL: track.sonosAlbumArtURL),
+                        isPlaying: true
+                    )
+                }
+            }
         }
         
         #if DEBUG

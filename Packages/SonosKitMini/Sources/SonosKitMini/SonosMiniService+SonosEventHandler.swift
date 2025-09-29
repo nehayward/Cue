@@ -60,18 +60,19 @@ extension SonosMiniService: SonosEventHandler {
             if let track = event.metadata?.currentItem?.track {
                 if let trackID = track.id {
                     Task {
-//                        guard trackID.objectId != devices[index].trackID else {
-//                            if let duration = track.durationMillis {
-//                                devices[index].track.duration = .milliseconds(duration)
-//                            }
-//                            return
-//                        }
-//                        try? await updateDevices(from: [devices[index]])
                         if let duration = track.durationMillis {
                             devices[index].totalDuration = duration
                         }
-                        try? await updateTracks(for: [devices[index]])
-
+                        let device = devices[index]
+                        // Only trigger for playing devices to avoid showing HUD for all grouped devices
+                        if device.isPlaying, device.track.name != track.name {
+                            try? await updateTracks(for: [devices[index]])
+                            await MainActor.run {
+                                onTrackChanged?(device, device.track)
+                            }
+                        } else {
+                            try? await updateTracks(for: [devices[index]])
+                        }
                     }
                 }
             }

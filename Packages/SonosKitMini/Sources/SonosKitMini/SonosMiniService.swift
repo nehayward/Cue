@@ -44,6 +44,8 @@ public final class SonosMiniService {
     
 //    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
 //    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
+    // Callback for track changes
+    @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG

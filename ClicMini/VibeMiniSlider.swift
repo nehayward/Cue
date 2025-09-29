@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Preference key for tracking width changes efficiently
+private struct WidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// A custom slider view that provides a visual and interactive representation of a value within a range.
 public struct VibeMiniSlider: View {
     @Environment(\.isEnabled) private var isEnabled
@@ -9,11 +17,8 @@ public struct VibeMiniSlider: View {
     @State private var width = 0.0
     @State private var isDragging: Bool = false
     @State private var startingValue: Double?
-    @State private var onEditingChangedTask: Task<Void, Error> = Task { }
-    @State private var onHover: Bool = false
     @State private var isTouched: Bool = false
     @State private var isHovered: Bool = false
-    @State private var mouseLocation: CGPoint = .zero
     
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
@@ -63,18 +68,19 @@ public struct VibeMiniSlider: View {
                 .background {
                     GeometryReader { proxy in
                         Color.clear
-                            .onChange(of: proxy.size.width, initial: true) {
-                                width = proxy.size.width
-                            }
+                            .preference(key: WidthPreferenceKey.self, value: proxy.size.width)
+                    }
+                }
+                .onPreferenceChange(WidthPreferenceKey.self) { newWidth in
+                    if width != newWidth {
+                        width = newWidth
                     }
                 }
 //                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
-                .foregroundStyle(
-                    .quaternary
-                        .shadow(.inner(color: .black.opacity(0.3), radius: 3.0, y: 2.0))
-                )
-                .shadow(color: .white.opacity(0.2), radius: 1, y: 1)
+                .foregroundStyle(.quaternary)
+                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
+                .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
                 .overlay(alignment: .leading) {
                     ZStack(alignment: .leading) {
                         Capsule()
@@ -136,17 +142,10 @@ public struct VibeMiniSlider: View {
 #endif
 #if !os(watchOS) && !os(macOS)
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovered = hovering
-            }
-        }
-        .onContinuousHover { phase in
-            switch phase {
-            case .active(let location):
-                mouseLocation = location
-            case .ended:
-                mouseLocation = .zero
-                break
+            if isHovered != hovering {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isHovered = hovering
+                }
             }
         }
 #endif
@@ -192,12 +191,15 @@ public struct VibeMiniSlider: View {
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
     
     private func calculateProgressWidth() -> CGFloat {
+        guard width > 0, range.upperBound > 0 else { return 0 }
         let calculatedWidth = (value / range.upperBound) * width
         return max(0, calculatedWidth)
     }
     
     private var offsetForValue: Double {
-        min(max(0, calculateProgressWidth() - 28), width - 28)
+        guard width > 0 else { return 0 }
+        let progressWidth = calculateProgressWidth()
+        return min(max(0, progressWidth - 28), width - 28)
     }
 }
 

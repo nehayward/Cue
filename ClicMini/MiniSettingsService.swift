@@ -29,6 +29,11 @@ final class MiniSettingsService {
             UserDefaults.standard.set(showSongTitleInMenuBar, forKey: "showSongTitleInMenuBar")
         }
     }
+    var showTrackChangeHUD: Bool = true {
+        didSet {
+            UserDefaults.standard.set(showTrackChangeHUD, forKey: "showTrackChangeHUD")
+        }
+    }
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -55,6 +60,14 @@ final class MiniSettingsService {
         } else {
             showSongTitleInMenuBar = true
             UserDefaults.standard.set(showSongTitleInMenuBar, forKey: "showSongTitleInMenuBar")
+        }
+        
+        // Load showTrackChangeHUD, defaulting to true if not set
+        if UserDefaults.standard.object(forKey: "showTrackChangeHUD") != nil {
+            showTrackChangeHUD = UserDefaults.standard.bool(forKey: "showTrackChangeHUD")
+        } else {
+            showTrackChangeHUD = true
+            UserDefaults.standard.set(showTrackChangeHUD, forKey: "showTrackChangeHUD")
         }
     }
     

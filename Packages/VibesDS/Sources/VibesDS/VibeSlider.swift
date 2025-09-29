@@ -71,11 +71,9 @@ public struct VibeSlider: View {
                 }
 //                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
-                .foregroundStyle(
-                    .quaternary
-                        .shadow(.inner(color: .black.opacity(0.3), radius: 3.0, y: 2.0))
-                )
-                .shadow(color: .white.opacity(0.2), radius: 1, y: 1)
+                .foregroundStyle(.quaternary)
+                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
+                .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
                 .overlay(alignment: .leading) {
                     ZStack(alignment: .leading) {
                         Capsule()

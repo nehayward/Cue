@@ -7,6 +7,7 @@ import Kingfisher
 
 struct GroupMenuScreen: View {
     @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var menuVisibilityService = MenuVisibilityService.shared
     @State private var isLoading: Bool = false
     @State private var hoveredSceneId: String?
     @State private var scenes: [SonosScene] = []
@@ -40,9 +41,11 @@ struct GroupMenuScreen: View {
             }
             .onAppear {
                 isVisible = true
+                menuVisibilityService.setMenuVisible(true)
             }
             .onDisappear {
                 isVisible = false
+                menuVisibilityService.setMenuVisible(false)
             }
     }
     
