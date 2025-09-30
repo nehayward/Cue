@@ -145,12 +145,23 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .airplay, .unknown:
             EmptyView()
         case .plex, .tidal, .tuneIn, .soundcloud, .spotify:
+#if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.sonosRawValue.capitalized, in: .musicSearchKitBundle, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
+#else
             SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor)
                 .tint(brandColor)
+#endif
         }
     }
     
@@ -177,3 +188,19 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 }
+
+#if canImport(UIKit) && !os(watchOS)
+import UIKit
+
+extension UIImage {
+    func resized(to size: CGSize, scale: CGFloat = UIScreen.main.scale) -> UIImage {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+}
+#endif

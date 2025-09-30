@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 71;
+	objectVersion = 73;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -312,6 +312,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Marquee/marquee.metal,
 			);
 			target = E9BDE56B29E3396700D230A8 /* Clic */;
 		};
@@ -327,6 +328,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Marquee/marquee.metal,
 			);
 			target = E97562C82B699B2400787E14 /* Clic (Mac) */;
 		};
@@ -334,6 +336,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Marquee/marquee.metal,
 				SubscriptionDetailScreen.swift,
 			);
 			target = E92B3E862B60249B00724FA1 /* Clic (Vision) */;
@@ -511,11 +514,42 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		01676CD92E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E9BDE56A29E3396700D230A8 /* Resources */;
+			membershipExceptions = (
+				Marquee/marquee.metal,
+			);
+		};
+		01676CDA2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E97563372B699B2400787E14 /* Resources */;
+			membershipExceptions = (
+				Marquee/marquee.metal,
+			);
+		};
+		01676CDB2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = E92B3EEF2B60249B00724FA1 /* Resources */;
+			membershipExceptions = (
+				Marquee/marquee.metal,
+			);
+		};
+		01676CDC2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 01CB34102DC4F851006406B6 /* Resources */;
+			membershipExceptions = (
+				Marquee/marquee.metal,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		010855CA2D15FB9F00DD9B84 /* Packages */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Packages; sourceTree = "<group>"; };
 		01C129702D0CB4E9009F9E90 /* ClicMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicMini; sourceTree = "<group>"; };
 		01CB341F2DC4FA46006406B6 /* TV */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TV; sourceTree = "<group>"; };
-		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
+		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CD92E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDA2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDB2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDC2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
 		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
 		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
@@ -1053,7 +1087,6 @@
 				};
 			};
 			buildConfigurationList = E9BDE56729E3396700D230A8 /* Build configuration list for PBXProject "Clic" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -1073,6 +1106,7 @@
 				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
 			);
+			preferredProjectObjectVersion = 56;
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";

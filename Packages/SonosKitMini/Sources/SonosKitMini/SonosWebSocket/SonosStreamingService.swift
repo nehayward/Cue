@@ -264,23 +264,23 @@ public final class SonosStreamingService: @unchecked Sendable {
     /// Start monitoring specified event types for a player
     private func startMonitoring(playerId: String, config: SonosPlayerConfig, socket: SonosWebSocket, events: Set<EventType>) async {
         let task = Task { [weak self] in
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup { group in
                 for eventType in events {
                     switch eventType {
                     case .volume:
-                        group.addTask {
+                        group.addTask { [weak self] in
                             await self?.monitorVolume(playerId: playerId, socket: socket)
                         }
                     case .groupVolume:
-                        group.addTask {
+                        group.addTask { [weak self] in
                             await self?.monitorGroupVolume(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .playback:
-                        group.addTask {
+                        group.addTask { [weak self] in
                             await self?.monitorPlayback(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .metadata:
-                        group.addTask {
+                        group.addTask { [weak self] in
                             await self?.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     }

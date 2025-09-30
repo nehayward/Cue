@@ -26,15 +26,15 @@ extension SonosMiniService: SonosEventHandler {
             //            guard let groupVolume = event.playbackState?.playbackState =
             //            devices[index].groupVolume = Double(groupVolume)
             if playbackState.playbackState == "PLAYBACK_STATE_PLAYING" {
-                devices[index].isPlaying = true
+                updateDevice(devices[index], keyPath: \.isPlaying, value: true)
+
             }
             if playbackState.playbackState == "PLAYBACK_STATE_PAUSED" {
-                devices[index].isPlaying = false
+                updateDevice(devices[index], keyPath: \.isPlaying, value: false)
             }
             
-            devices[index].currentPosition  = playbackState.positionMillis
-            devices[index].lastPositionUpdate = Date()
-            
+            updateDevice(devices[index], keyPath: \.currentPosition, value: playbackState.positionMillis)
+            updateDevice(devices[index], keyPath: \.lastPositionUpdate, value: .now)
             //            devices[index].test = Double(playbackState.positionMillis)
             //            players[playerId]?.lastPositionUpdate = Date() // Update timestamp for smooth animation
         }
@@ -61,7 +61,7 @@ extension SonosMiniService: SonosEventHandler {
                 if let trackID = track.id {
                     Task {
                         if let duration = track.durationMillis {
-                            devices[index].totalDuration = duration
+                            updateDevice(devices[index], keyPath: \.totalDuration, value: duration)
                         }
                         let device = devices[index]
                         // Only trigger for playing devices to avoid showing HUD for all grouped devices

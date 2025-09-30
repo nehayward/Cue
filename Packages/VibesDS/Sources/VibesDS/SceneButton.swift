@@ -63,6 +63,10 @@ public struct SceneButton: View {
                                 .frame(width: 44, height: 44)
                         }
                     }
+                    .processors([
+                        .resize(width: 12),
+                        .circle()
+                    ])
                 }
             }
         }

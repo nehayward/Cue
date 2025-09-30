@@ -246,7 +246,7 @@ struct MediaDetailView: View {
         .task {
             await updateTracks(offset: tracks.count)
         }
-        .listStyle(.plain)
+        .listStyle(.sidebar)
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

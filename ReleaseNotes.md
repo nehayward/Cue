@@ -11,6 +11,9 @@
 
 –– Bug Fixes & Improvements ––
 - More improvements for os 26
+- Resolved issue with oversized icons on Mac Catalyst
+- Corrected album details display on OS 26
+- Restored missing music service icons
 - Update MarqueeText for better performance
 - Improved Clic Mini Performance
 - Enhanced Settings View: Added pinned speaker management and clearer keyboard shortcut descriptions

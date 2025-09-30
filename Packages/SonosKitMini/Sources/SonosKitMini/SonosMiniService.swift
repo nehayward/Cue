@@ -6,9 +6,10 @@ import os
 
 
 @Observable
+@MainActor
 public final class SonosMiniService {
     public static var shared = SonosMiniService()
-    
+
     public var devices: [SonosDevice] = []
     
     public var activeDevices: [SonosDevice] {
@@ -57,50 +58,6 @@ public final class SonosMiniService {
     }
     
     @ObservationIgnored lazy var streamingService = SonosStreamingService(eventHandler: self)
-
-    
-    //
-    //    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
-    //    @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
-    //
-    //    public var systemState = SonosSystemState()
-    //    public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
-    //    public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
-    //    public var state: String { sonosSystemDiscoverService.lastKnownState }
-    //    public var preferredHouseHold: String? {
-    //        get {
-    //            sonosSystemDiscoverService.preferredHouseHold
-    //        }
-    //        set {
-    //            sonosSystemDiscoverService.preferredHouseHold = newValue
-    //        }
-    //    }
-    //
-    //    public var parserError: String?
-    //
-    //    @ObservationIgnored public var monitorTask: Task<Void, Error> = Task { }
-    //    @ObservationIgnored public var sonosPulse: Task<Void, Error> = Task { }
-    //    @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
-    //    @ObservationIgnored public var isEditing: Bool = false
-    //    @ObservationIgnored public var isGrouping: Bool = false
-    //
-    //    public var devicesChanged: (([GroupRoom]) -> ()) = { _ in }
-    //
-    //    public init () {
-    //        sonosPulse.cancel()
-    //    }
-    //
-    //    public var system: System?
-    
-    //    public var primaryHouseID: String? { sonosSystemDiscoverService.houseHoldIDs.first }
-    //    public var houseIDs: Set<String> { sonosSystemDiscoverService.houseHoldIDs }
-    //
-    
-    public var watchMonitorRunning: Bool { !watchMonitor.isCancelled }
-    
-    
-    @ObservationIgnored public var watchMonitor: Task<Void, Error> = Task { }
-    
     
     public func updateHousehold() async throws {
         let newDevices = try await getDevices(useCache: true)
@@ -118,36 +75,12 @@ public final class SonosMiniService {
     
     @MainActor
     internal func updateDevice<T: Equatable>(_ device: SonosDevice, keyPath: WritableKeyPath<SonosDevice, T>, value: T) {
-        guard let index = self.devices.firstIndex(where: { $0.id == device.id }) else { return }
-        if self.devices[index][keyPath: keyPath] != value {
-            self.devices[index][keyPath: keyPath] = value
+        guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return }
+        if devices[index][keyPath: keyPath] != value {
+            devices[index][keyPath: keyPath] = value
         }
     }
-    
-    private init() {
-        watchMonitor.cancel()
-    }
-    
-//    func setupListeners() {
-//        sonosMonitor.listener.eventHandler = { [weak self] event, deviceID in
-//            Task { [weak self] in
-//                guard let self else { return }
-//                await updateEvent(for: deviceID, event: event)
-//            }
-//        }
-//        
-//        sonosMonitor.listener.zoneManagementHandler = { [weak self] event in
-//            Task { [weak self] in
-//                guard let self else { return }
-//                updateZone(event: event)
-//            }
-//        }
-//    }
-//    
-//    func stopListen() {
-//        sonosMonitor.listener.stop()
-//    }
-//    
+
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
             print(deviceID, newID)
@@ -408,87 +341,7 @@ public final class SonosMiniService {
         await streamingService.addPlayers(configs)
 
     }
-    
-    @MainActor
-    public func updateDeviceInfo(for updatedDevices: [SonosDevice]) {
-        for device in updatedDevices {
-            guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return }
-            
-        }
-    }
-    
-    public nonisolated func monitorWatch(retry: Bool = true, useCache: Bool = true) {
-        if watchMonitorRunning { return }
-        print("Watch Monitoring!")
-        
-        //        self.watchMonitor = Task { [weak self] in
-        //            guard let self else { return }
-        //            repeat {
-        //                // MARK: Update room volumes
-        //                if let selectedGroup {
-        //                    try? await Task.sleep(for: .milliseconds(1000))
-        //                    let nonSelectedGroup = groups.filter { $0 != selectedGroup }
-        //                    try await updateGroups(from: nonSelectedGroup)
-        //                    await updateGroupCheckTVMode(from: nonSelectedGroup)
-        //                    await updateGroupMuteState(for: nonSelectedGroup)
-        //                    await updateGroupsRooms(from: nonSelectedGroup)
-        //                } else {
-        //                    try? await Task.sleep(for: .milliseconds(1000))
-        //                }
-        //            } while (!watcher.isCancelled)
-        //        }
-        
-        self.watchMonitor = Task { [weak self] in
-            guard let self else { return }
-            var useCache = useCache
-            var retry = retry
-            repeat {
-                do {
-                    //                    systemState.systemNotFound = false
-                    //                    systemState.systemPermissionDenied = false
-                    //                    if isEditing {
-                    //                        try? await Task.sleep(for: .milliseconds(500))
-                    //                        continue
-                    //                    }
-                    //                    // MARK: Update room volumes
-                    //                    try? await Task.sleep(for: .milliseconds(selectedGroup != nil ? 500 : 800))
-                    try await Task.sleep(for: .seconds(10))
-                    try await loadWatch(useCache: useCache)
-                    useCache = true
-                    //                } catch SonosServiceError.permissionDenied {
-                    //                    print("Permission")
-                    //                    systemState.systemPermissionDenied = true
-                    //                    sonosPulse.cancel()
-                    //                } catch SonosServiceError.parseError(let xml) {
-                    //                    parserError = xml
-                    //                    guard retry else {
-                    //                        print("System not found")
-                    //                        systemState.systemNotFound = true
-                    //                        sonosPulse.cancel()
-                    //                        return
-                    //                    }
-                    //                    // MARK: Invalidate Cache
-                    //                    useCache = false
-                    //                    retry = false
-                    //                }  catch SonosServiceError.sonosSystemNotFound {
-                    //                    guard retry else {
-                    //                        print("System not found")
-                    //                        systemState.systemNotFound = true
-                    //                        sonosPulse.cancel()
-                    //                        return
-                    //                    }
-                    //                    // MARK: Invalidate Cache
-                    //                    useCache = false
-                    //                    retry = false
-                } catch {
-                    print(error)
-                    watchMonitor.cancel()
-                    print(#function, error)
-                }
-            } while (!watchMonitor.isCancelled)
-        }
-    }
-    
+
     @MainActor
     public func updateWatchDevices(from devices: [SonosDevice]) async throws {
         try await withThrowingDiscardingTaskGroup { taskGroup in
@@ -533,11 +386,11 @@ public final class SonosMiniService {
             for device in incomingDevices ?? devices {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
-                    guard let index = devices.firstIndex(where: { $0.id == device.id }) else {
+                    guard let index = await devices.firstIndex(where: { $0.id == device.id }) else {
                         return
                     }
                     if let volume = try? await getVolume(ip: device.ip) {
-                        devices[index].volume = Int(volume)
+                        await updateDevice(devices[index], keyPath: \.volume, value: Int(volume))
                     }
                     return
                 }
@@ -550,11 +403,11 @@ public final class SonosMiniService {
             for device in incomingDevices ?? devices {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
-                    guard let index = devices.firstIndex(where: { $0.id == device.id }) else {
+                    guard let index = await devices.firstIndex(where: { $0.id == device.id }) else {
                         return
                     }
                     if let groupVolume = try? await api.getGroupVolume(ipAddress: device.ip) {
-                        devices[index].groupVolume = device.groupVolume
+                        await updateDevice(devices[index], keyPath: \.groupVolume, value: groupVolume)
                     }
                     return
                 }
@@ -567,11 +420,11 @@ public final class SonosMiniService {
             for device in incomingDevices ?? devices {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
-                    guard let index = devices.firstIndex(where: { $0.id == device.id }) else {
+                    guard let index = await devices.firstIndex(where: { $0.id == device.id }) else {
                         return
                     }
                     if let isMuted = await api.getDeviceMute(IP: device.ip) {
-                        devices[index].isMuted = isMuted
+                        await updateDevice(devices[index], keyPath: \.isMuted, value: isMuted)
                     }
                     return
                 }
@@ -613,19 +466,27 @@ public final class SonosMiniService {
                     
                     if awaitedTrack.trackURI.contains("rincon") {
                         guard let groupWithId = awaitedTrack.trackURI.components(separatedBy: ":").last else { return }
-                        guard let index = devices.firstIndex(where: { $0.id == groupWithId }) else { return }
-                        guard let newIndex = devices.firstIndex(where: { $0.id == device.id }) else { return }
-                        if devices[index].rooms.contains(where: { $0.id == device.id }) {
+                        guard let index = await devices.firstIndex(where: { $0.id == groupWithId }) else { return }
+                        guard let newIndex = await devices.firstIndex(where: { $0.id == device.id }) else { return }
+                        if await devices[index].rooms.contains(where: { $0.id == device.id }) {
                             return
                         }
-                        if let removalIndex = devices[index].rooms.firstIndex(where: { $0.id == device.id }) {
-                            devices[index].rooms.remove(at: removalIndex)
+                        
+                        if let removalIndex = await devices[index].rooms.firstIndex(where: { $0.id == device.id }) {
+                            var rooms = await devices[index].rooms
+                            rooms.remove(at: removalIndex)
+                            await updateDevice(devices[index], keyPath: \.rooms, value: rooms)
                         }
-                        devices[index].rooms.append(devices[newIndex])
+                        
+                        var rooms = await devices[index].rooms
+                        rooms.append(await devices[newIndex])
+                        await updateDevice(devices[index], keyPath: \.rooms, value: rooms)
                     } else {
-                        for (offset, _) in devices.enumerated() {
-                            guard let removalIndex = devices[offset].rooms.firstIndex(where: { $0.id == device.id }) else { continue }
-                            devices[offset].rooms.remove(at: removalIndex)
+                        for (offset, _) in await devices.enumerated() {
+                            guard let removalIndex = await devices[offset].rooms.firstIndex(where: { $0.id == device.id }) else { continue }
+                            var rooms = await devices[offset].rooms
+                            rooms.remove(at: removalIndex)
+                            await updateDevice(devices[offset], keyPath: \.rooms, value: rooms)
                         }
                     }
                     return
@@ -640,15 +501,14 @@ public final class SonosMiniService {
             for device in newDevices.filter(\.isVisible) {
                 taskGroup.addTask { [weak self] in
                     guard let self else { return }
-                    guard let index = devices.firstIndex(where: { $0.id == device.id }) else {
+                    guard let index = await devices.firstIndex(where: { $0.id == device.id }) else {
                         assertionFailure()
                         return
                     }
                     
                     if let isMuted = await api.getGroupMute(IP: device.ip) {
-                        devices[index].groupIsMuted = isMuted
+                        await updateDevice(devices[index], keyPath: \.groupIsMuted, value: isMuted)
                     }
-        
                     return
                 }
             }
@@ -1244,11 +1104,11 @@ public final class SonosMiniService {
     //    }
     //
     public func getDevices(useCache: Bool) async throws -> [SonosDevice] {
-        print(cachedIP)
         let devices = try await api.getDevices(ipAddress: cachedIP)
         return devices
     }
     
+    @MainActor
     public func updateDevices(useCache: Bool = true) async throws {
         let newDevices = try await api.getDevices(ipAddress: cachedIP)
         let newDeviceIDs = newDevices.map({ $0.id })

@@ -306,7 +306,6 @@ struct ArtistDetailView: View {
                 
             }
         }
-        .miniPlayerOnScrollHandler()
         .listStyle(.sidebar)
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)

@@ -22,8 +22,14 @@ struct ClicMiniApp: App {
 
     init() {
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
-            let statusItem = NSApp.windows.first?.value(forKey: "statusItem") as? NSStatusItem
-            statusItem?.button?.performClick(nil)
+            guard let statusItem = NSApp.windows.first(where: { window in
+                (window.value(forKey: "statusItem") as? NSStatusItem) != nil
+            })?.value(forKey: "statusItem") as? NSStatusItem,
+                  let button = statusItem.button else {
+                // Could not find statusItem or its button; safely do nothing
+                return
+            }
+            button.performClick(nil)
         }
         
         // Set up track change callback to show HUD

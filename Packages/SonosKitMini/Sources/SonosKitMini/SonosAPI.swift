@@ -342,7 +342,7 @@ final class SonosAPI {
         ]
 
         guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetTransportInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-            return .paused
+            return .transitioning
         }
 
         let xml = String(decoding: data, as: UTF8.self)

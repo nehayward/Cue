@@ -13,24 +13,17 @@ public struct PlaybackIconView: View {
     }
     
     public var body: some View {
-        if #available(iOS 26.0, watchOS 26.0, macOS 26, *) {
-            Image(systemName: isPlaying ? "pause.circle" : "play.circle", variableValue: value/total)
-                .contentTransition(.symbolEffect(.automatic))
-                .symbolVariableValueMode(.draw)
-                .foregroundStyle(isPlaying ? Color.primary : .secondary, isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
-        } else {
-            VibeGaugeView(value: value, total: total, color: .primary, lineWidth: 2.5)
-                .overlay(alignment: .center) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
-                        .contentTransition(.symbolEffect(.replace))
-                        .frame(width: 24, height: 24, alignment: .center)
-                        .padding(.leading, !isPlaying ? 2 : 0)
-                }
-                .frame(width: 32, height: 32)
-        }
+        VibeGaugeView(value: value, total: total, color: isPlaying ? Color.primary : Color.secondary, lineWidth: 2.5)
+            .overlay(alignment: .center) {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(isPlaying ? AnyShapeStyle(Color.accentColor.gradient) : AnyShapeStyle(Color.secondary))
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 12, height: 12, alignment: .center)
+                    .padding(.leading, !isPlaying ? 2 : 0)
+            }
+            .frame(width: 24, height: 24)
     }
 }
 

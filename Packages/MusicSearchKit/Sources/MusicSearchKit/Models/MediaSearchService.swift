@@ -1,5 +1,11 @@
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
+
 public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case apple
     case library
@@ -66,12 +72,42 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: "books.vertical.fill")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        case .tuneIn, .soundcloud:
+            #if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+            #else
+            SwiftUI.Image(self.title, bundle: .module)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+            #endif
         default:
+            #if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.rawValue.capitalized, in: .module, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+            #else
             SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .foregroundStyle(brandColor.gradient)
+            #endif
         }
     }
 
@@ -88,11 +124,42 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
-        default:
-            SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
+        case .tuneIn, .soundcloud:
+#if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.title, in: .module, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
+#else
+            SwiftUI.Image(self.title, bundle: .module)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+#endif
+        default:
+#if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.rawValue.capitalized, in: .module, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(brandColor.gradient)
+#else
+            SwiftUI.Image(self.rawValue.capitalized, bundle: .module)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+#endif
         }
     }
     
@@ -115,3 +182,18 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         }
     }
 }
+
+
+#if canImport(UIKit) && !os(watchOS)
+extension UIImage {
+    func resized(to size: CGSize, scale: CGFloat = UIScreen.main.scale) -> UIImage {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+}
+#endif

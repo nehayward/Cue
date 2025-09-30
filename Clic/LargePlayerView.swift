@@ -78,7 +78,7 @@ struct LargePlayerView: View {
                     .font(.caption.smallCaps())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                MarqueeText(group.coordinatorRoom.track.song, font: .title2)
+                MarqueeText(group.coordinatorRoom.track.song)
                     .bold()
                     .multilineTextAlignment(.center)
                     .fontDesign(.rounded)

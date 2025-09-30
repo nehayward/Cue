@@ -94,11 +94,12 @@ extension View {
                             .addDismiss {
                                 sheetDestinations.wrappedValue = nil
                             }
-                            .miniPlayerOnScrollHandler()
                     }
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
                     .safeArea(edge: .bottom) {
                         MiniPlayerView()
                     }
+#endif
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)
                     .environment(selectedGroupService)
@@ -116,9 +117,11 @@ extension View {
                             }
                     }
                     .miniPlayerOnScrollHandler()
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
                     .safeArea(edge: .bottom) {
                         MiniPlayerView()
                     }
+#endif
                     .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .environment(router)

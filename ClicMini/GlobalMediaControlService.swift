@@ -197,16 +197,17 @@ final class GlobalMediaControlService {
     private func getPlayingGroup() async -> SonosDevice? {
         // Check if there's a pinned speaker first
         if let pinnedId = await MiniSettingsService.shared.pinnedSpeakerId,
-           let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
+           let pinnedDevice = await SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
             return pinnedDevice
         }
         
         // Fall back to the original logic
         guard let id = await SonosMiniService.shared.getNowPlayingID() else { return nil }
-        guard let group = SonosMiniService.shared.devices.first(where: { $0.id == id }) else { return nil }
+        guard let group = await SonosMiniService.shared.devices.first(where: { $0.id == id }) else { return nil }
         return group
     }
     
+    @MainActor
     private func updateVolume(for device: SonosDevice) async {
         guard let index = SonosMiniService.shared.devices.firstIndex(where: { $0.id == device.id }) else { return }
         guard let groupVolume = try? await SonosMiniService.shared.getGroupVolume(ip: device.ip) else { return }
