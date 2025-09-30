@@ -11,6 +11,7 @@ struct GroupItemView: View {
     @State private var timer: Timer?
     @State private var isTimerEnabled = true
     @State private var miniSettingsService = MiniSettingsService.shared
+    @State private var sonosServiceMini = SonosMiniService.shared
 
     var body: some View {
         //        let _ = Self._printChanges()
@@ -130,6 +131,56 @@ struct GroupItemView: View {
             .onHover { isHovered in
                 hovered = isHovered
             }
+            .contextMenu {
+                groupingMenu
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var groupingMenu: some View {
+        if device.allDevices.count > 1 {
+            Button {
+                Task {
+                    await SonosMiniService.shared.ungroup(device: device)
+                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await SonosMiniService.shared.load(useCache: false)
+                }
+            } label: {
+                Label("Ungroup", systemImage: "hifispeaker.badge.minus.fill")
+                    .symbolVariant(.slash)
+            }
+            
+            Divider()
+        }
+        
+        Menu {
+            ForEach(availableDevicesToGroup) { availableDevice in
+                Button {
+                    Task {
+                        await SonosMiniService.shared.group(rooms: [availableDevice], to: device.id)
+                        try? await Task.sleep(for: .milliseconds(500))
+                        try? await SonosMiniService.shared.load(useCache: false)
+                    }
+                } label: {
+                    Text(availableDevice.name)
+                }
+            }
+        } label: {
+            Label("Group with…", systemImage: "hifispeaker.arrow.forward.fill")
+        }
+        .disabled(availableDevicesToGroup.isEmpty)
+        
+        Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
+            Label("Open in Clic…", systemImage: "arrow.up.forward")
+        }
+    }
+    
+    private var availableDevicesToGroup: [SonosDevice] {
+        sonosServiceMini.sortedNowPlaying.filter { otherDevice in
+            // Don't include the current device or devices already in this group
+            otherDevice.id != device.id &&
+            !device.allDevices.contains(where: { $0.id == otherDevice.id })
         }
     }
     

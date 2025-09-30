@@ -1,6 +1,7 @@
 # 2025.15
 
 –– New Features ––
+- Introduced speaker grouping in Clic Mini: Easily group and ungroup speakers directly from the menu bar, with instant feedback and improved reliability. Grouping actions now update in real time and are accessible via the context menu for each device.
 - Clic Mini Updated for os 26 with HotKeys
 - Clic Mini has been completely rebuilt for a faster, more reliable, and more responsive experience. Enjoy smoother performance, improved stability, and a more intuitive interface throughout the app.
 - Playback icon now accented when playing

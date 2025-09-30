@@ -9,7 +9,7 @@ import os
 @MainActor
 public final class SonosMiniService {
     public static var shared = SonosMiniService()
-
+    
     public var devices: [SonosDevice] = []
     
     public var activeDevices: [SonosDevice] {
@@ -43,31 +43,31 @@ public final class SonosMiniService {
         }
     }
     
-//    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
-//    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
+    //    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
+    //    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
     // Callback for track changes
     @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private var cachedIP: String {
 #if DEBUG
-            return "192.168.4.153"
+        return "192.168.4.153"
 #else
         NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip") ?? ""
 #endif
-
+        
     }
     
     @ObservationIgnored lazy var streamingService = SonosStreamingService(eventHandler: self)
     
     public func updateHousehold() async throws {
         let newDevices = try await getDevices(useCache: true)
-
+        
         // MARK: Update Battery Info
         for device in newDevices.filter({ $0.battery != nil }) {
             guard let index = devices.firstIndex(of: device) else { continue }
             devices[index].battery = device.battery
         }
-
+        
         if !newDevices.isEmpty && Set(newDevices) != Set(self.devices) {
             self.devices = newDevices
         }
@@ -80,7 +80,7 @@ public final class SonosMiniService {
             devices[index][keyPath: keyPath] = value
         }
     }
-
+    
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
             print(deviceID, newID)
@@ -104,28 +104,28 @@ public final class SonosMiniService {
     @MainActor
     func updateEvent(for deviceId: String, event: SonosServiceEvent) {
         guard let index = devices.firstIndex(where: { $0.id == deviceId }) else { return }
-
+        
         var device = devices[index]
         var changed = false
-
+        
         switch event {
         case .groupRenderingControl(let renderingEvent):
             if let volume = renderingEvent.groupVolume, !device.isEditingVolume {
                 changed = changed || device.groupVolume != Double(volume)
                 device.groupVolume = Double(volume)
             }
-
+            
             let groupIsMuted = renderingEvent.groupMute ?? false
             if device.groupIsMuted != groupIsMuted {
                 device.groupIsMuted = groupIsMuted
                 changed = true
             }
-
+            
             if device.groupVolumeChangeable != renderingEvent.groupVolumeChangeable {
                 device.groupVolumeChangeable = renderingEvent.groupVolumeChangeable
                 changed = true
             }
-
+            
         case .avTransport(let avEvent):
             if let actions = avEvent.currentTransportActions {
                 let available = AvailableActions(
@@ -136,79 +136,79 @@ public final class SonosMiniService {
                     changed = true
                 }
             }
-
+            
             if device.isAlarmRunning != avEvent.isAlarmRunning {
                 device.isAlarmRunning = avEvent.isAlarmRunning
                 changed = true
             }
-
+            
             if device.queueTotal != avEvent.queueTotal {
                 device.queueTotal = avEvent.queueTotal
                 changed = true
             }
-
+            
             let isHidden = avEvent.currentTrackURI.contains("x-rincon:RINCON")
             if device.isHidden != isHidden {
                 device.isHidden = isHidden
                 changed = true
             }
-
+            
             if device.trackID != avEvent.trackID {
                 device.trackID = avEvent.trackID
                 changed = true
             }
-
+            
             if device.musicServiceType != avEvent.musicService {
                 device.musicServiceType = avEvent.musicService
                 changed = true
             }
-
+            
             if device.currentTrackURI != avEvent.currentTrackURI {
                 device.currentTrackURI = avEvent.currentTrackURI
                 changed = true
             }
-
+            
             if device.transportState != (avEvent.transportState ?? "") {
                 device.transportState = avEvent.transportState ?? ""
                 changed = true
             }
-
+            
             if device.currentTrackMetadata != avEvent.currentTrackMetadata {
                 device.currentTrackMetadata = avEvent.currentTrackMetadata
                 changed = true
             }
-
+            
             if device.currentTrackDuration != (avEvent.currentTrackDuration ?? "") {
                 device.currentTrackDuration = avEvent.currentTrackDuration ?? ""
                 changed = true
             }
-
+            
             if device.isCrossfaded != avEvent.currentCrossfadeMode {
                 device.isCrossfaded = avEvent.currentCrossfadeMode
                 changed = true
             }
-
+            
             if device.nextTrackURI != avEvent.nextTrackURI {
                 device.nextTrackURI = avEvent.nextTrackURI
                 changed = true
             }
-
+            
             if device.nextTrackMetadata != avEvent.nextTrackMetadata {
                 device.nextTrackMetadata = avEvent.nextTrackMetadata
                 changed = true
             }
-
+            
         case .renderingContrl(let renderingControl):
             if device.volume != renderingControl.masterVolume {
                 device.volume = renderingControl.masterVolume
                 changed = true
             }
-
+            
             if device.isMuted != renderingControl.masterMute {
                 device.isMuted = renderingControl.masterMute
                 changed = true
             }
-
+            
             if let nightMode = renderingControl.nightMode,
                let dialogLevel = renderingControl.dialogLevel {
                 let newSettings = SonosTVSettings(
@@ -221,37 +221,37 @@ public final class SonosMiniService {
                     changed = true
                 }
             }
-
+            
         case .position(let position):
             if device.currentTime != position.relativeTime {
                 device.currentTime = position.relativeTime
                 changed = true
             }
-
+            
         case .isPlaying(let isPlaying):
             let newState = isPlaying ? "PLAYING" : "PAUSED_PLAYBACK"
             if device.transportState != newState {
                 device.transportState = newState
                 changed = true
             }
-
+            
             if device.isPlaying != isPlaying {
                 device.isPlaying = isPlaying
                 changed = true
             }
-
+            
         case .progress(let date):
             if device.lastUpdate != date {
                 device.lastUpdate = date
                 changed = true
             }
-
+            
         case .deviceProperties(let event):
             if device.battery != event.battery {
                 device.battery = event.battery
                 changed = true
             }
-
+            
             if let name = event.name {
                 let cleanName = name.ampersandSafe.replacingOccurrences(of: "%26", with: "&").replacingOccurrences(of: "&apos;", with: "'")
                 if device.name != cleanName {
@@ -260,16 +260,16 @@ public final class SonosMiniService {
                 }
             }
         }
-
+        
         if changed {
             devices[index] = device
         }
     }
     
-//    public func stopMonitor() {
-//        sonosMonitor.listener.stopServer()
-//    }
-//    
+    //    public func stopMonitor() {
+    //        sonosMonitor.listener.stopServer()
+    //    }
+    //
     public func load(useCache: Bool) async throws {
         //        let newGroups = try await getGroups(useCache: useCache)
         let newDevices = try await getDevices(useCache: useCache)
@@ -285,18 +285,18 @@ public final class SonosMiniService {
             print(newDeviceIDs)
             print(currentDeviceIDs)
         }
-//        setupListeners()
+        //        setupListeners()
         
-//        Task {
-//            await sonosMonitor.startListening()
-//            print("Started")
-//            sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
-//            sonosMonitor.subscriber.subscribe()
-//        }
-//        
-//        snapShotVolume(for: devices)
+        //        Task {
+        //            await sonosMonitor.startListening()
+        //            print("Started")
+        //            sonosMonitor.subscriber.updateDevices(devices.map{ $0.ip })
+        //            sonosMonitor.subscriber.subscribe()
+        //        }
+        //
+        //        snapShotVolume(for: devices)
         
-       
+        
         //        // Check for new or changed devices
         //        if !newGroups.isEmpty, Set(newGroups) != Set(devices), !isGrouping {
         //            await updateGroupsRooms(from: newGroups)
@@ -336,9 +336,9 @@ public final class SonosMiniService {
         
         let configs = devices.map { $0.toConfig(with: houseHoldID)}
         await streamingService.addPlayers(configs)
-
+        
     }
-
+    
     @MainActor
     public func updateWatchDevices(from devices: [SonosDevice]) async throws {
         try await withThrowingDiscardingTaskGroup { taskGroup in
@@ -447,10 +447,10 @@ public final class SonosMiniService {
                     guard let awaitedTrack = await track else {
                         return
                     }
-
+                    
                     await updateDevice(device, keyPath: \.isHidden, value: awaitedTrack.trackURI.contains("x-rincon:RINCON"))
                     await updateDevice(device, keyPath: \.currentTrackURI, value: awaitedTrack.trackURI)
-
+                    
                     if device.track != awaitedTrack {
                         await updateDevice(device, keyPath: \.track, value: awaitedTrack)
                     }
@@ -958,7 +958,7 @@ public final class SonosMiniService {
     
     public func firstPlayingDeviceID(from devices: [SonosDevice]) async throws -> String? {
         let visibleDevices = devices.filter(\.isVisible)
-
+        
         return try await withThrowingTaskGroup(of: String?.self) { group in
             for device in visibleDevices {
                 group.addTask { [weak self] in
@@ -973,7 +973,7 @@ public final class SonosMiniService {
                     return nil
                 }
             }
-
+            
             // Return as soon as one task finds a playing device
             for try await result in group {
                 if let id = result {
@@ -981,7 +981,7 @@ public final class SonosMiniService {
                     return id
                 }
             }
-
+            
             return nil // No device was playing
         }
     }
@@ -1108,7 +1108,7 @@ public final class SonosMiniService {
     public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
         async let devices = api.getDevices(ipAddress: cachedIP)
         async let houseHoldID = api.getHouseHoldID(for: cachedIP)
-
+        
         return await (try devices, houseHoldID)
     }
     
@@ -1165,6 +1165,14 @@ public final class SonosMiniService {
     //        }
     //    }
     //
+    public func group(rooms: [SonosDevice], to coordinatorID: String) async {
+        // MARK: Only group new rooms
+        let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorID }
+        for room in nonCoordinatorRooms {
+            await api.group(IP: room.ip, to: coordinatorID)
+        }
+    }
+    
     // Returns the new group
     public func speedGroup(devices: [SonosDevice]) async -> SonosDevice? {
         // If there's only one room, ungroup it and return as a single group
@@ -1233,13 +1241,13 @@ public final class SonosMiniService {
         guard let currentIndex = devices.firstIndex(where: { $0.id == device.id }) else { return nil }
         
         var newCoordinatorID: String? = nil
-
+        
         let newRooms = Set(rooms)
         let oldRoomsSet = Set(oldRooms)
-
+        
         // Determine the rooms that have been added
         let addedRooms = newRooms.subtracting(oldRoomsSet)
-
+        
         for room in addedRooms {
             print("Added room: \(room)")
             // MARK: Remove Rooms
@@ -1250,11 +1258,11 @@ public final class SonosMiniService {
             if let deviceIndex = devices.firstIndex(where: { $0.id == device.id }) {
                 devices[deviceIndex].rooms.append(room)
             }
-
+            
             // MARK: Maybe removall
             await api.group(IP: room.ip, to: device.id)
         }
-
+        
         // Determine the rooms that have been removed
         let removedRooms = oldRoomsSet.subtracting(newRooms)
         for room in removedRooms {
@@ -1265,30 +1273,30 @@ public final class SonosMiniService {
                     newCoordinatorID = newCoordinatorRoom.id
                 }
             }
-
+            
             if let roomIndex = devices.firstIndex(where: { $0.id == room.id }) {
                 devices[roomIndex].isHidden = false
                 devices[currentIndex].rooms.removeAll { $0.id == room.id }
                 await api.ungroup(IP: room.ip)
             }
         }
-
-//        isGroupingTask.cancel()
-//        isGroupingTask = Task {
-//            try? await Task.sleep(for: .seconds(3.5))
-//            if Task.isCancelled { return }
-//            isGrouping = false
-//        }
-
+        
+        //        isGroupingTask.cancel()
+        //        isGroupingTask = Task {
+        //            try? await Task.sleep(for: .seconds(3.5))
+        //            if Task.isCancelled { return }
+        //            isGrouping = false
+        //        }
+        
         return newCoordinatorID
     }
-//    
-//    /// Ungroup all rooms
-//    /// - Parameter group:
-//    public func ungroup(group: GroupRoom) async {
-//        await api.ungroup(IP: group.ip)
-//    }
-//    
+    //
+    /// Ungroup all rooms
+    /// - Parameter group:
+    public func ungroup(device: SonosDevice) async {
+        await api.ungroup(IP: device.ip)
+    }
+    
     public func setDeviceVolume(ip: String, volume: Int) async {
         await api.setVolume(ipAddress: ip, volume: volume)
     }
@@ -1296,7 +1304,7 @@ public final class SonosMiniService {
     public func setRelativeVolume(ip: String, volume: Int) async {
         await api.setRelativeVolume(ipAddress: ip, volume: volume)
     }
-
+    
     public func setGroupMute(device: SonosDevice) async {
         var device = device
         device.groupIsMuted.toggle()
@@ -1742,13 +1750,13 @@ public final class SonosMiniService {
     //    }
     //
     public func runScene(_ scene: SonosScene) async throws {
-//        let playlistAction = { [weak self] (group: GroupRoom) in
-//            guard let self else { return }
-//            guard let playableContent = scene.playableContent else { return }
-//            try await queue(playable: playableContent, group: group)
-//            await play(ip: group.ip)
-//        }
-
+        //        let playlistAction = { [weak self] (group: GroupRoom) in
+        //            guard let self else { return }
+        //            guard let playableContent = scene.playableContent else { return }
+        //            try await queue(playable: playableContent, group: group)
+        //            await play(ip: group.ip)
+        //        }
+        
         // Update household if no groups are available
         if devices.isEmpty {
             try await updateHousehold()
@@ -1783,7 +1791,7 @@ public final class SonosMiniService {
                 state: .active
             )
         }
-   
+        
         // Create the group
         guard let newGroup = await speedGroup(devices: devices) else {
             throw SonosDiscoveryError.sonosSystemNotFound
@@ -1798,7 +1806,7 @@ public final class SonosMiniService {
                 }
             }
         }
-
+        
         await snapShotGroup(ip: newGroup.ip)
     }
     //
