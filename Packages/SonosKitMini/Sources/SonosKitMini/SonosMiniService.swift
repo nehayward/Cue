@@ -323,8 +323,7 @@ public final class SonosMiniService {
     }
     
     public func loadWatch(useCache: Bool) async throws {
-        let newDevices = try await getDevices(useCache: useCache)
-        print("Devices \(newDevices)")
+        let (newDevices, houseHoldID) = try await getSystem(useCache: useCache)
         let newDeviceIDs = newDevices.map({ $0.id })
         let currentDeviceIDs = devices.map({ $0.id })
         
@@ -335,9 +334,7 @@ public final class SonosMiniService {
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
         
-        let configs = devices.map(\.toConfig)
-//        await streamingService.addPlayers(configs, events: [.volume, .playback, .metadata, .groupVolume])
-//        try await Task.sleep(for: .seconds(2))
+        let configs = devices.map { $0.toConfig(with: houseHoldID)}
         await streamingService.addPlayers(configs)
 
     }
@@ -1106,6 +1103,13 @@ public final class SonosMiniService {
     public func getDevices(useCache: Bool) async throws -> [SonosDevice] {
         let devices = try await api.getDevices(ipAddress: cachedIP)
         return devices
+    }
+    
+    public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
+        async let devices = api.getDevices(ipAddress: cachedIP)
+        async let houseHoldID = api.getHouseHoldID(for: cachedIP)
+
+        return await (try devices, houseHoldID)
     }
     
     @MainActor

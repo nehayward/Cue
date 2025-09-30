@@ -949,15 +949,15 @@ final class SonosAPI {
 //        }
 //    }
 //
-//    func getHouseHoldID(for IP: String) async -> String {
-//        if let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") {
-//            let xmlString = String(decoding: data, as: UTF8.self)
-//            let houseID = xmlParser.parseHouseID(xml: xmlString)
-//            return houseID
-//        }
-//
-//        return ""
-//    }
+    func getHouseHoldID(for IP: String) async -> String? {
+        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetZoneGroupAttributes", arguments: [], endpoint: "ZoneGroupTopology") else { return nil }
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "CurrentMuseHouseholdId")
+        if let value = parser.parseXML(xml) {
+            return value
+        }
+        return nil 
+    }
 //
 //    // MARK: - Favorites
 //    func getFavorites(for IP: String) async -> [PlayableContent] {

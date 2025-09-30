@@ -9,13 +9,23 @@ public struct SonosPlayerConfig {
     public let playerId: String
     public let groupId: String
     public let name: String?
+    public let householdId: String?
     public let events: Set<SonosStreamingService.EventType>
     
-    public init(ipAddress: String, playerId: String, groupId: String, name: String? = nil, events: Set<SonosStreamingService.EventType> = Set(SonosStreamingService.EventType.allCases)) {
+    public init(
+        ipAddress: String,
+        playerId: String,
+        groupId: String,
+        name: String? = nil,
+        householdId: String? = nil,
+//        events: Set<SonosStreamingService.EventType> = Set(SonosStreamingService.EventType.allCases)
+        events: Set<SonosStreamingService.EventType> = [.group]
+    ) {
         self.ipAddress = ipAddress
         self.playerId = playerId
         self.groupId = groupId
         self.name = name
+        self.householdId = householdId
         self.events = events
     }
 }
@@ -36,6 +46,9 @@ public protocol SonosEventHandler: AnyObject {
     
     /// Called when track metadata changes (song, artist, album, artwork)
     func onMetadataUpdate(playerId: String, event: TrackEvent)
+    
+    /// Called when group status changes (membership, coordinator)
+    func onGroupUpdate(playerId: String, event: GroupEvent)
     
     /// Called when connection status changes
     func onConnectionStatusChanged(isConnected: Bool, connectionCount: Int)
@@ -62,6 +75,7 @@ public extension SonosEventHandler {
     func onVolumeUpdate(playerId: String, event: VolumeEvent) {}
     func onPlaybackUpdate(playerId: String, event: PlaybackEvent) {}
     func onMetadataUpdate(playerId: String, event: TrackEvent) {}
+    func onGroupUpdate(playerId: String, event: GroupEvent) {}
     func onConnectionStatusChanged(isConnected: Bool, connectionCount: Int) {}
     func onError(playerId: String, error: Error) {}
     func onPositionTick(playerId: String, currentPositionMillis: Int, isPlaying: Bool) {}
@@ -102,6 +116,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         case groupVolume
         case playback
         case metadata
+        case group
     }
     
     private let lock = OSAllocatedUnfairLock()
@@ -113,6 +128,9 @@ public final class SonosStreamingService: @unchecked Sendable {
     private var playerConfigs: [String: SonosPlayerConfig] = [:]
     private let connectionRefreshInterval: Duration = .seconds(60 * 1)
     private var isRefreshing: Bool = false
+    
+    // Group monitoring - only one player can monitor group events at a time
+    private var currentGroupMonitoringPlayerId: String?
     
     private let apiKey: String
     private let debug: Bool
@@ -159,7 +177,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         guard let socket = SonosWebSocket(
             ipAddress: config.ipAddress,
             apiKey: apiKey,
-            debug: false
+            debug: true
         ) else {
             await notifyError(playerId: playerId, error: NSError(domain: "SonosStreamingService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create WebSocket"]))
             return
@@ -215,6 +233,13 @@ public final class SonosStreamingService: @unchecked Sendable {
             if debug && removedSocket != nil {
                 print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
             }
+            // Clear group monitoring if this player was monitoring groups
+            if currentGroupMonitoringPlayerId == playerId {
+                currentGroupMonitoringPlayerId = nil
+                if debug {
+                    print("DEBUG: Cleared group monitoring for removed player \(playerId)")
+                }
+            }
             // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
         }
         
@@ -250,6 +275,13 @@ public final class SonosStreamingService: @unchecked Sendable {
             if debug && removedSocket != nil {
                 print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
             }
+            // Clear group monitoring if this player was monitoring groups
+            if currentGroupMonitoringPlayerId == playerId {
+                currentGroupMonitoringPlayerId = nil
+                if debug {
+                    print("DEBUG: Cleared group monitoring for permanently removed player \(playerId)")
+                }
+            }
         }
         
         // Stop refresh timer if no more players
@@ -283,6 +315,15 @@ public final class SonosStreamingService: @unchecked Sendable {
                         group.addTask { [weak self] in
                             await self?.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
+                    case .group:
+                        // Only allow one player to monitor group events at a time
+                        // householdId is required for group monitoring
+                        if let householdId = config.householdId,
+                           await self?.shouldStartGroupMonitoring(for: playerId) == true {
+                            group.addTask { [weak self] in
+                                await self?.monitorGroup(playerId: playerId, householdId: householdId, socket: socket)
+                            }
+                        }
                     }
                 }
             }
@@ -294,6 +335,31 @@ public final class SonosStreamingService: @unchecked Sendable {
     }
     
     // MARK: - Event Monitoring
+    
+    /// Check if group monitoring should start for this player (only one at a time)
+    private func shouldStartGroupMonitoring(for playerId: String) async -> Bool {
+        return lock.withLock {
+            if let currentId = currentGroupMonitoringPlayerId {
+                if currentId == playerId {
+                    // Same player, allow
+                    return true
+                } else {
+                    // Different player already monitoring
+                    if debug {
+                        print("DEBUG: Group monitoring already active for player \(currentId), skipping for \(playerId)")
+                    }
+                    return false
+                }
+            } else {
+                // No one monitoring, start
+                currentGroupMonitoringPlayerId = playerId
+                if debug {
+                    print("DEBUG: Starting group monitoring for player \(playerId)")
+                }
+                return true
+            }
+        }
+    }
     
     /// Monitor metadata changes and forward to event handler
     private func monitorMetadata(playerId: String, groupId: String, socket: SonosWebSocket) async {
@@ -349,6 +415,33 @@ public final class SonosStreamingService: @unchecked Sendable {
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
                 await handler.onVolumeUpdate(playerId: playerId, event: event)
+            }
+        } catch {
+            await notifyError(playerId: playerId, error: error)
+        }
+    }
+    
+    /// Monitor group status changes and forward to event handler (only one player at a time)
+    private func monitorGroup(playerId: String, householdId: String, socket: SonosWebSocket) async {
+        defer {
+            // Clear group monitoring when done
+            lock.withLock {
+                if currentGroupMonitoringPlayerId == playerId {
+                    currentGroupMonitoringPlayerId = nil
+                    if debug {
+                        print("DEBUG: Stopped group monitoring for player \(playerId)")
+                    }
+                }
+            }
+        }
+        
+        do {
+            guard let stream = try await socket.connectAndSubscribeToGroup(householdId: householdId) else { return }
+            
+            for try await event in stream {
+                // Safely access eventHandler to avoid crashes if it becomes nil
+                guard let handler = eventHandler else { break }
+                await handler.onGroupUpdate(playerId: playerId, event: event)
             }
         } catch {
             await notifyError(playerId: playerId, error: error)

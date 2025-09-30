@@ -49,12 +49,16 @@ struct ClicMiniApp: App {
             }
         }
         
-        #if DEBUG
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            let statusItem = NSApp.windows.first?.value(forKey: "statusItem") as? NSStatusItem
-            statusItem?.button?.performClick(nil)
+//        #if DEBUG
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+//            let statusItem = NSApp.windows.first?.value(forKey: "statusItem") as? NSStatusItem
+//            statusItem?.button?.performClick(nil)
+//        }
+//        #endif
+        
+        Task {
+            try? await SonosMiniService.shared.loadWatch(useCache: true)
         }
-        #endif
     }
     
     var body: some Scene {

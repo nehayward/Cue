@@ -81,6 +81,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     /// AsyncStream for receiving playback state events including play/pause, position, and queue info
     public typealias SonosPlaybackWebSocketStream = AsyncThrowingStream<PlaybackEvent, Error>
     
+    /// AsyncStream for receiving group status events including group membership and coordinator info
+    public typealias SonosGroupWebSocketStream = AsyncThrowingStream<GroupEvent, Error>
+    
     // MARK: - Configuration Properties
     
     /// The Sonos API key used for WebSocket authentication. Required for all API calls.
@@ -117,6 +120,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     /// Continuation for the track metadata stream, yields TrackEvent instances
     private var trackInfoContinuation: SonosTrackWebSocketStream.Continuation?
     
+    /// Continuation for the group status stream, yields GroupEvent instances
+    private var groupContinuation: SonosGroupWebSocketStream.Continuation?
+    
     /// Background task that continuously receives and dispatches WebSocket messages
     /// Prevents race conditions by ensuring only one receive operation at a time
     private var messageReceiveTask: Task<Void, Never>?
@@ -133,7 +139,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     private var reconnectTask: Task<Void, Never>?
     
     /// Maps subscription types to their identifiers for automatic resubscription after reconnection
-    /// Keys: "volume", "playback", "metadata" | Values: playerId or groupId
+    /// Keys: "volume", "playback", "metadata", "group" | Values: playerId, groupId, or householdId
     private var activeSubscriptions: [String: String] = [:]
     
     /**
@@ -170,7 +176,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                     
                     if case let .string(message) = value {
                         if self?.debug == true {
-//                            print(message.prettyPrinted)
+                            print(message.prettyPrinted)
                         }
                         await self?.dispatchMessage(message)
                     }
@@ -204,6 +210,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                         self?.playbackContinuation?.finish(throwing: error)
                         self?.trackInfoContinuation?.finish(throwing: error)
                         self?.groupVolumeContinuation?.finish(throwing: error)
+                        self?.groupContinuation?.finish(throwing: error)
                         isAlive = false
                     }
                 }
@@ -245,6 +252,12 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             return
         }
         
+        // Try to decode as GroupEvent
+        if let groupEvent = try? GroupEvent.decode(from: messageData) {
+            groupContinuation?.yield(groupEvent)
+            return
+        }
+        
         // If we can't decode the message, log it for debugging
         if debug {
             print("DEBUG: Could not decode message: \(message)")
@@ -276,6 +289,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             volumeContinuation?.finish(throwing: URLError(.networkConnectionLost))
             playbackContinuation?.finish(throwing: URLError(.networkConnectionLost))
             trackInfoContinuation?.finish(throwing: URLError(.networkConnectionLost))
+            groupContinuation?.finish(throwing: URLError(.networkConnectionLost))
             return
         }
         
@@ -316,6 +330,8 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                 await resubscribeToPlayback(groupId: id)
             case "metadata":
                 await resubscribeToMetadata(groupId: id)
+            case "group":
+                await resubscribeToGroup(householdId: id)
             default:
                 break
             }
@@ -357,6 +373,18 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { return }
         try? await task?.send(.data(data))
     }
+    
+    private func resubscribeToGroup(householdId: String) async {
+        let subscribeCommand: [String: Any] = [
+            "namespace": "groups:1",
+            "command": "subscribe",
+            "householdId": householdId
+        ]
+        
+        let payload: [Any] = [subscribeCommand, [String: Any]()]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { return }
+        try? await task?.send(.data(data))
+    }
 
     private lazy var volumeStream: SonosVolumeWebSocketStream = {
         return SonosVolumeWebSocketStream { [weak self] continuation in
@@ -382,6 +410,13 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     private lazy var trackStream: SonosTrackWebSocketStream = {
         return SonosTrackWebSocketStream { [weak self] continuation in
             self?.trackInfoContinuation = continuation
+            self?.startMessageReceiver()
+        }
+    }()
+    
+    private lazy var groupStream: SonosGroupWebSocketStream = {
+        return SonosGroupWebSocketStream { [weak self] continuation in
+            self?.groupContinuation = continuation
             self?.startMessageReceiver()
         }
     }()
@@ -458,6 +493,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         playbackContinuation?.finish()
         volumeContinuation?.finish()
         groupVolumeContinuation?.finish()
+        groupContinuation?.finish()
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
@@ -492,6 +528,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         playbackContinuation?.finish()
         volumeContinuation?.finish()
         groupVolumeContinuation?.finish()
+        groupContinuation?.finish()
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
@@ -502,6 +539,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         playbackContinuation = nil
         volumeContinuation = nil
         groupVolumeContinuation = nil
+        groupContinuation = nil
         messageReceiveTask = nil
         reconnectTask = nil
         task = nil
@@ -541,6 +579,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         playbackContinuation?.finish()
         volumeContinuation?.finish()
         groupVolumeContinuation?.finish()
+        groupContinuation?.finish()
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
@@ -551,6 +590,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         playbackContinuation = nil
         volumeContinuation = nil
         groupVolumeContinuation = nil
+        groupContinuation = nil
         messageReceiveTask = nil
         reconnectTask = nil
         
@@ -785,6 +825,69 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         try? await task?.send(.data(data))
         
         return trackStream
+    }
+    
+    /**
+     * Connects to the Sonos device and subscribes to real-time group updates for a household.
+     *
+     * This method subscribes to group status changes including group membership, coordinator changes,
+     * and player associations for all groups in a Sonos household. This provides a complete view
+     * of all groups and players in the system.
+     *
+     * - Parameter householdId: The unique identifier for the Sonos household (e.g., "Sonos_GBw44sBd7swQ55xlbUSTzNmTlp.xskX9-5BWErPJ6lJr7aZ").
+     *
+     * - Returns: An AsyncStream that yields `GroupEvent` instances containing group status changes,
+     *           or nil if the subscription setup fails
+     *
+     * - Throws: Network errors, authentication failures, or WebSocket protocol errors
+     *
+     * ## Usage
+     * ```swift
+     * let groupStream = try await socket.connectAndSubscribeToGroup(
+     *     householdId: "Sonos_GBw44sBd7swQ55xlbUSTzNmTlp.xskX9-5BWErPJ6lJr7aZ"
+     * )
+     *
+     * for try await groupEvent in groupStream {
+     *     if let groupsResponse = groupEvent.groupsResponse {
+     *         for group in groupsResponse.groups {
+     *             print("Group: \(group.name ?? group.id)")
+     *             print("Coordinator: \(group.coordinatorId)")
+     *             print("Players: \(group.playerIds)")
+     *         }
+     *     }
+     * }
+     * ```
+     */
+    public func connectAndSubscribeToGroup(householdId: String) async throws -> SonosGroupWebSocketStream? {
+        // Only connect if not already connected
+        task?.resume()
+        return try await subscribeToGroup(householdId: householdId)
+    }
+    
+    /// Subscribes to group updates for a household
+    /// - Parameter householdId: The household ID to subscribe to
+    /// - Returns: An AsyncStream of group status updates
+    /// - Throws: `SonosWebSocketError` if the operation fails
+    func subscribeToGroup(householdId: String) async throws -> SonosGroupWebSocketStream? {
+        // Track this subscription for reconnection
+        var subscriptions = activeSubscriptions
+        subscriptions["group"] = householdId
+        activeSubscriptions = subscriptions
+        
+        let subscribeCommand: [String: Any] = [
+            "namespace": "groups:1",
+            "command": "subscribe",
+            "householdId": householdId
+        ]
+        
+        let payload: [Any] = [subscribeCommand, [String: Any]()]
+        
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
+            return nil
+        }
+        try? await task?.send(.data(data))
+        
+        return groupStream
     }
     
     /**

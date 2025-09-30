@@ -85,6 +85,33 @@ extension SonosMiniService: SonosEventHandler {
         
     }
     
+    public func onGroupUpdate(playerId: String, event: GroupEvent) {
+        if let groupsResponse = event.groupsResponse {
+//            for group in groupsResponse.groups {
+//                print("Group: \(group.name ?? group.id)")
+//                print("Coordinator: \(group.coordinatorId)")
+//                print("Players: \(group.playerIds.joined(separator: ", "))")
+//            }
+//            
+//            for player in groupsResponse.players {
+//                print("Player: \(player.name)")
+//                print("WebSocket URL: \(player.websocketUrl)")
+//            }
+            Task {
+                let (newDevices, _) = try await getSystem(useCache: true)
+                let newDeviceIDs = newDevices.map({ $0.id })
+                let currentDeviceIDs = devices.map({ $0.id })
+                
+                if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
+                    self.devices = newDevices
+                }
+                
+                // MARK: Update Devices Info
+                try await updateWatchDevices(from: devices)
+            }
+        }
+    }
+    
     //    func onConnectionStatusChanged(isConnected: Bool, connectionCount: Int) {
     //        self.isConnected = isConnected
     //        self.connectionCount = connectionCount
@@ -116,7 +143,7 @@ extension SonosMiniService: SonosEventHandler {
 
 
 extension SonosDevice {
-    var toConfig: SonosPlayerConfig {
-        .init(ipAddress: ip, playerId: id, groupId: groupID)
+    func toConfig(with houseHoldID: String?) -> SonosPlayerConfig {
+        .init(ipAddress: ip, playerId: id, groupId: groupID, householdId: houseHoldID)
     }
 }
