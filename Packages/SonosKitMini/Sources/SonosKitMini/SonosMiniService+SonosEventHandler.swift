@@ -13,8 +13,13 @@ extension SonosMiniService: SonosEventHandler {
             guard let index = devices.firstIndex(where: { $0.id == playerId }) else {
                 return
             }
-            guard let groupVolume = event.volumeState?.volume else { return }
-            updateDevice(devices[index], keyPath: \.groupVolume, value: Double(groupVolume))
+            if let groupVolume = event.volumeState?.volume {
+                updateDevice(devices[index], keyPath: \.groupVolume, value: Double(groupVolume))
+            }
+            
+            if let isMuted = event.volumeState?.muted {
+                updateDevice(devices[index], keyPath: \.groupIsMuted, value: isMuted)
+            }
         }
     }
     

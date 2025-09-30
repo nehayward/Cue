@@ -8,14 +8,14 @@ public struct VibeSlider: View {
 
     @Binding private var value: Double
     @State private var width = 0.0
-    @State private var isDragging: Bool = false
     @State private var startingValue: Double?
     @State private var onEditingChangedTask: Task<Void, Error> = Task { }
     @State private var onHover: Bool = false
-    @State private var isTouched: Bool = false
     @State private var isHovered: Bool = false
     @State private var mouseLocation: CGPoint = .zero
     
+    @GestureState private var isDragging: Bool = false
+
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
@@ -69,7 +69,6 @@ public struct VibeSlider: View {
                             }
                     }
                 }
-//                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
                 .foregroundStyle(.quaternary)
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
@@ -111,24 +110,19 @@ public struct VibeSlider: View {
                 .foregroundStyle(.white)
                 .blendMode(.difference)
                 .frame(minWidth: 28, minHeight: baseHeight)
-                .background((isDragging || isTouched) ? capsuleColor : Color.clear)
+                .background(isDragging ? capsuleColor : Color.clear)
                 .clipShape(.capsule)
-                .offset(x: offsetForValue,
-                        y: (isTouched || isDragging) ? -24 : 0)
+                .offset(x: offsetForValue, y: isDragging ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
+                .animation(.interactiveSpring, value: isDragging)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
 #if !targetEnvironment(macCatalyst)
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isTouched {
-                        isTouched = true
-                    }
-                }
-                .onEnded { _ in
-                    isTouched = false
+                .updating($isDragging) { _, state, _ in
+                    state = true
                 }
         )
 #endif
@@ -154,8 +148,6 @@ public struct VibeSlider: View {
             }
         }
 #endif
-        .animation(.interactiveSpring, value: isDragging)
-        .animation(.interactiveSpring, value: isTouched)
         .accessibilityRepresentation {
             Slider(value: $value, in: 0.0...range.upperBound, onEditingChanged: onEditingChanged)
         }
@@ -169,7 +161,6 @@ public struct VibeSlider: View {
     }
     
     private func handleDragChanged(_ gesture: DragGesture.Value) {
-        isDragging = true
         onEditingChanged(true)
         calculateNewValue(from: gesture)
     }
@@ -181,7 +172,6 @@ public struct VibeSlider: View {
             value = newPercentage * range.upperBound
         }
 #endif
-        isDragging = false
         onEditingChanged(false)
         startingValue = nil
     }

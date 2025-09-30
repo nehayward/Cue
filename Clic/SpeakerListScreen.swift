@@ -79,6 +79,7 @@ struct SpeakerListScreen: View {
                 }
                 .tag(group.coordinatorID)
                 .foregroundStyle(.primary)
+                .id(group.coordinatorRoom.track.trackID)
             } header: {
                 HStack {
                     Text(group.nameWithCount)
