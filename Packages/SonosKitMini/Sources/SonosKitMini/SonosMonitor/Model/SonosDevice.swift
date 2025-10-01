@@ -17,6 +17,8 @@ public struct SonosDevice: Identifiable {
     public var isHidden: Bool
     public var isVisible: Bool { !isHidden }
     
+    public var tvAudio: String = ""
+    
     public var currentPosition: Int = 0
     public var totalDuration: Int = 0
     public var lastPositionUpdate: Date = Date()

@@ -179,9 +179,27 @@ public struct PlaybackPolicy: Codable {
 public struct Container: Codable {
     public let images: [TrackEventImage]?
     public let objectType: String?
-
+    public let htInputFormat: HTInputFormat?
+    
+    public struct HTInputFormat: Codable {
+        public let numLFEChannels: Int?
+        public let numGroundChannels: Int?
+        public let numHeightChannels: Int?
+        public let streamDescription: String?
+        public let objectType: String?
+        
+        enum CodingKeys: String, CodingKey {
+            case numLFEChannels
+            case numGroundChannels
+            case numHeightChannels
+            case streamDescription
+            case objectType = "_objectType"
+        }
+    }
+    
     enum CodingKeys: String, CodingKey {
         case images
         case objectType = "_objectType"
+        case htInputFormat
     }
 }

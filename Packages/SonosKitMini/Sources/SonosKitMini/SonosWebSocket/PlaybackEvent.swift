@@ -74,12 +74,6 @@ public struct PlaybackEvent {
                 if info?.type != "playbackStatus" { return nil }
                 continue
             }
-            do {
-                guard let stateData = try? JSONSerialization.data(withJSONObject: item) else { continue }
-                let s = try decoder.decode(PlaybackStatus.self, from: stateData)
-            } catch {
-                print(error)
-            }
 
             // Try decoding state
             if state == nil, let stateData = try? JSONSerialization.data(withJSONObject: item),

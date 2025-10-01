@@ -8,7 +8,7 @@ struct TVView: View {
     var body: some View {
         VStack {
             Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
-                Text(device.currentTrackMetadata?.streamInfo?.info?.description ?? "")
+                Text(device.tvAudio)
                     .bold()
             }
             .foregroundStyle(.primary)

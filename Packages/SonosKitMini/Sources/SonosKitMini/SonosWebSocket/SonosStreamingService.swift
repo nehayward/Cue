@@ -18,8 +18,7 @@ public struct SonosPlayerConfig {
         groupId: String,
         name: String? = nil,
         householdId: String? = nil,
-//        events: Set<SonosStreamingService.EventType> = Set(SonosStreamingService.EventType.allCases)
-        events: Set<SonosStreamingService.EventType> = [.group]
+        events: Set<SonosStreamingService.EventType> = Set(SonosStreamingService.EventType.allCases)
     ) {
         self.ipAddress = ipAddress
         self.playerId = playerId

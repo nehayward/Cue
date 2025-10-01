@@ -5,12 +5,12 @@ struct SpeakerSettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(SonosService.self) var sonosService
     @Environment(\.liveActivityManager) var liveActivityManager
-
+    
     @State var room: Room
-
+    
     var body: some View {
         Form {
-            #if os(iOS) && !targetEnvironment(macCatalyst)
+#if os(iOS) && !targetEnvironment(macCatalyst)
             Section("Live Activity") {
                 Toggle(isOn: Binding(
                     get: { !liveActivityManager.isActivityDisabled(id: room.id) },
@@ -33,8 +33,8 @@ struct SpeakerSettingsView: View {
                 }
                 .tint(.accentColor)
             }
-            #endif
-
+#endif
+            
             Section {
                 VStack {
                     LabeledContent {
@@ -108,19 +108,19 @@ struct SpeakerSettingsView: View {
                 } label: {
                     Text("Trueplay")
                 }
-
-//                LabeledContent("EQ") {
-                    Button {
-                        HapticManager.shared.fireHaptic(.buttonPress)
-                        Task {
-                            await sonosService.resetEQ(room: room)
-                            room.settings = await sonosService.getSpeakerSettings(room: room)
-                        }
-                    } label: {
-                        Text("Restore to Default")
+                
+                //                LabeledContent("EQ") {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    Task {
+                        await sonosService.resetEQ(room: room)
+                        room.settings = await sonosService.getSpeakerSettings(room: room)
                     }
-                    .tint(.red)
-//                }
+                } label: {
+                    Text("Restore to Default")
+                }
+                .tint(.red)
+                //                }
             }
             
             if room.isSoundbar {
@@ -166,7 +166,7 @@ struct SpeakerSettingsView: View {
                     
                     VStack {
                         LabeledContent {
-                            Text(room.theaterSettings.surroundLevel, format: .number)
+                            Text(Int(room.theaterSettings.surroundLevel), format: .number)
                                 .foregroundStyle(.primary)
                                 .bold()
                                 .monospacedDigit()
@@ -194,7 +194,7 @@ struct SpeakerSettingsView: View {
                     
                     VStack {
                         LabeledContent {
-                            Text(room.theaterSettings.musicSurroundLevel, format: .number)
+                            Text(Int(room.theaterSettings.musicSurroundLevel), format: .number)
                                 .foregroundStyle(.primary)
                                 .bold()
                                 .monospacedDigit()
@@ -393,5 +393,4 @@ struct SpeakerSettingsView: View {
         SpeakerSettingsView(room: .livingRoom)
             .environment(SonosService.shared)
     }
-
 }

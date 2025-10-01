@@ -81,6 +81,10 @@ extension SonosMiniService: SonosEventHandler {
                     }
                 }
             }
+            
+            if let htInputFormat = event.metadata?.container?.htInputFormat, let description = htInputFormat.streamDescription {
+                updateDevice(devices[index], keyPath: \.tvAudio, value: description)
+            }
         }
         
     }
