@@ -6,8 +6,6 @@ public enum AppStorageKeys {
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
-    public static let spotifyLocale = "\(Prefix.id).spotifyLocale"
-    public static let appleMusicTokenID = "\(Prefix.id).appleMusicTokenID"
     public static let queueMode = "\(Prefix.id).queueMode"
 }
 

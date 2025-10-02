@@ -3,7 +3,7 @@ import SonosKit
 import VibesDS
 
 struct AlarmListView: View {
-    @Environment(\.dismiss) var dismiss
+    @Environment(Router.self) var router: Router?
     @Environment(SonosService.self) var sonosService
     @State var group: GroupRoom? = nil
     @State var alarms: [Alarm] = []
@@ -54,7 +54,7 @@ struct AlarmListView: View {
                                                 }
                                             }
                                         } label: {
-                                            Text("Delete")
+                                            Label("Delete", systemImage: "trash.fill")
                                         }
                                     }
                                 }
@@ -77,8 +77,10 @@ struct AlarmListView: View {
         .navigationTitle("Alarms")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink("Add Alarm", value: RouterDestination.addAlarm(group: group))
+            ToolbarItem(placement: .confirmationAction) {
+                NavigationLink(value: RouterDestination.addAlarm(group: group)) {
+                    Image(systemName: "plus")
+                }
             }
         }
         .environment(group)
@@ -92,9 +94,6 @@ struct AlarmListView: View {
             } else if !isLoaded {
                 ProgressView()
             }
-        }
-        .addDismiss {
-            dismiss()
         }
     }
 }

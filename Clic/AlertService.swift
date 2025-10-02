@@ -50,6 +50,20 @@ public final class AlertService: @unchecked Sendable {
             alert.imageName = nil
         }
     }
+    
+    @MainActor
+    func showAlert(with text: String, imageName: String, action: @escaping () -> Void) {
+        alertTask?.cancel()
+        alert.content = nil
+        alert.subtitle = ""
+        alert.text = text
+        alert.imageName = imageName
+        alert.isShowing = true
+        alert.handleTap = { [weak self] in
+            action()
+            self?.alert.isShowing = false
+        }
+    }
 
     func showAlertContent(with content: PlayableContent, subtitle: LocalizedStringKey, symbolName: String = "") {
         alertTask?.cancel()

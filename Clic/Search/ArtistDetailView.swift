@@ -309,6 +309,23 @@ struct ArtistDetailView: View {
         .listStyle(.sidebar)
         .listSectionSeparator(.hidden)
         .navigationTitle(playableContent.title)
+        .toolbar {
+            if playableContent.content.location != nil {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Menu {
+                        OpenInServiceView(item: playableContent)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(maxWidth: 40, maxHeight: .infinity)
+                            .background(.clear)
+                            .bold()
+                            .foregroundStyle(.foreground)
+                            .contentShape(.rect)
+                    }
+                    .contentShape(.rect)
+                }
+            }
+        }
         .headerProminence(.increased)
         .contentMargins(.bottom, 120, for: .scrollContent)
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)

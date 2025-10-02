@@ -7,11 +7,13 @@ import SonosKit
 @Observable public final class Router {
     static var main = Router()
     static var search = Router()
-    
+    static var secondary = Router()
+
     var selectedID: String?
     var path: [RouterDestination] = []
     var presentedSheet: SheetDestination?
-    
+    var secondarySheet: SheetDestination?
+
     @MainActor var inspectorSheet: InspectorDestination?
     @MainActor var popover: SheetDestination?
     @MainActor var volumePopover: SheetDestination?

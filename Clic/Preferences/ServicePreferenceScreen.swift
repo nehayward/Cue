@@ -11,8 +11,8 @@ struct ServicePreferenceScreen: View {
 
     @State private var servers: [MediaServer] = []
     @State private var primaryServices: [SonosServiceType: MediaServer] = [:]
-    @AppStorage(Defaults.AppStorageKeys.spotifyLocale) private var overrideSpotifyLocale: Bool = false
-    @AppStorage(Defaults.AppStorageKeys.appleMusicTokenID) private var appleMusicTokenID: String = ""
+    @AppStorage(Defaults.GroupStorageKeys.spotifyMusicTokenID, store: GroupStorageKeys.storage) private var spotifyMusicTokenID: String = ""
+    @AppStorage(Defaults.GroupStorageKeys.appleMusicTokenID, store: GroupStorageKeys.storage) private var appleMusicTokenID: String = ""
 
     var body: some View {
         @Bindable var coreFeatures = coreFeatures
@@ -34,6 +34,8 @@ struct ServicePreferenceScreen: View {
                                                 SpotifyBrowseService.shared.albums.removeAll()
                                                 SpotifyBrowseService.shared.playlists.removeAll()
                                                 SpotifyBrowseService.shared.tracks.removeAll()
+                                                spotifyMusicTokenID = server.id
+                                                GroupStorageKeys.storage?.synchronize()
                                             }
                                         } label: {
                                             VStack {
@@ -67,7 +69,7 @@ struct ServicePreferenceScreen: View {
                                                 await sonosService.setPrimaryServer(for: server)
                                                 primaryServices[server.type] = server
                                                 appleMusicTokenID = server.id
-                                                UserDefaults.standard.synchronize()
+                                                GroupStorageKeys.storage?.synchronize()
                                             }
                                         } label: {
                                             VStack {
@@ -108,34 +110,21 @@ struct ServicePreferenceScreen: View {
             } footer: {
                 Text("Requires authorization in the Sonos app.")
             }
-            if UIApplication.shared.isRunningInTestFlightEnvironment() {
-                Section("Discovered") {
-                    ForEach(servers) { server in
-                        VStack(alignment: .leading) {
-                            Text(server.type.rawValue)
-                            Text(server.name)
-                            Text(server.id)
-                            Text("Region: \(Locale.current.region?.identifier ?? "Unknown")")
-                            Text("Current: \(Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311")")
-                        }
-                    }
-                }
-            }
-            #if DEBUG
-            Section("Discovered") {
-                ForEach(servers) { server in
-                    VStack(alignment: .leading) {
-                        Text(server.type.rawValue)
-                        Text(server.name)
-                        Text(server.id)
-                        Text("\(server.token)")
-                            .textSelection(.enabled)
-                        Text("Region: \(Locale.current.region?.identifier ?? "Unknown")")
-                        Text("Current: \(Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311")")
-                    }
-                }
-            }
-            #endif
+//            #if DEBUG
+//            Section("Discovered") {
+//                ForEach(servers) { server in
+//                    VStack(alignment: .leading) {
+//                        Text(server.type.rawValue)
+//                        Text(server.name)
+//                        Text(server.id)
+//                        Text("\(server.token)")
+//                            .textSelection(.enabled)
+//                        Text("Region: \(Locale.current.region?.identifier ?? "Unknown")")
+//                        Text("Current: \(Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311")")
+//                    }
+//                }
+//            }
+//            #endif
             Section {
                 Text("To listen to music from providers not yet supported, like Pandora or SirusXM, make them a [favorite in the Sonos app](https://support.sonos.com/en-us/article/add-favorites-to-your-home-screen) then look for your stations in Clic search under \"[Sonos Favorites](clic://search/favorites).\"")
             } header: {
@@ -164,22 +153,31 @@ struct ServicePreferenceScreen: View {
                             .frame(width: 24, height: 24)
                     }
                 }
-                Toggle(isOn: $overrideSpotifyLocale) {
-                    Label {
-                        VStack(alignment: .leading) {
-                            Text("Override Spotify Locale")
-                            Text("Enable only if you're having connection issues with Spotify")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                if let server = servers.filter({ $0.type == .spotify }).first, servers.filter({ $0.type == .spotify }).count == 1 {
+                    Button {
+                        Task {
+                            await sonosService.setPrimaryServer(for: server)
+                            primaryServices[server.type] = server
+                            SpotifyBrowseService.shared.albums.removeAll()
+                            SpotifyBrowseService.shared.playlists.removeAll()
+                            SpotifyBrowseService.shared.tracks.removeAll()
+                            spotifyMusicTokenID = server.id
+                            GroupStorageKeys.storage?.synchronize()
                         }
-                    } icon: {
-                        MediaSearchService.spotify.iconForMusicService
-                            .frame(width: 24, height: 24)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading) {
+                                Text("Override Spotify")
+                                Text("Enable only if you're having connection issues with Spotify")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            MediaSearchService.spotify.iconForMusicService
+                                .frame(width: 24, height: 24)
+                        }
+                        .tint(.accentColor)
                     }
-                }
-                .tint(.accentColor)
-                .onChange(of: overrideSpotifyLocale) {
-                    UserDefaults.standard.synchronize()
                 }
             } header:  {
                 Text("Personalized Services")

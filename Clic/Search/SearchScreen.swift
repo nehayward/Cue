@@ -227,12 +227,9 @@ struct SearchScreen: View {
             .animation(.snappy, value: musicSearchService.searchResults)
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
-            #if !targetEnvironment(macCatalyst)
             .addDismiss(override: contentToAdd != nil) {
                 dismiss()
-                closeInspector?()
             }
-            #endif
             .withAppRouter()
         }
         .withAlert(enabled: showAlert)

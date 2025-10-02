@@ -135,6 +135,9 @@ struct ClicApp: App {
             
                 if UIDevice.current.userInterfaceIdiom == .pad, router.selectedID == nil {
                     Task {
+                        while sonosService.sorted.isEmpty {
+                            try? await Task.sleep(for: .milliseconds(100)) // small delay to avoid busy-waiting
+                        }
                         try? await Task.sleep(for: .milliseconds(400))
                         sonosService.selectedGroup = sonosService.sorted.first
                         router.selectedID = sonosService.sorted.first?.coordinatorID
@@ -239,6 +242,13 @@ struct ClicApp: App {
                     Label("\(router.inspectorSheet?.id ?? "" == "queue" ? "Hide" : "Show") Queue", systemImage: "list.dash")
                 }
                 .keyboardShortcut("q", modifiers: [])
+                
+                Button {
+                    router.sheet(to: .settings(destination: .alarms))
+                } label: {
+                    Label("Show Alarms", systemImage: "alarm.fill")
+                }
+                .keyboardShortcut("a", modifiers: [.shift, .command])
             }
             CommandMenu("Playback") {
                 let groupSelected = router.selectedID.flatMap { id in

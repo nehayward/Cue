@@ -21,6 +21,7 @@ struct AlarmView: View {
             Picker("Room", selection: $alarm.roomID){
                 ForEach(sonosService.sortedRooms) { room in
                     Text(room.name)
+                        .tag(room.id)
                 }
             }
             .pickerStyle(.menu)
@@ -85,52 +86,69 @@ struct AlarmView: View {
                 Button {
                     router.presentedSheet = .searchAdd(adding: adding)
                 } label: {
-                    VStack {
-                        LabeledContent {
-                            if let content = adding.content {
-                                Text(content.title)
-                                    .lineLimit(1)
-                            } else if let content = sonosService.parseAlarmClockInfo(uri: alarm.programURI, metadataXML: alarm.programMetaData) {
-                                Text(content.title)
-                                    .foregroundStyle(.secondary)
+                    HStack {
+                        Text("Music")
+                        Spacer()
+                        if let content = adding.content {
+                            Text(content.title)
+                                .lineLimit(1)
+                        } else if let content = sonosService.parseAlarmClockInfo(uri: alarm.programURI, metadataXML: alarm.programMetaData) {
+                            Text(content.title)
+                                .foregroundStyle(.secondary)
+                        }
+                        if alarm.programURI != "x-rincon-buzzer:0" {
+                            Button {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                alarm.programURI = "x-rincon-buzzer:0"
+                                alarm.programMetaData = nil
+                                adding.content = nil
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
                             }
-                            if alarm.programURI != "x-rincon-buzzer:0" {
-                                Button {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    alarm.programURI = "x-rincon-buzzer:0"
-                                    alarm.programMetaData = nil
-                                    adding.content = nil
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                }
-                            }
-                        } label: {
-                            Text("Music")
                         }
                     }
                 }
                 .tint(.primary)
 
-                Toggle(isOn: $alarm.shuffle) {
-                    Text("Shuffle")
+                if alarm.programURI != "x-rincon-buzzer:0" {
+                    Toggle(isOn: $alarm.shuffle) {
+                        Text("Shuffle")
+                    }
                 }
-                .disabled(alarm.programURI == "x-rincon-buzzer:0")
 
                 HStack {
                     VibeSlider(value: $alarm.volume)
                         .foregroundStyle(.accent)
-                    Text(alarm.volume, format: .number) + Text("%")
+                    Text(alarm.volume, format: .number)
                 }
                 .frame(height: 40)
             } footer: {
                 Text("Only Albums and Playlist Supported.")
             }
-
-            Toggle(isOn: $alarm.enabled) {
-                Text("Enabled")
+        }
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .fontDesign(.rounded)
+        .navigationTitle("Save Alarm")
+        .navigationBarTitleDisplayMode(.inline)
+        .animation(.easeInOut, value: alarm.duration)
+        .listSectionSpacing(12)
+        .task {
+            hours =  Int(alarm.duration.components.seconds % 86400) / 3600
+            minutes =  Int(alarm.duration.components.seconds % 3600) / 60
+            editedAlarm = alarm
+            if let group {
+                alarm.roomID = group.coordinatorRoom.id
+                return
             }
-
-            Section {
+            
+            if !edit {
+                alarm.roomID = sonosService.sorted.first?.coordinatorRoom.id ?? ""
+                return
+            }
+            
+        }
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
                 Button {
                     if edit {
                         Task {
@@ -143,32 +161,10 @@ struct AlarmView: View {
                     }
                     dismiss()
                 } label: {
-                    Text(edit ? "Update" : "Save")
-                        .foregroundStyle(.thickMaterial)
-                        .bold()
-                        .frame(maxWidth: .infinity)
+                    Label("Save", systemImage: "checkmark")
                 }
                 .buttonStyle(.borderedProminent)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .disabled(edit && editedAlarm == alarm && adding.content == nil)
-            }
-        }
-        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
-        .fontDesign(.rounded)
-        .navigationTitle(edit ? "Update Alarm" : "Add Alarm")
-        .navigationBarTitleDisplayMode(.inline)
-        .animation(.easeInOut, value: alarm.duration)
-        .listSectionSpacing(12)
-        .task {
-            hours =  Int(alarm.duration.components.seconds % 86400) / 3600
-            minutes =  Int(alarm.duration.components.seconds % 3600) / 60
-            editedAlarm = alarm
-            if !edit {
-                alarm.roomID = sonosService.sorted.first?.id ?? ""
-            }
-            if let group {
-                alarm.roomID = group.coordinatorRoom.id
             }
         }
         .onChange(of: minutes) {

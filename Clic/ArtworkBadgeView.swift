@@ -18,19 +18,10 @@ struct ArtworkBadgeView: View {
                     .foregroundStyle(.white)
                     .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
                     .padding([.bottom, .trailing], padding)
-            } else {
-                if group.playbackService == .radio {
-                    Image(systemName: "radio.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.white)
-                        .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                        .padding([.bottom, .trailing], padding)
-                } else {
-                    group.coordinatorRoom.track.musicService.icon
-                        .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                        .padding([.bottom, .trailing], padding)
-                }
+            } else {      
+                group.coordinatorRoom.track.musicService.icon
+                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
+                    .padding([.bottom, .trailing], padding)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)

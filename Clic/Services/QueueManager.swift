@@ -100,7 +100,21 @@ final class QueueManager {
         case .timeout:
             alertService.showAlert(with: "Timed out waiting for Sonos to respond", imageName: "exclamationmark.triangle.fill")
         case .serviceUnavailable:
-            alertService.showAlert(with: "Please authorize \(item.content.service.title) in Sonos", imageName: "exclamationmark.triangle.fill")
+            Task {
+                let services = await sonosService.services()
+                if services.filter({ $0.type.rawValue.lowercased().contains(item.content.service.sonosRawValue )}).count > 1 {
+                    let service = item.content.service.title
+                    alertService.showAlert(with: "Multiple \(service) accounts in Sonos. Set your preferred one in Clic Services.", imageName: "exclamationmark.triangle.fill") {
+                        Router.main.presentedSheet = .settings(destination: .servicePreferenceScreen)
+                    }
+                } else if !services.filter({ $0.type.rawValue.lowercased().contains(item.content.service.sonosRawValue )}).isEmpty {
+                    alertService.showAlert(with: "Failed to play \(item.title), contact support", imageName: "exclamationmark.triangle.fill")
+                } else {
+                    alertService.showAlert(with: "Please authorize service \(item.content.service.title) in Sonos, Tap to open Sonos", imageName: "exclamationmark.triangle.fill") {
+                        UIApplication.shared.open(URL(string: "sonos://")!)
+                    }
+                }
+            }
         default:
             alertService.showAlert(with: "Failed to queue  \(item.content.service.title), ensure service is authorized", imageName: "exclamationmark.triangle.fill")
         }

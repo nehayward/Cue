@@ -12,7 +12,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     public let content: MediaContent
     public var previewURL: URL?
     public var metadata: PlayableContentMetadata?
-
+    
     public var trackID: String { "\(content.id).\(metadata?.position?.description ?? "")" }
     
     public var radioID: String {
@@ -105,7 +105,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     public var alarmURIMetadata: String {
         return """
-&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? Self.appleMusicServiceToken : "SA_RINCON\(Self.spotifyLocal)_X_#Svc\(Self.spotifyLocal)-0-Token" )&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? Self.appleMusicServiceToken : spotifyMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
     }
     
@@ -113,15 +113,15 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         switch (content.type, content.service) {
         case (.track, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
 """
         case (.album, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
 """
         case (.playlist, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
 """
         case (.track, .apple):
             return """
@@ -196,7 +196,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON40967_X_#Svc40967-7051ab01-Token&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (_, .unknown):
-//            assertionFailure("Implement \(content.type)")
+            //            assertionFailure("Implement \(content.type)")
             return metadata?.URIMetadata ?? ""
         default:
             return ""
@@ -212,28 +212,32 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 &lt;/URIs&gt;
 """
     }
-
+    
     private static var defaultXMLNSHeader = """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item restricted="true"
 """
-    private static var spotifyLocal: String {
-        if UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.spotifyLocale) {
-            return "2311"
-        }
-        return Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
+    private var spotifyLocal: String {
+        Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
     }
     
     private static var appleMusicServiceToken: String {
-        if let storedTokenID = UserDefaults.standard.string(forKey: Defaults.AppStorageKeys.appleMusicTokenID),
-           !storedTokenID.isEmpty {
+        if let storedTokenID = GroupStorageKeys.storage?.string(forKey: Defaults.GroupStorageKeys.appleMusicTokenID), !storedTokenID.isEmpty {
             return storedTokenID
         }
         return "SA_RINCON52231_X_#Svc52231-0-Token"
     }
-
-    private static var defaultSpotifyXMLNSFooter = """
-&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON\(spotifyLocal)_X_#Svc\(spotifyLocal)-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    
+    private var spotifyMusicServiceToken: String {
+        if let storedTokenID = GroupStorageKeys.storage?.string(forKey: Defaults.GroupStorageKeys.spotifyMusicTokenID), !storedTokenID.isEmpty {
+            return storedTokenID
+        }
+        return "SA_RINCON\(spotifyLocal)_X_#Svc\(spotifyLocal)-0-Token"
+    }
+    
+    private func defaultSpotifyXMLNSFooter() -> String { """
+&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(spotifyMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
+    }
 
     private static var appleXMLNSFooter = """
 &lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(appleMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
@@ -287,7 +291,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         switch (content.type, content.service) {
         case (.artist, .spotify), (.artistRadio, .spotify):
             """
-\(Self.defaultXMLNSHeader) id="100c206cspotify%3aartistRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="100c206cspotify%3aartistRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
 """
         case (.artist, .apple), (.artistRadio, .apple):
             """
@@ -295,7 +299,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case (.track, .spotify), (.songRadio, .spotify):
             """
-\(Self.defaultXMLNSHeader) id="000c0000spotify%3atrackRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.defaultSpotifyXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0000spotify%3atrackRadio%3a\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
 """
         case (.track, .apple), (.songRadio, .apple):
             """

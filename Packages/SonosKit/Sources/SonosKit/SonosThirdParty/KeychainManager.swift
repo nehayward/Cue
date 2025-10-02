@@ -5,11 +5,11 @@ final class KeychainManager {
     static let shared = KeychainManager()
     private let service = "com.sonos.mediaservers"
     private let accessGroup = "group.com.clic"
-    
+    private let encoder = JSONEncoder()
+
     private init() {}
     
     func saveMediaServers(householdId: String, servers: [MediaServer]) {
-        let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(servers)
             

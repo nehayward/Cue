@@ -83,9 +83,7 @@ struct ArtworkView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
-                GeometryReader { proxy in
-                    ArtworkBadgeView(group: group, alarmRunning: alarmRunning, size: proxy.size.width)
-                }
+                ArtworkBadgeView(group: group, alarmRunning: alarmRunning, size: proxy.size.width)
             }
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)

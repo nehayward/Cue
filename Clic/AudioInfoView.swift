@@ -59,6 +59,9 @@ struct AudioInfoView: View {
                         }
                         .opacity((quality?.lossless ?? false && !showDetails) ? 1 : 0)
                     }
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
                     .frame(minHeight: 24)
                     .contentShape(Rectangle())
                 }

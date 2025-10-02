@@ -12,6 +12,7 @@ struct OpenInServiceView: View {
                     Label("Open in Apple Music…", systemImage: "apple.logo")
                 }
             }
+            
             if item.content.service == .spotify {
                 Link(destination: openInURL) {
                     Label {

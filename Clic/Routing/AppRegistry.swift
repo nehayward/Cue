@@ -85,7 +85,7 @@ extension View {
                     SceneView()
                 case let .mediaDetail(content, group):
                     let selectedGroupService = SelectedGroupService(group: group)
-                    let router = Router()
+                    let router = Router.secondary
 
                     NavigationStack {
                         MediaDetailView(playableContent: content)
@@ -105,7 +105,7 @@ extension View {
                     .environment(selectedGroupService)
                     .customizeWindowSizeForMacOS15()
                 case let .artistDetail(content, group):
-                    @State var router = Router()
+                    let router = Router.secondary
                     @State var selectedGroupService = SelectedGroupService(group: group)
 
                     NavigationStack {
@@ -138,12 +138,12 @@ extension View {
                         .environment(searchRouter)
                         .environment(selectedGroupService)
                 case let .alarms(group):
-                    Group {
-                        @State var router = Router()
-                        NavigationStack {
-                            AlarmListView(group: group)
-                                .withAppRouter()
-                        }
+                    NavigationStack {
+                        AlarmListView(group: group)
+                            .withAppRouter()
+                            .addDismiss {
+                                Router.main.presentedSheet = nil
+                            }
                     }
                 case let .customSleepTimer(group, recentTimers):
                     SleepTimerCustomView(recentTimers: recentTimers, group: group)
@@ -277,6 +277,10 @@ extension View {
                 case .alarms:
                     NavigationStack {
                         AlarmListView()
+                            .withAppRouter()
+                            .addDismiss {
+                                Router.main.presentedSheet = nil
+                            }
                     }
                 case let .customSleepTimer(group, recentTimers):
                     SleepTimerCustomView(recentTimers: recentTimers, group: group)
@@ -438,13 +442,13 @@ extension View {
 
     @ViewBuilder
     func addDismiss(override: Bool = false, action: @escaping () -> Void) -> some View {
-        if override || [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom)  {
+        if override || Router.main.presentedSheet != nil  {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Dismiss", systemImage: "xmark.circle.fill", role: .cancel, action: action)
-                        .tint(.primary)
-                        .labelStyle(.iconOnly)
-                        .keyboardShortcut(.escape, modifiers: [])
+                    Button("Dismiss", systemImage: "xmark", role: .cancel) {
+                        action()
+                    }
+                    .keyboardShortcut(.escape, modifiers: [])
                 }
             }
         } else {

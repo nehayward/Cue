@@ -30,9 +30,6 @@ final class SonosAPI: NSObject {
     }()
     
     private static var spotifyLocal: String {
-        if UserDefaults.standard.bool(forKey: Defaults.AppStorageKeys.spotifyLocale) {
-            return "2311"
-        }
         return Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
     }
 
@@ -539,9 +536,9 @@ final class SonosAPI: NSObject {
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
             let body = String(decoding: data, as: UTF8.self)
             let errorCode = extractErrorCode(from: body) // 800 not authorized
+            print("Error (\(errorCode): \(body)")
             throw SonosServiceError.serviceUnavailable
         }
     }

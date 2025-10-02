@@ -23,6 +23,7 @@
 		<string>spotify</string>
 		<string>music</string>
 		<string>tidal</string>
+		<string>sonos</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

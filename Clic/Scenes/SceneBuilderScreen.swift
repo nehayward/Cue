@@ -220,6 +220,7 @@ struct SceneBuilderScreen: View {
         .addDismiss {
             dismiss()
         }
+        .listStyle(.insetGrouped)
     }
     
     func isSelected(_ room: Room) -> Bool {

@@ -9,8 +9,12 @@
 - Menu Bar Song Title Toggle: Option to hide/show song titles in the menu bar
 - Enhanced Global Media Controls: Keyboard shortcuts now prioritize pinned speakers
 - Improved Pin Button: Larger tap target for easier interaction
+- Add open artist in Music Service
+- Add show alarms in View iPad menu bar
 
 –– Bug Fixes & Improvements ––
+- Improved error messages for playback failures: Users now receive clearer, more actionable feedback when content cannot be played due to service issues.
+- Fix layout issues on Album details view
 - More improvements for os 26
 - Resolved issue with oversized icons on Mac Catalyst
 - Corrected album details display on OS 26
@@ -20,6 +24,7 @@
 - Enhanced Settings View: Added pinned speaker management and clearer keyboard shortcut descriptions
 - Visual Feedback: Pinned speakers now show subtle accent border for better identification
 - Persistent Settings: Pin preferences and menu bar display options saved between app launches
+- Improve Alarms
 
 # 2025.14
 

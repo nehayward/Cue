@@ -159,12 +159,6 @@ struct QueueScreen: View {
                         MoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode)
                     }
                 }
-#if !targetEnvironment(macCatalyst)
-                .addDismiss {
-                    router.presentedSheet = nil
-                    closeInspector?()
-                }
-#endif
             }
         }
         .overlay {

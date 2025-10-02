@@ -26,6 +26,7 @@ struct MediaDetailView: View {
     @State private var selection: Set<Int> = []
 
     var body: some View {
+        @Bindable var router = router
         List(selection: $selection) {
             VStack(spacing: 0) {
                 LazyImage(url: playableContent.artwork) { state in
@@ -215,33 +216,37 @@ struct MediaDetailView: View {
         .contentMargins(.horizontal, EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20), for: .scrollContent)
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .environment(\.editMode, $editMode)
-        .safeArea(edge: .bottom) {
-            Button(role: .destructive) {
-                Task {
-                    // Remove tracks using their actual queue positions
-                    for index in Array(selection).sorted(by: >) {
-                        try await SonosService.shared.removeTrackFromPlaylist(
-                            playlistID: playableContent.id,
-                            index: index
-                        )
-                        tracks.remove(at: index)
+        .safeAreaInset(edge: .bottom) {
+            if playableContent.isSonosPlaylist {
+                Button(role: .destructive) {
+                    Task {
+                        // Remove tracks using their actual queue positions
+                        for index in Array(selection).sorted(by: >) {
+                            try await SonosService.shared.removeTrackFromPlaylist(
+                                playlistID: playableContent.id,
+                                index: index
+                            )
+                            tracks.remove(at: index)
+                        }
+                        
+                        // Clear selection
+                        selection.removeAll()
                     }
-                    
-                    // Clear selection
-                    selection.removeAll()
+                } label: {
+                    Text("Delete Selected (\(selection.count))")
+                        .frame(maxWidth: .infinity)
+                        .monospacedDigit()
+                        .bold()
+                        .geometryGroup()
                 }
-            } label: {
-                Text("Delete Selected (\(selection.count))")
-                    .frame(maxWidth: .infinity)
-                    .monospacedDigit()
-                    .bold()
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
-            .offset(y: !selection.isEmpty ? 0 : 200)
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .offset(y: !selection.isEmpty ? 0 : 200)
+                .animation(.interactiveSpring, value: selection.isEmpty)
 #if targetEnvironment(macCatalyst)
-            .padding(.bottom)
+                .padding(.bottom)
 #endif
+            }
         }
         .task {
             await updateTracks(offset: tracks.count)
@@ -249,6 +254,7 @@ struct MediaDetailView: View {
         .listStyle(.sidebar)
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationBarTitleDisplayMode(.inline)
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(playableContent.title)

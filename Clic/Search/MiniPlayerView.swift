@@ -8,7 +8,6 @@ struct MiniPlayerView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(\.colorScheme) var colorScheme: ColorScheme
-    @Environment(\.dismiss) var dismiss
 
     private var selectedGroup: GroupRoom? {
         guard let groupID = selectedGroupService.group?.coordinatorID else {

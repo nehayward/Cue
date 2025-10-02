@@ -68,7 +68,7 @@ extension View {
     @ViewBuilder
     func glassForegroundAudio() -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: .capsule)
+            self.glassEffect(.clear, in: .capsule)
         } else {
             self.background {
                 Capsule()
