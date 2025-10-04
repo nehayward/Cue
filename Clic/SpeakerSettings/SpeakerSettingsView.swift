@@ -166,7 +166,7 @@ struct SpeakerSettingsView: View {
                     
                     VStack {
                         LabeledContent {
-                            Text(room.theaterSettings.surroundLevel, format: .number.rounded(rule: .towardZero))
+                            Text("\(Int(room.theaterSettings.surroundLevel.rounded()))")
                                 .foregroundStyle(.primary)
                                 .bold()
                                 .monospacedDigit()
@@ -194,7 +194,7 @@ struct SpeakerSettingsView: View {
                     
                     VStack {
                         LabeledContent {
-                            Text(room.theaterSettings.musicSurroundLevel, format: .number.rounded(rule: .towardZero))
+                            Text("\(Int(room.theaterSettings.musicSurroundLevel.rounded()))")
                                 .foregroundStyle(.primary)
                                 .bold()
                                 .monospacedDigit()

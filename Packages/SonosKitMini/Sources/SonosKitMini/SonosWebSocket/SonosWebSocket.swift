@@ -229,7 +229,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      */
     private func dispatchMessage(_ message: String) async {
         let messageData = Data(message.utf8)
-        
+        // MARK: Debug
+//        print(messageData)
+
         // Try to decode as VolumeEvent
         if let volumeEvent = try? VolumeEvent.decode(from: messageData) {
             if volumeEvent.info.type == "groupVolume" {

@@ -80,6 +80,7 @@ extension SonosMiniService: SonosEventHandler {
                         }
                     }
                 }
+                updateDevice(devices[index], keyPath: \.quality, value: track.quality)
             }
             
             if let htInputFormat = event.metadata?.container?.htInputFormat, let description = htInputFormat.streamDescription {

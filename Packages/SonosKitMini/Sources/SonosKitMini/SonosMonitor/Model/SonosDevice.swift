@@ -16,7 +16,7 @@ public struct SonosDevice: Identifiable {
     public let ip: String
     public var isHidden: Bool
     public var isVisible: Bool { !isHidden }
-    
+    public var quality: SonosTrackQuality?
     public var tvAudio: String = ""
     
     public var currentPosition: Int = 0

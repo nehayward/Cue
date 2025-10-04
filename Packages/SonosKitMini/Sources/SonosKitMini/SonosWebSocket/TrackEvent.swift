@@ -79,7 +79,7 @@ public struct Track: Codable {
     public let type: String?
     public let objectType: String?
     public let name: String?
-    public let quality: TrackQuality?
+    public let quality: SonosTrackQuality?
 
     enum CodingKeys: String, CodingKey {
         case images, artist, service, id, album, type, name, quality
@@ -143,7 +143,7 @@ public struct Album: Codable {
     }
 }
 
-public struct TrackQuality: Codable {
+public struct SonosTrackQuality: Codable, Hashable {
     public let bitDepth: Int?
     public let lossless: Bool?
     public let immersive: Bool?

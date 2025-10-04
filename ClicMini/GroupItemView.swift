@@ -171,6 +171,18 @@ struct GroupItemView: View {
         }
         .disabled(availableDevicesToGroup.isEmpty)
         
+        if let quality = device.quality, !quality.sampleRateFormatted.isEmpty {
+            let qualityString = [quality.bitDepth.map { "\($0)-bit" }, quality.sampleRateFormatted]
+                .compactMap { $0 }
+                .joined(separator: " • ")
+
+            Button {
+                
+            } label: {
+                Label(qualityString, systemImage: "waveform")
+            }
+        }
+        
         Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
             Label("Open in Clic…", systemImage: "arrow.up.forward")
         }

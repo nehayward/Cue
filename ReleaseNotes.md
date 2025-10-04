@@ -11,6 +11,7 @@
 - Improved Pin Button: Larger tap target for easier interaction
 - Add open artist in Music Service
 - Add show alarms in View iPad menu bar
+- Add sound quality info to Clic Mini
 
 –– Bug Fixes & Improvements ––
 - Improved error messages for playback failures: Users now receive clearer, more actionable feedback when content cannot be played due to service issues.

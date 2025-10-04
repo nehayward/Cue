@@ -66,6 +66,7 @@ struct LargePlayerView: View {
                             }
                         }
                         .animation(.spring, value: group.isMuted)
+                        .frame(maxWidth: 400, maxHeight: 400)
                     TVModeView(group: group)
                     Spacer()
                 }
@@ -571,6 +572,7 @@ fileprivate struct BackgroundView: View {
             Rectangle()
                 .foregroundStyle(.thinMaterial)
                 .scaleEffect(1.3)
+                .opacity(group.TVMode ? 0 : 1)
         }
         .backgroundExtension26()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -636,4 +638,16 @@ fileprivate struct DuaLipaContainer: View {
 
 #Preview("Dua Lipa") {
     DuaLipaContainer()
+}
+
+import SwiftUI
+
+struct BlurView: UIViewRepresentable {
+    var style: UIBlurEffect.Style = .systemThickMaterial
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        UIVisualEffectView(effect: UIBlurEffect(style: style))
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
 }
