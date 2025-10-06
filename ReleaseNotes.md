@@ -22,10 +22,55 @@
 - Restored missing music service icons
 - Update MarqueeText for better performance
 - Improved Clic Mini Performance
+- Fix EQ number formatting on speaker settings
 - Enhanced Settings View: Added pinned speaker management and clearer keyboard shortcut descriptions
 - Visual Feedback: Pinned speakers now show subtle accent border for better identification
 - Persistent Settings: Pin preferences and menu bar display options saved between app launches
 - Improve Alarms
+
+## Store
+
+2025.15
+–– New Features ––
+Clic Mini: Redesigned and Rebuilt
+Clic Mini has been completely reimagined for macOS 26, delivering a faster, more reliable experience with improved stability and an intuitive interface.
+Speaker Grouping Made Easy
+Group and ungroup your speakers directly from the menu bar with instant feedback. All grouping actions update in real time and are accessible via the context menu for each device.
+Pinned Speakers
+Take control of your workflow by pinning your favorite speakers. Pinned speakers are prioritized in menu bar displays and keyboard shortcuts, ensuring your most-used devices are always within reach. Visual indicators with subtle accent borders make pinned speakers easy to identify.
+Enhanced Controls and Customization
+
+HotKeys Support: Navigate and control playback faster with new keyboard shortcuts
+Menu Bar Customization: Toggle song title visibility in the menu bar to match your preferences
+Visual Feedback: Active playback is now indicated with an accented icon
+Improved Touch Targets: Enlarged pin button for easier interaction
+
+Additional Features
+
+Open currently playing artist directly in your music service
+View alarms from the iPad menu bar
+Check sound quality information at a glance
+
+–– Bug Fixes and Improvements ––
+Reliability and Performance
+
+Enhanced error messaging provides clearer, actionable feedback when content fails to play
+Improved MarqueeText rendering for smoother performance
+Fixed EQ number formatting in speaker settings
+Optimized overall Clic Mini performance
+
+Visual Refinements
+
+Resolved oversized icon issues on Mac Catalyst
+Fixed layout problems on album details view
+Restored missing music service icons
+Corrected album details display for macOS 26
+
+Settings and Preferences
+
+Pin preferences and menu bar display options now persist between app launches
+Improved settings view with clearer keyboard shortcut descriptions
+Enhanced alarm management
 
 # 2025.14
 

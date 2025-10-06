@@ -107,7 +107,8 @@ public extension SonosEventHandler {
  * await service.addPlayer(config, events: [.volume, .playback, .metadata])
  * ```
  */
-public final class SonosStreamingService: @unchecked Sendable {
+@MainActor
+public final class SonosStreamingService {
     
     /// Event types that can be monitored
     public enum EventType: CaseIterable, Hashable {
@@ -118,7 +119,6 @@ public final class SonosStreamingService: @unchecked Sendable {
         case group
     }
     
-    private let lock = OSAllocatedUnfairLock()
     private var connections: [String: WeakBox<SonosWebSocket>] = [:]
     private var connectionTasks: [String: Task<Void, Never>] = [:]
     
@@ -161,9 +161,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         let playerId = config.playerId
         
         // Check if player already exists
-        let existingSocket = lock.withLock {
-            connections[playerId]
-        }
+        let existingSocket = connections[playerId]
         
         if existingSocket != nil {
             if debug {
@@ -183,10 +181,9 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         // Store connection and config
-        lock.withLock {
-            connections[playerId] =  WeakBox(socket)
-            playerConfigs[playerId] = config
-        }
+        connections[playerId] =  WeakBox(socket)
+        playerConfigs[playerId] = config
+        
    
         // Start monitoring events specified in config
         await startMonitoring(playerId: playerId, config: config, socket: socket, events: config.events)
@@ -202,9 +199,7 @@ public final class SonosStreamingService: @unchecked Sendable {
     /// Gracefully remove a player without affecting the refresh timer (used during refresh)
     private func gracefulRemovePlayer(_ playerId: String) async {
         // Get tasks and socket to cancel
-        let (connectionTask, socket) = lock.withLock {
-            (connectionTasks[playerId], connections[playerId])
-        }
+        let (connectionTask, socket) = (connectionTasks[playerId], connections[playerId])
         
         // Cancel tasks first to stop monitoring loops
         connectionTask?.cancel()
@@ -226,21 +221,21 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         // Clean up connection state but preserve player configs for reconnection
-        lock.withLock {
-            connectionTasks.removeValue(forKey: playerId)
-            let removedSocket = connections.removeValue(forKey: playerId)
-            if debug && removedSocket != nil {
-                print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
-            }
-            // Clear group monitoring if this player was monitoring groups
-            if currentGroupMonitoringPlayerId == playerId {
-                currentGroupMonitoringPlayerId = nil
-                if debug {
-                    print("DEBUG: Cleared group monitoring for removed player \(playerId)")
-                }
-            }
-            // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
+        
+        connectionTasks.removeValue(forKey: playerId)
+        let removedSocket = connections.removeValue(forKey: playerId)
+        if debug && removedSocket != nil {
+            print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
         }
+        // Clear group monitoring if this player was monitoring groups
+        if currentGroupMonitoringPlayerId == playerId {
+            currentGroupMonitoringPlayerId = nil
+            if debug {
+                print("DEBUG: Cleared group monitoring for removed player \(playerId)")
+            }
+        }
+        // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
+        
         
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -253,9 +248,8 @@ public final class SonosStreamingService: @unchecked Sendable {
      */
     public func removePlayer(_ playerId: String) async {
         // Get tasks and socket to cancel
-        let (connectionTask, socket) = lock.withLock {
-            (connectionTasks[playerId], connections[playerId])
-        }
+        let (connectionTask, socket) = (connectionTasks[playerId], connections[playerId])
+        
         
         // Cancel tasks
         connectionTask?.cancel()
@@ -267,24 +261,23 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         // Clean up
-        lock.withLock {
-            connectionTasks.removeValue(forKey: playerId)
-            let removedSocket = connections.removeValue(forKey: playerId)
-            playerConfigs.removeValue(forKey: playerId)
-            if debug && removedSocket != nil {
-                print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
-            }
-            // Clear group monitoring if this player was monitoring groups
-            if currentGroupMonitoringPlayerId == playerId {
-                currentGroupMonitoringPlayerId = nil
-                if debug {
-                    print("DEBUG: Cleared group monitoring for permanently removed player \(playerId)")
-                }
+        connectionTasks.removeValue(forKey: playerId)
+        let removedSocket = connections.removeValue(forKey: playerId)
+        playerConfigs.removeValue(forKey: playerId)
+        if debug && removedSocket != nil {
+            print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
+        }
+        // Clear group monitoring if this player was monitoring groups
+        if currentGroupMonitoringPlayerId == playerId {
+            currentGroupMonitoringPlayerId = nil
+            if debug {
+                print("DEBUG: Cleared group monitoring for permanently removed player \(playerId)")
             }
         }
         
+        
         // Stop refresh timer if no more players
-        if lock.withLock({ connections.isEmpty }) {
+        if connections.isEmpty {
             stopConnectionRefreshTimer()
         }
         
@@ -294,24 +287,30 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Start monitoring specified event types for a player
     private func startMonitoring(playerId: String, config: SonosPlayerConfig, socket: SonosWebSocket, events: Set<EventType>) async {
-        let task = Task { [weak self] in
-            await withTaskGroup { group in
+        let task = Task { [weak self, weak socket] in
+            guard let socket = socket else { return }
+            
+            await withTaskGroup(of: Void.self) { [weak self] group in
                 for eventType in events {
                     switch eventType {
                     case .volume:
-                        group.addTask { [weak self] in
+                        group.addTask { [weak self, weak socket] in
+                            guard let socket = socket else { return }
                             await self?.monitorVolume(playerId: playerId, socket: socket)
                         }
                     case .groupVolume:
-                        group.addTask { [weak self] in
+                        group.addTask { [weak self, weak socket] in
+                            guard let socket = socket else { return }
                             await self?.monitorGroupVolume(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .playback:
-                        group.addTask { [weak self] in
+                        group.addTask { [weak self, weak socket] in
+                            guard let socket = socket else { return }
                             await self?.monitorPlayback(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .metadata:
-                        group.addTask { [weak self] in
+                        group.addTask { [weak self, weak socket] in
+                            guard let socket = socket else { return }
                             await self?.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
                         }
                     case .group:
@@ -319,7 +318,8 @@ public final class SonosStreamingService: @unchecked Sendable {
                         // householdId is required for group monitoring
                         if let householdId = config.householdId,
                            await self?.shouldStartGroupMonitoring(for: playerId) == true {
-                            group.addTask { [weak self] in
+                            group.addTask { [weak self, weak socket] in
+                                guard let socket = socket else { return }
                                 await self?.monitorGroup(playerId: playerId, householdId: householdId, socket: socket)
                             }
                         }
@@ -328,35 +328,31 @@ public final class SonosStreamingService: @unchecked Sendable {
             }
         }
         
-        lock.withLock {
-            connectionTasks[playerId] = task
-        }
+        connectionTasks[playerId] = task
     }
     
     // MARK: - Event Monitoring
     
     /// Check if group monitoring should start for this player (only one at a time)
     private func shouldStartGroupMonitoring(for playerId: String) async -> Bool {
-        return lock.withLock {
-            if let currentId = currentGroupMonitoringPlayerId {
-                if currentId == playerId {
-                    // Same player, allow
-                    return true
-                } else {
-                    // Different player already monitoring
-                    if debug {
-                        print("DEBUG: Group monitoring already active for player \(currentId), skipping for \(playerId)")
-                    }
-                    return false
-                }
-            } else {
-                // No one monitoring, start
-                currentGroupMonitoringPlayerId = playerId
-                if debug {
-                    print("DEBUG: Starting group monitoring for player \(playerId)")
-                }
+        if let currentId = currentGroupMonitoringPlayerId {
+            if currentId == playerId {
+                // Same player, allow
                 return true
+            } else {
+                // Different player already monitoring
+                if debug {
+                    print("DEBUG: Group monitoring already active for player \(currentId), skipping for \(playerId)")
+                }
+                return false
             }
+        } else {
+            // No one monitoring, start
+            currentGroupMonitoringPlayerId = playerId
+            if debug {
+                print("DEBUG: Starting group monitoring for player \(playerId)")
+            }
+            return true
         }
     }
     
@@ -366,12 +362,17 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToMetadata(groupId: groupId) else { return }
             
             for try await event in stream {
+                // Check if task was cancelled
+                if Task.isCancelled { break }
+                
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
-                await handler.onMetadataUpdate(playerId: playerId, event: event)
+                handler.onMetadataUpdate(playerId: playerId, event: event)
             }
         } catch {
-            await notifyError(playerId: playerId, error: error)
+            if !Task.isCancelled {
+                await notifyError(playerId: playerId, error: error)
+            }
         }
     }
     
@@ -381,12 +382,17 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToPlayback(groupID: groupId) else { return }
             
             for try await event in stream {
+                // Check if task was cancelled
+                if Task.isCancelled { break }
+                
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
-                await handler.onPlaybackUpdate(playerId: playerId, event: event)
+                handler.onPlaybackUpdate(playerId: playerId, event: event)
             }
         } catch {
-            await notifyError(playerId: playerId, error: error)
+            if !Task.isCancelled {
+                await notifyError(playerId: playerId, error: error)
+            }
         }
     }
     
@@ -396,12 +402,17 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToPlayerVolume(playerId: playerId) else { return }
             
             for try await event in stream {
+                // Check if task was cancelled
+                if Task.isCancelled { break }
+                
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
-                await handler.onVolumeUpdate(playerId: playerId, event: event)
+                handler.onVolumeUpdate(playerId: playerId, event: event)
             }
         } catch {
-            await notifyError(playerId: playerId, error: error)
+            if !Task.isCancelled {
+                await notifyError(playerId: playerId, error: error)
+            }
         }
     }
     
@@ -411,12 +422,17 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToGroupVolume(groupId: groupId) else { return }
             
             for try await event in stream {
+                // Check if task was cancelled
+                if Task.isCancelled { break }
+                
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
-                await handler.onVolumeUpdate(playerId: playerId, event: event)
+                handler.onVolumeUpdate(playerId: playerId, event: event)
             }
         } catch {
-            await notifyError(playerId: playerId, error: error)
+            if !Task.isCancelled {
+                await notifyError(playerId: playerId, error: error)
+            }
         }
     }
     
@@ -424,12 +440,10 @@ public final class SonosStreamingService: @unchecked Sendable {
     private func monitorGroup(playerId: String, householdId: String, socket: SonosWebSocket) async {
         defer {
             // Clear group monitoring when done
-            lock.withLock {
-                if currentGroupMonitoringPlayerId == playerId {
-                    currentGroupMonitoringPlayerId = nil
-                    if debug {
-                        print("DEBUG: Stopped group monitoring for player \(playerId)")
-                    }
+            if currentGroupMonitoringPlayerId == playerId {
+                currentGroupMonitoringPlayerId = nil
+                if debug {
+                    print("DEBUG: Stopped group monitoring for player \(playerId)")
                 }
             }
         }
@@ -438,12 +452,17 @@ public final class SonosStreamingService: @unchecked Sendable {
             guard let stream = try await socket.connectAndSubscribeToGroup(householdId: householdId) else { return }
             
             for try await event in stream {
+                // Check if task was cancelled
+                if Task.isCancelled { break }
+                
                 // Safely access eventHandler to avoid crashes if it becomes nil
                 guard let handler = eventHandler else { break }
-                await handler.onGroupUpdate(playerId: playerId, event: event)
+                handler.onGroupUpdate(playerId: playerId, event: event)
             }
         } catch {
-            await notifyError(playerId: playerId, error: error)
+            if !Task.isCancelled {
+                await notifyError(playerId: playerId, error: error)
+            }
         }
     }
     
@@ -451,13 +470,11 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Notify event handler of connection status change
     private func notifyConnectionStatusChanged() async {
-        let count = lock.withLock {
-            connections.count
-        }
+        let count = connections.count
         
         // Safely access eventHandler to avoid crashes if it becomes nil
         guard let handler = eventHandler else { return }
-        await handler.onConnectionStatusChanged(isConnected: count > 0, connectionCount: count)
+        handler.onConnectionStatusChanged(isConnected: count > 0, connectionCount: count)
     }
     
     /// Notify event handler of an error
@@ -468,7 +485,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         
         // Safely access eventHandler to avoid crashes if it becomes nil
         guard let handler = eventHandler else { return }
-        await handler.onError(playerId: playerId, error: error)
+        handler.onError(playerId: playerId, error: error)
     }
     
     // MARK: - Connection Refresh Timer Management
@@ -507,7 +524,7 @@ public final class SonosStreamingService: @unchecked Sendable {
     /// Refresh all connections by disconnecting and reconnecting all players
     private func refreshAllConnections() async {
         // Prevent concurrent refresh operations
-        let shouldRefresh = lock.withLock {
+        var shouldRefresh: Bool {
             guard !isRefreshing else { return false }
             isRefreshing = true
             return true
@@ -521,9 +538,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         defer {
-            lock.withLock {
-                isRefreshing = false
-            }
+            isRefreshing = false
         }
         
         if debug {
@@ -531,9 +546,7 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         // Get snapshot of current player configurations
-        let configsToRefresh = lock.withLock {
-            Array(playerConfigs.values)
-        }
+        let configsToRefresh = Array(playerConfigs.values)
         
         guard !configsToRefresh.isEmpty else {
             if debug {
@@ -570,9 +583,7 @@ public final class SonosStreamingService: @unchecked Sendable {
      *   - positionMillis: The position to seek to in milliseconds
      */
     public func seek(playerId: String, positionMillis: Int) async throws {
-        let (socket, config) = lock.withLock {
-            (connections[playerId], playerConfigs[playerId])
-        }
+        let (socket, config) = (connections[playerId], playerConfigs[playerId])
         
         guard let socket = socket,
               let config = config else {
@@ -584,9 +595,7 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
     private func gracefulDisconnectAll() async {
-        let playerIds = lock.withLock {
-            Array(connections.keys)
-        }
+        let playerIds = Array(connections.keys)
         
         await withTaskGroup(of: Void.self) { [weak self] group in
             for playerId in playerIds {
@@ -597,18 +606,15 @@ public final class SonosStreamingService: @unchecked Sendable {
         }
         
         // Additional cleanup to ensure all weak references are cleared
-        lock.withLock {
-            for (_, weakSocket) in connections {
-                weakSocket.value = nil
-            }
+        for (_, weakSocket) in connections {
+            weakSocket.value = nil
         }
     }
     
     /// Disconnect all players and clean up
     public func disconnectAll() async {
-        let playerIds = lock.withLock {
-            Array(connections.keys)
-        }
+        let playerIds = Array(connections.keys)
+        
         
         // Stop refresh timer
         stopConnectionRefreshTimer()
@@ -624,9 +630,7 @@ public final class SonosStreamingService: @unchecked Sendable {
     
     /// Get count of active connections
     public var connectionCount: Int {
-        lock.withLock {
-            connections.count
-        }
+        connections.count
     }
     
     /// Check if any connections are active
