@@ -1,5 +1,8 @@
 import Foundation
 import os
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /**
  * Configuration for a Sonos player connection.
@@ -123,6 +126,9 @@ public final class SonosStreamingService {
     // Group monitoring - only one player can monitor group events at a time
     private var currentGroupMonitoringPlayerId: String?
     
+    // Sleep/wake notification observer task
+    private var wakeObserverTask: Task<Void, Never>?
+    
     private let apiKey: String
     private let debug: Bool
     private weak var eventHandler: SonosEventHandler?
@@ -141,6 +147,45 @@ public final class SonosStreamingService {
         self.eventHandler = eventHandler
         self.apiKey = apiKey
         self.debug = debug
+        
+        // Setup sleep/wake notification listener on macOS
+        setupSleepWakeNotifications()
+    }
+    
+    /// Setup notification observers for system sleep/wake events using async streams
+    private func setupSleepWakeNotifications() {
+        #if canImport(AppKit)
+        wakeObserverTask = Task { [weak self] in
+            // Use NSWorkspace's notification center instead of default
+            let notifications = NSWorkspace.shared.notificationCenter.notifications(
+                named: NSWorkspace.didWakeNotification
+            )
+            
+            for await _ in notifications {
+                guard let self = self else { break }
+                
+                if Task.isCancelled { break }
+                
+                await MainActor.run { [weak self] in
+                    if self?.debug == true {
+                        print("DEBUG: Computer woke from sleep, refreshing all connections...")
+                    }
+                }
+                
+                await self.handleWakeFromSleep()
+            }
+        }
+        
+        if debug {
+            print("DEBUG: Sleep/wake notification stream listener setup")
+        }
+        #endif
+    }
+    
+    /// Handle system wake from sleep by refreshing all connections
+    private func handleWakeFromSleep() async {
+        // Refresh all connections after wake
+        await refreshAllConnections()
     }
     
     /**
@@ -622,6 +667,9 @@ public final class SonosStreamingService {
     }
     
     deinit {
+        // Cancel sleep/wake notification observer task
+        wakeObserverTask?.cancel()
+        
         Task { [weak self] in
             await self?.disconnectAll()
         }
