@@ -61,14 +61,6 @@ public protocol SonosEventHandler: AnyObject {
     func onPositionTick(playerId: String, currentPositionMillis: Int, isPlaying: Bool)
 }
 
-
-final class WeakBox<T: AnyObject> {
-    weak var value: T?
-    init(_ value: T) {
-        self.value = value
-    }
-}
-
 // Default implementations (all optional)
 public extension SonosEventHandler {
     func onVolumeUpdate(playerId: String, event: VolumeEvent) {}
@@ -119,7 +111,7 @@ public final class SonosStreamingService {
         case group
     }
     
-    private var connections: [String: WeakBox<SonosWebSocket>] = [:]
+    private var connections: [String: SonosWebSocket] = [:]
     private var connectionTasks: [String: Task<Void, Never>] = [:]
     
     // Connection refresh timer management
@@ -181,7 +173,7 @@ public final class SonosStreamingService {
         }
         
         // Store connection and config
-        connections[playerId] =  WeakBox(socket)
+        connections[playerId] = socket
         playerConfigs[playerId] = config
         
    
@@ -211,22 +203,21 @@ public final class SonosStreamingService {
             // Ignore cancellation errors
         }
         
-        // Close connection gracefully and clear the weak reference
+        // Close connection gracefully
         if let socket = socket {
-            socket.value?.close() // This now properly finishes all continuations and clears references
-            socket.value = nil // Explicitly clear the weak reference
+            socket.close() // This properly finishes all continuations and clears references
             if debug {
-                print("DEBUG: Closed and cleared socket for player \(playerId)")
+                print("DEBUG: Closed socket for player \(playerId)")
             }
         }
         
         // Clean up connection state but preserve player configs for reconnection
-        
         connectionTasks.removeValue(forKey: playerId)
         let removedSocket = connections.removeValue(forKey: playerId)
         if debug && removedSocket != nil {
             print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
         }
+        
         // Clear group monitoring if this player was monitoring groups
         if currentGroupMonitoringPlayerId == playerId {
             currentGroupMonitoringPlayerId = nil
@@ -235,7 +226,6 @@ public final class SonosStreamingService {
             }
         }
         // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
-        
         
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -250,14 +240,12 @@ public final class SonosStreamingService {
         // Get tasks and socket to cancel
         let (connectionTask, socket) = (connectionTasks[playerId], connections[playerId])
         
-        
         // Cancel tasks
         connectionTask?.cancel()
         
-        // Close connection and clear weak reference
+        // Close connection
         if let socket = socket {
-            try? await socket.value?.cancel()
-            socket.value = nil // Explicitly clear the weak reference
+            try? await socket.cancel()
         }
         
         // Clean up
@@ -267,6 +255,7 @@ public final class SonosStreamingService {
         if debug && removedSocket != nil {
             print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
         }
+        
         // Clear group monitoring if this player was monitoring groups
         if currentGroupMonitoringPlayerId == playerId {
             currentGroupMonitoringPlayerId = nil
@@ -274,7 +263,6 @@ public final class SonosStreamingService {
                 print("DEBUG: Cleared group monitoring for permanently removed player \(playerId)")
             }
         }
-        
         
         // Stop refresh timer if no more players
         if connections.isEmpty {
@@ -590,7 +578,7 @@ public final class SonosStreamingService {
             throw SonosWebSocketError.connectionNotFound
         }
         
-        try await socket.value?.seek(groupID: config.groupId, positionMillis: positionMillis)
+        try await socket.seek(groupID: config.groupId, positionMillis: positionMillis)
     }
     
     /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
@@ -603,11 +591,6 @@ public final class SonosStreamingService {
                     await self?.gracefulRemovePlayer(playerId)
                 }
             }
-        }
-        
-        // Additional cleanup to ensure all weak references are cleared
-        for (_, weakSocket) in connections {
-            weakSocket.value = nil
         }
     }
     
