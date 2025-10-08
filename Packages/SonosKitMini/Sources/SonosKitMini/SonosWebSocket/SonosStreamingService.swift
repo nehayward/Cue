@@ -162,14 +162,10 @@ public final class SonosStreamingService {
             )
             
             for await _ in notifications {
-                guard let self = self else { break }
+                guard let self = self, !Task.isCancelled else { break }
                 
-                if Task.isCancelled { break }
-                
-                await MainActor.run { [weak self] in
-                    if self?.debug == true {
-                        print("DEBUG: Computer woke from sleep, refreshing all connections...")
-                    }
+                if self.debug {
+                    print("DEBUG: Computer woke from sleep, refreshing all connections...")
                 }
                 
                 await self.handleWakeFromSleep()
@@ -236,7 +232,8 @@ public final class SonosStreamingService {
     /// Gracefully remove a player without affecting the refresh timer (used during refresh)
     private func gracefulRemovePlayer(_ playerId: String) async {
         // Get tasks and socket to cancel
-        let (connectionTask, socket) = (connectionTasks[playerId], connections[playerId])
+        let connectionTask = connectionTasks[playerId]
+        let socket = connections[playerId]
         
         // Cancel tasks first to stop monitoring loops
         connectionTask?.cancel()
@@ -283,14 +280,18 @@ public final class SonosStreamingService {
      */
     public func removePlayer(_ playerId: String) async {
         // Get tasks and socket to cancel
-        let (connectionTask, socket) = (connectionTasks[playerId], connections[playerId])
+        let connectionTask = connectionTasks[playerId]
+        let socket = connections[playerId]
         
         // Cancel tasks
         connectionTask?.cancel()
         
+        // Wait a brief moment for cancellation
+        try? await Task.sleep(for: .milliseconds(100))
+        
         // Close connection
         if let socket = socket {
-            try? await socket.cancel()
+            socket.close()
         }
         
         // Clean up
@@ -320,6 +321,10 @@ public final class SonosStreamingService {
     
     /// Start monitoring specified event types for a player
     private func startMonitoring(playerId: String, config: SonosPlayerConfig, socket: SonosWebSocket, events: Set<EventType>) async {
+        // Capture config values to avoid accessing potentially deallocated struct
+        let groupId = config.groupId
+        let householdId = config.householdId
+        
         let task = Task { [weak self, weak socket] in
             guard let socket = socket else { return }
             
@@ -328,32 +333,32 @@ public final class SonosStreamingService {
                     switch eventType {
                     case .volume:
                         group.addTask { [weak self, weak socket] in
-                            guard let socket = socket else { return }
-                            await self?.monitorVolume(playerId: playerId, socket: socket)
+                            guard let self = self, let socket = socket else { return }
+                            await self.monitorVolume(playerId: playerId, socket: socket)
                         }
                     case .groupVolume:
                         group.addTask { [weak self, weak socket] in
-                            guard let socket = socket else { return }
-                            await self?.monitorGroupVolume(playerId: playerId, groupId: config.groupId, socket: socket)
+                            guard let self = self, let socket = socket else { return }
+                            await self.monitorGroupVolume(playerId: playerId, groupId: groupId, socket: socket)
                         }
                     case .playback:
                         group.addTask { [weak self, weak socket] in
-                            guard let socket = socket else { return }
-                            await self?.monitorPlayback(playerId: playerId, groupId: config.groupId, socket: socket)
+                            guard let self = self, let socket = socket else { return }
+                            await self.monitorPlayback(playerId: playerId, groupId: groupId, socket: socket)
                         }
                     case .metadata:
                         group.addTask { [weak self, weak socket] in
-                            guard let socket = socket else { return }
-                            await self?.monitorMetadata(playerId: playerId, groupId: config.groupId, socket: socket)
+                            guard let self = self, let socket = socket else { return }
+                            await self.monitorMetadata(playerId: playerId, groupId: groupId, socket: socket)
                         }
                     case .group:
                         // Only allow one player to monitor group events at a time
                         // householdId is required for group monitoring
-                        if let householdId = config.householdId,
+                        if let householdId = householdId,
                            await self?.shouldStartGroupMonitoring(for: playerId) == true {
                             group.addTask { [weak self, weak socket] in
-                                guard let socket = socket else { return }
-                                await self?.monitorGroup(playerId: playerId, householdId: householdId, socket: socket)
+                                guard let self = self, let socket = socket else { return }
+                                await self.monitorGroup(playerId: playerId, householdId: householdId, socket: socket)
                             }
                         }
                     }
@@ -471,11 +476,15 @@ public final class SonosStreamingService {
     
     /// Monitor group status changes and forward to event handler (only one player at a time)
     private func monitorGroup(playerId: String, householdId: String, socket: SonosWebSocket) async {
+        // Capture debug flag to avoid accessing self in defer if deallocated
+        let shouldDebug = debug
+        
         defer {
             // Clear group monitoring when done
+            // Safe to access self here since defer runs before method returns
             if currentGroupMonitoringPlayerId == playerId {
                 currentGroupMonitoringPlayerId = nil
-                if debug {
+                if shouldDebug {
                     print("DEBUG: Stopped group monitoring for player \(playerId)")
                 }
             }
@@ -530,9 +539,13 @@ public final class SonosStreamingService {
         
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
+                // Check if self still exists at the start of each loop
                 do {
-                    try await Task.sleep(for: self?.connectionRefreshInterval ?? .seconds(5 * 60))
-                    await self?.refreshAllConnections()
+                    try await Task.sleep(for: self?.connectionRefreshInterval ?? .seconds(1 * 60))
+                    
+                    // Check again after sleep - service might have been deallocated
+                    guard let self = self else { break }
+                    await self.refreshAllConnections()
                 } catch {
                     break // Task was cancelled
                 }
@@ -616,14 +629,17 @@ public final class SonosStreamingService {
      *   - positionMillis: The position to seek to in milliseconds
      */
     public func seek(playerId: String, positionMillis: Int) async throws {
-        let (socket, config) = (connections[playerId], playerConfigs[playerId])
+        let socket = connections[playerId]
+        let config = playerConfigs[playerId]
         
         guard let socket = socket,
               let config = config else {
             throw SonosWebSocketError.connectionNotFound
         }
         
-        try await socket.seek(groupID: config.groupId, positionMillis: positionMillis)
+        // Capture groupId to avoid accessing config after potential deallocation during async call
+        let groupId = config.groupId
+        try await socket.seek(groupID: groupId, positionMillis: positionMillis)
     }
     
     /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
@@ -670,8 +686,17 @@ public final class SonosStreamingService {
         // Cancel sleep/wake notification observer task
         wakeObserverTask?.cancel()
         
-        Task { [weak self] in
-            await self?.disconnectAll()
+        // Cancel refresh timer
+        refreshTask?.cancel()
+        
+        // Cancel all connection tasks synchronously
+        for task in connectionTasks.values {
+            task.cancel()
+        }
+        
+        // Close all sockets synchronously
+        for socket in connections.values {
+            socket.close()
         }
     }
 }

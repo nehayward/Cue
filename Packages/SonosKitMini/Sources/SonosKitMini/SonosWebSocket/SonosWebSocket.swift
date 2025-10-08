@@ -103,9 +103,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     /// URL session configured for WebSocket connections with SSL certificate handling
     private var session: URLSession?
     
-    /// Current connection state - true when WebSocket is actively receiving messages
-    private var isConnected = false
-    
     // MARK: - Stream Management
     
     /// Continuation for the volume event stream, yields VolumeEvent instances
@@ -135,9 +132,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     /// Maximum number of reconnection attempts before giving up (default: 5)
     private var maxReconnectAttempts = 5
     
-    /// Background task handling reconnection logic with exponential backoff
-    private var reconnectTask: Task<Void, Never>?
-    
     /// Maps subscription types to their identifiers for automatic resubscription after reconnection
     /// Keys: "volume", "playback", "metadata", "group" | Values: playerId, groupId, or householdId
     private var activeSubscriptions: [String: String] = [:]
@@ -159,34 +153,39 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         guard messageReceiveTask == nil else { return }
         
         messageReceiveTask = Task { [weak self] in
+            guard let self = self else { return }
+            
+            // Capture debug flag upfront to avoid repeated property access
+            let shouldDebug = self.debug
             var isAlive = true
             
-            while isAlive && self?.task?.closeCode == .invalid {
+            while isAlive {
+                // Check if self and task still exist at start of each loop iteration
+                guard let task = self.task,
+                      task.closeCode == .invalid else {
+                    break
+                }
+                
                 do {
-                    guard let value = try await self?.task?.receive() else { return }
+                    let value = try await task.receive()
                     
-                    // Mark as connected on successful receive
-                    if self?.isConnected == false {
-                        self?.isConnected = true
-                        self?.reconnectAttempts = 0
-                        if self?.debug == true {
-                            print("DEBUG: WebSocket connected successfully")
-                        }
+                    // Mark as connected on successful receive - reset reconnect attempts
+                    self.reconnectAttempts = 0
+                    if shouldDebug {
+                        print("DEBUG: WebSocket connected successfully")
                     }
                     
                     if case let .string(message) = value {
-                        if self?.debug == true {
+                        if shouldDebug {
                             print(message.prettyPrinted)
                         }
-                        await self?.dispatchMessage(message)
+                        await self.dispatchMessage(message)
                     }
                 } catch {
-                    self?.isConnected = false
-                    
                     // Check if this is a "Socket is not connected" error (NSPOSIXErrorDomain Code=57)
                     let isSocketNotConnectedError = (error as NSError).domain == NSPOSIXErrorDomain && (error as NSError).code == 57
                     
-                    if self?.debug == true && !isSocketNotConnectedError {
+                    if shouldDebug && !isSocketNotConnectedError {
                         print("DEBUG: WebSocket error: \(error)")
                     }
                     
@@ -195,22 +194,22 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                        urlError.code == .networkConnectionLost ||
                        (error as NSError).code == 54 { // Connection reset by peer
                         
-                        if self?.debug == true {
+                        if shouldDebug {
                             print("DEBUG: Connection reset detected, attempting reconnection...")
                         }
                         
                         // Don't finish continuations immediately, try to reconnect
-                        await self?.attemptReconnection()
+                        await self.attemptReconnection()
                     } else if isSocketNotConnectedError {
                         // Socket not connected - likely during graceful shutdown, just exit quietly
                         isAlive = false
                     } else {
                         // Other errors - finish continuations
-                        self?.volumeContinuation?.finish(throwing: error)
-                        self?.playbackContinuation?.finish(throwing: error)
-                        self?.trackInfoContinuation?.finish(throwing: error)
-                        self?.groupVolumeContinuation?.finish(throwing: error)
-                        self?.groupContinuation?.finish(throwing: error)
+                        self.volumeContinuation?.finish(throwing: error)
+                        self.playbackContinuation?.finish(throwing: error)
+                        self.trackInfoContinuation?.finish(throwing: error)
+                        self.groupVolumeContinuation?.finish(throwing: error)
+                        self.groupContinuation?.finish(throwing: error)
                         isAlive = false
                     }
                 }
@@ -283,8 +282,13 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * If max attempts are reached, all stream continuations are finished with an error.
      */
     private func attemptReconnection() async {
-        guard reconnectAttempts < maxReconnectAttempts else {
-            if debug {
+        // Capture values upfront to avoid accessing properties after potential deallocation
+        let shouldDebug = debug
+        let currentAttempts = reconnectAttempts
+        let maxAttempts = maxReconnectAttempts
+        
+        guard currentAttempts < maxAttempts else {
+            if shouldDebug {
                 print("DEBUG: Max reconnection attempts reached")
             }
             // Finish continuations after max attempts
@@ -298,11 +302,16 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         reconnectAttempts += 1
         let delay = min(pow(2.0, Double(reconnectAttempts)), 30.0) // Max 30 seconds
         
-        if debug {
-            print("DEBUG: Reconnection attempt \(reconnectAttempts)/\(maxReconnectAttempts) in \(delay) seconds")
+        if shouldDebug {
+            print("DEBUG: Reconnection attempt \(reconnectAttempts)/\(maxAttempts) in \(delay) seconds")
         }
         
-        try? await Task.sleep(for: .seconds(delay))
+        do {
+            try await Task.sleep(for: .seconds(delay))
+        } catch {
+            // Task was cancelled during sleep
+            return
+        }
         
         // Cancel old task and create new one
         task?.cancel(with: .normalClosure, reason: nil)
@@ -320,8 +329,12 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     
     /// Resubscribes to all active subscriptions after reconnection
     private func resubscribeAll() async {
-        for (type, id) in activeSubscriptions {
-            if debug {
+        // Capture debug flag and subscriptions to avoid accessing properties across await boundaries
+        let shouldDebug = debug
+        let subscriptions = activeSubscriptions
+        
+        for (type, id) in subscriptions {
+            if shouldDebug {
                 print("DEBUG: Resubscribing to \(type): \(id)")
             }
             
@@ -499,7 +512,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
-        reconnectTask?.cancel()
         
         // Invalidate session
         session?.invalidateAndCancel()
@@ -534,7 +546,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
-        reconnectTask?.cancel()
         
         // Clear all references
         trackInfoContinuation = nil
@@ -543,7 +554,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         groupVolumeContinuation = nil
         groupContinuation = nil
         messageReceiveTask = nil
-        reconnectTask = nil
         task = nil
         
         // Invalidate session
@@ -585,7 +595,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         // Cancel background tasks
         messageReceiveTask?.cancel()
-        reconnectTask?.cancel()
         
         // Clear continuation references
         trackInfoContinuation = nil
@@ -594,7 +603,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         groupVolumeContinuation = nil
         groupContinuation = nil
         messageReceiveTask = nil
-        reconnectTask = nil
         
         // Clear task reference
         task = nil
@@ -631,8 +639,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         ]
         
         let payload: [Any] = [subscribeCommand, [String: Any]()]
-        debugPrint("DEBUG: Sending command: \(payload)")
-        
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { return nil }
         try? await task?.send(.data(data))
         
@@ -696,8 +702,6 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         ]
         
         let payload: [Any] = [subscribeCommand, [String: Any]()]
-        debugPrint("DEBUG: Sending command: \(payload)")
-        
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { return nil }
         try? await task?.send(.data(data))
         

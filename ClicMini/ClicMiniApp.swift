@@ -57,6 +57,7 @@ struct ClicMiniApp: App {
 //        #endif
         
         Task {
+            try? await Task.sleep(for: .milliseconds(200))
             try? await SonosMiniService.shared.loadWatch(useCache: true)
         }
     }
