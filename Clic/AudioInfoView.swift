@@ -2,11 +2,11 @@ import SwiftUI
 import SonosKit
 
 struct AudioInfoView: View {
-    @Environment(SonosService.self) var sonosService
+    var group: GroupRoom
     @State private var showDetails: Bool = false
 
     var body: some View {
-        let quality = sonosService.songAudioInfo
+        let quality = group.audioQuality
         let supportsDetails = (quality?.lossless ?? false) || (quality?.immersive ?? false)
 
         // Create a string like "24-bit • 48kHz" or just "48kHz"

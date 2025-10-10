@@ -69,7 +69,7 @@ public enum SonosWebSocketError: Error, LocalizedError {
  * All public methods are thread-safe and can be called from any queue.
  * Stream events are delivered on the main actor for UI updates.
  */
-public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSessionDelegate {
+public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSessionDelegate, @unchecked Sendable {
     // MARK: - Type Aliases
     
     /// AsyncStream for receiving track metadata events including song info, artist, album, and artwork
@@ -95,10 +95,19 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     /// The IP address of the target Sonos device (e.g., "192.168.1.100")
     private let ipAddress: String
     
+    // MARK: - Thread Safety
+    
+    /// Serial queue for synchronizing access to mutable state
+    private let stateQueue = DispatchQueue(label: "com.sonos.websocket.state", qos: .userInitiated)
+    
     // MARK: - Connection Management
     
     /// The active WebSocket task handling the connection to the Sonos device
-    private var task: URLSessionWebSocketTask?
+    private var _task: URLSessionWebSocketTask?
+    private var task: URLSessionWebSocketTask? {
+        get { stateQueue.sync { _task } }
+        set { stateQueue.sync { _task = newValue } }
+    }
     
     /// URL session configured for WebSocket connections with SSL certificate handling
     private var session: URLSession?
@@ -106,35 +115,67 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     // MARK: - Stream Management
     
     /// Continuation for the volume event stream, yields VolumeEvent instances
-    private var groupVolumeContinuation: SonosVolumeWebSocketStream.Continuation?
+    private var _groupVolumeContinuation: SonosVolumeWebSocketStream.Continuation?
+    private var groupVolumeContinuation: SonosVolumeWebSocketStream.Continuation? {
+        get { stateQueue.sync { _groupVolumeContinuation } }
+        set { stateQueue.sync { _groupVolumeContinuation = newValue } }
+    }
     
     /// Continuation for the volume event stream, yields VolumeEvent instances
-    private var volumeContinuation: SonosVolumeWebSocketStream.Continuation?
+    private var _volumeContinuation: SonosVolumeWebSocketStream.Continuation?
+    private var volumeContinuation: SonosVolumeWebSocketStream.Continuation? {
+        get { stateQueue.sync { _volumeContinuation } }
+        set { stateQueue.sync { _volumeContinuation = newValue } }
+    }
     
     /// Continuation for the playback event stream, yields PlaybackEvent instances
-    private var playbackContinuation: SonosPlaybackWebSocketStream.Continuation?
+    private var _playbackContinuation: SonosPlaybackWebSocketStream.Continuation?
+    private var playbackContinuation: SonosPlaybackWebSocketStream.Continuation? {
+        get { stateQueue.sync { _playbackContinuation } }
+        set { stateQueue.sync { _playbackContinuation = newValue } }
+    }
     
     /// Continuation for the track metadata stream, yields TrackEvent instances
-    private var trackInfoContinuation: SonosTrackWebSocketStream.Continuation?
+    private var _trackInfoContinuation: SonosTrackWebSocketStream.Continuation?
+    private var trackInfoContinuation: SonosTrackWebSocketStream.Continuation? {
+        get { stateQueue.sync { _trackInfoContinuation } }
+        set { stateQueue.sync { _trackInfoContinuation = newValue } }
+    }
     
     /// Continuation for the group status stream, yields GroupEvent instances
-    private var groupContinuation: SonosGroupWebSocketStream.Continuation?
+    private var _groupContinuation: SonosGroupWebSocketStream.Continuation?
+    private var groupContinuation: SonosGroupWebSocketStream.Continuation? {
+        get { stateQueue.sync { _groupContinuation } }
+        set { stateQueue.sync { _groupContinuation = newValue } }
+    }
     
     /// Background task that continuously receives and dispatches WebSocket messages
     /// Prevents race conditions by ensuring only one receive operation at a time
-    private var messageReceiveTask: Task<Void, Never>?
+    private var _messageReceiveTask: Task<Void, Never>?
+    private var messageReceiveTask: Task<Void, Never>? {
+        get { stateQueue.sync { _messageReceiveTask } }
+        set { stateQueue.sync { _messageReceiveTask = newValue } }
+    }
     
     // MARK: - Reconnection Management
     
     /// Current number of consecutive reconnection attempts
-    private var reconnectAttempts = 0
+    private var _reconnectAttempts = 0
+    private var reconnectAttempts: Int {
+        get { stateQueue.sync { _reconnectAttempts } }
+        set { stateQueue.sync { _reconnectAttempts = newValue } }
+    }
     
     /// Maximum number of reconnection attempts before giving up (default: 5)
-    private var maxReconnectAttempts = 5
+    private let maxReconnectAttempts = 5
     
     /// Maps subscription types to their identifiers for automatic resubscription after reconnection
     /// Keys: "volume", "playback", "metadata", "group" | Values: playerId, groupId, or householdId
-    private var activeSubscriptions: [String: String] = [:]
+    private var _activeSubscriptions: [String: String] = [:]
+    private var activeSubscriptions: [String: String] {
+        get { stateQueue.sync { _activeSubscriptions } }
+        set { stateQueue.sync { _activeSubscriptions = newValue } }
+    }
     
     /**
      * Starts the background task responsible for receiving and dispatching WebSocket messages.
@@ -150,21 +191,28 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
      * - Manages connection health monitoring
      */
     private func startMessageReceiver() {
-        guard messageReceiveTask == nil else { return }
+        // Thread-safe check and set
+        let shouldStart = stateQueue.sync { () -> Bool in
+            guard _messageReceiveTask == nil else { return false }
+            return true
+        }
         
-        messageReceiveTask = Task { [weak self] in
-            guard let self = self else { return }
-            
-            // Capture debug flag upfront to avoid repeated property access
-            let shouldDebug = self.debug
+        guard shouldStart else { return }
+        
+        let newTask = Task { [weak self] in
             var isAlive = true
             
             while isAlive {
-                // Check if self and task still exist at start of each loop iteration
+                guard let self = self else { break }
+                
+                // Get current task safely
                 guard let task = self.task,
                       task.closeCode == .invalid else {
                     break
                 }
+                
+                // Capture debug flag for this iteration
+                let shouldDebug = self.debug
                 
                 do {
                     let value = try await task.receive()
@@ -182,6 +230,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                         await self.dispatchMessage(message)
                     }
                 } catch {
+                    
                     // Check if this is a "Socket is not connected" error (NSPOSIXErrorDomain Code=57)
                     let isSocketNotConnectedError = (error as NSError).domain == NSPOSIXErrorDomain && (error as NSError).code == 57
                     
@@ -215,6 +264,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
                 }
             }
         }
+        
+        // Store the task thread-safely
+        messageReceiveTask = newTask
     }
     
     /**
@@ -401,40 +453,56 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         try? await task?.send(.data(data))
     }
 
-    private lazy var volumeStream: SonosVolumeWebSocketStream = {
+    // Changed from lazy to computed properties to avoid retaining continuations
+    private var volumeStream: SonosVolumeWebSocketStream {
         return SonosVolumeWebSocketStream { [weak self] continuation in
-            self?.volumeContinuation = continuation
-            self?.startMessageReceiver()
+            guard let self = self else {
+                continuation.finish()
+                return
+            }
+            self.volumeContinuation = continuation
         }
-    }()
+    }
     
-    private lazy var groupVolumeStream: SonosVolumeWebSocketStream = {
+    private var groupVolumeStream: SonosVolumeWebSocketStream {
         return SonosVolumeWebSocketStream { [weak self] continuation in
-            self?.groupVolumeContinuation = continuation
-            self?.startMessageReceiver()
+            guard let self = self else {
+                continuation.finish()
+                return
+            }
+            self.groupVolumeContinuation = continuation
         }
-    }()
+    }
     
-    private lazy var playbackStream: SonosPlaybackWebSocketStream = {
+    private var playbackStream: SonosPlaybackWebSocketStream {
         return SonosPlaybackWebSocketStream { [weak self] continuation in
-            self?.playbackContinuation = continuation
-            self?.startMessageReceiver()
+            guard let self = self else {
+                continuation.finish()
+                return
+            }
+            self.playbackContinuation = continuation
         }
-    }()
+    }
     
-    private lazy var trackStream: SonosTrackWebSocketStream = {
+    private var trackStream: SonosTrackWebSocketStream {
         return SonosTrackWebSocketStream { [weak self] continuation in
-            self?.trackInfoContinuation = continuation
-            self?.startMessageReceiver()
+            guard let self = self else {
+                continuation.finish()
+                return
+            }
+            self.trackInfoContinuation = continuation
         }
-    }()
+    }
     
-    private lazy var groupStream: SonosGroupWebSocketStream = {
+    private var groupStream: SonosGroupWebSocketStream {
         return SonosGroupWebSocketStream { [weak self] continuation in
-            self?.groupContinuation = continuation
-            self?.startMessageReceiver()
+            guard let self = self else {
+                continuation.finish()
+                return
+            }
+            self.groupContinuation = continuation
         }
-    }()
+    }
     
     
     
@@ -476,7 +544,11 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         super.init()
         
         let configuration = URLSessionConfiguration.default
-        self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: .main)
+        // Create session with delegate on a separate queue to avoid retain cycle issues
+        let delegateQueue = OperationQueue()
+        delegateQueue.maxConcurrentOperationCount = 1
+        delegateQueue.name = "com.sonos.websocket.delegate"
+        self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
         
         createWebSocketTask()
     }
@@ -618,6 +690,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     public func connectAndSubscribeToGroupVolume(groupId: String) async throws -> SonosVolumeWebSocketStream? {
         // Only connect if not already connected
         task?.resume()
+        startMessageReceiver()
         return try await subscribeToGroupVolume(groupId: groupId)
     }
     
@@ -681,6 +754,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     public func connectAndSubscribeToPlayerVolume(playerId: String) async throws -> SonosVolumeWebSocketStream? {
         // Only connect if not already connected
         task?.resume()
+        startMessageReceiver()
         return try await subscribeToPlayerVolume(playerId: playerId)
     }
     
@@ -741,6 +815,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     public func connectAndSubscribeToPlayback(groupID: String) async throws -> SonosPlaybackWebSocketStream? {
         // Only connect if not already connected
         task?.resume()
+        startMessageReceiver()
         return try await subscribeToPlayerPlayback(groupID: groupID)
     }
     
@@ -805,6 +880,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     public func connectAndSubscribeToMetadata(groupId: String) async throws -> SonosTrackWebSocketStream? {
         // Only connect if not already connected
         task?.resume()
+        startMessageReceiver()
         return try await subscribeToPlaybackMetadata(groupId: groupId)
     }
     
@@ -867,6 +943,7 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
     public func connectAndSubscribeToGroup(householdId: String) async throws -> SonosGroupWebSocketStream? {
         // Only connect if not already connected
         task?.resume()
+        startMessageReceiver()
         return try await subscribeToGroup(householdId: householdId)
     }
     

@@ -30,7 +30,8 @@ struct TVArtworkView: View {
                 .placeholder { progress in
                     Image(uiImage: currentImage ?? .init()).resizable()
                 }
-                .fade(duration: shouldFade ? 0.2 : 0)
+                .forceTransition(previous != group.coordinatorRoom.track.artworkURL)
+                .fade(duration: shouldFade ? 0.3 : 0)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 16))

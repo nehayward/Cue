@@ -19,6 +19,7 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var playbackService: PlaybackService = .unknown
     public var availableActions: AvailableActions = []
     public var groupVolume: Double = 0
+    public var audioQuality: SonosTrackQuality? = nil
 
     public init(
         id: String,

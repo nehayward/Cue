@@ -1,6 +1,6 @@
 import Foundation
 
-public struct SonosPlaybackStatusInfo: Codable {
+public struct SonosPlaybackStatus: Codable {
     public let queueId: String
     public let isDucking: Bool
     public let itemId: String
@@ -55,7 +55,7 @@ public struct PlaybackActions: Codable {
 
 public struct PlaybackEvent {
     public let info: SocketInfo
-    public let playbackState: SonosPlaybackStatusInfo?
+    public let playbackState: SonosPlaybackStatus?
 
     // Decode from the array format
     static func decode(from data: Data) throws -> Self? {
@@ -64,7 +64,7 @@ public struct PlaybackEvent {
         let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] ?? []
 
         var info: SocketInfo?
-        var state: SonosPlaybackStatusInfo?
+        var state: SonosPlaybackStatus?
 
         for item in array {
             // Try decoding info
@@ -77,7 +77,7 @@ public struct PlaybackEvent {
 
             // Try decoding state
             if state == nil, let stateData = try? JSONSerialization.data(withJSONObject: item),
-               let s = try? decoder.decode(SonosPlaybackStatusInfo.self, from: stateData),
+               let s = try? decoder.decode(SonosPlaybackStatus.self, from: stateData),
                s.objectType != "" {
                 state = s
                 continue

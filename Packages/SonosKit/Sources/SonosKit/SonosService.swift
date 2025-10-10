@@ -67,10 +67,8 @@ public final class SonosService {
     @ObservationIgnored public var watcher: Task<Void, Error> = Task { }
     @ObservationIgnored public var isEditing: Bool = false
     @ObservationIgnored public var isGrouping: Bool = false
-    @ObservationIgnored private lazy var webSocket = SonosWebSocket(debug: false)
+    @ObservationIgnored var streamingService: SonosStreamingService?
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
-    
-    public var songAudioInfo: AudioQuality?
 
     public var sortOption: SonosSortOption {
         didSet {
@@ -85,6 +83,10 @@ public final class SonosService {
         sonosPulse.cancel()
         let raw = UserDefaults.standard.integer(forKey: "groupSortOption")
         self.sortOption = SonosSortOption(rawValue: raw) ?? .nameAscending
+        
+        Task { @MainActor in
+            self.streamingService = SonosStreamingService(eventHandler: self)
+        }
     }
 
     public var system: System?
@@ -1085,32 +1087,16 @@ public final class SonosService {
     }
     
     @MainActor
-    public func getTrackAudioInformation(ip: String, groupID: String) {
-        metadataTask?.cancel()
-        metadataTask = Task {
-            do {
-                let metadataStream = try await webSocket.connectAndSubscribe(ipAddress: ip, groupId: groupID)
-                for await update in metadataStream {
-                    if let currentItem = update.currentItem?.track {
-                        print("Current: \(currentItem.name) by \(currentItem.artist.name)")
-                        print("Current: \(currentItem.quality)")
-                        songAudioInfo = currentItem.quality
-                    } else {
-                        songAudioInfo = nil
-                    }
-                    if let currentItem = update.nextItem?.track {
-                        print("Next: \(currentItem.name) by \(currentItem.artist.name)")
-                    }
-                }
-            } catch {
-                print("Stream ended with error: \(error)")
-            }
-        }
+    public func getTrackAudioInformation(ip: String, playerID: String, groupID: String) async {
+        await streamingService?.addPlayer(.init(ipAddress: ip, playerId: playerID, groupId: groupID, events: [.metadata]))
     }
     
-    public func stopListening(ip: String, groupID: String) {
-        metadataTask?.cancel()
-        webSocket.close()
+    public func stopListening(playerID: String) async {
+        await streamingService?.removePlayer(playerID)
+    }
+    
+    public func disconnectAll() async {
+        await streamingService?.disconnectAll()
     }
 
     public func getArtwork(from track: Track, size: Int = 500) async -> URL? {

@@ -324,15 +324,11 @@ struct LargePlayerView: View {
         }
         .toolbarTitleDisplayMode(.inline)
         .dropDestinationPlay(on: group)
-        .task(id: group) {
-            sonosService.stopListening(ip: group.ip, groupID: group.id)
-            sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
+        .task(id: group.id) {
+            await sonosService.disconnectAll()
+            await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
-        }
-        .onDisappear {
-            sonosService.songAudioInfo = nil
-            sonosService.stopListening(ip: group.ip, groupID: group.id)
         }
         .onChange(of: scenePhase) {
             if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
@@ -340,14 +336,19 @@ struct LargePlayerView: View {
             }
             if scenePhase == .active {
                 Task {
-                    sonosService.getTrackAudioInformation(ip: group.ip, groupID: group.id)
                     guard let track = await sonosService.getTrack(ip: group.ip) else { return }
                     if group.coordinatorRoom.track.trackID == track.trackID {
                         group.coordinatorRoom.track.playbackPosition = track.playbackPosition
                     }
                 }
+                
+                Task {
+                    await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
+                }
             } else if scenePhase == .background {
-                sonosService.stopListening(ip: group.ip, groupID: group.id)
+                Task {
+                   await sonosService.stopListening(playerID: group.coordinatorID)
+                }
             }
         }
         .environment(AlertService.shared)
@@ -401,7 +402,7 @@ struct LargePlayerView: View {
 
                 Text(position.formatted(.time(pattern: pattern)))
                 Spacer()
-                AudioInfoView()
+                AudioInfoView(group: group)
                     .frame(height: 12)
                 Spacer()
                 Text("-") + Text(timeRemaining.formatted(.time(pattern: pattern)))
@@ -414,7 +415,7 @@ struct LargePlayerView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 60)
         .opacity(group.coordinatorRoom.track.duration.isZero ? 0 : 1)
-        .animation(.spring, value: sonosService.songAudioInfo)
+        .animation(.spring, value: group.audioQuality)
     }
     
     private func mediaControlsView() -> some View {

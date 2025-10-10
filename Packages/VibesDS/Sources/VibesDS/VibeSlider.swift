@@ -285,10 +285,11 @@ public struct VibeSliderTV: View {
                             .frame(width: calculateProgressWidth(), height: baseHeight)
                     }
                 }
-            Text("\(value, specifier: "%03.0f")%")
+            Text("\(Int(value))")
+                .font(.caption)
                 .monospacedDigit()
                 .fontDesign(.rounded)
-                .bold()
+                .fontWeight(.semibold)
                 .padding(.vertical, 20)
 //                .clipShape(.circle)
                 .offset(x: offsetForValue)
@@ -356,7 +357,7 @@ public struct VibeSliderTV: View {
     }
     
     private var offsetForValue: Double {
-        min(max(0, calculateProgressWidth() - 80), width - 40)
+        min(max(0, calculateProgressWidth() - 40), width - 30)
     }
 }
 

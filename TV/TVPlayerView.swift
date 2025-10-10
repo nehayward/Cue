@@ -195,6 +195,7 @@ struct TVPlayerView: View {
                         .foregroundStyle(.thinMaterial)
                         .scaleEffect(1.3)
                 }
+                .drawingGroup()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
             }
@@ -214,9 +215,9 @@ struct TVPlayerView: View {
                 .focused($focusedField, equals: .settings)
                 .buttonBorderShape(.circle)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .focusSection()
                 .padding([.top, .leading], 60)
                 .ignoresSafeArea()
+                
                 Text(group.nameWithCount)
                     .padding(.top, 24)
                     .ignoresSafeArea()
@@ -231,11 +232,13 @@ struct TVPlayerView: View {
                 .focused($focusedField, equals: .group)
                 .buttonBorderShape(.circle)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .focusSection()
                 .padding([.top, .trailing], 60)
                 .ignoresSafeArea()
             }
+            .frame(maxWidth: .infinity)
             .ignoresSafeArea()
+            .focusSection()
+            .opacity(hideControls ? 0 : 1)
         }
         .onPlayPauseCommand {
             Task {
@@ -247,7 +250,7 @@ struct TVPlayerView: View {
             }
         }
         .task {
-            try? await Task.sleep(for: .milliseconds(500))
+            try? await Task.sleep(for: .milliseconds(1000))
             shouldFade = true
         }
     }

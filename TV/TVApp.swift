@@ -33,8 +33,6 @@ struct TVApp: App {
     init() {
         KingfisherManager.shared.defaultOptions = [
             .cacheSerializer(FormatIndicatedCacheSerializer.jpeg),
-            .forceTransition,
-            .transition(.fade(0.25)),
             .processor(DefaultImageProcessor.default), // Default is fast and non-blocking
             .scaleFactor(UIScreen.main.scale),   // Match screen scale to avoid extra work
             .cacheOriginalImage,                 // Cache original for future resizing

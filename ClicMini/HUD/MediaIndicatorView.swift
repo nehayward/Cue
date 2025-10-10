@@ -9,8 +9,8 @@ struct MediaIndicatorView: View {
         case volumeUp(volume: Double)
         case volumeDown(volume: Double)
         case mute(volume: Double)
-        case nextTrack(trackName: String?, imageURL: URL?)
-        case previousTrack(trackName: String?, imageURL: URL?)
+        case nextTrack(trackName: String?, albumName: String, imageURL: URL?)
+        case previousTrack(trackName: String?, albumName: String, imageURL: URL?)
         
         var icon: String {
             switch self {
@@ -83,14 +83,13 @@ struct MediaIndicatorView: View {
 //                        }
                 } else {
                     switch action {
-                    case .nextTrack(let trackName, let imageURL):
+                    case .nextTrack(let trackName, let albumName, let imageURL):
                         HStack {
-                            KFImage.url(imageURL)
+                            KFImage.url(imageURL, cacheKey: albumName)
                                 .placeholder {
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.thinMaterial)
                                 }
-                                .loadDiskFileSynchronously()
                                 .diskCacheExpiration(.days(1))
                                 .fade(duration: 0.2)
                                 .resizable()
@@ -100,9 +99,9 @@ struct MediaIndicatorView: View {
                             Text(trackName ?? "")
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    case .previousTrack(let trackName, let imageURL):
+                    case .previousTrack(let trackName, let albumName, let imageURL):
                         HStack {
-                            KFImage.url(imageURL)
+                            KFImage.url(imageURL, cacheKey: albumName)
                                 .placeholder {
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.thinMaterial)
@@ -131,6 +130,6 @@ struct MediaIndicatorView: View {
 #Preview {
     MediaIndicatorView(speakerName: "Spa", action: .volumeUp(volume: 2.0))
     MediaIndicatorView(speakerName: "Spa", action: .volumeDown(volume: 2.0))
-    MediaIndicatorView(speakerName: "Spa", action: .nextTrack(trackName: "Taylor", imageURL: URL(string: "https://upload.wikimedia.org/wikipedia/en/c/c7/Dua_Lipa_-_Dance_the_Night.png")))
-    MediaIndicatorView(speakerName: "Spa", action: .previousTrack(trackName: "", imageURL: nil))
+    MediaIndicatorView(speakerName: "Spa", action: .nextTrack(trackName: "Taylor", albumName: "", imageURL: URL(string: "https://upload.wikimedia.org/wikipedia/en/c/c7/Dua_Lipa_-_Dance_the_Night.png")))
+    MediaIndicatorView(speakerName: "Spa", action: .previousTrack(trackName: "", albumName: "", imageURL: nil))
 }

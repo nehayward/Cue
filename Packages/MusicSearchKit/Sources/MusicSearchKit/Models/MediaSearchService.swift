@@ -184,7 +184,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
 }
 
 
-#if canImport(UIKit) && !os(watchOS)
+#if canImport(UIKit) && !os(watchOS) && !os(visionOS)
 extension UIImage {
     func resized(to size: CGSize, scale: CGFloat = UIScreen.main.scale) -> UIImage {
         let format = UIGraphicsImageRendererFormat.default()

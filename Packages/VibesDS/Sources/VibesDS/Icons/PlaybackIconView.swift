@@ -40,7 +40,9 @@ public struct PlaybackIconView: View {
             Text("Here")
         }
         
+        #if !os(tvOS)
         Slider(value: $value, in: 0...100)
+        #endif
     }
     .animation(.interactiveSpring, value: value)
 }

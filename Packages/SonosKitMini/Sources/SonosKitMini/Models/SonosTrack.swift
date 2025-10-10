@@ -119,8 +119,14 @@ public extension SonosTrack {
     static let alarm = SonosTrack(trackID: "x-rincon-buzzer:0", trackURI: "", name: "Alarm")
 }
 
-extension Track {
+extension SonosTrackInfo {
     var toSonosTrack: SonosTrack {
-        SonosTrack(trackID: id?.objectId ?? "", trackURI: id?.objectId ?? "")
+        SonosTrack(
+            trackID: id?.objectId ?? "",
+            trackURI: id?.objectId ?? "",
+            name: name ?? "",
+            album: album?.name ?? "",
+            sonosAlbumArtURL: URL(string: imageUrl ?? "")
+        )
     }
 }

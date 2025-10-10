@@ -42,7 +42,7 @@ struct ClicMiniApp: App {
                     // Show track change indicator
                     HudWindowManager.shared.showMediaIndicator(
                         speakerName: group.nameWithCount,
-                        action: .nextTrack(trackName: track.name, imageURL: track.sonosAlbumArtURL),
+                        action: .nextTrack(trackName: track.name, albumName: track.album, imageURL: track.sonosAlbumArtURL),
                         isPlaying: true
                     )
                 }

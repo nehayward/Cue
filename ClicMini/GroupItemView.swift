@@ -28,7 +28,7 @@ struct GroupItemView: View {
                 ZStack {
                     HStack(spacing: 0) {
                         Link(destination: URL(string: "clic://device?id=\(device.id)")!) {
-                            KFImage.url(device.track.sonosAlbumArtURL)
+                            KFImage.url(device.track.sonosAlbumArtURL, cacheKey: device.track.album)
                                 .placeholder {
                                     RoundedRectangle(cornerRadius: 4)
                                         .foregroundStyle(.thinMaterial)

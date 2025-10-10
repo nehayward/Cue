@@ -177,7 +177,7 @@ final class GlobalMediaControlService {
         // Show volume indicator
         HudWindowManager.shared.showMediaIndicator(
             speakerName: group.nameWithCount,
-            action: .nextTrack(trackName: track.name, imageURL: track.sonosAlbumArtURL),
+            action: .nextTrack(trackName: track.name, albumName: track.album, imageURL: track.sonosAlbumArtURL),
             isPlaying: true  // Always show volume controls
         )
     }
@@ -189,7 +189,7 @@ final class GlobalMediaControlService {
         // Show volume indicator
         HudWindowManager.shared.showMediaIndicator(
             speakerName: group.nameWithCount,
-            action: .previousTrack(trackName: track.name, imageURL: track.sonosAlbumArtURL),
+            action: .previousTrack(trackName: track.name, albumName: track.album, imageURL: track.sonosAlbumArtURL),
             isPlaying: true  // Always show volume controls
         )
     }

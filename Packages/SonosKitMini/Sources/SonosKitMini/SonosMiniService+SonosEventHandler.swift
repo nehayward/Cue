@@ -73,7 +73,7 @@ extension SonosMiniService: SonosEventHandler {
                         if device.isPlaying, device.track.name != track.name {
                             try? await updateTracks(for: [devices[index]])
                             await MainActor.run {
-                                onTrackChanged?(device, device.track)
+                                onTrackChanged?(device, track.toSonosTrack)
                             }
                         } else {
                             try? await updateTracks(for: [devices[index]])

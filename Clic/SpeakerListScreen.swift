@@ -372,7 +372,7 @@ fileprivate struct SortMenuView: View {
 }
 
 #Preview {
-    DeviceListMainView()
+    SpeakerListScreen()
         .environment(SonosService.shared)
         .environment(SubscriptionService.shared)
         .environment(AlertService.shared)
