@@ -53,6 +53,12 @@ final class SonosSystemDiscoverService {
 
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
+    
+    deinit {
+        stopBrowsing()
+        connections.forEach { $0?.cancel() }
+        connections.removeAll()
+    }
 
     @MainActor
     func getFirstIP(useCache: Bool) async throws -> String {
@@ -140,6 +146,8 @@ final class SonosSystemDiscoverService {
     func stopBrowsing() {
         browser?.cancel()
         browser = nil
+        // Cancel all connections to prevent leaks
+        connections.forEach { $0?.cancel() }
     }
 
 
@@ -167,6 +175,8 @@ final class SonosSystemDiscoverService {
     func startBrowseAll() {
         stopBrowsing()
         allIPs.removeAll()
+        // Cancel all existing connections before removing them
+        connections.forEach { $0?.cancel() }
         connections.removeAll()
         let params = NWParameters()
         params.requiredInterfaceType = .wifi

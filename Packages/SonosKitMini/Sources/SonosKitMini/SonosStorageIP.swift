@@ -27,6 +27,10 @@ final class SonosSystemDiscoveryService {
         set { UserDefaults.standard.set(newValue, forKey: "clic.household") }
     }
     
+    deinit {
+        stopBrowsing()
+    }
+    
     // MARK: - Public Methods
     
     /// Discover the first Sonos device on the network

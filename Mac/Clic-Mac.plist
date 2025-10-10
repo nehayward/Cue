@@ -68,5 +68,16 @@
 			<dict/>
 		</dict>
 	</array>
+	<key>CFBundlePrimaryIcon</key>
+	<dict>
+		<key>CFBundleIconFiles</key>
+		<array>
+			<string></string>
+		</array>
+		<key>NSAppIconActionTintColorName</key>
+		<string>Accent</string>
+		<key>NSAppIconComplementingColorNames</key>
+		<string>Accent</string>
+	</dict>
 </dict>
 </plist>

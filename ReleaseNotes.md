@@ -1,3 +1,11 @@
+# 2025.17
+
+–– New Features ––
+- Add tint color to shortcuts
+
+–– Bug Fixes & Improvements ––
+- 
+
 # 2025.16
 
 –– New Features ––
@@ -6,6 +14,8 @@
 –– Bug Fixes & Improvements ––
 - Improve AudioInfo Lookup
 - Fix crash on Clic Mini
+- Fix song change not being updated for Clic Mini
+- Improve caching Clic Mini
 
 ## Store
 
