@@ -118,8 +118,8 @@ final class SonosSystemDiscoveryService {
                 guard case let .service(name, type, domain, interface) = service.endpoint else { continue }
                 
                 let connection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
-                connection.stateUpdateHandler = { [weak self] state in
-                    if case .ready = state {
+                connection.stateUpdateHandler = { [weak self, weak connection] state in
+                    if case .ready = state, let connection = connection {
                         self?.processConnectionReady(connection)
                     }
                 }

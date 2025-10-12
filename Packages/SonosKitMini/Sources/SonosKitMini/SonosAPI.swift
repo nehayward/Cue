@@ -21,6 +21,11 @@ final class SonosAPI {
         return URLSession(configuration: configuration)
     }()
     
+    deinit {
+        // Invalidate URLSession to prevent memory leaks
+        session.invalidateAndCancel()
+    }
+    
     func getGroups(ipAddress: String) async throws -> [SonosGroup] {
         do {
             guard let (data, _) = try await sendSoapRequest(ip: ipAddress, action: "GetZoneGroupState", arguments: [], endpoint: "ZoneGroupTopology") else {

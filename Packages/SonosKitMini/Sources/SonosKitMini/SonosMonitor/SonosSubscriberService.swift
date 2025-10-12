@@ -67,23 +67,16 @@ final class SonosSubscriberService {
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.renewalTimer = Timer.scheduledTimer(
-                timeInterval: self.renewalInterval,
-                target: self,
-                selector: #selector(self.renewalTimerFired),
-                userInfo: nil,
-                repeats: true
-            )
+            // Use block-based timer to avoid retain cycle with target/selector
+            self.renewalTimer = Timer.scheduledTimer(withTimeInterval: self.renewalInterval, repeats: true) { [weak self] _ in
+                Task { [weak self] in
+                    print("------- Renewing --------")
+                    await self?.sendSubscribeRequests()
+                }
+            }
             if let timer = self.renewalTimer {
                 RunLoop.main.add(timer, forMode: .common)
             }
-        }
-    }
-    
-    @objc private func renewalTimerFired() {
-        Task { [weak self] in
-            print("------- Renewing --------")
-            await self?.sendSubscribeRequests()
         }
     }
     

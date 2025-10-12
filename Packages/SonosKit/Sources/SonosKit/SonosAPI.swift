@@ -29,6 +29,12 @@ final class SonosAPI: NSObject {
         return URLSession(configuration: configuration)
     }()
     
+    deinit {
+        // Invalidate URLSession instances to prevent memory leaks
+        session.invalidateAndCancel()
+        queueSession.invalidateAndCancel()
+    }
+    
     private static var spotifyLocal: String {
         return Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
     }

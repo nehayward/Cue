@@ -31,16 +31,17 @@ public struct LiveActivityButtonStyle: ButtonStyle {
                .opacity(isEnabled ? 1.0 : 0.4)
                .contentShape(Circle())
                .onChange(of: configuration.isPressed) { wasPressed, isPressed in
-                    if isPressed {
-                        isAnimatingPress = true
-                    } else {
-                        // Add a slight delay before releasing the animation
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            withAnimation {
-                                isAnimatingPress = false
-                            }
-                        }
-                    }
+                    isAnimatingPress = isPressed
+               }
+               // Use task modifier with id to automatically cancel when isPressed changes
+               .task(id: configuration.isPressed) {
+                   // Only run the delay when button is released (not pressed)
+                   guard !configuration.isPressed else { return }
+                   try? await Task.sleep(for: .milliseconds(100))
+                   // This will be automatically cancelled if isPressed changes
+                   withAnimation {
+                       isAnimatingPress = false
+                   }
                }
         }
     }

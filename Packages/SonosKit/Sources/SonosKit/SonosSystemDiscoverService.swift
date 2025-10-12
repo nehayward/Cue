@@ -207,14 +207,14 @@ final class SonosSystemDiscoverService {
 
             if case let .service(name, type, domain, interface) = service.endpoint {
                 netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
-                netConnection?.stateUpdateHandler = { newState in
+                netConnection?.stateUpdateHandler = { [weak self, weak netConnection] newState in
                     switch newState {
                     case .ready:
                         guard let currentPath = netConnection?.currentPath,
                               let endpoint = currentPath.remoteEndpoint else { return }
 
                         if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            self.lastKnownIP = ip
+                            self?.lastKnownIP = ip
                             return
                         }
 
@@ -238,15 +238,15 @@ final class SonosSystemDiscoverService {
 
             if case let .service(name, type, domain, interface) = service.endpoint {
                 netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
-                netConnection?.stateUpdateHandler = { newState in
+                netConnection?.stateUpdateHandler = { [weak self, weak netConnection] newState in
                     switch newState {
                     case .ready:
                         guard let currentPath = netConnection?.currentPath,
                               let endpoint = currentPath.remoteEndpoint else { return }
 
                         if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            self.lock.withLock {
-                                self.allIPs.insert(ip)
+                            self?.lock.withLock {
+                                self?.allIPs.insert(ip)
                                 return
                             }
                         }

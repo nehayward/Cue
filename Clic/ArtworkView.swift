@@ -90,19 +90,27 @@ struct ArtworkView: View {
             }
             .overlay {
                 if group.isMuted, showBadge {
-                    Image(systemName: "speaker.slash.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.primary)
-                        .bold()
-                        .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .background {
-                            RoundedRectangle(cornerRadius: 8)
-                                .foregroundStyle(.ultraThinMaterial)
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        Task {
+                            await SonosService.shared.setGroupMute(group: group, mute: false)
                         }
-                        .transition(.opacity)
-                        .tint(.primary)
+                    } label: {
+                        Image(systemName: "speaker.slash.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(.primary)
+                            .bold()
+                            .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            .background {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .foregroundStyle(.ultraThinMaterial)
+                            }
+                            .tint(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -125,6 +133,7 @@ struct ArtworkView: View {
                     imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
                 }
             }
+            .animation(.spring, value: group.isMuted)
             .onDisappear {
                 imageTask?.cancel()
                 imageTask = nil
