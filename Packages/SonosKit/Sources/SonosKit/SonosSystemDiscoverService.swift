@@ -154,30 +154,34 @@ final class SonosSystemDiscoverService {
     @MainActor
     func getAllIPs() async throws -> [String] {
         startBrowseAll()
-        let task = Task {
-            let date = Date.now
-            try? await Task.sleep(for: .milliseconds(200))
-            while allIPs.count != connections.count {
-                if permissionsDenied {
-                    throw SonosServiceError.permissionDenied
-                }
-                if Date.now > date.addingTimeInterval(3) {
-                    break
-                }
-                try? await Task.sleep(for: .milliseconds(100))
-            }
-            return allIPs
+        
+        defer {
+            stopBrowsing()
         }
-        let ips = try await task.value
-        return Array(ips)
+        
+        let startTime = Date.now
+        try? await Task.sleep(for: .milliseconds(200))
+        
+        while allIPs.count != connections.count {
+            if permissionsDenied {
+                throw SonosServiceError.permissionDenied
+            }
+            if Date.now > startTime.addingTimeInterval(3) {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        
+        return Array(allIPs)
     }
 
     func startBrowseAll() {
         stopBrowsing()
         allIPs.removeAll()
-        // Cancel all existing connections before removing them
+        // Cancel all existing connections before removing them to prevent leaks
         connections.forEach { $0?.cancel() }
         connections.removeAll()
+        
         let params = NWParameters()
         params.requiredInterfaceType = .wifi
         params.allowFastOpen = true
@@ -229,10 +233,6 @@ final class SonosSystemDiscoverService {
     }
 
     private func changeHandlerAll(_ services: Set<NWBrowser.Result>, _ changes: Set<NWBrowser.Result.Change>) {
-        defer {
-            stopBrowsing()
-        }
-
         for service in services {
             var netConnection: NWConnection?
 
@@ -241,13 +241,13 @@ final class SonosSystemDiscoverService {
                 netConnection?.stateUpdateHandler = { [weak self, weak netConnection] newState in
                     switch newState {
                     case .ready:
-                        guard let currentPath = netConnection?.currentPath,
+                        guard let self = self,
+                              let currentPath = netConnection?.currentPath,
                               let endpoint = currentPath.remoteEndpoint else { return }
 
                         if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            self?.lock.withLock {
-                                self?.allIPs.insert(ip)
-                                return
+                            lock.withLock {
+                                self.allIPs.insert(ip)
                             }
                         }
                     default:
