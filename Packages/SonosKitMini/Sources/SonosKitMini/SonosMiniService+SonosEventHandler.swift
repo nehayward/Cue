@@ -64,7 +64,7 @@ extension SonosMiniService: SonosEventHandler {
             }
             if let track = event.metadata?.currentItem?.track {
                 if let trackID = track.id {
-                    Task {
+                    Task { [weak self ] in
                         if let duration = track.durationMillis {
                             updateDevice(devices[index], keyPath: \.totalDuration, value: duration)
                         }
@@ -102,13 +102,13 @@ extension SonosMiniService: SonosEventHandler {
 //                print("Player: \(player.name)")
 //                print("WebSocket URL: \(player.websocketUrl)")
 //            }
-            Task {
+            Task { [weak self ] in
                 let (newDevices, _) = try await getSystem(useCache: true)
                 let newDeviceIDs = newDevices.map({ $0.id })
                 let currentDeviceIDs = devices.map({ $0.id })
                 
                 if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
-                    self.devices = newDevices
+                    self?.devices = newDevices
                 }
                 
                 // MARK: Update Devices Info

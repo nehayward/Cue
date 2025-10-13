@@ -35,7 +35,6 @@ struct ClicMiniApp: App {
         // Set up track change callback to show HUD
         sonosServiceMini.onTrackChanged = { group, track in
             Task { @MainActor in
-                // Only show HUD if setting is enabled and menu is not visible
                 if MiniSettingsService.shared.showTrackChangeHUD && !MenuVisibilityService.shared.isMenuVisible {
                     HudWindowManager.shared.extendVisibility()
                     

@@ -25,8 +25,15 @@ final class HudWindowManager {
     private var window: NSWindow?
     private var hideTask: Task<Void, Never>?
     private var lastInteractionTime: Date = Date()
+    private var currentHostingView: NSHostingView<MediaIndicatorView>?
     
     private init() {}
+    
+    deinit {
+        hideTask?.cancel()
+        currentHostingView = nil
+        window = nil
+    }
     
     func showMediaIndicator(speakerName: String, action: MediaIndicatorView.MediaAction, isPlaying: Bool = true) {
         // Update last interaction time
@@ -69,6 +76,10 @@ final class HudWindowManager {
         
         window.setFrame(windowFrame, display: true)
         
+        // Clean up previous hosting view to prevent memory accumulation
+        currentHostingView?.removeFromSuperview()
+        currentHostingView = nil
+        
         // Create the effect view with proper frame
         let effect = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: windowSize.width, height: windowSize.height))
         effect.blendingMode = .behindWindow
@@ -86,6 +97,9 @@ final class HudWindowManager {
         let hostingView = NSHostingView(rootView: mediaView)
         hostingView.frame = effect.bounds
         hostingView.autoresizingMask = [.width, .height]
+        
+        // Store reference to hosting view for cleanup
+        currentHostingView = hostingView
         
         effect.addSubview(hostingView)
         window.contentView = effect
@@ -115,19 +129,26 @@ final class HudWindowManager {
     
     private func startAutoHideTimer() {
         hideTask?.cancel()
+        hideTask = nil
         
-        hideTask = Task {
+        hideTask = Task { [weak self] in
+            guard let self = self else { return }
             // Wait in shorter intervals to check for new interactions
-            while true {
-                try? await Task.sleep(for: .milliseconds(100))
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch {
+                    // Task cancelled
+                    return
+                }
                 
                 // Check if we've been cancelled
                 if Task.isCancelled { return }
                 
                 // Check if enough time has passed since last interaction
-                let timeSinceLastInteraction = Date().timeIntervalSince(lastInteractionTime)
+                let timeSinceLastInteraction = Date().timeIntervalSince(await self.lastInteractionTime)
                 if timeSinceLastInteraction >= 2 {
-                    hideMediaIndicator()
+                    await self.hideMediaIndicator()
                     return
                 }
             }
@@ -142,16 +163,20 @@ final class HudWindowManager {
     func hideMediaIndicator() {
         guard let window = window else { return }
         
+        // Cancel hide task first
+        hideTask?.cancel()
+        hideTask = nil
+        
         // Use a longer, smoother fade like the system volume HUD
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.5
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 0.0
-        } completionHandler: {
+        } completionHandler: { [weak self] in
             window.orderOut(nil)
+            // Clean up hosting view after hiding
+            self?.currentHostingView?.removeFromSuperview()
+            self?.currentHostingView = nil
         }
-        
-        hideTask?.cancel()
-        hideTask = nil
     }
 }
