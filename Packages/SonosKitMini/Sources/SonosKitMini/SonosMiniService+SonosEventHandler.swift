@@ -64,19 +64,21 @@ extension SonosMiniService: SonosEventHandler {
             }
             if let track = event.metadata?.currentItem?.track {
                 if let trackID = track.id {
-                    Task { [weak self ] in
+                    Task { [weak self] in
+                        guard let self else { return }
+                        
                         if let duration = track.durationMillis {
-                            updateDevice(devices[index], keyPath: \.totalDuration, value: duration)
+                            await self.updateDevice(self.devices[index], keyPath: \.totalDuration, value: duration)
                         }
-                        let device = devices[index]
+                        let device = self.devices[index]
                         // Only trigger for playing devices to avoid showing HUD for all grouped devices
                         if device.isPlaying, device.track.name != track.name {
-                            try? await updateTracks(for: [devices[index]])
-                            await MainActor.run {
-                                onTrackChanged?(device, track.toSonosTrack)
+                            try? await self.updateTracks(for: [self.devices[index]])
+                            await MainActor.run { [weak self] in
+                                self?.onTrackChanged?(device, track.toSonosTrack)
                             }
                         } else {
-                            try? await updateTracks(for: [devices[index]])
+                            try? await self.updateTracks(for: [self.devices[index]])
                         }
                     }
                 }
@@ -102,17 +104,19 @@ extension SonosMiniService: SonosEventHandler {
 //                print("Player: \(player.name)")
 //                print("WebSocket URL: \(player.websocketUrl)")
 //            }
-            Task { [weak self ] in
-                let (newDevices, _) = try await getSystem(useCache: true)
+            Task { [weak self] in
+                guard let self else { return }
+                
+                let (newDevices, _) = try await self.getSystem(useCache: true)
                 let newDeviceIDs = newDevices.map({ $0.id })
-                let currentDeviceIDs = devices.map({ $0.id })
+                let currentDeviceIDs = self.devices.map({ $0.id })
                 
                 if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
-                    self?.devices = newDevices
+                    self.devices = newDevices
                 }
                 
                 // MARK: Update Devices Info
-                try await updateWatchDevices(from: devices)
+                try await self.updateWatchDevices(from: self.devices)
             }
         }
     }

@@ -24,15 +24,14 @@ struct VolumeMiniView: View {
             .padding(.trailing)
 
             VibeMiniSlider(value: $device.groupVolume, baseHeight: 20, delayDrag: false) { isEditing in
-                if device.groupIsMuted {
-                    Task {
+                Task {
+                    if device.groupIsMuted {
                         await SonosMiniService.shared.setGroupMute(device: device)
                     }
-                }
-                
-                self.isEditing = isEditing
-                updateVolume(volume: device.groupVolume)
-                Task { @MainActor in
+                    
+                    self.isEditing = isEditing
+                    updateVolume(volume: device.groupVolume)
+                    // Fixed: Avoid nested task - use inline sleep
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     device.isEditingVolume = isEditing
                 }
@@ -50,6 +49,10 @@ struct VolumeMiniView: View {
         .opacity(device.groupIsMuted ? 0.6 : 1)
         .animation(.spring, value: device.groupIsMuted)
         .tint(.primary)
+        .onDisappear {
+            // Cancel any pending volume update tasks to prevent memory leaks
+            volumeTask?.cancel()
+        }
     }
 
     private func updateVolume(volume: Double) {

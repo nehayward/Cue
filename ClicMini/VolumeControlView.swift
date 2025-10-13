@@ -14,10 +14,9 @@ struct VolumeControlView: View {
                 Task {
                     await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: -2)
                     device.groupVolume = max(0, device.groupVolume - 2)
-                    Task {
-                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                        device.isEditingVolume = isEditing
-                    }
+                    // Fixed: Avoid nested task - use inline sleep
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    device.isEditingVolume = isEditing
                 }
             } label: {
                 Image(systemName: "minus")
@@ -29,16 +28,15 @@ struct VolumeControlView: View {
             .buttonBorderShape(.circle)
         
             VibeMiniSlider(value: $device.groupVolume, baseHeight: 24, showValue: true) { isEditing in
-                if device.groupIsMuted {
-                    Task {
+                Task {
+                    if device.groupIsMuted {
                         await SonosMiniService.shared.setGroupMute(device: device)
                         try? await SonosMiniService.shared.updateWatchDevices(from: [device])
                     }
-                }
-                
-                self.isEditing = isEditing
-                updateVolume(volume: device.groupVolume)
-                Task { @MainActor in
+                    
+                    self.isEditing = isEditing
+                    updateVolume(volume: device.groupVolume)
+                    // Fixed: Avoid nested task - use inline sleep
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
                     device.isEditingVolume = isEditing
                 }
@@ -46,19 +44,16 @@ struct VolumeControlView: View {
             .foregroundStyle(.primary)
             
             Button {
-                if device.groupIsMuted {
-                    Task {
+                Task {
+                    if device.groupIsMuted {
                         await SonosMiniService.shared.setGroupMute(device: device, mute: false)
                         try? await SonosMiniService.shared.updateWatchDevices(from: [device])
                     }
-                }
-                Task {
                     await SonosMiniService.shared.setRelativeGroupVolume(ip: device.ip, volume: 2)
                     device.groupVolume = min(100, device.groupVolume + 2)
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
-                        device.isEditingVolume = isEditing
-                    }
+                    // Fixed: Avoid nested task - use inline sleep
+                    try? await Task.sleep(for: .seconds(isEditing ? 0 : 2))
+                    device.isEditingVolume = isEditing
                 }
             } label: {
                 Image(systemName: "plus")
@@ -75,6 +70,10 @@ struct VolumeControlView: View {
         .opacity(device.isMuted ?? false ? 0.6 : 1)
         .animation(.spring, value: device.isMuted)
         .tint(.primary)
+        .onDisappear {
+            // Cancel any pending volume update tasks to prevent memory leaks
+            volumeTask?.cancel()
+        }
     }
 
     private func updateVolume(volume: Double) {

@@ -329,6 +329,10 @@ public final class SonosMiniService {
         
         if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
             self.devices = newDevices
+            
+            // CRITICAL FIX: Disconnect all existing connections before adding new ones
+            // This prevents accumulation of WebSocket connections and memory leaks
+            await streamingService.disconnectAll()
         }
         
         // MARK: Update Devices Info

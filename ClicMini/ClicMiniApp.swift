@@ -1,6 +1,7 @@
 import SwiftUI
 import SonosKitMini
 import KeyboardShortcuts
+import Kingfisher
 
 @MainActor
 @Observable
@@ -33,8 +34,12 @@ struct ClicMiniApp: App {
         }
         
         // Set up track change callback to show HUD
-        sonosServiceMini.onTrackChanged = { group, track in
+        // Use [weak sonosServiceMini] to prevent retain cycle
+        sonosServiceMini.onTrackChanged = { [weak sonosServiceMini] group, track in
             Task { @MainActor in
+                // Ensure service still exists
+                guard sonosServiceMini != nil else { return }
+                
                 if MiniSettingsService.shared.showTrackChangeHUD && !MenuVisibilityService.shared.isMenuVisible {
                     HudWindowManager.shared.extendVisibility()
                     
@@ -55,6 +60,10 @@ struct ClicMiniApp: App {
 //        }
 //        #endif
         
+        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024
+        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024
+        ImageCache.default.diskStorage.config.expiration = .days(1)
+
         Task {
             try? await Task.sleep(for: .milliseconds(200))
             try? await SonosMiniService.shared.loadWatch(useCache: true)
