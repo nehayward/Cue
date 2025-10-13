@@ -98,6 +98,11 @@ final class MediaServerHandler {
                         let servers = MediaServerParser.parse(xmlString: services)
                         // Cache the media servers
                         KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
+                        // MARK: Update move to Keychain Manger with in Memory that can be access from MusicSearchKit and SonosKit
+                        if let plex = servers.first(where: { $0.type == .plex }) {
+                            let token = plex.token
+                            UserDefaults.standard.setValue(token, forKey: "com.clic.plexToken")
+                        }
                         print("📦 Cached \(servers.count) media servers for household: \(zoneGroupState.houseHoldData)")
                     }
                 }

@@ -40,6 +40,10 @@ struct PreferenceScreen: View {
     @State private var isUploading = false
     @State private var uploadSuccess = false
     
+    #if DEBUG
+    @State private var servers: [MediaServer] = []
+    #endif
+    
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var coreFeatures = coreFeatures
@@ -92,6 +96,19 @@ struct PreferenceScreen: View {
                 } header: {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
+                
+#if DEBUG
+                Section("Discovered") {
+                    ForEach(servers) { server in
+                        VStack(alignment: .leading) {
+                            Text(server.name).bold()
+                            Text("\(server.token)")
+                                .textSelection(.enabled)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+#endif
                 
 //                if UIApplication.shared.isRunningInTestFlightEnvironment() {
 //                    Section {
@@ -596,6 +613,9 @@ struct PreferenceScreen: View {
         .animation(.spring, value: alertService.alert.isShowing)
         .task {
             try? await subscriptionService.checkSubscription()
+#if DEBUG
+            servers = await sonosService.services()
+#endif
         }
         .onAppear {
             if OSEnvironment.isPreviews {

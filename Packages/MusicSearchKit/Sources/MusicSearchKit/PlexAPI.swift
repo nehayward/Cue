@@ -10,9 +10,8 @@ public final class PlexAPI {
     @ObservationIgnored private var plexServer: PlexServer?
     @ObservationIgnored private let logger = SwiftyBeaver.self
 
-    @MainActor
-    private let authenticator = PlexAuthenticator.shared
-
+    private let authenticator: PlexAuthenticator
+    
     @MainActor
     public var isAuthorized: Bool {
         authenticator.authToken != nil
@@ -30,11 +29,24 @@ public final class PlexAPI {
         }
     }
 
+    @ObservationIgnored
     public var connectionPreference: ConnectionPreference {
-        didSet {
-            UserDefaults.standard.set(connectionPreference.rawValue, forKey: "com.clic.plexServer.connectionPreference")
+        get {
+            access(keyPath: \.connectionPreference)
+            if let preference = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference"), let connection = ConnectionPreference(rawValue: preference) {
+                return connection
+            }
+            return ConnectionPreference.nonLocal
+        }
+        set {
+            withMutation(keyPath: \.connectionPreference) {
+                UserDefaults.standard.set(newValue.rawValue, forKey: "com.clic.plexServer.connectionPreference")
+            }
         }
     }
+    
+    @ObservationIgnored
+    var _connectionPreference: String?
     
     public enum ConnectionPreference: String, CaseIterable {
         case nonLocal = "nonLocal"
@@ -59,7 +71,10 @@ public final class PlexAPI {
         }
     }
 
-    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
+    public init(authenticator: PlexAuthenticator = .shared,
+                session: URLSession = .shared,
+                decoder: JSONDecoder = JSONDecoder()) {
+        self.authenticator = authenticator
         self.session = session
         self.decoder = decoder
         self.decoder.dateDecodingStrategy = .secondsSince1970
@@ -81,8 +96,6 @@ public final class PlexAPI {
         
         self.librarySelectionID = UserDefaults.standard.string(forKey: "com.clic.plexServer.library")
         self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
-        let rawValue = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference") ?? ConnectionPreference.nonLocal.rawValue
-        self.connectionPreference =  ConnectionPreference(rawValue: rawValue) ?? .nonLocal
     }
 
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {

@@ -27,9 +27,6 @@ struct PlexBrowseScreen: View {
 
         NavigationStack(path: $router.path) {
             List {
-                if plexAuthenticator.authToken == nil {
-                    PlexAuthorizationFlowView()
-                }
                 if musicSearchService.isPlexAuthorized, musicSearchService.plexServerID != nil {
                     NavigationLink(value: RouterDestination.playableList(title: "Artists", action: { offset in
                         await plexBrowseService.artists(offset: offset)
@@ -65,6 +62,8 @@ struct PlexBrowseScreen: View {
                         ProgressView()
                             .frame(maxWidth: .infinity)
                     }
+                } else {
+                    PlexLibrarySelectionView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

@@ -161,7 +161,7 @@ struct PlexAuthorizationFlowView: View {
                     await withTaskGroup(of: Void.self) { group in
                         for server in servers {
                             group.addTask {
-                                let musicLibraries = await PlexAPI().getMusicLibraries(server: server)
+                                let musicLibraries = await PlexAPI.shared.getMusicLibraries(server: server)
                                 await MainActor.run {
                                     libraries[server.name] = musicLibraries
                                 }
@@ -202,7 +202,7 @@ struct PlexAuthorizationFlowView: View {
                         await withTaskGroup(of: Void.self) { group in
                             for server in servers {
                                 group.addTask {
-                                    let musicLibraries = await PlexAPI().getMusicLibraries(server: server)
+                                    let musicLibraries = await PlexAPI.shared.getMusicLibraries(server: server)
                                     await MainActor.run {
                                         libraries[server.name] = musicLibraries
                                     }

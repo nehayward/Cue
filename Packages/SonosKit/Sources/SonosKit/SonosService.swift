@@ -463,7 +463,6 @@ public final class SonosService {
         // MARK: I don't want to block
         Task {
             await mediaServerHandler.start()
-            try? await Task.sleep(for: .milliseconds(200))
             guard let sonosIP = try? await getGroupsFast().first?.ip else { return }
             let preferredHouseHoldName = await api.getHouseHoldID(for: sonosIP)
             guard let deviceID = await api.getDeviceID(IP: sonosIP) else { return }

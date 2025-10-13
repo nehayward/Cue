@@ -30,6 +30,6 @@ struct PlexSearchView: View {
             }
         }
         .fontDesign(.rounded)
-        PlexAuthorizationFlowView()
+        PlexLibrarySelectionView()
     }
 }

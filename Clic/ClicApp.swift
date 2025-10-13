@@ -377,8 +377,12 @@ struct ClicApp: App {
         case .active:
             sonosService.monitor()
             Task {
-                try await Task.sleep(for: .milliseconds(300))
-                sonosService.onServerListening()
+                Task {
+                    while sonosService.sorted.isEmpty {
+                        try? await Task.sleep(for: .milliseconds(100)) // small delay to avoid busy-waiting
+                    }
+                    sonosService.onServerListening()
+                }
             }
             
             if speedLaunchNowPlaying {

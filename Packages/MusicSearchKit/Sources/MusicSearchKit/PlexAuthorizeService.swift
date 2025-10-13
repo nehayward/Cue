@@ -11,17 +11,23 @@ public final class PlexAuthenticator: NSObject {
     @ObservationIgnored private var session: ASWebAuthenticationSession?
 
     public static var shared = PlexAuthenticator()
+//    public var authToken: String? = "FzKKQZxGSRBoNpoyMzAc"
 
-//    public var authToken: String? = "5waszmycsG4C-5j-sQL6"
+    @ObservationIgnored
     public var authToken: String? {
-        didSet {
-            UserDefaults.standard.setValue(authToken, forKey: "com.clic.plexToken")
+        get {
+            access(keyPath: \.authToken)
+            return UserDefaults.standard.string(forKey: "com.clic.plexToken")
+        }
+        set {
+            withMutation(keyPath: \.authToken) {
+                UserDefaults.standard.set(newValue, forKey: "com.clic.plexToken")
+            }
         }
     }
     
     public override init() {
         super.init()
-        authToken = UserDefaults.standard.string(forKey: "com.clic.plexToken")
         print(#file)
     }
 
