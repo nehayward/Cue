@@ -544,11 +544,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         super.init()
         
         let configuration = URLSessionConfiguration.default
-        // Create session with delegate on a separate queue to avoid retain cycle issues
-        let delegateQueue = OperationQueue()
-        delegateQueue.maxConcurrentOperationCount = 1
-        delegateQueue.name = "com.sonos.websocket.delegate"
-        self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: delegateQueue)
+        // Use nil delegateQueue to avoid memory retention issues with custom OperationQueue
+        // The delegate methods will run on a system-managed queue
+        self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
         
         createWebSocketTask()
     }
@@ -585,8 +583,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         // Cancel background tasks
         messageReceiveTask?.cancel()
         
-        // Invalidate session
+        // Invalidate session and clear reference to break retain cycles
         session?.invalidateAndCancel()
+        session = nil
     }
     
     
@@ -609,6 +608,10 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             currentTask.cancel(with: .normalClosure, reason: nil)
         }
         
+        // Cancel background tasks first
+        messageReceiveTask?.cancel()
+        messageReceiveTask = nil
+        
         // Finish all stream continuations
         trackInfoContinuation?.finish()
         playbackContinuation?.finish()
@@ -616,19 +619,15 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         groupVolumeContinuation?.finish()
         groupContinuation?.finish()
         
-        // Cancel background tasks
-        messageReceiveTask?.cancel()
-        
-        // Clear all references
+        // Clear all continuation references immediately
         trackInfoContinuation = nil
         playbackContinuation = nil
         volumeContinuation = nil
         groupVolumeContinuation = nil
         groupContinuation = nil
-        messageReceiveTask = nil
         task = nil
         
-        // Invalidate session
+        // Invalidate session and clear reference - critical for memory cleanup
         session?.invalidateAndCancel()
         session = nil
         
@@ -658,6 +657,10 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             currentTask.cancel(with: .normalClosure, reason: nil)
         }
         
+        // Cancel background tasks first
+        messageReceiveTask?.cancel()
+        messageReceiveTask = nil
+        
         // Finish all stream continuations to break retain cycles
         trackInfoContinuation?.finish()
         playbackContinuation?.finish()
@@ -665,21 +668,18 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         groupVolumeContinuation?.finish()
         groupContinuation?.finish()
         
-        // Cancel background tasks
-        messageReceiveTask?.cancel()
-        
-        // Clear continuation references
+        // Clear continuation references immediately
         trackInfoContinuation = nil
         playbackContinuation = nil
         volumeContinuation = nil
         groupVolumeContinuation = nil
         groupContinuation = nil
-        messageReceiveTask = nil
         
         // Clear task reference
         task = nil
         
         // Invalidate and clear session to break all references
+        // This is critical - the session must be invalidated AND set to nil
         session?.invalidateAndCancel()
         session = nil
         

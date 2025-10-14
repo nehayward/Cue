@@ -87,9 +87,6 @@ public final class SonosMiniService {
     
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
-            #if DEBUG
-            print(deviceID, newID)
-            #endif
             guard let index = devices.firstIndex(where: { $0.id == deviceID }) else { return }
             guard let newIndex = devices.firstIndex(where: { $0.id == newID }) else { return }
             // Check if already in rooms to prevent duplicate accumulation
