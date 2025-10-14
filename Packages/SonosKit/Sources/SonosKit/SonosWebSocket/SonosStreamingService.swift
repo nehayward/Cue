@@ -155,7 +155,7 @@ public final class SonosStreamingService {
     
     /// Setup notification observers for system sleep/wake events using async streams
     private func setupSleepWakeNotifications() {
-        #if canImport(AppKit)
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
         wakeObserverTask = Task { [weak self] in
             // Use NSWorkspace's notification center instead of default
             let notifications = NSWorkspace.shared.notificationCenter.notifications(
