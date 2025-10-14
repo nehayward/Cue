@@ -1911,10 +1911,10 @@ public final class SonosMiniService {
     //        }
     //    }
     //
-    //    public func getQueueTotal(group: GroupRoom) async throws -> Int? {
-    //        let count = await api.getQueueCount(IP: group.ip)
-    //        return count
-    //    }
+    public func getQueueTotal(group: SonosDevice) async throws -> Int? {
+        let count = await api.getQueueCount(IP: group.ip)
+        return count
+    }
     //
     //    public func replaceQueue(playable: PlayableContent, group: GroupRoom, index: Int = 0) async throws {
     //        try await api.replaceQueue(playableContent: playable, IP: group.ip, index: index)

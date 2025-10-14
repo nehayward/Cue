@@ -14,22 +14,49 @@ struct PlexSearchView: View {
     
     var plexResults: [PlayableContent]
     @Binding var filters: [FilterSelection]
+    @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
 
-    var body: some View {
-        ForEach(plexResults) { item in
-            if filters.filter(\.isFiltered).isEmpty {
-                VStack {
-                    PlayableContentView(item: item)
-                }
-            } else {
-                if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
-                    VStack {
-                        PlayableContentView(item: item)
-                    }
+    // MARK: - Computed Properties
+    
+    private var filteredResults: [PlayableContent] {
+            let activeFilters = filters.filter(\.isFiltered)
+            
+            // Get filtered library IDs
+            let filteredLibraryIDs = Set(
+                plexLibrariesFilters
+                    .filter(\.isFiltered)
+                    .compactMap { $0.filter.key }
+            )
+            
+            // If library filters are set, use those exclusively
+            if !filteredLibraryIDs.isEmpty {
+                return plexResults.filter {
+                    guard let id = $0.metadata?.librarySectionID else { return false }
+                    return filteredLibraryIDs.contains(id)
                 }
             }
+            
+            // Otherwise, filter by content types
+            if !activeFilters.isEmpty {
+                let filteredContentTypes = Set(activeFilters.flatMap(\.filter.toContentType))
+                
+                return plexResults.filter { item in
+                    filteredContentTypes.isEmpty || filteredContentTypes.contains(item.content.type)
+                }
+            }
+            
+            // No filters active, return all results
+            return plexResults
+        }
+
+    // MARK: - Body
+    
+    var body: some View {
+        ForEach(filteredResults) { item in
+            PlayableContentView(item: item)
         }
         .fontDesign(.rounded)
+        
         PlexLibrarySelectionView()
     }
 }

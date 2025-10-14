@@ -5,4 +5,5 @@ public struct PlexArtist {
     public var ratingKey: String // Used to play on Sonos
     public var imageURL: URL?
     public var id: String
+    public var librarySectionID: Int?
 }

@@ -24,9 +24,15 @@ final class MediaServerHandler {
     private let ipDetector = IPActive()
     
     init() {
-        self.port = 1603
+        #if targetEnvironment(macCatalyst)
+        let port: UInt16 = 1603
+        #else
+        let port: UInt16 = 1604
+        #endif
+        
+        self.port = Int(port)
         // Initialize server with a specific address to ensure we get a proper listening address
-        server = HTTPServer(port: 1603)
+        server = HTTPServer(port: port)
 //        setupNotificationObservers()
         getLocalIPAddress()
         //        KeychainManager.shared.clearMediaServers(householdId: "Sonos_GBw44sBd7swQ55xlbUSTzNmTlp")

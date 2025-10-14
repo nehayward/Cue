@@ -41,7 +41,8 @@ struct SearchScreen: View {
     @State private var suggestion: String? = nil
     @State private var searchFieldIsPresented: Bool = true
     @State private var filters: [FilterSelection] = FilterSelection.defaultFilters
-    
+    @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
+
     @FocusState private var focusedField: SearchFocusFields?
 
     @State private var isLoading: Bool = false
@@ -64,6 +65,22 @@ struct SearchScreen: View {
                 List {
                     filterView
                         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+                        .overlay(alignment: .trailing) {
+                            if musicSearchSelection == .plex {
+                                ZStack(alignment: .trailing) {
+                                    // Transparent hit area to block taps below
+                                    Color.black.opacity(0.001)
+                                        .ignoresSafeArea()
+                                        .allowsHitTesting(true)
+                                    PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
+                                }
+                                .frame(width: 24, height: 24)
+                                .task {
+                                    let libraries = await musicSearchService.getPlexLibraries()
+                                    plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
+                                }
+                            }
+                        }
 //                    if UIApplication.shared.isRunningInTestFlightEnvironment(), musicSearchSelection == .plex {
 //                        LoggerView()
 //                    }
@@ -112,7 +129,12 @@ struct SearchScreen: View {
                         case .library:
                             LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
                         case .plex:
-                            PlexSearchView(query: $musicSearchService.query, plexResults: musicSearchService.plexResults, filters: $filters)
+                            PlexSearchView(
+                                query: $musicSearchService.query,
+                                plexResults: musicSearchService.plexResults,
+                                filters: $filters,
+                                plexLibrariesFilters: $plexLibrariesFilters
+                            )
                         case .tidal:
                             TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
                         case .tuneIn:

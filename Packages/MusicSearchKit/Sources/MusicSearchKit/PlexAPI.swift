@@ -396,6 +396,45 @@ public final class PlexAPI {
             return []
         }
     }
+    
+    public func getMusicLibraries() async -> [PlexLibrarySection] {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
+            return []
+        }
+
+        guard let sectionsURL = getBaseURL(for: plexServer)?.appending(path: "library/sections") else {
+            return []
+        }
+
+        var request = URLRequest(url: sectionsURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return []
+        }
+        
+        #if MUSICSEARCHKIT_VERBOSE_LOGGING
+        logger.info(String(decoding: data, as: UTF8.self))
+        #endif
+        
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibrarySectionContainer>.self, from: data)
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            logger.info(container)
+            #endif
+            let libraries = container.mediaContainer.Directory
+                .sorted(by: { $0.key < $1.key })
+                .filter { $0.type == "artist" }
+            return libraries
+        } catch {
+            logger.error(error)
+            return []
+        }
+    }
   
     public func lookupPlexSong(key: String) async -> PlexSongItem? {
         guard let plexServer = await getPlexServer(),

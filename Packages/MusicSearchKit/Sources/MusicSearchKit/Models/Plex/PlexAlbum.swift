@@ -10,4 +10,5 @@ public struct PlexAlbum {
     public var parentRatingKey: String // Album Key
     public var imageURL: URL?
     public var id: String
+    public var librarySectionID: Int?
 }

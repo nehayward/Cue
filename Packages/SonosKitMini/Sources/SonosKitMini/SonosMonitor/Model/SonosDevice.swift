@@ -105,7 +105,7 @@ public struct SonosDevice: Identifiable {
     public var rooms: [SonosDevice] = []
     public var allDevices: [SonosDevice] { [self] + rooms }
     
-    var queueTotal: Int? = nil
+    public var queueTotal: Int = 0
     
     public let channelMap: String?
     public let satChannelMap: String?

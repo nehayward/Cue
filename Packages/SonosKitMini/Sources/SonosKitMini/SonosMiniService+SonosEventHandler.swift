@@ -40,6 +40,9 @@ extension SonosMiniService: SonosEventHandler {
             
             updateDevice(devices[index], keyPath: \.currentPosition, value: playbackState.positionMillis)
             updateDevice(devices[index], keyPath: \.lastPositionUpdate, value: .now)
+            updateDevice(devices[index], keyPath: \.currentPosition, value: Int(playbackState.itemId) ?? 0)
+            
+            
             //            devices[index].test = Double(playbackState.positionMillis)
             //            players[playerId]?.lastPositionUpdate = Date() // Update timestamp for smooth animation
         }
@@ -87,6 +90,14 @@ extension SonosMiniService: SonosEventHandler {
             
             if let htInputFormat = event.metadata?.container?.htInputFormat, let description = htInputFormat.streamDescription {
                 updateDevice(devices[index], keyPath: \.tvAudio, value: description)
+            }
+            
+            Task { [weak self] in
+                guard let self else { return }
+                if let queueTotal = try? await getQueueTotal(group: self.devices[index]), queueTotal > 0 {
+                    print("\(devices[index].name)----\(queueTotal)")
+                    updateDevice(devices[index], keyPath: \.queueTotal, value: queueTotal)
+                }
             }
         }
         

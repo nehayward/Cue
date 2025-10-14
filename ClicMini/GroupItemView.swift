@@ -12,6 +12,7 @@ struct GroupItemView: View {
     @State private var isTimerEnabled = true
     @State private var miniSettingsService = MiniSettingsService.shared
     @State private var sonosServiceMini = SonosMiniService.shared
+    @State private var isHovering: Bool = false
 
     var body: some View {
         //        let _ = Self._printChanges()
@@ -54,7 +55,7 @@ struct GroupItemView: View {
                                             .bold()
                                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                                             .background {
-                                                RoundedRectangle(cornerRadius: 2)
+                                                RoundedRectangle(cornerRadius: 4)
                                                     .foregroundStyle(.ultraThinMaterial)
                                             }
                                             .clipped()
@@ -62,6 +63,44 @@ struct GroupItemView: View {
                                     }
                                 }
                                 .animation(.spring, value: device.groupIsMuted)
+                                .overlay {
+                                    if isHovering {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .foregroundStyle(.ultraThinMaterial)
+                                            .overlay {
+                                                ZStack {
+                                                    Circle()
+                                                        .stroke(.secondary.opacity(0.4),lineWidth: 2)
+                                                    if device.queueTotal > 0 {
+                                                        Circle()
+                                                            .trim(from: 0, to: CGFloat(min(Double(device.currentPosition) * (1.0 / Double(device.queueTotal)), 1.0)))
+                                                            .stroke(
+                                                                .primary,
+                                                                style: StrokeStyle(
+                                                                    lineWidth: 2,
+                                                                    lineCap: .round
+                                                                )
+                                                            )
+                                                            .rotationEffect(.degrees(-90))
+                                                    }
+                                                }
+                                                .overlay {
+                                                    Text("\(device.queueTotal)")
+                                                        .minimumScaleFactor(0.5)
+                                                        .padding(.horizontal, 4)
+                                                        .allowsTightening(true)
+                                                        .contentTransition(.numericText())
+                                                        .font(.caption.monospacedDigit())
+                                                }
+                                                .fontDesign(.rounded)
+                                                .frame(width: 30, height: 30)
+                                                .accessibilityLabel("Queue")
+                                            }
+                                    }
+                                }
+                                .onHover { isHovering in
+                                    self.isHovering = isHovering
+                                }
 #if DEBUG && SCREENSHOT
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 4)

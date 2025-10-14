@@ -1,15 +1,10 @@
-# 2025.17
-
-–– New Features ––
-- Add tint color to shortcuts
-
-–– Bug Fixes & Improvements ––
-- 
-
 # 2025.16
 
 –– New Features ––
-- 
+- Add tint color to shortcuts
+- Improve Plex Integration with Library Selection
+- Show queue total on Clic Mini
+- Add Library filtering for Plex
 
 –– Bug Fixes & Improvements ––
 - Improve AudioInfo Lookup

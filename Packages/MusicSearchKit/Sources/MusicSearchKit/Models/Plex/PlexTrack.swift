@@ -15,4 +15,5 @@ public struct PlexTrack {
     public var grandparentRatingKey: String // Artist
     public var imageURL: URL?
     public var id: String
+    public var librarySectionID: Int?
 }

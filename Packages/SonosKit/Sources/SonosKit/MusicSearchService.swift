@@ -675,6 +675,11 @@ public final class MusicSearchService {
         let plexServers = await plex.getPlexServers()
         return plexServers
     }
+    
+    public func getPlexLibraries() async -> [PlexLibrarySection] {
+        let plexServers = await plex.getMusicLibraries()
+        return plexServers
+    }
 
     // TODO: Add remaining Info
 

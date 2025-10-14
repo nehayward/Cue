@@ -20,7 +20,8 @@ public final class PlexParser {
                     let parentThumbnail = track.element?.attribute(by: "parentThumb")?.text,
                     let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
                     let parentRatingKey = track.element?.attribute(by: "parentRatingKey")?.text,
-                    let grandparentRatingKey = track.element?.attribute(by: "grandparentRatingKey")?.text
+                    let grandparentRatingKey = track.element?.attribute(by: "grandparentRatingKey")?.text,
+                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
                 else {
                     return nil
                 }
@@ -41,7 +42,8 @@ public final class PlexParser {
                     parentRatingKey: parentRatingKey,
                     grandparentRatingKey: grandparentRatingKey,
                     imageURL: imageURL,
-                    id: "\(id)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)",
+                    librarySectionID: Int(librarySectionID)
                 )
             }
         }
@@ -54,7 +56,8 @@ public final class PlexParser {
                     let year = track.element?.attribute(by: "year")?.text,
                     let thumb = track.element?.attribute(by: "thumb")?.text,
                     let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
-                    let parentRatingKey = track.element?.attribute(by: "parentRatingKey")?.text
+                    let parentRatingKey = track.element?.attribute(by: "parentRatingKey")?.text,
+                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
                 else {
                     return nil
                 }
@@ -71,7 +74,8 @@ public final class PlexParser {
                     ratingKey: ratingKey,
                     parentRatingKey: parentRatingKey,
                     imageURL: imageURL,
-                    id: "\(id)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)",
+                    librarySectionID: Int(librarySectionID),
                 )
             }
         }
@@ -81,7 +85,8 @@ public final class PlexParser {
                 guard
                     let name = track.element?.attribute(by: "title")?.text,
                     let ratingKey = track.element?.attribute(by: "ratingKey")?.text,
-                    let thumb = track.element?.attribute(by: "thumb")?.text
+                    let thumb = track.element?.attribute(by: "thumb")?.text,
+                    let librarySectionID = track.element?.attribute(by: "librarySectionID")?.text
                 else {
                     return nil
                 }
@@ -92,7 +97,8 @@ public final class PlexParser {
                     name: name,
                     ratingKey: ratingKey,
                     imageURL: imageURL,
-                    id: "\(id)%3A3%3A\(ratingKey)"
+                    id: "\(id)%3A3%3A\(ratingKey)",
+                    librarySectionID: Int(librarySectionID)
                 )
             }
         }

@@ -128,6 +128,8 @@ struct PlexLibrarySelectionView: View {
                                                         HapticManager.shared.fireHaptic(.buttonPress)
                                                         musicSearchService.plexServerID = server.clientIdentifier
                                                         musicSearchService.plexLibrarySelectionID = library.key
+                                                        let libraryFilter = GenericFilter(filter: library)
+                                                        libraryFilter.isFiltered = true
                                                     }) {
                                                         HStack {
                                                             Text(library.title)

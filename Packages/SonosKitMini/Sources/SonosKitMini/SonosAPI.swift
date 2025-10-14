@@ -764,28 +764,32 @@ final class SonosAPI {
         let queue = QueueParser.parseQueue(xmlString: xml, ip: IP, preferredIP: priorityIP)
         return queue
     }
-//
-//    func getQueueCount(IP: String) async -> Int? {
-//        let arguments: OrderedKeys = [
-//            ("ObjectID", "Q:0"),
-//            ("BrowseFlag", "BrowseDirectChildren"),
-//            ("Filter", "*"),
-//            ("StartingIndex", 0),
-//            ("RequestedCount", 1),
-//            ("SortCriteria", "")
-//        ]
-//
-//        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else { return nil }
-//
-//        if (response as? HTTPURLResponse)?.statusCode != 200 {
-//            print("Failed")
-//        }
-//
-//        let xml = String(decoding: data, as: UTF8.self)
-//        let queue = xmlParser.parseQueueCount(IP: IP, xml: xml)
-//        return queue
-//    }
-//
+
+    func getQueueCount(IP: String) async -> Int? {
+        let arguments: OrderedKeys = [
+            ("ObjectID", "Q:0"),
+            ("BrowseFlag", "BrowseDirectChildren"),
+            ("Filter", "*"),
+            ("StartingIndex", 0),
+            ("RequestedCount", 1),
+            ("SortCriteria", "")
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else { return nil }
+
+        if (response as? HTTPURLResponse)?.statusCode != 200 {
+            print("Failed")
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        let parser = GenericXMLParser(targetElement: "TotalMatches")
+        if let value = parser.parseXML(xml) {
+            return Int(value)
+        }
+        
+        return nil
+    }
+
     func seek(to queueIndex: Int, IP: String) async {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
