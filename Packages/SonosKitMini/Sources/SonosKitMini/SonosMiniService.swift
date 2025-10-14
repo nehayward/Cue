@@ -69,6 +69,10 @@ public final class SonosMiniService {
         }
         
         if !newDevices.isEmpty && Set(newDevices) != Set(self.devices) {
+            // Clear rooms arrays from old devices before replacement
+            for index in devices.indices {
+                devices[index].rooms.removeAll()
+            }
             self.devices = newDevices
         }
     }
@@ -83,9 +87,12 @@ public final class SonosMiniService {
     
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
+            #if DEBUG
             print(deviceID, newID)
+            #endif
             guard let index = devices.firstIndex(where: { $0.id == deviceID }) else { return }
             guard let newIndex = devices.firstIndex(where: { $0.id == newID }) else { return }
+            // Check if already in rooms to prevent duplicate accumulation
             if devices[index].rooms.contains(where: { $0.id == newID }) {
                 return
             }
@@ -93,9 +100,10 @@ public final class SonosMiniService {
         }
         
         if case let .removeFromGroups(deviceId) = event {
+            // Remove device from all groups' rooms arrays
             for (offset, _) in devices.enumerated() {
-                guard let removalIndex = devices[offset].rooms.firstIndex(where: { $0.id == deviceId }) else { continue }
-                devices[offset].rooms.remove(at: removalIndex)
+                // Use removeAll with closure for efficient removal if device appears multiple times
+                devices[offset].rooms.removeAll(where: { $0.id == deviceId })
             }
         }
         
@@ -328,6 +336,11 @@ public final class SonosMiniService {
         let currentDeviceIDs = devices.map({ $0.id })
         
         if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
+            // Clear rooms arrays from old devices before replacement to prevent retention
+            for index in devices.indices {
+                devices[index].rooms.removeAll()
+            }
+            
             self.devices = newDevices
             
             // CRITICAL FIX: Disconnect all existing connections before adding new ones
@@ -738,7 +751,8 @@ public final class SonosMiniService {
                         return
                     }
                     
-                    print(awaitedTrack)
+                    // Removed print statement to prevent memory accumulation in hot path
+                    // print(awaitedTrack)
                     
                     if device.track.id != awaitedTrack.id, !device.isEditingPlayback {
                         let newMetadata = SonosTrackMetadata(
@@ -1123,6 +1137,10 @@ public final class SonosMiniService {
         let currentDeviceIDs = devices.map({ $0.id })
         
         if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
+            // Clear rooms arrays from old devices before replacement
+            for index in devices.indices {
+                devices[index].rooms.removeAll()
+            }
             self.devices = newDevices
         }
     }

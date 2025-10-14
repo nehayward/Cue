@@ -120,7 +120,8 @@ public final class SonosStreamingService {
     // Connection refresh timer management
     private var refreshTask: Task<Void, Never>?
     private var playerConfigs: [String: SonosPlayerConfig] = [:]
-    private let connectionRefreshInterval: Duration = .seconds(60 * 1)
+    // Increased from 60s to 5 minutes to reduce refresh churn and memory pressure
+    private let connectionRefreshInterval: Duration = .seconds(60 * 5)
     private var isRefreshing: Bool = false
     
     // Group monitoring - only one player can monitor group events at a time
@@ -139,11 +140,11 @@ public final class SonosStreamingService {
      * - Parameters:
      *   - eventHandler: Your object that implements SonosEventHandler to receive callbacks
      *   - apiKey: Sonos API key for authentication
-     *   - debug: Enable debug logging
+     *   - debug: Enable debug logging (disabled by default to reduce memory usage)
      *   - enablePositionTicker: Enable smooth position updates when playing (default: true)
      *   - tickerUpdateInterval: How often to update position in seconds (default: 0.1 for smooth UI)
      */
-    public init(eventHandler: SonosEventHandler, apiKey: String = "123e4567-e89b-12d3-a456-426655440000", debug: Bool = true, enablePositionTicker: Bool = true, tickerUpdateInterval: TimeInterval = 0.1) {
+    public init(eventHandler: SonosEventHandler, apiKey: String = "123e4567-e89b-12d3-a456-426655440000", debug: Bool = false, enablePositionTicker: Bool = true, tickerUpdateInterval: TimeInterval = 0.1) {
         self.eventHandler = eventHandler
         self.apiKey = apiKey
         self.debug = debug
@@ -161,14 +162,29 @@ public final class SonosStreamingService {
                 named: NSWorkspace.didWakeNotification
             )
             
+            // Properly handle stream termination to prevent memory accumulation
             for await _ in notifications {
-                guard let self = self, !Task.isCancelled else { break }
+                // Check cancellation and self existence at start of each iteration
+                guard let self = self else { 
+                    // Self deallocated, exit loop cleanly
+                    break 
+                }
+                
+                guard !Task.isCancelled else { 
+                    // Task cancelled, exit loop
+                    break 
+                }
                 
                 if self.debug {
                     print("DEBUG: Computer woke from sleep, refreshing all connections...")
                 }
                 
                 await self.handleWakeFromSleep()
+            }
+            
+            // Cleanup when loop exits
+            if let self = self, self.debug {
+                print("DEBUG: Sleep/wake notification stream terminated")
             }
         }
         
@@ -204,10 +220,11 @@ public final class SonosStreamingService {
         }
         
         // Create WebSocket connection
+        // Disable debug in production to reduce memory usage from print statements
         guard let socket = SonosWebSocket(
             ipAddress: config.ipAddress,
             apiKey: apiKey,
-            debug: true
+            debug: false
         ) else {
             await notifyError(playerId: playerId, error: NSError(domain: "SonosStreamingService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create WebSocket"]))
             return
@@ -239,13 +256,10 @@ public final class SonosStreamingService {
         connectionTask?.cancel()
         
         // Wait a brief moment for tasks to finish cancellation
-        do {
-            try await Task.sleep(for: .milliseconds(100))
-        } catch {
-            // Ignore cancellation errors
-        }
+        // This allows AsyncStreams and continuations to properly terminate
+        try? await Task.sleep(for: .milliseconds(100))
         
-        // Close connection gracefully
+        // Close connection gracefully - this releases URLSession and all resources
         if let socket = socket {
             socket.close() // This properly finishes all continuations and clears references
             if debug {
@@ -268,6 +282,10 @@ public final class SonosStreamingService {
             }
         }
         // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
+        
+        // Additional wait to ensure URLSession invalidation completes
+        // This prevents accumulation of URLSession instances
+        try? await Task.sleep(for: .milliseconds(50))
         
         // Notify connection status change
         await notifyConnectionStatusChanged()
@@ -688,20 +706,29 @@ public final class SonosStreamingService {
     
     deinit {
         // Cancel sleep/wake notification observer task
+        // This ensures the notification stream terminates immediately
         wakeObserverTask?.cancel()
+        wakeObserverTask = nil
         
         // Cancel refresh timer
         refreshTask?.cancel()
+        refreshTask = nil
         
         // Cancel all connection tasks synchronously
         for task in connectionTasks.values {
             task.cancel()
         }
+        connectionTasks.removeAll()
         
-        // Close all sockets synchronously
+        // Close all sockets synchronously to release URLSession resources
         for socket in connections.values {
             socket.close()
         }
+        connections.removeAll()
+        
+        // Clear all configs and monitoring state
+        playerConfigs.removeAll()
+        currentGroupMonitoringPlayerId = nil
     }
 }
 
