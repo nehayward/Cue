@@ -1,16 +1,16 @@
 # 2025.16
 
 –– New Features ––
-- Add tint color to shortcuts
-- Improve Plex Integration with Library Selection
-- Show queue total on Clic Mini
-- Add Library filtering for Plex
+- Shortcuts now support custom tint colors for better visual organization
+- Enhanced Plex integration with library selection in search results
+- Queue total now displays in Clic Mini for better playback visibility
+- Added library filtering capabilities for Plex content
 
 –– Bug Fixes & Improvements ––
-- Improve AudioInfo Lookup
-- Fix crash on Clic Mini
-- Fix song change not being updated for Clic Mini
-- Improve caching Clic Mini
+- Enhanced audio metadata lookup for more accurate track information
+- Resolved stability issue causing crashes in Clic Mini
+- Fixed song change notifications not updating correctly in Clic Mini
+- Optimized caching performance in Clic Mini for faster response times
 
 ## Store
 
