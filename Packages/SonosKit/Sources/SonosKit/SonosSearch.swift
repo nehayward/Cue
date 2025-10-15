@@ -7,6 +7,7 @@ public final class SonosSearch {
     var isSearching: Bool = true
 
     private var browser: NWBrowser?
+    private var connectionGroup: NWConnectionGroup?
     private let sonosBonjourServiceType = "_http._tcp"
     private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
@@ -103,23 +104,30 @@ public final class SonosSearch {
         isSearching = false
         browser?.cancel()
         browser = nil
+        connectionGroup?.cancel()
+        connectionGroup = nil
     }
 
     public func ssdp() {
+        // Cancel any existing connection group
+        connectionGroup?.cancel()
+        
         guard let multicastGroup = try? NWMulticastGroup(for: [ .hostPort(host: "239.255.255.250", port: 1900) ]) else {
             fatalError("Failed to create multicast group")
         }
-        let connectionGroup = NWConnectionGroup(with: multicastGroup, using: .udp)
-        connectionGroup.setReceiveHandler(maximumMessageSize: 16384, rejectOversizedMessages: true) { message, content, isComplete in
+        let group = NWConnectionGroup(with: multicastGroup, using: .udp)
+        self.connectionGroup = group
+        
+        group.setReceiveHandler(maximumMessageSize: 16384, rejectOversizedMessages: true) { message, content, isComplete in
             print("Received message from \(String(describing: message.remoteEndpoint))")
             if let content = content, let message = String(data: content, encoding: .utf8) {
                 print("Message: \(message)")
             }
         }
-        connectionGroup.stateUpdateHandler = { newState in
+        group.stateUpdateHandler = { newState in
             print("Group entered state \(String(describing: newState))")
         }
-        connectionGroup.start(queue: .main)
+        group.start(queue: .main)
         let searchString = "M-SEARCH * HTTP/1.1\r\n" +
             "HOST: 239.255.255.250:1900\r\n" +
             "MAN: \"ssdp:discover\"\r\n" +
@@ -127,7 +135,7 @@ public final class SonosSearch {
             "MX: 1\r\n\r\n"
         let groupSendContent = Data(searchString.utf8)
 //        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
-            connectionGroup.send(content: groupSendContent) { error in
+            group.send(content: groupSendContent) { error in
                 print("Send complete with error \(String(describing: error))")
             }
 //        }
@@ -223,5 +231,10 @@ public final class SonosSearch {
             print("NewState:", newState)
             break
         }
+    }
+    
+    deinit {
+        stopBrowsing()
+        connectionGroup?.cancel()
     }
 }

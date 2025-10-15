@@ -15,4 +15,8 @@ public class NetworkMonitorService {
         }
         networkMonitor.start(queue: workerQueue)
     }
+    
+    deinit {
+        networkMonitor.cancel()
+    }
 }
