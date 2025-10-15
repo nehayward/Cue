@@ -52,7 +52,7 @@ extension SonosAPI {
     }
 
     func libraryAlbumLookup(IP: String, name: String) async -> [PlayableContent] {
-        guard let albumName = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return [] }
+        guard let albumName = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return [] }
         let albumObjectID = "A:ALBUM/\(albumName)"
         
         let arguments: OrderedKeys = [

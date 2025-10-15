@@ -384,7 +384,7 @@ struct MediaDetailView: View {
             newTracks = await SonosService.shared.libraryLookup(ID: id)
         case (.track, .library):
             guard let albumName = playableContent.metadata?.album,
-                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return }
 
             newTracks = await SonosService.shared.libraryAlbum(name: albumName)
             guard let albumPlayable =  await SonosService.shared.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
