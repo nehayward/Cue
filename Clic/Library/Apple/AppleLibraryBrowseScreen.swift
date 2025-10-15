@@ -158,7 +158,6 @@ struct AppleLibraryBrowseScreen: View {
                 .headerProminence(.increased)
                 
             }
-            .miniPlayerOnScrollHandler()
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
@@ -199,7 +198,7 @@ struct AppleLibraryBrowseScreen: View {
     
     private func updateAppleMusicBrowseService() async {
         isLoading = true
-        await withTaskGroup(of: Void.self) { group in
+        await withTaskGroup { group in
             group.addTask {
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: 0)
             }
@@ -232,7 +231,8 @@ struct AppleLibraryBrowseScreen: View {
 }
 
 #Preview {
-    BrowseScreen()
+    AppleLibraryBrowseScreen()
         .withEnvironments()
+        .environment(SelectedGroupService(group: .theater))
 }
 
