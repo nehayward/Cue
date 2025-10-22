@@ -19,7 +19,7 @@ public final class TidalAPI {
         components.path = "/v2/searchResults/\(query)"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
-            URLQueryItem(name: "include", value: "tracks,artists,albums,playlists")
+            URLQueryItem(name: "include", value: "tracks.albums,artists.profileArt,albums.coverArt,playlists.coverArt")
         ]
 
         guard let url = components.url else {
@@ -58,53 +58,56 @@ public final class TidalAPI {
 
         guard let result: TrackResult = try? await loadAuthorized(url),
               let albumResult = result.included?.first(where: { $0.type.lowercased().contains("album") }),
-              let artistResult = result.included?.first(where: { $0.type.lowercased().contains("artist") }) else { return nil}
+              let artistResult = result.included?.first(where: { $0.type.lowercased().contains("artist") }),
+              let albumAttrs = albumResult.attributes,
+              let artistAttrs = artistResult.attributes,
+              let dataAttrs = result.data.attributes else { return nil}
         
         let artist = TidalArtistResource(
             id: artistResult.id,
-            name: artistResult.attributes.label,
-            picture: artistResult.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: artistResult.attributes.tidalURL,
-            popularity: artistResult.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         let album = TidalAlbumResource(
             id: albumResult.id,
-            barcodeId: albumResult.attributes.barcodeId,
-            title: albumResult.attributes.title ?? "",
+            barcodeId: albumAttrs.barcodeId,
+            title: albumAttrs.title ?? "",
             artists: [artist],
-            duration: albumResult.attributes.durationInSeconds,
-            releaseDate: albumResult.attributes.releaseDate,
-            imageCover: albumResult.attributes.tidalImages,
+            duration: albumAttrs.durationInSeconds,
+            releaseDate: albumAttrs.releaseDate,
+            imageCover: albumAttrs.tidalImages,
             numberOfVolumes: nil,
             numberOfTracks: nil,
             numberOfVideos: nil,
             copyright: nil,
-            tidalUrl: albumResult.attributes.tidalURL,
+            tidalUrl: albumAttrs.tidalURL,
             properties: nil,
-            mediaMetadata: albumResult.attributes.mediaTags,
-            isExplicit: albumResult.attributes.isExplicit,
-            popularity: albumResult.attributes.popularityRating
+            mediaMetadata: albumAttrs.mediaTags,
+            isExplicit: albumAttrs.isExplicit,
+            popularity: albumAttrs.popularityRating
         )
 
         return TidalTrackResource(
             id: result.data.id,
-            isrc: result.data.attributes.isrc,
-            title:  result.data.attributes.label,
+            isrc: dataAttrs.isrc,
+            title:  dataAttrs.label,
             artists: [artist],
             album: album,
-            duration: result.data.attributes.durationInSeconds,
-            releaseDate: result.data.attributes.releaseDate,
-            imageCover: albumResult.attributes.tidalImages,
+            duration: dataAttrs.durationInSeconds,
+            releaseDate: dataAttrs.releaseDate,
+            imageCover: albumAttrs.tidalImages,
             numberOfVolumes: nil,
             numberOfTracks: nil,
             numberOfVideos: nil,
             copyright: nil,
-            tidalUrl: result.data.attributes.tidalURL,
-            mediaMetadata: result.data.attributes.mediaTags,
-            isExplicit: result.data.attributes.isExplicit,
-            popularity: result.data.attributes.popularityRating
+            tidalUrl: dataAttrs.tidalURL,
+            mediaMetadata: dataAttrs.mediaTags,
+            isExplicit: dataAttrs.isExplicit,
+            popularity: dataAttrs.popularityRating
         )
     }
 
@@ -129,34 +132,36 @@ public final class TidalAPI {
         }
 
         guard let album: Result = try? await loadAuthorized(url),
-              let artistResult = album.included?.first(where: { $0.type.lowercased().contains("artist") }) else { return nil}
+              let artistResult = album.included?.first(where: { $0.type.lowercased().contains("artist") }),
+              let artistAttrs = artistResult.attributes,
+              let albumAttrs = album.data.attributes else { return nil}
         
         let artist = TidalArtistResource(
             id: artistResult.id,
-            name: artistResult.attributes.label,
-            picture: artistResult.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: artistResult.attributes.tidalURL,
-            popularity: artistResult.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         return TidalAlbumResource(
             id: album.data.id,
-            barcodeId: album.data.attributes.barcodeId,
-            title: album.data.attributes.title ?? "",
+            barcodeId: albumAttrs.barcodeId,
+            title: albumAttrs.title ?? "",
             artists: [artist],
-            duration: album.data.attributes.durationInSeconds,
-            releaseDate: album.data.attributes.releaseDate,
-            imageCover: album.data.attributes.tidalImages,
+            duration: albumAttrs.durationInSeconds,
+            releaseDate: albumAttrs.releaseDate,
+            imageCover: albumAttrs.tidalImages,
             numberOfVolumes: nil,
             numberOfTracks: nil,
             numberOfVideos: nil,
             copyright: nil,
-            tidalUrl: album.data.attributes.tidalURL,
+            tidalUrl: albumAttrs.tidalURL,
             properties: nil,
-            mediaMetadata: album.data.attributes.mediaTags,
-            isExplicit: album.data.attributes.isExplicit,
-            popularity: album.data.attributes.popularityRating
+            mediaMetadata: albumAttrs.mediaTags,
+            isExplicit: albumAttrs.isExplicit,
+            popularity: albumAttrs.popularityRating
         )
     }
 
@@ -181,44 +186,47 @@ public final class TidalAPI {
         }
 
         guard let albumResult: AlbumResult = try? await loadAuthorized(url),
-              let artistResult = albumResult.included.first(where: { $0.type.lowercased().contains("artist") }) else { return [] }
+              let artistResult = albumResult.included.first(where: { $0.type.lowercased().contains("artist") }),
+              let artistAttrs = artistResult.attributes,
+              let albumAttrs = albumResult.data.attributes else { return [] }
         
         let artist = TidalArtistResource(
             id: artistResult.id,
-            name: artistResult.attributes.label,
-            picture: artistResult.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: artistResult.attributes.tidalURL,
-            popularity: artistResult.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         let album = TidalAlbumResource(
             id: albumResult.data.id,
-            barcodeId: albumResult.data.attributes.barcodeId,
-            title: albumResult.data.attributes.title ?? "",
+            barcodeId: albumAttrs.barcodeId,
+            title: albumAttrs.title ?? "",
             artists: [artist],
-            duration: albumResult.data.attributes.durationInSeconds,
-            releaseDate: albumResult.data.attributes.releaseDate,
-            imageCover: albumResult.data.attributes.tidalImages,
+            duration: albumAttrs.durationInSeconds,
+            releaseDate: albumAttrs.releaseDate,
+            imageCover: albumAttrs.tidalImages,
             numberOfVolumes: nil,
             numberOfTracks: nil,
             numberOfVideos: nil,
             copyright: nil,
-            tidalUrl: albumResult.data.attributes.tidalURL,
+            tidalUrl: albumAttrs.tidalURL,
             properties: nil,
-            mediaMetadata: albumResult.data.attributes.mediaTags,
-            isExplicit: albumResult.data.attributes.isExplicit,
-            popularity: albumResult.data.attributes.popularityRating
+            mediaMetadata: albumAttrs.mediaTags,
+            isExplicit: albumAttrs.isExplicit,
+            popularity: albumAttrs.popularityRating
         )
         
-        return albumResult.included.map {
-            TidalTrackResource(
+        return albumResult.included.compactMap {
+            guard let trackAttrs = $0.attributes else { return nil }
+            return TidalTrackResource(
                 id: $0.id,
-                isrc: $0.attributes.isrc,
-                title: $0.attributes.title ?? "",
+                isrc: trackAttrs.isrc,
+                title: trackAttrs.title ?? "",
                 artists: [],
                 album: album,
-                duration: $0.attributes.durationInSeconds,
+                duration: trackAttrs.durationInSeconds,
                 releaseDate: nil,
                 imageCover: [],
                 numberOfVolumes: nil,
@@ -227,8 +235,8 @@ public final class TidalAPI {
                 copyright: nil,
                 tidalUrl: "",
                 mediaMetadata: nil,
-                isExplicit: $0.attributes.isExplicit,
-                popularity: $0.attributes.popularityRating
+                isExplicit: trackAttrs.isExplicit,
+                popularity: trackAttrs.popularityRating
             )
         }
     }
@@ -255,35 +263,37 @@ public final class TidalAPI {
         }
 
         guard let result: Result = try? await loadAuthorized(url),
-              let tracks = result.included else { return [] }
+              let tracks = result.included,
+              let artistAttrs = result.data.attributes else { return [] }
         
         let artist = TidalArtistResource(
             id: result.data.id,
-            name: result.data.attributes.label,
-            picture: result.data.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: result.data.attributes.tidalURL,
-            popularity: result.data.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         return tracks.compactMap {
-            TidalTrackResource(
+            guard let trackAttrs = $0.attributes else { return nil }
+            return TidalTrackResource(
                 id: $0.id,
-                isrc: $0.attributes.isrc,
-                title: $0.attributes.label,
+                isrc: trackAttrs.isrc,
+                title: trackAttrs.label,
                 artists: [artist],
                 album: nil,
-                duration: $0.attributes.durationInSeconds,
-                releaseDate: $0.attributes.releaseDate,
-                imageCover: $0.attributes.tidalImages,
-                numberOfVolumes: $0.attributes.numberOfVolumes,
-                numberOfTracks: $0.attributes.numberOfItems,
+                duration: trackAttrs.durationInSeconds,
+                releaseDate: trackAttrs.releaseDate,
+                imageCover: trackAttrs.tidalImages,
+                numberOfVolumes: trackAttrs.numberOfVolumes,
+                numberOfTracks: trackAttrs.numberOfItems,
                 numberOfVideos: nil,
                 copyright: nil,
-                tidalUrl: $0.attributes.tidalURL,
-                mediaMetadata: $0.attributes.mediaTags,
-                isExplicit: $0.attributes.isExplicit,
-                popularity: $0.attributes.popularityRating
+                tidalUrl: trackAttrs.tidalURL,
+                mediaMetadata: trackAttrs.mediaTags,
+                isExplicit: trackAttrs.isExplicit,
+                popularity: trackAttrs.popularityRating
             )
         }
     }
@@ -309,35 +319,37 @@ public final class TidalAPI {
         }
 
         guard let result: AlbumResult = try? await loadAuthorized(url),
-              let albums = result.included else { return [] }
+              let albums = result.included,
+              let artistAttrs = result.data.attributes else { return [] }
         
         let artist = TidalArtistResource(
             id: result.data.id,
-            name: result.data.attributes.label,
-            picture: result.data.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: result.data.attributes.tidalURL,
-            popularity: result.data.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         return albums.compactMap {
-            TidalAlbumResource(
+            guard let albumAttrs = $0.attributes else { return nil }
+            return TidalAlbumResource(
                 id: $0.id,
-                barcodeId: $0.attributes.barcodeId,
-                title: $0.attributes.label,
+                barcodeId: albumAttrs.barcodeId,
+                title: albumAttrs.label,
                 artists: [artist],
-                duration: $0.attributes.durationInSeconds,
-                releaseDate: $0.attributes.releaseDate,
-                imageCover: $0.attributes.tidalImages,
-                numberOfVolumes: $0.attributes.numberOfVolumes,
-                numberOfTracks: $0.attributes.numberOfItems,
+                duration: albumAttrs.durationInSeconds,
+                releaseDate: albumAttrs.releaseDate,
+                imageCover: albumAttrs.tidalImages,
+                numberOfVolumes: albumAttrs.numberOfVolumes,
+                numberOfTracks: albumAttrs.numberOfItems,
                 numberOfVideos: nil,
                 copyright: nil,
-                tidalUrl: $0.attributes.tidalURL,
+                tidalUrl: albumAttrs.tidalURL,
                 properties: nil,
-                mediaMetadata: $0.attributes.mediaTags,
-                isExplicit: $0.attributes.isExplicit,
-                popularity: $0.attributes.popularityRating
+                mediaMetadata: albumAttrs.mediaTags,
+                isExplicit: albumAttrs.isExplicit,
+                popularity: albumAttrs.popularityRating
             )
         }
     }
@@ -360,40 +372,45 @@ public final class TidalAPI {
             let included: [TidalIncluded]?
         }
 
-        guard let result: AlbumResult = try? await loadAuthorized(url) else { return nil }
+        guard let result: AlbumResult = try? await loadAuthorized(url),
+              let artistAttrs = result.data.attributes else { return nil }
         
         let artist = TidalArtistResource(
             id: result.data.id,
-            name: result.data.attributes.label,
-            picture: result.data.attributes.tidalImages,
+            name: artistAttrs.label,
+            picture: artistAttrs.tidalImages,
             main: true,
-            tidalUrl: result.data.attributes.tidalURL,
-            popularity: result.data.attributes.popularityRating
+            tidalUrl: artistAttrs.tidalURL,
+            popularity: artistAttrs.popularityRating
         )
         
         return artist
     }
     
-    public func playlist(with id: String) async -> [TidalTrackResource]? {
+    public func playlist(with id: String, cursor: String? = nil) async -> ([TidalTrackResource], String?)? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "openapi.tidal.com"
-        components.path = "/v2/playlists/\(id)"
+        components.path = "/v2/playlists/\(id)/relationships/items"
         components.queryItems = [
             URLQueryItem(name: "countryCode", value: Locale.current.region?.identifier ?? "US"),
-            URLQueryItem(name: "include", value: "items"),
-            
+            URLQueryItem(name: "include", value: "items,coverArt")
         ]
+        
+        // Only add cursor if it's not nil
+        if let cursor = cursor {
+            components.queryItems?.append(URLQueryItem(name: "page[cursor]", value: cursor))
+        }
         
         guard let url = components.url else {
             return nil
         }
 
         do {
-            guard let tidalResponse: TidalApiResponse? = try await loadAuthorized(url) else {
+            guard let tidalResponse: TidalApiResponsePlaylistItems = try await loadAuthorized(url) else {
                 return nil
             }
-            return tidalResponse?.toTidalResult.tracks
+            return (tidalResponse.toTidalResult.tracks, tidalResponse.links?.meta?.nextCursor)
         } catch {
 
             return nil

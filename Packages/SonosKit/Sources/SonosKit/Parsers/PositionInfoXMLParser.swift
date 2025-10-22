@@ -8,7 +8,6 @@ final class SonosTrackParser {
         }
         
         let position = Int(extractValue(between: "<Track>", and: "</Track>", from: bodyContent) ?? "1") ?? 1
-        let trackDuration = extractValue(between: "<TrackDuration>", and: "</TrackDuration>", from: bodyContent)
         let trackURI = extractValue(between: "<TrackURI>", and: "</TrackURI>", from: bodyContent) ?? ""
         
         if let track = checkForTV(uri: trackURI) {
@@ -26,8 +25,8 @@ final class SonosTrackParser {
         // Extract metadata section
         if let metadataContent = extractValue(between: "<TrackMetaData>", and: "</TrackMetaData>", from: bodyContent.unescaped),
            let itemContent = extractValue(between: "<item", and: "</item>", from: metadataContent) {
-            var metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: nil, stationID: nil)
-
+            let metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: nil, stationID: nil)
+            
             // Parse track metadata
             var title = extractValue(between: "<dc:title>", and: "</dc:title>", from: itemContent) ?? "Unknown"
             let creator = extractValue(between: "<dc:creator>", and: "</dc:creator>", from: itemContent)
@@ -60,7 +59,7 @@ final class SonosTrackParser {
             if !albumArtURI.unescaped.isEmpty {
                 sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
             }
-
+            
             if sonosAlbumArtURL == nil, !albumArtURI.unescaped.isEmpty {
                 sonosAlbumArtURL = URL(string: albumArtURI.unescaped)
                 // MARK: Upscale
@@ -79,7 +78,7 @@ final class SonosTrackParser {
             if trackURI.contains("sonos"), musicServiceType != .spotify {
                 // Decode HTML entities
                 let htmlDecoded = albumArtURI.replacingOccurrences(of: "&amp;", with: "&")
-
+                
                 // Extract mark= value
                 if let markRange = htmlDecoded.range(of: "mark=") {
                     let markEncoded = htmlDecoded[markRange.upperBound...]
@@ -96,10 +95,10 @@ final class SonosTrackParser {
             if title.contains("bump_sonic_pre.mp3") {
                 title = ""
             }
-
+            
             return Track(
                 trackID: trackID,
-                name: title,
+                name: title.ampersandSafe,
                 artist: albumArtist ?? (
                     creator ?? ""
                 ),
@@ -182,15 +181,15 @@ final class SonosTrackParser {
         let (title, album, artist) = XMLParserSonos().parseRadioTrackInfo(information: streamContent)
         
         let contentType = ContentType(extractValue(between: "<upnp:class>", and: "</upnp:class>", from: body) ?? "")
-
+        
         var metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: contentType, stationID: nil)
         var musicService: MusicService = .unknown
-
+        
         if body.lowercased().contains("tunein") {
             musicService = .tuneIn
             metadata.stationID =  XMLParserSonos().parseStationID(from: body)
         }
-
+        
         return Track(
             trackID: trackURI,
             name: title,
@@ -206,7 +205,7 @@ final class SonosTrackParser {
         let pattern = "<\(time)>(.*?)</\(time)>"
         if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
             let range = NSRange(xml.startIndex..<xml.endIndex, in: xml)
-
+            
             if let match = regex.firstMatch(in: xml, options: [], range: range) {
                 let valueRange = match.range(at: 1)
                 if let valueRange = Range(valueRange, in: xml) {

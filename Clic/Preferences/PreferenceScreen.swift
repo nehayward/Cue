@@ -101,7 +101,10 @@ struct PreferenceScreen: View {
                 Section("Discovered") {
                     ForEach(servers) { server in
                         VStack(alignment: .leading) {
-                            Text(server.name).bold()
+                            HStack {
+                                Text(server.name).bold()
+                                Text(server.type.rawValue)
+                            }
                             Text("\(server.token)")
                                 .textSelection(.enabled)
                                 .lineLimit(1)

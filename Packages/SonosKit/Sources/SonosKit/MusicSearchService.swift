@@ -550,9 +550,9 @@ public final class MusicSearchService {
         return artist.toPlayable
     }
     
-    public func lookupTidalPlaylist(id: String) async -> [PlayableContent] {
-        let songs = await tidal.playlist(with: id)
-        return songs?.compactMap(\.toPlayable) ?? []
+    public func lookupTidalPlaylist(id: String, cursor: String? = nil) async -> ([PlayableContent], String?) {
+        guard let (songs, next) = await tidal.playlist(with: id, cursor: cursor) else { return ([], nil) }
+        return (songs.compactMap(\.toPlayable), next)
     }
 
     private func searchTidal(query: String) async -> [PlayableContent] {
@@ -926,9 +926,9 @@ public final class MusicSearchService {
     }
     
     // SoundCloud track lookup
-    public func lookupSoundCloudPlaylistTracks(with id: String, nextCursor: String?) async -> [PlayableContent] {
-        guard let tracks = await soundCloud.playlistTracks(for: id) else { return [] }
-        return tracks.map { createSoundCloudPlayableContent(from: $0) }
+    public func lookupSoundCloudPlaylistTracks(with id: String, nextCursor: String?) async -> (tracks: [PlayableContent], nextCursor: String?) {
+        guard let response = await soundCloud.playlistTracks(for: id, cursor: nextCursor) else { return ([], nil) }
+        return (response.collection.map { createSoundCloudPlayableContent(from: $0) }, response.nextCursor)
     }
     
     // SoundCloud liked tracks

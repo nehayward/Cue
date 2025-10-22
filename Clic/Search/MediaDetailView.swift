@@ -20,10 +20,11 @@ struct MediaDetailView: View {
     @State private var editMode: EditMode = .inactive
     @State private var tracks: [PlayableContent] = []
     @State private var isLoaded: Bool = false
-    @State private var isLoadingMore: Bool = false
+    @State private var isLoadingMore: Bool = true
     @State private var totalSongs: Int?
     @State private var duration: Duration?
     @State private var selection: Set<Int> = []
+    @State private var nextCursor: String?
 
     var body: some View {
         @Bindable var router = router
@@ -186,7 +187,7 @@ struct MediaDetailView: View {
                         return
                     }
                     
-                    if index >= tracks.count - 1 && !isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
+                    if index >= tracks.count - 1 && isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
                         Task {
                             await updateTracks(offset: tracks.count)
                         }
@@ -199,13 +200,6 @@ struct MediaDetailView: View {
             .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
 
             if tracks.isEmpty, !isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-            
-            if isLoadingMore {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
                     .listRowSeparator(.hidden)
@@ -403,8 +397,10 @@ struct MediaDetailView: View {
                 playableContent = album
             }
         case (.playlist, .tidal):
-//            newTracks = await musicSearchService.lookupTidalPlaylist(id: playableContent.content.id)
-            break
+            (newTracks, nextCursor) = await musicSearchService.lookupTidalPlaylist(id: playableContent.content.id, cursor: nextCursor)
+            if nextCursor == nil {
+                isLoadingMore = false
+            }
         // MARK: Plex
         case (.track, .plex):
             if let albumID = playableContent.metadata?.albumID {
@@ -423,13 +419,15 @@ struct MediaDetailView: View {
         case (.playlist, .plex):
             (totalSongs, newTracks, duration) = await musicSearchService.lookupPlexPlaylists(id: playableContent.content.id, offset: offset)
         case (.playlist, .soundcloud):
-            newTracks = await musicSearchService.lookupSoundCloudPlaylistTracks(with: playableContent.content.id, nextCursor: nil)
+            (newTracks, nextCursor) = await musicSearchService.lookupSoundCloudPlaylistTracks(with: playableContent.content.id, nextCursor: nextCursor)
+            if nextCursor == nil {
+                isLoadingMore = false
+            }
         default:
             assertionFailure("Implement this.")
         }
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
         isLoaded = true
-        isLoadingMore = false
     }
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {

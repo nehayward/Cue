@@ -6,9 +6,12 @@ import SwiftUI
 struct RunSceneIntent: AppIntent {
     static var title: LocalizedStringResource = "Run Scene"
     static var isDiscoverable: Bool = true
+    static var description = IntentDescription(
+        "Create a Scene in Clic to group speakers, set volume, and play music",
+        categoryName: "Scenes"
+    )
     
     @CloudStorage("com.clic.scenes") private var scenes: [SonosScene] = []
-    
     @Parameter(title: "Scene", default: nil) var scene: SceneEntity?
     @Parameter(title: "Always Ask", default: false) var askForScene: Bool
    

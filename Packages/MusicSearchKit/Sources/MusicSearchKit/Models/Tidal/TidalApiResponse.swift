@@ -1,21 +1,38 @@
 // Add these new models to decode the JSON response
 struct TidalApiResponse: Codable {
     let included: [TidalIncluded]
+    let data: TidalApiData?
+    let links: TidalLinks?
+}
+
+struct TidalApiResponsePlaylistItems: Codable {
+    let included: [TidalIncluded]
+    let data: [TidalApiData]
+    let links: TidalLinks?
+}
+
+struct TidalLinks: Codable {
+    let meta: TidalMetadata?
+}
+
+struct TidalMetadata: Codable {
+    let nextCursor: String?
 }
 
 struct TidalApiData: Codable {
-    let relationships: TidalRelationships
+    let relationships: TidalRelationships?
+    let attributes: TidalAttributes?
 }
 
 struct TidalRelationships: Codable {
-    let albums: TidalRelationship
-    let artists: TidalRelationship
-    let tracks: TidalRelationship
-    let playlists: TidalRelationship // Add this line
+    let albums: TidalRelationship?
+    let artists: TidalRelationship?
+    let tracks: TidalRelationship?
+    let playlists: TidalRelationship? // Add this line
 }
 
 struct TidalRelationship: Codable {
-    let data: [TidalRelationshipData]
+    let data: [TidalRelationshipData]?
 }
 
 struct TidalRelationshipData: Codable {
@@ -26,7 +43,13 @@ struct TidalRelationshipData: Codable {
 struct TidalIncluded: Codable {
     let id: String
     let type: String
-    let attributes: TidalAttributes
+    let attributes: TidalAttributes?
+    let relationships: TidalItemRelationships?
+}
+
+struct TidalItemRelationships: Codable {
+    let coverArt: TidalRelationship?
+    let profileArt: TidalRelationship?
 }
 
 struct TidalAttributes: Codable {
@@ -42,7 +65,7 @@ struct TidalAttributes: Codable {
     let duration: String?
     private let explicit: Bool?
     let releaseDate: String?
-    let copyright: String?
+    let copyright: Copyright?
     
     // Stats and metadata
     let popularity: Double?
@@ -57,6 +80,10 @@ struct TidalAttributes: Codable {
     let videoLinks: [TidalExternalUrls]?
     let externalLinks: [TidalExternalUrls]?
     
+    // Artwork-specific fields
+    let mediaType: String?
+    let files: [TidalImageLink]?
+    
     // Content type
     let type: String?
     
@@ -69,7 +96,8 @@ struct TidalAttributes: Codable {
     }
     
     var tidalImages: [TidalImage] {
-        imageLinks?.compactMap { TidalImage(url: $0.href, width: $0.meta.width, height: $0.meta.height)} ?? []
+        let links = files ?? imageLinks ?? []
+        return links.compactMap { TidalImage(url: $0.href, width: $0.meta.width, height: $0.meta.height) }
     }
     
     var tidalURL: String {
@@ -121,7 +149,10 @@ struct TidalImageLink: Codable {
     let meta: TidalImageMeta
 }
 
-
+// Nested struct for copyright
+public struct Copyright: Codable {
+    public let text: String
+}
 
 struct TidalImageMeta: Codable {
     let width: Int
@@ -131,88 +162,253 @@ struct TidalImageMeta: Codable {
 
 extension TidalApiResponse {
     var toTidalResult: TidalResult {
-        // Helper function to find included item by id and type
-        func findIncluded(id: String, type: String) -> TidalIncluded? {
-            return self.included.first { $0.id == id && $0.type == type }
+        // Build efficient lookup dictionaries - O(n) setup for O(1) lookups
+        var artworkLookup: [String: TidalIncluded] = [:]
+        var albumsData: [TidalIncluded] = []
+        var artistsData: [TidalIncluded] = []
+        var tracksData: [TidalIncluded] = []
+        var playlistsData: [TidalIncluded] = []
+        
+        // Single pass through included array to categorize items
+        for item in included {
+            switch item.type {
+            case "artworks":
+                artworkLookup[item.id] = item
+            case let type where type.contains("album"):
+                albumsData.append(item)
+            case "artists":
+                artistsData.append(item)
+            case "tracks":
+                tracksData.append(item)
+            case "playlists":
+                playlistsData.append(item)
+            default:
+                break
+            }
         }
         
-        // Map albums
-        let albums: [TidalAlbumResource] = self.included.compactMap {
-            guard $0.type.contains("album") else { return nil }
-            print($0.type)
+        // Helper to get artwork images from relationship
+        func getArtwork(from relationship: TidalRelationship?) -> [TidalImage] {
+            guard let artworkId = relationship?.data?.first?.id,
+                  let artwork = artworkLookup[artworkId],
+                  let attributes = artwork.attributes else {
+                return []
+            }
+            return attributes.tidalImages
+        }
+        
+        // Map albums with artwork lookup
+        let albums: [TidalAlbumResource] = albumsData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+            
+            let artwork = getArtwork(from: item.relationships?.coverArt)
+            
             return TidalAlbumResource(
-                id: $0.id,
-                barcodeId: $0.attributes.barcodeId,
-                title: $0.attributes.title ?? "",
+                id: item.id,
+                barcodeId: attributes.barcodeId,
+                title: attributes.title ?? "",
                 artists: [],
-                duration: $0.attributes.durationInSeconds,
-                releaseDate: $0.attributes.releaseDate,
-                imageCover: $0.attributes.imageLinks?.compactMap { TidalImage(url: $0.href, width: $0.meta.width, height: $0.meta.height)},
-                numberOfVolumes: $0.attributes.numberOfVolumes,
-                numberOfTracks: $0.attributes.numberOfItems,
+                duration: attributes.durationInSeconds,
+                releaseDate: attributes.releaseDate,
+                imageCover: artwork.isEmpty ? nil : artwork,
+                numberOfVolumes: attributes.numberOfVolumes,
+                numberOfTracks: attributes.numberOfItems,
                 numberOfVideos: nil,
                 copyright: nil,
-                tidalUrl: $0.attributes.externalLinks?.first?.href?.description ?? "",
+                tidalUrl: attributes.tidalURL,
                 properties: nil,
-                mediaMetadata: $0.attributes.mediaTags,
-                isExplicit: $0.attributes.isExplicit,
-                popularity: $0.attributes.popularityRating
+                mediaMetadata: attributes.mediaTags,
+                isExplicit: attributes.isExplicit,
+                popularity: attributes.popularityRating
             )
         }
 
-        // Map Artists
-        let artists: [TidalArtistResource] = self.included.compactMap {
-            guard $0.type == "artists" else { return nil }
-            print($0.type)
+        // Map artists with artwork lookup
+        let artists: [TidalArtistResource] = artistsData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+            
+            let artwork = getArtwork(from: item.relationships?.profileArt)
             
             return TidalArtistResource(
-                id: $0.id,
-                name: $0.attributes.name ?? "",
-                picture: $0.attributes.imageLinks?.compactMap { TidalImage(url: $0.href, width: $0.meta.width, height: $0.meta.height)} ?? [],
+                id: item.id,
+                name: attributes.name ?? "",
+                picture: artwork,
                 main: false,
-                tidalUrl: $0.attributes.externalLinks?.first?.href?.description ?? "",
-                popularity: $0.attributes.popularity ?? 0.0
+                tidalUrl: attributes.tidalURL,
+                popularity: attributes.popularity ?? 0.0
             )
         }
-        
 
         // Map tracks
-        let tracks: [TidalTrackResource] = self.included.compactMap {
-            guard $0.type == "tracks" else { return nil }
-            print($0.type)
-            
+        let tracks: [TidalTrackResource] = tracksData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+
             return TidalTrackResource(
-                id: $0.id,
-                isrc: $0.attributes.isrc,
-                title: $0.attributes.title ?? "",
+                id: item.id,
+                isrc: attributes.isrc,
+                title: attributes.title ?? "",
                 artists: [],
                 album: nil,
-                duration: $0.attributes.durationInSeconds,
-                releaseDate: $0.attributes.releaseDate,
+                duration: attributes.durationInSeconds,
+                releaseDate: attributes.releaseDate,
                 imageCover: nil,
                 numberOfVolumes: nil,
                 numberOfTracks: nil,
                 numberOfVideos: nil,
                 copyright: nil,
-                tidalUrl: "",
-                mediaMetadata: $0.attributes.mediaTags,
-                isExplicit: $0.attributes.isExplicit,
-                popularity: $0.attributes.popularityRating
+                tidalUrl: attributes.tidalURL,
+                mediaMetadata: attributes.mediaTags,
+                isExplicit: attributes.isExplicit,
+                popularity: attributes.popularityRating
             )
         }
         
-        let playlists: [TidalPlaylistResource] = self.included.compactMap {
-            guard $0.type == "playlists",
-                  let id = $0.attributes.tidalURL.components(separatedBy: "/").last else { return nil }
+        // Map playlists
+        let playlists: [TidalPlaylistResource] = playlistsData.compactMap { item in
+            guard let attributes = item.attributes,
+                  let id = attributes.tidalURL.components(separatedBy: "/").last else {
+                return nil
+            }
+            
+            let artwork = getArtwork(from: item.relationships?.coverArt)
             
             return TidalPlaylistResource(
                 id: id,
-                name: $0.attributes.name ?? "",
-                description: $0.attributes.description,
-                numberOfTracks: $0.attributes.numberOfItems,
-                duration: $0.attributes.durationInSeconds,
-                imageUrls: $0.attributes.tidalImages,
-                tidalUrl: $0.attributes.tidalURL
+                name: attributes.name ?? "",
+                description: attributes.description,
+                numberOfTracks: attributes.numberOfItems,
+                duration: attributes.durationInSeconds,
+                imageUrls: artwork.isEmpty ? [] : artwork,
+                tidalUrl: attributes.tidalURL
+            )
+        }
+        
+        return TidalResult(albums: albums, artists: artists, tracks: tracks, playlists: playlists)
+    }
+}
+
+
+
+extension TidalApiResponsePlaylistItems {
+    var toTidalResult: TidalResult {
+        // Build efficient lookup dictionaries - O(n) setup for O(1) lookups
+        var artworkLookup: [String: TidalIncluded] = [:]
+        var albumsData: [TidalIncluded] = []
+        var artistsData: [TidalIncluded] = []
+        var tracksData: [TidalIncluded] = []
+        var playlistsData: [TidalIncluded] = []
+        
+        // Single pass through included array to categorize items
+        for item in included {
+            switch item.type {
+            case "artworks":
+                artworkLookup[item.id] = item
+            case let type where type.contains("album"):
+                albumsData.append(item)
+            case "artists":
+                artistsData.append(item)
+            case "tracks":
+                tracksData.append(item)
+            case "playlists":
+                playlistsData.append(item)
+            default:
+                break
+            }
+        }
+        
+        // Helper to get artwork images from relationship
+        func getArtwork(from relationship: TidalRelationship?) -> [TidalImage] {
+            guard let artworkId = relationship?.data?.first?.id,
+                  let artwork = artworkLookup[artworkId],
+                  let attributes = artwork.attributes else {
+                return []
+            }
+            return attributes.tidalImages
+        }
+        
+        // Map albums with artwork lookup
+        let albums: [TidalAlbumResource] = albumsData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+            
+            let artwork = getArtwork(from: item.relationships?.coverArt)
+            
+            return TidalAlbumResource(
+                id: item.id,
+                barcodeId: attributes.barcodeId,
+                title: attributes.title ?? "",
+                artists: [],
+                duration: attributes.durationInSeconds,
+                releaseDate: attributes.releaseDate,
+                imageCover: artwork.isEmpty ? nil : artwork,
+                numberOfVolumes: attributes.numberOfVolumes,
+                numberOfTracks: attributes.numberOfItems,
+                numberOfVideos: nil,
+                copyright: nil,
+                tidalUrl: attributes.tidalURL,
+                properties: nil,
+                mediaMetadata: attributes.mediaTags,
+                isExplicit: attributes.isExplicit,
+                popularity: attributes.popularityRating
+            )
+        }
+
+        // Map artists with artwork lookup
+        let artists: [TidalArtistResource] = artistsData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+            
+            let artwork = getArtwork(from: item.relationships?.profileArt)
+            
+            return TidalArtistResource(
+                id: item.id,
+                name: attributes.name ?? "",
+                picture: artwork,
+                main: false,
+                tidalUrl: attributes.tidalURL,
+                popularity: attributes.popularity ?? 0.0
+            )
+        }
+
+        // Map tracks
+        let tracks: [TidalTrackResource] = tracksData.compactMap { item in
+            guard let attributes = item.attributes else { return nil }
+            
+            return TidalTrackResource(
+                id: item.id,
+                isrc: attributes.isrc,
+                title: attributes.title ?? "",
+                artists: [],
+                album: nil,
+                duration: attributes.durationInSeconds,
+                releaseDate: attributes.releaseDate,
+                imageCover: nil,
+                numberOfVolumes: nil,
+                numberOfTracks: nil,
+                numberOfVideos: nil,
+                copyright: nil,
+                tidalUrl: attributes.tidalURL,
+                mediaMetadata: attributes.mediaTags,
+                isExplicit: attributes.isExplicit,
+                popularity: attributes.popularityRating
+            )
+        }
+        
+        // Map playlists
+        let playlists: [TidalPlaylistResource] = playlistsData.compactMap { item in
+            guard let attributes = item.attributes,
+                  let id = attributes.tidalURL.components(separatedBy: "/").last else {
+                return nil
+            }
+            
+            let artwork = getArtwork(from: item.relationships?.coverArt)
+            
+            return TidalPlaylistResource(
+                id: id,
+                name: attributes.name ?? "",
+                description: attributes.description,
+                numberOfTracks: attributes.numberOfItems,
+                duration: attributes.durationInSeconds,
+                imageUrls: artwork.isEmpty ? [] : artwork,
+                tidalUrl: attributes.tidalURL
             )
         }
         

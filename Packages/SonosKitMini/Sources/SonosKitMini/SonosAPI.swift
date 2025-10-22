@@ -195,7 +195,6 @@ final class SonosAPI {
         let xml = String(decoding: data, as: UTF8.self)
         let parser = GenericXMLParser(targetElement: "CurrentVolume")
         if let value = parser.parseXML(xml) {
-            print("Found Value: \(value)")
             return Double(value) ?? 0
         } else {
             print("Failed to parse value for tag: CurrentVolume")
@@ -215,7 +214,6 @@ final class SonosAPI {
         let xml = String(decoding: data, as: UTF8.self)
         let parser = GenericXMLParser(targetElement: "CurrentVolume")
         if let value = parser.parseXML(xml) {
-            print("Found Value: \(value)")
             return Double(value) ?? 0
         } else {
             print("Failed to parse value for tag: CurrentVolume")
@@ -706,7 +704,6 @@ final class SonosAPI {
         let xml = String(decoding: data, as: UTF8.self)
         let parser = GenericXMLParser(targetElement: "Actions")
         if let value = parser.parseXML(xml) {
-            print("Found Value: \(value)")
             let actions = value.components(separatedBy: ",")
             let availableActions = AvailableActions(actions.compactMap(AvailableActions.init))
             return availableActions

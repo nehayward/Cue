@@ -53,8 +53,6 @@
 		E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E92B3E902B60249B00724FA1 /* CloudStorage */; };
 		E92E47442B360C5C00DE6647 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
 		E92E47562B3647E200DE6647 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E92E47552B3647E200DE6647 /* SonosKit */; };
-		E933FA0F2C3304E400C0D7AE /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E933FA0E2C3304E400C0D7AE /* Glur */; };
-		E933FA112C3304EE00C0D7AE /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E933FA102C3304EE00C0D7AE /* Glur */; };
 		E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = E93AFA762B587F1800B20AC4 /* Defaults */; };
 		E959B9182AB50684000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B9172AB50684000D596E /* CloudStorage */; };
 		E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E959B91B2AB506BF000D596E /* CloudStorage */; };
@@ -88,7 +86,6 @@
 		E9B12B602A5F317B0008868C /* Widgets Watch.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E9B12B532A5F31790008868C /* Widgets Watch.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = E9BDE57F29E33B0700D230A8 /* SonosKit */; };
 		E9C03B092A586F6100FB9118 /* Clic Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		E9C2C4382C580FE000ABC177 /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = E9C2C4372C580FE000ABC177 /* Glur */; };
 		E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E9D49E4D2BC9D21B0084185E /* Analytics */; };
 		E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E92E47432B360C5C00DE6647 /* QueueAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
@@ -376,10 +373,10 @@
 				Intents/AppEnums/Launcher.swift,
 				Intents/AppEnums/PlaybackOption.swift,
 				Intents/AppEnums/ToggleOption.swift,
-				Intents/ClicAppShortcutProvider.swift,
 				Intents/ControlLiveActivityIntent.swift,
 				Intents/CreateLiveActivityIntent.swift,
 				Intents/Depreceated/TogglePlaybackIntent.swift,
+				Intents/GroupIntent.swift,
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchSpeakerIntent.swift,
 				Intents/Models/IntentError.swift,
@@ -389,6 +386,7 @@
 				Intents/PreviousIntent.swift,
 				Intents/RefreshIntent.swift,
 				Intents/RunSceneIntent.swift,
+				Intents/SeperateRoomsIntent.swift,
 				Intents/SetNightModeIntent.swift,
 				Intents/SetRelativeVolumeIntent.swift,
 				Intents/SetSpeechModeIntent.swift,
@@ -426,10 +424,10 @@
 				Intents/AppEnums/Launcher.swift,
 				Intents/AppEnums/PlaybackOption.swift,
 				Intents/AppEnums/ToggleOption.swift,
-				Intents/ClicAppShortcutProvider.swift,
 				Intents/ControlLiveActivityIntent.swift,
 				Intents/CreateLiveActivityIntent.swift,
 				Intents/Depreceated/TogglePlaybackIntent.swift,
+				Intents/GroupIntent.swift,
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchSpeakerIntent.swift,
 				Intents/Models/IntentError.swift,
@@ -439,6 +437,7 @@
 				Intents/PreviousIntent.swift,
 				Intents/RefreshIntent.swift,
 				Intents/RunSceneIntent.swift,
+				Intents/SeperateRoomsIntent.swift,
 				Intents/SetNightModeIntent.swift,
 				Intents/SetRelativeVolumeIntent.swift,
 				Intents/SetSpeechModeIntent.swift,
@@ -462,10 +461,10 @@
 				Intents/AppEnums/Launcher.swift,
 				Intents/AppEnums/PlaybackOption.swift,
 				Intents/AppEnums/ToggleOption.swift,
-				Intents/ClicAppShortcutProvider.swift,
 				Intents/ControlLiveActivityIntent.swift,
 				Intents/CreateLiveActivityIntent.swift,
 				Intents/Depreceated/TogglePlaybackIntent.swift,
+				Intents/GroupIntent.swift,
 				Intents/LaunchAlarmsIntent.swift,
 				Intents/LaunchSpeakerIntent.swift,
 				Intents/Models/IntentError.swift,
@@ -475,6 +474,7 @@
 				Intents/PreviousIntent.swift,
 				Intents/RefreshIntent.swift,
 				Intents/RunSceneIntent.swift,
+				Intents/SeperateRoomsIntent.swift,
 				Intents/SetRelativeVolumeIntent.swift,
 				Intents/SetVolumeIntent.swift,
 				Intents/TODO/PlayIntent.swift,
@@ -599,7 +599,6 @@
 			files = (
 				E92B3EE42B60249B00724FA1 /* Nuke in Frameworks */,
 				E92B3EE62B60249B00724FA1 /* StoreKit.framework in Frameworks */,
-				E9C2C4382C580FE000ABC177 /* Glur in Frameworks */,
 				E92B3EE72B60249B00724FA1 /* SubscriptionKit in Frameworks */,
 				E92B3EE82B60249B00724FA1 /* OrderedCollections in Frameworks */,
 				E92B3EE92B60249B00724FA1 /* Defaults in Frameworks */,
@@ -634,7 +633,6 @@
 			files = (
 				E975632C2B699B2400787E14 /* Nuke in Frameworks */,
 				E975632E2B699B2400787E14 /* StoreKit.framework in Frameworks */,
-				E933FA112C3304EE00C0D7AE /* Glur in Frameworks */,
 				E975632F2B699B2400787E14 /* SubscriptionKit in Frameworks */,
 				E97563302B699B2400787E14 /* OrderedCollections in Frameworks */,
 				E97563312B699B2400787E14 /* Defaults in Frameworks */,
@@ -678,7 +676,6 @@
 			files = (
 				E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */,
 				E9A34DB12A757E6C00A6FDE7 /* StoreKit.framework in Frameworks */,
-				E933FA0F2C3304E400C0D7AE /* Glur in Frameworks */,
 				E960ED4A2AC4969F003E3732 /* SubscriptionKit in Frameworks */,
 				E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */,
 				E93AFA772B587F1800B20AC4 /* Defaults in Frameworks */,
@@ -857,7 +854,6 @@
 				E92B3E9A2B60249B00724FA1 /* NukeUI */,
 				E92B3E9B2B60249B00724FA1 /* Defaults */,
 				E9D49E4D2BC9D21B0084185E /* Analytics */,
-				E9C2C4372C580FE000ABC177 /* Glur */,
 				017297642DD3C708003E7FFB /* Kingfisher */,
 				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
 			);
@@ -926,7 +922,6 @@
 				E97562DC2B699B2400787E14 /* NukeUI */,
 				E97562DD2B699B2400787E14 /* Defaults */,
 				E90F315F2BC48ADD00884EA5 /* Analytics */,
-				E933FA102C3304EE00C0D7AE /* Glur */,
 				0186D9492E674B47001387F1 /* FocusOnAppear */,
 			);
 			productName = Sonos;
@@ -1017,7 +1012,6 @@
 				E9F600C32B4E5E470039AAA6 /* NukeUI */,
 				E93AFA762B587F1800B20AC4 /* Defaults */,
 				E90F315D2BC4829500884EA5 /* Analytics */,
-				E933FA0E2C3304E400C0D7AE /* Glur */,
 				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
 			);
 			productName = Sonos;
@@ -1099,7 +1093,6 @@
 				E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */,
 				E96385F82AD8E1DF005411BF /* XCRemoteSwiftPackageReference "purchases-ios" */,
 				E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */,
-				E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */,
 				018567D72D12152D00AF14EB /* XCLocalSwiftPackageReference "Packages/SonosKit" */,
 				018567DC2D12155600AF14EB /* XCLocalSwiftPackageReference "Packages/VibesDS" */,
 				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
@@ -2470,7 +2463,6 @@
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -2524,7 +2516,6 @@
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -2739,7 +2730,6 @@
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Needed to find Sonos Devices";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -3108,14 +3098,6 @@
 				minimumVersion = 12.3.0;
 			};
 		};
-		E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/joogps/Glur";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.4;
-			};
-		};
 		E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -3360,16 +3342,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
 		};
-		E933FA0E2C3304E400C0D7AE /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
-		};
-		E933FA102C3304EE00C0D7AE /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
-		};
 		E93AFA762B587F1800B20AC4 /* Defaults */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
@@ -3457,11 +3429,6 @@
 		E9BDE57F29E33B0700D230A8 /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
-		};
-		E9C2C4372C580FE000ABC177 /* Glur */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E933FA0D2C3304E400C0D7AE /* XCRemoteSwiftPackageReference "Glur" */;
-			productName = Glur;
 		};
 		E9D49E4D2BC9D21B0084185E /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;

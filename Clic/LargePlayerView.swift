@@ -75,10 +75,19 @@ struct LargePlayerView: View {
                 ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
                     .padding(.bottom, 12)
                     .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-                Text(group.coordinatorRoom.radioStation ?? "")
-                    .font(.caption.smallCaps())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                VStack {
+                    if group.coordinatorRoom.container != nil {
+                        TrackContainerView(group: group)
+                            .transition(.opacity)
+                    } else {
+                        Text(group.coordinatorRoom.radioStation ?? "")
+                            .font(.caption.smallCaps())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1, reservesSpace: true)
+                    }
+                }
+                .animation(.default, value: group.coordinatorRoom.container != nil)
+                .frame(height: 12)
                 MarqueeText(group.coordinatorRoom.track.song)
                     .bold()
                     .multilineTextAlignment(.center)

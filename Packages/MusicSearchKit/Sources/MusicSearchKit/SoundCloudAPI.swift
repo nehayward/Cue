@@ -97,7 +97,7 @@ public final class SoundCloudAPI {
         }
     }
     
-    public func playlistTracks(for playlistId: String, limit: Int = 50, cursor: String? = nil) async -> [SoundCloudTrack]? {
+    public func playlistTracks(for playlistId: String, limit: Int = 50, cursor: String? = nil) async -> SoundCloudPaginatedResponse<SoundCloudTrack>? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.soundcloud.com"

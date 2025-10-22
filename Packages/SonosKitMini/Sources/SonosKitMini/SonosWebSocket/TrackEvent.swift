@@ -179,7 +179,11 @@ public struct PlaybackPolicy: Codable {
 public struct SonosContainer: Codable {
     public let images: [TrackEventImage]?
     public let objectType: String?
+    public let service: SonosServiceInfo?
     public let htInputFormat: HTInputFormat?
+    public let type: String?
+    public let name: String?
+    public let id: UniversalMusicObjectId?
     
     public struct HTInputFormat: Codable {
         public let numLFEChannels: Int?
@@ -201,5 +205,10 @@ public struct SonosContainer: Codable {
         case images
         case objectType = "_objectType"
         case htInputFormat
+        case service
+        case type
+        case name
+        case id
     }
 }
+

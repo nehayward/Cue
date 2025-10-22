@@ -10,7 +10,11 @@ struct LaunchSpeakerIntent: AppIntent {
     static var title: LocalizedStringResource = "Open Sonos Speaker"
     static var description = IntentDescription("Open a specific Sonos speaker.", categoryName: "Launcher", searchKeywords: ["Launch Speaker"])
     
-    @Parameter(title: "Open Active Speaker (Playing or TV Mode)", description: "Launch to first group playing or in TV mode, if enabled it'll ignore Sonos Speaker Selected", default: false)
+    @Parameter(
+        title: "Open Active Speaker (Playing or TV Mode)",
+        description: "Launch to first group playing or in TV mode, if enabled it'll ignore Sonos Speaker Selected",
+        default: false
+    )
     var nowPlaying: Bool
     
     @Parameter(title: "Sonos Speaker", description: "Select the Sonos speaker you want to control")

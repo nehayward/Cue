@@ -15,7 +15,7 @@ struct SceneQuery: EntityQuery {
         scenes.map { SceneEntity(id: $0.id, name: $0.name, description: $0.description) }
     }
 
-    func defaultResult() async -> SceneEntity? {
-        try? await suggestedEntities().first
-    }
+//    func defaultResult() async -> SceneEntity? {
+//        try? await suggestedEntities().first
+//    }
 }

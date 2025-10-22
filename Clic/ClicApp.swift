@@ -143,6 +143,9 @@ struct ClicApp: App {
                         router.selectedID = sonosService.sorted.first?.coordinatorID
                     }
                 }
+                Task {
+                    ClicAppShortcutProvider.updateAppShortcutParameters()
+                }
             }
 #if targetEnvironment(macCatalyst)
             .frame(minWidth: 800, minHeight: 500)

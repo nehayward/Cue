@@ -5,8 +5,6 @@ import os
 
 @Observable
 public final class Room: Identifiable, @unchecked Sendable {
-    private let lock = OSAllocatedUnfairLock()
-
     public let id: String
     public let ip: String
     public let name: String
@@ -39,6 +37,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var subs: [Sub] = []
     public var queue: OrderedSet<PlayableContent> = []
     public var queueTotal: Int = 0
+    public var container: SonosContainer?
 
     // MARK: Settings
     public var settings = SpeakerSettings(isSet: false)
@@ -90,7 +89,8 @@ public final class Room: Identifiable, @unchecked Sendable {
         invisible: Bool = false,
         isOutputFixed: Bool = false,
         subs: [Sub] = [],
-        info: DeviceInfo? = nil
+        info: DeviceInfo? = nil,
+        container: SonosContainer? = nil
     ) {
         self.id = id
         self.ip = ip
@@ -114,15 +114,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.invisible = invisible
         self.subs = subs
         self.info = info
-    }
-
-    @MainActor
-    public func updateVolume(volume: Double) {
-        lock.withLock { 
-            DispatchQueue.main.async { [weak self] in
-                self?.volume = volume
-            }
-        }
+        self.container = container
     }
 }
 
@@ -149,7 +141,30 @@ extension Room: CustomStringConvertible {
 }
 
 extension Room {
-    public static let garage = Room(id: "RINCON_B8E937525BB001400", ip: "192.168.4.50", name: "Garage" )
+    public static let garage = Room(
+        id: "RINCON_B8E937525BB001400",
+        ip: "192.168.4.50",
+        name: "Garage",
+        container: .init(
+            images: nil,
+            objectType: nil,
+            service: .init(
+                id: "12",
+                name: "Spotify",
+                images: [],
+                objectType: nil
+            ),
+            htInputFormat: nil,
+            type: "playlist",
+            name: "Mood Booster",
+            id: .init(
+                accountId: nil,
+                serviceId: "12",
+                objectId: "spotify:playlist:37i9dQZF1DX3rxVfibe1L0",
+                objectType: ""
+            )
+        )
+    )
     public static let gym = Room(id: "RINCON_7828CAC7352E01400", ip: "192.168.4.49", name: "Gym")
     public static let theater = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"))
     public static let theaterFixed = Room(id: "RINCON_48A6B80D8FB401400", ip: "192.168.4.144", name: "Theater", track: Track(trackID: "134"), isOutputFixed: true)

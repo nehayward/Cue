@@ -1,3 +1,16 @@
+# 2025.17
+
+–– New Features ––
+- Add shortcuts to group and separate speakers
+- Show playlist information and album info on Player Screen
+- Add Room Mute Option to Shortcut 
+
+–– Bug Fixes & Improvements ––
+- Fix missing icon for SoundCloud and TuneIn
+- Improve metadata for Sonos Library
+- Fix Soundcloud Playlist tracks not loading.
+- Fix Tidal not loading, and album art
+
 # 2025.16
 
 –– New Features ––

@@ -22,3 +22,9 @@ struct SonosDeviceEntity: AppEntity, Identifiable, Codable, IndexedEntity {
 
     static var defaultQuery = SonosDeviceQuery()
 }
+
+extension SonosDeviceEntity {
+    var toRoom: Room {
+       Room(id: id, ip: ip, name: name)
+    }
+}

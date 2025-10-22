@@ -289,7 +289,7 @@ struct SpeakerSettingsView: View {
                     }
                     VStack {
                         LabeledContent {
-                            Text(room.theaterSettings.subGain, format: .number)
+                            Text("\(Int(room.theaterSettings.subGain.rounded()))")
                         } label: {
                             Text("Sub Level")
                         }

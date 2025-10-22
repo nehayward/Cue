@@ -5,7 +5,6 @@ import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import Glur
 import Defaults
 
 struct PlayableCardView: View {
@@ -44,7 +43,7 @@ struct PlayableCardView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .foregroundStyle(.white)
-                        .bold()
+                        .fontWeight(.semibold)
                         .shadow(radius: 4)
                         .frame(maxWidth: 44, maxHeight: 44)
                 }
@@ -80,31 +79,19 @@ struct PlayableCardView: View {
             } else {
                 ContentArtworkView(content: item, showMusicSource: false, preferredSize: 500)
                     .aspectRatio(contentMode: .fit)
-                    .glur(radius: 30, // The total radius of the blur effect when fully applied.
-                          offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                          interpolation: 0.3, // The distance from the offset to where the effect is fully applied, relative to the view's size.
-                          direction: .down // The direction in which the effect is applied.
-                    )
-                    .overlay {
-                        LinearGradient(colors: [.black.opacity(0.55), .clear, .clear], startPoint: .bottom, endPoint: .top)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading) {
+                    Text(item.title)
+                        .fontWeight(.semibold)
+                    if !item.subtitle.isEmpty {
+                        Text(item.subtitle)
+                            .opacity(0.8)
                     }
-                    .overlay(alignment: .bottomLeading) {
-                        VStack(alignment: .leading) {
-                            Text(item.title)
-                                .bold()
-                            if !item.subtitle.isEmpty {
-                                Text(item.subtitle)
-                                    .opacity(0.8)
-                            }
-                        }
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-                        .fontDesign(.rounded)
-                        .padding([.horizontal, .bottom], 12)
-                        .foregroundStyle(.white)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 20)
+                }
+                .lineLimit(1, reservesSpace: true)
+                .fontDesign(.rounded)
+                .tint(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

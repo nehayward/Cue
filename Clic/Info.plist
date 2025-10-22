@@ -2,20 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleIcons</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<dict>
-			<key>CFBundleIconFiles</key>
-			<array>
-				<string></string>
-			</array>
-			<key>NSAppIconActionTintColorName</key>
-			<string>Accent</string>
-			<key>NSAppIconComplementingColorNames</key>
-			<string>Accent</string>
-		</dict>
-	</dict>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -33,6 +19,20 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string></string>
+			</array>
+			<key>NSAppIconActionTintColorName</key>
+			<string>Accent</string>
+			<key>NSAppIconComplementingColorNames</key>
+			<string>Accent</string>
+		</dict>
+	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -46,8 +46,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>nowplaying</string>
@@ -103,6 +101,15 @@
 			<key>UTTypeTagSpecification</key>
 			<dict/>
 		</dict>
+	</array>
+	<key>INAlternativeAppNames</key>
+	<array>
+	<dict>
+		<key>INAlternativeAppName</key>
+		<string>Sonos</string>
+		<key>INAlternativeAppNamePronunciationHint</key>
+		<string>Click</string>
+	</dict>
 	</array>
 </dict>
 </plist>

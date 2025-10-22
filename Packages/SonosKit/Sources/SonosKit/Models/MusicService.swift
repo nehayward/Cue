@@ -68,6 +68,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "Tidal"
         case .soundcloud:
             "SoundCloud"
+        case .tuneIn:
+            "TuneIn"
         default:
             ""
         }
@@ -109,7 +111,12 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-            case .plex, .tidal, .tuneIn, .soundcloud, .spotify:
+            case .tuneIn, .soundcloud:
+                SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .plex, .tidal, .spotify:
                 SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
                     .renderingMode(.template)
                     .resizable()
@@ -144,7 +151,25 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:
             EmptyView()
-        case .plex, .tidal, .tuneIn, .soundcloud, .spotify:
+        case .tuneIn, .soundcloud:
+            #if targetEnvironment(macCatalyst)
+            let base = UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)!
+            let templated = base.withRenderingMode(.alwaysTemplate)
+            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            
+            SwiftUI.Image(uiImage: resized)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+            #else
+            SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(brandColor.gradient)
+            #endif
+        case .plex, .tidal, .spotify:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.sonosRawValue.capitalized, in: .musicSearchKitBundle, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)

@@ -354,8 +354,8 @@ public final class SonosService {
             
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                    if roomGroup.coordinatorRoom.radioStation != title {
-                        roomGroup.coordinatorRoom.radioStation = mediaInfo.title
+                    if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                        roomGroup.coordinatorRoom.radioStation = title
                     }
                 }
             } else {
@@ -585,8 +585,8 @@ public final class SonosService {
                     
                     if roomGroup.playbackService == .radio {
                         if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
-                            if roomGroup.coordinatorRoom.radioStation != title {
-                                roomGroup.coordinatorRoom.radioStation = mediaInfo.title
+                            if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
+                                roomGroup.coordinatorRoom.radioStation = title
                             }
                         }
                     } else if roomGroup.coordinatorRoom.radioStation != nil {
@@ -1429,6 +1429,10 @@ public final class SonosService {
     public func isMuted(for group: GroupRoom) async -> Bool? {
         await api.getGroupMute(IP: group.coordinatorRoom.ip)
     }
+    
+    public func isRoomMuted(for ip: String) async -> Bool? {
+        await api.getRoomMute(IP: ip)
+    }
 
     public func isCrossfaded(for group: GroupRoom) async -> Bool? {
         await api.crossfade(IP: group.coordinatorRoom.ip)
@@ -1584,6 +1588,7 @@ public final class SonosService {
             }
             return
         }
+        
         guard let newGroup = await speedGroup(rooms: rooms) else {
             throw SonosAPIError.deviceNotFound
         }

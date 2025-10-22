@@ -60,7 +60,7 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.usersRecents.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecents.prefix(4)) { item in
+                                ForEach(appleMusicBrowseService.usersRecents.prefix(3)) { item in
                                     PlayableCardView(item: item)
                                 }
                             }
@@ -86,7 +86,7 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(4)) { item in
+                                ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(3)) { item in
                                     PlayableCardView(item: item)
                                 }
                             }
@@ -111,7 +111,7 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.recommendedAlbums.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.recommendedAlbums.prefix(4)) { item in
+                                ForEach(appleMusicBrowseService.recommendedAlbums.prefix(3)) { item in
                                     PlayableCardView(item: item)
                                 }
                             }
@@ -136,7 +136,7 @@ struct AppleLibraryBrowseScreen: View {
                     if !appleMusicBrowseService.userStations.isEmpty {
                         VStack(spacing: 16) {
                             HStack(spacing: 12) {
-                                ForEach(appleMusicBrowseService.userStations.prefix(4)) { item in
+                                ForEach(appleMusicBrowseService.userStations.prefix(3)) { item in
                                     PlayableCardView(item: item)
                                 }
                             }

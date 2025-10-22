@@ -185,6 +185,6 @@ struct SpotifyLibraryScreen: View {
 }
 
 #Preview {
-    BrowseScreen()
+    SpotifyLibraryScreen()
         .withEnvironments()
 }
