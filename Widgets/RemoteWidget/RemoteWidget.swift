@@ -155,6 +155,55 @@ struct RemoteWidgetEntry: TimelineEntry {
         TVSettings: .init(nightMode: true, dialogLevel: false, audioInputFormat: .dolbyDigital),
         activeSubscription: active)
     }
+    
+    static func largePreview(_ active: Bool = true, service: MusicService = .apple) -> RemoteWidgetEntry {
+        // Create 5 dummy playHistory items
+        let playHistory: [PlayableContent] = (1...5).map { index in
+                .init(
+                    title: "Dance the Night (From The Barbie Album)",
+                    subtitle: "Dua Lipa",
+                    thumbnail: nil,
+                    artwork: nil,
+                    content: .init(
+                        service: service,
+                        id: "123",
+                        type: .track,
+                        location: nil
+                    )
+                )
+        }
+
+        return RemoteWidgetEntry(
+            date: .now,
+            configuration: RemoteWidgetConfigurationIntent(
+                room: SonosDeviceEntity(
+                    id: "",
+                    ip: "",
+                    name: "Kitchen + 1"
+                )
+            ),
+            playableContent: .init(
+                title: "Dance the Night (From The Barbie Album)",
+                subtitle: "Dua Lipa",
+                thumbnail: nil,
+                artwork: nil,
+                content: .init(service: service, id: "123", type: .track, location: nil)
+            ),
+            volume: 20,
+            isMuted: true,
+            track: Track(
+                trackID: "",
+                name: "Barbie",
+                artist: "Dua Lipa",
+                album: "Barbie",
+                musicService: service,
+                duration: 0,
+                playbackPosition: 0
+            ),
+            activeSubscription: active,
+            playHistory: playHistory // <-- here are the 5 entries
+        )
+    }
 }
 
 struct RemoteWidget: Widget {

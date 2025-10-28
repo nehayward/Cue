@@ -115,6 +115,21 @@ public final class AppleMusicAPI {
         }
         print(String(decoding: response.data, as: UTF8.self))
     }
+    
+    public func getUserPlaylist(with id: String) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+
+        guard let urlComponents = URLComponents(string: "https://api.music.apple.com/v1/me/library/playlists/\(id)"), let url = urlComponents.url else { return nil }
+        let request = MusicDataRequest(urlRequest: .init(url: url))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+        do {
+            let appleUserPlaylistContainer = try decoder.decode(AppleLibraryContainer.self, from: data)
+            return appleUserPlaylistContainer
+        } catch {
+            return nil
+        }
+    }
         
     public func getUserPlaylists(offset: Int = 0, limit: Int? = nil) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }

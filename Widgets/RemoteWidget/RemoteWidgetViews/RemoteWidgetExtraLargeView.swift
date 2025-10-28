@@ -9,7 +9,7 @@ struct RemoteWidgetExtraLargeView: View {
 
     var body: some View {
         if let room = entry.configuration.room {
-            VStack {
+            VStack(spacing: 4) {
                 HStack(spacing: 16) {
                     Text(entry.name ?? room.name)
                         .font(.headline)
@@ -167,7 +167,7 @@ struct RemoteWidgetExtraLargeView: View {
                             .padding([.leading, .trailing])
                         }
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16)], spacing: 16) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 12)], spacing: 12) {
                         ForEach(entry.playHistory.prefix(6)) { playHistory in
                             HStack {
                                 Image(systemName: playHistory.content.type.symbol)

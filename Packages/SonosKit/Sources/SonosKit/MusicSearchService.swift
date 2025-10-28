@@ -505,6 +505,11 @@ public final class MusicSearchService {
         return container
     }
     
+    public func appleLibraryPlaylist(id: String) async -> AppleLibraryContainer? {
+        guard let container = try? await apple.getUserPlaylist(with: id) else { return nil }
+        return container
+    }
+    
     public func appleLibraryArtistLookup(id: String) async -> AppleLibraryContainer? {
         let container = try? await apple.libraryArtistLookup(id: id)
         return container
@@ -645,18 +650,11 @@ public final class MusicSearchService {
         return result.toPlayable
     }
 
-    // TODO: Lookup playlist for drag and drop
-//    public func lookupPlexPlaylist(id: String) async -> (Int?, PlayableContent?, Duration?) {
-//        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,
-//              let result = await plex.lookupPlaylist(key: key, offset: offset) else { return (nil, [], nil) }
-//
-//        var duration: Duration?
-//        if let totalDuration = result.duration, totalDuration > 0 {
-//            duration = Duration.seconds(totalDuration)
-//        }
-//
-//        return (result.totalSize ?? result.size, playableContent, duration)
-//    }
+    public func lookupPlexPlaylist(id: String) async -> PlayableContent? {
+        guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,
+              let result = await plex.lookupPlaylist(key: key) else { return nil }
+        return result.toPlayable
+    }
 
     public func lookupPlexPlaylists(id: String, plexType: PlexMediaType = .song, ascending: Bool = true, offset: Int = 0) async -> (Int?, [PlayableContent], Duration?) {
         guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last,

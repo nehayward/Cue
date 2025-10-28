@@ -50,7 +50,7 @@ struct SpotifySearchScreen: View {
                 .scrollIndicators(.hidden)
                 .scrollClipDisabled()
             } header: {
-                NavigationLink(value: RouterDestination.playableList(title: "Songs", action: { offset in
+                NavigationLink(value: RouterDestination.playableList(title: "Songs", playAllItem: .spotifyLikes, action: { offset in
                     await spotifyBrowseService.updateSongs()
                     return Array(spotifyBrowseService.tracks)
                 })) {

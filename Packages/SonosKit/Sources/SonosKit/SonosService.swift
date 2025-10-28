@@ -1377,6 +1377,73 @@ public final class SonosService {
             return nil
         }
     }
+    
+    public func contentLookup(id: String, type: ContentType, service: MusicService) async -> PlayableContent? {
+        let content = MediaContent(service: service, id: id, type: type, location: nil)
+        
+        switch (type, service) {
+        case (.album, .spotify):
+            guard let album = await musicSearch.spotifyAlbumLookup(id: id) else { return nil }
+            return PlayableContent(title: album.name, subtitle: album.artists?.first?.name ?? "", thumbnail: album.images?.thumbnail, artwork: album.images?.biggestImageURL, content: content)
+        case (.track, .spotify):
+            guard let track = await musicSearch.spotifyTrackLookup(id: id) else { return nil }
+            return PlayableContent(title: track.name, subtitle: track.artists.first?.name ?? "", thumbnail: track.album.images?.thumbnail, artwork: track.album.images?.biggestImageURL, content: content)
+        case (.playlist, .spotify):
+            guard let playlist = await musicSearch.spotifyPlaylistLookup(id: id) else { return nil }
+            return PlayableContent(title: playlist.name, subtitle: playlist.owner.displayName, thumbnail: playlist.images?.thumbnail, artwork: playlist.images?.biggestImageURL, content: content)
+        case (.track, .apple):
+            guard let song: Song = try? await musicSearch.lookup(id: id) else { return nil }
+            return PlayableContent(title: song.title, subtitle: song.artistName, thumbnail: song.artwork?.url(width: 100, height: 100), artwork: song.artwork?.url(width: 500, height: 500), content: content)
+        case (.album, .apple):
+            guard let album: Album = try? await musicSearch.lookup(id: id) else { return nil }
+            return PlayableContent(title: album.title, subtitle: album.artistName, thumbnail: album.artwork?.url(width: 100, height: 100), artwork: album.artwork?.url(width: 500, height: 500), content: content)
+        case (.playlist, .apple):
+            guard let playlist: Playlist = try? await musicSearch.lookup(id: id) else { return nil }
+            return PlayableContent(title: playlist.name, subtitle: playlist.curatorName ?? "", thumbnail: playlist.artwork?.url(width: 100, height: 100), artwork: playlist.artwork?.url(width: 500, height: 500), content: content)
+        case (.libraryTrack, .apple):
+//            guard let song: Song = try? await musicSearch.lookup(id: id) else { return nil }
+//            return PlayableContent(title: song.title, subtitle: song.artistName, thumbnail: song.artwork?.url(width: 100, height: 100), artwork: song.artwork?.url(width: 500, height: 500), content: content)
+            return nil
+        case (.libraryAlbum, .apple):
+            let libraryAlbum = await musicSearch.appleLibraryAlbum(id: id)
+            return libraryAlbum?.data.first?.toPlayable
+        case (.libraryPlaylist, .apple):
+            let libraryAlbum = await musicSearch.appleLibraryPlaylist(id: id)
+            return libraryAlbum?.data.first?.toPlayable
+        case (.track, .tidal):
+            guard let playableContent = await musicSearch.lookupTidalTrack(with: id) else { return nil }
+            return playableContent
+        case (.album, .tidal):
+            guard let playableContent = await musicSearch.lookupTidalAlbum(with: id) else { return nil }
+            return playableContent
+        case (_, .tuneIn):
+            guard let tuneInStation = await musicSearch.lookupTuneInStation(id: id) else { return nil }
+            return tuneInStation.toPlayable
+        case (.track, .plex):
+            guard let decodedId = id.removingPercentEncoding?.components(separatedBy: ":").last,
+                  let track = await musicSearch.lookupPlexSong(with: decodedId) else { return nil }
+            return track
+        case (.album, .plex):
+            guard let decodedId = id.removingPercentEncoding?.components(separatedBy: ":").suffix(2).first,
+                  let album = await musicSearch.lookupPlexAlbum(id: decodedId) else { return nil }
+            return album
+        case (.playlist, .plex):
+            guard let decodedId = id.removingPercentEncoding?.components(separatedBy: ":").suffix(2).first,
+                  let playlist = await musicSearch.lookupPlexPlaylist(id: decodedId) else { return nil }
+            return playlist
+        case (.track, .soundcloud):
+            guard let track = await musicSearch.lookupSoundCloudTrack(with: id) else { return nil }
+            return track
+        case (.playlist, .library):
+            let playlist = await libraryPlaylistLookup(ID: id)
+            return playlist
+        case (_, .library):
+            let track = await libraryLookup(ID: id)
+            return track.first
+        default:
+            return nil
+        }
+    }
 
     public func pause(ip: String) async {
         let groupIndex = groups.firstIndex { group in
@@ -1821,6 +1888,17 @@ public final class SonosService {
         // TODO: Prioritize by query
         let playableContent = await tracks + artist + albums + playlist
         return playableContent
+    }
+    
+    public func libraryPlaylistLookup(ID: String) async -> PlayableContent? {
+        var id = ID
+        guard let ip = prioritizedIP() else { return nil }
+        if !id.contains("SQ") {
+            id = "SQ:\(id)"
+        }
+        
+        let playableContent = await api.libraryPlaylistLookup(IP: ip, id: id)
+        return playableContent.first
     }
 
     public func libraryLookup(ID: String) async -> [PlayableContent] {

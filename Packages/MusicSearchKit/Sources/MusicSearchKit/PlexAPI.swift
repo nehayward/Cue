@@ -629,6 +629,28 @@ public final class PlexAPI {
             return nil
         }
     }
+    
+    public func lookupPlaylist(key: String) async -> PlexUserPlaylist? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
+            return nil
+        }
+        guard let playlistURL = getBaseURL(for: plexServer)?.appending(path: "playlists/\(key)") else { return nil }
+        guard let playlistContainer: PlexContainer<PlexUserPlaylistContainer> = await loadAuthorized(playlistURL) else {
+            return nil
+        }
+
+        var playlists = playlistContainer.mediaContainer.metadata
+        guard let id = plexServer.clientIdentifier else { return nil }
+
+        for index in playlists.indices {
+            playlists[index].sonosID = "\(id)%3A3%3A\(playlists[index].ratingKey)"
+            guard let composite = playlists[index].composite else { continue }
+            playlists[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path:  composite).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+        }
+
+        return playlists.first
+    }
 
     public func lookupArtist(key: String) async -> PlexMetadata? {
         guard let plexServer = await getPlexServer(),

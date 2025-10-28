@@ -19,36 +19,37 @@ struct PlexSearchView: View {
     // MARK: - Computed Properties
     
     private var filteredResults: [PlayableContent] {
-            let activeFilters = filters.filter(\.isFiltered)
-            
-            // Get filtered library IDs
-            let filteredLibraryIDs = Set(
-                plexLibrariesFilters
-                    .filter(\.isFiltered)
-                    .compactMap { $0.filter.key }
-            )
-            
-            // If library filters are set, use those exclusively
-            if !filteredLibraryIDs.isEmpty {
-                return plexResults.filter {
-                    guard let id = $0.metadata?.librarySectionID else { return false }
-                    return filteredLibraryIDs.contains(id)
-                }
+        let activeFilters = filters.filter(\.isFiltered)
+        
+        // Get filtered library IDs
+        let filteredLibraryIDs = Set(
+            plexLibrariesFilters
+                .filter(\.isFiltered)
+                .compactMap { $0.filter.key }
+        )
+        
+        // Start with all results
+        var results = plexResults
+        
+        // Apply library filters if any are active
+        if !filteredLibraryIDs.isEmpty {
+            results = results.filter {
+                guard let id = $0.metadata?.librarySectionID else { return false }
+                return filteredLibraryIDs.contains(id)
             }
-            
-            // Otherwise, filter by content types
-            if !activeFilters.isEmpty {
-                let filteredContentTypes = Set(activeFilters.flatMap(\.filter.toContentType))
-                
-                return plexResults.filter { item in
-                    filteredContentTypes.isEmpty || filteredContentTypes.contains(item.content.type)
-                }
-            }
-            
-            // No filters active, return all results
-            return plexResults
         }
-
+        
+        // Apply content type filters if any are active
+        if !activeFilters.isEmpty {
+            let filteredContentTypes = Set(activeFilters.flatMap(\.filter.toContentType))
+            
+            results = results.filter { item in
+                filteredContentTypes.isEmpty || filteredContentTypes.contains(item.content.type)
+            }
+        }
+        
+        return results
+    }
     // MARK: - Body
     
     var body: some View {

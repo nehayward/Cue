@@ -16,36 +16,41 @@ struct SoundCloudBrowseScreen: View {
             ScrollView {
                 if !soundCloudBrowseService.likedTracks.isEmpty {
                     Section {
-                        ScrollView(.horizontal) {
-                            LazyHStack {
-                                ForEach(soundCloudBrowseService.likedTracks.prefix(10)) { item in
-                                    VStack {
-                                        PlayableArtworkView(item: item)
-                                        Text(item.title)
-                                            .foregroundStyle(.secondary)
-                                            .font(.caption)
-                                            .lineLimit(2, reservesSpace: true)
-                                            .fontDesign(.rounded)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                    .containerRelativeFrame(
-                                        .horizontal, alignment: .topLeading
-                                    ) { length, axis in
-                                        if axis == .vertical {
-                                            return length / 3.0
-                                        } else {
-                                            return length / 2.5
+                        VStack {
+                            ScrollView(.horizontal) {
+                                LazyHStack {
+                                    ForEach(soundCloudBrowseService.likedTracks.prefix(10)) { item in
+                                        VStack {
+                                            PlayableArtworkView(item: item)
+                                            Text(item.title)
+                                                .foregroundStyle(.secondary)
+                                                .font(.caption)
+                                                .lineLimit(2, reservesSpace: true)
+                                                .fontDesign(.rounded)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
                                         }
+                                        .containerRelativeFrame(
+                                            .horizontal, alignment: .topLeading
+                                        ) { length, axis in
+                                            if axis == .vertical {
+                                                return length / 3.0
+                                            } else {
+                                                return length / 2.5
+                                            }
+                                        }
+                                        .draggable(item)
                                     }
-                                    .draggable(item)
                                 }
+                                .padding(.horizontal, 16)
                             }
-                            .padding(.horizontal, 16)
+                            .scrollIndicators(.hidden)
+                            .scrollClipDisabled()
+                            PlayAllButtonView(item: .soundCloudLikes)
+                                .padding(.horizontal, 16)
                         }
-                        .scrollIndicators(.hidden)
-                        .scrollClipDisabled()
                     } header: {
-                        NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Liked Tracks", action: { offset in
+                        let item = PlayableContent.soundCloudLikes
+                        NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Liked Tracks", playAllItem: item, action: { offset in
                             // If we need more tracks and can load more, load them
                             if offset >= soundCloudBrowseService.likedTracks.count && soundCloudBrowseService.canLoadMore {
                                 await soundCloudBrowseService.loadMoreTracks()

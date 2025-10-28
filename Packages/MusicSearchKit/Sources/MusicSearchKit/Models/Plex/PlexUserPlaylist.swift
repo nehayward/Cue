@@ -17,14 +17,15 @@ public struct PlexUserPlaylist: Codable {
     public let type: String
     public let title: String
     public let titleSort: String?
-    public let summary: String
-    public let viewCount: Int
-    public let lastViewedAt: Int
+    public let summary: String?
+    public let viewCount: Int?
+    public let lastViewedAt: Int?
     public let duration: Int?
     public let addedAt: Int
     public let updatedAt: Int
     public let composite: String?
     public let thumb: String?
+    public var leafCount: Int?
 
     public var sonosID: String?
     public var thumbImageURL: URL?

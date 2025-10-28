@@ -49,6 +49,10 @@ struct ClicApp: App {
 #if targetEnvironment(macCatalyst)
     private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
 #endif
+    
+    init() {
+        UITextField.appearance().clearButtonMode = .whileEditing
+    }
 
     var body: some Scene {
         WindowGroup {

@@ -13,17 +13,17 @@ public final class MusicServiceParser {
     private let tuneinPattern = #/:(.*?)\?/#
     private lazy var plexRegex = try? NSRegularExpression(pattern: "([^:]+:\\d+:\\d+)")
     
-    public func lookup(uri: String, serviceID: String) -> (MusicService, TrackID, URL?)? {
+    public func lookup(uri: String, serviceID: String, type: ContentType) -> (MusicService, TrackID, ContentType)? {
         let service = serviceLookup(serviceID: serviceID)
-        guard let (id, url) = parse(uri: uri, service: service) else { return nil}
-        return (service, id, url)
+        guard let (id, lookupType) = parse(uri: uri, service: service) else { return nil }
+        return (service, id, lookupType ?? type)
     }
     
     private func serviceLookup(serviceID: String) -> MusicService {
         switch serviceID {
         case "12":
             return .spotify
-        case "local-library":
+        case "local-library", "65435":
             return .library
         case "204":
             return .apple
@@ -38,30 +38,31 @@ public final class MusicServiceParser {
         }
     }
     
-    public func parse(uri: String, service: MusicService) -> (TrackID, URL?)? {
+    public func parse(uri: String, service: MusicService) -> (TrackID, ContentType?)? {
         switch service {
         case .spotify:
             let components = uri.components(separatedBy: ":")
             guard let last = components.last else { return nil }
-            return (last, URL(string: "https://open.spotify.com/playlists/\(last)"))
+            return (last, nil)
         case .tidal:
             let components = uri.components(separatedBy: "/")
-            print(components)
+            guard let last = components.last else { return nil }
+            return (last, nil)
         case .apple:
             let components = uri.components(separatedBy: ":")
             guard let last = components.last else { return nil }
-            return (last, nil)
+            return (last, ContentType(components.first))
         case .soundcloud:
             let components = uri.components(separatedBy: ":")
             guard let last = components.last else { return nil }
             return (last, nil)
         case .plex:
             return (uri, nil)
+        case .library:
+            return (uri, nil)
         default:
             return nil
         }
-    
-        return nil
     }
     
     public func parse(xml: String, trackURI: String) -> (MusicService, TrackID) {

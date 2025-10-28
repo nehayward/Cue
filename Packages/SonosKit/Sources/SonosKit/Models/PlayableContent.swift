@@ -48,21 +48,21 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     public var uri: String {
         switch (content.type, content.service) {
         case (.track, .spotify):
-            return "x-sonos-spotify:spotify%3atrack%3a\(id)"
+            return "x-sonos-spotify:spotify%3atrack%3a\(id)?sid=12&amp;amp;sn=1"
         case (.album, .spotify):
-            return "x-rincon-cpcontainer:1004206cspotify%3aalbum%3a\(id)"
+            return "x-rincon-cpcontainer:1004206cspotify%3aalbum%3a\(id)?sid=12&amp;amp;sn=1"
         case (.playlist, .spotify):
-            return "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(id)"
-        case (.track, .apple):
-            return "x-sonos-http:song%3a\(id).mp4"
+            return "x-rincon-cpcontainer:1006206cspotify%3aplaylist%3a\(id)?sid=12&amp;amp;sn=1"
         case (.libraryTrack, .apple):
-            return "x-sonos-http:librarytrack%3a\(id)"
+            return "x-sonos-http:librarytrack%3a\(id)?sid=204&amp;amp;sn=4"
         case (.libraryAlbum, .apple):
-            return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)"
+            return "x-rincon-cpcontainer:1004206clibraryalbum%3a\(id)?sid=204&amp;amp;sn=4"
+        case (.track, .apple):
+            return "x-sonos-http:song%3a\(id).mp4?sid=204&amp;amp;sn=4"
         case (.album, .apple):
-            return "x-rincon-cpcontainer:1004206calbum%3a\(id)"
+            return "x-rincon-cpcontainer:1004206calbum%3a\(id)?sid=204&amp;amp;sn=4"
         case (.playlist, .apple):
-            return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)"
+            return "x-rincon-cpcontainer:1006206cplaylist%3a\(id)?sid=204&amp;amp;sn=4"
         case (.favorite, _):
             return id
         case (.folder, .library):
@@ -70,19 +70,19 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (_, .library):
             return id
         case (.track, .plex):
-            return "x-sonosapi-hls-static:10036020\(id)%3Atrack"
+            return "x-sonosapi-hls-static:10036020\(id)%3Atrack?sid=212&amp;amp;sn=9"
         case (.album, .plex):
-            return "x-rincon-cpcontainer:1004206c\(id)%3Aalbum"
+            return "x-rincon-cpcontainer:1004206c\(id)%3Aalbum?sid=212&amp;amp;sn=9"
         case (.artist, .plex):
-            return "x-rincon-cpcontainer:1005004c\(id)%3Aartist"
+            return "x-rincon-cpcontainer:1005004c\(id)%3Aartist?sid=212&amp;amp;sn=9"
         case (.playlist, .plex):
             return "x-rincon-cpcontainer:1006206c\(id)%3Aplaylist?sid=212&amp;flags=8300&amp;sn=9"
         case (.track, .tidal):
-            return "track%2f\(id)"
+            return "track%2f\(id)?sid=174"
         case (.album, .tidal):
-            return "x-rincon-cpcontainer:1004206calbum%2f\(id)"
+            return "x-rincon-cpcontainer:1004206calbum%2f\(id)?sid=174"
         case (.playlist, .tidal):
-            return "x-rincon-cpcontainer:0006006cplaylist%2F\(id)"
+            return "x-rincon-cpcontainer:0006006cplaylist%2F\(id)?sid=174"
         case (.artist, .tidal):
             return ""
         case (_, .unknown):
@@ -96,7 +96,9 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.track, .soundcloud):
             return "x-sonos-http:track-%3Esoundcloud%3Atracks%3A\(id)?sid=160&amp;flags=32"
         case (.playlist, .soundcloud):
-            return "x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)"
+            return "x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)?sid=160&amp;amp;sn=23"
+        case (.unique, _):
+            return id
         default:
             assertionFailure("Failed")
             return ""
@@ -105,7 +107,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     
     public var alarmURIMetadata: String {
         return """
-&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? Self.appleMusicServiceToken : spotifyMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="" parentID="" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;\(containerClass)&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(content.service == .apple ? appleMusicServiceToken : spotifyMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
     }
     
@@ -113,39 +115,84 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         switch (content.type, content.service) {
         case (.track, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
+\(Self.defaultXMLNSHeader) id="00032020spotify%3atrack%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Spotify&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
+\(defaultSpotifyXMLNSFooter())
 """
         case (.album, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
+\(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Spotify&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
+\(defaultSpotifyXMLNSFooter())
 """
         case (.playlist, .spotify):
             return """
-\(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(defaultSpotifyXMLNSFooter())
+\(Self.defaultXMLNSHeader) id="1006206cspotify%3aplaylist%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Spotify&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
+\(defaultSpotifyXMLNSFooter())
 """
         case (.track, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="10032020song%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="10032020song%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
+\(appleXMLNSFooter()))
 """
         case (.libraryTrack, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="10032028librarytrack%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="10032028librarytrack%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;
+\(appleXMLNSFooter())
 """
         case (.libraryAlbum, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="1004206clibraryalbum%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum.#TitleWithArtist&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1004206clibraryalbum%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.album.musicAlbum.#TitleWithArtist&lt;/upnp:class&gt;
+\(appleXMLNSFooter())
 """
         case (.libraryPlaylist, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="1006206clibraryplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1006206clibraryplaylist%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
+\(appleXMLNSFooter())
 """
         case (.album, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="1004206calbum%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1004206calbum%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
+\(appleXMLNSFooter())
 """
         case (.playlist, .apple):
             return """
-\(Self.defaultXMLNSHeader) id="1006206cplaylist%3a\(id)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="1006206cplaylist%3a\(id)" &gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;r:description&gt;Apple Music&lt;/r:description&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.playlistContainer.#PlaylistView&lt;/upnp:class&gt;
+\(appleXMLNSFooter())
 """
         case (.track, .plex):
             return """
@@ -153,7 +200,13 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case (.album, .plex):
             return """
-&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;container parentID="" restricted="true" id="1004206c\(id)%3Aalbum"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/container&gt;&lt;/DIDL-Lite&gt;
+&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0004006c\(id)%3Aalbum" parentID="(ignored)"
+ restricted="true"&gt;
+&lt;dc:title&gt;\(title)&lt;/dc:title&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;
+&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-25ccc809-Token&lt;/desc&gt;
+&lt;res&gt;x-rincon-cpcontainer:0004006\(id)8%3A3%3A2781%3Aalbum&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case (.artist, .plex):
             return """
@@ -161,7 +214,11 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case (.playlist, .plex):
             return """
-&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1006206c\(id)%3Aplaylist"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="1006206c\(id)%3Aplaylist"&gt;
+&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;
+&lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
+&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;
+&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         case (.track, .tidal):
             return """
@@ -185,7 +242,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case(.radio, .apple):
             return """
-            &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(Self.appleMusicServiceToken)&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+            &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(appleMusicServiceToken)&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
             """
         case (.track, .soundcloud):
             return """
@@ -200,16 +257,18 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return metadata?.URIMetadata ?? ""
         case (.album, .library):
             return """
-    &lt;URIs&gt;&lt;URI uri=""&gt;&lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id)" parentID="A:ALBUM" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;&lt;/URI&gt;&lt;/URIs&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id.components(separatedBy: "#").last ?? "")" parentID="A:ALBUM" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.track, .library):
             return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id)" parentID="A:TRACKS" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id.components(separatedBy: "#").last ?? "")" parentID="A:TRACKS" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
         case (.playlist, .library):
             return """
-    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id)" parentID="SQ:" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="\(id.components(separatedBy: "#").last ?? "")" parentID="SQ:" restricted="true"&gt;&lt;dc:title&gt;\(title)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.playlistContainer&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;RINCON_AssociatedZPUDN&lt;/desc&gt;&lt;res&gt;\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
+        case (.unique, _):
+            return metadata?.URIMetadata ?? ""
         default:
             return ""
         }
@@ -232,7 +291,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         Locale.current.region?.identifier ?? "US" == "US" ? "3079" : "2311"
     }
     
-    private static var appleMusicServiceToken: String {
+    private var appleMusicServiceToken: String {
         if let storedTokenID = GroupStorageKeys.storage?.string(forKey: Defaults.GroupStorageKeys.appleMusicTokenID), !storedTokenID.isEmpty {
             return storedTokenID
         }
@@ -251,9 +310,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
     }
 
-    private static var appleXMLNSFooter = """
+    private func appleXMLNSFooter() -> String { """
 &lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(appleMusicServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
+}
 
     public var containerClass: String {
         switch (content.type, content.service) {
@@ -307,7 +367,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case (.artist, .apple), (.artistRadio, .apple):
             """
-\(Self.defaultXMLNSHeader) id="000c0000radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0000radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(appleXMLNSFooter())
 """
         case (.track, .spotify), (.songRadio, .spotify):
             """
@@ -315,7 +375,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 """
         case (.track, .apple), (.songRadio, .apple):
             """
-\(Self.defaultXMLNSHeader) id="000c0020radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(Self.appleXMLNSFooter)
+\(Self.defaultXMLNSHeader) id="000c0020radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(appleXMLNSFooter())
 """
         default:
             nil

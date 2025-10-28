@@ -14,10 +14,12 @@ struct PlayableListView: View {
     @State var items: OrderedSet<PlayableContent> = []
     @State private var loadingTask: Task<Void, Never>?
 
+    var playAllItem: PlayableContent? = nil
     var action: ((Int) async -> ([PlayableContent]))? = nil
 
     var body: some View {
         List {
+            PlayAllButtonView(item: playAllItem)
             ForEach(items) { item in
                 PlayableContentView(item: item)
                     .onAppear {

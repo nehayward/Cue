@@ -50,6 +50,33 @@ extension SonosAPI {
         let xml = String(decoding: data, as: UTF8.self)
         return xmlParser.parseLibrarySearch(IP: IP, xml: xml)
     }
+    
+    
+    func libraryPlaylistLookup(IP: String, id: String) async -> [PlayableContent] {
+        guard let objectID = id.components(separatedBy: "#").last else { return [] }
+        
+        let arguments: OrderedKeys = [
+            ("ObjectID", objectID),
+            ("BrowseFlag", "BrowseMetadata"),
+            ("Filter", "*"),
+            ("StartingIndex", 0),
+            ("RequestedCount", 100),
+            ("SortCriteria", "")
+        ]
+
+        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else {
+            print("Failed to send request.")
+            return []
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            print("Request failed with status code: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            return []
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        return xmlParser.parseLibrarySearch(IP: IP, xml: xml)
+    }
 
     func libraryAlbumLookup(IP: String, name: String) async -> [PlayableContent] {
         guard let albumName = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return [] }

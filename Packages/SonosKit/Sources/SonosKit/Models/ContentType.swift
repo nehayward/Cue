@@ -17,16 +17,20 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     case libraryArtist
     case libraryImportedPlaylists
     case folder
+    
+    case unique
 
-    public init?(_ type: String) {
+    public init?(_ type: String?) {
+        guard let type else { return nil }
+        
         switch type.lowercased() {
         case let str where str.contains("library-songs"):
             self = .libraryTrack
         case let str where str.contains("library-playlist-folders"):
             self = .folder
-        case let str where str.contains("library-playlist"):
+        case let str where str.contains("library-playlist"), let str where str.contains("libraryplaylist"):
             self = .libraryPlaylist
-        case let str where str.contains("library-album"):
+        case let str where str.contains("library-album"), let str where str.contains("libraryalbum"):
             self = .libraryAlbum
         case let str where str.contains("library-artist"):
             self = .libraryArtist
@@ -75,6 +79,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "Radio"
         case .folder:
             "Folder"
+        case .unique:
+            "Unique"
         }
     }
     
@@ -104,6 +110,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             "radio"
         case .folder:
             "folder"
+        case .unique:
+            "Unique"
         }
     }
     
@@ -123,6 +131,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
             return "star.fill"
         case .folder:
             return "folder.fill"
+        case .unique:
+            return "play.circle.fill"
         }
     }
     

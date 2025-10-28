@@ -360,8 +360,8 @@ extension View {
             case let .playableLibraryList(title: title, items: items, action: action):
                 PlayableList(items: items, action: action)
                     .navigationTitle(title)
-            case let .playableList(title: title, action: action):
-                PlayableListView(action: action)
+            case let .playableList(title: title, playAllItem: playAllItem, action: action):
+                PlayableListView(playAllItem: playAllItem, action: action)
                     .navigationTitle(title)
             case let .playableGridScreen(title: title, items: items, action: action):
                 PlayableGridScreen(items: items, action: action)

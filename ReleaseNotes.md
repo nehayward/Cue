@@ -1,15 +1,21 @@
 # 2025.17
 
 –– New Features ––
-- Add shortcuts to group and separate speakers
-- Show playlist information and album info on Player Screen
-- Add Room Mute Option to Shortcut 
+- Add album artwork to metadata to show in recently played
+- Introduced shortcuts for quickly grouping and separating speakers, streamlining multi-room setup.
+- Playlist details and album information are now visible on the Player Screen for richer context.
+- Added option to mute rooms directly from Shortcuts for finer audio control.
+- Add play all Liked or Loved songs for Spotify and Soundcloud
 
 –– Bug Fixes & Improvements ––
-- Fix missing icon for SoundCloud and TuneIn
-- Improve metadata for Sonos Library
-- Fix Soundcloud Playlist tracks not loading.
-- Fix Tidal not loading, and album art
+- Restored missing icons for SoundCloud and TuneIn services.
+- Enhanced metadata accuracy for Sonos Library tracks and albums.
+- Resolved issue causing SoundCloud playlist tracks to not load correctly.
+- Fixed Tidal playback and improved album art loading reliability.
+- Fixed layout issues on iPad Mini Widgets
+- Add clear all button to Textfields
+
+- Add get userPlaylist endpoint to Apple and Plex
 
 # 2025.16
 

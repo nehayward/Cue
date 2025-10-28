@@ -8,7 +8,7 @@ struct RemoteWidgetLargeView: View {
 
     var body: some View {
         if let room = entry.configuration.room {
-            VStack {
+            VStack(spacing: 4) {
                 HStack(spacing: 16) {
                     Text(entry.name ?? room.name)
                         .font(.headline)
@@ -180,14 +180,13 @@ struct RemoteWidgetLargeView: View {
                             .frame(maxWidth: .infinity, maxHeight: 24, alignment: .center)
                         }
                         .lineLimit(0, reservesSpace: true)
-                        Spacer()
                     }
                     VibeNumberSlider(value: .constant(Double(entry.volume))) { number in
                         Button(intent: SetVolumeIntent(room: room, volume: Double(number))) {
                             
                         }
                     }
-                    ForEach(entry.playHistory.prefix(4)) { playHistory in
+                    ForEach(entry.playHistory.prefix(UIDevice.current.userInterfaceIdiom == .pad ? 3 : 4)) { playHistory in
                         HStack {
                             Image(systemName: playHistory.content.type.symbol)
                                 .resizable()
@@ -226,6 +225,7 @@ struct RemoteWidgetLargeView: View {
 #Preview("Active Subscription", as: .systemLarge) {
     RemoteWidget()
 } timeline: {
+    RemoteWidgetEntry.largePreview()
     RemoteWidgetEntry.previewBarbie()
     RemoteWidgetEntry.previewBarbie(service: .spotify)
     RemoteWidgetEntry.previewBarbie(service: .tidal)
