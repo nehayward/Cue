@@ -28,6 +28,8 @@ enum SheetDestination: Identifiable, Equatable {
     case volumeControlsScreen(groupID: String)
     case onboard
     case spotifyUserPlaylists
+    case reorderAppleLibrarySections
+    case reorderSpotifyLibrarySections
 
     var id: String {
         switch self {

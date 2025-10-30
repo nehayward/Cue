@@ -1,13 +1,11 @@
 import Analytics
 import CloudStorage
 import MusicSearchKit
-import Defaults
 import NukeUI
 import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import Defaults
 import TipKit
 
 struct SpotifyLibraryScreen: View {
@@ -18,118 +16,14 @@ struct SpotifyLibraryScreen: View {
 
     @State private var router = Router()
     @State private var isLoading = true
+    @State private var configStore = SectionConfigurationStores.shared.spotifyLibrary
 
     var body: some View {
         NavigationStack(path: $router.path) {
             ScrollView {
                 LazyVStack {
-                    if !spotifyBrowseService.tracks.isEmpty {
-                        Section {
-                            ScrollView(.horizontal) {
-                                LazyHStack {
-                                    ForEach(spotifyBrowseService.tracks.prefix(10)) { item in
-                                        VStack {
-                                            PlayableArtworkView(item: item)
-                                            Text(item.title)
-                                                .foregroundStyle(.secondary)
-                                                .font(.caption)
-                                                .lineLimit(2, reservesSpace: true)
-                                                .fontDesign(.rounded)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                        .containerRelativeFrame(
-                                            .horizontal, alignment: .topLeading
-                                        ) { length, axis in
-                                            if axis == .vertical {
-                                                return length / 3.0
-                                            } else {
-                                                return length / 2.5
-                                            }
-                                        }
-                                        .draggable(item)
-                                    }
-                                }
-                            }
-                            .scrollIndicators(.hidden)
-                            .scrollClipDisabled()
-                            .padding(.bottom, 24)
-                        } header: {
-                            NavigationLink(value: RouterDestination.playableList(title: "Spotify Songs", playAllItem: .spotifyLikes, action: { offset in
-                                await spotifyBrowseService.updateSongs()
-                                return Array(spotifyBrowseService.tracks)
-                            })) {
-                                HStack(spacing: 2) {
-                                    Text("Liked Songs")
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                    
-                    if !spotifyBrowseService.albums.isEmpty {
-                        Section {
-                            ScrollView(.horizontal) {
-                                LazyHStack {
-                                    ForEach(spotifyBrowseService.albums.prefix(10)) { item in
-                                        VStack {
-                                            PlayableArtworkView(item: item)
-                                            Text(item.title)
-                                                .foregroundStyle(.secondary)
-                                                .font(.caption)
-                                                .lineLimit(2, reservesSpace: true)
-                                                .fontDesign(.rounded)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                        .containerRelativeFrame(.horizontal, alignment: .topLeading
-                                        ) { length, axis in
-                                            if axis == .vertical {
-                                                return length / 3.0
-                                            } else {
-                                                return length / 2.5
-                                            }
-                                        }
-                                        .draggable(item)
-                                    }
-                                }
-                            }
-                            .scrollIndicators(.hidden)
-                            .scrollClipDisabled()
-                        } header: {
-                            NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", action: { offset in
-                                print(offset)
-                                await spotifyBrowseService.userAlbums()
-                                return Array(spotifyBrowseService.albums)
-                            })) {
-                                HStack(spacing: 2) {
-                                    Text("Albums")
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                    
-                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Playlists", action: { offset in
-                        await spotifyBrowseService.updatePlaylists(offset: offset)
-                        return Array(spotifyBrowseService.playlists)
-                    })) {
-                        HStack(spacing: 2) {
-                            Text("Playlists")
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(.secondary)
-                        }
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    if !spotifyBrowseService.playlists.isEmpty {
-                        ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
-                            PlayableContentView(item: item)
-                        }
+                    ForEach(configStore.configuration.visibleSections(), id: \.self) { section in
+                        sectionView(for: section)
                     }
                 }
                 .padding(.horizontal)
@@ -143,7 +37,20 @@ struct SpotifyLibraryScreen: View {
                 await updateSpotifyBrowseService()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+                ToolbarItem {
+                    Button {
+                        router.presentedSheet = .reorderSpotifyLibrarySections
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease")
+                    }
+                }
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+                ToolbarItem {
                     MediaSelector()
                         .environment(router)
                 }
@@ -173,6 +80,123 @@ struct SpotifyLibraryScreen: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
             Task {
                 await updateSpotifyBrowseService()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func sectionView(for section: SpotifyLibrarySection) -> some View {
+        switch section {
+        case .likedSongs:
+            if !spotifyBrowseService.tracks.isEmpty {
+                Section {
+                    ScrollView(.horizontal) {
+                        LazyHStack {
+                            ForEach(spotifyBrowseService.tracks.prefix(10)) { item in
+                                VStack {
+                                    PlayableArtworkView(item: item)
+                                    Text(item.title)
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                        .lineLimit(2, reservesSpace: true)
+                                        .fontDesign(.rounded)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .containerRelativeFrame(
+                                    .horizontal, alignment: .topLeading
+                                ) { length, axis in
+                                    if axis == .vertical {
+                                        return length / 3.0
+                                    } else {
+                                        return length / 2.5
+                                    }
+                                }
+                                .draggable(item)
+                            }
+                        }
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollClipDisabled()
+                    .padding(.bottom, 24)
+                } header: {
+                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Songs", playAllItem: .spotifyLikes, action: { offset in
+                        await spotifyBrowseService.updateSongs()
+                        return Array(spotifyBrowseService.tracks)
+                    })) {
+                        HStack(spacing: 2) {
+                            Text("Liked Songs")
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            
+        case .albums:
+            if !spotifyBrowseService.albums.isEmpty {
+                Section {
+                    ScrollView(.horizontal) {
+                        LazyHStack {
+                            ForEach(spotifyBrowseService.albums.prefix(10)) { item in
+                                VStack {
+                                    PlayableArtworkView(item: item)
+                                    Text(item.title)
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                        .lineLimit(2, reservesSpace: true)
+                                        .fontDesign(.rounded)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .containerRelativeFrame(.horizontal, alignment: .topLeading
+                                ) { length, axis in
+                                    if axis == .vertical {
+                                        return length / 3.0
+                                    } else {
+                                        return length / 2.5
+                                    }
+                                }
+                                .draggable(item)
+                            }
+                        }
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollClipDisabled()
+                } header: {
+                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", action: { offset in
+                        print(offset)
+                        await spotifyBrowseService.userAlbums()
+                        return Array(spotifyBrowseService.albums)
+                    })) {
+                        HStack(spacing: 2) {
+                            Text("Albums")
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            
+        case .playlists:
+            NavigationLink(value: RouterDestination.playableList(title: "Spotify Playlists", action: { offset in
+                await spotifyBrowseService.updatePlaylists(offset: offset)
+                return Array(spotifyBrowseService.playlists)
+            })) {
+                HStack(spacing: 2) {
+                    Text("Playlists")
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !spotifyBrowseService.playlists.isEmpty {
+                ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
+                    PlayableContentView(item: item)
+                }
             }
         }
     }

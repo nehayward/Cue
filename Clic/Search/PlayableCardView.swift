@@ -83,10 +83,8 @@ struct PlayableCardView: View {
                 VStack(alignment: .leading) {
                     Text(item.title)
                         .fontWeight(.semibold)
-                    if !item.subtitle.isEmpty {
-                        Text(item.subtitle)
-                            .opacity(0.8)
-                    }
+                    Text(item.subtitle)
+                        .opacity(0.8)
                 }
                 .lineLimit(1, reservesSpace: true)
                 .fontDesign(.rounded)

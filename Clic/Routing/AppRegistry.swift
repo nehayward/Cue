@@ -80,6 +80,9 @@ extension View {
                 case let .createScene(content):
                     NavigationStack {
                         SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
+                            .addDismiss {
+                                Router.main.presentedSheet = nil
+                            }
                     }
                 case .scenes:
                     SceneView()
@@ -177,7 +180,14 @@ extension View {
                 case let .editScene(scene):
                     NavigationStack {
                         SceneBuilderScreen(edit: true, scene: scene)
+                            .addDismiss {
+                                Router.main.presentedSheet = nil
+                            }
                     }
+                case .reorderAppleLibrarySections:
+                    ReorderAppleLibrarySectionsView()
+                case .reorderSpotifyLibrarySections:
+                    ReorderSpotifyLibrarySectionsView()
                 }
             }
             .withEnvironments()

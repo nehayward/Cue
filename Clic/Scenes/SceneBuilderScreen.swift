@@ -217,9 +217,6 @@ struct SceneBuilderScreen: View {
             }
         }
         .presentationSizingiOS18()
-        .addDismiss {
-            dismiss()
-        }
         .listStyle(.insetGrouped)
     }
     

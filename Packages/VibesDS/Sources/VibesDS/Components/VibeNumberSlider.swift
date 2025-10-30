@@ -30,18 +30,18 @@ public struct VibeNumberSlider<Content: View>: View {
                 ZStack {
                     Text(isSelected(number) ? Int(value) : Int(number), format: .number)
                         .opacity(0)
-                        .padding()
+                        .padding(6)
                         .background(.thickMaterial, in: .circle)
                         .frame(width: 38, height: 38)
                         .shadow(radius: 1)
-                        .scaleEffect(isSelected(number) ? 1.2 : 0)
+                        .scaleEffect(isSelected(number) ? 1.1 : 0)
 
                     Text(isSelected(number) ? Int(value) : Int(number), format: .number)
                         .contentTransition(.numericText(value: number))
                         .font(.caption)
                         .bold(isSelected(number))
                         .monospacedDigit()
-                        .scaleEffect(isSelected(number) ? 1.2 : 1)
+                        .scaleEffect(isSelected(number) ? 1.1 : 1)
                     
                     button(Int(number))
                         .buttonStyle(.bordered)
@@ -53,7 +53,7 @@ public struct VibeNumberSlider<Content: View>: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 40)
+        .frame(height: 38)
         .background(
             Capsule()
                 .fill(.quaternary)
