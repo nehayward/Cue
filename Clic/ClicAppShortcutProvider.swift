@@ -49,5 +49,14 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
             shortTitle: "Pause Room",
             systemImageName: "pause.fill"
         )
+        
+        AppShortcut(
+            intent: EndAllLiveActivitiesIntent(),
+            phrases: [
+                "End all live activities in \(.applicationName)"
+            ],
+            shortTitle: "End All Live Activities",
+            systemImageName: "inset.filled.capsule"
+        )
     }
 }

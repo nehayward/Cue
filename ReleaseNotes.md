@@ -1,6 +1,8 @@
 # 2025.17
 
 –– New Features ––
+- Added "End All Live Activities" intent. Instantly stop all active Live Activities for Sonos speakers with a single tap from Shortcuts or Control Center.
+- Sort Section in Apple Music and Spotify
 - Add album artwork to metadata to show in recently played
 - Introduced shortcuts for quickly grouping and separating speakers, streamlining multi-room setup.
 - Playlist details and album information are now visible on the Player Screen for richer context.

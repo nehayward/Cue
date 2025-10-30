@@ -170,6 +170,12 @@ final class LiveActivityManager: LiveActivityManageable {
         }
     }
     
+    func endAll() async {
+        for activity in Activity<ClicNowPlayingWidgetAttributes>.activities {
+            await activity.end(activity.content, dismissalPolicy: .immediate)
+        }
+    }
+    
     func toggle(id: String) async {
         let activities = Activity<ClicNowPlayingWidgetAttributes>.activities
         let matchingActivities = activities.filter { $0.attributes.room.id == id }

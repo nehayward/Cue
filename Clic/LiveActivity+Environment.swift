@@ -5,6 +5,7 @@ protocol LiveActivityManageable {
     func createActivity(shouldLoad: Bool)
     func createActivity(id: String) async
     func stop(id: String) async
+    func endAll() async 
     func toggle(id: String) async
     func reset() async
     
@@ -35,6 +36,7 @@ final class LiveActivityManagerMock: LiveActivityManageable {
     func createActivity(shouldLoad: Bool) { }
     func createActivity(id: String) async {}
     func stop(id: String) async {}
+    func endAll() async {}
     func toggle(id: String) async {}
     func reset() async {}
     
