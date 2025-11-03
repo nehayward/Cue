@@ -8,8 +8,10 @@
 - Playlist details and album information are now visible on the Player Screen for richer context.
 - Added option to mute rooms directly from Shortcuts for finer audio control.
 - Add play all Liked or Loved songs for Spotify and Soundcloud
+- Add Volume Step adjustment for Live Activity
 
 –– Bug Fixes & Improvements ––
+- Fix Live Activity Crash
 - Restored missing icons for SoundCloud and TuneIn services.
 - Enhanced metadata accuracy for Sonos Library tracks and albums.
 - Resolved issue causing SoundCloud playlist tracks to not load correctly.
