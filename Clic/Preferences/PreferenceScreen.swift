@@ -26,6 +26,8 @@ struct PreferenceScreen: View {
     
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
+    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
+
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
@@ -376,13 +378,42 @@ struct PreferenceScreen: View {
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
+                        if #available(iOS 26.0, *) {
+                            VStack(alignment: .leading) {
+                                Text("⚠️ iOS 26 Limitation")
+                                    .fontWeight(.bold)
+                                Text("Due to an iOS 26 system bug, the number of buttons in a Live Activity is currently limited. The volume step and mute button controls have been temporarily removed. We hope this will be resolved in a later update to iOS 26.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                         Label {
                             Toggle(isOn: $isCompact) {
                                 Text("Compact Live Activities")
+                                Text("Removes volumes controls and reduces size of Live Activities")
                             }
                             .tint(.accent)
                         } icon: {
-                            Image(systemName: "widget.medium")
+                            Image(systemName: "inset.filled.capsule")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(Color.indigo)
+                                )
+                        }
+                        
+                        Label {
+                            Stepper(value: $liveActivityStep, in: 1...10) {
+                                Text("Volume Steps")
+                                Text("Adjust how much the volume changes with each step in Live Activities.")
+                            }
+                        } icon: {
+                            Image(systemName: "plus.minus.capsule")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundStyle(.white)
@@ -395,8 +426,6 @@ struct PreferenceScreen: View {
                                 )
                         }
                     }
-                } footer: {
-                    Text("Removes volumes controls and reduces size of Live Activities")
                 }
 #endif
                 

@@ -5,7 +5,7 @@ import SonosKit
 import SwiftUI
 import VibesDS
 
-struct LiveActivityNowPlayingView: View {
+struct LiveActivityNowPlayingView26: View {
     let context: ActivityViewContext<ClicNowPlayingWidgetAttributes>
     
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -125,15 +125,15 @@ struct LiveActivityNowPlayingView: View {
                     .frame(width: 32, height: 28)
                     .foregroundStyle(settings.nightMode ? Color.primary : .secondary.opacity(0.8))
                     
-                    Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
-                        Label("", systemImage: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
-                    }
-                    .tint(context.state.isMuted ? .accent : .primary)
-                    .labelStyle(.iconOnly)
-                    .symbolRenderingMode(.hierarchical)
-                    .toggleStyle(.button)
-                    .frame(width: 32, height: 28)
-                    .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
+//                    Toggle(isOn: context.state.isMuted, intent: MuteIntent(room: context.attributes.room, mute: .toggle)) {
+//                        Label("", systemImage: context.state.isMuted ? "speaker.slash.fill" : "speaker.fill")
+//                    }
+//                    .tint(context.state.isMuted ? .accent : .primary)
+//                    .labelStyle(.iconOnly)
+//                    .symbolRenderingMode(.hierarchical)
+//                    .toggleStyle(.button)
+//                    .frame(width: 32, height: 28)
+//                    .foregroundStyle(context.state.isMuted ? Color.primary : .secondary.opacity(0.8))
                     
                     Toggle(isOn: settings.dialogLevel, intent: SetSpeechEnhancementIntent(room: context.attributes.room, speechEnhancement: !settings.dialogLevel)) {
                         Label("Speech Enhancement", systemImage: "person.wave.2.fill")
@@ -148,32 +148,32 @@ struct LiveActivityNowPlayingView: View {
             }
             if !isCompact {
                 HStack {
-                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-                        Image(systemName: "minus")
-                            .bold()
-                            .frame(width: 24, height: 24)
-                    }
-                    .tint(.primary)
-                    .buttonBorderShape(.circle)
-                    .buttonStyle(.liveActivity)
+//                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
+//                        Image(systemName: "minus")
+//                            .bold()
+//                            .frame(width: 24, height: 24)
+//                    }
+//                    .tint(.primary)
+//                    .buttonBorderShape(.circle)
+//                    .buttonStyle(.liveActivity)
 
-                    VibeNumberSlider(value: .constant(Double(context.state.volume)), visibleCount: 5, step: Double(liveActivityStep)) { number in
+                    VibeNumberSlider(value: .constant(Double(context.state.volume)), visibleCount: 3, step: Double(liveActivityStep)) { number in
                         Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
                             
                         }
                     }
                     
-                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-                        Image(systemName: "plus")
-                            .frame(width: 24, height: 24)
-                            .bold()
-                    }
-                    .tint(.primary)
-                    .buttonBorderShape(.circle)
-                    .buttonStyle(.liveActivity)
+//                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
+//                        Image(systemName: "plus")
+//                            .frame(width: 24, height: 24)
+//                            .bold()
+//                    }
+//                    .tint(.primary)
+//                    .buttonBorderShape(.circle)
+//                    .buttonStyle(.liveActivity)
                 }
-                .padding([.bottom], 8)
-                .frame(height: 48)
+//                .padding([.bottom], 8)
+//                .frame(height: 48)
             }
         }
         .font(dynamicTypeSize < .medium ? .caption : .body)

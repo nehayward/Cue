@@ -13,7 +13,11 @@ struct LiveActivityNowPlayingFamilyView: View {
     var body: some View {
         switch activityFamily {
         case .medium:
-            LiveActivityNowPlayingView(context: context)
+            if #available(iOS 26, *) {
+                LiveActivityNowPlayingView26(context: context)
+            } else {
+                LiveActivityNowPlayingView(context: context)
+            }
         case .small:
             LiveActivityNowPlayingSmallView(context: context)
         @unknown default:
