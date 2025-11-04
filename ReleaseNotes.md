@@ -1,25 +1,24 @@
 # 2025.17
 
 –– New Features ––
-- Added "End All Live Activities" intent. Instantly stop all active Live Activities for Sonos speakers with a single tap from Shortcuts or Control Center.
-- Sort Section in Apple Music and Spotify
-- Add album artwork to metadata to show in recently played
-- Introduced shortcuts for quickly grouping and separating speakers, streamlining multi-room setup.
-- Playlist details and album information are now visible on the Player Screen for richer context.
-- Added option to mute rooms directly from Shortcuts for finer audio control.
-- Add play all Liked or Loved songs for Spotify and Soundcloud
-- Add Volume Step adjustment for Live Activity
+- "End All Live Activities" intent for Sonos speakers (Shortcuts & Control Center)
+- Playlist sorting in Apple Music and Spotify
+- Album artwork added to recently played metadata
+- Shortcuts for fast speaker group/ungroup actions
+- Playlist and album info now shown on Player Screen
+- Mute rooms via Shortcuts
+- "Play All" for Liked/Loved songs (Spotify, SoundCloud)
+- Adjustable Live Activity volume step
 
 –– Bug Fixes & Improvements ––
-- Fix Live Activity Crash
-- Restored missing icons for SoundCloud and TuneIn services.
-- Enhanced metadata accuracy for Sonos Library tracks and albums.
-- Resolved issue causing SoundCloud playlist tracks to not load correctly.
-- Fixed Tidal playback and improved album art loading reliability.
-- Fixed layout issues on iPad Mini Widgets
-- Add clear all button to Textfields
-
-- Add get userPlaylist endpoint to Apple and Plex
+- Fixed Live Activity crash
+- Restored missing icons (SoundCloud, TuneIn)
+- Improved Sonos Library metadata accuracy
+- Fixed SoundCloud playlist loading
+- Improved Tidal playback and album art reliability
+- Fixed iPad Mini widget layouts
+- Added "Clear All" to text fields
+- Added user playlist endpoint for Apple and Plex
 
 # 2025.16
 
