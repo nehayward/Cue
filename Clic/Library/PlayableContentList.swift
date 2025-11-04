@@ -1,11 +1,9 @@
 import CloudStorage
-import OrderedCollections
 import Defaults
 import SwiftUI
 import SonosKit
 import MusicSearchKit
 import MusicKit
-import NukeUI
 import VibesDS
 
 struct PlayableContentList: View {
@@ -24,7 +22,6 @@ struct PlayableContentList: View {
             contentSection
             loadMoreIndicator
         }
-        .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
         .task { await loadInitialContent() }

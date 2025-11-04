@@ -45,6 +45,12 @@ final class MiniSettingsService {
         setupLaunchAtLoginMonitoring()
     }
     
+    @MainActor
+    deinit {
+        // Clean up Combine subscriptions to prevent memory leaks
+        cancellables.removeAll()
+    }
+    
     private func loadSettings() {
         launchAtLogin = SMAppService.mainApp.status == .enabled
         defaultVolume = UserDefaults.standard.double(forKey: "defaultVolume")

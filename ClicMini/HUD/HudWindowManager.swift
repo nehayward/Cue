@@ -29,9 +29,13 @@ final class HudWindowManager {
     
     private init() {}
     
+    @MainActor
     deinit {
         hideTask?.cancel()
+        hideTask = nil
+        currentHostingView?.removeFromSuperview()
         currentHostingView = nil
+        window?.close()
         window = nil
     }
     
@@ -173,10 +177,13 @@ final class HudWindowManager {
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().alphaValue = 0.0
         } completionHandler: { [weak self] in
+            guard let self else { return }
             window.orderOut(nil)
-            // Clean up hosting view after hiding
-            self?.currentHostingView?.removeFromSuperview()
-            self?.currentHostingView = nil
+            // Clean up hosting view after hiding to prevent memory accumulation
+            self.currentHostingView?.removeFromSuperview()
+            self.currentHostingView = nil
+            // Clear window content view to release all subviews
+            window.contentView = nil
         }
     }
 }

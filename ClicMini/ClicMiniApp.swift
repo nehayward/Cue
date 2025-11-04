@@ -17,11 +17,15 @@ final class MenuVisibilityService {
 
 @main
 struct ClicMiniApp: App {
-    private let globalMediaControlService = GlobalMediaControlService.shared
-    private var sonosServiceMini = SonosMiniService.shared
-    private var miniSettingsService = MiniSettingsService.shared
-
+    // Don't store singletons as properties - access directly via .shared
+    // This prevents unnecessary strong references and memory retention
+    
     init() {
+        // Initialize global services to ensure they're set up
+        _ = GlobalMediaControlService.shared
+        _ = SonosMiniService.shared
+        _ = MiniSettingsService.shared
+        
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
             guard let statusItem = NSApp.windows.first(where: { window in
                 (window.value(forKey: "statusItem") as? NSStatusItem) != nil
@@ -34,12 +38,9 @@ struct ClicMiniApp: App {
         }
         
         // Set up track change callback to show HUD
-        // Use [weak sonosServiceMini] to prevent retain cycle
-        sonosServiceMini.onTrackChanged = { [weak sonosServiceMini] group, track in
+        // Access service directly and use unowned to avoid retain cycles
+        SonosMiniService.shared.onTrackChanged = { group, track in
             Task { @MainActor in
-                // Ensure service still exists
-                guard sonosServiceMini != nil else { return }
-                
                 if MiniSettingsService.shared.showTrackChangeHUD && !MenuVisibilityService.shared.isMenuVisible {
                     HudWindowManager.shared.extendVisibility()
                     
@@ -60,8 +61,11 @@ struct ClicMiniApp: App {
 //        }
 //        #endif
         
-        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024
-        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024
+        // Configure KingFisher image cache with aggressive limits to prevent memory bloat
+        ImageCache.default.memoryStorage.config.totalCostLimit = 10 * 1024 * 1024  // 10MB
+        ImageCache.default.memoryStorage.config.countLimit = 50  // Max 50 images in memory
+        ImageCache.default.memoryStorage.config.expiration = .seconds(300)  // 5 minutes in memory
+        ImageCache.default.diskStorage.config.sizeLimit = 20 * 1024 * 1024  // 20MB
         ImageCache.default.diskStorage.config.expiration = .days(1)
 
         Task {
@@ -78,13 +82,14 @@ struct ClicMiniApp: App {
                 let image = NSImage.clicIcon.withSymbolConfiguration(.init(pointSize: 32, weight: .black))
                 Image(nsImage: image!)
                 // Show track name only if the setting is enabled
-                if miniSettingsService.showSongTitleInMenuBar {
+                // Access services directly via .shared to avoid retaining references
+                if MiniSettingsService.shared.showSongTitleInMenuBar {
                     // Show track name from pinned speaker if available, otherwise show first device
-                    if let pinnedId = miniSettingsService.pinnedSpeakerId,
-                       let pinnedDevice = sonosServiceMini.devices.first(where: { $0.id == pinnedId }) {
+                    if let pinnedId = MiniSettingsService.shared.pinnedSpeakerId,
+                       let pinnedDevice = SonosMiniService.shared.devices.first(where: { $0.id == pinnedId }) {
                         Text(pinnedDevice.track.name)
                             .animation(.spring, value: pinnedDevice.track.id)
-                    } else if let device = sonosServiceMini.devices.first(where: { $0.isPlaying }) {
+                    } else if let device = SonosMiniService.shared.devices.first(where: { $0.isPlaying }) {
                         Text(device.track.name)
                             .animation(.spring, value: device.track.id)
                     }

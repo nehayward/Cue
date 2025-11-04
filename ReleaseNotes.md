@@ -2,7 +2,7 @@
 
 –– New Features ––
 - "End All Live Activities" intent for Sonos speakers (Shortcuts & Control Center)
-- Playlist sorting in Apple Music and Spotify
+- Customize sections in Apple Music and Spotify
 - Album artwork added to recently played metadata
 - Shortcuts for fast speaker group/ungroup actions
 - Playlist and album info now shown on Player Screen

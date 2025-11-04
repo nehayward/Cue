@@ -67,21 +67,27 @@ extension SonosMiniService: SonosEventHandler {
             }
             if let track = event.metadata?.currentItem?.track {
                 if let trackID = track.id {
+                    // Capture device at index to avoid index out of bounds in async context
+                    let deviceAtIndex = devices[index]
                     Task { [weak self] in
                         guard let self else { return }
                         
                         if let duration = track.durationMillis {
-                            await self.updateDevice(self.devices[index], keyPath: \.totalDuration, value: duration)
+                            self.updateDevice(deviceAtIndex, keyPath: \.totalDuration, value: duration)
                         }
-                        let device = self.devices[index]
+                        
+                        // Re-fetch device to get current state
+                        guard let currentIndex = self.devices.firstIndex(where: { $0.id == playerId }) else { return }
+                        let device = self.devices[currentIndex]
+                        
                         // Only trigger for playing devices to avoid showing HUD for all grouped devices
                         if device.isPlaying, device.track.name != track.name {
-                            try? await self.updateTracks(for: [self.devices[index]])
+                            try? await self.updateTracks(for: [device])
                             await MainActor.run { [weak self] in
                                 self?.onTrackChanged?(device, track.toSonosTrack)
                             }
                         } else {
-                            try? await self.updateTracks(for: [self.devices[index]])
+                            try? await self.updateTracks(for: [device])
                         }
                     }
                 }
@@ -92,11 +98,13 @@ extension SonosMiniService: SonosEventHandler {
                 updateDevice(devices[index], keyPath: \.tvAudio, value: description)
             }
             
+            // Capture device to avoid index out of bounds
+            let deviceForQueue = devices[index]
             Task { [weak self] in
                 guard let self else { return }
-                if let queueTotal = try? await getQueueTotal(group: self.devices[index]), queueTotal > 0 {
-                    print("\(devices[index].name)----\(queueTotal)")
-                    updateDevice(devices[index], keyPath: \.queueTotal, value: queueTotal)
+                if let queueTotal = try? await getQueueTotal(group: deviceForQueue), queueTotal > 0 {
+                    print("\(deviceForQueue.name)----\(queueTotal)")
+                    updateDevice(deviceForQueue, keyPath: \.queueTotal, value: queueTotal)
                 }
             }
         }
@@ -105,24 +113,19 @@ extension SonosMiniService: SonosEventHandler {
     
     public func onGroupUpdate(playerId: String, event: GroupEvent) {
         if let groupsResponse = event.groupsResponse {
-//            for group in groupsResponse.groups {
-//                print("Group: \(group.name ?? group.id)")
-//                print("Coordinator: \(group.coordinatorId)")
-//                print("Players: \(group.playerIds.joined(separator: ", "))")
-//            }
-//            
-//            for player in groupsResponse.players {
-//                print("Player: \(player.name)")
-//                print("WebSocket URL: \(player.websocketUrl)")
-//            }
             Task { [weak self] in
                 guard let self else { return }
                 
+                // Fetch new system state
                 let (newDevices, _) = try await self.getSystem(useCache: true)
                 let newDeviceIDs = newDevices.map({ $0.id })
                 let currentDeviceIDs = self.devices.map({ $0.id })
                 
                 if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
+                    // Clear rooms arrays from old devices before replacement to prevent memory accumulation
+                    for index in self.devices.indices {
+                        self.devices[index].rooms.removeAll()
+                    }
                     self.devices = newDevices
                 }
                 

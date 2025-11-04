@@ -353,6 +353,24 @@ public final class SonosMiniService {
         
     }
     
+    /// Cleanup method to explicitly release resources and prevent memory leaks
+    /// Call this when you need to force cleanup of all connections and cached data
+    public func cleanup() async {
+        // Clear callback to prevent retain cycles
+        onTrackChanged = nil
+        
+        // Disconnect all streaming connections
+        await streamingService.disconnectAll()
+        
+        // Clear all device rooms arrays to free memory
+        for index in devices.indices {
+            devices[index].rooms.removeAll()
+        }
+        
+        // Clear devices array
+        devices.removeAll()
+    }
+    
     @MainActor
     public func updateWatchDevices(from devices: [SonosDevice]) async throws {
         try await withThrowingDiscardingTaskGroup { taskGroup in
