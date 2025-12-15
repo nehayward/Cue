@@ -303,7 +303,9 @@ struct LargePlayerView: View {
                             .bold()
                             .id(refreshID)
                     }
+                    #if !os(visionOS)
                     .sharedBackgroundVisibility(.hidden)
+                    #endif
                 } else {
                     ToolbarItem {
                         Text(date, style: .timer)
@@ -316,15 +318,19 @@ struct LargePlayerView: View {
                 }
             }
            
+            #if !os(visionOS)
             if #available(iOS 26.0, visionOS 26.0, *) {
                 ToolbarSpacer(.fixed)
             }
+            #endif
             ToolbarItem {
                 LikeButtonView(group: group)
             }
+            #if !os(visionOS)
             if #available(iOS 26.0, visionOS 26.0, *) {
                 ToolbarSpacer(.fixed)
             }
+            #endif
             ToolbarItem {
                 MenuInfoView(group: group)
                     .tint(.primary)

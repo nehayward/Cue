@@ -46,9 +46,11 @@ struct AppleLibraryBrowseScreen: View {
             }
             .withAppRouter()
             .toolbar {
+#if !os(visionOS)
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarSpacer(.fixed)
                 }
+#endif
                 ToolbarItem {
                     Button {
                         router.presentedSheet = .reorderAppleLibrarySections
@@ -56,9 +58,11 @@ struct AppleLibraryBrowseScreen: View {
                         Image(systemName: "line.3.horizontal.decrease")
                     }
                 }
+#if !os(visionOS)
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarSpacer(.fixed)
                 }
+#endif
                 ToolbarItem {
                     MediaSelector()
                         .environment(router)

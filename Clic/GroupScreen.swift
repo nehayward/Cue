@@ -28,12 +28,16 @@ struct GroupScreen: View {
     
     @ViewBuilder
     var backgroundShape: some View {
+#if !os(visionOS)
         if #available(iOS 26.0, visionOS 26.0, macOS 26.0, *) {
             RoundedRectangle(cornerRadius: 12)
                 .glassEffect(in: .rect)
         } else {
             RoundedRectangle(cornerRadius: 12).foregroundStyle(.placeholder)
         }
+#else
+        RoundedRectangle(cornerRadius: 12).foregroundStyle(.placeholder)
+#endif
     }
 
     var body: some View {

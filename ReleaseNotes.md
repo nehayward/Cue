@@ -7,6 +7,7 @@
 - Fix Port not showing in Line In
 - Fix Alarm not working with Apple Music
 - Fix queuing Top Songs for Artist
+- Fix flickering on Mac 
 
 # 2025.17
 

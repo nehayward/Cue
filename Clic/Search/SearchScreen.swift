@@ -180,10 +180,11 @@ struct SearchScreen: View {
                         .frame(idealWidth: 800)
                         .toolbarBackground(with: true, in: .capsule)
                     }
-                    
+                    #if !os(visionOS)
                     ToolbarItemGroup(placement: .keyboard) {
                         searchSuggestions
                     }
+                    #endif
                     
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
@@ -354,7 +355,9 @@ struct SearchScreen: View {
                                 Spacer()
                             }
                         }
+#if !os(visionOS)
                         .buttonStyle(.glass)
+#endif
                     } else {
                         Button {
                             musicSearchService.query = suggestion.searchTerm
