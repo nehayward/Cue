@@ -98,9 +98,18 @@ struct ClicMiniApp: App {
         }
         .menuBarExtraStyle(.window)
         
+        Window("Clic Mini Active", id: "setup") {
+            LaunchSplashView()
+                .onDisappear {
+                    NSApplication.shared.setActivationPolicy(.accessory)
+                }
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        
         Window("Setting", id: "settings") {
             MiniSettingsView()
-                .frame(width: 200, height: 300)
                 .onDisappear {
                     NSApplication.shared.setActivationPolicy(.accessory)
                 }

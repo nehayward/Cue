@@ -365,7 +365,7 @@ struct LargePlayerView: View {
         .safeAreaPadding(.bottom)
         .ignoresSafeArea(.keyboard)
         .background {
-            BackgroundView(group: group, shouldFade: shouldFade)
+            BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
         }
         .onChange(of: group) {
             shouldFade = false
@@ -590,6 +590,28 @@ fileprivate struct BackgroundView: View {
     }
 }
 
+fileprivate struct BackgroundViewCatalyst: View {
+    var group: GroupRoom
+    var shouldFade: Bool
+    
+    var body: some View {
+        ZStack {
+            ArtworkView(group: group, isDraggable: false, showBadge: false, shouldFade: shouldFade)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .saturation(1.3)
+                .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
+                .blur(radius: 80)
+            BlurView()
+                .opacity(group.TVMode ? 0 : 1)
+        }
+        .scaleEffect(1.3)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .ignoresSafeArea()
+    }
+}
+
+
 fileprivate struct TVContainer: View {
     @State var group: GroupRoom = .theater
     var body: some View {
@@ -650,14 +672,18 @@ fileprivate struct DuaLipaContainer: View {
     DuaLipaContainer()
 }
 
-import SwiftUI
-
 struct BlurView: UIViewRepresentable {
-    var style: UIBlurEffect.Style = .systemThickMaterial
-
+    var style: UIBlurEffect.Style = .systemThinMaterial // Use this!
+    
     func makeUIView(context: Context) -> UIVisualEffectView {
-        UIVisualEffectView(effect: UIBlurEffect(style: style))
+        let blurView = UIVisualEffectView(effect: UIBlurEffect(style: style))
+        return blurView
     }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
+    
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        uiView.effect = UIBlurEffect(style: style)
+        CATransaction.commit()
+    }
 }

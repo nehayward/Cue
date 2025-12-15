@@ -8,11 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		010855CE2D15FE0D00DD9B84 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 010855CD2D15FE0D00DD9B84 /* SonosKitMini */; };
-		010858FF2D17BE0C00DD9B84 /* Clic Mini.app in Add Clic Mini */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		010DBB252C89605C000E278E /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 010DBB242C89605C000E278E /* Defaults */; };
 		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
+		014F5FEA2EC7A9B80021A334 /* Clic Mini.app in Add Clic Mini */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0155DC0A2D4D47EA00A452D4 /* Kingfisher */; };
 		017008662D49DCB700416FD3 /* SonosKitMini in Frameworks */ = {isa = PBXBuildFile; productRef = 017008652D49DCB700416FD3 /* SonosKitMini */; };
 		017297652DD3C708003E7FFB /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 017297642DD3C708003E7FFB /* Kingfisher */; };
@@ -153,13 +153,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		0108525D2D15F13200DD9B84 /* Add Clic Mini */ = {
+		014F5FE92EC7A9AF0021A334 /* Add Clic Mini */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				010858FF2D17BE0C00DD9B84 /* Clic Mini.app in Add Clic Mini */,
+				014F5FEA2EC7A9B80021A334 /* Clic Mini.app in Add Clic Mini */,
 			);
 			name = "Add Clic Mini";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -906,7 +906,7 @@
 				E975632B2B699B2400787E14 /* Frameworks */,
 				E97563372B699B2400787E14 /* Resources */,
 				E975633A2B699B2400787E14 /* Embed Foundation Extensions */,
-				0108525D2D15F13200DD9B84 /* Add Clic Mini */,
+				014F5FE92EC7A9AF0021A334 /* Add Clic Mini */,
 			);
 			buildRules = (
 			);
@@ -1280,6 +1280,7 @@
 /* Begin PBXTargetDependency section */
 		010858FE2D17BDF500DD9B84 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilter = maccatalyst;
 			target = 01C1296E2D0CB4E9009F9E90 /* Clic Mini */;
 			targetProxy = 010858FD2D17BDF500DD9B84 /* PBXContainerItemProxy */;
 		};
@@ -1344,6 +1345,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -1386,6 +1388,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -1426,6 +1429,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Clic Mini";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;

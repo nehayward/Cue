@@ -156,7 +156,7 @@ struct ArtistDetailView: View {
                                     HapticManager.shared.fireHaptic(.buttonPress)
                                     do {
                                         alertService.showAlert(with: "Playing Top Songs", imageName: "star.fill")
-                                        try await sonosService.queue(contents: tracks, group: group, position: .next)
+                                        try await sonosService.queueNext(contents: tracks, group: group)
                                         await sonosService.play(ip: group.coordinatorRoom.ip)
                                     }
                                 }

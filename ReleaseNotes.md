@@ -1,3 +1,14 @@
+# 2025.18
+
+–– New Features ––
+- 
+
+–– Bug Fixes & Improvements ––
+- Fix Port not showing in Line In
+- Fix Alarm not working with Apple Music
+- Fix queuing Top Songs for Artis
+
+
 # 2025.17
 
 –– New Features ––

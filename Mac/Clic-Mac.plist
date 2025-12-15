@@ -19,6 +19,17 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundlePrimaryIcon</key>
+	<dict>
+		<key>CFBundleIconFiles</key>
+		<array>
+			<string></string>
+		</array>
+		<key>NSAppIconActionTintColorName</key>
+		<string>Accent</string>
+		<key>NSAppIconComplementingColorNames</key>
+		<string>Accent</string>
+	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -32,8 +43,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>nowplaying</string>
@@ -41,6 +50,7 @@
 		<string>music</string>
 		<string>tidal</string>
 		<string>sonos</string>
+		<string>clicmini</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -68,16 +78,5 @@
 			<dict/>
 		</dict>
 	</array>
-	<key>CFBundlePrimaryIcon</key>
-	<dict>
-		<key>CFBundleIconFiles</key>
-		<array>
-			<string></string>
-		</array>
-		<key>NSAppIconActionTintColorName</key>
-		<string>Accent</string>
-		<key>NSAppIconComplementingColorNames</key>
-		<string>Accent</string>
-	</dict>
 </dict>
 </plist>

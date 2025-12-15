@@ -131,9 +131,15 @@ struct ClicApp: App {
 //                    }
 //                }
                 // Update SMAppService registration with proper error handling
-#if targetEnvironment(macCatalyst) && !DEBUG
+#if targetEnvironment(macCatalyst)
                 if isMenuBarAppEnabled {
-                    menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                    Task {
+                        do {
+                            try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                        } catch {
+                            print("Failed to launch ClicMini: \(error.localizedDescription)")
+                        }
+                    }
                 }
 #endif
             
@@ -209,6 +215,14 @@ struct ClicApp: App {
         }
         .commands {
             SidebarCommands()
+            CommandGroup(replacing: .appSettings) {
+                Button {
+                    Router.main.presentedSheet = .settings()
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
             CommandGroup(after: .sidebar) {
                 Divider()
                 Button {

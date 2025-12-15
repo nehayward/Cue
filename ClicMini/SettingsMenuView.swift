@@ -24,14 +24,18 @@ struct SettingsMenuView: View {
                 Label("Toggle Showing Clic Mini \(KeyboardShortcuts.getShortcut(for: .toggleClicMini)?.description ?? "")", systemImage: "globe")
                 Text("Configure in Settings")
             }
-            Toggle("Launch at Login", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin) {
-                    toggleLaunchAtLogin()
-                }
+            
+            Toggle(isOn: $launchAtLogin) {
+                Label("Launch at Login", systemImage: "person.crop.circle.fill.badge.checkmark")
+            }
+            .onChange(of: launchAtLogin) {
+                toggleLaunchAtLogin()
+            }
+
             Button {
                 NSApplication.shared.terminate(self)
             } label: {
-                Text("Quit")
+                Label("Quit", systemImage: "xmark.rectangle")
             }
         } label: {
             Image(systemName: "gear")

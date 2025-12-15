@@ -37,6 +37,8 @@ struct PreferenceScreen: View {
     
 #if targetEnvironment(macCatalyst)
     @State private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
+    @State private var showClicMiniError = false
+    @State private var clicMiniErrorMessage = ""
 #endif
     
     @State private var isUploading = false
@@ -99,21 +101,21 @@ struct PreferenceScreen: View {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
                 
-#if DEBUG
-                Section("Discovered") {
-                    ForEach(servers) { server in
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Text(server.name).bold()
-                                Text(server.type.rawValue)
-                            }
-                            Text("\(server.token)")
-                                .textSelection(.enabled)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-#endif
+//#if DEBUG
+//                Section("Discovered") {
+//                    ForEach(servers) { server in
+//                        VStack(alignment: .leading) {
+//                            HStack {
+//                                Text(server.name).bold()
+//                                Text(server.type.rawValue)
+//                            }
+//                            Text("\(server.token)")
+//                                .textSelection(.enabled)
+//                                .lineLimit(1)
+//                        }
+//                    }
+//                }
+//#endif
                 
 //                if UIApplication.shared.isRunningInTestFlightEnvironment() {
 //                    Section {
@@ -318,47 +320,109 @@ struct PreferenceScreen: View {
                 }
             #if targetEnvironment(macCatalyst)
                 Section {
-                    Label {
-                        HStack {
-                            Text("Clic Mini (Menu Bar App)")
-                            Spacer()
-                            Image(systemName: "circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
-                                .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 2, x: 0, y: 0)
+                    // Status indicator
+                    HStack {
+                        Label {
+                            HStack {
+                                Text("Status")
+                                Spacer()
+                                HStack(spacing: 6) {
+                                    Image(systemName: "circle.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(menuAppLaunchAtLoginManager.isRunning ? .green : .red)
+                                        .shadow(color: menuAppLaunchAtLoginManager.isRunning ? .green : .red, radius: 2, x: 0, y: 0)
+                                    Text(menuAppLaunchAtLoginManager.isRunning ? "Running" : "Not Running")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .animation(.spring, value: menuAppLaunchAtLoginManager.isRunning)
+                        } icon: {
+                            Image(systemName: "info.circle.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(.blue)
+                                )
                         }
-                        .animation(.spring, value: menuAppLaunchAtLoginManager.isRunning)
-                    } icon: {
-                        Image(systemName: "hifispeaker.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(.blue)
-                            )
                     }
+                    
+                    // Open Clic Mini button
                     Button {
-                        menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                        Task {
+                            do {
+                                try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                            } catch {
+                                clicMiniErrorMessage = error.localizedDescription
+                                showClicMiniError = true
+                            }
+                        }
                     } label: {
                         Label {
-                            Text("Open Clic Mini (Menu Bar App) when Clic Opens")
-                            Spacer()
-                            Toggle(isOn: $isMenuBarAppEnabled) {
-                                Text("Enable Clic Mini")
-                            }
-                            .tint(.accent)
-                            .labelsHidden()
-                            .onChange(of: isMenuBarAppEnabled) {
-                                if isMenuBarAppEnabled {
-                                    menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                            HStack {
+                                Text("Open Clic Mini")
+                                Spacer()
+                                HStack(spacing: 8) {
+                                    Text("Launch")
+                                        .font(.subheadline.smallCaps())
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            Capsule()
+                                                .foregroundStyle(.accent)
+                                        )
                                 }
                             }
                         } icon: {
-                            Image(systemName: "arrow.up.forward")
+                            Image(systemName: "arrow.up.forward.circle.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .foregroundStyle(Color.green)
+                                )
+                        }
+                    }
+                    .tint(.primary)
+                    
+                    // Auto-launch toggle
+                    Button {
+                        isMenuBarAppEnabled.toggle()
+                        if isMenuBarAppEnabled {
+                            Task {
+                                do {
+                                    try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                                } catch {
+                                    clicMiniErrorMessage = error.localizedDescription
+                                    showClicMiniError = true
+                                }
+                            }
+                        }
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("Auto-Launch with Clic")
+                                Spacer()
+                                Toggle(isOn: $isMenuBarAppEnabled) {
+                                    Text("Enable Clic Mini")
+                                }
+                                .tint(.accent)
+                                .labelsHidden()
+                                .allowsHitTesting(false)
+                            }
+                        } icon: {
+                            Image(systemName: "play.circle.fill")
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .foregroundStyle(.white)
@@ -372,6 +436,18 @@ struct PreferenceScreen: View {
                         }
                     }
                     .tint(.primary)
+                } header: {
+                    Label("Clic Mini (Menu Bar App)", systemImage: "menubar.rectangle")
+                        .font(.headline)
+                } footer: {
+                    Text("Clic Mini provides quick access to playback controls from your menu bar. Enable auto-launch to have it start automatically when you open Clic.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .alert("Unable to Open Clic Mini", isPresented: $showClicMiniError) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(clicMiniErrorMessage)
                 }
                 #endif
                 colorSchemeSection

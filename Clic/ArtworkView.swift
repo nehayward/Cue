@@ -43,7 +43,7 @@ struct ArtworkView: View {
                 if let currentImage = currentImage {
                     Image(uiImage: currentImage)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
+                        .aspectRatio(contentMode: showBadge ? .fit : .fill)
                         .transition(.opacity)
                         .animation(.smooth(duration: shouldFade ? defaultFadeDuration : 0), value: currentImage)
                 } else {
@@ -84,6 +84,7 @@ struct ArtworkView: View {
             .shadow(radius: 2)
             .overlay(alignment: .bottomTrailing) {
                 ArtworkBadgeView(group: group, alarmRunning: alarmRunning, size: proxy.size.width)
+                    .opacity(showBadge ? 1 : 0 )
             }
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)

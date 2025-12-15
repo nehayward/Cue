@@ -86,6 +86,7 @@ struct GroupItemView: View {
                                                 }
                                                 .overlay {
                                                     Text("\(device.queueTotal)")
+                                                        .lineLimit(1)
                                                         .minimumScaleFactor(0.5)
                                                         .padding(.horizontal, 4)
                                                         .allowsTightening(true)

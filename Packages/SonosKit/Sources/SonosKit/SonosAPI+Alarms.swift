@@ -21,7 +21,7 @@ extension SonosAPI {
 
         if let content {
             arguments[6].value = content.uri
-            arguments[7].value = content.alarmURIMetadata
+            arguments[7].value = content.URIMetadata
         }
 
         guard let (_, response) = try? await sendSoapRequest(ip: IP, action: "UpdateAlarm", arguments: arguments, endpoint: "AlarmClock") else {
@@ -44,7 +44,7 @@ extension SonosAPI {
             ("Recurrence", alarm.schedule.alarmSchedule),
             ("RoomUUID", alarm.roomID),
             ("ProgramURI", content?.uri ?? "x-rincon-buzzer:0"),
-            ("ProgramMetaData", content?.alarmURIMetadata ?? ""),
+            ("ProgramMetaData", content?.URIMetadata ?? ""),
             ("PlayMode", alarm.shuffle ? "SHUFFLE" : "REPEAT_ALL"),
             ("Volume", alarm.volume),
             ("IncludeLinkedZones", alarm.includeLinkedZones ? "1" : "0")

@@ -52,7 +52,7 @@ public final class Room: Identifiable, @unchecked Sendable {
     }
     
     public var supportsLineIn: Bool {
-        let keywords = ["Amp", "Era", "Five", "Move 2", "Connect"]
+        let keywords = ["Amp", "Era", "Five", "Move 2", "Connect", "Port"]
         if let info {
             return keywords.contains(where: info.modelDisplayName.contains)
         }

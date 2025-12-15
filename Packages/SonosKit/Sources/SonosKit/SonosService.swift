@@ -931,7 +931,7 @@ public final class SonosService {
         let playingGroups = filteredGroups.filter { $0.coordinatorRoom.isPlaying }
         var coordinatorGroup: GroupRoom?
         
-        if playingGroups.count == 1 {
+        if playingGroups.count >= 1 {
             // Use the single playing group as the coordinator group
             coordinatorGroup = playingGroups.first
         } else {
@@ -1774,6 +1774,46 @@ public final class SonosService {
         try await queuePlayable(playable: playable, group: group, position: position, index: index)
         try? await Task.sleep(for: .milliseconds(120))
         try? await updateGroups(from: [group])
+    }
+    
+    public func queueNext(contents: [PlayableContent], group: GroupRoom) async throws {
+        guard !contents.isEmpty else { return }
+
+          let queueActive = group.playbackService == .queue
+
+          if !queueActive {
+              await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+          }
+
+          // Break apart: first item plays immediately, remaining queue after.
+          let first = contents[0]
+          let remainder = Array(contents.dropFirst())
+
+          // 1. Add first item to play NOW
+          try await api.queuePlayable(playableContent: first,
+                                      IP: group.ip,
+                                      position: .now)
+
+          // 2. Tell Sonos to advance + play
+          await next(ip: group.ip)
+          await play(ip: group.ip)
+
+          // Tiny stabilization delay
+          try? await Task.sleep(for: .milliseconds(150))
+          try? await updateGroups(from: [group])
+
+          // 3. Queue remaining so they play in the correct order.
+          //    When enqueueing at `.next`, the LATER you queue, the EARLIER it will play.
+          //    So reverse before sending.
+          for content in remainder.reversed() {
+              try await api.queuePlayable(playableContent: content,
+                                          IP: group.ip,
+                                          position: .next)
+          }
+
+          // Final group update
+          try? await Task.sleep(for: .milliseconds(150))
+          try? await updateGroups(from: [group])
     }
     
     public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end) async throws {
