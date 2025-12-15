@@ -6,8 +6,7 @@
 –– Bug Fixes & Improvements ––
 - Fix Port not showing in Line In
 - Fix Alarm not working with Apple Music
-- Fix queuing Top Songs for Artis
-
+- Fix queuing Top Songs for Artist
 
 # 2025.17
 
