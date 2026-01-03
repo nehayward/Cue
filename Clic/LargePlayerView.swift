@@ -3,16 +3,19 @@ import Collections
 import SonosKit
 import MusicSearchKit
 import VibesDS
+import Defaults
 
 struct LargePlayerView: View {
+    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
+
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    
+        
     @Binding var group: GroupRoom
     
-    @State var test: Double = -40
+    @State var scaleAnimation: Double = -40
     @State private var isEditing: Bool = false
     @State private var isHoveringOnQueueList: Bool = false
     @State private var refreshID = UUID()
@@ -73,47 +76,50 @@ struct LargePlayerView: View {
                 .transition(.opacity)
             } else {
                 ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
-                    .padding(.bottom, 12)
-                    .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? nil : 400)
-                VStack {
-                    if group.coordinatorRoom.container != nil {
-                        TrackContainerView(group: group)
-                            .transition(.opacity)
-                    } else {
-                        Text(group.coordinatorRoom.radioStation ?? "")
-                            .font(.caption.smallCaps())
+                    .padding(.bottom, showArtworkOnly ? 0 : 12)
+                    .frame(maxWidth: showArtworkOnly ? (isMacCatalystOrPad ? 800 : 500) : (isMacCatalystOrPad ? 600 : 400), maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
+                if !showArtworkOnly {
+                    VStack {
+                        VStack {
+                            if group.coordinatorRoom.container != nil {
+                                TrackContainerView(group: group)
+                                    .transition(.opacity)
+                            } else {
+                                Text(group.coordinatorRoom.radioStation ?? "")
+                                    .font(.caption.smallCaps())
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1, reservesSpace: true)
+                            }
+                        }
+                        .animation(.default, value: group.coordinatorRoom.container != nil)
+                        .frame(height: 12)
+                        MarqueeText(group.coordinatorRoom.track.song)
+                            .bold()
+                            .multilineTextAlignment(.center)
+                            .fontDesign(.rounded)
+                            .font(.title2)
+                        Text(group.coordinatorRoom.track.artist)
+                            .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
+                            .fontDesign(.rounded)
+                            .font(.title3)
+                            .frame(maxWidth: .infinity)
                             .lineLimit(1, reservesSpace: true)
+                        playbackView()
+                        mediaControlsView()
                     }
+                    .geometryGroup()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .animation(.default, value: group.coordinatorRoom.container != nil)
-                .frame(height: 12)
-                MarqueeText(group.coordinatorRoom.track.song)
-                    .bold()
-                    .multilineTextAlignment(.center)
-                    .fontDesign(.rounded)
-                    .font(.title2)
-                
-                Text(group.coordinatorRoom.track.artist)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .fontDesign(.rounded)
-                    .font(.title3)
-                    .frame(maxWidth: .infinity)
-                    .lineLimit(1, reservesSpace: true)
-                
-                playbackView()
-                Spacer()
-                mediaControlsView()
-                Spacer()
             }
-            VStack {
-                VolumeControlView(group: group)
-                    .padding(.bottom, 20)
-                    .padding(.horizontal, -12)
-                    .frame(maxWidth: 500)
-                
-                if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {
+            if !showArtworkOnly || group.TVMode {
+                VStack {
+                    VolumeControlView(group: group)
+                        .padding(.bottom, 20)
+                        .padding(.horizontal, -12)
+                        .frame(maxWidth: 500)
+                    
+                    if UIDevice.current.userInterfaceIdiom == .phone || horizontalSizeClass == .compact  {
                     HStack(spacing: 0) {
                         Button {
                             router.presentedSheet = .groupScreen(group: group)
@@ -178,15 +184,15 @@ struct LargePlayerView: View {
                                 .overlay {
                                     if let lastQueuedItem = QueueManager.shared.lastQueuedItem {
                                         ContentArtworkView(content: lastQueuedItem.playableContent, showMusicSource: false)
-                                            .scaleEffect(test == -40 ? 1.5 : 0.2)
-                                            .offset(y: test)
-                                            .opacity(test == -40 ? 1 : 0)
+                                            .scaleEffect(scaleAnimation == -40 ? 1.5 : 0.2)
+                                            .offset(y: scaleAnimation)
+                                            .opacity(scaleAnimation == -40 ? 1 : 0)
                                             .onAppear {
                                                 withAnimation(.easeInOut(duration: 0.5).delay(2)) {
-                                                    test = 0
+                                                    scaleAnimation = 0
                                                 } completion: {
                                                     print("Done")
-                                                    test = -40
+                                                    scaleAnimation = -40
                                                     QueueManager.shared.lastQueuedItem = nil
                                                 }
                                             }
@@ -256,9 +262,12 @@ struct LargePlayerView: View {
                         .help("Group Speakers")
                     }
                 }
+                }
+                .transition(.opacity)
             }
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.interactiveSpring, value: showArtworkOnly)
         .onChange(of: group, initial: true) {
             sonosService.selectedGroup = group
         }

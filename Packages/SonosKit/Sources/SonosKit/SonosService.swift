@@ -1042,7 +1042,6 @@ public final class SonosService {
 
     @MainActor
     public func setGroupMute(group: GroupRoom, mute: Bool) async {
-        group.isMuted = mute
         await api.setGroupMute(IP: group.coordinatorRoom.ip, mute: mute)
     }
 

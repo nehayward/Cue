@@ -38,7 +38,7 @@ struct ArtworkView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
+        VStack {
             VStack {
                 if let currentImage = currentImage {
                     Image(uiImage: currentImage)
@@ -57,22 +57,24 @@ struct ArtworkView: View {
                                     .scaledToFit()
                                     .foregroundStyle(.secondary)
                                     .fontWeight(.light)
-                                    .frame(maxWidth: 100)
-                                    .tint(Color.primary.secondary)
-                                    .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                                    .scaleEffect(0.5)
+                                    .tint(Color.primary.gradient)
                             }
                             if group.playbackService == .lineIn, showBadge {
                                 Image(systemName: "audio.jack.stereo")
                                     .resizable()
                                     .scaledToFit()
-                                    .foregroundStyle(.primary.secondary)
+                                    .foregroundStyle(.primary)
                                     .fontWeight(.light)
-                                    .frame(maxWidth: 100)
-                                    .tint(Color.primary.secondary)
-                                    .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                                    .scaleEffect(0.5)
+                                    .tint(Color.primary.gradient)
                             }
                         }
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
+                    .opacity(showBadge ? 1 : 0 )
             }
             #if DEBUG && SCREENSHOT
             .overlay {
@@ -82,10 +84,6 @@ struct ArtworkView: View {
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(radius: 2)
-            .overlay(alignment: .bottomTrailing) {
-                ArtworkBadgeView(group: group, alarmRunning: alarmRunning, size: proxy.size.width)
-                    .opacity(showBadge ? 1 : 0 )
-            }
             .if(isDraggable) {
                 $0.draggable(group.coordinatorRoom.track.toPlayable)
             }
@@ -95,14 +93,18 @@ struct ArtworkView: View {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         Task {
                             await SonosService.shared.setGroupMute(group: group, mute: false)
+                            withAnimation {
+                                group.isMuted.toggle()
+                            }
                         }
                     } label: {
                         Image(systemName: "speaker.slash.fill")
                             .resizable()
                             .scaledToFit()
+                            .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(.primary)
                             .bold()
-                            .frame(width: proxy.size.width * 0.4, height: proxy.size.width * 0.4)
+                            .scaleEffect(0.5)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                             .background {
                                 RoundedRectangle(cornerRadius: 8)
@@ -134,7 +136,6 @@ struct ArtworkView: View {
                     imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
                 }
             }
-            .animation(.spring, value: group.isMuted)
             .onDisappear {
                 imageTask?.cancel()
                 imageTask = nil

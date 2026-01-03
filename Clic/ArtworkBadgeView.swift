@@ -6,54 +6,60 @@ import MusicSearchKit
 struct ArtworkBadgeView: View {
     var group: GroupRoom
     var alarmRunning: Bool
-    
-    var size: Double = 100
+    @State private var padding: Double = 4
     
     var body: some View {
-        ZStack {
-            if alarmRunning{
+        ZStack(alignment: .bottomTrailing) {
+            // Center artwork / symbol
+            if #available(iOS 18.0, macCatalyst 18.0, *) {
                 Image(systemName: "alarm.waves.left.and.right.fill")
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(.white)
-                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                    .padding([.bottom, .trailing], padding)
-            } else {      
-                group.coordinatorRoom.track.musicService.icon
-                    .frame(width: frameSize, height: frameSize, alignment: .bottomTrailing)
-                    .padding([.bottom, .trailing], padding)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white.gradient)
+                    .scaleEffect(0.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .symbolEffect(.wiggle, options: .repeat(.periodic(delay: 2)))
+                    .background {
+                        RoundedRectangle(cornerRadius: 8)
+                            .foregroundStyle(.ultraThinMaterial)
+                    }
+                    .opacity(alarmRunning ? 1 : 0)
+            } else {
+                Image(systemName: "alarm.waves.left.and.right.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white.gradient)
+                    .scaleEffect(0.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8)
+                            .foregroundStyle(.ultraThinMaterial)
+                    }
+                    .opacity(alarmRunning ? 1 : 0)
             }
+            
+            // Bottom-trailing badge
+            group.coordinatorRoom.track.musicService.icon
+                .containerRelativeFrame(.vertical) { width, _ in
+                    max(width * 0.05, 24)
+                }
+                .padding([.bottom, .trailing], padding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-    }
+        .background {
+            Color.clear
+                .onGeometryChange(for: Double.self) { proxy in
+                    proxy.size.width
+                } action: { width in
+                    if width > 100 {
+                        padding = 8
+                    } else {
+                        padding = 4
+                    }
+                }
 
-    private var frameSize: Double {
-        max(16, size * 0.1)
-    }
-    
-    private var padding: Double {
-        max(4, size * 0.04)
+        }
     }
 }
-//
-//#Preview("Empty") {
-//    ArtworkView(track: .constant(Track(trackID: "", name: "", TVMode: false)))
-//        .environment(SonosService.shared)
-//}
-//
-//#Preview("Dua Lipa") {
-//    ArtworkView(track: .constant(Track(trackID: "6wf7Yu7cxBSPrRlWeSeK0Q", musicService: .spotify)))
-//        .environment(SonosService.shared)
-//}
-//
-//#Preview("White Background") {
-//    ArtworkView(track: .constant(Track(trackID: "204669559", musicService: .apple)))
-//        .environment(SonosService.shared)
-//
-//}
-//
-//#Preview("Dark Album") {
-//    ArtworkView(track: .constant(Track(trackID: "7sjuNUjWtSqhbxJ3RAUffm", musicService: .spotify)))
-//        .environment(SonosService.shared)
-//}
-//

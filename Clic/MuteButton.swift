@@ -9,6 +9,9 @@ struct MuteButton: View {
             Task {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 await SonosService.shared.setGroupMute(group: group, mute: !group.isMuted)
+                withAnimation {
+                    group.isMuted.toggle()
+                }
             }
         } label: {
             Label("Mute", systemImage: group.isMuted ? "speaker.slash.fill" : "speaker.fill")

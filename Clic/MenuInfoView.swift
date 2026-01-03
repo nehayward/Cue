@@ -1,11 +1,13 @@
 import SwiftUI
 import SonosKit
 import MusicSearchKit
+import Defaults
 
 struct MenuInfoView: View {
     @Environment(Router.self) var router: Router
     @Environment(\.liveActivityManager) var liveActivityManager
     @State private var coreFeatures = CoreFeatures.shared
+    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
 
     var group: GroupRoom
     
@@ -87,11 +89,21 @@ struct MenuInfoView: View {
 //                #endif
                 SpeakerSettingsMenuView(group: group)
                 
+                if !group.TVMode {
+                    Toggle(isOn: $showArtworkOnly) {
+                        Label("Album Cover Only", systemImage: "photo")
+                        Text("Hide titles and controls.")
+                    }
+                }
+                
                 ControlGroup {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         Task {
                             await SonosService.shared.setGroupMute(group: group, mute: !group.isMuted)
+                            withAnimation {
+                                group.isMuted.toggle()
+                            }
                         }
                     } label: {
                         Label {
@@ -114,11 +126,12 @@ struct MenuInfoView: View {
                                 await SonosService.shared.setCrossfade(group: group, enabled: !isCrossfaded)
                             }
                         } label: {
-                            Label("Crossfade is \(isCrossfaded ? "On" : "Off")", systemImage: isCrossfaded ? "waveform" : "waveform.slash")
+                            Label("Crossfade", systemImage: "waveform.path")
                         }
                         .menuActionDismissBehavior(.disabled)
+                        .tint(isCrossfaded ? .accent : .secondary)
                     }
-
+                    
                     TimerMenuView(group: group)
                 }
             }

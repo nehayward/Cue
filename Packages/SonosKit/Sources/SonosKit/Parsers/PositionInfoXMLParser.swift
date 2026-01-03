@@ -98,7 +98,7 @@ final class SonosTrackParser {
             
             return Track(
                 trackID: trackID,
-                name: title.ampersandSafe,
+                name: title.unescaped,
                 artist: albumArtist ?? (
                     creator ?? ""
                 ),

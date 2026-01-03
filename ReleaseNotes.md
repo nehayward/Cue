@@ -1,3 +1,12 @@
+# 2026.1
+
+–– New Features ––
+- Fullscreen artwork mode: Toggle with Shift+Command+F or via Player Screen menu
+
+–– Bug Fixes & Improvements ––
+- Fix title parsing
+
+
 # 2025.18
 
 –– New Features ––

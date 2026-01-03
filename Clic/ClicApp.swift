@@ -43,6 +43,7 @@ struct ClicApp: App {
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
 
     @State private var previousCount: Int = 0
     
@@ -270,6 +271,12 @@ struct ClicApp: App {
                     Label("Show Alarms", systemImage: "alarm.fill")
                 }
                 .keyboardShortcut("a", modifiers: [.shift, .command])
+                
+                Toggle(isOn: $showArtworkOnly) {
+                    Label("Album Cover Only", systemImage: "photo")
+                    Text("Hide titles and controls.")
+                }
+                .keyboardShortcut("f", modifiers: [.shift, .command])
             }
             CommandMenu("Playback") {
                 let groupSelected = router.selectedID.flatMap { id in

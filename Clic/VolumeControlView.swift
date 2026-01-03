@@ -37,6 +37,9 @@ struct VolumeControlView: View {
                     Task {
                         await SonosService.shared.setGroupMute(group: group, mute: false)
                     }
+                    withAnimation {
+                        group.isMuted = false
+                    }
                 }
                 
                 self.isEditing = isEditing
@@ -64,6 +67,9 @@ struct VolumeControlView: View {
                 if group.isMuted {
                     Task {
                         await SonosService.shared.setGroupMute(group: group, mute: false)
+                        withAnimation {
+                            group.isMuted = false
+                        }
                     }
                 }
                 Task {
