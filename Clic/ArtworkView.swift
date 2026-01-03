@@ -34,6 +34,12 @@ struct ArtworkView: View {
             return [album, artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
         
+        if !group.coordinatorRoom.track.name.isEmpty {
+            let track = group.coordinatorRoom.track.name
+            let artist = group.coordinatorRoom.track.artist
+            return [track, artist, suffix].compactMap { $0 }.joined(separator: ".")
+        }
+        
         return group.coordinatorRoom.track.trackID + suffix
     }
 

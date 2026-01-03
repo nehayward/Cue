@@ -5,18 +5,19 @@
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing
+- Fixed an issue where artwork wasn't updating for TuneIn
 
 
 # 2025.18
 
 –– New Features ––
-- 
+-
 
 –– Bug Fixes & Improvements ––
 - Fix Port not showing in Line In
 - Fix Alarm not working with Apple Music
 - Fix queuing Top Songs for Artist
-- Fix flickering on Mac 
+- Fix flickering on Mac
 
 # 2025.17
 
@@ -216,12 +217,12 @@ Enhanced alarm management
 - Added auto-launch capability for iPad
 - Added keyboard shortcuts for quick access:
   - Queue (press "q")
-  - Search (press "s") 
+  - Search (press "s")
   - Library (press "l")
 - Added Playback Menubar Controls
   - Play/Pause (press "spacebar")
   - Previous Track (press "⌘←")
-  - Next Track (press "⌘→") 
+  - Next Track (press "⌘→")
   - Volume Up (press "⌘↑")
   - Volume Down (press "⌘↓")
 - Added Dolby or Lossless Icon to AudioInfo Details
@@ -312,7 +313,7 @@ Enhanced alarm management
 - Fixed an issue where Live Activity images were not refreshing correctly.
 - Reduced memory usage across the app for better efficiency.
 
-- Switch to SonosService shared for better SwiftUI performance 
+- Switch to SonosService shared for better SwiftUI performance
 
 # 2025.6
 
@@ -477,7 +478,7 @@ Live Activity Mute State: Mute states are now clearly indicated in live activiti
 # 2024.42
 
 + Improve Preference Screen
-+ Fix volume control delays on Sequoia 
++ Fix volume control delays on Sequoia
 + Fix scenes not unmuting when running
 
 # 2024.41
@@ -501,7 +502,7 @@ Live Activity Mute State: Mute states are now clearly indicated in live activiti
 + Fixed watch live activity not showing.
 + Add Lifetime purchase option.
 
-Previous 
+Previous
 New Features:
 + Apple Music Library Search: Added support for searching your local Apple Music library.
 + Apple Watch Live Activity: Interactive controls for playback.
@@ -634,7 +635,7 @@ Bug Fixes
 + Added empty playlist state.
 + Add Icons for filters
 + Improve queueing
-+ Energy and performance improvements 
++ Energy and performance improvements
 - Fix Apple Playlists not showing up in Search.
 - Fix Live Activity TV audio format display.
 
@@ -688,7 +689,7 @@ Bug Fixes
 + Add option to hide NowPlaying… open in.
 
 ## Internal
-+ Fixed paywall button not showing in preferences 
++ Fixed paywall button not showing in preferences
 + Move spotify to new queueing
 
 # 2024.26
@@ -722,14 +723,14 @@ Bug Fixes
 
 # 2024.21
 
-## External 
+## External
 
 + Add Sleep Timers!
 + Fix navigation bar disappearing on iPad, add compact mode to iPad.
 
 # 2024.20
 
-## External 
+## External
 
 + Add support for Music Library, you can now search and play songs from your Library!
 + Improved Album Art loading.
@@ -743,7 +744,7 @@ Bug Fixes
 
 # 2024.19
 
-## External 
+## External
 
 + Show if the Queue is Active now.
 + Fixed an issue where playlists/songs wouldn't start if the queue was inactive.
@@ -769,7 +770,7 @@ Bug Fixes
 
 # 2024.18
 
-## External 
+## External
 
 + Improved grouping speakers, you can now remove any speaker from group.
 + Improve search, even faster now.
@@ -789,7 +790,7 @@ Bug Fixes
 
 # 2024.17
 
-## External 
+## External
 
 + New App Icon
 + Added artist to search results.
@@ -804,7 +805,7 @@ Bug Fixes
 
 # 2024.13
 
-## External 
+## External
 
 + Improved Search!
 + Search Suggestions
@@ -819,7 +820,7 @@ Bug Fixes
 
 # 2024.12
 
-## External 
+## External
 
 + Add favorites to search, you can now browse and play your Sonos Favorites with a single tap.
 + Add star to content artwork
@@ -844,13 +845,13 @@ Bug Fixes
 + Add repeat and shuffle controls
 + Add content type to Play History
 
-## External 
+## External
 
 + InvalidatableContent State to Widgets
 
 # 2024.6
 
-## External 
+## External
 
 - Improved system monitoring.
 - Watch app will now auto launch to currently playing group. You can turn this off in settings.
@@ -866,7 +867,7 @@ Bug Fixes
 - Fix permission button not showing.
 # 2024.6
 
-## External 
+## External
 
 - Improved system monitoring.
 - Watch app will now auto launch to currently playing group. You can turn this off in settings.
@@ -883,7 +884,7 @@ Bug Fixes
 
 # 2024.3
 
-## External 
+## External
 
 - Fix queueing with Apple Music
 - Update group list
@@ -949,7 +950,7 @@ Compact Mode for Live Activities: Added a new compact mode to Live Activities, a
 - Improved queueing.
 - Added haptics to watchOS.
 
-## Internal 
+## Internal
 
 - Increase search to 15 per item on spotify
 - Add group count name to group room model
@@ -982,12 +983,12 @@ Scenes have been added to the Group screen
 
 - Scenes not set the volume first then groups rooms.
 - Improve Live Activities
-- Add refresh on Live Activities 
+- Add refresh on Live Activities
 - Add transition to Live Activities
 - Add scroll to current queue
 - Fix queue screen with identical tracks
-- Fix queue placement 
-- Fix history sorting 
-- Move scene creation to group screen 
-- Improved animations 
+- Fix queue placement
+- Fix history sorting
+- Move scene creation to group screen
+- Improved animations
 - Modal for scene running

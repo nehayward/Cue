@@ -84,6 +84,8 @@ extension SonosService: SonosEventHandler {
 //                updateDevice(devices[index], keyPath: \.quality, value: track.quality)
                 groups[index].audioQuality = track.quality
                 groups[index].coordinatorRoom.container = event.metadata?.container
+            } else {
+                groups[index].coordinatorRoom.container = nil
             }
             
 //            if let htInputFormat = event.metadata?.container?.htInputFormat, let description = htInputFormat.streamDescription {
