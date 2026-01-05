@@ -8,5 +8,6 @@ public enum AppStorageKeys {
     public static let speedLaunchNowPlaying = "\(Prefix.id).speedLaunchNowPlaying"
     public static let queueMode = "\(Prefix.id).queueMode"
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
+    public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
+    public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
 }
-

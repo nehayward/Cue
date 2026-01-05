@@ -2,6 +2,8 @@
 
 –– New Features ––
 - Fullscreen artwork mode: Toggle with Shift+Command+F or via Player Screen menu
+- State is now restored for the selected group upon app relaunch
+- Queue selection is preserved and restored on app restart
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing

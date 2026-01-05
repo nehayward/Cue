@@ -41,9 +41,11 @@ struct ClicApp: App {
     
     @AppStorage(GroupStorageKeys.hasOnboarded, store: GroupStorageKeys.storage) private var hasOnboarded: Bool = false
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
-    @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
-    @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
+    @AppStorage(AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
+    @AppStorage(AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
+    @AppStorage(AppStorageKeys.queueInspectorVisible) private var queueInspectorVisible: Bool = false
+    @AppStorage(AppStorageKeys.savedGroupID) private var savedGroupID: String?
 
     @State private var previousCount: Int = 0
     
@@ -143,17 +145,51 @@ struct ClicApp: App {
                     }
                 }
 #endif
-            
-                if UIDevice.current.userInterfaceIdiom == .pad, router.selectedID == nil {
+                // Try and restore selected groupID
+                if let savedGroupID = savedGroupID {
                     Task {
                         while sonosService.sorted.isEmpty {
-                            try? await Task.sleep(for: .milliseconds(100)) // small delay to avoid busy-waiting
+                            try? await Task.sleep(for: .milliseconds(100))
                         }
-                        try? await Task.sleep(for: .milliseconds(400))
-                        sonosService.selectedGroup = sonosService.sorted.first
-                        router.selectedID = sonosService.sorted.first?.coordinatorID
+                        
+                        if sonosService.sorted.contains(where: { $0.coordinatorID == savedGroupID }) {
+                            router.selectedID = savedGroupID
+                        }
                     }
                 }
+                
+                // iPad/Mac: Auto-select first group and restore queue state
+                if UIDevice.current.userInterfaceIdiom != .phone {
+                    Task {
+                        while sonosService.sorted.isEmpty {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
+                        try? await Task.sleep(for: .milliseconds(400))
+
+                        // Auto-select first group if none selected (iPad initial launch)
+                        if router.selectedID == nil {
+                            sonosService.selectedGroup = sonosService.sorted.first
+                            router.selectedID = sonosService.sorted.first?.coordinatorID
+                        }
+
+                        // Restore queue inspector if it was open
+                        if queueInspectorVisible {
+                            if let savedGroupID = savedGroupID,
+                               let group = sonosService.sorted.first(where: { $0.coordinatorID == savedGroupID }) {
+            
+                                router.inspectorSheet = .queue(group: group)
+                            } else if let selectedID = router.selectedID,
+                                      let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) {
+                                // Fall back to currently selected group
+                                router.inspectorSheet = .queue(group: group)
+                            } else if let firstGroup = sonosService.sorted.first {
+                                // Fall back to first available group
+                                router.inspectorSheet = .queue(group: firstGroup)
+                            }
+                        }
+                    }
+                }
+
                 Task {
                     ClicAppShortcutProvider.updateAppShortcutParameters()
                 }
@@ -194,6 +230,8 @@ struct ClicApp: App {
                     router.inspectorSheet = .browse(group: sonosService.sorted[group])
                 }
             }
+            
+            savedGroupID = router.selectedID
         }
         .onChange(of: sonosService.groups) {
             if sonosService.rooms.count == previousCount {
@@ -212,6 +250,11 @@ struct ClicApp: App {
                         sonosService.sortedRooms.map { SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)}
                     )
                 }
+            }
+        }
+        .onChange(of: router.inspectorSheet) { oldValue, newValue in
+            if UIDevice.current.userInterfaceIdiom != .phone  {
+                queueInspectorVisible = (newValue?.id == "queue")
             }
         }
         .commands {
@@ -545,11 +588,11 @@ struct ClicApp: App {
             // MARK: Add Back for queue
 //            if let roomName = components.host {
 //                guard let groupID = components.queryItems?.first(where: { $0.name == "id" })?.value else { return }
-//                
+//
 //                guard let group = await sonosService.getGroupCoordinatorWithRoom(roomID: groupID) else {
 //                    return
 //                }
-//            
+//
 //                if url.pathComponents.contains("queue") || components.queryItems?.contains(where: { $0.name == "showqueue" }) == true {
 //                    router.selectedID = group.coordinatorID
 //                    if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .vision {
@@ -717,7 +760,7 @@ final class WindowSizeObserver: NSObject {
     private func startObserving() {
         observation = observe(\.observedScene?.effectiveGeometry, options: [.new]) { _, change in
             guard let newSystemFrame = change.newValue??.systemFrame,
-                  newSystemFrame.size != .zero, 
+                  newSystemFrame.size != .zero,
                   newSystemFrame.origin != .zero else { return }
             UserDefaultsConfig.defaultSceneLatestSystemFrame = newSystemFrame
         }

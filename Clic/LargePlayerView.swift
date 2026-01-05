@@ -77,39 +77,42 @@ struct LargePlayerView: View {
             } else {
                 ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
                     .padding(.bottom, showArtworkOnly ? 0 : 12)
-                    .frame(maxWidth: showArtworkOnly ? (isMacCatalystOrPad ? 800 : 500) : (isMacCatalystOrPad ? 600 : 400), maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
+                    .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
+                    .padding(.top, showArtworkOnly ? 100 : nil)
+                
+                    VStack {
+                        if group.coordinatorRoom.container != nil {
+                            TrackContainerView(group: group)
+                                .transition(.opacity)
+                        } else {
+                            Text(group.coordinatorRoom.radioStation ?? "")
+                                .font(.caption.smallCaps())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1, reservesSpace: true)
+                        }
+                    }
+                    .animation(.default, value: group.coordinatorRoom.container != nil)
+                    .frame(height: 12)
+                    MarqueeText(group.coordinatorRoom.track.song)
+                        .bold()
+                        .multilineTextAlignment(.center)
+                        .fontDesign(.rounded)
+                        .font(.title2)
+                    Text(group.coordinatorRoom.track.artist)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .fontDesign(.rounded)
+                        .font(.title3)
+                        .frame(maxWidth: .infinity)
+                        .lineLimit(1, reservesSpace: true)
+                        .padding(.bottom, showArtworkOnly ? 100 : nil)
                 if !showArtworkOnly {
                     VStack {
-                        VStack {
-                            if group.coordinatorRoom.container != nil {
-                                TrackContainerView(group: group)
-                                    .transition(.opacity)
-                            } else {
-                                Text(group.coordinatorRoom.radioStation ?? "")
-                                    .font(.caption.smallCaps())
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1, reservesSpace: true)
-                            }
-                        }
-                        .animation(.default, value: group.coordinatorRoom.container != nil)
-                        .frame(height: 12)
-                        MarqueeText(group.coordinatorRoom.track.song)
-                            .bold()
-                            .multilineTextAlignment(.center)
-                            .fontDesign(.rounded)
-                            .font(.title2)
-                        Text(group.coordinatorRoom.track.artist)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                            .fontDesign(.rounded)
-                            .font(.title3)
-                            .frame(maxWidth: .infinity)
-                            .lineLimit(1, reservesSpace: true)
                         playbackView()
                         mediaControlsView()
                     }
                     .geometryGroup()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.opacity.combined(with: .push(from: .bottom)))
                 }
             }
             if !showArtworkOnly || group.TVMode {
