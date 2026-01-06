@@ -125,7 +125,7 @@ final class SonosSystemDiscoverService {
             var processedIPs = Set<String>()
             var fallbackIP: String?
             let startTime = Date.now
-            let maxDiscoveryTime: TimeInterval = 3.0 // Reduced from 8s
+            let maxDiscoveryTime: TimeInterval = 10 
 
             // Minimal initial delay to let Bonjour browser start
             try? await Task.sleep(for: .milliseconds(100))
@@ -222,7 +222,7 @@ final class SonosSystemDiscoverService {
         stopBrowsing()
         print("Search")
         let params = NWParameters.tcp
-        params.requiredInterfaceType = .wifi
+        params.prohibitedInterfaceTypes = [.cellular]
         params.allowFastOpen = true
         params.multipathServiceType = .handover
         params.serviceClass = .responsiveData
