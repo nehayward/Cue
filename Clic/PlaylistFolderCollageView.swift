@@ -10,7 +10,7 @@ struct PlaylistFolderCollageView: View {
     
     var body: some View {
         Rectangle()
-            .aspectRatio(contentMode: .fit)
+            .aspectRatio(1, contentMode: .fit)
             .foregroundStyle(.ultraThinMaterial)
             .overlay {
                 if isLoading {
@@ -27,15 +27,20 @@ struct PlaylistFolderCollageView: View {
                                             if let image = state.image {
                                                 image
                                                     .resizable()
-                                                    .scaledToFit()
-                                                    .containerRelativeFrame(.horizontal, alignment: .center) { size, horizontal in
-                                                        size / 2
-                                                    }
+                                                    .aspectRatio(1, contentMode: .fill)
+                                            } else {
+                                                Rectangle()
+                                                    .foregroundStyle(.quaternary)
+                                                    .aspectRatio(1, contentMode: .fit)
                                             }
                                         }
+                                        .aspectRatio(1, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
                                     } else {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .foregroundStyle(.clear)
+                                        Rectangle()
+                                            .foregroundStyle(.quaternary)
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .opacity(0)
                                     }
                                 }
                             }

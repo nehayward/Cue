@@ -225,7 +225,7 @@ public final class SonosService {
                     // MARK: Invalidate Cache
                     useCache = false
                     retry = false
-                }  catch SonosServiceError.sonosSystemNotFound {
+                } catch SonosServiceError.sonosSystemNotFound {
                     guard retry else {
                         print("System not found")
                         systemState.systemNotFound = true
