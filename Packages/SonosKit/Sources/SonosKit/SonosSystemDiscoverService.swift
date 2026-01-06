@@ -50,14 +50,55 @@ final class SonosSystemDiscoverService {
     private var permissionsDenied: Bool = false
     private var connections: [NWConnection?] = []
     private var allIPs: Set<String> = []
+    private var householdIDCache: [String: (id: String, timestamp: Date)] = [:] // IP -> (HouseholdID, Timestamp)
 
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
     
     deinit {
         stopBrowsing()
-        connections.forEach { $0?.cancel() }
-        connections.removeAll()
+        lock.withLock {
+            connections.forEach { $0?.cancel() }
+            connections.removeAll()
+        }
+    }
+
+    /// Gets household ID with caching and fast timeout (2 seconds max)
+    private func getHouseholdIDWithCache(for ip: String) async -> String {
+        // Check cache first (valid for 5 minutes)
+        if let cached = lock.withLock({ householdIDCache[ip] }),
+           Date.now.timeIntervalSince(cached.timestamp) < 300 {
+            return cached.id
+        }
+
+        // Fetch with 2-second timeout
+        let householdID = await withTaskGroup(of: String.self, returning: String.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { return "" }
+                return await self.api.getHouseHoldID(for: ip)
+            }
+
+            group.addTask {
+                try? await Task.sleep(for: .seconds(2))
+                return "" // Timeout marker
+            }
+
+            // Return first result (either the API call or timeout)
+            if let result = await group.next() {
+                group.cancelAll()
+                return result
+            }
+            return ""
+        }
+
+        // Cache the result if valid
+        if !householdID.isEmpty {
+            lock.withLock {
+                householdIDCache[ip] = (householdID, Date.now)
+            }
+        }
+
+        return householdID
     }
 
     @MainActor
@@ -68,65 +109,123 @@ final class SonosSystemDiscoverService {
 
         defer {
             isSearching = false
+            stopBrowsing()
         }
         isSearching = true
 
+        return try await performDiscovery()
+    }
+
+    /// Performs the actual device discovery
+    private func performDiscovery() async throws -> String {
         startBrowseAll()
-        let task = Task {
+
+        // Streaming discovery: check IPs as they arrive
+        return try await withThrowingTaskGroup(of: (String, String).self, returning: String.self) { taskGroup in
+            var processedIPs = Set<String>()
+            var fallbackIP: String?
             let startTime = Date.now
-            try? await Task.sleep(for: .milliseconds(200))
-            while allIPs.count != connections.count {
-                if permissionsDenied {
-                    throw SonosServiceError.permissionDenied
-                }
-                if Date.now > startTime.addingTimeInterval(8) {
+            let maxDiscoveryTime: TimeInterval = 3.0 // Reduced from 8s
+
+            // Minimal initial delay to let Bonjour browser start
+            try? await Task.sleep(for: .milliseconds(100))
+
+            while true {
+                // Check for timeout
+                if Date.now > startTime.addingTimeInterval(maxDiscoveryTime) {
                     break
                 }
-                try? await Task.sleep(for: .milliseconds(100))
-            }
-            return allIPs
-        }
 
-        let ips = try await task.value
-        let (ip, _) = try await withThrowingTaskGroup(of: (String, String).self, returning: (String, String).self) { taskGroup in
-            for ip in ips {
-                taskGroup.addTask { [weak self] in
-                    guard let self = self else { return ("", "") }
-                    let id = await api.getHouseHoldID(for: ip)
-                    return (ip, id)
+                // Check for permission denied
+                if permissionsDenied {
+                    taskGroup.cancelAll()
+                    throw SonosServiceError.permissionDenied
+                }
+
+                // Get newly discovered IPs
+                let currentIPs = lock.withLock { allIPs }
+                let newIPs = currentIPs.subtracting(processedIPs)
+
+                // Start checking household IDs for new IPs immediately
+                for ip in newIPs {
+                    processedIPs.insert(ip)
+                    let ipCopy = ip // Capture for task
+                    taskGroup.addTask { [weak self] in
+                        guard let self else { return ("", "") }
+                        let id = await self.getHouseholdIDWithCache(for: ipCopy)
+                        return (ipCopy, id)
+                    }
+                }
+
+                // Check if any household ID checks have completed (non-blocking)
+                if let result = try? await taskGroup.next() {
+                    let (resultIP, householdID) = result
+                    guard !resultIP.isEmpty else { continue }
+
+                    // Store first valid IP as fallback
+                    if fallbackIP == nil && !householdID.isEmpty {
+                        fallbackIP = resultIP
+                    }
+
+                    // If preferred household matches, return immediately
+                    if let preferredHouseHold = preferredHouseHold {
+                        if householdID == preferredHouseHold {
+                            logger.trace("Found preferred household: \(householdID) at IP: \(resultIP)")
+                            sonosStorageIP.sonosIP = resultIP
+                            taskGroup.cancelAll()
+                            return resultIP
+                        }
+                    } else if !householdID.isEmpty {
+                        // No preference set - use first device found
+                        logger.trace("No preferred household, using first found: \(householdID) at IP: \(resultIP)")
+                        sonosStorageIP.sonosIP = resultIP
+                        preferredHouseHold = householdID
+                        taskGroup.cancelAll()
+                        return resultIP
+                    }
+                }
+
+                // If all IPs have been processed and checked, we can exit early
+                let totalConnections = lock.withLock { connections.count }
+                if processedIPs.count >= totalConnections && processedIPs.count > 0 {
+                    // Give a bit more time in case more devices appear
+                    if Date.now > startTime.addingTimeInterval(0.5) {
+                        break
+                    }
+                }
+
+                try? await Task.sleep(for: .milliseconds(25))
+            }
+
+            // Drain remaining results
+            while let (resultIP, householdID) = try? await taskGroup.next() {
+                if !resultIP.isEmpty && !householdID.isEmpty {
+                    fallbackIP = resultIP
+                    break
                 }
             }
 
-            while let (ip, id) = try await taskGroup.next() {
-                if let preferredHouseHold = preferredHouseHold, preferredHouseHold != id {
-                    continue
-                }
-                sonosStorageIP.sonosIP = ip
-                preferredHouseHold = id
-                return (ip, id)
-            }
-            
-            guard let ip = ips.first else {
-                return ("", "")
+            taskGroup.cancelAll()
+
+            // Return fallback IP if we found any device
+            if let fallbackIP = fallbackIP {
+                logger.trace("Returning fallback IP: \(fallbackIP)")
+                sonosStorageIP.sonosIP = fallbackIP
+                return fallbackIP
             }
 
-            // MARK: Preferred not found
-            return (ip, "")
-        }
-
-        if ip.isEmpty {
             throw SonosServiceError.sonosSystemNotFound
         }
-
-        return ip
     }
 
     func startQuickBrowse() {
         stopBrowsing()
         print("Search")
-        let params = NWParameters()
+        let params = NWParameters.tcp
         params.requiredInterfaceType = .wifi
         params.allowFastOpen = true
+        params.multipathServiceType = .handover
+        params.serviceClass = .responsiveData
 
         let browser = NWBrowser(for: .bonjour(type: sonosBonjourServiceType, domain: nil), using: params)
         self.browser = browser
@@ -147,44 +246,61 @@ final class SonosSystemDiscoverService {
         browser?.cancel()
         browser = nil
         // Cancel all connections to prevent leaks
-        connections.forEach { $0?.cancel() }
+        lock.withLock {
+            connections.forEach { $0?.cancel() }
+        }
     }
 
 
     @MainActor
     func getAllIPs() async throws -> [String] {
         startBrowseAll()
-        
+
         defer {
             stopBrowsing()
         }
-        
+
         let startTime = Date.now
-        try? await Task.sleep(for: .milliseconds(200))
-        
-        while allIPs.count != connections.count {
+        try? await Task.sleep(for: .milliseconds(100))
+
+        while true {
+            let (ipCount, connectionCount) = lock.withLock {
+                (allIPs.count, connections.count)
+            }
+
+            if ipCount == connectionCount && ipCount > 0 {
+                break
+            }
+
             if permissionsDenied {
                 throw SonosServiceError.permissionDenied
             }
             if Date.now > startTime.addingTimeInterval(3) {
                 break
             }
-            try? await Task.sleep(for: .milliseconds(100))
+            try? await Task.sleep(for: .milliseconds(50))
         }
-        
-        return Array(allIPs)
+
+        return lock.withLock { Array(allIPs) }
     }
 
     func startBrowseAll() {
         stopBrowsing()
-        allIPs.removeAll()
-        // Cancel all existing connections before removing them to prevent leaks
-        connections.forEach { $0?.cancel() }
-        connections.removeAll()
-        
-        let params = NWParameters()
+        lock.withLock {
+            allIPs.removeAll()
+            // Cancel all existing connections before removing them to prevent leaks
+            connections.forEach { $0?.cancel() }
+            connections.removeAll()
+            // Clean up stale cache entries (older than 5 minutes)
+            let now = Date.now
+            householdIDCache = householdIDCache.filter { now.timeIntervalSince($0.value.timestamp) < 300 }
+        }
+
+        let params = NWParameters.tcp
         params.requiredInterfaceType = .wifi
         params.allowFastOpen = true
+        params.multipathServiceType = .handover // Enable multipath TCP for faster connection
+        params.serviceClass = .responsiveData // Prioritize low latency
 
         let browser = NWBrowser(for: .bonjour(type: sonosBonjourServiceType, domain: nil), using: params)
         self.browser = browser
@@ -207,56 +323,75 @@ final class SonosSystemDiscoverService {
         }
 
         for service in services {
-            var netConnection: NWConnection?
+            guard case let .service(name, type, domain, interface) = service.endpoint else { continue }
 
-            if case let .service(name, type, domain, interface) = service.endpoint {
-                netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
-                netConnection?.stateUpdateHandler = { [weak self, weak netConnection] newState in
-                    switch newState {
-                    case .ready:
-                        guard let currentPath = netConnection?.currentPath,
-                              let endpoint = currentPath.remoteEndpoint else { return }
+            let netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
+            netConnection.stateUpdateHandler = { [weak self, weak netConnection] newState in
+                switch newState {
+                case .ready:
+                    guard let currentPath = netConnection?.currentPath,
+                          let endpoint = currentPath.remoteEndpoint else { return }
 
-                        if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            self?.lastKnownIP = ip
-                            return
-                        }
-
-                    default:
-                        break
+                    if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
+                        self?.lastKnownIP = ip
+                        return
                     }
+
+                default:
+                    break
                 }
             }
-            netConnection?.start(queue: .global())
-            connections.append(netConnection)
+            netConnection.start(queue: .global())
+            lock.withLock {
+                connections.append(netConnection)
+            }
         }
     }
 
     private func changeHandlerAll(_ services: Set<NWBrowser.Result>, _ changes: Set<NWBrowser.Result.Change>) {
         for service in services {
-            var netConnection: NWConnection?
+            guard case let .service(name, type, domain, interface) = service.endpoint else { continue }
 
-            if case let .service(name, type, domain, interface) = service.endpoint {
-                netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
-                netConnection?.stateUpdateHandler = { [weak self, weak netConnection] newState in
-                    switch newState {
-                    case .ready:
-                        guard let self = self,
-                              let currentPath = netConnection?.currentPath,
-                              let endpoint = currentPath.remoteEndpoint else { return }
+            let netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
 
-                        if case let .hostPort(host, _) = endpoint, let ip = host.debugDescription.components(separatedBy: "%").first {
-                            lock.withLock {
-                                self.allIPs.insert(ip)
-                            }
-                        }
-                    default:
-                        break
-                    }
+            // Path update handler - extracts IP as soon as path is available (faster than waiting for .ready)
+            netConnection.pathUpdateHandler = { [weak self, weak netConnection] path in
+                guard let self,
+                      let endpoint = path.remoteEndpoint,
+                      case let .hostPort(host, _) = endpoint,
+                      let ip = host.debugDescription.components(separatedBy: "%").first else { return }
+
+                self.lock.withLock {
+                    self.allIPs.insert(ip)
                 }
             }
-            netConnection?.start(queue: .global())
-            connections.append(netConnection)
+
+            // State handler for fallback and cleanup
+            netConnection.stateUpdateHandler = { [weak self, weak netConnection] newState in
+                switch newState {
+                case .ready, .preparing:
+                    // Path update handler will catch the IP
+                    break
+                case .failed, .cancelled:
+                    // Clean up failed connections after a delay
+                    Task { [weak self, weak netConnection] in
+                        try? await Task.sleep(for: .seconds(1))
+                        netConnection?.cancel()
+                        self?.lock.withLock {
+                            if let conn = netConnection, let index = self?.connections.firstIndex(where: { $0 === conn }) {
+                                self?.connections.remove(at: index)
+                            }
+                        }
+                    }
+                default:
+                    break
+                }
+            }
+
+            netConnection.start(queue: .global())
+            lock.withLock {
+                connections.append(netConnection)
+            }
         }
     }
 
