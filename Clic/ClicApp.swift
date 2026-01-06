@@ -148,10 +148,11 @@ struct ClicApp: App {
                 // Try and restore selected groupID
                 if let savedGroupID = savedGroupID {
                     Task {
-                        while sonosService.sorted.isEmpty {
+                        let startTime = Date.now
+                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
-                        
+
                         if sonosService.sorted.contains(where: { $0.coordinatorID == savedGroupID }) {
                             router.selectedID = savedGroupID
                         }
@@ -161,8 +162,9 @@ struct ClicApp: App {
                 // iPad/Mac: Auto-select first group and restore queue state
                 if UIDevice.current.userInterfaceIdiom != .phone {
                     Task {
-                        while sonosService.sorted.isEmpty {
-                            try? await Task.sleep(for: .milliseconds(100))
+                        let startTime = Date.now
+                        while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 5 {
+                          try? await Task.sleep(for: .milliseconds(100))
                         }
                         try? await Task.sleep(for: .milliseconds(400))
 
