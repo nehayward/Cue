@@ -18,7 +18,7 @@ struct PlexBrowseScreen: View {
     @Environment(PlexBrowseService.self) private var plexBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
-    @State private var router = Router()
+    @State private var router = Router.browse
     @State private var isLoading: Bool = false
     @State private var plexAuthenticator = PlexAuthenticator.shared
 

@@ -7,8 +7,8 @@ struct SoundCloudBrowseScreen: View {
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SonosService.self) private var sonosService
     @Environment(SoundCloudBrowseService.self) private var soundCloudBrowseService
-    
-    @State private var router = Router()
+
+    @State private var router = Router.browse
     @State private var isLoading: Bool = true
     
     var body: some View {

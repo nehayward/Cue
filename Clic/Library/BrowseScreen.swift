@@ -22,8 +22,8 @@ struct BrowseScreen: View {
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     
     var closeInspector: (() -> Void)? = nil
-    
-    @State private var router = Router()
+
+    @State private var router = Router.browse
     @State private var isLoaded: Bool = false
     @State private var coreFeatures = CoreFeatures.shared
 

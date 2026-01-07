@@ -18,7 +18,7 @@ struct SpotifyBrowseScreen: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
 
-    @State private var router = Router()
+    @State private var router = Router.browse
     @State private var isLoading = true
 
     var body: some View {

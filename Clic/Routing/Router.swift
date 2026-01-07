@@ -8,6 +8,7 @@ import SonosKit
     static var main = Router()
     static var search = Router()
     static var secondary = Router()
+    static var browse = Router()
 
     var selectedID: String?
     var path: [RouterDestination] = []

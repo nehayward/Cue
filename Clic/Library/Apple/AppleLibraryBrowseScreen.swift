@@ -13,8 +13,8 @@ struct AppleLibraryBrowseScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(\.dismiss) var dismiss
-    
-    @State private var router = Router()
+
+    @State private var router = Router.browse
     @State private var isLoading = true
     @State private var configStore = SectionConfigurationStores.shared.appleLibrary
     

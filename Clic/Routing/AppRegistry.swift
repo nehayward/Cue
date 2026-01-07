@@ -16,18 +16,18 @@ extension View {
                     GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
                         .customizeWindowSizeForMacOS15()
                 case .paywall:
-                   ClicPaywall()
-//                    PaywallView(displayCloseButton: true)
-//                        .onPurchaseCompleted { transaction, customerInfo in
-//                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
-//                                ///                     self.displayPaywall = false
-//                                ///                 }
-//                            ///                 print(
-//                            print("Complete")
-//                        }
-//                        .onAppear {
-//                            Analytics.shared.track(.viewedPaywall)
-//                        }
+                    ClicPaywall()
+                    //                    PaywallView(displayCloseButton: true)
+                    //                        .onPurchaseCompleted { transaction, customerInfo in
+                    //                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
+                    //                                ///                     self.displayPaywall = false
+                    //                                ///                 }
+                    //                            ///                 print(
+                    //                            print("Complete")
+                    //                        }
+                    //                        .onAppear {
+                    //                            Analytics.shared.track(.viewedPaywall)
+                    //                        }
                 case let .settings(destination):
                     PreferenceScreen(destination: destination)
                 case .favorites:
@@ -41,11 +41,11 @@ extension View {
                             Router.search.presentedSheet = nil
                         }
                     // MARK: Add back later maybe
-//                        .environment(Router.search)
+                    //                        .environment(Router.search)
                 case let .search(group):
                     let searchRouter = Router.search
                     let selectedGroupService = SelectedGroupService(group: group)
-
+                    
                     SearchScreen()
                         .environment(searchRouter)
                         .environment(selectedGroupService)
@@ -54,11 +54,11 @@ extension View {
                             Router.search.presentedSheet = nil
                         }
                     // MARK: Add back later maybe
-//                        .environment(Router.search)
+                    //                        .environment(Router.search)
                 case let .sceneSearchAdd(adding):
                     let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
-
+                    
                     SearchScreen()
                         .environment(adding)
                         .environment(searchRouter)
@@ -89,7 +89,7 @@ extension View {
                 case let .mediaDetail(content, group):
                     let selectedGroupService = SelectedGroupService(group: group)
                     let router = Router.secondary
-
+                    
                     NavigationStack {
                         MediaDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
@@ -110,7 +110,7 @@ extension View {
                 case let .artistDetail(content, group):
                     let router = Router.secondary
                     @State var selectedGroupService = SelectedGroupService(group: group)
-
+                    
                     NavigationStack {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
@@ -131,7 +131,7 @@ extension View {
                     .environment(selectedGroupService)
                     .customizeWindowSizeForMacOS15()
                     .withAlert()
-
+                    
                 case let .searchAdd(adding):
                     let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
@@ -195,7 +195,7 @@ extension View {
             .frame(idealWidth: 800, idealHeight: 800)
         }
     }
-
+    
     func withPopoverDestinations(popoverDestination: Binding<SheetDestination?>) -> some View {
         popover(item: popoverDestination) { destination in
             Group {
@@ -219,7 +219,7 @@ extension View {
                 case let .sceneSearchAdd(adding):
                     let searchRouter = Router.search
                     @State var selectedGroupService = SelectedGroupService()
-
+                    
                     SearchScreen()
                         .environment(adding)
                         .environment(searchRouter)
@@ -249,7 +249,7 @@ extension View {
                 case let .mediaDetail(content, group):
                     let router = Router()
                     let selectedGroupService = SelectedGroupService(group: group)
-
+                    
                     NavigationStack {
                         MediaDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
@@ -258,11 +258,11 @@ extension View {
                     .scrollContentBackground(.hidden)
                     .environment(router)
                     .environment(selectedGroupService)
-
+                    
                 case let .artistDetail(content, group):
                     @State var router = Router()
                     @State var selectedGroupService = SelectedGroupService(group: group)
-
+                    
                     NavigationStack(path: $router.path) {
                         ArtistDetailView(playableContent: content)
                             .navigationBarTitleDisplayMode(.inline)
@@ -279,7 +279,7 @@ extension View {
                 case let .searchAdd(adding):
                     @State var router = Router()
                     @State var selectedGroupService = SelectedGroupService()
-
+                    
                     SearchScreen(isAlarmSearch: true)
                         .environment(adding)
                         .environment(router)
@@ -315,86 +315,89 @@ extension View {
             .withEnvironments()
         }
     }
-
+    
     func withAppRouter() -> some View {
         @Bindable var sonosService = SonosService.shared
-
+        
         return navigationDestination(for: RouterDestination.self) { destination in
-            switch destination {
-            case let .player(groupID):
-                if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-                    LargePlayerView(group: $sonosService.sorted[group])
-                } else {
-                    GroupNoLongerAvailableScreen()
+            Group {
+                switch destination {
+                case let .player(groupID):
+                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
+                        LargePlayerView(group: $sonosService.sorted[group])
+                    } else {
+                        GroupNoLongerAvailableScreen()
+                    }
+                case let .groupDestination(content, position):
+                    PlayerSelectionView(playableContent: content, position: position)
+                case .manageScenes:
+                    ManageSceneScreen()
+                case let .mediaDetail(content, _):
+                    MediaDetailView(playableContent: content)
+                case let .artistDetail(content, _):
+                    ArtistDetailView(playableContent: content)
+                case let .createScene(content):
+                    NavigationStack {
+                        SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
+                    }
+                case .alarms:
+                    AlarmListView()
+                case let .addAlarm(group):
+                    AlarmView(group: group, alarm: .newAlarm)
+                case let .editAlarm(alarm):
+                    AlarmView(edit: true, alarm: alarm)
+                case .speakerSettingsList:
+                    SpeakerSettingsListView()
+                case let .speakerSettings(room: room):
+                    SpeakerSettingsView(room: room)
+                case let .playableContentList(group: group, contentType: contentType):
+                    let title = switch contentType {
+                    case .track:
+                        "Songs"
+                    case .album:
+                        "Albums"
+                    case .artist:
+                        "Artists"
+                    case .playlist:
+                        "Playlists"
+                    default:
+                        ""
+                    }
+                    PlayableContentList(type: contentType)
+                        .navigationTitle(title)
+                        .environment(group)
+                case .fullPlayHistoryList:
+                    PlayHistoryFullView()
+                case let .playableLibraryList(title: title, items: items, action: action):
+                    PlayableList(items: items, action: action)
+                        .navigationTitle(title)
+                case let .playableList(title: title, playAllItem: playAllItem, action: action):
+                    PlayableListView(playAllItem: playAllItem, action: action)
+                        .navigationTitle(title)
+                case let .playableGridScreen(title: title, items: items, action: action):
+                    PlayableGridScreen(items: items, action: action)
+                        .navigationTitle(title)
+                case .houseHold:
+                    HouseholdScreen()
+                case .servicePreferenceScreen:
+                    ServicePreferenceScreen()
+                case .spotifyUserPlaylist:
+                    List {
+                        SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)
+                            .navigationTitle("Spotify User Playlists")
+                    }
+                case .genreList:
+                    GenreListView()
+                case let .folderBrowse(item: item, title: title):
+                    FolderBrowseView(item: item, title: title)
+                case .connectByIP:
+                    ConnectByIPScreen()
                 }
-            case let .groupDestination(content, position):
-                PlayerSelectionView(playableContent: content, position: position)
-            case .manageScenes:
-                ManageSceneScreen()
-            case let .mediaDetail(content, _):
-                MediaDetailView(playableContent: content)
-            case let .artistDetail(content, _):
-                ArtistDetailView(playableContent: content)
-            case let .createScene(content):
-                NavigationStack {
-                    SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
-                }
-            case .alarms:
-                AlarmListView()
-            case let .addAlarm(group):
-                AlarmView(group: group, alarm: .newAlarm)
-            case let .editAlarm(alarm):
-                AlarmView(edit: true, alarm: alarm)
-            case .speakerSettingsList:
-                SpeakerSettingsListView()
-            case let .speakerSettings(room: room):
-                SpeakerSettingsView(room: room)
-            case let .playableContentList(group: group, contentType: contentType):
-                let title = switch contentType {
-                case .track:
-                    "Songs"
-                case .album:
-                    "Albums"
-                case .artist:
-                    "Artists"
-                case .playlist:
-                    "Playlists"
-                default:
-                    ""
-                }
-                PlayableContentList(type: contentType)
-                    .navigationTitle(title)
-                    .environment(group)
-            case .fullPlayHistoryList:
-                PlayHistoryFullView()
-            case let .playableLibraryList(title: title, items: items, action: action):
-                PlayableList(items: items, action: action)
-                    .navigationTitle(title)
-            case let .playableList(title: title, playAllItem: playAllItem, action: action):
-                PlayableListView(playAllItem: playAllItem, action: action)
-                    .navigationTitle(title)
-            case let .playableGridScreen(title: title, items: items, action: action):
-                PlayableGridScreen(items: items, action: action)
-                    .navigationTitle(title)
-            case .houseHold:
-                HouseholdScreen()
-            case .servicePreferenceScreen:
-                ServicePreferenceScreen()
-            case .spotifyUserPlaylist:
-                List {
-                    SpotifyUsersPlaylistView(playlistCountLimit: .max, hideNavigation: true)
-                        .navigationTitle("Spotify User Playlists")
-                }
-            case .genreList:
-                GenreListView()
-            case let .folderBrowse(item: item, title: title):
-                FolderBrowseView(item: item, title: title)
-            case .connectByIP:
-                ConnectByIPScreen()
             }
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
-
+    
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
 #if !os(visionOS)
         inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
@@ -433,7 +436,7 @@ extension View {
         self
 #endif
     }
-
+    
     func withEnvironments() -> some View {
         environment(SonosService.shared)
             .environment(SubscriptionService.shared)
@@ -449,7 +452,7 @@ extension View {
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
     }
-
+    
     @ViewBuilder
     func addDismiss(override: Bool = false, action: @escaping () -> Void) -> some View {
         if override || Router.main.presentedSheet != nil  {

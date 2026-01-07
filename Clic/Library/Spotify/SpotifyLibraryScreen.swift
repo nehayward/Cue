@@ -14,7 +14,7 @@ struct SpotifyLibraryScreen: View {
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SpotifyBrowseService.self) private var spotifyBrowseService
 
-    @State private var router = Router()
+    @State private var router = Router.browse
     @State private var isLoading = true
     @State private var configStore = SectionConfigurationStores.shared.spotifyLibrary
 

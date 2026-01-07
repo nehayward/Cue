@@ -18,7 +18,7 @@ struct LibraryBrowseScreen: View {
     @Environment(LibraryBrowseService.self) var browseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
-    @State private var router = Router()
+    @State private var router = Router.browse
 
     var body: some View {
         @Bindable var sonosService = sonosService

@@ -469,7 +469,6 @@ public final class SpotifyAPI {
                         print("Received 401 Unauthorized, attempting token refresh")
                         retryCount += 1
                         if retryCount < maxRetries {
-                            print("FAILED TO REFRESH TOKEN")
                             guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
                                 throw AuthError.invalidToken
                             }
