@@ -10,15 +10,16 @@ import Defaults
 struct PlayAllButtonView: View {
     @Environment(Router.self) private var router: Router?
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    
     let item: PlayableContent?
-
+    
     var body: some View {
         if let item {
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task {
-                    await play(position: item.content.type == .playlist ? .replace : .now)
+                    await play()
                 }
             } label: {
                 Label("Play All", systemImage: "play.fill")
@@ -39,10 +40,14 @@ struct PlayAllButtonView: View {
     }
     
     @MainActor
-    private func play(position: QueuePosition = .now) async {
+    private func play(position: QueuePosition? = nil) async {
         if let item {
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
+            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, item] group in
+                let finalPosition = position ?? QueuePosition.defaultPosition(
+                    for: item.content.type,
+                    replaceQueueByDefault: replaceQueueByDefault
+                )
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition, title: finalPosition.title))
             }
             
             guard let group = selectedGroupService?.group else {

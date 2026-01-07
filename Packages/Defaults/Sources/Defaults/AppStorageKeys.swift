@@ -10,4 +10,5 @@ public enum AppStorageKeys {
     public static let showArtworkOnly = "\(Prefix.id).showArtworkOnly"
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
+    public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
 }

@@ -1,11 +1,10 @@
 import CloudStorage
-import MusicSearchKit
 import Defaults
 import MusicKit
+import MusicSearchKit
 import OrderedCollections
-import SwiftUI
 import SonosKit
-import Defaults
+import SwiftUI
 
 struct PlayableCardView: View {
     @Environment(SonosService.self) private var sonosService
@@ -15,11 +14,13 @@ struct PlayableCardView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
-
+    
+    
     var body: some View {
         VStack {
             if let add = adding?.add, add {
@@ -51,7 +52,7 @@ struct PlayableCardView: View {
             }
         }
     }
-
+    
     private var content: some View {
         VStack {
             if item.content.type == .folder {
@@ -112,13 +113,16 @@ struct PlayableCardView: View {
             play()
         }
     }
-
-    private func play(position: QueuePosition = .now) {
+    
+    private func play(position: QueuePosition? = nil) {
         hideKeyboard()
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
-                let position = [.playlist, .libraryPlaylist].contains(item.content.type) ? .replace : position
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position))
+            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault] group in
+                let finalPosition = position ?? QueuePosition.defaultPosition(
+                    for: item.content.type,
+                    replaceQueueByDefault: replaceQueueByDefault
+                )
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition))
                 router.show(destination: .player(groupID: group.coordinatorID))
             }
             guard let group = selectedGroupService.group else {

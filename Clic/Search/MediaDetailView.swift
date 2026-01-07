@@ -15,7 +15,8 @@ struct MediaDetailView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(AlertService.self) private var alertService
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
-
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    
     @State var playableContent: PlayableContent
     @State private var editMode: EditMode = .inactive
     @State private var tracks: [PlayableContent] = []
@@ -25,7 +26,7 @@ struct MediaDetailView: View {
     @State private var duration: Duration?
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
-
+    
     var body: some View {
         @Bindable var router = router
         List(selection: $selection) {
@@ -66,37 +67,37 @@ struct MediaDetailView: View {
                         .padding([.bottom, .trailing])
                 }
                 // TODO: Add back for plex, need to handle image size changes
-//                ContentArtworkView(content: playableContent)
-//                    .frame(idealWidth: 320, idealHeight: 320)
+                //                ContentArtworkView(content: playableContent)
+                //                    .frame(idealWidth: 320, idealHeight: 320)
             }
             .frame(maxWidth: .infinity, minHeight: 250, maxHeight: 250)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
-
+            
             VStack(spacing: 0) {
                 Text(playableContent.subtitle)
                 // MARK: Add back
-//                if let artist = playableContent.metadata?.artist {
-//                    ZStack {
-//                        NavigationLink(value: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group)) {
-//                            EmptyView()
-//                        }
-//                        .opacity(0)
-//                        Button {
-//                            router.navigate(to: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group))
-//                        } label: {
-//                            Text(artist)
-//                                .multilineTextAlignment(.center)
-//                                .fontDesign(.rounded)
-//                                .font(.title3)
-//                                .frame(maxWidth: .infinity)
-//                                .lineLimit(1, reservesSpace: true)
-//                                .foregroundStyle(.accent)
-//                        }
-//                    }
-//                }
-//
+                //                if let artist = playableContent.metadata?.artist {
+                //                    ZStack {
+                //                        NavigationLink(value: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group)) {
+                //                            EmptyView()
+                //                        }
+                //                        .opacity(0)
+                //                        Button {
+                //                            router.navigate(to: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group))
+                //                        } label: {
+                //                            Text(artist)
+                //                                .multilineTextAlignment(.center)
+                //                                .fontDesign(.rounded)
+                //                                .font(.title3)
+                //                                .frame(maxWidth: .infinity)
+                //                                .lineLimit(1, reservesSpace: true)
+                //                                .foregroundStyle(.accent)
+                //                        }
+                //                    }
+                //                }
+                //
                 HStack(spacing: 0) {
                     if let totalSongs {
                         Text(totalSongs, format: .number)
@@ -112,16 +113,16 @@ struct MediaDetailView: View {
                         }
                     }
                 }
-//                if let audioFormat = playableContent.metadata?.audioCodec {
-//                    Text(audioFormat)
-//                }
+                //                if let audioFormat = playableContent.metadata?.audioCodec {
+                //                    Text(audioFormat)
+                //                }
             }
             .frame(maxWidth: .infinity)
             .fontDesign(.rounded)
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
-
+            
             HStack {
                 Button {
                     play()
@@ -135,7 +136,7 @@ struct MediaDetailView: View {
                 .bold()
                 .buttonStyle(.bordered)
                 .tint(.accent)
-
+                
                 Button {
                     play([.shuffle, .normal])
                 } label: {
@@ -153,7 +154,7 @@ struct MediaDetailView: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
-
+            
             ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
                 VStack {
                     PlayableContentView(item: item,
@@ -198,7 +199,7 @@ struct MediaDetailView: View {
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
             .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
-
+            
             if tracks.isEmpty, !isLoaded {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -256,7 +257,7 @@ struct MediaDetailView: View {
                     .bold()
                     .multilineTextAlignment(.center)
             }
-
+            
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if playableContent.isSonosPlaylist {
                     Button(editMode.isEditing ? "Done" : "Edit") {
@@ -279,21 +280,25 @@ struct MediaDetailView: View {
             }
         }
     }
-
+    
     private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
-            let queue: ((GroupRoom) async throws -> Void) = { group in
+            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, playableContent, totalSongs, tracks] group in
+                let position = QueuePosition.defaultPosition(
+                    for: playableContent.content.type,
+                    replaceQueueByDefault: replaceQueueByDefault
+                )
                 QueueManager.shared.addToQueue(
-                        item: QueueItem(
-                            playableContent: playableContent,
-                            group: group,
-                            position: [.playlist, .libraryPlaylist].contains(playableContent.content.type) ? .replace : .now,
-                            total: totalSongs ?? tracks.count,
-                            playMode: playMode,
-                            showBanner: false
-                        )
+                    item: QueueItem(
+                        playableContent: playableContent,
+                        group: group,
+                        position: position,
+                        total: totalSongs ?? tracks.count,
+                        playMode: playMode,
+                        showBanner: false
                     )
-                    Router.main.show(destination: .player(groupID: group.coordinatorID))
+                )
+                Router.main.show(destination: .player(groupID: group.coordinatorID))
                 return
             }
             
@@ -301,15 +306,15 @@ struct MediaDetailView: View {
                 router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: playableContent))
                 return
             }
-        
+            
             try await queue(group)
         }
     }
-
+    
     private var totalDuration: Duration {
         Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
     }
-
+    
     private func updateTracks(offset: Int = 0) async {
         if offset > 0, !playableContent.content.type.isPlaylist {
             return
@@ -379,7 +384,7 @@ struct MediaDetailView: View {
         case (.track, .library):
             guard let albumName = playableContent.metadata?.album,
                   let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return }
-
+            
             newTracks = await SonosService.shared.libraryAlbum(name: albumName)
             guard let albumPlayable =  await SonosService.shared.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
             playableContent = albumPlayable
@@ -401,7 +406,7 @@ struct MediaDetailView: View {
             if nextCursor == nil {
                 isLoadingMore = false
             }
-        // MARK: Plex
+            // MARK: Plex
         case (.track, .plex):
             if let albumID = playableContent.metadata?.albumID {
                 guard let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
@@ -432,20 +437,20 @@ struct MediaDetailView: View {
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
         var idCounts: [String: Int] = [:]
-
+        
         for var newTrack in newTracks {
             let originalID = newTrack.id
             let existingCount = idCounts[originalID] ?? tracks.filter { $0.id == originalID }.count
-
+            
             if existingCount > 0 {
                 newTrack.metadata?.position = existingCount + 1
             }
-
+            
             idCounts[originalID] = existingCount + 1
             tracks.append(newTrack)
         }
     }
-
+    
     private func move(from source: IndexSet, to destination: Int) {
         tracks.move(fromOffsets: source, toOffset: destination)
         Task {

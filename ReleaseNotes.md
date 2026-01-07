@@ -4,6 +4,7 @@
 - Fullscreen artwork mode: Toggle with Shift+Command+F or via Player Screen menu
 - State is now restored for the selected group upon app relaunch
 - Queue selection is preserved and restored on app restart
+- Added option in settings to set default behavior for Replace Queue for playback.
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing

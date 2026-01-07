@@ -14,7 +14,8 @@ struct PlayableArtworkView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -23,7 +24,7 @@ struct PlayableArtworkView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
-
+    
     var body: some View {
         content
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
@@ -31,7 +32,7 @@ struct PlayableArtworkView: View {
             .listRowSeparator(.hidden, edges: .all)
             .animation(.snappy, value: selectedGroupService?.group?.coordinatorRoom.track.trackID)
     }
-
+    
     private var content: some View {
         Menu {
             PlayableMenuView(item: item)
@@ -60,22 +61,29 @@ struct PlayableArtworkView: View {
             break
         }
     }
-
-    private func play(position: QueuePosition = .now) {
+    
+    private func play(position: QueuePosition? = nil) {
         if let add = adding?.add, add {
             adding?.content = item
             return
         }
         hideKeyboard()
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, item, parent, index, total] group in
                 if let parent {
-                    let position: QueuePosition = [.playlist, .libraryPlaylist].contains(parent.content.type) ? .replace : position
-                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: position, index: index, total: total, showBanner: false))
+                    let finalPosition = position ?? QueuePosition.defaultPosition(
+                        for: parent.content.type,
+                        replaceQueueByDefault: replaceQueueByDefault
+                    )
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: finalPosition, index: index, total: total, showBanner: false))
                     Router.main.show(destination: .player(groupID: group.coordinatorID))
                     return
                 }
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, index: index, total: total, title: position.title))
+                let finalPosition = position ?? QueuePosition.defaultPosition(
+                    for: item.content.type,
+                    replaceQueueByDefault: replaceQueueByDefault
+                )
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition, index: index, total: total, title: finalPosition.title))
             }
             
             guard let group = selectedGroupService?.group else {
@@ -88,7 +96,7 @@ struct PlayableArtworkView: View {
             try await queueSong(group)
         }
     }
-
+    
     private var trailingInset: Double {
         switch item.content.type {
         case .track, .favorite, .libraryTrack:

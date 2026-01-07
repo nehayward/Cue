@@ -21,3 +21,28 @@ public enum QueuePosition: Codable {
         }
     }
 }
+
+extension QueuePosition {
+    /// Determines the appropriate queue position for tap actions based on content type and user preferences
+    /// - Parameters:
+    ///   - contentType: The type of content being played
+    ///   - replaceQueueByDefault: User preference for default play action
+    /// - Returns: The appropriate QueuePosition (.now or .replace)
+    public static func defaultPosition(
+        for contentType: ContentType,
+        replaceQueueByDefault: Bool
+    ) -> QueuePosition {
+        // Playlists always replace queue regardless of setting
+        if contentType.isPlaylist {
+            return .replace
+        }
+
+        // For tracks and albums, respect the user setting
+        if [.track, .album, .libraryTrack, .libraryAlbum].contains(contentType) {
+            return replaceQueueByDefault ? .replace : .now
+        }
+
+        // Default to .now for other content types (radio, favorites, etc.)
+        return .now
+    }
+}

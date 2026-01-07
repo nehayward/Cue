@@ -1,12 +1,12 @@
 import Analytics
 import CloudStorage
 import Defaults
-import SwiftUI
-import SonosKit
-import RevenueCat
 import MusicSearchKit
-import SubscriptionKit
+import RevenueCat
 import RevenueCatUI
+import SonosKit
+import SubscriptionKit
+import SwiftUI
 
 struct PreferenceScreen: View {
     @Environment(\.dismiss) var dismiss
@@ -16,7 +16,7 @@ struct PreferenceScreen: View {
     @Environment(MusicSearchService.self) var musicSearchService
     @Environment(AlertService.self) var alertService
     @Environment(CoreFeatures.self) var coreFeatures
-
+    
     var destination: RouterDestination? = nil
     
     @State private var router = Router()
@@ -27,12 +27,12 @@ struct PreferenceScreen: View {
     @AppStorage("AppIcon") private var selectedAppIcon = "Default"
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) private var isCompact: Bool = false
     @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
-
+    
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
     
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
-    
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
@@ -44,14 +44,14 @@ struct PreferenceScreen: View {
     @State private var isUploading = false
     @State private var uploadSuccess = false
     
-    #if DEBUG
+#if DEBUG
     @State private var servers: [MediaServer] = []
-    #endif
+#endif
     
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var coreFeatures = coreFeatures
-
+        
         NavigationStack(path: $router.path) {
             Form {
                 Section {
@@ -101,48 +101,48 @@ struct PreferenceScreen: View {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
                 
-//#if DEBUG
-//                Section("Discovered") {
-//                    ForEach(servers) { server in
-//                        VStack(alignment: .leading) {
-//                            HStack {
-//                                Text(server.name).bold()
-//                                Text(server.type.rawValue)
-//                            }
-//                            Text("\(server.token)")
-//                                .textSelection(.enabled)
-//                                .lineLimit(1)
-//                        }
-//                    }
-//                }
-//#endif
+                //#if DEBUG
+                //                Section("Discovered") {
+                //                    ForEach(servers) { server in
+                //                        VStack(alignment: .leading) {
+                //                            HStack {
+                //                                Text(server.name).bold()
+                //                                Text(server.type.rawValue)
+                //                            }
+                //                            Text("\(server.token)")
+                //                                .textSelection(.enabled)
+                //                                .lineLimit(1)
+                //                        }
+                //                    }
+                //                }
+                //#endif
                 
-//                if UIApplication.shared.isRunningInTestFlightEnvironment() {
-//                    Section {
-//                        NavigationLink("Logs") {
-//                            LogScreen()
-//                        }
-//                        if let vanishes = sonosService.system?.vanished {
-//                            Text("Vanished")
-//                            ForEach(vanishes) { vanish in
-//                                VStack(alignment: .leading) {
-//                                    Text(vanish.id)
-//                                    Text(vanish.name ?? "")
-//                                    if let lastSeen = vanish.lastSeen {
-//                                        Text(lastSeen, format: .dateTime)
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    } header: {
-//                        Text("Debug 👾")
-//                    }
-//
-//                    PaywallButtonView()
-//                        .environment(router)
-//                        .listRowBackground(Color.clear)
-//                        .listRowInsets(EdgeInsets())
-//                }
+                //                if UIApplication.shared.isRunningInTestFlightEnvironment() {
+                //                    Section {
+                //                        NavigationLink("Logs") {
+                //                            LogScreen()
+                //                        }
+                //                        if let vanishes = sonosService.system?.vanished {
+                //                            Text("Vanished")
+                //                            ForEach(vanishes) { vanish in
+                //                                VStack(alignment: .leading) {
+                //                                    Text(vanish.id)
+                //                                    Text(vanish.name ?? "")
+                //                                    if let lastSeen = vanish.lastSeen {
+                //                                        Text(lastSeen, format: .dateTime)
+                //                                    }
+                //                                }
+                //                            }
+                //                        }
+                //                    } header: {
+                //                        Text("Debug 👾")
+                //                    }
+                //
+                //                    PaywallButtonView()
+                //                        .environment(router)
+                //                        .listRowBackground(Color.clear)
+                //                        .listRowInsets(EdgeInsets())
+                //                }
                 
                 Section {
                     Label {
@@ -151,8 +151,12 @@ struct PreferenceScreen: View {
                             Spacer()
                             Image(systemName: "circle.fill")
                                 .font(.caption2)
-                                .foregroundStyle(!sonosService.sonosPulse.isCancelled ? .green : .red)
-                                .shadow(color: !sonosService.sonosPulse.isCancelled ? .green : .red, radius: 2, x: 0, y: 0)
+                                .foregroundStyle(
+                                    !sonosService.sonosPulse.isCancelled ? .green : .red
+                                )
+                                .shadow(
+                                    color: !sonosService.sonosPulse.isCancelled ? .green : .red,
+                                    radius: 2, x: 0, y: 0)
                         }
                     } icon: {
                         Image(systemName: "wifi")
@@ -318,7 +322,31 @@ struct PreferenceScreen: View {
                         }
                     }.disabled(!subscriptionService.subscription.isActive)
                 }
-            #if targetEnvironment(macCatalyst)
+                Section {
+                    Label {
+                        Toggle(isOn: $replaceQueueByDefault) {
+                            Text("Replace Queue by Default")
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "play.square.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .foregroundStyle(Color.accent.gradient)
+                            )
+                    }
+                } header: {
+                    Text("Playback")
+                } footer: {
+                    Text( "When enabled, tapping a song or album will replace the current queue instead of adding it next. You can still use long-press to access 'Play Next' and 'Play Last' options.")
+                }
+#if targetEnvironment(macCatalyst)
                 Section {
                     // Status indicator
                     HStack {
@@ -485,9 +513,10 @@ struct PreferenceScreen: View {
                         
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
-                                Text("Volume Steps")
+                                Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
                                 Text("Adjust how much the volume changes with each step in Live Activities.")
                             }
+                            .sensoryFeedback(.levelChange, trigger: liveActivityStep)
                         } icon: {
                             Image(systemName: "plus.minus.capsule")
                                 .resizable()
@@ -659,42 +688,42 @@ struct PreferenceScreen: View {
                             .frame(width: 32, height: 32)
                             .background(
                                 RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(.black.gradient)
                             )
                     }
                     // MARK: Send Logs
-//                    Button {
-//                        isUploading = true
-//                        guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
-//                            print("Documents directory not found")
-//                            isUploading = false
-//                            return
-//                        }
-//
-//                        let fileURL = documentDirectory.appendingPathComponent("Groups.txt")
-//                        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
-//                            isUploading = false
-//                            return
-//                        }
-//                        Task {
-//                            await uploadLogs(text: contents)
-//                            isUploading = false
-//                            uploadSuccess = true
-//                        }
-//                    } label: {
-//                        HStack {
-//                            Image(systemName: uploadSuccess ? "checkmark.circle.fill" : "paperplane.fill")
-//                                .foregroundColor(uploadSuccess ? .green : .blue)
-//                            Text("Send Logs")
-//                            if isUploading {
-//                                Spacer()
-//                                ProgressView()
-//                            }
-//                        }
-//                        .frame(maxWidth: .infinity, alignment: .leading)
-//                        .padding()
-//                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.systemBackground)))
-//                    }
+                    //                    Button {
+                    //                        isUploading = true
+                    //                        guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
+                    //                            print("Documents directory not found")
+                    //                            isUploading = false
+                    //                            return
+                    //                        }
+                    //
+                    //                        let fileURL = documentDirectory.appendingPathComponent("Groups.txt")
+                    //                        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
+                    //                            isUploading = false
+                    //                            return
+                    //                        }
+                    //                        Task {
+                    //                            await uploadLogs(text: contents)
+                    //                            isUploading = false
+                    //                            uploadSuccess = true
+                    //                        }
+                    //                    } label: {
+                    //                        HStack {
+                    //                            Image(systemName: uploadSuccess ? "checkmark.circle.fill" : "paperplane.fill")
+                    //                                .foregroundColor(uploadSuccess ? .green : .blue)
+                    //                            Text("Send Logs")
+                    //                            if isUploading {
+                    //                                Spacer()
+                    //                                ProgressView()
+                    //                            }
+                    //                        }
+                    //                        .frame(maxWidth: .infinity, alignment: .leading)
+                    //                        .padding()
+                    //                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.systemBackground)))
+                    //                    }
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
@@ -837,7 +866,7 @@ struct PreferenceScreen: View {
 
 #Preview {
     Text("Preference")
-        .sheet(isPresented:.constant(true)) {
+        .sheet(isPresented: .constant(true)) {
             PreferenceScreen()
                 .withEnvironments()
         }
