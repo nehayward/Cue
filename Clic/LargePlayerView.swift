@@ -18,6 +18,8 @@ struct LargePlayerView: View {
     @State var scaleAnimation: Double = -40
     @State private var isEditing: Bool = false
     @State private var isHoveringOnQueueList: Bool = false
+    @State private var isHoveringOnArtist: Bool = false
+    @State private var isHoveringOnSong: Bool = false
     @State private var refreshID = UUID()
     @State private var shouldFade: Bool = false
     @State private var isFavorite: Bool?
@@ -79,33 +81,65 @@ struct LargePlayerView: View {
                     .padding(.bottom, showArtworkOnly ? 0 : 12)
                     .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                     .padding(.top, showArtworkOnly ? 100 : nil)
-                
-                    VStack {
-                        if group.coordinatorRoom.container != nil {
-                            TrackContainerView(group: group)
-                                .transition(.opacity)
-                        } else {
-                            Text(group.coordinatorRoom.radioStation ?? "")
-                                .font(.caption.smallCaps())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1, reservesSpace: true)
-                        }
+                VStack {
+                    if group.coordinatorRoom.container != nil {
+                        TrackContainerView(group: group)
+                            .transition(.opacity)
+                    } else {
+                        Text(group.coordinatorRoom.radioStation ?? "")
+                            .font(.caption.smallCaps())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1, reservesSpace: true)
                     }
-                    .animation(.default, value: group.coordinatorRoom.container != nil)
-                    .frame(height: 12)
+                }
+                .animation(.default, value: group.coordinatorRoom.container != nil)
+                .frame(height: 12)
+                Button {
+                    guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
+                        return
+                    }
+                    router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                } label: {
                     MarqueeText(group.coordinatorRoom.track.song)
                         .bold()
                         .multilineTextAlignment(.center)
                         .fontDesign(.rounded)
                         .font(.title2)
+                        .foregroundStyle(isHoveringOnSong ? Color.primary.opacity(0.8) : Color.primary)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
+                        return
+                    }
+                    withAnimation(.interactiveSpring) {
+                        isHoveringOnSong = hovering
+                    }
+                }
+                Button {
+                    guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
+                        return
+                    }
+                    router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                } label: {
                     Text(group.coordinatorRoom.track.artist)
                         .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isHoveringOnArtist ? .primary : .secondary)
                         .fontDesign(.rounded)
                         .font(.title3)
                         .frame(maxWidth: .infinity)
                         .lineLimit(1, reservesSpace: true)
                         .padding(.bottom, showArtworkOnly ? 100 : nil)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
+                        return
+                    }
+                    withAnimation(.interactiveSpring) {
+                        isHoveringOnArtist = hovering
+                    }
+                }
                 if !showArtworkOnly {
                     VStack {
                         playbackView()

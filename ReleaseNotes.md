@@ -5,6 +5,8 @@
 - State is now restored for the selected group upon app relaunch
 - Queue selection is preserved and restored on app restart
 - Added option in settings to set default behavior for Replace Queue for playback.
+- Browse now persists it's location.
+- Clickable song and artist names on Player Screen with hover effects to quickly navigate to album and artist details
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing
