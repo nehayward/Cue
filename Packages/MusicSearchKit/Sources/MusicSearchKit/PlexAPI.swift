@@ -798,7 +798,7 @@ public final class PlexAPI {
     }
 
     public func getPlexServers() async -> [PlexServer] {
-        guard let token = await authenticator.authToken else { return [] }
+        guard let token = authenticator.authToken else { return [] }
         var components = URLComponents(string: "https://plex.tv/api/v2/resources")!
         components.queryItems = [.init(name: "includeHttps", value: "1"), .init(name: "includeRelay", value: "1")]
         var request = URLRequest(url: components.url!)

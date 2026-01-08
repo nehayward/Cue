@@ -30,14 +30,16 @@ public struct PlexServer: Codable {
         connections.filter({ $0.local }).map(\.uri)
     }
 
+    private static let preferredPorts = [8443, 32400, 443]
+
     public var nonLocalURIs: [String] {
         connections
             .filter { !$0.local }
             .filter { !$0.address.lowercased().contains("quick") }
-            .filter { $0.port != 443 }
             .sorted {
-                // Prioritize 32400
-                ($0.port == 32400 ? 0 : 1) < ($1.port == 32400 ? 0 : 1)
+                let p0 = Self.preferredPorts.firstIndex(of: $0.port ?? -1) ?? Int.max
+                let p1 = Self.preferredPorts.firstIndex(of: $1.port ?? -1) ?? Int.max
+                return p0 < p1
             }
             .map(\.uri)
     }

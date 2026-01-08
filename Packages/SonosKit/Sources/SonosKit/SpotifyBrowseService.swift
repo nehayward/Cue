@@ -90,22 +90,18 @@ public final class SpotifyBrowseService {
     
     /// Updates both playlists and songs concurrently
     public func updatePlaylistsAndSongs(offset: Int? = nil) async {
-        await withTaskGroup { group in
-            group.addTask { [weak self] in
-                guard let self = self else { return }
-                await updatePlaylists(offset: offset, limit: 10)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.updatePlaylists(offset: offset, limit: 10)
             }
-            
-            group.addTask { [weak self] in
-                guard let self = self else { return }
-                await updateSongs(offset: offset, limit: 10)
+
+            group.addTask {
+                await self.updateSongs(offset: offset, limit: 10)
             }
-            
-            group.addTask { [weak self] in
-                guard let self = self else { return }
-                await userAlbums(offset: offset, limit: 10)
+
+            group.addTask {
+                await self.userAlbums(offset: offset, limit: 10)
             }
-            await group.waitForAll()
         }
     }
 

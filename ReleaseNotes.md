@@ -9,6 +9,10 @@
 –– Bug Fixes & Improvements ––
 - Fix title parsing
 - Fixed an issue where artwork wasn't updating for TuneIn
+- Fixed an issue where the Live Activity volume stepper value would not appear in Preferences
+- Fixed an issue with prioritizing the Plex Server remote access URL
+- Fixed an issue where the Spotify Library would not refresh correctly
+- Fixed missing artwork for Apple Library Artists
 
 
 # 2025.18

@@ -9,7 +9,6 @@ struct SoundCloudBrowseScreen: View {
     @Environment(SoundCloudBrowseService.self) private var soundCloudBrowseService
 
     @State private var router = Router.browse
-    @State private var isLoading: Bool = true
     
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -29,14 +28,8 @@ struct SoundCloudBrowseScreen: View {
                                                 .fontDesign(.rounded)
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                         }
-                                        .containerRelativeFrame(
-                                            .horizontal, alignment: .topLeading
-                                        ) { length, axis in
-                                            if axis == .vertical {
-                                                return length / 3.0
-                                            } else {
-                                                return length / 2.5
-                                            }
+                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
+                                            return length / 2.5
                                         }
                                         .draggable(item)
                                     }
@@ -93,7 +86,7 @@ struct SoundCloudBrowseScreen: View {
                         }
                         .padding()
                     }
-                } else if !isLoading {
+                } else if !soundCloudBrowseService.isLoading, soundCloudBrowseService.likedTracks.isEmpty {
                     Section {
                         VStack(spacing: 16) {
                             Image(systemName: "heart.slash")
@@ -120,9 +113,7 @@ struct SoundCloudBrowseScreen: View {
             .navigationTitle("SoundCloud Library")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                isLoading = true
                 await soundCloudBrowseService.updateLikedTracks()
-                isLoading = false
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -137,7 +128,9 @@ struct SoundCloudBrowseScreen: View {
             }
 #endif
             .refreshable {
-                await soundCloudBrowseService.refresh()
+                Task {
+                    await soundCloudBrowseService.refresh()
+                }
             }
             .withAppRouter()
         }

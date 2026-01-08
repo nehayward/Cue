@@ -31,7 +31,7 @@ struct ContentArtworkView: View {
         }
         
         // If no thumbnail and this is a library artist, try the fetched artwork
-        if content.content.type == .artist, content.content.service == .library {
+        if content.content.type.isArtist, content.content.service == .library || content.content.service == .apple {
             return fetchedArtworkURL
         }
         
@@ -79,7 +79,7 @@ struct ContentArtworkView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .task {
-            if content.content.type == .artist, content.content.service == .library {
+            if content.content.type.isArtist, content.content.service == .library || content.content.service == .apple {
                 if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: preferredSize == 50])) {
                     return
                 }

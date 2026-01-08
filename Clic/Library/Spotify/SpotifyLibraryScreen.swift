@@ -10,14 +10,14 @@ import TipKit
 
 struct SpotifyLibraryScreen: View {
     @Environment(\.dismiss) var dismiss
-
+    
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SpotifyBrowseService.self) private var spotifyBrowseService
-
+    
     @State private var router = Router.browse
     @State private var isLoading = true
     @State private var configStore = SectionConfigurationStores.shared.spotifyLibrary
-
+    
     var body: some View {
         NavigationStack(path: $router.path) {
             ScrollView {
@@ -69,7 +69,9 @@ struct SpotifyLibraryScreen: View {
                 spotifyBrowseService.playlists.removeAll()
                 spotifyBrowseService.tracks.removeAll()
                 spotifyBrowseService.albums.removeAll()
-                await updateSpotifyBrowseService()
+                Task {
+                    await updateSpotifyBrowseService(offset: 0)
+                }
             }
             .withAppRouter()
         }
@@ -94,34 +96,38 @@ struct SpotifyLibraryScreen: View {
         case .likedSongs:
             if !spotifyBrowseService.tracks.isEmpty {
                 Section {
-                    ScrollView(.horizontal) {
-                        LazyHStack {
-                            ForEach(spotifyBrowseService.tracks.prefix(10)) { item in
-                                VStack {
-                                    PlayableArtworkView(item: item)
-                                    Text(item.title)
-                                        .foregroundStyle(.secondary)
-                                        .font(.caption)
-                                        .lineLimit(2, reservesSpace: true)
-                                        .fontDesign(.rounded)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                .containerRelativeFrame(
-                                    .horizontal, alignment: .topLeading
-                                ) { length, axis in
-                                    if axis == .vertical {
-                                        return length / 3.0
-                                    } else {
-                                        return length / 2.5
+                    VStack {
+                        ScrollView(.horizontal) {
+                            LazyHStack {
+                                ForEach(spotifyBrowseService.tracks.prefix(10)) { item in
+                                    VStack {
+                                        PlayableArtworkView(item: item)
+                                        Text(item.title)
+                                            .foregroundStyle(.secondary)
+                                            .font(.caption)
+                                            .lineLimit(2, reservesSpace: true)
+                                            .fontDesign(.rounded)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                     }
+                                    .containerRelativeFrame(
+                                        .horizontal, alignment: .topLeading
+                                    ) { length, axis in
+                                        if axis == .vertical {
+                                            return length / 3.0
+                                        } else {
+                                            return length / 2.5
+                                        }
+                                    }
+                                    .draggable(item)
                                 }
-                                .draggable(item)
                             }
                         }
+                        .scrollIndicators(.hidden)
+                        .scrollClipDisabled()
+                        PlayAllButtonView(item: .spotifyLikes)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
                     }
-                    .scrollIndicators(.hidden)
-                    .scrollClipDisabled()
-                    .padding(.bottom, 24)
                 } header: {
                     NavigationLink(value: RouterDestination.playableList(title: "Spotify Songs", playAllItem: .spotifyLikes, action: { offset in
                         await spotifyBrowseService.updateSongs()
