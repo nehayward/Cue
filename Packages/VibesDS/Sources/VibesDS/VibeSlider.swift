@@ -193,7 +193,7 @@ public struct VibeSlider: View {
     }
     
     private var offsetForValue: Double {
-        min(max(0, calculateProgressWidth() - 28), width - 28)
+        min(max(0, calculateProgressWidth() - 28), max(0, width - 28))
     }
 }
 
