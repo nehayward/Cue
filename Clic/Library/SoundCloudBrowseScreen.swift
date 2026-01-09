@@ -62,6 +62,54 @@ struct SoundCloudBrowseScreen: View {
                         .padding(.horizontal, 16)
                     }
                     .listRowBackground(Color.clear)
+
+                if !soundCloudBrowseService.likedPlaylists.isEmpty {
+                    Section {
+                        VStack {
+                            ScrollView(.horizontal) {
+                                LazyHStack {
+                                    ForEach(soundCloudBrowseService.likedPlaylists.prefix(10)) { item in
+                                        VStack {
+                                            PlayableArtworkView(item: item)
+                                            Text(item.title)
+                                                .foregroundStyle(.secondary)
+                                                .font(.caption)
+                                                .lineLimit(2, reservesSpace: true)
+                                                .fontDesign(.rounded)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
+                                            return length / 2.5
+                                        }
+                                        .draggable(item)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                            .scrollIndicators(.hidden)
+                            .scrollClipDisabled()
+                        }
+                    } header: {
+                        NavigationLink(value: RouterDestination.playableList(title: "SoundCloud Playlists", playAllItem: nil, action: { offset in
+                            // If we need more playlists and can load more, load them
+                            if offset >= soundCloudBrowseService.likedPlaylists.count && soundCloudBrowseService.canLoadMorePlaylists {
+                                await soundCloudBrowseService.loadMorePlaylists()
+                            }
+                            // Return the playlists up to the requested offset
+                            return Array(soundCloudBrowseService.likedPlaylists.prefix(offset + 50))
+                        })) {
+                            HStack(spacing: 2) {
+                                Text("Playlists")
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                    .listRowBackground(Color.clear)
+                }
                 } else if let error = soundCloudBrowseService.error {
                     Section {
                         VStack(spacing: 16) {
@@ -113,7 +161,10 @@ struct SoundCloudBrowseScreen: View {
             .navigationTitle("SoundCloud Library")
             .navigationBarTitleDisplayMode(.inline)
             .task {
-                await soundCloudBrowseService.updateLikedTracks()
+                await withTaskGroup { group in
+                    group.addTask { await soundCloudBrowseService.updateLikedTracks() }
+                    group.addTask { await soundCloudBrowseService.updateLikedPlaylists() }
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -144,7 +195,10 @@ struct SoundCloudBrowseScreen: View {
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet) {
             Task {
-                await soundCloudBrowseService.updateLikedTracks()
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { await soundCloudBrowseService.updateLikedTracks() }
+                    group.addTask { await soundCloudBrowseService.updateLikedPlaylists() }
+                }
             }
         }
     }

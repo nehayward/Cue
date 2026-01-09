@@ -8,6 +8,7 @@
 - Browse now persists it's location.
 - Tappable song and artist names on Player Screen with hover effects to quickly navigate to album and artist details
 - Add letter sections to Sonos Library Artist and Albums
+- Add Playlists to SoundCloud
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing
@@ -16,8 +17,6 @@
 - Fixed an issue with prioritizing the Plex Server remote access URL
 - Fixed an issue where the Spotify Library would not refresh correctly
 - Fixed missing artwork for Apple Library Artists
-
-
 
 # 2025.18
 
