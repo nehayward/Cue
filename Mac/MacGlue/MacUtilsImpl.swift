@@ -4,23 +4,29 @@
 //
 //  Created by Nick Hayward on 1/3/25.
 //
-//  MODERN IMPLEMENTATION FOR LAUNCHING CLICMINI
+//  CLICMINI LAUNCHER IMPLEMENTATION
 //
-//  This implementation uses the modern NSWorkspace.OpenConfiguration API
-//  combined with SMAppService for reliable cross-app launching.
+//  This implementation uses NSWorkspace.OpenConfiguration to launch ClicMini.
+//  The app is discovered by checking multiple standard locations in priority order.
 //
-//  REQUIREMENTS FOR SUCCESS:
+//  CLICMINI LOCATIONS (checked in order):
+//  1. System bundle identifier lookup (if previously launched)
+//  2. Contents/PlugIns/ClicMini.app (current bundled location)
+//  3. Contents/Library/LoginItems/ClicMini.app (Apple's standard for helper apps)
+//  4. Same directory as Clic.app (side-by-side installation)
+//  5. /Applications/ClicMini.app
+//
+//  REQUIREMENTS:
 //  1. Both apps must share the same app group: "group.com.clic"
 //  2. ClicMini Info.plist must have LSUIElement = true (menu bar app)
 //  3. Both apps must be properly signed with the same team
-//  4. ClicMini must be registered as a login item via SMAppService
-//  5. Both apps should be sandboxed with matching entitlements
+//  4. Both apps should be sandboxed with matching entitlements
 //
 //  TROUBLESHOOTING:
 //  - If ClicMini doesn't launch, check Console.app for crash logs
-//  - Verify ClicMini.app exists in the same directory as Clic.app
+//  - Verify ClicMini.app exists in one of the searched locations
 //  - Ensure bundle identifier "com.nick.clic.mini" is correct
-//  - Check that SMAppService.menuApp.status shows .enabled or .requiresApproval
+//  - Check the console output for "ClicMini not found" with searched paths
 //
 
 import AppKit
@@ -29,9 +35,11 @@ import ServiceManagement
 class MacUtilsImpl: NSObject, MacUtils, @unchecked Sendable {
     var isRunning: Bool = false
     private let bundleIdentifier = "com.nick.clic.mini"
-    private let urlScheme = "clicmini://"
     private var appsObserver: TopRunningAppsObserver?
     private var handler: ((Bool) -> Void)?
+
+    /// Notification name for requesting ClicMini to show its menu
+    static let showMenuNotification = Notification.Name("com.clic.mini.showMenu")
     
     enum ClicMiniError: LocalizedError {
         case appNotFound
@@ -75,60 +83,96 @@ class MacUtilsImpl: NSObject, MacUtils, @unchecked Sendable {
         }
     }
     
-    // Modern async/await version with throwing support
+    // Protocol-conforming async version (defaults to showing menu)
     func openClicMiniApp() async throws {
+        try await openClicMiniApp(showMenu: true)
+    }
+
+    /// Opens ClicMini with option to show its dropdown menu
+    /// - Parameter showMenu: If true, requests ClicMini to show its dropdown menu after launching
+    func openClicMiniApp(showMenu: Bool) async throws {
         // Check if app is already running
         let runningApps = NSWorkspace.shared.runningApplications
-        if let existingApp = runningApps.first(where: { $0.bundleIdentifier == bundleIdentifier }) {
-            // For menu bar apps, just ensure they're running - no need to activate
-            // activate() without options is the modern approach in macOS 14+
-            _ = existingApp.activate()
-            return
-        }
-        
-        // Try Method 1: NSWorkspace with bundle identifier
-        do {
-            try await launchViaWorkspace()
-            return
-        } catch {
-            print("NSWorkspace launch failed: \(error.localizedDescription), trying URL scheme fallback")
-        }
-        
-        // Try Method 2: URL Scheme fallback
-        if let url = URL(string: urlScheme) {
-            let opened = NSWorkspace.shared.open(url)
-            if opened {
-                return
+        if runningApps.first(where: { $0.bundleIdentifier == bundleIdentifier }) != nil {
+            // App is already running - post notification to show menu
+            if showMenu {
+                DistributedNotificationCenter.default().postNotificationName(
+                    Self.showMenuNotification,
+                    object: nil,
+                    userInfo: nil,
+                    deliverImmediately: true
+                )
             }
+            return
         }
-        
-        throw ClicMiniError.launchFailed(reason: "All launch methods failed")
+
+        // Launch via NSWorkspace - this handles all path resolution
+        try await launchViaWorkspace(showMenu: showMenu)
     }
     
-    private func launchViaWorkspace() async throws {
-        // Find the app URL - try multiple methods for reliability
-        var appURL: URL?
-        
-        // Method 1: Use bundle identifier lookup
-        appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier)
-        
-        
-        
-        // Method 2: If not found, try looking in the main app bundle
-        if appURL == nil {
-            let mainBundle = Bundle.main.bundleURL
-            let possiblePath = mainBundle
-                .deletingLastPathComponent()
-                .appendingPathComponent("ClicMini.app")
-            if FileManager.default.fileExists(atPath: possiblePath.path) {
-                appURL = possiblePath
+    /// Finds ClicMini.app by checking multiple standard locations
+    /// Priority order:
+    /// 1. System bundle identifier lookup (if ClicMini is properly registered)
+    /// 2. Contents/PlugIns/ (current bundled location)
+    /// 3. Contents/Library/LoginItems/ (Apple's standard for helper apps)
+    /// 4. Same directory as main app (side-by-side installation)
+    /// 5. /Applications folder
+    private func findClicMiniAppURL() throws -> URL {
+        let fileManager = FileManager.default
+        let mainBundleURL = Bundle.main.bundleURL
+
+        // Method 1: System bundle identifier lookup
+        // This works if ClicMini was previously launched or is registered
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+            if fileManager.fileExists(atPath: url.path) {
+                return url
             }
         }
-        
-        guard let appURL = appURL else {
-            throw ClicMiniError.appNotFound
+
+        // Method 2: PlugIns folder (current bundled location)
+        let plugInsPath = mainBundleURL
+            .appendingPathComponent("Contents/PlugIns/ClicMini.app")
+        if fileManager.fileExists(atPath: plugInsPath.path) {
+            return plugInsPath
         }
-        
+
+        // Method 3: Standard location for helper/login item apps
+        let loginItemsPath = mainBundleURL
+            .appendingPathComponent("Contents/Library/LoginItems/ClicMini.app")
+        if fileManager.fileExists(atPath: loginItemsPath.path) {
+            return loginItemsPath
+        }
+
+        // Method 4: Same directory as main app (side-by-side installation)
+        let siblingPath = mainBundleURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("ClicMini.app")
+        if fileManager.fileExists(atPath: siblingPath.path) {
+            return siblingPath
+        }
+
+        // Method 5: /Applications folder
+        let applicationsPath = URL(fileURLWithPath: "/Applications/ClicMini.app")
+        if fileManager.fileExists(atPath: applicationsPath.path) {
+            return applicationsPath
+        }
+
+        // Log all attempted paths for debugging
+        print("ClicMini not found. Searched locations:")
+        print("  1. Bundle ID lookup: \(bundleIdentifier)")
+        print("  2. PlugIns: \(plugInsPath.path)")
+        print("  3. LoginItems: \(loginItemsPath.path)")
+        print("  4. Sibling: \(siblingPath.path)")
+        print("  5. Applications: \(applicationsPath.path)")
+
+        throw ClicMiniError.appNotFound
+    }
+
+    private func launchViaWorkspace(showMenu: Bool = false) async throws {
+        // Find the app URL - try multiple methods for reliability
+        let appURL = try findClicMiniAppURL()
+        print("Found ClicMini at: \(appURL.path)")
+
         // Configure launch options
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = false
@@ -136,6 +180,11 @@ class MacUtilsImpl: NSObject, MacUtils, @unchecked Sendable {
         configuration.addsToRecentItems = false
         configuration.hidesOthers = false
         configuration.hides = false
+
+        // Pass --show-menu argument if requested
+        if showMenu {
+            configuration.arguments = ["--show-menu"]
+        }
         
         
         // Attempt to launch the app using async continuation

@@ -19,22 +19,34 @@ final class MenuVisibilityService {
 struct ClicMiniApp: App {
     // Don't store singletons as properties - access directly via .shared
     // This prevents unnecessary strong references and memory retention
-    
+
+    /// Notification name for show menu requests from main Clic app
+    static let showMenuNotification = Notification.Name("com.clic.mini.showMenu")
+
     init() {
         // Initialize global services to ensure they're set up
         _ = GlobalMediaControlService.shared
         _ = SonosMiniService.shared
         _ = MiniSettingsService.shared
-        
+
         KeyboardShortcuts.onKeyUp(for: .toggleClicMini) {
-            guard let statusItem = NSApp.windows.first(where: { window in
-                (window.value(forKey: "statusItem") as? NSStatusItem) != nil
-            })?.value(forKey: "statusItem") as? NSStatusItem,
-                  let button = statusItem.button else {
-                // Could not find statusItem or its button; safely do nothing
-                return
+            Self.clickStatusItem()
+        }
+
+        // Listen for show menu requests from main Clic app
+        DistributedNotificationCenter.default().addObserver(
+            forName: Self.showMenuNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Self.clickStatusItem()
+        }
+
+        // Check for --show-menu launch argument
+        if CommandLine.arguments.contains("--show-menu") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                Self.clickStatusItem()
             }
-            button.performClick(nil)
         }
         
         // Set up track change callback to show HUD
@@ -116,5 +128,16 @@ struct ClicMiniApp: App {
         }
         .windowLevel(.normal)
         .windowIdealSize(.fitToContent)
+    }
+
+    /// Programmatically clicks the menu bar status item to show/hide the menu
+    private static func clickStatusItem() {
+        guard let statusItem = NSApp.windows.first(where: { window in
+            (window.value(forKey: "statusItem") as? NSStatusItem) != nil
+        })?.value(forKey: "statusItem") as? NSStatusItem,
+              let button = statusItem.button else {
+            return
+        }
+        button.performClick(nil)
     }
 }
