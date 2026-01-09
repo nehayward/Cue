@@ -14,7 +14,7 @@ public final class AlertService: @unchecked Sendable {
         alertTask?.cancel()
         alert.isShowing = false
         alert.text = text
-        alert.isShowing = true
+        showAlert(show: false)
         alert.content = nil
         alert.subtitle = ""
         alert.imageName = ""
@@ -24,7 +24,7 @@ public final class AlertService: @unchecked Sendable {
             try Task.checkCancellation()
             try await Task.sleep(for: .seconds(3))
             try Task.checkCancellation()
-            alert.isShowing = false
+            showAlert(show: false)
             try await Task.sleep(for: .milliseconds(800))
             alert.text = ""
         }
@@ -37,14 +37,14 @@ public final class AlertService: @unchecked Sendable {
         alert.subtitle = ""
         alert.text = text
         alert.imageName = imageName
-        alert.isShowing = true
+        showAlert(show: true)
 
         alertTask = Task { [weak self] in
             guard let self else { return }
             try Task.checkCancellation()
             try await Task.sleep(for: delay)
             try Task.checkCancellation()
-            alert.isShowing = false
+            showAlert(show: false)
             try await Task.sleep(for: .milliseconds(800))
             alert.text = ""
             alert.imageName = nil
@@ -58,32 +58,40 @@ public final class AlertService: @unchecked Sendable {
         alert.subtitle = ""
         alert.text = text
         alert.imageName = imageName
-        alert.isShowing = true
+        showAlert(show: true)
         alert.handleTap = { [weak self] in
             action()
-            self?.alert.isShowing = false
+            self?.showAlert(show: false)
         }
     }
 
     func showAlertContent(with content: PlayableContent, subtitle: LocalizedStringKey, symbolName: String = "") {
         alertTask?.cancel()
-        alert.content = nil
         alert.text = content.title
         alert.subtitle = subtitle
-        alert.content = content
+        withAnimation {
+            alert.content = content
+        }
         alert.imageName = symbolName
 
         alertTask = Task { @MainActor [weak self] in
             guard let self else { return }
             try await Task.sleep(for: .milliseconds(200))
-            alert.isShowing = true
+            showAlert(show: true)
             try Task.checkCancellation()
             try await Task.sleep(for: .seconds(4))
             try Task.checkCancellation()
-            alert.isShowing = false
+            showAlert(show: false)
             try await Task.sleep(for: .milliseconds(800))
             alert.text = ""
             alert.content = nil
+        }
+    }
+    
+    private func showAlert(show: Bool) {
+        withAnimation { [weak self] in
+            guard let self else { return }
+            alert.isShowing = show
         }
     }
 }

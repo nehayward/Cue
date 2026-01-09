@@ -261,23 +261,30 @@ final class SonosSystemDiscoverService {
         }
 
         let startTime = Date.now
-        try? await Task.sleep(for: .milliseconds(100))
+        var lastIPCount = 0
+        var stableTime: Date?
 
         while true {
-            let (ipCount, connectionCount) = lock.withLock {
-                (allIPs.count, connections.count)
-            }
+            let ipCount = lock.withLock { allIPs.count }
 
-            if ipCount == connectionCount && ipCount > 0 {
-                break
+            // Track when IP count becomes stable
+            if ipCount > 0 {
+                if ipCount != lastIPCount {
+                    lastIPCount = ipCount
+                    stableTime = Date.now
+                } else if let stable = stableTime, Date.now > stable.addingTimeInterval(0.5) {
+                    // No new IPs for 500ms, we're done
+                    break
+                }
             }
-
             if permissionsDenied {
                 throw SonosServiceError.permissionDenied
             }
-            if Date.now > startTime.addingTimeInterval(3) {
+            
+            if Date.now > startTime.addingTimeInterval(8) {
                 break
             }
+            
             try? await Task.sleep(for: .milliseconds(50))
         }
 
@@ -297,7 +304,7 @@ final class SonosSystemDiscoverService {
         }
 
         let params = NWParameters.tcp
-        params.requiredInterfaceType = .wifi
+        params.prohibitedInterfaceTypes = [.cellular]
         params.allowFastOpen = true
         params.multipathServiceType = .handover // Enable multipath TCP for faster connection
         params.serviceClass = .responsiveData // Prioritize low latency
@@ -354,33 +361,27 @@ final class SonosSystemDiscoverService {
 
             let netConnection = NWConnection(to: .service(name: name, type: type, domain: domain, interface: interface), using: .tcp)
 
-            // Path update handler - extracts IP as soon as path is available (faster than waiting for .ready)
-            netConnection.pathUpdateHandler = { [weak self, weak netConnection] path in
-                guard let self,
-                      let endpoint = path.remoteEndpoint,
-                      case let .hostPort(host, _) = endpoint,
-                      let ip = host.debugDescription.components(separatedBy: "%").first else { return }
-
-                self.lock.withLock {
-                    self.allIPs.insert(ip)
-                }
-            }
-
-            // State handler for fallback and cleanup
+            // State handler - extract IP when connection is ready (most reliable method)
             netConnection.stateUpdateHandler = { [weak self, weak netConnection] newState in
+                guard let self else { return }
+
                 switch newState {
-                case .ready, .preparing:
-                    // Path update handler will catch the IP
-                    break
+                case .ready:
+                    // Connection is ready - extract IP from currentPath
+                    if let currentPath = netConnection?.currentPath,
+                       let endpoint = currentPath.remoteEndpoint,
+                       case let .hostPort(host, _) = endpoint,
+                       let ip = host.debugDescription.components(separatedBy: "%").first {
+                        self.lock.withLock {
+                            self.allIPs.insert(ip)
+                        }
+                        self.logger.trace("Discovered Sonos IP: \(ip)")
+                    }
                 case .failed, .cancelled:
-                    // Clean up failed connections after a delay
-                    Task { [weak self, weak netConnection] in
-                        try? await Task.sleep(for: .seconds(1))
-                        netConnection?.cancel()
-                        self?.lock.withLock {
-                            if let conn = netConnection, let index = self?.connections.firstIndex(where: { $0 === conn }) {
-                                self?.connections.remove(at: index)
-                            }
+                    // Clean up failed connections
+                    self.lock.withLock {
+                        if let conn = netConnection, let index = self.connections.firstIndex(where: { $0 === conn }) {
+                            self.connections.remove(at: index)
                         }
                     }
                 default:
@@ -403,12 +404,11 @@ final class SonosSystemDiscoverService {
             logger.trace("Browser ready. Starting browsing...")
         case let .failed(error):
             logger.trace("Browser failed with error: \(error)")
-            self.browser?.cancel()
-            self.startQuickBrowse()
+            // Don't auto-restart - let the caller handle retry logic
         case let .waiting(error):
-            print(error.errorCode)
+            logger.trace("Browser waiting: \(error)")
             if let description = error.errorUserInfo["NSDescription"] as? String, description == "PolicyDenied" {
-                logger.trace("Browser failed waiting error: \(error)")
+                logger.trace("Browser permission denied")
                 permissionsDenied = true
             }
         case .cancelled:

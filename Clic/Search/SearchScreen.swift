@@ -256,7 +256,6 @@ struct SearchScreen: View {
             .withAppRouter()
         }
         .withAlert(enabled: showAlert)
-        .animation(.spring, value: alertService.alert.isShowing)
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
         .background {

@@ -219,7 +219,6 @@ struct DeviceListMainView: View {
         .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)
-        .animation(.spring, value: alertService.alert.isShowing)
         .overlay(alignment: .top) {
             VStack {
                 if !sonosService.networkMonitorService.isConnected {

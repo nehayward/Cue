@@ -76,7 +76,8 @@ struct PlayableContentView: View {
                     HStack {
                         Text(item.title)
                             .lineLimit(1)
-                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding  ? .accent : .primary)
+                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding  ? AnyShapeStyle(.accent.gradient) : AnyShapeStyle(.primary))
+                            .bold(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding)
                         Spacer()
                         if let isExplicit = item.metadata?.isExplicit, isExplicit {
                             Image(systemName: "e.square.fill")

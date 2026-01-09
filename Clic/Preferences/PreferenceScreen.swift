@@ -61,41 +61,55 @@ struct PreferenceScreen: View {
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
                     } else {
-                        VStack(alignment: .leading) {
-                            Button {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                showManageSubscriptions = true
-                                Analytics.shared.track(.viewedManageSubscription)
-                            } label: {
-                                Label {
-                                    Text("Clic Super")
-                                } icon: {
-                                    Image("clic.icon")
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .foregroundStyle(.white)
-                                        .padding(8)
-                                        .frame(width: 32, height: 32)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .foregroundStyle(.black)
-                                        )
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            showManageSubscriptions = true
+                            Analytics.shared.track(.viewedManageSubscription)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image("clic.icon")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .padding(8)
+                                    .frame(width: 40, height: 40)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.accentColor.gradient)
+                                    )
+                                    .shadow(color: Color.accentColor.opacity(0.4), radius: 4, x: 0, y: 2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 6) {
+                                        Text("Clic Super")
+                                            .font(.headline)
+                                            .foregroundStyle(.primary)
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .font(.subheadline)
+                                            .foregroundStyle(Color.accentColor.gradient)
+                                    }
+                                    if let info = subscriptionService.subscription.info, let expiration = info.expirationDate {
+                                        if info.willRenew {
+                                            Text("Renews \(Text(expiration, style: .date))")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            Text("Expires \(Text(expiration, style: .date))")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    } else {
+                                        Text("Active subscription")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                            }
-                            .tint(.primary)
-                            
-                            if let info = subscriptionService.subscription.info, let expiration = info.expirationDate {
-                                if info.willRenew {
-                                    Text("Renews \(Text(expiration, style: .date))")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    Text("Expiring \(Text(expiration, style: .date))")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tertiary)
                             }
                         }
+                        .tint(.primary)
                     }
                 } header: {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
@@ -145,32 +159,6 @@ struct PreferenceScreen: View {
                 //                }
                 
                 Section {
-                    Label {
-                        HStack {
-                            Text(!sonosService.sonosPulse.isCancelled ? "Monitoring" : "Not found")
-                            Spacer()
-                            Image(systemName: "circle.fill")
-                                .font(.caption2)
-                                .foregroundStyle(
-                                    !sonosService.sonosPulse.isCancelled ? .green : .red
-                                )
-                                .shadow(
-                                    color: !sonosService.sonosPulse.isCancelled ? .green : .red,
-                                    radius: 2, x: 0, y: 0)
-                        }
-                    } icon: {
-                        Image(systemName: "wifi")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(.black)
-                            )
-                    }
-                    
                     NavigationLink(value: RouterDestination.connectByIP) {
                         Label {
                             Text("Connectivity")
@@ -182,12 +170,13 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.secondary)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    
+
                     NavigationLink(value: RouterDestination.speakerSettingsList) {
                         Label {
                             Text("Speaker Settings")
@@ -199,12 +188,13 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.black)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.25, green: 0.25, blue: 0.3), Color(red: 0.1, green: 0.1, blue: 0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    
+
                     NavigationLink(value: RouterDestination.alarms) {
                         Label {
                             Text("Alarms")
@@ -216,12 +206,13 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.orange)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.7, blue: 0.3), Color(red: 0.95, green: 0.5, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    
+
                     NavigationLink(value: RouterDestination.houseHold) {
                         Label {
                             Text("Switch Households")
@@ -233,12 +224,13 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.6, blue: 0.95), Color(red: 0.25, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
- 
+
                     Button {
                         Task {
                             alertService.showAlert(with: "Refreshing Sonos Library", imageName: "arrow.clockwise")
@@ -256,12 +248,29 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.3, green: 0.85, blue: 0.6), Color(red: 0.2, green: 0.7, blue: 0.5)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
                     .tint(.primary)
+                } header: {
+                    HStack {
+                        Text("Sonos")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        HStack(spacing: 5) {
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 6))
+                                .foregroundStyle(!sonosService.sonosPulse.isCancelled ? .green : .red)
+                                .shadow(color: !sonosService.sonosPulse.isCancelled ? .green : .red, radius: 3, x: 0, y: 0)
+                            Text(!sonosService.sonosPulse.isCancelled ? "Connected" : "Offline")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .headerProminence(.increased)
                 }
                 Section {
                     NavigationLink(value: RouterDestination.servicePreferenceScreen) {
@@ -286,9 +295,10 @@ struct PreferenceScreen: View {
                                     .padding(8)
                                     .frame(width: 32, height: 32)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .foregroundStyle(.accent)
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.3, blue: 0.5), Color(red: 0.85, green: 0.2, blue: 0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     )
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                             }
                         }
                     }
@@ -298,14 +308,16 @@ struct PreferenceScreen: View {
                                 Text("Scenes")
                                 Spacer()
                                 Text("Super")
-                                    .font(.caption)
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
                                     .textCase(.uppercase)
-                                    .padding(4)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(.secondary, lineWidth: 1)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.accentColor.gradient)
                                     )
-                                    .foregroundStyle(.secondary)
                             }
                         } icon: {
                             Image(systemName: "bolt.fill")
@@ -316,11 +328,16 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.teal)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.3, green: 0.85, blue: 0.85), Color(red: 0.2, green: 0.7, blue: 0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }.disabled(!subscriptionService.subscription.isActive)
+                } header: {
+                    Text("Music")
+                        .headerProminence(.increased)
+                        .foregroundStyle(.primary)
                 }
                 Section {
                     Label {
@@ -337,12 +354,15 @@ struct PreferenceScreen: View {
                             .padding(8)
                             .frame(width: 32, height: 32)
                             .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(Color.accent.gradient)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.7, green: 0.5, blue: 0.95), Color(red: 0.55, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
                 } header: {
                     Text("Playback")
+                        .foregroundStyle(.primary)
+                        .headerProminence(.increased)
                 } footer: {
                     Text( "When enabled, tapping a song or album will replace the current queue instead of adding it next. You can still use long-press to access 'Play Next' and 'Play Last' options.")
                 }
@@ -374,12 +394,13 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.65, blue: 0.95), Color(red: 0.25, green: 0.5, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
-                    
+
                     // Open Clic Mini button
                     Button {
                         Task {
@@ -417,13 +438,14 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.green)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.85, blue: 0.55), Color(red: 0.25, green: 0.7, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
                     .tint(.primary)
-                    
+
                     // Auto-launch toggle
                     Button {
                         isMenuBarAppEnabled.toggle()
@@ -458,15 +480,16 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.cyan)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.85, blue: 0.95), Color(red: 0.25, green: 0.7, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
                     .tint(.primary)
                 } header: {
                     Label("Clic Mini (Menu Bar App)", systemImage: "menubar.rectangle")
-                        .font(.headline)
+                        .foregroundStyle(.primary)
                 } footer: {
                     Text("Clic Mini provides quick access to playback controls from your menu bar. Enable auto-launch to have it start automatically when you open Clic.")
                         .font(.caption)
@@ -506,11 +529,12 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.indigo)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.45, blue: 0.95), Color(red: 0.4, green: 0.3, blue: 0.8)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
-                        
+
                         Label {
                             Stepper(value: $liveActivityStep, in: 1...10) {
                                 Text("Volume Steps: ") +  Text(liveActivityStep, format: .number).bold()
@@ -526,11 +550,17 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(Color.indigo)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.6, green: 0.5, blue: 0.98), Color(red: 0.45, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
+                } header: {
+                    Text("Live Activities")
+                        .foregroundStyle(.primary)
+                        .headerProminence(.increased)
+
                 }
 #endif
                 
@@ -551,9 +581,10 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.blue)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.65, blue: 0.95), Color(red: 0.25, green: 0.5, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
                     Label {
@@ -570,10 +601,15 @@ struct PreferenceScreen: View {
                             .padding(8)
                             .frame(width: 32, height: 32)
                             .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(.blue.gradient)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.6, blue: 0.95), Color(red: 0.2, green: 0.45, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
+                } header: {
+                    Text("Launch")
+                        .foregroundStyle(.primary)
+                        .headerProminence(.increased)
                 } footer: {
                     Text("Launch to the group currently playing or in TV Mode.")
                 }
@@ -664,9 +700,10 @@ struct PreferenceScreen: View {
                                 .padding(8)
                                 .frame(width: 32, height: 32)
                                 .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .foregroundStyle(.black.gradient)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.35, blue: 0.4), Color(red: 0.2, green: 0.2, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
@@ -687,43 +724,14 @@ struct PreferenceScreen: View {
                             .padding(8)
                             .frame(width: 32, height: 32)
                             .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .foregroundStyle(.black.gradient)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.45, blue: 0.45), Color(red: 0.85, green: 0.3, blue: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
-                    // MARK: Send Logs
-                    //                    Button {
-                    //                        isUploading = true
-                    //                        guard let documentDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appending(path: "Logs") else {
-                    //                            print("Documents directory not found")
-                    //                            isUploading = false
-                    //                            return
-                    //                        }
-                    //
-                    //                        let fileURL = documentDirectory.appendingPathComponent("Groups.txt")
-                    //                        guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
-                    //                            isUploading = false
-                    //                            return
-                    //                        }
-                    //                        Task {
-                    //                            await uploadLogs(text: contents)
-                    //                            isUploading = false
-                    //                            uploadSuccess = true
-                    //                        }
-                    //                    } label: {
-                    //                        HStack {
-                    //                            Image(systemName: uploadSuccess ? "checkmark.circle.fill" : "paperplane.fill")
-                    //                                .foregroundColor(uploadSuccess ? .green : .blue)
-                    //                            Text("Send Logs")
-                    //                            if isUploading {
-                    //                                Spacer()
-                    //                                ProgressView()
-                    //                            }
-                    //                        }
-                    //                        .frame(maxWidth: .infinity, alignment: .leading)
-                    //                        .padding()
-                    //                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(UIColor.systemBackground)))
-                    //                    }
+                } header: {
+                    Text("About")
+                        .foregroundStyle(.primary)
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
@@ -747,7 +755,6 @@ struct PreferenceScreen: View {
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .withAlert()
-        .animation(.spring, value: alertService.alert.isShowing)
         .task {
             try? await subscriptionService.checkSubscription()
 #if DEBUG
@@ -791,20 +798,22 @@ struct PreferenceScreen: View {
                 Image(systemName: "circle.lefthalf.filled")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.foreground)
+                    .foregroundStyle(.white)
                     .bold()
                     .padding(8)
                     .frame(width: 32, height: 32)
                     .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .foregroundStyle(.background)
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
                     )
+                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
             }
         } header: {
             Text("Appearance")
+                .foregroundStyle(.primary)
         }
     }
-    
+
     var speedLaunch: some View {
         Section {
             Label {
@@ -819,17 +828,19 @@ struct PreferenceScreen: View {
                 Image(systemName: "circle.lefthalf.filled")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.foreground)
+                    .foregroundStyle(.white)
                     .bold()
                     .padding(8)
                     .frame(width: 32, height: 32)
                     .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .foregroundStyle(.background)
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LinearGradient(colors: [Color(red: 0.55, green: 0.55, blue: 0.6), Color(red: 0.4, green: 0.4, blue: 0.45)], startPoint: .topLeading, endPoint: .bottomTrailing))
                     )
+                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
             }
         } header: {
             Text("Appearance")
+                .foregroundStyle(.primary)
         }
     }
     
