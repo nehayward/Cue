@@ -6,7 +6,8 @@
 - Queue selection is preserved and restored on app restart
 - Added option in settings to set default behavior for Replace Queue for playback.
 - Browse now persists it's location.
-- Clickable song and artist names on Player Screen with hover effects to quickly navigate to album and artist details
+- Tappable song and artist names on Player Screen with hover effects to quickly navigate to album and artist details
+- Add letter sections to Sonos Library Artist and Albums
 
 –– Bug Fixes & Improvements ––
 - Fix title parsing
@@ -15,6 +16,7 @@
 - Fixed an issue with prioritizing the Plex Server remote access URL
 - Fixed an issue where the Spotify Library would not refresh correctly
 - Fixed missing artwork for Apple Library Artists
+
 
 
 # 2025.18

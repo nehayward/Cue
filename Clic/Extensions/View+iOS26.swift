@@ -121,4 +121,13 @@ extension View {
     }
     #endif
     }
+
+    @ViewBuilder
+    func sectionIndex(_ label: String) -> some View {
+        if #available(iOS 26.0, macCatalyst 26.0, *) {
+            self.sectionIndexLabel(label)
+        } else {
+            self
+        }
+    }
 }

@@ -24,6 +24,7 @@ struct PlayableContentList: View {
         }
         .foregroundStyle(.foreground)
         .listStyle(.plain)
+        .tint(.primary)
         .task { await loadInitialContent() }
         .overlay { loadingOverlay }
         .animation(.bouncy, value: browseService.playlists)
@@ -37,39 +38,74 @@ struct PlayableContentList: View {
     private var contentSection: some View {
         switch type {
         case .track:
-            ForEach(browseService.songs) { item in
-                VStack {
-                    PlayableContentView(item: item)
-                }
-            }
+            tracksList
         case .album:
-            ForEach(browseService.albums) { item in
-                VStack {
-                    PlayableContentView(item: item)
-                }
-            }
+            albumSections
         case .artist:
-            ForEach(browseService.artists) { item in
-                VStack {
-                    PlayableContentView(item: item)
+            artistSections
+        case .playlist:
+            playlistSections
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var tracksList: some View {
+        ForEach(browseService.songs) { item in
+            VStack {
+                PlayableContentView(item: item)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var albumSections: some View {
+        ForEach(groupedAlbums.keys.sorted(), id: \.self) { letter in
+            Section(header: Text(letter)) {
+                ForEach(groupedAlbums[letter] ?? []) { item in
+                    VStack {
+                        PlayableContentView(item: item)
+                    }
                 }
             }
-        case .playlist:
-            ForEach(browseService.playlists) { item in
-                VStack {
-                    PlayableContentView(item: item)
+            .sectionIndex(letter)
+        }
+    }
+
+    @ViewBuilder
+    private var artistSections: some View {
+        ForEach(groupedArtists.keys.sorted(), id: \.self) { letter in
+            Section(header: Text(letter)) {
+                ForEach(groupedArtists[letter] ?? []) { item in
+                    VStack {
+                        PlayableContentView(item: item)
+                    }
                 }
-                .swipeActions(edge: .trailing) {
-                    Button("Delete", role: .destructive) {
-                        Task {
-                            await sonosService.delete(playlistID: item.id)
-                            browseService.playlists.removeAll { $0.id == item.id }
+            }
+            .sectionIndex(letter)
+        }
+    }
+
+    @ViewBuilder
+    private var playlistSections: some View {
+        ForEach(groupedPlaylists.keys.sorted(), id: \.self) { letter in
+            Section(header: Text(letter)) {
+                ForEach(groupedPlaylists[letter] ?? []) { item in
+                    VStack {
+                        PlayableContentView(item: item)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button("Delete", role: .destructive) {
+                            Task {
+                                await sonosService.delete(playlistID: item.id)
+                                browseService.playlists.removeAll { $0.id == item.id }
+                            }
                         }
                     }
                 }
             }
-        default:
-            EmptyView()
+            .sectionIndex(letter)
         }
     }
     
@@ -155,6 +191,47 @@ struct PlayableContentList: View {
             await browseService.updatePlaylists()
         default:
             break
+        }
+    }
+
+    // MARK: - Alphabetical Grouping
+
+    private var groupedAlbums: [String: [PlayableContent]] {
+        Dictionary(grouping: browseService.albums) { item in
+            guard let scalar = item.title
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .unicodeScalars
+                .first,
+                  CharacterSet.letters.contains(scalar)
+            else { return "#" }
+            
+            return String(scalar).uppercased()
+        }
+    }
+
+    private var groupedArtists: [String: [PlayableContent]] {
+        Dictionary(grouping: browseService.artists) { item in
+            guard let scalar = item.title
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .unicodeScalars
+                .first,
+                  CharacterSet.letters.contains(scalar)
+            else { return "#" }
+            
+            return String(scalar).uppercased()
+        }
+    }
+
+    private var groupedPlaylists: [String: [PlayableContent]] {
+        Dictionary(grouping: browseService.playlists) { item in
+            guard let scalar = item.title
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .unicodeScalars
+                .first,
+                  CharacterSet.letters.contains(scalar)
+            else { return "#" }
+            
+            return String(scalar).uppercased()
         }
     }
 }

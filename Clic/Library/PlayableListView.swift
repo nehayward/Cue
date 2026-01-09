@@ -20,22 +20,12 @@ struct PlayableListView: View {
     var body: some View {
         List {
             PlayAllButtonView(item: playAllItem)
-            ForEach(items) { item in
-                PlayableContentView(item: item)
-                    .onAppear {
-                        // Only trigger when this is the last item and we haven't reached the end
-                        if item == items.last, !isLoading, !isFirstLoadEmpty {
-                            loadingTask?.cancel()
-                            loadingTask = Task {
-                                await loadMore()
-                            }
-                        }
-                    }
-            }
+            contentSection
         }
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
+        .tint(.primary)
         .task {
             loadingTask?.cancel()
             loadingTask = Task {
@@ -52,6 +42,42 @@ struct PlayableListView: View {
                     .background(.thickMaterial)
                     .clipShape(Circle())
             }
+        }
+    }
+
+    @ViewBuilder
+    private var contentSection: some View {
+        ForEach(groupedItems.keys.sorted(), id: \.self) { letter in
+            Section(header: Text(letter)) {
+                ForEach(groupedItems[letter] ?? []) { item in
+                    PlayableContentView(item: item)
+                        .onAppear {
+                            // Only trigger when this is the last item and we haven't reached the end
+                            if item == items.last, !isLoading, !isFirstLoadEmpty {
+                                loadingTask?.cancel()
+                                loadingTask = Task {
+                                    await loadMore()
+                                }
+                            }
+                        }
+                }
+            }
+            .sectionIndex(letter)
+        }
+    }
+
+    // MARK: - Alphabetical Grouping
+
+    private var groupedItems: [String: [PlayableContent]] {
+        Dictionary(grouping: items) { item in
+            guard let scalar = item.title
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .unicodeScalars
+                .first,
+                  CharacterSet.letters.contains(scalar)
+            else { return "#" }
+            
+            return String(scalar).uppercased()
         }
     }
 
