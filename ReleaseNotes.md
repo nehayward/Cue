@@ -1,22 +1,24 @@
 # 2026.1
 
 –– New Features ––
-- Fullscreen artwork mode: Toggle with Shift+Command+F or via Player Screen menu
+- Fullscreen artwork mode: Toggle with Shift+Command+F or via the Player Screen menu
 - State is now restored for the selected group upon app relaunch
 - Queue selection is preserved and restored on app restart
-- Added option in settings to set default behavior for Replace Queue for playback.
-- Browse now persists it's location.
-- Tappable song and artist names on Player Screen with hover effects to quickly navigate to album and artist details
-- Add letter sections to Sonos Library Artist and Albums
-- Add Playlists to SoundCloud
+- Added option in settings to set default behavior for Replace Queue playback
+- Browse now persists its location
+- Tappable song and artist names on the Player Screen with hover effects to quickly navigate to album and artist details
+- Added letter sections to Sonos Library Artists and Albums
+- Added Playlists to SoundCloud
+- Added Help section
 
 –– Bug Fixes & Improvements ––
-- Fix title parsing
+- Fixed title parsing
 - Fixed an issue where artwork wasn't updating for TuneIn
 - Fixed an issue where the Live Activity volume stepper value would not appear in Preferences
 - Fixed an issue with prioritizing the Plex Server remote access URL
 - Fixed an issue where the Spotify Library would not refresh correctly
 - Fixed missing artwork for Apple Library Artists
+
 
 # 2025.18
 
