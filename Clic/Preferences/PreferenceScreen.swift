@@ -682,6 +682,24 @@ struct PreferenceScreen: View {
                                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                         }
                     }
+                    NavigationLink(destination: HelpWebView()) {
+                        Label {
+                            Text("Help & FAQ")
+                        } icon: {
+                            Image(systemName: "questionmark.circle")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.4, green: 0.7, blue: 0.95), Color(red: 0.25, green: 0.55, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                    }
                     let message = "mailto:hi@clic.dance?subject=Support&body=\n\nVersion: \(OSEnvironment.versionInfo)\nID: \(Purchases.shared.appUserID)"
                     Label {
                         HStack {
@@ -692,7 +710,7 @@ struct PreferenceScreen: View {
                                 .foregroundStyle(.secondary)
                         }
                     } icon: {
-                        Image(systemName: "questionmark")
+                        Image(systemName: "envelope")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(.white)
@@ -708,6 +726,7 @@ struct PreferenceScreen: View {
                 } header: {
                     Text("About")
                         .foregroundStyle(.primary)
+                        .headerProminence(.increased)
                 } footer: {
                     VStack(alignment: .center) {
                         Text("Version **\(OSEnvironment.versionInfo)**")
@@ -787,6 +806,7 @@ struct PreferenceScreen: View {
         } header: {
             Text("Appearance")
                 .foregroundStyle(.primary)
+                .headerProminence(.increased)
         }
     }
 
