@@ -7,9 +7,9 @@ struct MenuInfoView: View {
     @Environment(Router.self) var router: Router
     @Environment(\.liveActivityManager) var liveActivityManager
     @State private var coreFeatures = CoreFeatures.shared
-    @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
 
     var group: GroupRoom
+    @Binding var showArtworkOnly: Bool
     
     var body: some View {
         Menu {

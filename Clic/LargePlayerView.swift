@@ -378,7 +378,7 @@ struct LargePlayerView: View {
             }
             #endif
             ToolbarItem {
-                MenuInfoView(group: group)
+                MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
                     .tint(.primary)
                     .id(refreshID)
             }
