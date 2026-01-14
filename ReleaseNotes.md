@@ -1,3 +1,13 @@
+2026.2
+- Added shuffle and repeat indicators to queue icon on iPad and Mac
+- Redesigned speaker selection screen with improved layout and real-time updates
+  - Song title now shown below speaker name with accent color when playing
+  - Volume displayed on far right for cleaner look
+  - Tap to select, long-press for menu options (Only This Speaker, Mute/Unmute)
+  - "Everywhere" toggles to "Deselect All" when all speakers selected
+  - Playing speakers automatically sorted to top
+  - Content stays fixed at top while scrolling speaker list
+  
 # 2026.1
 
 –– New Features ––

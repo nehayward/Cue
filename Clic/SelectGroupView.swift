@@ -10,176 +10,183 @@ struct SelectGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(SonosService.self) private var sonosService
     @Environment(SelectedGroupService.self) private var selectedGroupService
-
+    
     @State var content: PlayableContent?
     @State private var filter: String = ""
     @State private var groupVolume: Double = 0
     @State private var selections = Set<String>()
-    @State private var rooms: [Room] = []
-    @State private var search: Bool = false
-
+    
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
-
+    
+    private var activeRooms: [Room] {
+        sonosService.sortedRooms.filter { $0.state == .active }
+    }
+    
+    private var allSelected: Bool {
+        !activeRooms.isEmpty && selections.count == activeRooms.count
+    }
+    
+    private var playingRooms: [Room] {
+        activeRooms.filter { $0.isPlaying }
+    }
+    
+    private var otherRooms: [Room] {
+        activeRooms.filter { !$0.isPlaying }
+    }
+    
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack {
-                    if let content {
-                        PlayableContentView(item: content, hideDetails: true)
-                            .padding()
-                            .glass26()
-                            .padding(.vertical)
-                            .padding(.horizontal)
-                    }
-                    
-                    ScrollView(.horizontal) {
-                        HStack {
-                            ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in
-                                Button {
-                                    play(group: group)
-                                } label: {
-                                    VStack {
-                                        Text(group.nameWithCount)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .lineLimit(1)
-                                        HStack {
-                                            Text(group.groupVolume, format: .number)
-                                                .foregroundStyle(.secondary)
-                                                .font(.caption)
-                                            ProgressView(value: group.groupVolume / 100)
-                                                .foregroundStyle(.primary)
+            VStack(spacing: 0) {
+                if let content {
+                    PlayableContentView(item: content, hideDetails: true)
+                        .padding()
+                        .glass26()
+                        .padding([.vertical, .horizontal])
+                }
+                
+                ScrollView {
+                    LazyVStack {
+                        ScrollView(.horizontal) {
+                            HStack {
+                                ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in
+                                    Button {
+                                        play(group: group)
+                                    } label: {
+                                        VStack {
+                                            Text(group.nameWithCount)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(1)
+                                            HStack {
+                                                Text(group.groupVolume, format: .number)
+                                                    .foregroundStyle(.secondary)
+                                                    .font(.caption)
+                                                ProgressView(value: group.groupVolume / 100)
+                                                    .foregroundStyle(.primary)
+                                            }
                                         }
-                                    }
-                                    .padding()
-                                    .background {
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .foregroundStyle(.thinMaterial)
-                                    }
-                                    .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
-                                        length / 1.75
+                                        .padding()
+                                        .background {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .foregroundStyle(.thinMaterial)
+                                        }
+                                        .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
+                                            length / 1.75
+                                        }
                                     }
                                 }
                             }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                    }
-                    .scrollIndicators(.hidden)
-                    .scrollClipDisabled()
-                    Divider()
-                    Button {
-                        HapticManager.shared.fireHaptic(.selection)
-                        for room in rooms {
-                            if groupVolume.isZero {
-                                groupVolume = room.volume
-                            }
-                            selections.insert(room.id)
-                        }
-                    } label: {
-                        Text("Everywhere")
-                            .frame(maxWidth: .infinity)
-                            .bold()
-                    }
-                    .buttonStyle(.bordered)
-                    .fontDesign(.rounded)
-                    .tint(.accent)
-                    .foregroundStyle(.accent)
-                    .padding(.horizontal)
-                    
-                    ForEach($rooms) { $room in
-                        VStack {
-                            Button {
-                                HapticManager.shared.fireHaptic(.selection)
-                                if selections.contains(room.id) {
-                                    selections.remove(room.id)
-                                } else {
-                                    selections.insert(room.id)
+                        .scrollIndicators(.hidden)
+                        .scrollClipDisabled()
+                        Divider()
+                        Button {
+                            HapticManager.shared.fireHaptic(.selection)
+                            if allSelected {
+                                selections.removeAll()
+                            } else {
+                                for room in activeRooms {
                                     if groupVolume.isZero {
                                         groupVolume = room.volume
                                     }
+                                    selections.insert(room.id)
                                 }
-                            } label: {
-                                HStack {
-                                    Text(room.name)
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .contentTransition(.symbolEffect(.replace))
-                                        .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
-                                }
-                                .fontDesign(.rounded)
-                                .padding()
                             }
+                        } label: {
+                            Text(allSelected ? "Deselect All" : "Everywhere")
+                                .contentTransition(.identity)
+                                .frame(maxWidth: .infinity)
+                                .bold()
                         }
+                        .buttonStyle(.bordered)
+                        .fontDesign(.rounded)
+                        .tint(.accent)
+                        .foregroundStyle(.accent)
                         .padding(.horizontal)
+                        
+                        // Playing rooms first, then others
+                        ForEach(playingRooms) { room in
+                            roomRow(room: room)
+                        }
+                        
+                        ForEach(otherRooms) { room in
+                            roomRow(room: room)
+                        }
                     }
                 }
-            }
-            .overlay(alignment: .bottom) {
-                VStack {
-                    HStack {
-                        Button {
-                            groupVolume = max(0, groupVolume - 2)
-                        } label: {
-                            Image(systemName: "minus")
-                                .frame(width: 24, height: 24)
-                                .bold()
-                        }
-                        .tint(.primary)
-                        .buttonStyle(.liveActivity)
-                        .buttonRepeatBehavior(.enabled)
-                        VibeSlider(value: $groupVolume, step: 1, showValue: true)
-                        Button {
-                            groupVolume = min(100, groupVolume + 2)
-                        } label: {
-                            Image(systemName: "plus")
-                                .frame(width: 24, height: 24)
-                                .bold()
-                        }
-                        .tint(.primary)
-                        .buttonStyle(.liveActivity)
-                        .buttonRepeatBehavior(.enabled)
-                    }
-                    .frame(height: 20)
-                    .padding(.bottom)
-                    Button {
-                        Task {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            let rooms = rooms.filter { room in
-                                selections.contains(room.id)
+                .scrollContentBackground(.hidden)
+                .contentMargins(.bottom, EdgeInsets(top: 0, leading: 0, bottom: 120, trailing: 0), for: .scrollContent)
+                .overlay(alignment: .bottom) {
+                    VStack {
+                        HStack {
+                            Button {
+                                groupVolume = max(0, groupVolume - 2)
+                            } label: {
+                                Image(systemName: "minus")
+                                    .frame(width: 24, height: 24)
+                                    .bold()
                             }
-                            guard let newGroup = await sonosService.speedGroup(rooms: rooms) else {
-                                print("Failed!")
-                                return
+                            .tint(.primary)
+                            .buttonStyle(.liveActivity)
+                            .buttonRepeatBehavior(.enabled)
+                            VibeSlider(value: $groupVolume, step: 1, showValue: true)
+                            Button {
+                                groupVolume = min(100, groupVolume + 2)
+                            } label: {
+                                Image(systemName: "plus")
+                                    .frame(width: 24, height: 24)
+                                    .bold()
                             }
-                            withAnimation {
-                                dismiss()
-                            } completion: {
-                                Task {
-                                    selectedGroupService.group = newGroup
-                                    for room in rooms {
-                                        await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
-                                        await sonosService.setRoomMute(IP: room.ip, mute: false)
+                            .tint(.primary)
+                            .buttonStyle(.liveActivity)
+                            .buttonRepeatBehavior(.enabled)
+                        }
+                        .frame(height: 20)
+                        .padding(.bottom)
+                        Button {
+                            Task {
+                                HapticManager.shared.fireHaptic(.buttonPress)
+                                let selectedRooms = activeRooms.filter { room in
+                                    selections.contains(room.id)
+                                }
+                                guard let newGroup = await sonosService.speedGroup(rooms: selectedRooms) else {
+                                    print("Failed!")
+                                    return
+                                }
+                                withAnimation {
+                                    dismiss()
+                                } completion: {
+                                    Task {
+                                        selectedGroupService.group = newGroup
+                                        for room in selectedRooms {
+                                            await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
+                                            await sonosService.setRoomMute(IP: room.ip, mute: false)
+                                        }
+                                        try await onSelection?(newGroup)
+                                        try await Task.sleep(for: .seconds(1))
+                                        await sonosService.snapShotGroup(ip: newGroup.ip)
+                                        print("DONE!")
                                     }
-                                    try await onSelection?(newGroup)
-                                    try await Task.sleep(for: .seconds(1))
-                                    await sonosService.snapShotGroup(ip: newGroup.ip)
-                                    print("DONE!")
                                 }
                             }
+                        } label: {
+                            Text("Play")
+                                .bold()
+                                .frame(maxWidth: .infinity)
                         }
-                    } label: {
-                        Text("Play")
-                            .bold()
-                            .frame(maxWidth: .infinity)
+                        .transition(.slide)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(selections.isEmpty)
                     }
-                    .transition(.slide)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(selections.isEmpty)
+                    .padding()
+                    .background {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(.thinMaterial)
+                            .ignoresSafeArea(edges: .bottom)
+                    }
                 }
-                .padding()
-                .background(.thinMaterial)
             }
+            .background(.regularMaterial)
         }
         .foregroundStyle(.primary)
         .fontDesign(.rounded)
@@ -187,21 +194,100 @@ struct SelectGroupView: View {
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
             }
-            rooms = sonosService.sortedRooms.filter {
-                $0.state == .active
-            }.map {
-                let room = Room(id: $0.id, ip: $0.ip, name: $0.name, channelMap: $0.channelMap)
-                room.volume = $0.volume
-                return room
-            }
         }
         .addDismiss {
             dismiss()
         }
         .animation(.default, value: sonosService.sorted)
         .animation(.default, value: selections)
+        .animation(.default, value: playingRooms.map(\.id))
+        .animation(.default, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
     }
-
+    
+    @ViewBuilder
+    private func roomRow(room: Room) -> some View {
+        Menu {
+            if !room.track.name.isEmpty {
+                Section {
+                    Label(room.track.name, systemImage: "music.note")
+                    if !room.track.artist.isEmpty {
+                        Label(room.track.artist, systemImage: "person.fill")
+                    }
+                }
+            }
+            
+            Section {
+                Button {
+                    HapticManager.shared.fireHaptic(.selection)
+                    if selections.contains(room.id) {
+                        selections.remove(room.id)
+                    } else {
+                        selections.insert(room.id)
+                        groupVolume = room.volume
+                    }
+                } label: {
+                    Label {
+                        Text(selections.contains(room.id) ? "Deselect" : "Select")
+                    } icon: {
+                        Image(systemName: selections.contains(room.id) ? "circle" : "checkmark.circle.fill" )
+                            .font(.title3)
+                            .symbolRenderingMode(.hierarchical)
+                            .contentTransition(.symbolEffect(.replace))
+                            .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                    }
+                }
+                
+                Button {
+                    Task {
+                        await sonosService.setRoomMute(IP: room.ip, mute: !room.isMuted)
+                    }
+                } label: {
+                    Label(room.isMuted ? "Unmute" : "Mute", systemImage: room.isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(room.name)
+                        .fontWeight(.semibold)
+                    
+                    if !room.track.name.isEmpty {
+                        Text(room.track.name)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .foregroundStyle(room.isPlaying ? .accent : .secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Text("\(Int(room.volume))")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                
+                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .contentTransition(.symbolEffect(.replace))
+                    .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+            }
+            .fontDesign(.rounded)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        } primaryAction: {
+            HapticManager.shared.fireHaptic(.selection)
+            if selections.contains(room.id) {
+                selections.remove(room.id)
+            } else {
+                selections.insert(room.id)
+                if groupVolume.isZero {
+                    groupVolume = room.volume
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+    
     var filteredAndSortedGroups: [GroupRoom] {
         let filtered = sonosService.sorted.filter { $0.nameWithCount.range(of: filter, options: .caseInsensitive) != nil }
         let nonFiltered = sonosService.sorted.filter { $0.nameWithCount.range(of: filter, options: .caseInsensitive) == nil }

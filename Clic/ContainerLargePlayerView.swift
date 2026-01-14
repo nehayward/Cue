@@ -66,10 +66,46 @@ struct ContainerLargePlayerView: View {
                                         } icon: {
                                             QueueIconView(group: sonosService.sorted[groupID])
                                                 .tint(router.inspectorSheet?.id == "queue" ? .accentColor : .primary)
+                                                .overlay(alignment: .topTrailing) {
+                                                    if sonosService.sorted[groupID].playMode.contains(.shuffle) {
+                                                        Image(systemName: "shuffle.circle.fill")
+                                                            .symbolRenderingMode(.multicolor)
+                                                            .foregroundStyle(.black.secondary)
+                                                            .offset(x: 10, y: -10)
+                                                    } else if sonosService.sorted[groupID].playMode.contains(.repeatAll) {
+                                                        Image(systemName: "repeat.circle.fill")
+                                                            .symbolRenderingMode(.multicolor)
+                                                            .foregroundStyle(.black.secondary)
+                                                            .offset(x: 10, y: -10)
+                                                    } else if sonosService.sorted[groupID].playMode.contains(.repeatOne) {
+                                                        Image(systemName: "repeat.1.circle.fill")
+                                                            .symbolRenderingMode(.multicolor)
+                                                            .foregroundStyle(.black.secondary)
+                                                            .offset(x: 10, y: -10)
+                                                    }
+                                                }
                                         }
 #else
                                         QueueIconView(group: sonosService.sorted[groupID])
                                             .tint(router.inspectorSheet?.id == "queue" ? .accentColor : .primary)
+                                            .overlay(alignment: .topTrailing) {
+                                                if sonosService.sorted[groupID].playMode.contains(.shuffle) {
+                                                    Image(systemName: "shuffle.circle.fill")
+                                                        .symbolRenderingMode(.multicolor)
+                                                        .foregroundStyle(.black.secondary)
+                                                        .offset(x: 10, y: -10)
+                                                } else if sonosService.sorted[groupID].playMode.contains(.repeatAll) {
+                                                    Image(systemName: "repeat.circle.fill")
+                                                        .symbolRenderingMode(.multicolor)
+                                                        .foregroundStyle(.black.secondary)
+                                                        .offset(x: 10, y: -10)
+                                                } else if sonosService.sorted[groupID].playMode.contains(.repeatOne) {
+                                                    Image(systemName: "repeat.1.circle.fill")
+                                                        .symbolRenderingMode(.multicolor)
+                                                        .foregroundStyle(.black.secondary)
+                                                        .offset(x: 10, y: -10)
+                                                }
+                                            }
 #endif
                                     }
                                 }
