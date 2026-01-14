@@ -23,7 +23,7 @@ struct QueueIconView: View {
                 .allowsTightening(true)
                 .contentTransition(.numericText())
                 .font(.caption2.monospacedDigit())
-                
+                .contentTransition(.identity)
         }
         .animation(.spring, value: group.coordinatorRoom.track.position)
         .fontDesign(.rounded)

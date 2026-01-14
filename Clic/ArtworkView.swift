@@ -81,6 +81,7 @@ struct ArtworkView: View {
             .overlay(alignment: .bottomTrailing) {
                 ArtworkBadgeView(group: group, alarmRunning: alarmRunning)
                     .opacity(showBadge ? 1 : 0 )
+                    .contentTransition(.identity)
             }
             #if DEBUG && SCREENSHOT
             .overlay {

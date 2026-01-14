@@ -86,16 +86,18 @@ struct LargePlayerView: View {
                         proxy.size.height
                     } action: { artworkHeight = $0 }
                     .opacity(artworkHeight >= 100 ? 1 : 0)
-                    .animation(.smooth, value: artworkHeight)
+                    .animation(.interactiveSpring, value: artworkHeight)
                 VStack {
                     if group.coordinatorRoom.container != nil {
                         TrackContainerView(group: group)
                             .transition(.opacity)
+                            .contentTransition(.identity)
                     } else {
                         Text(group.coordinatorRoom.radioStation ?? "")
                             .font(.caption.smallCaps())
                             .foregroundStyle(.secondary)
                             .lineLimit(1, reservesSpace: true)
+                            .contentTransition(.identity)
                     }
                 }
                 .animation(.default, value: group.coordinatorRoom.container != nil)
@@ -112,6 +114,7 @@ struct LargePlayerView: View {
                         .fontDesign(.rounded)
                         .font(.title2)
                         .foregroundStyle(isHoveringOnSong ? Color.primary.opacity(0.8) : Color.primary)
+                        .contentTransition(.identity)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
@@ -136,6 +139,7 @@ struct LargePlayerView: View {
                         .frame(maxWidth: .infinity)
                         .lineLimit(1, reservesSpace: true)
                         .padding(.bottom, showArtworkOnly ? 100 : nil)
+                        .contentTransition(.identity)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
@@ -468,11 +472,14 @@ struct LargePlayerView: View {
                 let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
 
                 Text(position.formatted(.time(pattern: pattern)))
+                    .contentTransition(.identity)
                 Spacer()
                 AudioInfoView(group: group)
                     .frame(height: 12)
+                    .contentTransition(.identity)
                 Spacer()
-                Text("-") + Text(timeRemaining.formatted(.time(pattern: pattern)))
+                Text("-\(timeRemaining.formatted(.time(pattern: pattern)))")
+                    .contentTransition(.identity)
             }
             .frame(maxWidth: 500)
             .monospacedDigit()
