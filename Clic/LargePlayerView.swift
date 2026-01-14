@@ -26,6 +26,7 @@ struct LargePlayerView: View {
 
     @State private var selectionTrack: Task<Void, Never>?
     @State private var scrubbingTask: Task<Void, Error>?
+    @State private var artworkHeight: CGFloat = 1000
         
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
@@ -81,6 +82,11 @@ struct LargePlayerView: View {
                     .padding(.bottom, showArtworkOnly ? 0 : 12)
                     .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
                     .padding(.top, showArtworkOnly ? 100 : nil)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { artworkHeight = $0 }
+                    .opacity(artworkHeight >= 100 ? 1 : 0)
+                    .animation(.smooth, value: artworkHeight)
                 VStack {
                     if group.coordinatorRoom.container != nil {
                         TrackContainerView(group: group)
