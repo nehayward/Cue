@@ -52,17 +52,25 @@ struct SelectGroupView: View {
                                     Button {
                                         play(group: group)
                                     } label: {
-                                        VStack {
-                                            Text(group.nameWithCount)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .lineLimit(1)
-                                            HStack {
-                                                Text(group.groupVolume, format: .number)
-                                                    .foregroundStyle(.secondary)
-                                                    .font(.caption)
-                                                ProgressView(value: group.groupVolume / 100)
-                                                    .foregroundStyle(.primary)
+                                        HStack(spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(group.nameWithCount)
+                                                    .fontWeight(.semibold)
+                                                    .lineLimit(1)
+
+                                                if !group.coordinatorRoom.track.name.isEmpty {
+                                                    Text(group.coordinatorRoom.track.name)
+                                                        .font(.caption)
+                                                        .lineLimit(1)
+                                                        .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .secondary)
+                                                }
                                             }
+
+                                            Spacer()
+
+                                            Text("\(Int(group.groupVolume))")
+                                                .font(.callout)
+                                                .foregroundStyle(.secondary)
                                         }
                                         .padding()
                                         .background {
@@ -273,7 +281,7 @@ struct SelectGroupView: View {
             }
             .fontDesign(.rounded)
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
         } primaryAction: {
             HapticManager.shared.fireHaptic(.selection)
             if selections.contains(room.id) {
