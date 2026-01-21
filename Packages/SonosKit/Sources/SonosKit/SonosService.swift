@@ -357,6 +357,10 @@ public final class SonosService {
                     if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
                         roomGroup.coordinatorRoom.radioStation = title
                     }
+                    
+                    if roomGroup.coordinatorRoom.track.radioStationArtworkURL != mediaInfo.artwork {
+                        roomGroup.coordinatorRoom.track.radioStationArtworkURL = mediaInfo.artwork
+                    }
                 }
             } else {
                 roomGroup.coordinatorRoom.radioStation = nil
@@ -392,7 +396,7 @@ public final class SonosService {
             }
 
             // Only get track information if the track ID has changed
-            var shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
+            let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
             
             if shouldGetTrackInfo {
                 roomGroup.coordinatorRoom.track = awaitedTrack
@@ -1191,11 +1195,17 @@ public final class SonosService {
             return (Track.Metadata(ISRC: tidalTrack.metadata?.isrc, openInURL: tidalTrack.content.location, contentType: .track), tidalTrack.artwork)
         case .tuneIn:
             guard let stationID = track.metadata?.stationID, let tuneInTrack = await musicSearch.lookupTuneInStation(id: stationID) else { return (nil, nil) }
-            var imageURL = tuneInTrack.imageURL
+
+            // Store the station artwork URL as a fallback for when song artwork is unavailable
+            let stationArtworkURL = tuneInTrack.imageURL
+            track.radioStationArtworkURL = stationArtworkURL
+
+            var imageURL = stationArtworkURL
 
             if let song = tuneInTrack.stationInfo?.song, let artist = tuneInTrack.stationInfo?.artist {
-                let artworkURL = await musicSearch.searchSpotifySong(song: song, artist: artist)?.tracks?.items.first
-                imageURL = artworkURL?.album.images?.biggestImageURL
+                if let spotifyArtwork = await musicSearch.searchApple(query: song + artist).first?.artwork {
+                    imageURL = spotifyArtwork
+                }
             }
 
             return (

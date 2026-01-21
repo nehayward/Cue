@@ -30,11 +30,17 @@ public final class Track: Identifiable, Sendable {
         if let downloadedArtworkURL {
             return downloadedArtworkURL
         }
+        if let radioStationArtworkURL {
+            return radioStationArtworkURL
+        }
         return sonosAlbumArtURL
     }
 
     /// The URL for the track's artwork.
     public var downloadedArtworkURL: URL?
+
+    /// The URL for the radio station's artwork (used as fallback when song artwork is unavailable).
+    public var radioStationArtworkURL: URL?
 
     /// The music service associated with the track.
     public var musicService: MusicService

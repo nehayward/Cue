@@ -265,8 +265,8 @@ final class XMLParserSonos {
         var albumArtURL: URL?
         if let currentURIMetaData = try? parseValue(xml: xml, named: "CurrentURIMetaData").removingHTMLEntities() {
             radioTitle = try? parseValue(xml: currentURIMetaData, named: "dc:title").removingHTMLEntities()
-            var albumArt = try? parseValue(xml: currentURIMetaData, named: "upnp:albumArtURI").removingHTMLEntities()
-            albumArt = albumArt?.replacingOccurrences(of: "logoq.png", with: "logod.jpg")
+            let albumArt = try? parseValue(xml: currentURIMetaData, named: "upnp:albumArtURI").removingHTMLEntities()
+//            albumArt = albumArt?.replacingOccurrences(of: "logoq.png", with: "logod.jpg")
             albumArtURL = URL(string: albumArt ?? "")
         }
         
