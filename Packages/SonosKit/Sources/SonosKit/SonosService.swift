@@ -1503,9 +1503,16 @@ public final class SonosService {
         await api.next(ipAddress: ip)
     }
 
+    /// If playback is more than 3 seconds into the track, restarts the current track.
+    /// Otherwise, goes to the previous track.
     public func previous(ip: String) async {
-        // TODO: Seek to beginning of track
-        await api.previous(ipAddress: ip)
+        let track = await api.getCurrentTrack(ipAddress: ip)
+        let playbackPosition = track?.playbackPosition ?? 0
+        if playbackPosition >= 3000 {
+            await api.seek(to: TimeInterval(0), IP: ip)
+        } else {
+            await api.previous(ipAddress: ip)
+        }
     }
 
     public func isMuted(for group: GroupRoom) async -> Bool? {

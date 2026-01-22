@@ -1,4 +1,5 @@
 2026.2
+- Previous button now restarts the current song if more than 3 seconds in, matching Sonos app behavior
 - Added Sleep Timer shortcuts for quick access to common durations
 - Added fallback album art for TuneIn stations
 - Added shuffle and repeat indicators to queue icon on iPad and Mac

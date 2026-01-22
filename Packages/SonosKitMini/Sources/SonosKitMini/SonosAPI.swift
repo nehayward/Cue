@@ -261,7 +261,43 @@ final class SonosAPI {
         let xmlTrackParser = SonosTrackParser.parse(xmlString: xml, ip: ipAddress, preferredIP: prioritizedAlbumArtIP)
         return xmlTrackParser
     }
-//    
+
+    /// Returns the current playback position in milliseconds.
+    func getPlaybackPosition(ipAddress: String) async -> Int {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0)
+        ]
+
+        guard let (data, _) = try? await sendSoapRequest(ip: ipAddress, action: "GetPositionInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return 0
+        }
+
+        let xml = String(decoding: data, as: UTF8.self)
+        // Extract RelTime value like "0:01:07" or "0:00:03"
+        guard let relTimeStart = xml.range(of: "<RelTime>")?.upperBound,
+              let relTimeEnd = xml[relTimeStart...].range(of: "</RelTime>")?.lowerBound else {
+            return 0
+        }
+
+        let relTime = String(xml[relTimeStart..<relTimeEnd])
+        // Parse "H:MM:SS" or "M:SS" format to milliseconds
+        let components = relTime.split(separator: ":")
+        guard components.count >= 2 else { return 0 }
+
+        let seconds: Int
+        if components.count == 3 {
+            let hours = Int(components[0]) ?? 0
+            let minutes = Int(components[1]) ?? 0
+            let secs = Int(components[2]) ?? 0
+            seconds = hours * 3600 + minutes * 60 + secs
+        } else {
+            let minutes = Int(components[0]) ?? 0
+            let secs = Int(components[1]) ?? 0
+            seconds = minutes * 60 + secs
+        }
+        return seconds * 1000
+    }
+//
 //    @MainActor
 //    func getCurrentQueueIndex(ipAddress: String, prioritizedAlbumArtIP: String? = nil) async -> Int {
 //        let arguments: OrderedKeys = [
@@ -817,30 +853,30 @@ final class SonosAPI {
 //            print("Failed")
 //        }
 //    }
-//
-//    func seek(to time: TimeInterval, IP: String) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("Unit", "REL_TIME"),
-//            ("Target", convertMillisecondsToHoursMinutesSeconds(Int(time)))
-//        ]
-//
-//        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
-//            if (response as? HTTPURLResponse)?.statusCode != 200 {
-//                print("Failed")
-//            }
-//        }
-//    }
-//
-//    private func convertMillisecondsToHoursMinutesSeconds(_ milliseconds: Int) -> String {
-//        let seconds = milliseconds / 1000
-//        let hours = seconds / 3600
-//        let minutes = (seconds % 3600) / 60
-//        let remainingSeconds = seconds % 60
-//
-//        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
-//    }
-//
+
+    func seek(time: TimeInterval, IP: String) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("Unit", "REL_TIME"),
+            ("Target", convertMillisecondsToHoursMinutesSeconds(Int(time)))
+        ]
+
+        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "Seek", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+            if (response as? HTTPURLResponse)?.statusCode != 200 {
+                print("Failed")
+            }
+        }
+    }
+
+    private func convertMillisecondsToHoursMinutesSeconds(_ milliseconds: Int) -> String {
+        let seconds = milliseconds / 1000
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+
+        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
+    }
+
     func setAVTransport(IP: String, ID: String) async {
         let arguments: OrderedKeys = [
             ("InstanceID", 0),

@@ -1673,9 +1673,15 @@ public final class SonosMiniService {
         await api.next(ipAddress: ip)
     }
     
+    /// If playback is more than 3 seconds into the track, restarts the current track.
+    /// Otherwise, goes to the previous track.
     public func previous(ip: String) async {
-        // TODO: Seek to beginning of track
-        await api.previous(ipAddress: ip)
+        let playbackPosition = await api.getPlaybackPosition(ipAddress: ip)
+        if playbackPosition >= 3000 {
+            await api.seek(time: 0, IP: ip)
+        } else {
+            await api.previous(ipAddress: ip)
+        }
     }
     
     //
