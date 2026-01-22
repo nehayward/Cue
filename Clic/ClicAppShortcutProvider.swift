@@ -58,5 +58,25 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
             shortTitle: "End All Live Activities",
             systemImageName: "inset.filled.capsule"
         )
+
+        AppShortcut(
+            intent: SetSleepTimerIntent(requestRoom: true),
+            phrases: [
+                "Set sleep timer in \(.applicationName)",
+                "Set \(\.$duration) sleep timer in \(.applicationName)"
+            ],
+            shortTitle: "Set Sleep Timer",
+            systemImageName: "moon.zzz.fill"
+        )
+
+        AppShortcut(
+            intent: StopSleepTimerIntent(requestRoom: true),
+            phrases: [
+                "Stop sleep timer in \(.applicationName)",
+                "Cancel sleep timer in \(.applicationName)"
+            ],
+            shortTitle: "Stop Sleep Timer",
+            systemImageName: "moon.zzz"
+        )
     }
 }

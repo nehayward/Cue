@@ -27,6 +27,7 @@ struct LargePlayerView: View {
     @State private var selectionTrack: Task<Void, Never>?
     @State private var scrubbingTask: Task<Void, Error>?
     @State private var artworkHeight: CGFloat = 1000
+    @State private var showSleepTimerCancelConfirmation: Bool = false
         
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
@@ -352,24 +353,71 @@ struct LargePlayerView: View {
             if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
                 if #available(iOS 26.0, visionOS 26.0, *) {
                     ToolbarItem {
-                        Text(date, style: .timer)
-                            .contentTransition(.numericText(countsDown: true))
-                            .animation(.spring, value: date)
-                            .monospacedDigit()
-                            .bold()
-                            .id(refreshID)
+                        Button {
+                            showSleepTimerCancelConfirmation = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "moon.zzz.fill")
+                                    .foregroundStyle(Color.primary.gradient, .indigo)
+                                Text(date, style: .timer)
+                                    .contentTransition(.numericText(countsDown: true))
+                                    .animation(.spring, value: date)
+                                    .monospacedDigit()
+                                    .bold()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .id(refreshID)
+                        .confirmationDialog(
+                            "Cancel Sleep Timer",
+                            isPresented: $showSleepTimerCancelConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Cancel Sleep Timer", role: .destructive) {
+                                Task {
+                                    await sonosService.stopSleepTimer(group: group)
+                                }
+                            }
+                            Button("Keep Timer", role: .cancel) { }
+                        } message: {
+                            Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
+                        }
                     }
                     #if !os(visionOS)
                     .sharedBackgroundVisibility(.hidden)
                     #endif
                 } else {
                     ToolbarItem {
-                        Text(date, style: .timer)
-                            .contentTransition(.numericText(countsDown: true))
-                            .animation(.spring, value: date)
-                            .monospacedDigit()
-                            .bold()
-                            .id(refreshID)
+                        Button {
+                            showSleepTimerCancelConfirmation = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "moon.zzz.fill")
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(Color.primary.gradient, .indigo)
+                                Text(date, style: .timer)
+                                    .contentTransition(.numericText(countsDown: true))
+                                    .animation(.spring, value: date)
+                                    .monospacedDigit()
+                                    .bold()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .id(refreshID)
+                        .confirmationDialog(
+                            "Cancel Sleep Timer",
+                            isPresented: $showSleepTimerCancelConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Cancel Sleep Timer", role: .destructive) {
+                                Task {
+                                    await sonosService.stopSleepTimer(group: group)
+                                }
+                            }
+                            Button("Keep Timer", role: .cancel) { }
+                        } message: {
+                            Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
+                        }
                     }
                 }
             }

@@ -39,7 +39,7 @@ struct AddToPlaylistMenu: View {
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
             }
         } label: {
-            Label("Add to Sonos Playlist…", systemImage: "plus")
+            Label("Add to Playlist", systemImage: "plus")
         }
     }
 }

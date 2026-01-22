@@ -83,7 +83,15 @@ struct SpeakerListScreen: View {
             } header: {
                 HStack {
                     Text(group.nameWithCount)
-                    if let battery = group.coordinatorRoom.battery {
+                    if let sleepTimer = group.coordinatorRoom.sleepTimer, sleepTimer > Date() {
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: "moon.zzz.fill")
+                                .foregroundStyle(Color.primary.gradient, .indigo)
+                            Text(sleepTimer, style: .timer)
+                                .monospacedDigit()
+                        }
+                    } else if let battery = group.coordinatorRoom.battery {
                         Spacer()
                         Text((battery.percentage / 100), format: .percent)
                             .foregroundStyle(.secondary)

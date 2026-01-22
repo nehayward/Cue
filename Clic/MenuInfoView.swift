@@ -25,12 +25,14 @@ struct MenuInfoView: View {
                         router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
+//                        Text(group.coordinatorRoom.track.album)
                     }
                     
                     Button {
                         router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                     } label: {
                         Label("View Artist", systemImage: "music.mic")
+//                        Text(group.coordinatorRoom.track.artist)
                     }
                     //                let playable = group.coordinatorRoom.track.toPlayable
                     //                ShareLink(item: playable)
@@ -84,18 +86,16 @@ struct MenuInfoView: View {
                     }
                 }
                 
-//                #if os(iOS) && !targetEnvironment(macCatalyst)
-//                LiveActivityMenu(group: group)
-//                #endif
-                SpeakerSettingsMenuView(group: group)
-                
+                //                #if os(iOS) && !targetEnvironment(macCatalyst)
+                //                LiveActivityMenu(group: group)
+                //                #endif
                 if !group.TVMode {
                     Toggle(isOn: $showArtworkOnly) {
-                        Label("Album Cover Only", systemImage: "photo")
-                        Text("Hide titles and controls.")
+                        Label("\(showArtworkOnly ? "Show" : "Hide") controls", systemImage: "photo")
                     }
                 }
-                
+                BatteryInfoMenuView(group: group)
+                SpeakerSettingsMenuView(group: group)
                 ControlGroup {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
@@ -174,6 +174,25 @@ struct LiveActivityMenu: View {
             Text("Show playback controls on lock screen")
                 .foregroundStyle(.secondary)
             Image(systemName: "inset.filled.capsule")
+        }
+    }
+}
+
+struct BatteryInfoMenuView: View {
+    var group: GroupRoom
+
+    var body: some View {
+        if let battery = group.coordinatorRoom.battery {
+            Label {
+                Text("\(Int(battery.percentage))%")
+                if battery.chargingState == .charging {
+                    Text("Charging")
+                }
+            } icon: {
+                Image(systemName: battery.chargingState == .charging ? "battery.100percent.bolt" : "battery.100percent")
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(battery.percentage > 20 ? Color.green : Color.orange)
+            }
         }
     }
 }

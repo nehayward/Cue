@@ -255,6 +255,12 @@ public final class SonosService {
             groups[index].coordinatorRoom.ethernetEnabled = updateGroup.coordinatorRoom.ethernetEnabled
             groups[index].coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
             groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+
+            // MARK: Fetch sleep timer for each group
+            if updateGroup.coordinatorRoom.state == .active, groups[index].coordinatorRoom.sleepTimer == nil{
+                groups[index].coordinatorRoom.sleepTimer = await api.getSleepTimer(IP: updateGroup.coordinatorRoom.ip)
+            }
+
             if groups[index].coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
                 // MARK: Update all rooms Info.
                 groups[index].coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
