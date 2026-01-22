@@ -1,4 +1,6 @@
 2026.2
+- Added Sleep Timer shortcuts for quick access to common durations
+- Added fallback album art for TuneIn stations
 - Added shuffle and repeat indicators to queue icon on iPad and Mac
 - Artwork now hides gracefully in compact window sizes for better layout
 - Redesigned speaker selection screen with improved layout and real-time updates
