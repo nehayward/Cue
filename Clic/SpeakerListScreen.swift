@@ -173,11 +173,18 @@ struct SpeakerListScreen: View {
             }
         }
         .overlay(alignment: .center) {
-            if sonosService.sorted.isEmpty, sonosService.parserError == nil, !sonosService.systemState.notFound {
+            if sonosService.sorted.isEmpty, sonosService.parserError == nil, !sonosService.systemState.notFound, !sonosService.isCellular {
                 ProgressView()
             }
-            
-            if sonosService.systemState.notFound {
+
+            if sonosService.isCellular {
+                ContentUnavailableView {
+                    Label("On Cellular", systemImage: "wifi.slash")
+                } description: {
+                    Text("Connect to WiFi to control your Sonos speakers.")
+                }
+                .background(.thinMaterial)
+            } else if sonosService.systemState.notFound {
                 ContentUnavailableView {
                     Label("Discover Devices", systemImage: "waveform.badge.magnifyingglass")
                 } description: {
@@ -292,13 +299,13 @@ struct SpeakerListScreen: View {
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .animation(.spring, value: sonosService.sorted)
         .animation(.spring, value: sonosService.isSearching)
-        .animation(.bouncy, value: sonosService.networkMonitorService.isConnected)
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)
+        .animation(.spring, value: sonosService.isCellular)
         .overlay(alignment: .top) {
             VStack {
-                if !sonosService.networkMonitorService.isConnected {
-                    Label("Can't find System, Connect to Wi-Fi", systemImage: "wifi.slash")
+                if sonosService.isCellular {
+                    Label("Connect to Wi-Fi", systemImage: "wifi.slash")
                         .padding()
                         .background {
                             Capsule()
@@ -308,9 +315,8 @@ struct SpeakerListScreen: View {
                         .fontDesign(.rounded)
                         .bold()
                         .transition(.asymmetric(insertion: .move(edge: .top), removal: .identity))
-                        .offset(y: sonosService.networkMonitorService.isConnected ? 0 : -300)
                 }
-                
+
                 if sonosService.isSearching {
                     Label("Discovering Devices", systemImage: "waveform.badge.magnifyingglass")
                         .imageScale(.large)

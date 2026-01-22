@@ -38,7 +38,6 @@ public final class SonosService {
     public var rooms: [Room] = []
     public var selectedGroup: GroupRoom? = nil
 
-    @ObservationIgnored public lazy var networkMonitorService = NetworkMonitorService()
     @ObservationIgnored private lazy var sonosSystemDiscoverService = SonosSystemDiscoverService()
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
@@ -51,6 +50,21 @@ public final class SonosService {
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
     public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
+    public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
+
+    @MainActor
+    public func clearDevices() {
+        // Cancel running tasks first to prevent concurrent access
+        sonosPulse.cancel()
+        watcher.cancel()
+        monitorTask.cancel()
+
+        zones.removeAll()
+        groups.removeAll()
+        rooms.removeAll()
+        selectedGroup = nil
+    }
+
     public var preferredHouseHold: String? { 
         get {
             sonosSystemDiscoverService.preferredHouseHold

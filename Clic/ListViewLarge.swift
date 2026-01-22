@@ -116,6 +116,7 @@ struct ListViewLarge: View {
         }
         .animation(.interactiveSpring, value: sonosService.sorted)
         .animation(.interactiveSpring, value: sonosService.sortOption)
+        .animation(.interactiveSpring, value: sonosService.isCellular)
         .environment(\.defaultMinListRowHeight, 40)
         .task(id: sonosService.sorted) {
             #if targetEnvironment(macCatalyst)
@@ -193,7 +194,7 @@ struct ListViewLarge: View {
             }
         }
         .overlay(alignment: .center) {
-            if sonosService.sorted.isEmpty, sonosService.parserError == nil {
+            if sonosService.sorted.isEmpty, sonosService.parserError == nil, !sonosService.isCellular {
                 ProgressView()
             }
         }
@@ -221,7 +222,16 @@ struct ListViewLarge: View {
                     .transition(.scale)
                 }
 
-                if sonosService.systemState.notFound {
+                if sonosService.isCellular {
+                    Label("On Cellular", systemImage: "wifi.slash")
+                        .imageScale(.large)
+                        .padding()
+                        .background {
+                            Capsule()
+                                .foregroundStyle(.ultraThinMaterial)
+                        }
+                        .transition(.scale)
+                } else if sonosService.systemState.notFound {
                     Button {
                         sonosService.monitor()
                     } label: {

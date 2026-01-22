@@ -30,6 +30,7 @@ class SonosStorageIP: ObservableObject {
 final class SonosSystemDiscoverService {
     var isSearching: Bool = false
     var currentWakes: Set<String> = []
+    var isCellular: Bool = false
     var preferredHouseHold: String? {
         get {
             UserDefaults.standard.string(forKey: "clic.household")
@@ -45,7 +46,9 @@ final class SonosSystemDiscoverService {
     @ObservationIgnored private let sonosBonjourServiceType = "_sonos._tcp"
     @ObservationIgnored private var logger: Logger = Logger(subsystem: Bundle.main.bundleIdentifier!,
                                         category: String(describing: SonosSystemDiscoverService.self))
-    
+    @ObservationIgnored private let cellularMonitor = NWPathMonitor()
+    @ObservationIgnored private var cellularUpdateTask: Task<Void, Never>?
+
     private let lock = OSAllocatedUnfairLock()
     private var permissionsDenied: Bool = false
     private var connections: [NWConnection?] = []
@@ -54,9 +57,21 @@ final class SonosSystemDiscoverService {
 
     var lastKnownIP: String = ""
     var lastKnownState: String = ""
-    
+
+    init() {
+        cellularMonitor.pathUpdateHandler = { [weak self] path in
+            self?.cellularUpdateTask?.cancel()
+            self?.cellularUpdateTask = Task { @MainActor [weak self] in
+                self?.isCellular = path.usesInterfaceType(.cellular)
+            }
+        }
+        cellularMonitor.start(queue: DispatchQueue(label: "CellularMonitor"))
+    }
+
     deinit {
         stopBrowsing()
+        cellularUpdateTask?.cancel()
+        cellularMonitor.cancel()
         lock.withLock {
             connections.forEach { $0?.cancel() }
             connections.removeAll()
@@ -105,6 +120,11 @@ final class SonosSystemDiscoverService {
     func getFirstIP(useCache: Bool) async throws -> String {
         if useCache && !sonosStorageIP.sonosIP.isEmpty {
             return sonosStorageIP.sonosIP
+        }
+
+        // Skip discovery on cellular - Sonos devices are only reachable on local network
+        if isCellular {
+            throw SonosServiceError.sonosSystemNotFound
         }
 
         defer {
@@ -254,6 +274,11 @@ final class SonosSystemDiscoverService {
 
     @MainActor
     func getAllIPs() async throws -> [String] {
+        // Skip discovery on cellular - Sonos devices are only reachable on local network
+        if isCellular {
+            return []
+        }
+
         startBrowseAll()
 
         defer {

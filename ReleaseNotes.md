@@ -4,6 +4,7 @@
 - Added fallback album art for TuneIn stations
 - Added shuffle and repeat indicators to queue icon on iPad and Mac
 - Artwork now hides gracefully in compact window sizes for better layout
+- Added cellular network detection: App now shows "Connect to Wi-Fi" message when on cellular and automatically resumes discovery when returning to Wi-Fi
 - Redesigned speaker selection screen with improved layout and real-time updates
   - Song title now shown below speaker name with accent color when playing
   - Volume displayed on far right for cleaner look

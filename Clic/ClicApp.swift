@@ -259,6 +259,17 @@ struct ClicApp: App {
                 queueInspectorVisible = (newValue?.id == "queue")
             }
         }
+        .onChange(of: sonosService.isCellular) { oldValue, isCellular in
+            if isCellular {
+                router.selectedID = nil
+                router.inspectorSheet = nil
+                sonosService.clearDevices()
+                alertService.showAlert(with: "On Cellular", imageName: "wifi.slash")
+            } else if oldValue {
+                // Coming back from cellular to WiFi - restart discovery
+                sonosService.monitor()
+            }
+        }
         .commands {
             SidebarCommands()
             CommandGroup(replacing: .appSettings) {
