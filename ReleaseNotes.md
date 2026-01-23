@@ -1,4 +1,6 @@
-2026.2
+# 2026.2
+
+–– New Features ––
 - Previous button now restarts the current song if more than 3 seconds in, matching Sonos app behavior
 - Added Sleep Timer shortcuts for quick access to common durations
 - Added fallback album art for TuneIn stations
@@ -6,12 +8,12 @@
 - Artwork now hides gracefully in compact window sizes for better layout
 - Added cellular network detection: App now shows "Connect to Wi-Fi" message when on cellular and automatically resumes discovery when returning to Wi-Fi
 - Redesigned speaker selection screen with improved layout and real-time updates
-  - Song title now shown below speaker name with accent color when playing
-  - Volume displayed on far right for cleaner look
-  - Tap to select, long-press for menu options (Only This Speaker, Mute/Unmute)
-  - "Everywhere" toggles to "Deselect All" when all speakers selected
-  - Playing speakers automatically sorted to top
-  - Content stays fixed at top while scrolling speaker list
+- Song title now shown below speaker name with accent color when playing
+- Volume displayed on far right for cleaner look
+- Tap to select, long-press for menu options (Only This Speaker, Mute/Unmute)
+- "Everywhere" toggles to "Deselect All" when all speakers selected
+- Playing speakers automatically sorted to top
+- Content stays fixed at top while scrolling speaker list
   
 # 2026.1
 
