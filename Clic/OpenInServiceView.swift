@@ -9,14 +9,14 @@ struct OpenInServiceView: View {
         if let openInURL = item.content.location {
             if item.content.service == .apple {
                 Link(destination: openInURL) {
-                    Label("Open in Apple Music…", systemImage: "apple.logo")
+                    Label("Open in Apple Music", systemImage: "apple.logo")
                 }
             }
             
             if item.content.service == .spotify {
                 Link(destination: openInURL) {
                     Label {
-                        Text("Open in Spotify…")
+                        Text("Open in Spotify")
                     } icon: {
                         MusicService.spotify.image
                     }
@@ -26,7 +26,7 @@ struct OpenInServiceView: View {
             if item.content.service == .tidal {
                 Link(destination: openInURL) {
                     Label {
-                        Text("Open in Tidal…")
+                        Text("Open in Tidal")
                     } icon: {
                         MediaSearchService.tidal.icon
                     }
@@ -36,7 +36,7 @@ struct OpenInServiceView: View {
             if item.content.service == .soundcloud {
                 Link(destination: openInURL) {
                     Label {
-                        Text("Open in SoundCloud…")
+                        Text("Open in SoundCloud")
                     } icon: {
                         MediaSearchService.soundcloud.iconForMusicService
                     }
