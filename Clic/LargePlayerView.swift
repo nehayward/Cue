@@ -565,7 +565,7 @@ struct LargePlayerView: View {
                     .frame(width: 32, height: 32)
             }
             .buttonStyle(.liveActivity)
-            .disabled(!group.availableActions.contains(.previous))
+            .disabled(!group.availableActions.contains(.previous) && group.playbackService != .queue)
             
             Spacer()
             Button{
