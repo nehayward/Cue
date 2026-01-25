@@ -76,7 +76,7 @@ struct SceneView: View {
             .navigationTitle("Scenes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     if !scenes.isEmpty {
                         EditButton()
                     }
