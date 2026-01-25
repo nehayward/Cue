@@ -37,6 +37,7 @@ struct MenuInfoView: View {
                     //                let playable = group.coordinatorRoom.track.toPlayable
                     //                ShareLink(item: playable)
                     if !group.TVMode {
+                        AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
                         AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
                     }
                 }

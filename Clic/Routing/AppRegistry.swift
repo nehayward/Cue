@@ -10,189 +10,197 @@ import SwiftUI
 extension View {
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
         sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
-            Group {
-                switch destination {
-                case let .groupScreen(group):
-                    GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
+            switch destination {
+            case let .newPlaylist(group: group):
+                NewPlaylistView(group: group)
+                    .withEnvironments()
+                    .presentationSizingFitted()
+                    .frame(minWidth: 200, idealWidth: 300, maxWidth: 500, minHeight: 100, maxHeight: 600)
+            default:
+                Group {
+                    switch destination {
+                    case let .groupScreen(group):
+                        GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
+                            .customizeWindowSizeForMacOS15()
+                    case .paywall:
+                        ClicPaywall()
+                        //                    PaywallView(displayCloseButton: true)
+                        //                        .onPurchaseCompleted { transaction, customerInfo in
+                        //                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
+                        //                                ///                     self.displayPaywall = false
+                        //                                ///                 }
+                        //                            ///                 print(
+                        //                            print("Complete")
+                        //                        }
+                        //                        .onAppear {
+                        //                            Analytics.shared.track(.viewedPaywall)
+                        //                        }
+                    case let .settings(destination):
+                        PreferenceScreen(destination: destination)
+                    case .favorites:
+                        let searchRouter = Router.search
+                        let selectedGroupService = SelectedGroupService(group: nil)
+                        SearchScreen(favorites: true)
+                            .environment(searchRouter)
+                            .environment(selectedGroupService)
+                            .onDisappear {
+                                Router.search.path.removeAll()
+                                Router.search.presentedSheet = nil
+                            }
+                        // MARK: Add back later maybe
+                        //                        .environment(Router.search)
+                    case let .search(group):
+                        let searchRouter = Router.search
+                        let selectedGroupService = SelectedGroupService(group: group)
+                        
+                        SearchScreen()
+                            .environment(searchRouter)
+                            .environment(selectedGroupService)
+                            .onDisappear {
+                                Router.search.path.removeAll()
+                                Router.search.presentedSheet = nil
+                            }
+                        // MARK: Add back later maybe
+                        //                        .environment(Router.search)
+                    case let .sceneSearchAdd(adding):
+                        let searchRouter = Router.search
+                        @State var selectedGroupService = SelectedGroupService()
+                        
+                        SearchScreen()
+                            .environment(adding)
+                            .environment(searchRouter)
+                            .environment(selectedGroupService)
+                            .onDisappear {
+                                Router.search.path.removeAll()
+                            }
+                    case let .queue(group):
+                        QueueScreen(group: group)
+                            .presentationDetents([.medium, .large])
+                    case let .playContent(content):
+                        PlayerSelectionView(playableContent: content)
+                    case let .playMedia(url):
+                        NavigationStack {
+                            PlayerSelectionView(urlScheme: url)
+                                .navigationBarTitleDisplayMode(.inline)
+                                .navigationTitle("Choose Group")
+                        }
+                    case let .createScene(content):
+                        NavigationStack {
+                            SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
+                                .addDismiss {
+                                    Router.main.presentedSheet = nil
+                                }
+                        }
+                    case .scenes:
+                        SceneView()
+                    case let .mediaDetail(content, group):
+                        let selectedGroupService = SelectedGroupService(group: group)
+                        let router = Router.secondary
+                        
+                        NavigationStack {
+                            MediaDetailView(playableContent: content)
+                                .navigationBarTitleDisplayMode(.inline)
+                                .withAppRouter()
+                                .addDismiss {
+                                    sheetDestinations.wrappedValue = nil
+                                }
+                        }
+    #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                        .safeArea(edge: .bottom) {
+                            MiniPlayerView()
+                        }
+    #endif
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                        .environment(router)
+                        .environment(selectedGroupService)
                         .customizeWindowSizeForMacOS15()
-                case .paywall:
-                    ClicPaywall()
-                    //                    PaywallView(displayCloseButton: true)
-                    //                        .onPurchaseCompleted { transaction, customerInfo in
-                    //                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
-                    //                                ///                     self.displayPaywall = false
-                    //                                ///                 }
-                    //                            ///                 print(
-                    //                            print("Complete")
-                    //                        }
-                    //                        .onAppear {
-                    //                            Analytics.shared.track(.viewedPaywall)
-                    //                        }
-                case let .settings(destination):
-                    PreferenceScreen(destination: destination)
-                case .favorites:
-                    let searchRouter = Router.search
-                    let selectedGroupService = SelectedGroupService(group: nil)
-                    SearchScreen(favorites: true)
-                        .environment(searchRouter)
-                        .environment(selectedGroupService)
-                        .onDisappear {
-                            Router.search.path.removeAll()
-                            Router.search.presentedSheet = nil
+                    case let .artistDetail(content, group):
+                        let router = Router.secondary
+                        @State var selectedGroupService = SelectedGroupService(group: group)
+                        
+                        NavigationStack {
+                            ArtistDetailView(playableContent: content)
+                                .navigationBarTitleDisplayMode(.inline)
+                                .withAppRouter()
+                                .addDismiss {
+                                    sheetDestinations.wrappedValue = nil
+                                }
                         }
-                    // MARK: Add back later maybe
-                    //                        .environment(Router.search)
-                case let .search(group):
-                    let searchRouter = Router.search
-                    let selectedGroupService = SelectedGroupService(group: group)
-                    
-                    SearchScreen()
-                        .environment(searchRouter)
-                        .environment(selectedGroupService)
-                        .onDisappear {
-                            Router.search.path.removeAll()
-                            Router.search.presentedSheet = nil
+                        .miniPlayerOnScrollHandler()
+    #if !targetEnvironment(macCatalyst) && !os(visionOS)
+                        .safeArea(edge: .bottom) {
+                            MiniPlayerView()
                         }
-                    // MARK: Add back later maybe
-                    //                        .environment(Router.search)
-                case let .sceneSearchAdd(adding):
-                    let searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService()
-                    
-                    SearchScreen()
-                        .environment(adding)
-                        .environment(searchRouter)
+    #endif
+                        .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                        .environment(router)
                         .environment(selectedGroupService)
-                        .onDisappear {
-                            Router.search.path.removeAll()
+                        .customizeWindowSizeForMacOS15()
+                        .withAlert()
+                        
+                    case let .searchAdd(adding):
+                        let searchRouter = Router.search
+                        @State var selectedGroupService = SelectedGroupService()
+                        
+                        SearchScreen(isAlarmSearch: true)
+                            .environment(adding)
+                            .environment(searchRouter)
+                            .environment(selectedGroupService)
+                    case let .alarms(group):
+                        NavigationStack {
+                            AlarmListView(group: group)
+                                .withAppRouter()
+                                .addDismiss {
+                                    Router.main.presentedSheet = nil
+                                }
                         }
-                case let .queue(group):
-                    QueueScreen(group: group)
+                    case let .customSleepTimer(group, recentTimers):
+                        SleepTimerCustomView(recentTimers: recentTimers, group: group)
+                    case let .browse(group: group):
+                        let selectedGroupService = SelectedGroupService(group: group)
+                        BrowseScreen()
+                            .environment(selectedGroupService)
+                    case .newPlaylist:
+                        EmptyView()
+                    case let .renamePlaylist(content: content):
+                        NewPlaylistView(playlist: content)
+                    case let .speakerSettings(room: room):
+                        NavigationStack {
+                            SpeakerSettingsView(room: room)
+                        }
                         .presentationDetents([.medium, .large])
-                case let .playContent(content):
-                    PlayerSelectionView(playableContent: content)
-                case let .playMedia(url):
-                    NavigationStack {
-                        PlayerSelectionView(urlScheme: url)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .navigationTitle("Choose Group")
-                    }
-                case let .createScene(content):
-                    NavigationStack {
-                        SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
-                            .addDismiss {
-                                Router.main.presentedSheet = nil
-                            }
-                    }
-                case .scenes:
-                    SceneView()
-                case let .mediaDetail(content, group):
-                    let selectedGroupService = SelectedGroupService(group: group)
-                    let router = Router.secondary
-                    
-                    NavigationStack {
-                        MediaDetailView(playableContent: content)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter()
-                            .addDismiss {
-                                sheetDestinations.wrappedValue = nil
-                            }
-                    }
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-                    .safeArea(edge: .bottom) {
-                        MiniPlayerView()
-                    }
-#endif
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                    .environment(router)
-                    .environment(selectedGroupService)
-                    .customizeWindowSizeForMacOS15()
-                case let .artistDetail(content, group):
-                    let router = Router.secondary
-                    @State var selectedGroupService = SelectedGroupService(group: group)
-                    
-                    NavigationStack {
-                        ArtistDetailView(playableContent: content)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .withAppRouter()
-                            .addDismiss {
-                                sheetDestinations.wrappedValue = nil
-                            }
-                    }
-                    .miniPlayerOnScrollHandler()
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
-                    .safeArea(edge: .bottom) {
-                        MiniPlayerView()
-                    }
-#endif
-                    .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                    .environment(router)
-                    .environment(selectedGroupService)
-                    .customizeWindowSizeForMacOS15()
-                    .withAlert()
-                    
-                case let .searchAdd(adding):
-                    let searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService()
-                    
-                    SearchScreen(isAlarmSearch: true)
-                        .environment(adding)
-                        .environment(searchRouter)
-                        .environment(selectedGroupService)
-                case let .alarms(group):
-                    NavigationStack {
-                        AlarmListView(group: group)
-                            .withAppRouter()
-                            .addDismiss {
-                                Router.main.presentedSheet = nil
-                            }
-                    }
-                case let .customSleepTimer(group, recentTimers):
-                    SleepTimerCustomView(recentTimers: recentTimers, group: group)
-                case let .browse(group: group):
-                    let selectedGroupService = SelectedGroupService(group: group)
-                    BrowseScreen()
-                        .environment(selectedGroupService)
-                case let .newPlaylist(group: group):
-                    NewPlaylistView(group: group)
-                case let .renamePlaylist(content: content):
-                    NewPlaylistView(playlist: content)
-                case let .speakerSettings(room: room):
-                    NavigationStack {
-                        SpeakerSettingsView(room: room)
-                    }
-                    .presentationDetents([.medium, .large])
-                    .presentationCornerRadius(24)
-                case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
-                    SelectGroupView(content: content, onSelection: onSelection)
-                        .presentationDetents([.fraction(0.8), .large])
                         .presentationCornerRadius(24)
-                        .environment(selectedGroupService)
-                case .plexManagement:
-                    PlexManagementView()
-                case let .volumeControlsScreen(groupID: groupID):
-                    VolumeControlsScreen(groupID: groupID)
-                case .onboard:
-                    OnboardView()
-                case .spotifyUserPlaylists:
-                    SpotifyPlaylistScreen()
-                case let .editScene(scene):
-                    NavigationStack {
-                        SceneBuilderScreen(edit: true, scene: scene)
-                            .addDismiss {
-                                Router.main.presentedSheet = nil
-                            }
+                    case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
+                        SelectGroupView(content: content, onSelection: onSelection)
+                            .presentationDetents([.fraction(0.8), .large])
+                            .presentationCornerRadius(24)
+                            .environment(selectedGroupService)
+                    case .plexManagement:
+                        PlexManagementView()
+                    case let .volumeControlsScreen(groupID: groupID):
+                        VolumeControlsScreen(groupID: groupID)
+                    case .onboard:
+                        OnboardView()
+                    case .spotifyUserPlaylists:
+                        SpotifyPlaylistScreen()
+                    case let .editScene(scene):
+                        NavigationStack {
+                            SceneBuilderScreen(edit: true, scene: scene)
+                                .addDismiss {
+                                    Router.main.presentedSheet = nil
+                                }
+                        }
+                    case .reorderAppleLibrarySections:
+                        ReorderAppleLibrarySectionsView()
+                    case .reorderSpotifyLibrarySections:
+                        ReorderSpotifyLibrarySectionsView()
                     }
-                case .reorderAppleLibrarySections:
-                    ReorderAppleLibrarySectionsView()
-                case .reorderSpotifyLibrarySections:
-                    ReorderSpotifyLibrarySectionsView()
                 }
+                .withEnvironments()
+                .presentationSizingiOS18()
+                .frame(idealWidth: 800, idealHeight: 800)
             }
-            .withEnvironments()
-            .presentationSizingiOS18()
-            .frame(idealWidth: 800, idealHeight: 800)
         }
     }
     

@@ -121,7 +121,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 &lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
 \(defaultSpotifyXMLNSFooter())
-"""
+""".split(whereSeparator: \.isNewline).joined()
         case (.album, .spotify):
             return """
 \(Self.defaultXMLNSHeader) id="1004206cspotify%3aalbum%3a\(id)" &gt;
@@ -148,7 +148,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 &lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;
 \(appleXMLNSFooter()))
-"""
+""".split(whereSeparator: \.isNewline).joined()
+            
         case (.libraryTrack, .apple):
             return """
 \(Self.defaultXMLNSHeader) id="10032028librarytrack%3a\(id)" &gt;
@@ -157,7 +158,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
 &lt;upnp:albumArtURI&gt;\(artwork?.absoluteString.ampersandSafe ?? "")&lt;/upnp:albumArtURI&gt;
 &lt;upnp:class&gt;object.item.audioItem.musicTrack.#TitleWithArtist&lt;/upnp:class&gt;
 \(appleXMLNSFooter())
-"""
+""".split(whereSeparator: \.isNewline).joined()
         case (.libraryAlbum, .apple):
             return """
 \(Self.defaultXMLNSHeader) id="1004206clibraryalbum%3a\(id)" &gt;
@@ -197,7 +198,7 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.track, .plex):
             return """
 &lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;&lt;item parentID="" restricted="true" id="10036020\(id)%3Atrack"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON54279_X_#Svc54279-0-Token&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
-"""
+""".split(whereSeparator: \.isNewline).joined()
         case (.album, .plex):
             return """
 &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0004006c\(id)%3Aalbum" parentID="(ignored)"

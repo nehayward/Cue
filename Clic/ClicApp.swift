@@ -806,6 +806,130 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if builder.system == .main {
             builder.remove(menu: .edit)
             builder.remove(menu: .format)
+            builder.remove(menu: .newScene)
+            builder.remove(menu: .open)
+            builder.remove(menu: .openRecent)
+            builder.remove(menu: .document)
+
+            // Add New Playlist to File menu
+            let newPlaylistCommand = UIKeyCommand(
+                title: "New Playlist",
+                image: UIImage(systemName: "music.note.list"),
+                action: #selector(newPlaylist),
+                input: "n",
+                modifierFlags: .command
+            )
+
+            // Add to Last Playlist command (dynamic title)
+            let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle)
+            let addToLastPlaylistAction: UIMenuElement
+
+            if let title = lastPlaylistTitle {
+                addToLastPlaylistAction = UIKeyCommand(
+                    title: "Add to \(title)",
+                    image: UIImage(systemName: "plus"),
+                    action: #selector(addToLastPlaylist),
+                    input: "s",
+                    modifierFlags: [.shift, .command]
+                )
+            } else {
+                addToLastPlaylistAction = UIAction(title: "Add to Last Playlist", attributes: .disabled) { _ in }
+            }
+
+            // Add to Playlist submenu with deferred loading
+            let addToPlaylistDeferred = UIDeferredMenuElement.uncached { completion in
+                Task { @MainActor in
+                    let sonosService = SonosService.shared
+                    let alertService = AlertService.shared
+
+                    // Get current track from selected group
+                    guard let selectedID = Router.main.selectedID,
+                          let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) else {
+                        completion([
+                            UIAction(title: "No Track Playing", attributes: .disabled) { _ in }
+                        ])
+                        return
+                    }
+
+                    let currentTrack = group.coordinatorRoom.track
+                    let playlists = await sonosService.sonosPlaylists()
+
+                    var menuItems: [UIMenuElement] = []
+
+                    // Add existing playlists
+                    for playlist in playlists {
+                        let action = UIAction(title: playlist.title) { _ in
+                            Task { @MainActor in
+                                alertService.showAlertContent(with: currentTrack.toPlayable, subtitle: "Added to \(playlist.title)", symbolName: "plus")
+                                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: currentTrack.toPlayable)
+
+                                // Save as last used playlist and rebuild menu
+                                UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
+                                UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
+                                UIMenuSystem.main.setNeedsRebuild()
+
+                                // Set up tap to navigate to playlist
+                                alertService.alert.handleTap = {
+                                    Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                                }
+                            }
+                        }
+                        menuItems.append(action)
+                    }
+
+                    completion(menuItems)
+                }
+            }
+
+            let addToPlaylistMenu = UIMenu(
+                title: "Add to Playlist",
+                image: UIImage(systemName: "text.badge.plus"),
+                children: [addToPlaylistDeferred]
+            )
+
+            let fileMenuItems = UIMenu(
+                title: "",
+                options: .displayInline,
+                children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]
+            )
+
+            builder.insertChild(fileMenuItems, atStartOfMenu: .file)
+        }
+    }
+
+    @objc func newPlaylist() {
+        Router.main.presentedSheet = .newPlaylist()
+    }
+
+    @objc func addToLastPlaylist() {
+        let sonosService = SonosService.shared
+        let alertService = AlertService.shared
+
+        guard let lastPlaylistID = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistID),
+              let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle) else {
+            alertService.showAlert(with: "No Recent Playlist", imageName: "exclamationmark.triangle")
+            return
+        }
+
+        guard let selectedID = Router.main.selectedID,
+              let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) else {
+            alertService.showAlert(with: "No Group Selected", imageName: "exclamationmark.triangle")
+            return
+        }
+
+        let currentTrack = group.coordinatorRoom.track.toPlayable
+
+        Task { @MainActor in
+            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(lastPlaylistTitle)", symbolName: "plus")
+            await sonosService.addToPlaylist(playlistID: lastPlaylistID, playableContent: currentTrack)
+
+            // Set up tap to navigate to playlist
+            let playlists = await sonosService.sonosPlaylists()
+            if let playlist = playlists.first(where: { $0.id == lastPlaylistID }) {
+                alertService.alert.handleTap = {
+                    Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                }
+            }
         }
     }
 }

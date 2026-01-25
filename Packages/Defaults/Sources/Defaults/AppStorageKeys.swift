@@ -11,4 +11,6 @@ public enum AppStorageKeys {
     public static let queueInspectorVisible = "\(Prefix.id).queueInspectorVisible"
     public static let savedGroupID = "\(Prefix.id).queueInspectorGroupID"
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
+    public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
+    public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
 }

@@ -124,6 +124,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
+                AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
                 // MARK: Add back
 //                #if !targetEnvironment(macCatalyst)

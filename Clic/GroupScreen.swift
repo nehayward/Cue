@@ -192,8 +192,13 @@ struct GroupScreen: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     SortMenuView(sortOption: $sortOption)
                     if subscriptionService.subscription.isActive {
-                        NavigationLink("Create Scene", value: selections)
-                            .animation(.spring, value: selections.isEmpty)
+                        NavigationLink(value: selections) {
+                          if scenes.isEmpty {
+                            Label("Create Scene", systemImage: "plus")
+                          } else {
+                            Image(systemName: "plus")
+                          }
+                        }
                     } else {
                         Button {
                             sheetDestination = .paywall

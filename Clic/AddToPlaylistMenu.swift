@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 import SonosKit
 import MusicSearchKit
+import Defaults
 
 struct AddToPlaylistMenu: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -16,10 +18,22 @@ struct AddToPlaylistMenu: View {
                     Task {
                         await sonosService.createPlaylist(title: itemToAdd.title)
                         let playLists = await sonosService.sonosPlaylists()
-                        guard let id = playLists.first(where: { $0.title == itemToAdd.title })?.id else { return }
-                        await sonosService.addToPlaylist(playlistID: id, playableContent: itemToAdd)
+                        guard let newPlaylist = playLists.first(where: { $0.title == itemToAdd.title }) else { return }
+                        await sonosService.addToPlaylist(playlistID: newPlaylist.id, playableContent: itemToAdd)
                         alertService.showAlertContent(with: itemToAdd, subtitle: "Created \(itemToAdd.title)", symbolName: "plus")
-                        playlistsContainer.playlists = await sonosService.sonosPlaylists()
+                        playlistsContainer.playlists = playLists
+
+                        // Save as last used playlist and rebuild menu
+                        UserDefaults.standard.set(newPlaylist.id, forKey: AppStorageKeys.lastPlaylistID)
+                        UserDefaults.standard.set(newPlaylist.title, forKey: AppStorageKeys.lastPlaylistTitle)
+                        #if targetEnvironment(macCatalyst)
+                        UIMenuSystem.main.setNeedsRebuild()
+                        #endif
+
+                        // Set up tap to navigate to playlist
+                        alertService.alert.handleTap = {
+                            Router.main.presentedSheet = .mediaDetail(content: newPlaylist, group: nil)
+                        }
                     }
                 } label: {
                     LabeledContent("Create Playlist") {
@@ -31,6 +45,18 @@ struct AddToPlaylistMenu: View {
                         Task {
                             alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
                             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
+
+                            // Save as last used playlist and rebuild menu
+                            UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
+                            UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
+                            #if targetEnvironment(macCatalyst)
+                            UIMenuSystem.main.setNeedsRebuild()
+                            #endif
+
+                            // Set up tap to navigate to playlist
+                            alertService.alert.handleTap = {
+                                Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                            }
                         }
                     }
                 }

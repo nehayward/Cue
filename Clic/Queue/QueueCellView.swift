@@ -88,6 +88,7 @@ fileprivate struct QueueCellMenuView: View {
     var body: some View {
         VStack {
             if track.content.service != .unknown {
+                AddToLastPlaylistButton(itemToAdd: track)
                 AddToPlaylistMenu(itemToAdd: track)
 
                 Button {

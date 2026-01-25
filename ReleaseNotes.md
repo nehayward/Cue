@@ -1,6 +1,11 @@
 # 2026.2
 
 –– New Features ––
+- Quick Add to Playlist: Tap the alert after adding a song to a playlist to navigate directly to that playlist
+- Add to Last Playlist: Quickly add the current song to your most recently used playlist from the menu or with ⌘S on Mac
+- New Playlist command in File menu (⌘N) for quick playlist creation
+- Add to Playlist submenu in File menu for Mac users
+- "Add to [Playlist Name]" appears in context menus throughout the app when you have a recent playlist
 - Previous button now restarts the current song if more than 3 seconds in, matching Sonos app behavior
 - Added Sleep Timer shortcuts for quick access to common durations
 - Added fallback album art for TuneIn stations
@@ -14,7 +19,10 @@
 - "Everywhere" toggles to "Deselect All" when all speakers selected
 - Playing speakers automatically sorted to top
 - Content stays fixed at top while scrolling speaker list
-  
+
+–– Bug Fixes & Improvements ––
+- Fixed adding Spotify and Apple Music tracks to Sonos playlists
+
 # 2026.1
 
 –– New Features ––
