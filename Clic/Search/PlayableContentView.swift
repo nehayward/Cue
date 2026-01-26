@@ -1,13 +1,14 @@
 import CloudStorage
-import MusicSearchKit
 import Defaults
 import MusicKit
+import MusicSearchKit
 import OrderedCollections
-import SwiftUI
 import SonosKit
-import Defaults
+import SwiftUI
 
 struct PlayableContentView: View {
+    private static let swipeableTypes: Set<ContentType> = [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum]
+
     @Environment(Router.self) private var router: Router?
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
@@ -15,7 +16,7 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -24,14 +25,34 @@ struct PlayableContentView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
+
+    private var isCurrentlyPlaying: Bool {
+        guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
+        return trackID == item.content.id.removingPercentEncoding
+    }
+
+    private var subtitleText: String {
+        if item.content.type.isRadio {
+            return item.content.type.title
+        }
+        if hideContentType {
+            return item.subtitle
+        }
+        if item.subtitle.isEmpty {
+            return item.content.type.title
+        }
+        return "\(item.content.type.title) • \(item.subtitle)"
+    }
     
+    private var shouldShowPlainContent: Bool {
+        hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
+    }
+
     var body: some View {
         //        let _ = Self._printChanges()
         //        let _ = print("\(item.title) update")
         VStack {
-            if hideDetails || item.content.service == .unknown {
-                content
-            } else if let add = adding?.add, add, !item.content.type.isArtist {
+            if shouldShowPlainContent {
                 content
             } else {
                 switch item.content.type {
@@ -76,25 +97,17 @@ struct PlayableContentView: View {
                     HStack {
                         Text(item.title)
                             .lineLimit(1)
-                            .foregroundStyle(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding  ? AnyShapeStyle(.accent.gradient) : AnyShapeStyle(.primary))
-                            .bold(selectedGroupService?.group?.coordinatorRoom.track.trackID == item.content.id.removingPercentEncoding)
+                            .foregroundStyle(isCurrentlyPlaying ? Color.accent.gradient : Color.primary.gradient)
+                            .bold(isCurrentlyPlaying)
                         Spacer()
-                        if let isExplicit = item.metadata?.isExplicit, isExplicit {
+                        if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }
                     }
-                    HStack(spacing: 0) {
-                        if !item.content.type.isRadio {
-                            Text(
-                                "\(!hideContentType ? item.content.type.title : "")\(!hideContentType && !item.subtitle.isEmpty ? " • " : "")\(item.subtitle)"
-                            )
-                            .truncationMode(.head)
-                        } else {
-                            Text(item.content.type.title)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Text(subtitleText)
+                        .truncationMode(.head)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer()
                 switch item.content.type {
@@ -118,7 +131,7 @@ struct PlayableContentView: View {
             .fontDesign(.rounded)
         }
         .swipeActions {
-            if [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum].contains(item.content.type) {
+            if Self.swipeableTypes.contains(item.content.type) {
                 Button {
                     play(position: .next)
                 } label: {
@@ -132,8 +145,7 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
-        .listRowSeparator(.hidden, edges: .all)
-        .animation(.snappy, value: selectedGroupService?.group?.coordinatorRoom.track.trackID)
+        .animation(.snappy, value: isCurrentlyPlaying)
     }
     
     private var folderContent: some View {
