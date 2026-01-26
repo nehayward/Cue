@@ -183,6 +183,9 @@ extension Playlist {
                 id: id.description,
                 type: isUserPlaylist ? .libraryPlaylist : .playlist,
                 location: url
+            ),
+            metadata: .init(
+                artist: self.featuredArtists?.first?.name
             )
         )
     }
@@ -200,7 +203,8 @@ extension AppleLibraryPlaylist {
                 id: id.description,
                 type: .libraryPlaylist,
                 location: nil
-            )
+            ),
+            metadata: .init()
         )
     }
 }
@@ -228,6 +232,7 @@ extension AppleLibraryItem {
                 duration: trackDuration,
                 popularity: 50,
                 artist: attributes.artistName,
+                album: attributes.albumName,
                 isExplicit: attributes.contentRating == "explicit"
             )
         )
@@ -526,6 +531,7 @@ extension SpotifyAlbumTrackItems {
                     durationMs
                 ),
                 artist: artists.first?.name,
+                album: self.album?.name,
                 isExplicit: explicit,
                 fingerprint: fingerprint
             )

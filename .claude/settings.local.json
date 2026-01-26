@@ -5,7 +5,9 @@
       "WebFetch(domain:developer.apple.com)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:kean-docs.github.io)",
+      "WebSearch"
     ],
     "deny": []
   }

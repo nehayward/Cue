@@ -97,45 +97,35 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     }
 
 
+  
     @ViewBuilder
     public var icon: some View {
-        VStack {
-            switch self {
-            case .apple:
-                SwiftUI.Image(systemName: "apple.logo")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .library:
-                SwiftUI.Image(systemName: "books.vertical.fill")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .tuneIn, .soundcloud:
-                SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .plex, .tidal, .spotify:
-                SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .airplay:
-                SwiftUI.Image(systemName: "airplayaudio")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .unknown:
-                EmptyView()
-            }
+        switch self {
+        case .apple:
+            SwiftUI.Image(systemName: "apple.logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .library:
+            SwiftUI.Image(systemName: "books.vertical.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .tuneIn, .soundcloud:
+            SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .plex, .tidal, .spotify:
+            SwiftUI.Image(self.sonosRawValue.capitalized, bundle: .musicSearchKitBundle)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .airplay:
+            SwiftUI.Image(systemName: "airplayaudio")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        case .unknown:
+            EmptyView()
         }
-        #if !os(watchOS) && !os(tvOS)
-        .foregroundStyle(.bar)
-        #else
-        .foregroundStyle(.white.gradient)
-        #endif
-        .shadow(radius: 1)
-        .environment(\.colorScheme, .light)
     }
 
     @ViewBuilder
