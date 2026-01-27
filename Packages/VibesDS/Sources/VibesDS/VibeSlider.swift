@@ -109,12 +109,14 @@ public struct VibeSlider: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .blendMode(.difference)
+                .contentTransition(.identity)
                 .frame(minWidth: 28, minHeight: baseHeight)
                 .background(isDragging ? capsuleColor : Color.clear)
                 .clipShape(.capsule)
                 .offset(x: offsetForValue, y: isDragging ? -24 : 0)
                 .opacity(showValue ? 1 : 0)
                 .animation(.interactiveSpring, value: isDragging)
+                .animation(.interactiveSpring, value: value)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
@@ -283,6 +285,7 @@ public struct VibeSliderTV: View {
                     ZStack(alignment: .leading) {
                         Capsule()
                             .frame(width: calculateProgressWidth(), height: baseHeight)
+                            .animation(.interactiveSpring, value: value)
                     }
                 }
             Text("\(Int(value))")
@@ -290,12 +293,14 @@ public struct VibeSliderTV: View {
                 .monospacedDigit()
                 .fontDesign(.rounded)
                 .fontWeight(.semibold)
+                .contentTransition(.identity)
                 .padding(.vertical, 20)
 //                .clipShape(.circle)
                 .offset(x: offsetForValue)
                 .foregroundStyle(.ultraThickMaterial)
                 .opacity(showValue ? 1 : 0)
-//            
+                .animation(.interactiveSpring, value: value)
+//
         }
 //        .padding(.vertical, baseHeight/2)
 #if !os(visionOS)

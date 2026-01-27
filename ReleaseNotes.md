@@ -26,6 +26,7 @@
 - Added position numbers to queue list for easier track navigation
 - Fixed album name missing from metadata in search results
 - Improved scroll performance throughout the app
+- Fixed Volume slider animation
 
 # 2026.1
 

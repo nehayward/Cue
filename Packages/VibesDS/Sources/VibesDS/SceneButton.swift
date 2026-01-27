@@ -12,7 +12,7 @@ public struct SceneButtonStyle: ButtonStyle {
             .sensoryFeedback(.selection, trigger: configuration.isPressed == true)
             #endif
             .padding(.horizontal, 8)
-            .background(.regularMaterial)
+            .background(.ultraThickMaterial)
             .offset(y: configuration.isPressed ? 2 : 0)
             .animation(.default, value: configuration.isPressed)
             .clipShape(Capsule())
