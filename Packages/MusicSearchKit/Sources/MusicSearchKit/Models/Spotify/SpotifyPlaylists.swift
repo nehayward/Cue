@@ -45,5 +45,5 @@ public struct SpotifyPlaylistsFullContainer: Decodable, Sendable {
 
 public struct SpotifyPlaylistItemContainer: Decodable, Sendable {
     public let uid: String
-    public let track: SpotifyAlbumTrackItems
+    public let track: SpotifyAlbumTrackItems?
 }

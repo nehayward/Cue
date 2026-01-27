@@ -107,6 +107,7 @@ struct LargePlayerView: View {
                     guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
                         return
                     }
+                    HapticManager.shared.fireHaptic(.buttonPress)
                     router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                 } label: {
                     MarqueeText(group.coordinatorRoom.track.song)
@@ -130,6 +131,7 @@ struct LargePlayerView: View {
                     guard [.spotify, .apple, .library, .tidal, .plex].contains(group.coordinatorRoom.track.musicService) else {
                         return
                     }
+                    HapticManager.shared.fireHaptic(.buttonPress)
                     router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
                 } label: {
                     Text(group.coordinatorRoom.track.artist)

@@ -10,51 +10,39 @@ struct LightArtworkView: View {
     var contentType: ContentType
     var showMusicSource: Bool
     @State var thumbnail: URL?
-    
-    fileprivate var imageIDKey: String {
-        if let albumID = content.metadata?.album, !albumID.isEmpty {
-            return albumID
-        }
-        return content.id
-    }
-    
+  
     var body: some View {
-        VStack {
-            LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) { state in
-                if let image = state.image {
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Rectangle()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundStyle(.ultraThinMaterial)
-                        .shadow(radius: 2)
-                        .overlay {
-                            if content.thumbnail == nil || state.error != nil {
-                                Image(systemName: "music.note")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 24, height: 24)
-                                    .bold()
-                            }
-                        }
-                }
+        LazyImage(request: ImageRequest(url: thumbnail, userInfo: [.imageIdKey: content.imageKey])) { state in
+            if let image = state.image {
+                image
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.secondary)
+                    .shadow(radius: 2)
+                    .overlay {
+                        Image(systemName: "music.note")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .bold()
+                            .opacity(state.error == nil ? 1 : 0)
+                    }
             }
         }
         .id(thumbnail)
-        .clipShape(contentShape)
-        .shadow(radius: 1)
+        .clipShape(.rect(cornerRadius: 4))
         .overlay(alignment: .bottomTrailing) {
-            if showMusicSource {
-                OverlayIcons(content: content)
-            }
+            OverlayIcons(content: content)
+                .opacity(showMusicSource ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
         .task {
-            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: true])) {
+            if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: content.imageKey])) {
                 return
             }
             
@@ -66,44 +54,18 @@ struct LightArtworkView: View {
             self.thumbnail = newThumbnail
         }
     }
-    
-    private var contentShape: some Shape {
-        if [.artist, .libraryArtist, .artistRadio].contains(contentType) {
-            return AnyShape(Circle())
-        } else {
-            return AnyShape(RoundedRectangle(cornerRadius: 8))
-        }
-    }
 }
 
 fileprivate struct OverlayIcons: View {
     let content: PlayableContent  // Replace with your actual content type
 
     var body: some View {
-        ZStack {
-            content.content.service.icon
-                .containerRelativeFrame(.horizontal) { size, _ in
-#if targetEnvironment(macCatalyst)
-                    size * 0.02
-#else
-                    size * 0.025
-#endif
-                }
-                .padding(4)
-                .shadow(radius: 2)
-            
-            if content.content.type == .favorite {
-                Image(systemName: "star.fill")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.white.gradient)
-                    .containerRelativeFrame(.horizontal) { size, _ in
-                        size * 0.03
-                    }
-                    .padding(4)
-                    .shadow(radius: 10)
+        content.content.service.icon
+            .containerRelativeFrame(.horizontal) { size, _ in
+                size * 0.03
             }
-        }
+            .padding(2)
+            .shadow(radius: 3)
     }
 }
 

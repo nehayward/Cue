@@ -12,60 +12,41 @@ struct UpNextContentView: View {
     var router: Router
     @Binding var selection: Set<String>
     @Binding var upNext: [PlayableContent]
-    
-    @State private var hoveredTrackID: String = ""
-    
-    private var isCatalyst: Bool {
-#if targetEnvironment(macCatalyst)
-        return true
-#endif
-        return UIDevice.current.userInterfaceIdiom == .pad
-    }
-    
+
     @State private var isLoading: Bool = false
     @State private var isPaginating: Bool = true
     @State private var currentStartingIndex: Int = 0
-    @State private var pageSize: Int = 25
-    
+    @State private var pageSize: Int = 50
+
+    private var startPosition: Int { group.coordinatorRoom.track.position }
+    private var paginationThreshold: Int { upNext.count - 30 }
+
     var body: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
                 ForEach(Array(upNext.enumerated()), id: \.element.trackID) { index, track in
                     HStack(spacing: 0) {
-                        Text(formatPosition(group.coordinatorRoom.track.position + index + 1))
+                        Text(formatPosition(startPosition + index + 1))
                             .font(.caption.monospacedDigit().smallCaps())
+                            .foregroundStyle(.secondary)
                             .frame(width: positionWidth, alignment: .trailing)
                             .padding(.trailing, 8)
-                        
                         QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
                     }
                     .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(hoveredTrackID == track.trackID ? Color(uiColor: UIColor.tertiarySystemFill) : Color.clear)
+                            .fill(Color.clear)
                             .padding(.horizontal, 4)
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                    .onHover { hovering in
-                        if isCatalyst {
-                            hoveredTrackID = track.trackID
-                        }
-                        if !hovering {
-                            hoveredTrackID = ""
-                        }
-                    }
                     .onAppear {
-                        // Load more tracks when we're near the end (within last 10 items)
-                        if index >= upNext.count - 10 &&
-                            !isPaginating &&
-                            !isLoading &&
-                            hasMoreTracks() &&
-                            upNext.count >= 20 { // Only paginate if we have a reasonable amount loaded
-                            Task {
-                                await loadMoreTracks()
-                            }
-                        }
+                        guard index >= paginationThreshold,
+                              !isPaginating,
+                              !isLoading,
+                              upNext.count >= 20 else { return }
+                        Task { await loadMoreTracks() }
                     }
                 }
                 .onMove(perform: move)
@@ -76,19 +57,19 @@ struct UpNextContentView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
-                
-                if isPaginating {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Loading more...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+
+                // Fixed-height spacer prevents layout shift during pagination
+                if hasMoreTracks() {
+                    Color.clear
+                        .frame(height: 44)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .overlay {
+                            if isPaginating {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
                 }
             }
             .environment(\.editMode, $editMode)
@@ -120,14 +101,16 @@ struct UpNextContentView: View {
     
     private func loadMoreTracks() async {
         guard hasMoreTracks() && !isPaginating else { return }
-        
+
         isPaginating = true
         let nextStartingIndex = currentStartingIndex + upNext.count
         let nextBatch = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: nextStartingIndex, total: pageSize)
-        
-        // Append new tracks to existing ones
-        upNext.append(contentsOf: nextBatch)
-        isPaginating = false
+
+        // Append without animation to prevent scroll interruption on Catalyst
+        withAnimation(nil) {
+            upNext.append(contentsOf: nextBatch)
+            isPaginating = false
+        }
     }
     
     private func formatPosition(_ position: Int) -> String {

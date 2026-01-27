@@ -40,6 +40,7 @@ extension Song {
                 album: albumTitle,
                 isrc: isrc,
                 audioCodec: audioVariants?.first?.description,
+                isPlayable: playParameters != nil,
                 isExplicit: contentRating == .explicit
             )
         )
@@ -270,6 +271,7 @@ extension Album {
             content: MediaContent(service: .apple, id: id.description, type: .album, location: url),
             metadata: PlayableContentMetadata(
                 artist: artistName,
+                album: title,
                 albumYear: releaseDate,
                 audioCodec: audioVariants?.map(\.description).reduce("", +),
                 isPlayable: playParameters != nil,
@@ -321,7 +323,12 @@ extension SpotifySongDetails {
             subtitle: artist,
             thumbnail: URL(string: albumArtURI),
             artwork: URL(string: albumArtURI),
-            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil)
+            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil),
+            metadata: PlayableContentMetadata(
+                artist: artist,
+                album: album,
+                isExplicit: isExplicit
+            )
         )
     }
 }
@@ -399,7 +406,11 @@ extension SpotifyAlbum {
             subtitle: artist,
             thumbnail: URL(string: albumArtURI),
             artwork: URL(string: albumArtURI),
-            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil)
+            content: .init(service: .spotify, id: albumIdOnly, type: .album, location: nil),
+            metadata: PlayableContentMetadata(
+                artist: artist,
+                album: title,
+            )
         )
     }
 }
@@ -480,6 +491,7 @@ extension SpotifyAlbumItem {
             metadata: .init(
                 artist: artists?.first?.name,
                 artistID: artists?.first?.id,
+                album: name,
                 albumYear: releaseYear
             )
         )
@@ -493,7 +505,11 @@ extension SpotifyArtistAlbums.AlbumItem {
             subtitle: releaseDateFormatted ?? "",
             thumbnail: images.thumbnail,
             artwork: images.biggestImageURL,
-            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? ""))
+            content: MediaContent(service: .spotify, id: id, type: .album, location: URL(string: externalUrls.spotify ?? "")),
+            metadata: PlayableContentMetadata(
+                artist: artists?.first?.name,
+                album: name,
+            )
         )
     }
 }
@@ -511,6 +527,7 @@ extension SpotifyAlbumDetails {
                     durationMs ?? 0
                 ),
                 artist: artists?.first?.name,
+                album: name,
                 isExplicit: explicit
             )
         )
@@ -628,6 +645,7 @@ extension PlexAlbum {
                 popularity: nil,
                 artist: artist,
                 artistID: parentRatingKey,
+                album: title,
                 albumYear: nil,
                 librarySectionID: librarySectionID.map(String.init)
             )
@@ -653,6 +671,7 @@ extension PlexAlbumItem {
                 popularity: nil,
                 artist: parentTitle,
                 artistID: parentRatingKey,
+                album: title,
                 albumYear: nil
             )
         )

@@ -96,7 +96,13 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
 
-
+    private var librarySymbolName: String {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
+            return "music.pages.fill"
+        } else {
+            return "books.vertical.fill"
+        }
+    }
   
     @ViewBuilder
     public var icon: some View {
@@ -106,7 +112,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .library:
-            SwiftUI.Image(systemName: "books.vertical.fill")
+            SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .tuneIn, .soundcloud:
@@ -136,7 +142,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .library:
-            SwiftUI.Image(systemName: "books.vertical.fill")
+            SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:

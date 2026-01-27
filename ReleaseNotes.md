@@ -22,6 +22,10 @@
 
 –– Bug Fixes & Improvements ––
 - Fixed adding Spotify and Apple Music tracks to Sonos playlists
+- Added Clear Image Cache option in Settings to free up storage space
+- Added position numbers to queue list for easier track navigation
+- Fixed album name missing from metadata in search results
+- Improved scroll performance throughout the app
 
 # 2026.1
 

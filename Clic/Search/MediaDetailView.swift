@@ -178,16 +178,17 @@ struct MediaDetailView: View {
                         }
                     }
                 }
-                .disabled(!(item.metadata?.isPlayable ?? true))
+                .opacity(item.isPlayable ? 1 : 0.6)
+                .disabled(!item.isPlayable)
                 .task {
                     guard playableContent.content.type.isPlaylist else {
                         return
                     }
-                    
+
                     if playableContent.content.type == .playlist && playableContent.content.service == .apple {
                         return
                     }
-                    
+
                     if index >= tracks.count - 1 && isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
                         Task {
                             await updateTracks(offset: tracks.count)
@@ -348,10 +349,10 @@ struct MediaDetailView: View {
             totalSongs = playlist.total
             newTracks = playlist.items
                 .compactMap {
-                    $0.track.toPlayable(
+                    $0.track?.toPlayable(
                         album: nil,
-                        thumbnail: $0.track.album?.images?.thumbnail,
-                        artwork: $0.track.album?.images?.thumbnail,
+                        thumbnail: $0.track?.album?.images?.thumbnail,
+                        artwork: $0.track?.album?.images?.thumbnail,
                         fingerprint: $0.uid
                     )
                 }

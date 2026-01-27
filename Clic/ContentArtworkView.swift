@@ -11,35 +11,39 @@ struct ContentArtworkView: View {
     var preferredSize: Double = 50.0
     
     @State private var fetchedArtworkURL: URL?
-    @State private var isLoadingArtwork = false
     
-    fileprivate var imageIDKey: String {
-        if let albumID = content.metadata?.album, !albumID.isEmpty {
-            let artist = content.metadata?.artist
-            return [albumID, artist, preferredSize.description].compactMap { $0 }.joined(separator: ".")
-        }
-        return content.id
+    private var isCircular: Bool {
+        content.content.type.isArtist || content.content.type == .artistRadio
+    }
+    
+    private var needsArtworkFetch: Bool {
+        content.thumbnail == nil && content.content.type.isArtist &&
+        (content.content.service == .library || content.content.service == .apple)
     }
     
     private var artworkURL: URL? {
         if preferredSize != 50, let artwork = content.artwork {
             return artwork
         }
-        // First try the original thumbnail
         if let thumbnail = content.thumbnail {
             return thumbnail
         }
-        
-        // If no thumbnail and this is a library artist, try the fetched artwork
-        if content.content.type.isArtist, content.content.service == .library || content.content.service == .apple {
-            return fetchedArtworkURL
-        }
-        
-        return nil
+        return fetchedArtworkURL
     }
-
+    
+    private static let targetSize = CGSize(width: 150, height: 150) // 50pt * 3x scale
+    
+    private var placeholder: some View {
+        Rectangle()
+            .foregroundStyle(Color.gray.opacity(0.2))
+            .overlay {
+                Image(systemName: "music.note")
+                    .foregroundStyle(.secondary)
+            }
+    }
+    
     var body: some View {
-        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: preferredSize == 50])) { state in
+        LazyImage(request: ImageRequest(url: artworkURL, userInfo: [.imageIdKey: content.imageKey])) { state in
             if let image = state.image {
                 image
                     .resizable()
@@ -47,8 +51,7 @@ struct ContentArtworkView: View {
             } else {
                 Rectangle()
                     .aspectRatio(contentMode: .fit)
-                    .foregroundStyle(.ultraThinMaterial)
-                    .shadow(radius: 2)
+                    .foregroundStyle(.secondary)
                     .overlay {
                         if content.thumbnail == nil || state.error != nil {
                             Image(systemName: "music.note")
@@ -62,78 +65,55 @@ struct ContentArtworkView: View {
             }
         }
         .id(fetchedArtworkURL)
-        #if DEBUG && SCREENSHOT
+#if DEBUG && SCREENSHOT
         .overlay {
             Rectangle()
                 .foregroundStyle(.ultraThinMaterial)
         }
-        #endif
-        .clipShape(contentShape)
+#endif
+        .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : 4))
         .overlay(alignment: .bottomTrailing) {
-            if showMusicSource {
-                OverlayIcons(content: content)
-            }
-            if isLoadingArtwork {
-                ProgressView()
-            }
+            OverlayIcons(service: content.content.service, isRadio: content.content.type.isRadio, size: preferredSize)
+                .opacity(showMusicSource ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .task {
-            if content.content.type.isArtist, content.content.service == .library || content.content.service == .apple {
-                if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: imageIDKey, .thumbnailKey: preferredSize == 50])) {
-                    return
-                }
-                await fetchArtworkIfNeeded()
+        .task(id: content.id) {
+            guard needsArtworkFetch, fetchedArtworkURL == nil else { return }
+            fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
+        }
+    }
+}
+
+fileprivate struct PlaceHolderView: View {
+    var body: some View {
+        Rectangle()
+            .foregroundStyle(.tertiary)
+            .overlay {
+                Image(systemName: "music.note")
+                    .foregroundStyle(.secondary)
             }
-        }
-    }
-    
-    private var contentShape: some Shape {
-        if [.artist, .libraryArtist, .artistRadio].contains(content.content.type) {
-            return AnyShape(Circle())
-        } else {
-            return AnyShape(RoundedRectangle(cornerRadius: 4))
-        }
-    }
-    
-    private func fetchArtworkIfNeeded() async {
-        guard fetchedArtworkURL == nil, content.thumbnail == nil else {
-            return
-        }
-        
-        isLoadingArtwork = true
-        let artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
-        fetchedArtworkURL = artworkURL
-        isLoadingArtwork = false
     }
 }
 
 fileprivate struct OverlayIcons: View {
-    let content: PlayableContent  // Replace with your actual content type
-
+    let service: MusicService
+    let isRadio: Bool
+    let size: Double
+    
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                content.content.service.icon
-                    .frame(width: proxy.size.width * 0.25, height: proxy.size.width * 0.25)
-                    .shadow(radius: 1)
+        service.icon
+            .opacity(isRadio ? 0 : 1)
+            .frame(width: 12, height: 12, alignment: .bottomLeading)
+            .padding(2)
+            .overlay {
+                Image(systemName: "radio.fill")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .foregroundStyle(.white)
                     .padding(2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-
-                if [.songRadio, .radio, .artistRadio].contains(content.content.type) {
-                    Image(systemName: "radio.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: proxy.size.width * 0.25, height: proxy.size.width * 0.25)
-                        .shadow(radius: 1)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                        .foregroundStyle(.bar)
-                        .tint(.white)
-                        .padding(2)
-                        .environment(\.colorScheme, .light)
-                }
+                    .opacity(isRadio ? 1 : 0)
             }
-        }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }
 

@@ -8,7 +8,7 @@ import SwiftUI
 
 struct PlayableContentView: View {
     private static let swipeableTypes: Set<ContentType> = [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum]
-
+    
     @Environment(Router.self) private var router: Router?
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
     @Environment(AlertService.self) private var alertService: AlertService
@@ -16,7 +16,7 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-
+    
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -25,12 +25,12 @@ struct PlayableContentView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
-
+    
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
         return trackID == item.content.id.removingPercentEncoding
     }
-
+    
     private var subtitleText: String {
         if item.content.type.isRadio {
             return item.content.type.title
@@ -47,7 +47,7 @@ struct PlayableContentView: View {
     private var shouldShowPlainContent: Bool {
         hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
     }
-
+    
     var body: some View {
         //        let _ = Self._printChanges()
         //        let _ = print("\(item.title) update")
@@ -83,52 +83,54 @@ struct PlayableContentView: View {
         } label: {
             HStack {
                 if let index {
-                    Text(index, format: .number) // Display the number without leading zeros
+                    Text(index, format: .number)
                         .font(.caption.monospacedDigit())
-                        .multilineTextAlignment(.center) // Center the text
-                        .frame(width: 30, alignment: .center) // Ensure fixed width for 3 characters
+                        .frame(width: 30, alignment: .center)
                         .foregroundStyle(.secondary)
                 }
+                
                 if !hideArtwork {
                     ContentArtworkView(content: item)
                         .frame(width: 50, height: 50)
+                        .allowsHitTesting(!hideArtwork)
                 }
-                VStack(alignment: .leading) {
-                    HStack {
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
                         Text(item.title)
                             .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accent.gradient : Color.primary.gradient)
-                            .bold(isCurrentlyPlaying)
-                        Spacer()
+                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
+                            .fontWeight(isCurrentlyPlaying ? .bold : .regular)
+                            .animation(.snappy, value: isCurrentlyPlaying)
+                        
+                        Spacer(minLength: 0)
+                        
                         if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }
                     }
+                    
                     Text(subtitleText)
+                        .lineLimit(1)
                         .truncationMode(.head)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
-                Spacer()
-                switch item.content.type {
-                case .track, .favorite, .libraryTrack:
-                    if adding == nil, !hideDetails {
-                        Menu {
-                            PlayableMenuView(item: item)
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .frame(maxWidth: 50, maxHeight: .infinity)
-                                .background(.clear)
-                                .foregroundStyle(.primary)
-                        }
-                        .menuOrder(.priority)
-                        .tint(.primary)
+                
+                Spacer(minLength: 0)
+                
+                if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                    Menu {
+                        PlayableMenuView(item: item)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                default:
-                    EmptyView()
+                    .tint(.primary)
                 }
             }
             .fontDesign(.rounded)
+            .contentShape(Rectangle())
         }
         .swipeActions {
             if Self.swipeableTypes.contains(item.content.type) {
@@ -145,7 +147,6 @@ struct PlayableContentView: View {
             }
         }
         .draggable(item)
-        .animation(.snappy, value: isCurrentlyPlaying)
     }
     
     private var folderContent: some View {

@@ -14,7 +14,7 @@ struct QueueCellView: View {
     
     var body: some View {
 //        let _ = Self._printChanges()
-//        let _ = print("\(track.metadata?.position) update")
+//        let _ = print("\(track.title) update")
         Button {
             Task {
                 HapticManager.shared.fireHaptic(.buttonPress)
@@ -72,6 +72,9 @@ struct QueueCellView: View {
         }
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
         .draggable(track)
+        #if targetEnvironment(macCatalyst)
+        .contextMenu { QueueCellMenuView(track: track, group: group, router: router, onLocalDelete: onLocalDelete) }
+        #endif
     }
     
     private var isTrackPlaying: Bool {

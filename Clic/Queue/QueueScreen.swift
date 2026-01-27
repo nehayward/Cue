@@ -39,17 +39,9 @@ struct QueueScreen: View {
     @State private var router = Router()
     @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
-    @State private var hoveredTrackID: String = ""
     @State private var currentTrackID: String = ""
     @State private var selection: Set<String> = []
     @State private var upNextTracks: [PlayableContent] = []
-    
-    private var isCatalyst: Bool {
-#if targetEnvironment(macCatalyst)
-        return true
-#endif
-        return UIDevice.current.userInterfaceIdiom == .pad
-    }
 
     var body: some View {
 //        let _ = Self._printChanges()
@@ -275,24 +267,26 @@ struct QueueScreen: View {
     @ViewBuilder
     private func fullQueueView(proxy: ScrollViewProxy) -> some View {
         List(selection: $selection) {
-            ForEach(Array(group.coordinatorRoom.queue), id: \.trackID) { track in
-                QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
-                    .listRowSeparator(.hidden)
-                    .listSectionSeparator(.hidden, edges: .all)
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(hoveredTrackID == track.trackID ? Color(uiColor: UIColor.tertiarySystemFill) : Color.clear)
-                            .padding(.horizontal, 4)
-                    )
-                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
-                    .onHover { hovering in
-                        if isCatalyst {
-                            hoveredTrackID = track.trackID
-                        }
-                        if !hovering {
-                            hoveredTrackID = ""
-                        }
-                    }
+            ForEach(Array(group.coordinatorRoom.queue.enumerated()), id: \.element.trackID) { index, track in
+                HStack(spacing: 0) {
+                    Text(formatPosition(index + 1))
+                        .font(.caption.monospacedDigit().smallCaps())
+                        .foregroundStyle(track.trackID == currentTrackID ? .primary : .secondary)
+                        .frame(width: positionWidth, alignment: .trailing)
+                        .padding(.trailing, 8)
+                    QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
+                }
+                .listRowSeparator(.hidden)
+                .listSectionSeparator(.hidden, edges: .all)
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.clear)
+                        .padding(.horizontal, 4)
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                #if targetEnvironment(macCatalyst)
+                .contextMenu { menu(content: track) }
+                #endif
             }
             .onMove(perform: move)
         }
@@ -360,6 +354,25 @@ struct QueueScreen: View {
 
     private var totalDuration: Duration {
         Duration.seconds(group.coordinatorRoom.queue.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
+    }
+
+    private func formatPosition(_ position: Int) -> String {
+        if position >= 1000 {
+            let thousands = Double(position) / 1000.0
+            return String(format: "%.1fK", thousands)
+        }
+        return "\(position)"
+    }
+
+    private var positionWidth: CGFloat {
+        let maxPosition = group.coordinatorRoom.queueTotal
+        if maxPosition >= 1000 {
+            return 35
+        } else if maxPosition >= 100 {
+            return 28
+        } else {
+            return 20
+        }
     }
 
     @MainActor

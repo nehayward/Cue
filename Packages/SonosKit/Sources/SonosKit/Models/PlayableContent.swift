@@ -45,6 +45,16 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
     }
     
+    public var imageKey: String {
+        if let albumID = metadata?.album, !albumID.isEmpty {
+            let artist = metadata?.artist
+            return [albumID, artist].compactMap { $0 }.joined(separator: ".")
+        }
+        return id
+    }
+    
+    public var isPlayable: Bool { metadata?.isPlayable ?? true }
+    
     public var uri: String {
         switch (content.type, content.service) {
         case (.track, .spotify):

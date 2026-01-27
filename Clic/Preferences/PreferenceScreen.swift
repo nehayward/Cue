@@ -2,6 +2,7 @@ import Analytics
 import CloudStorage
 import Defaults
 import MusicSearchKit
+import Nuke
 import RevenueCat
 import RevenueCatUI
 import SonosKit
@@ -43,6 +44,8 @@ struct PreferenceScreen: View {
     
     @State private var isUploading = false
     @State private var uploadSuccess = false
+    @State private var cacheSize: Int = 0
+    @State private var isClearing = false
     
 #if DEBUG
     @State private var servers: [MediaServer] = []
@@ -478,6 +481,7 @@ struct PreferenceScreen: View {
                 }
                 #endif
                 colorSchemeSection
+                storageCacheSection
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
@@ -808,6 +812,88 @@ struct PreferenceScreen: View {
                 .foregroundStyle(.primary)
                 .headerProminence(.increased)
         }
+    }
+
+    var storageCacheSection: some View {
+        Section {
+            Button {
+                Task {
+                    isClearing = true
+                    await clearImageCache()
+                    isClearing = false
+                }
+            } label: {
+                Label {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Clear Image Cache")
+                            Text(formattedCacheSize)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if isClearing {
+                            ProgressView()
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "trash")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .foregroundStyle(.white)
+                        .bold()
+                        .padding(8)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.4, blue: 0.4), Color(red: 0.85, green: 0.25, blue: 0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        )
+                        .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                }
+            }
+            .tint(.primary)
+            .disabled(isClearing || cacheSize == 0)
+        } header: {
+            Text("Storage")
+                .foregroundStyle(.primary)
+                .headerProminence(.increased)
+        } footer: {
+            Text("Clears cached artwork images. Images will be re-downloaded as needed.")
+        }
+        .task {
+            await updateCacheSize()
+        }
+    }
+
+    private var formattedCacheSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: Int64(cacheSize))
+    }
+
+    private func updateCacheSize() async {
+        if let dataCache = try? DataCache(name: "com.clic.imageCache") {
+            cacheSize = dataCache.totalSize
+        }
+    }
+
+    private func clearImageCache() async {
+        HapticManager.shared.fireHaptic(.buttonPress)
+
+        // Clear memory cache
+        ImageCache.shared.removeAll()
+
+        // Clear disk cache
+        if let dataCache = try? DataCache(name: "com.clic.imageCache") {
+            dataCache.removeAll()
+            dataCache.flush()
+        }
+
+        // Reset to zero immediately since we just cleared
+        cacheSize = 0
+
+        HapticManager.shared.fireHaptic(.buttonPress)
+        alertService.showAlert(with: "Cache Cleared", imageName: "trash")
     }
 
     var speedLaunch: some View {

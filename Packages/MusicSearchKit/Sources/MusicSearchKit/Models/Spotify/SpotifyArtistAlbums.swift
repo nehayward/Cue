@@ -12,7 +12,7 @@ public struct SpotifyArtistAlbums: Decodable {
     public struct AlbumItem: Decodable, Identifiable {
         public let albumGroup: String
         public let albumType: String
-//        public let artists: [Artist]
+        public let artists: [SpotifyArtistsInfo]?
         public let availableMarkets: [String]
         public let externalUrls: ExternalUrls
         public let href: String
