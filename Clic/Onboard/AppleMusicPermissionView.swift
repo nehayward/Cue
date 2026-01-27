@@ -30,11 +30,15 @@ struct AppleMusicPermissionsView: View {
             case .denied:
                 Button {
                     HapticManager.shared.fireHaptic(.buttonPress)
-                    Task {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
+                    #if targetEnvironment(macCatalyst)
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Media") {
+                        UIApplication.shared.open(url)
                     }
+                    #else
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    #endif
                 } label: {
                     Text("Allow in System Setting")
                 }
