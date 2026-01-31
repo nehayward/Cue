@@ -54,7 +54,7 @@ struct ClicApp: App {
 #endif
     
     init() {
-        UITextField.appearance().clearButtonMode = .whileEditing
+        AppBootstrapper.shared.bootstrap()
     }
 
     var body: some Scene {
@@ -80,14 +80,8 @@ struct ClicApp: App {
             .onOpenURL(perform: handle)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
-                // MARK: Move for accent color fix
-                SubscriptionService.shared.initialize(key: CloudKeys.hasSubscription)
-                Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
-
-                // Check MusicService
-                if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
-                    Analytics.shared.setSelection(metadata: ["MusicService": musicService])
-                }
+                guard !AppBootstrapper.shared.didLaunch else { return }
+                AppBootstrapper.shared.didLaunch = true
 
                 Task { @MainActor in
                     try? await SubscriptionService.shared.checkSubscription()
@@ -106,37 +100,11 @@ struct ClicApp: App {
                     }
 #endif
                 }
-                
-                // MARK: Jump to queue
-//                Router.main.sheet(to: .search(group: nil))
-                
-                try? Tips.configure(
-                    [
-                        .displayFrequency(.immediate)
-                    ]
-                )
-                // MARK: For Debug
-//                Tips.showTipsForTesting([AppTip.self])
-                
-                // MARK: Configure NukeUI
-                configureNuke()
-                
-                // TODO: Add onboard
-//                if !hasOnboarded {
-//                    print(SheetDestination.onboard.id)
-//                    router.sheet(to: .onboard)
-//                }
-                
-               // TODO: Add Feature to force dark mode
-//                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-//                    windowScene.windows.forEach { window in
-//                        window.overrideUserInterfaceStyle = .dark
-//                    }
-//                }
-                // Update SMAppService registration with proper error handling
+
 #if targetEnvironment(macCatalyst)
                 if isMenuBarAppEnabled {
                     Task {
+                        try? await Task.sleep(for: .seconds(2))
                         do {
                             try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
                         } catch {
@@ -158,7 +126,7 @@ struct ClicApp: App {
                         }
                     }
                 }
-                
+
                 // iPad/Mac: Auto-select first group and restore queue state
                 if UIDevice.current.userInterfaceIdiom != .phone {
                     Task {
@@ -178,7 +146,7 @@ struct ClicApp: App {
                         if queueInspectorVisible {
                             if let savedGroupID = savedGroupID,
                                let group = sonosService.sorted.first(where: { $0.coordinatorID == savedGroupID }) {
-            
+
                                 router.inspectorSheet = .queue(group: group)
                             } else if let selectedID = router.selectedID,
                                       let group = sonosService.sorted.first(where: { $0.coordinatorID == selectedID }) {
@@ -559,9 +527,11 @@ struct ClicApp: App {
         case .active:
             sonosService.monitor()
             Task {
-                while sonosService.sorted.isEmpty {
-                    try? await Task.sleep(for: .milliseconds(100)) // small delay to avoid busy-waiting
+                let startTime = Date.now
+                while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
+                    try? await Task.sleep(for: .milliseconds(100))
                 }
+                guard !sonosService.sorted.isEmpty else { return }
                 sonosService.onServerListening()
             }
             
@@ -772,39 +742,6 @@ struct ClicApp: App {
         }
     }
     
-    private func configureNuke() {
-        let pipeline = ImagePipeline {
-            let imageCache = ImageCache.shared
-            imageCache.costLimit = 1024 * 1024 * 50 // 50 MB max memory usage
-            imageCache.countLimit = 500             // Store up to 300 images
-            $0.imageCache = imageCache
-            $0.dataCache = try? DataCache(name: "com.clic.imageCache")
-        
-            // Prefer cached data whenever possible
-            $0.dataCachePolicy = .automatic
-            
-            // Optimize the DataLoader
-            let config = URLSessionConfiguration.default
-            config.urlCache = nil // disable URLCache, rely on Nuke's DataCache
-            config.requestCachePolicy = .reloadIgnoringLocalCacheData // let Nuke handle caching
-            config.timeoutIntervalForRequest = 15
-            config.timeoutIntervalForResource = 60
-            config.waitsForConnectivity = false // fail fast
-            
-            $0.dataLoader = DataLoader(configuration: config)
-            
-            // Reduce memory footprint
-            $0.makeImageDecoder = { _ in
-                return ImageDecoders.Default()
-            }
-        }
-        
-        if let dataCache = try? DataCache(name: "com.clic.imageCache") {
-            print("📂 Nuke DataCache location: \(dataCache.path)")
-        }
-        
-        ImagePipeline.shared = pipeline
-    }
 }
 
 #if targetEnvironment(macCatalyst)
