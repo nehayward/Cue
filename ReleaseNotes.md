@@ -22,6 +22,8 @@
 - "Everywhere" toggles to "Deselect All" when all speakers selected
 - Playing speakers automatically sorted to top
 - Content stays fixed at top while scrolling speaker list
+- New keyboard shortcuts on Mac: Seek Forward/Backward (⌥→/⌥←), Shuffle (⌘S), Repeat (⌘R), Open Album (⇧⌘I), Open Artist (⌘I)
+- Unplayable Apple Music tracks now shown as disabled on album pages
 
 –– Bug Fixes & Improvements ––
 - Fixed adding Spotify and Apple Music tracks to Sonos playlists
@@ -32,6 +34,8 @@
 - Fixed Volume slider animation
 - Fix missing albums on some plex artists, i.e. soundtracks
 - Albums and playlists now show a "No Tracks" empty state instead of an infinite spinner when content is unavailable
+- Fixed shuffle not being applied correctly when queueing albums and playlists
+- Navigation within album and artist detail sheets now works (e.g. tapping artist name from an album)
 
 # 2026.1
 
