@@ -138,7 +138,8 @@ extension MusicKit.Track {
                 duration: durationSeconds,
                 artist: artistName,
                 album: albumTitle,
-                isrc: isrc
+                isrc: isrc,
+                isPlayable: playParameters != nil
             )
         )
     }

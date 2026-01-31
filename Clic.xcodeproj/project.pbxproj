@@ -20,6 +20,8 @@
 		0186C9692DD83E34009F8A66 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9682DD83E34009F8A66 /* Nuke */; };
 		0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D9492E674B47001387F1 /* FocusOnAppear */; };
 		0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D94B2E674B4F001387F1 /* FocusOnAppear */; };
+		01A662742F27240E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662732F27240E00C7524D /* Glur */; };
+		01A662762F27241E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662752F27241E00C7524D /* Glur */; };
 		01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01AB21432DD0F9B1004BFEE4 /* Kingfisher */; };
 		01CB34052DC4F851006406B6 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E9A34DB02A757E6C00A6FDE7 /* StoreKit.framework */; };
 		01CB34072DC4F851006406B6 /* SubscriptionKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01CB33F62DC4F851006406B6 /* SubscriptionKit */; };
@@ -659,6 +661,7 @@
 				E97563352B699B2400787E14 /* SonosKit in Frameworks */,
 				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
 				E97563362B699B2400787E14 /* CloudStorage in Frameworks */,
+				01A662762F27241E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -702,6 +705,7 @@
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
+				01A662742F27240E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -939,6 +943,7 @@
 				E97562DD2B699B2400787E14 /* Defaults */,
 				E90F315F2BC48ADD00884EA5 /* Analytics */,
 				0186D9492E674B47001387F1 /* FocusOnAppear */,
+				01A662752F27241E00C7524D /* Glur */,
 			);
 			productName = Sonos;
 			productReference = E97563432B699B2400787E14 /* Clic.app */;
@@ -1029,6 +1034,7 @@
 				E93AFA762B587F1800B20AC4 /* Defaults */,
 				E90F315D2BC4829500884EA5 /* Analytics */,
 				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
+				01A662732F27240E00C7524D /* Glur */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -1114,6 +1120,7 @@
 				01791F162D224223006EBC22 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
+				01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */,
 			);
 			preferredProjectObjectVersion = 56;
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
@@ -3054,6 +3061,14 @@
 				minimumVersion = 1.2.0;
 			};
 		};
+		01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/joogps/Glur";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 		01CB33F42DC4F851006406B6 /* XCRemoteSwiftPackageReference "CloudStorage" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/nonstrict-hq/CloudStorage";
@@ -3239,6 +3254,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
 			productName = FocusOnAppear;
+		};
+		01A662732F27240E00C7524D /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
+		};
+		01A662752F27241E00C7524D /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
 		};
 		01AB21432DD0F9B1004BFEE4 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;

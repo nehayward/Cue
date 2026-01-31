@@ -7,6 +7,7 @@ import MusicSearchKit
 import MusicKit
 import NukeUI
 import VibesDS
+import Glur
 
 struct MediaDetailView: View {
     @Environment(Router.self) private var router
@@ -26,135 +27,12 @@ struct MediaDetailView: View {
     @State private var duration: Duration?
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
+    @State private var showNavigationTitle: Bool = false
     
     var body: some View {
         @Bindable var router = router
         List(selection: $selection) {
-            VStack(spacing: 0) {
-                LazyImage(url: playableContent.artwork) { state in
-                    if let image = state.image {
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .transition(.opacity)
-                    } else if state.isLoading {
-                        RoundedRectangle(cornerRadius: 4)
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.ultraThinMaterial)
-                            .shadow(radius: 2)
-                    } else {
-                        Rectangle()
-                            .foregroundStyle(.ultraThickMaterial)
-                            .aspectRatio(contentMode: .fit)
-                            .overlay {
-                                if state.error != nil {
-                                    Image(systemName: "music.note")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 100, height: 100)
-                                }
-                            }
-                    }
-                }
-                .transition(.opacity)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .shadow(radius: 2)
-                .scaledToFit()
-                .overlay(alignment: .bottomTrailing) {
-                    playableContent.content.service.icon
-                        .frame(width: 24, height: 24, alignment: .trailing)
-                        .padding([.bottom, .trailing])
-                }
-                // TODO: Add back for plex, need to handle image size changes
-                //                ContentArtworkView(content: playableContent)
-                //                    .frame(idealWidth: 320, idealHeight: 320)
-            }
-            .frame(maxWidth: .infinity, minHeight: 250, maxHeight: 250)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
-            
-            VStack(spacing: 0) {
-                Text(playableContent.subtitle)
-                // MARK: Add back
-                //                if let artist = playableContent.metadata?.artist {
-                //                    ZStack {
-                //                        NavigationLink(value: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group)) {
-                //                            EmptyView()
-                //                        }
-                //                        .opacity(0)
-                //                        Button {
-                //                            router.navigate(to: RouterDestination.artistDetail(content: playableContent, group: selectedGroupService.group))
-                //                        } label: {
-                //                            Text(artist)
-                //                                .multilineTextAlignment(.center)
-                //                                .fontDesign(.rounded)
-                //                                .font(.title3)
-                //                                .frame(maxWidth: .infinity)
-                //                                .lineLimit(1, reservesSpace: true)
-                //                                .foregroundStyle(.accent)
-                //                        }
-                //                    }
-                //                }
-                //
-                HStack(spacing: 0) {
-                    if let totalSongs {
-                        Text(totalSongs, format: .number)
-                    } else {
-                        Text("\(tracks.count.formatted())")
-                    }
-                    Text(" Songs")
-                    if let duration {
-                        Text(" • \(duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
-                    } else {
-                        if totalDuration.components.seconds > 0  {
-                            Text(" • \(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))")
-                        }
-                    }
-                }
-                //                if let audioFormat = playableContent.metadata?.audioCodec {
-                //                    Text(audioFormat)
-                //                }
-            }
-            .frame(maxWidth: .infinity)
-            .fontDesign(.rounded)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets())
-            
-            HStack {
-                Button {
-                    play()
-                } label: {
-                    Text("Play")
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .foregroundStyle(.foreground)
-                }
-                .bold()
-                .buttonStyle(.bordered)
-                .tint(.accent)
-                
-                Button {
-                    play([.shuffle, .normal])
-                } label: {
-                    Text("Shuffle")
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .foregroundStyle(.foreground)
-                }
-                .bold()
-                .buttonStyle(.bordered)
-                .tint(.accent)
-            }
-            .frame(maxWidth: .infinity)
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets())
-            
+            artworkSection
             ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
                 VStack {
                     PlayableContentView(item: item,
@@ -195,28 +73,39 @@ struct MediaDetailView: View {
                         }
                     }
                 }
-                .listRowBackground(Color.clear)
+                .listRowBackground(Color.white.opacity(0.001))
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
             .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
-            
-            if tracks.isEmpty, !isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
+            if tracks.isEmpty {
+                if !isLoaded {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white.opacity(0.001))
+                } else {
+                    ContentUnavailableView(
+                        "No Tracks",
+                        systemImage: "music.note",
+                        description: Text("This album or playlist has no tracks.")
+                    )
                     .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                    .listRowBackground(Color.white.opacity(0.001))
+                }
             }
         }
-        .listRowSpacing(2)
-        .contentMargins(.horizontal, EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20), for: .scrollContent)
-        .contentMargins(.top, EdgeInsets(), for: .scrollContent)
         .environment(\.editMode, $editMode)
+        .ignoresSafeArea(edges: .top)
+        .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
+        .scrollEdgeEffectHidden26(!showNavigationTitle)
+        .listStyle(.plain)
+        .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
-            if playableContent.isSonosPlaylist {
+            if playableContent.isSonosPlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
                     Task {
-                        // Remove tracks using their actual queue positions
                         for index in Array(selection).sorted(by: >) {
                             try await SonosService.shared.removeTrackFromPlaylist(
                                 playlistID: playableContent.id,
@@ -224,8 +113,6 @@ struct MediaDetailView: View {
                             )
                             tracks.remove(at: index)
                         }
-                        
-                        // Clear selection
                         selection.removeAll()
                     }
                 } label: {
@@ -237,8 +124,6 @@ struct MediaDetailView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
-                .offset(y: !selection.isEmpty ? 0 : 200)
-                .animation(.interactiveSpring, value: selection.isEmpty)
 #if targetEnvironment(macCatalyst)
                 .padding(.bottom)
 #endif
@@ -247,16 +132,25 @@ struct MediaDetailView: View {
         .task {
             await updateTracks(offset: tracks.count)
         }
-        .listStyle(.sidebar)
         .contentMargins(.bottom, 120, for: .scrollContent)
+        .navigationTitle(playableContent.title)
         .navigationBarTitleDisplayMode(.inline)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text(playableContent.title)
-                    .fontDesign(.rounded)
-                    .bold()
-                    .multilineTextAlignment(.center)
+                VStack {
+                    Text(playableContent.title)
+                        .fontDesign(.rounded)
+                        .bold()
+                        .multilineTextAlignment(.center)
+                    Text(playableContent.metadata?.artist ?? "")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fontDesign(.rounded)
+                        .bold()
+                        .multilineTextAlignment(.center)
+                }
+                .opacity(showNavigationTitle ? 1 : 0)
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -267,19 +161,154 @@ struct MediaDetailView: View {
                         }
                     }
                 }
+            }
+        }
+        .animation(.smooth, value: showNavigationTitle)
+    }
+    
+    @ViewBuilder
+    private var artworkSection: some View {
+        Color.clear.overlay {
+            ZStack {
+                LazyImage(url: playableContent.artwork) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .blur(radius: 100)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: 400)
+                LazyImage(url: playableContent.artwork) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .glur(radius: 12, // The total radius of the blur effect when fully applied.
+                                  offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
+                                  interpolation: 0.5, // The distance from the offset to where the effect is fully applied, relative to the view's size.
+                                  direction: .down, // The direction in which the effect is applied.
+                                  noise: 0.1, // The amount of noise that should be applied to the view.
+                                  drawingGroup: false // Whether or not to pre-render the modified view with `drawingGroup()`.
+                            )
+                            .frame(maxWidth: 400, maxHeight: 400)
+                            .clipped()
+                    }
+                }
+            }
+        }
+        .overlay {
+            LinearGradient(
+                stops: [
+                    .init(color: .black.opacity(0.6), location: 0.0),
+                    .init(color: .clear, location: 0.50)
+                ],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+        }
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.95),
+                    .init(color: .clear, location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .stretchy()
+        .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading) {
+                headerOverlay
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 24)
+        }
+        .frame(height: 400)
+        .listRowBackground(Color.white.opacity(0.001))
+        .listSectionSeparator(.hidden)
+        .listRowInsets(EdgeInsets())
+    }
+    
+    @ViewBuilder
+    private var headerOverlay: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                router.navigate(to: .artistDetail(content: playableContent, group: selectedGroupService.group))
+            } label: {
+                Text(playableContent.metadata?.artist ?? "")
+                    .bold()
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+
+            Text(playableContent.title)
+                .font(.title)
+                .foregroundStyle(.white)
+                .fontWeight(.black)
+                .fontDesign(.rounded)
+                .minimumScaleFactor(0.3)
+                .allowsTightening(true)
+                .lineLimit(1)
+            HStack(spacing: 4) {
+                let yearText = playableContent.metadata?.albumYear?.formatted(.dateTime.year())
+                let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
+                let songsText = songsCount.map { "\($0) Songs" }
+
+                let durationText: String? = {
+                    if let duration {
+                        return duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+                    }
+                    if totalDuration.components.seconds > 0 {
+                        return totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+                    }
+                    return nil
+                }()
+
+                Text([yearText, songsText, durationText].compactMap { $0 }.joined(separator: " • "))
+            }
+            .font(.caption)
+            HStack(spacing: 12) {
+                Button {
+                    play()
+                } label: {
+                    Label("Play", systemImage: "play.fill")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .allowsTightening(true)
+                }
+                .glassButton()
+                .foregroundStyle(.primary)
+                
+                Button {
+                    play([.normal, .shuffle])
+                } label: {
+                    Text("\(Image(systemName: "shuffle")) Shuffle")
+//                    Label("Shuffle", systemImage: "shuffle")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .allowsTightening(true)
+                }
+                .glassButton()
+                .foregroundStyle(.primary)
+                
                 Menu {
                     PlayableMenuView(item: playableContent)
                 } label: {
                     Image(systemName: "ellipsis")
-                        .frame(maxWidth: 40, maxHeight: .infinity)
-                        .background(.clear)
-                        .bold()
-                        .foregroundStyle(.foreground)
-                        .contentShape(.rect)
+                        .frame(width: 24, height: 24)
                 }
                 .contentShape(.rect)
+                .glassButton()
             }
+            .bold()
+            .fontDesign(.rounded)
         }
+        .fontDesign(.rounded)
+        .foregroundStyle(.white)
     }
     
     private func play(_ playMode: PlayMode = .normal) {
@@ -289,13 +318,15 @@ struct MediaDetailView: View {
                     for: playableContent.content.type,
                     replaceQueueByDefault: replaceQueueByDefault
                 )
+                await SonosService.shared.setPlayMode(group.ip, mode: playMode)
+                group.playMode = playMode
+
                 QueueManager.shared.addToQueue(
                     item: QueueItem(
                         playableContent: playableContent,
                         group: group,
                         position: position,
                         total: totalSongs ?? tracks.count,
-                        playMode: playMode,
                         showBanner: false
                     )
                 )
@@ -317,6 +348,13 @@ struct MediaDetailView: View {
     }
     
     private func updateTracks(offset: Int = 0) async {
+        // Ensure isLoaded is set even if we return early
+        defer {
+            if offset == 0 {
+                isLoaded = true
+            }
+        }
+        
         if offset > 0, !playableContent.content.type.isPlaylist {
             return
         }
@@ -430,10 +468,9 @@ struct MediaDetailView: View {
                 isLoadingMore = false
             }
         default:
-            assertionFailure("Implement this.")
+            return
         }
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
-        isLoaded = true
     }
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
@@ -460,3 +497,37 @@ struct MediaDetailView: View {
         }
     }
 }
+
+#if DEBUG
+#Preview {
+    @Previewable @State var show: Bool = true
+    Button {
+        show.toggle()
+    } label: {
+        Text("TEST")
+    }
+    .sheet(isPresented: $show) {
+        NavigationStack {
+            MediaDetailView(playableContent: .bazAlbum)
+                .environment(Router.main)
+                .environment(SelectedGroupService())
+                .environment(AlertService.shared)
+                .environment(MusicSearchService.shared)
+                .withEnvironments()
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+#Preview {
+    NavigationStack {
+        MediaDetailView(playableContent: .harry)
+            .environment(Router.main)
+            .environment(SelectedGroupService())
+            .environment(AlertService.shared)
+            .environment(MusicSearchService.shared)
+            .withEnvironments()
+    }
+}
+#endif
+

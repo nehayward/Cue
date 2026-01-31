@@ -515,8 +515,8 @@ public final class MusicSearchService {
         return container
     }
     
-    public func appleLibraryArtistArtwork(name: String) async -> URL? {
-        await apple.artistArtwork(for: name)
+    public func appleLibraryArtistArtwork(name: String, size: Int = 100) async -> URL? {
+        await apple.artistArtwork(for: name, size: size)
     }
     
     public func appleLibraryArtistAlbumLookup(id: String) async -> AppleLibraryContainer? {

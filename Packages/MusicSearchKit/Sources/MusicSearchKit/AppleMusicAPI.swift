@@ -537,13 +537,13 @@ public final class AppleMusicAPI {
         return nil
     }
     
-    public func artistArtwork(for name: String) async -> URL? {
+    public func artistArtwork(for name: String, size: Int = 100) async -> URL? {
         guard await requestMusicAuthorization() else { return nil }
         var request = MusicCatalogSearchRequest(term: name, types: [Artist.self])
         request.includeTopResults = true
         request.limit = 2
         guard let results = try? await request.response() else { return nil }
-        return results.artists.first?.artwork?.url(width: 100, height: 100)
+        return results.artists.first?.artwork?.url(width: size, height: size)
     }
     
     public func libraryArtistAlbums(id: String) async throws -> AppleLibraryContainer? {

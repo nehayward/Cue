@@ -95,9 +95,9 @@ extension View {
                         SceneView()
                     case let .mediaDetail(content, group):
                         let selectedGroupService = SelectedGroupService(group: group)
-                        let router = Router.secondary
+                        @State var router = Router.secondary
                         
-                        NavigationStack {
+                        NavigationStack(path: $router.path) {
                             MediaDetailView(playableContent: content)
                                 .navigationBarTitleDisplayMode(.inline)
                                 .withAppRouter()
@@ -132,7 +132,6 @@ extension View {
                             MiniPlayerView()
                         }
     #endif
-                        .animation(.interactiveSpring, value: MiniPlayerManger.shared.offset)
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                         .environment(router)
                         .environment(selectedGroupService)
@@ -199,7 +198,7 @@ extension View {
                 }
                 .withEnvironments()
                 .presentationSizingiOS18()
-                .frame(idealWidth: 800, idealHeight: 800)
+                .frame(idealWidth: 600, idealHeight: 800)
             }
         }
     }
@@ -436,7 +435,7 @@ extension View {
 #if targetEnvironment(macCatalyst)
             .inspectorColumnWidth(min: 360, ideal: 500, max: 600)
 #else
-            .inspectorColumnWidth(min: 260, ideal: 360, max: 400)
+            .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
             .presentationBackgroundInteraction(.disabled)
 #endif
         }

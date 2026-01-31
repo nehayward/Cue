@@ -76,7 +76,6 @@ final class QueueManager {
             alertService.showAlertContent(with: playableContent, subtitle: LocalizedStringKey(queueItem.title))
         }
         
-        await sonosService.setPlayMode(group.ip, mode: [queueItem.playMode])
         try await sonosService.queue(playable: playableContent, group: group, position: queueItem.position, index: queueItem.index)
         
         if [.now, .replace].contains(queueItem.position) {
@@ -128,7 +127,6 @@ struct QueueItem {
     var index: Int? = nil
     var total: Int = 1
     var title: String = ""
-    var playMode: PlayMode = .normal
     var showBanner: Bool = true
 }
 //

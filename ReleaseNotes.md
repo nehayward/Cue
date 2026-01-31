@@ -1,6 +1,9 @@
 # 2026.2
 
 –– New Features ––
+- Redesigned Artist Page: Full-bleed hero artwork with blur effect, stretchy parallax scrolling, artist name and actions overlaid on artwork, collapsible Popular and Albums sections, and Open in Service button
+- Redesigned Album & Playlist Page: Full-bleed hero artwork with blur effect, stretchy parallax scrolling, album info (year, song count, duration) overlaid on artwork, tappable artist name to navigate to artist, and glass-style Play/Shuffle buttons
+- Navigation titles on artist and album pages now fade in as you scroll past the artwork
 - Quick Add to Playlist: Tap the alert after adding a song to a playlist to navigate directly to that playlist
 - Add to Last Playlist: Quickly add the current song to your most recently used playlist from the menu or with ⌘S on Mac
 - New Playlist command in File menu (⌘N) for quick playlist creation
@@ -27,6 +30,8 @@
 - Fixed album name missing from metadata in search results
 - Improved scroll performance throughout the app
 - Fixed Volume slider animation
+- Fix missing albums on some plex artists, i.e. soundtracks
+- Albums and playlists now show a "No Tracks" empty state instead of an infinite spinner when content is unavailable
 
 # 2026.1
 

@@ -370,7 +370,7 @@ struct ClicApp: App {
                             }
                         }
                     } label: {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        if router.selectedID != nil {
                             Label {
                                 Text("Previous Track")
                             } icon: {
@@ -389,7 +389,7 @@ struct ClicApp: App {
                             }
                         }
                     } label: {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        if router.selectedID != nil {
                             Label {
                                 Text("Next Track")
                             } icon: {
@@ -406,7 +406,7 @@ struct ClicApp: App {
                             }
                         }
                     } label: {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        if router.selectedID != nil {
                             Label {
                                 Text("Volume Up")
                             } icon: {
@@ -424,7 +424,7 @@ struct ClicApp: App {
                             }
                         }
                     } label: {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        if router.selectedID != nil {
                             Label {
                                 Text("Volume Down")
                             } icon: {
@@ -434,6 +434,104 @@ struct ClicApp: App {
                     }
                     .keyboardShortcut(.downArrow)
                 }
+
+                Button {
+                    Task {
+                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            HapticManager.shared.fireHaptic(.selection)
+                            let newPosition = group.coordinatorRoom.track.playbackPosition + 15000
+                            await sonosService.seek(to: newPosition, on: group)
+                        }
+                    }
+                } label: {
+                    Label("Seek Forward", systemImage: "goforward")
+                }
+                .keyboardShortcut(.rightArrow, modifiers: .option)
+                .disabled(router.selectedID == nil)
+
+                Button {
+                    Task {
+                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            HapticManager.shared.fireHaptic(.selection)
+                            let newPosition = max(0, group.coordinatorRoom.track.playbackPosition - 15000)
+                            await sonosService.seek(to: newPosition, on: group)
+                        }
+                    }
+                } label: {
+                    Label("Seek Backward", systemImage: "gobackward")
+                }
+                .keyboardShortcut(.leftArrow, modifiers: .option)
+                .disabled(router.selectedID == nil)
+
+                Divider()
+
+                Button {
+                    Task {
+                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            var currentPlayMode = group.playMode
+                            if currentPlayMode.contains(.shuffle) {
+                                currentPlayMode.remove(.shuffle)
+                            } else {
+                                currentPlayMode.insert(.shuffle)
+                            }
+                            group.playMode = currentPlayMode
+                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
+                        }
+                    }
+                } label: {
+                    Label("Shuffle", systemImage: "shuffle")
+                }
+                .keyboardShortcut("s")
+                .disabled(router.selectedID == nil)
+
+                Button {
+                    Task {
+                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                            var currentPlayMode = group.playMode
+                            if !currentPlayMode.isRepeatEnabled {
+                                currentPlayMode.insert(.repeatAll)
+                            } else if currentPlayMode.isRepeatAllEnabled {
+                                currentPlayMode.remove(.repeatAll)
+                                currentPlayMode.insert(.repeatOne)
+                            } else {
+                                currentPlayMode.remove(.repeatOne)
+                                currentPlayMode.remove(.repeatAll)
+                            }
+                            group.playMode = currentPlayMode
+                            await sonosService.setPlayMode(group.ip, mode: currentPlayMode)
+                        }
+                    }
+                } label: {
+                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                    } else {
+                        Label("Repeat", systemImage: "repeat")
+                    }
+                }
+                .keyboardShortcut("r")
+                .disabled(router.selectedID == nil)
+
+                Divider()
+
+                Button {
+                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                    }
+                } label: {
+                    Label("Open Album", systemImage: "smallcircle.circle.fill")
+                }
+                .keyboardShortcut("i", modifiers: [.shift, .command])
+                .disabled(router.selectedID == nil)
+
+                Button {
+                    if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+                        router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+                    }
+                } label: {
+                    Label("Open Artist", systemImage: "music.mic")
+                }
+                .keyboardShortcut("i", modifiers: [.command])
+                .disabled(router.selectedID == nil)
             }
 //            CommandGroup(after: .windowArrangement) {
 //                Button {
