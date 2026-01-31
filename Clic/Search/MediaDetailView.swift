@@ -18,7 +18,8 @@ struct MediaDetailView: View {
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
-    @State var playableContent: PlayableContent
+    let playableContent: PlayableContent
+    @State private var content: PlayableContent?
     @State private var editMode: EditMode = .inactive
     @State private var tracks: [PlayableContent] = []
     @State private var isLoaded: Bool = false
@@ -36,8 +37,8 @@ struct MediaDetailView: View {
             ForEach(Array(tracks.enumerated()), id: \.element.trackID) { index, item in
                 VStack {
                     PlayableContentView(item: item,
-                                        parent: playableContent,
-                                        hideArtwork: playableContent.content.type == .album,
+                                        parent: content ?? playableContent,
+                                        hideArtwork: content?.content.type == .album,
                                         hideContentType: true,
                                         index: index + 1,
                                         dismissOnComplete: true,
@@ -133,17 +134,17 @@ struct MediaDetailView: View {
             await updateTracks(offset: tracks.count)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
-        .navigationTitle(playableContent.title)
+        .navigationTitle(content?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack {
-                    Text(playableContent.title)
+                    Text(content?.title ?? "")
                         .fontDesign(.rounded)
                         .bold()
                         .multilineTextAlignment(.center)
-                    Text(playableContent.metadata?.artist ?? "")
+                    Text(content?.metadata?.artist ?? "")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fontDesign(.rounded)
@@ -170,7 +171,7 @@ struct MediaDetailView: View {
     private var artworkSection: some View {
         Color.clear.overlay {
             ZStack {
-                LazyImage(url: playableContent.artwork) { phase in
+                LazyImage(url: content?.artwork) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
@@ -179,7 +180,7 @@ struct MediaDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: 400)
-                LazyImage(url: playableContent.artwork) { phase in
+                LazyImage(url: content?.artwork) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
@@ -237,15 +238,15 @@ struct MediaDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
-                router.navigate(to: .artistDetail(content: playableContent, group: selectedGroupService.group))
+                router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
             } label: {
-                Text(playableContent.metadata?.artist ?? "")
+                Text(content?.metadata?.artist ?? "")
                     .bold()
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
 
-            Text(playableContent.title)
+            Text(content?.title ?? "")
                 .font(.title)
                 .foregroundStyle(.white)
                 .fontWeight(.black)
@@ -254,7 +255,7 @@ struct MediaDetailView: View {
                 .allowsTightening(true)
                 .lineLimit(1)
             HStack(spacing: 4) {
-                let yearText = playableContent.metadata?.albumYear?.formatted(.dateTime.year())
+                let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
                 let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
                 let songsText = songsCount.map { "\($0) Songs" }
 
@@ -295,14 +296,16 @@ struct MediaDetailView: View {
                 .glassButton()
                 .foregroundStyle(.primary)
                 
-                Menu {
-                    PlayableMenuView(item: playableContent)
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 24, height: 24)
+                if let content {
+                    Menu {
+                        PlayableMenuView(item: content)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(width: 24, height: 24)
+                    }
+                    .contentShape(.rect)
+                    .glassButton()
                 }
-                .contentShape(.rect)
-                .glassButton()
             }
             .bold()
             .fontDesign(.rounded)
@@ -313,9 +316,10 @@ struct MediaDetailView: View {
     
     private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
-            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, playableContent, totalSongs, tracks] group in
+            let currentContent = content ?? playableContent
+            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, currentContent, totalSongs, tracks] group in
                 let position = QueuePosition.defaultPosition(
-                    for: playableContent.content.type,
+                    for: currentContent.content.type,
                     replaceQueueByDefault: replaceQueueByDefault
                 )
                 await SonosService.shared.setPlayMode(group.ip, mode: playMode)
@@ -323,7 +327,7 @@ struct MediaDetailView: View {
 
                 QueueManager.shared.addToQueue(
                     item: QueueItem(
-                        playableContent: playableContent,
+                        playableContent: currentContent,
                         group: group,
                         position: position,
                         total: totalSongs ?? tracks.count,
@@ -333,9 +337,9 @@ struct MediaDetailView: View {
                 Router.main.show(destination: .player(groupID: group.coordinatorID))
                 return
             }
-            
+
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: playableContent))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: currentContent))
                 return
             }
             
@@ -354,27 +358,33 @@ struct MediaDetailView: View {
                 isLoaded = true
             }
         }
-        
+
+        // If already an album or playlist type, set immediately (no spinner needed)
+        if [.album, .libraryAlbum].contains(playableContent.content.type) || playableContent.content.type.isPlaylist {
+            content = playableContent
+        }
+
         if offset > 0, !playableContent.content.type.isPlaylist {
             return
         }
-        
+
         var newTracks: [PlayableContent] = []
         switch (playableContent.content.type, playableContent.content.service) {
         case (.album, .apple):
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
-            playableContent = album.toPlayable
+            content = album.toPlayable
             guard let tracks = album.tracks else { return }
             newTracks = tracks.map(\.toPlayable)
         case (.libraryAlbum, .apple):
             if let album = await musicSearchService.appleLibraryAlbum(id: playableContent.id), let playableAlbum = album.data.first?.toPlayable {
-                playableContent = playableAlbum
+                content = playableAlbum
             }
-            newTracks = await AppleMusicBrowseService.shared.albumLookup(id: playableContent.id)
+            newTracks = await AppleMusicBrowseService.shared.albumLookup(id: content?.id ?? playableContent.id)
         case (.album, .spotify):
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
-            playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            let albumPlayable = albumDetails.toPlayable
+            content = albumPlayable
+            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
             newTracks = playlist.map(\.toPlayable)
@@ -397,22 +407,23 @@ struct MediaDetailView: View {
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
-            playableContent = album.toPlayable
+            content = album.toPlayable
             guard let tracks = album.tracks else { return }
             newTracks = tracks.map(\.toPlayable)
         case (.libraryTrack, .apple):
             guard let catalogSong = await musicSearchService.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
             guard let song: Song = try? await musicSearchService.lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
-            playableContent = album.toPlayable
+            content = album.toPlayable
             guard let tracks = album.tracks else { return }
             newTracks = tracks.map(\.toPlayable)
         case (.track, .spotify):
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumID = song.album.id else { return }
             guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: albumID) else { return }
-            playableContent = albumDetails.toPlayable
-            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: playableContent, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            let albumPlayable = albumDetails.toPlayable
+            content = albumPlayable
+            newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.album, .library):
             newTracks = await SonosService.shared.libraryLookup(ID: playableContent.id)
         case (.playlist, .library):
@@ -426,19 +437,19 @@ struct MediaDetailView: View {
             
             newTracks = await SonosService.shared.libraryAlbum(name: albumName)
             guard let albumPlayable =  await SonosService.shared.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }
-            playableContent = albumPlayable
+            content = albumPlayable
         case (.album, .tidal):
             newTracks = await musicSearchService.lookupTidalAlbumTracks(id: playableContent.content.id)
         case (.track, .tidal):
             if let albumID = playableContent.metadata?.albumID {
                 guard let album = await musicSearchService.lookupTidalAlbum(with: albumID) else { return }
                 newTracks = await musicSearchService.lookupTidalAlbumTracks(id: albumID)
-                playableContent = album
+                content = album
             } else {
                 guard let albumID = await musicSearchService.lookupTidalTrack(with: playableContent.id)?.metadata?.albumID else { return }
                 guard let album = await musicSearchService.lookupTidalAlbum(with: albumID) else { return }
                 newTracks = await musicSearchService.lookupTidalAlbumTracks(id: albumID)
-                playableContent = album
+                content = album
             }
         case (.playlist, .tidal):
             (newTracks, nextCursor) = await musicSearchService.lookupTidalPlaylist(id: playableContent.content.id, cursor: nextCursor)
@@ -449,13 +460,13 @@ struct MediaDetailView: View {
         case (.track, .plex):
             if let albumID = playableContent.metadata?.albumID {
                 guard let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
-                playableContent = album
+                content = album
                 newTracks = await musicSearchService.lookupPlexAlbumSongs(id: albumID)
             } else {
                 guard let id = playableContent.id.removingPercentEncoding?.components(separatedBy: ":").last,
                       let albumID = await musicSearchService.lookupPlexSong(with: id)?.metadata?.albumID,
                       let album = await musicSearchService.lookupPlexAlbum(id: albumID) else { return }
-                playableContent = album
+                content = album
                 newTracks = await musicSearchService.lookupPlexAlbumSongs(id: albumID)
             }
         case (.album, .plex):

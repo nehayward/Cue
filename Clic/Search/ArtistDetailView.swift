@@ -488,8 +488,6 @@ struct ArtistDetailView: View {
         default:
             break
         }
-        
-        artistContent = playableContent
         isLoading = false
     }
     
@@ -534,6 +532,8 @@ struct ArtistDetailView: View {
         if let libraryAlbums = await MusicSearchService.shared.appleLibraryArtistAlbumLookup(id: playableContent.content.id) {
             albums = libraryAlbums.data.compactMap(\.toPlayable)
         }
+        
+        artistContent = playableContent
     }
     
     private func loadAppleTrackArtist() async {
@@ -623,16 +623,13 @@ struct ArtistDetailView: View {
     
     private func loadSpotifyArtist() async {
         artworkURL = playableContent.artwork
-
-        async let artist = MusicSearchService.shared.spotifyArtist(id: playableContent.content.id)
+        artistContent = playableContent
         async let artistAlbums = MusicSearchService.shared.spotifyArtistAlbums(id: playableContent.content.id)
         async let artistTopTracks = MusicSearchService.shared.spotifyArtistTopTracks(id: playableContent.content.id)
         
-        guard let artistResult = await artist else { return }
         guard let albumsResult = await artistAlbums else { return }
         let tracksResult = await artistTopTracks
         
-        artistContent = artistResult.toPlayable
         albums = albumsResult.items.map(\.toPlayable)
         tracks = tracksResult.compactMap(\.toPlayable)
     }
@@ -715,6 +712,7 @@ struct ArtistDetailView: View {
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title, size: 500)
         albums = await sonosService.libraryLookup(ID: playableContent.id)
         tracks = await sonosService.libraryLookup(ID: playableContent.id + "/").suffix(10)
+        artistContent = playableContent
     }
     
     // MARK: - Tidal Loading
@@ -822,6 +820,7 @@ struct ArtistDetailView: View {
         
         albums = await artistAlbums
         tracks = await artistTopTracks
+        artistContent = playableContent
     }
     
     private func loadTidalArtistData(id: String, delay: Int = 200) async {
@@ -881,6 +880,7 @@ struct ArtistDetailView: View {
         singles = singlesResult
         
         albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
+        artistContent = playableContent
     }
     
     private func loadPlexArtistData(id: String, setAlbums: Bool) async {
