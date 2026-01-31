@@ -746,7 +746,7 @@ struct ClicApp: App {
 
 #if targetEnvironment(macCatalyst)
 // MARK: - Window Size Persistence
-extension CGRect: Codable {
+extension CGRect {
     enum CodingKeys: String, CodingKey {
         case x, y, width, height
     }
