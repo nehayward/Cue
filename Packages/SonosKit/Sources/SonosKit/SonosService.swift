@@ -1961,8 +1961,9 @@ public final class SonosService {
         async let artist = api.librarySearch(IP: ip, query: query, filter: .artist)
         async let albums = api.librarySearch(IP: ip, query: query, filter: .album)
         async let playlist = api.librarySearch(IP: ip, query: query, filter: .playlist)
+        async let sonosPlaylist = api.sonosPlaylists(IP: ip)
         // TODO: Prioritize by query
-        let playableContent = await tracks + artist + albums + playlist
+        let playableContent = await tracks + artist + albums + playlist + sonosPlaylist.filter{$0.title.localizedCaseInsensitiveContains(query)}
         return playableContent
     }
     
