@@ -53,10 +53,6 @@ struct ClicApp: App {
     private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
 #endif
     
-    init() {
-        AppBootstrapper.shared.bootstrap()
-    }
-
     var body: some Scene {
         WindowGroup {
             NavigationSplitView {
@@ -82,6 +78,7 @@ struct ClicApp: App {
             .onAppear {
                 guard !AppBootstrapper.shared.didLaunch else { return }
                 AppBootstrapper.shared.didLaunch = true
+                AppBootstrapper.shared.bootstrap()
 
                 Task { @MainActor in
                     try? await SubscriptionService.shared.checkSubscription()
