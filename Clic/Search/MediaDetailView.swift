@@ -276,7 +276,7 @@ struct MediaDetailView: View {
                 Button {
                     play()
                 } label: {
-                    Text("\(Image(systemName: "play.fill")) Shuffle")
+                    Text("\(Image(systemName: "play.fill")) Play")
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .allowsTightening(true)
