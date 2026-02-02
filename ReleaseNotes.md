@@ -26,6 +26,8 @@
 - Unplayable Apple Music tracks now shown as disabled on album pages
 
 –– Bug Fixes & Improvements ––
+- Fixed scene music content being lost after navigating to the speaker selection screen and returning
+- Add Sonos created playlists not showing in search
 - Fixed adding Spotify and Apple Music tracks to Sonos playlists
 - Added Clear Image Cache option in Settings to free up storage space
 - Added position numbers to queue list for easier track navigation

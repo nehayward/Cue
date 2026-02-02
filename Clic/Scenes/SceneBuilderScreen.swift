@@ -186,17 +186,16 @@ struct SceneBuilderScreen: View {
                 return room
             }
 
-            let rooms = rooms.filter { room in
+            guard firstAppear else { return }
+            firstAppear = false
+
+            let filteredRooms = rooms.filter { room in
                 selections.contains(room.id)
             }
-            if !edit, firstAppear {
-                scene.name = rooms.map(\.name).joined(separator: " + ")
-                let rooms = rooms.filter { room in
-                    selections.contains(room.id)
-                }
-                let sceneRooms = rooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
+            if !edit {
+                scene.name = filteredRooms.map(\.name).joined(separator: " + ")
+                let sceneRooms = filteredRooms.map { SceneRoom(id: $0.id, ip: $0.ip, name: $0.name, volume: $0.volume) }
                 scene.rooms = sceneRooms
-                firstAppear = false
             } else {
                 contentToAdd.content = scene.playableContent
                 if selections.isEmpty {
