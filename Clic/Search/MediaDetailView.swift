@@ -30,6 +30,10 @@ struct MediaDetailView: View {
     @State private var nextCursor: String?
     @State private var showNavigationTitle: Bool = false
     
+    var maxHeight: Double {
+        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+    }
+    
     var body: some View {
         @Bindable var router = router
         List(selection: $selection) {
@@ -139,7 +143,7 @@ struct MediaDetailView: View {
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack {
+                VStack(spacing: 0) {
                     Text(content?.title ?? "")
                         .fontDesign(.rounded)
                         .bold()
@@ -179,20 +183,20 @@ struct MediaDetailView: View {
                             .blur(radius: 100)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: 400)
+                .frame(maxWidth: .infinity, maxHeight: maxHeight)
                 LazyImage(url: content?.artwork) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
                             .scaledToFill()
-                            .glur(radius: 12, // The total radius of the blur effect when fully applied.
+                            .glur(radius: 30, // The total radius of the blur effect when fully applied.
                                   offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                                  interpolation: 0.5, // The distance from the offset to where the effect is fully applied, relative to the view's size.
+                                  interpolation: 0.4, // The distance from the offset to where the effect is fully applied, relative to the view's size.
                                   direction: .down, // The direction in which the effect is applied.
                                   noise: 0.1, // The amount of noise that should be applied to the view.
                                   drawingGroup: false // Whether or not to pre-render the modified view with `drawingGroup()`.
                             )
-                            .frame(maxWidth: 400, maxHeight: 400)
+                            .frame(maxWidth: 400, maxHeight: maxHeight)
                             .clipped()
                     }
                 }
@@ -201,8 +205,8 @@ struct MediaDetailView: View {
         .overlay {
             LinearGradient(
                 stops: [
-                    .init(color: .black.opacity(0.6), location: 0.0),
-                    .init(color: .clear, location: 0.50)
+                    .init(color: .black.opacity(0.7), location: 0.0),
+                    .init(color: .clear, location: 0.55)
                 ],
                 startPoint: .bottom,
                 endPoint: .top
@@ -227,7 +231,7 @@ struct MediaDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .frame(height: 400)
+        .frame(height: maxHeight)
         .listRowBackground(Color.white.opacity(0.001))
         .listSectionSeparator(.hidden)
         .listRowInsets(EdgeInsets())
@@ -235,17 +239,7 @@ struct MediaDetailView: View {
     
     @ViewBuilder
     private var headerOverlay: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
-            } label: {
-                Text(content?.metadata?.artist ?? "")
-                    .bold()
-                    .lineLimit(1)
-            }
-            .buttonStyle(.plain)
-
+        VStack(alignment: .leading, spacing: 6) {
             Text(content?.title ?? "")
                 .font(.title)
                 .foregroundStyle(.white)
@@ -254,7 +248,17 @@ struct MediaDetailView: View {
                 .minimumScaleFactor(0.3)
                 .allowsTightening(true)
                 .lineLimit(1)
-            HStack(spacing: 4) {
+            HStack(spacing: 0) {
+                Button {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    router.navigate(to: .artistDetail(content: content ?? playableContent, group: selectedGroupService.group))
+                } label: {
+                    Text(content?.metadata?.artist ?? "")
+                        .bold()
+                        .lineLimit(1)
+                        .underline()
+                }
+                .buttonStyle(.plain)
                 let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
                 let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
                 let songsText = songsCount.map { "\($0) Songs" }
@@ -268,10 +272,13 @@ struct MediaDetailView: View {
                     }
                     return nil
                 }()
-
-                Text([yearText, songsText, durationText].compactMap { $0 }.joined(separator: " • "))
+                let metadata = [yearText, songsText, durationText].compactMap { $0 }.joined(separator: " • ")
+                let metadataText = metadata.isEmpty ? "" : " • \(metadata)"
+                
+                Text(metadataText)
             }
             .font(.caption)
+            .padding(.bottom, 4)
             HStack(spacing: 12) {
                 Button {
                     play()

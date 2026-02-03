@@ -134,7 +134,7 @@ extension View {
     @ViewBuilder
     func scrollEdgeEffectHidden26(_ hidden: Bool = true) -> some View {
         if #available(iOS 26.0, macCatalyst 26.0, *) {
-            self.scrollEdgeEffectHidden(hidden)
+            self.scrollEdgeEffectHidden(hidden, for: .top)
         } else {
             self
         }

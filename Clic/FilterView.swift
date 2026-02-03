@@ -27,7 +27,15 @@ enum Filter: String, CaseIterable {
             return [.libraryAlbum, .libraryTrack, .libraryArtist, .libraryPlaylist]
         }
     }
-
+    
+    private var librarySymbolName: String {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
+            return "music.pages.fill"
+        } else {
+            return "books.vertical.fill"
+        }
+    }
+  
     var symbol: String {
         switch self {
         case .songs:
@@ -39,7 +47,7 @@ enum Filter: String, CaseIterable {
         case .playlists:
             return "rectangle.stack.badge.play"
         case .library:
-            return "books.vertical.fill"
+            return librarySymbolName
         }
     }
 }

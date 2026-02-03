@@ -84,6 +84,13 @@ public enum SonosMusicServiceType: Equatable, Hashable, Codable, CaseIterable {
         }
     }
 
+    private var librarySymbolName: String {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, watchOS 26.0, *) {
+            return "music.pages.fill"
+        } else {
+            return "books.vertical.fill"
+        }
+    }
 
     @ViewBuilder
     public var icon: some View {
@@ -100,7 +107,7 @@ public enum SonosMusicServiceType: Equatable, Hashable, Codable, CaseIterable {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             case .library:
-                SwiftUI.Image(systemName: "books.vertical.fill")
+                SwiftUI.Image(systemName: librarySymbolName)
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -148,7 +155,7 @@ public enum SonosMusicServiceType: Equatable, Hashable, Codable, CaseIterable {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .library:
-            SwiftUI.Image(systemName: "books.vertical.fill")
+            SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
         case .plex:

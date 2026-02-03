@@ -30,9 +30,13 @@ struct ArtistDetailView: View {
     @State private var artworkLoaded: Bool = false
     @State private var artistContent: PlayableContent?
     @State private var showTitle: Bool = false
-
+    
     @AppStorage("isTopSongsExpanded") private var isTopSongsExpanded: Bool = true
     @AppStorage("isAlbumsExpanded") private var isAlbumsExpanded: Bool = true
+    
+    var maxHeight: Double {
+        UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
+    }
     
     // MARK: - Computed Properties
     
@@ -135,20 +139,20 @@ struct ArtistDetailView: View {
                             .blur(radius: 100)
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: 400)
+                .frame(maxWidth: .infinity, maxHeight: maxHeight)
                 LazyImage(url: artworkURL) { phase in
                     if let image = phase.image {
                         image
                             .resizable()
                             .scaledToFill()
-                            .glur(radius: 12, // The total radius of the blur effect when fully applied.
+                            .glur(radius: 30, // The total radius of the blur effect when fully applied.
                                   offset: 0.6, // The distance from the view's edge to where the effect begins, relative to the view's size.
-                                  interpolation: 0.5, // The distance from the offset to where the effect is fully applied, relative to the view's size.
+                                  interpolation: 0.4, // The distance from the offset to where the effect is fully applied, relative to the view's size.
                                   direction: .down, // The direction in which the effect is applied.
                                   noise: 0.1, // The amount of noise that should be applied to the view.
                                   drawingGroup: false // Whether or not to pre-render the modified view with `drawingGroup()`.
                             )
-                            .frame(maxWidth: 400, maxHeight: 400)
+                            .frame(maxWidth: 400, maxHeight: maxHeight)
                             .clipped()
                     }
                 }
@@ -157,8 +161,8 @@ struct ArtistDetailView: View {
         .overlay {
             LinearGradient(
                 stops: [
-                    .init(color: .black.opacity(0.6), location: 0.0),
-                    .init(color: .clear, location: 0.50)
+                    .init(color: .black.opacity(0.7), location: 0.0),
+                    .init(color: .clear, location: 0.55)
                 ],
                 startPoint: .bottom,
                 endPoint: .top
@@ -184,7 +188,7 @@ struct ArtistDetailView: View {
             }
         }
         .overlay(alignment: .bottomLeading) {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(artistContent?.title ?? "")
                     .font(.title)
                     .foregroundStyle(.white)
@@ -195,7 +199,7 @@ struct ArtistDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .frame(height: 400)
+        .frame(height: maxHeight)
         .listRowBackground(Color.white.opacity(0.001))
         .listSectionSeparator(.hidden)
         .listRowInsets(EdgeInsets())
