@@ -8,7 +8,6 @@ import MusicKit
 import OrderedCollections
 import SwiftUI
 import SonosKit
-import Defaults
 import TipKit
 import FocusOnAppear
 
@@ -30,6 +29,7 @@ struct SearchScreen: View {
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
+    @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
 
     var favorites: Bool = false
     var closeInspector: (() -> Void)? = nil
@@ -46,6 +46,7 @@ struct SearchScreen: View {
     @FocusState private var focusedField: SearchFocusFields?
 
     @State private var isLoading: Bool = false
+    @State private var keyboardSelectedIndex: Int?
     
     private var showAlert: Bool {
 #if targetEnvironment(macCatalyst)
@@ -55,6 +56,44 @@ struct SearchScreen: View {
 #endif
     }
 
+    private var suggestionCountForNav: Int {
+#if targetEnvironment(macCatalyst)
+        !searchCompletionTapped ? musicSearchService.suggestions.count : 0
+#else
+        0
+#endif
+    }
+
+    private var currentFilteredResults: [PlayableContent] {
+        guard !musicSearchService.query.isEmpty else { return [] }
+        let raw: [PlayableContent] = switch musicSearchSelection {
+        case .spotify: musicSearchService.spotifyResults
+        case .apple: musicSearchService.appleResults
+        case .library: musicSearchService.librarySearchResults
+        case .plex: musicSearchService.plexResults
+        case .tidal: musicSearchService.tidalResults
+        case .tuneIn: musicSearchService.tuneInResults
+        case .soundcloud: musicSearchService.searchResults
+        }
+        let activeFilters = filters.filter(\.isFiltered)
+        guard !activeFilters.isEmpty else { return raw }
+        let activeTypes = Set(activeFilters.flatMap(\.filter.toContentType))
+        return raw.filter { activeTypes.contains($0.content.type) }
+    }
+
+    private var navigableCount: Int {
+        suggestionCountForNav + currentFilteredResults.count
+    }
+
+    private var selectedItemID: String? {
+        guard let idx = keyboardSelectedIndex else { return nil }
+        let suggCount = suggestionCountForNav
+        guard idx >= suggCount else { return nil }
+        let resultIdx = idx - suggCount
+        guard resultIdx < currentFilteredResults.count else { return nil }
+        return currentFilteredResults[resultIdx].id
+    }
+
     var body: some View {
         @Bindable var router = router
         @Bindable var musicSearchService = musicSearchService
@@ -62,7 +101,7 @@ struct SearchScreen: View {
         
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
-                List {
+                List(selection: .constant(selectedItemID)) {
                     filterView
                         .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
                         .overlay(alignment: .trailing) {
@@ -86,11 +125,12 @@ struct SearchScreen: View {
 //                    }
 #if targetEnvironment(macCatalyst)
                     if !searchCompletionTapped {
-                        ForEach(musicSearchService.suggestions) { suggestion in
+                        ForEach(Array(musicSearchService.suggestions.enumerated()), id: \.element.id) { index, suggestion in
                             Button {
                                 musicSearchService.query = suggestion.searchTerm
                                 self.suggestion = suggestion.searchTerm
                                 searchCompletionTapped = true
+                                keyboardSelectedIndex = nil
                             } label: {
                                 HStack {
                                     Image(systemName: "magnifyingglass")
@@ -99,6 +139,10 @@ struct SearchScreen: View {
                                 }
                                 .foregroundStyle(.accent)
                             }
+                            .listRowBackground(
+                                keyboardSelectedIndex == index ?
+                                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)) : nil
+                            )
                         }
                     }
 #endif
@@ -169,6 +213,11 @@ struct SearchScreen: View {
 #if !os(visionOS)
                 .scrollDismissesKeyboard(.immediately)
 #endif
+                .onChange(of: keyboardSelectedIndex) {
+                    if let id = selectedItemID {
+                        withAnimation { proxy.scrollTo(id, anchor: .center) }
+                    }
+                }
                 .toolbar {
                     ToolbarItemGroup(placement: .principal) {
                         HStack {
@@ -176,6 +225,10 @@ struct SearchScreen: View {
                                 .foregroundStyle(.secondary)
                             TextField("Search", text: $musicSearchService.query)
                                 .focused($focusedField, equals: .search)
+                                .onSubmit {
+                                    guard let idx = keyboardSelectedIndex else { return }
+                                    activateSelectedItem(at: idx)
+                                }
                         }
                         .frame(idealWidth: 800)
                         .toolbarBackground(with: true, in: .capsule)
@@ -258,9 +311,42 @@ struct SearchScreen: View {
         .withAlert(enabled: showAlert)
         .keyboardType(.asciiCapable)
         .autocorrectionDisabled()
+        .onKeyPress(.downArrow, phases: [.down, .repeat]) { _ in
+            let count = navigableCount
+            guard count > 0 else { return .ignored }
+            if let idx = keyboardSelectedIndex {
+                keyboardSelectedIndex = min(idx + 1, count - 1)
+            } else {
+                keyboardSelectedIndex = 0
+            }
+            return .handled
+        }
+        .onKeyPress(.upArrow, phases: [.down, .repeat]) { _ in
+            guard keyboardSelectedIndex != nil else { return .ignored }
+            if let idx = keyboardSelectedIndex, idx > 0 {
+                keyboardSelectedIndex = idx - 1
+            } else {
+                keyboardSelectedIndex = nil
+            }
+            return .handled
+        }
+        .onKeyPress(.return) {
+            guard let idx = keyboardSelectedIndex else { return .ignored }
+            activateSelectedItem(at: idx)
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            guard keyboardSelectedIndex != nil else { return .ignored }
+            keyboardSelectedIndex = nil
+            return .handled
+        }
         .background {
             TextField("Search", text: $musicSearchService.query)
                 .focusOnAppear($focusedField, equals: .search)
+                .onSubmit {
+                    guard let idx = keyboardSelectedIndex else { return }
+                    activateSelectedItem(at: idx)
+                }
                 .task {
                     try? await Task.sleep(for: .seconds(0.6))
                     focusedField = .search
@@ -275,6 +361,15 @@ struct SearchScreen: View {
         .environment(alertService)
         .onChange(of: contentToAdd?.content) {
             dismiss()
+        }
+        .onChange(of: musicSearchService.query) {
+            keyboardSelectedIndex = nil
+        }
+        .onChange(of: musicSearchSelection) {
+            keyboardSelectedIndex = nil
+        }
+        .onChange(of: filters) {
+            keyboardSelectedIndex = nil
         }
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
@@ -319,6 +414,55 @@ struct SearchScreen: View {
         Task {
             try await Task.sleep(for: .milliseconds(300))
             UIView.setAnimationsEnabled(true)
+        }
+    }
+
+    private func activateSelectedItem(at index: Int) {
+        let suggCount = suggestionCountForNav
+        if index < suggCount {
+            let suggestion = musicSearchService.suggestions[index]
+            musicSearchService.query = suggestion.searchTerm
+            self.suggestion = suggestion.searchTerm
+            searchCompletionTapped = true
+            keyboardSelectedIndex = nil
+            return
+        }
+        let resultIndex = index - suggCount
+        guard resultIndex < currentFilteredResults.count else { return }
+        activateItem(currentFilteredResults[resultIndex])
+    }
+
+    private func activateItem(_ item: PlayableContent) {
+        keyboardSelectedIndex = nil
+        hideKeyboard()
+        switch item.content.type {
+        case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
+            router.path.append(RouterDestination.mediaDetail(content: item, group: selectedGroupService.group))
+        case .artist, .libraryArtist:
+            router.path.append(RouterDestination.artistDetail(content: item, group: selectedGroupService.group))
+        case .folder:
+            router.path.append(RouterDestination.folderBrowse(item: item, title: item.title))
+        default:
+            playItem(item)
+        }
+    }
+
+    private func playItem(_ item: PlayableContent) {
+        if contentToAdd?.add == true {
+            contentToAdd?.content = item
+            return
+        }
+        Task { @MainActor in
+            let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: replaceQueueByDefault)
+            guard let group = selectedGroupService.group else {
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: { group in
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
+                    Router.main.show(destination: .player(groupID: group.coordinatorID))
+                }, content: item))
+                return
+            }
+            QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
+            Router.main.show(destination: .player(groupID: group.coordinatorID))
         }
     }
 

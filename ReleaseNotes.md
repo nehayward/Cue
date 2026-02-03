@@ -23,6 +23,7 @@
 - Playing speakers automatically sorted to top
 - Content stays fixed at top while scrolling speaker list
 - New keyboard shortcuts on Mac: Seek Forward/Backward (⌥→/⌥←), Shuffle (⌘S), Repeat (⌘R), Open Album (⇧⌘I), Open Artist (⌘I)
+- Keyboard navigation in Search: Use arrow keys to navigate suggestions and results, Enter to play or open details, Escape to clear selection. Hold arrow keys to repeat.
 - Unplayable Apple Music tracks now shown as disabled on album pages
 
 –– Bug Fixes & Improvements ––
