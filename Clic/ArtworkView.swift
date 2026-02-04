@@ -130,17 +130,21 @@ struct ArtworkView: View {
             .onChange(of: group.coordinatorRoom.track.artworkURL) { old, newURL in
                 if old == newURL { return }
                 imageTask?.cancel()
-                imageTask = loadArtwork(url: newURL)
+                imageTask = loadArtwork(url: newURL, imageID: imageIDKey)
             }
             .onAppear {
+                // Try to restore from cache first
                 let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL,
                                            processors: [.resize(width: 500)],
                                            priority: .high,
                                            userInfo: [.imageIdKey: imageIDKey])
-                if let image = ImagePipeline.shared.cache.cachedImage(for: request), currentImage != image.image {
+                if let image = ImagePipeline.shared.cache.cachedImage(for: request) {
                     currentImage = image.image
-                } else {
-                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL)
+                }
+                
+                // Always ensure we have a load task if currentImage is nil
+                if currentImage == nil {
+                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL, imageID: imageIDKey)
                 }
             }
             .onDisappear {
@@ -150,7 +154,7 @@ struct ArtworkView: View {
         }
     }
     
-    nonisolated private func loadArtwork(url: URL?) -> ImageTask? {
+    nonisolated private func loadArtwork(url: URL?, imageID: String) -> ImageTask? {
         guard let url else {
             Task { @MainActor in
                 currentImage = nil
@@ -161,16 +165,13 @@ struct ArtworkView: View {
         let imageRequest = ImageRequest(url: url,
                                         processors: [.resize(width: 500)],
                                         priority: .high,
-                                        userInfo: [.imageIdKey: imageIDKey])
+                                        userInfo: [.imageIdKey: imageID])
         
         return ImagePipeline.shared.loadImage(with: imageRequest) { result in
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    // Efficient image comparison: object identity -> properties -> lightweight hash
-                    if self.imageTask != nil {
-                        self.currentImage = response.image
-                    }
+                    self.currentImage = response.image
                 default:
                     currentImage = nil
                     break
