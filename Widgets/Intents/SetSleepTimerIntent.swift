@@ -39,9 +39,6 @@ struct SetSleepTimerIntent: LiveActivityIntent {
     )
     var customMinutes: Int
 
-    @Parameter(title: "Always Ask", default: false)
-    var requestRoom: Bool
-
     static var parameterSummary: some ParameterSummary {
         When(\.$useCustom, .equalTo, true) {
             Summary("Set \(\.$customMinutes) minute sleep timer on \(\.$room)") {
@@ -55,7 +52,6 @@ struct SetSleepTimerIntent: LiveActivityIntent {
     }
 
     init(room: SonosDeviceEntity, duration: SleepTimerDuration) {
-        self.requestRoom = false
         self.room = room
         self.useCustom = false
         self.duration = duration
@@ -63,16 +59,8 @@ struct SetSleepTimerIntent: LiveActivityIntent {
     }
 
     init(duration: SleepTimerDuration) {
-        self.requestRoom = false
         self.useCustom = false
         self.duration = duration
-        self.customMinutes = 60
-    }
-
-    init(requestRoom: Bool) {
-        self.requestRoom = requestRoom
-        self.useCustom = false
-        self.duration = .oneHour
         self.customMinutes = 60
     }
 
@@ -94,7 +82,7 @@ struct SetSleepTimerIntent: LiveActivityIntent {
         }
         
         let resolvedRoom: SonosDeviceEntity
-        if requestRoom, let requestedRoom = await requestRoomIfNeeded() {
+        if room == nil, let requestedRoom = await requestRoomIfNeeded() {
             resolvedRoom = requestedRoom
         } else if let existingRoom = room {
             resolvedRoom = existingRoom

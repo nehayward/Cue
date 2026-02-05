@@ -28,8 +28,4 @@ struct SonosDeviceQuery: EntityQuery {
             return SonosDeviceEntity(id: room.id, ip: room.ip, name: room.name)
         }
     }
-
-    func defaultResult() async -> SonosDeviceEntity? {
-        try? await suggestedEntities().first
-    }
 }

@@ -6,7 +6,7 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
     @AppShortcutsBuilder
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: RunSceneIntent(askForScene: true),
+            intent: RunSceneIntent(),
             phrases: [
                 "Run Scene in \(.applicationName)"
             ],
@@ -15,7 +15,7 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: RunSceneIntent(askForScene: true),
+            intent: RunSceneIntent(),
             phrases: [
                 "Run \(\.$scene) in \(.applicationName)"
             ],
@@ -42,7 +42,7 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: PlaybackIntent(requestRoom: true),
+            intent: PlaybackIntent(),
             phrases: [
                 "\(\.$playback) with \(.applicationName)"
             ],
@@ -60,7 +60,7 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: SetSleepTimerIntent(requestRoom: true),
+            intent: SetSleepTimerIntent(),
             phrases: [
                 "Set sleep timer in \(.applicationName)",
                 "Set \(\.$duration) sleep timer in \(.applicationName)"
@@ -70,7 +70,7 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: StopSleepTimerIntent(requestRoom: true),
+            intent: StopSleepTimerIntent(),
             phrases: [
                 "Stop sleep timer in \(.applicationName)",
                 "Cancel sleep timer in \(.applicationName)"

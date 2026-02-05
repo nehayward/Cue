@@ -25,20 +25,12 @@ struct StopSleepTimerIntent: LiveActivityIntent {
     @Parameter(title: "Sonos Speaker")
     var room: SonosDeviceEntity?
 
-    @Parameter(title: "Always Ask", default: false)
-    var requestRoom: Bool
-
     static var parameterSummary: some ParameterSummary {
         Summary("Stop sleep timer on \(\.$room)")
     }
 
     init(room: SonosDeviceEntity) {
-        self.requestRoom = false
         self.room = room
-    }
-
-    init(requestRoom: Bool) {
-        self.requestRoom = requestRoom
     }
 
     init() { }
@@ -55,7 +47,7 @@ struct StopSleepTimerIntent: LiveActivityIntent {
         }
 
         let resolvedRoom: SonosDeviceEntity
-        if requestRoom, let requestedRoom = await requestRoomIfNeeded() {
+        if room == nil, let requestedRoom = await requestRoomIfNeeded() {
             resolvedRoom = requestedRoom
         } else if let existingRoom = room {
             resolvedRoom = existingRoom

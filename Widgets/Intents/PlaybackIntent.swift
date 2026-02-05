@@ -13,7 +13,6 @@ struct PlaybackIntent: LiveActivityIntent {
     
     @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity?
     @Parameter(title: "Playback", default: .toggle) var playback: PlaybackOption
-    @Parameter(title: "Always Ask", default: false) var requestRoom: Bool
     
     static var parameterSummary: some ParameterSummary {
         Switch(\.$playback) {
@@ -27,18 +26,12 @@ struct PlaybackIntent: LiveActivityIntent {
     }
     
     init(room: SonosDeviceEntity, playback: PlaybackOption = .toggle) {
-        self.requestRoom = false
         self.room = room
         self.playback = playback
     }
     
     init(playback: PlaybackOption = .toggle) {
-        self.requestRoom = false
         self.playback = playback
-    }
-
-    init(requestRoom: Bool) {
-        self.requestRoom = requestRoom
     }
     
     init() { }
@@ -49,7 +42,7 @@ struct PlaybackIntent: LiveActivityIntent {
         }
         
         let resolvedRoom: SonosDeviceEntity
-        if requestRoom, let requestedRoom = await requestRoomIfNeeded() {
+        if room == nil, let requestedRoom = await requestRoomIfNeeded() {
             resolvedRoom = requestedRoom
         } else if let existingRoom = room {
             resolvedRoom = existingRoom
