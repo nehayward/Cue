@@ -259,6 +259,7 @@ struct MediaDetailView: View {
                         .underline()
                 }
                 .buttonStyle(.plain)
+                
                 let yearText = content?.metadata?.albumYear?.formatted(.dateTime.year())
                 let songsCount = totalSongs ?? (tracks.isEmpty ? nil : tracks.count)
                 let songsText = songsCount.map { "\($0) Songs" }
@@ -273,8 +274,8 @@ struct MediaDetailView: View {
                     return nil
                 }()
                 let metadata = [yearText, songsText, durationText].compactMap { $0 }.joined(separator: " • ")
-                let metadataText = metadata.isEmpty ? "" : " • \(metadata)"
-                
+                let metadataText = metadata.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\(metadata)"
+                Text("\(content?.metadata?.artist == nil ? "" : " • ")")
                 Text(metadataText)
             }
             .font(.caption)
@@ -439,7 +440,7 @@ struct MediaDetailView: View {
             newTracks = await SonosService.shared.libraryLookup(ID: id)
         case (.track, .library):
             guard let albumName = playableContent.metadata?.album,
-                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return }
+                  let albumNameEncoded = albumName.addingPercentEncoding(withAllowedCharacters: .sonosQueryAllowed) else { return }
             
             newTracks = await SonosService.shared.libraryAlbum(name: albumName)
             guard let albumPlayable =  await SonosService.shared.libraryLookup(ID: "A:ALBUM:\(albumNameEncoded)").first else { return }

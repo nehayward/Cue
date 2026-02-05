@@ -142,21 +142,45 @@ struct PlayableContentList: View {
         }
     }
     
+    @ViewBuilder
     private var emptyPlaylistView: some View {
-        Group {
-            if browseService.playlists.isEmpty && !isLoading {
+        if !isLoading {
+            switch type {
+            case .playlist where browseService.playlists.isEmpty:
                 ContentUnavailableView {
-                    Text("No Playlists")
+                    Label("No Playlists", systemImage: "music.note.list")
+                } description: {
+                    Text("Create playlists to organize your favorite music")
                 } actions: {
                     Button {
                         router.presentedSheet = .newPlaylist()
                     } label: {
-                        Text("Create a playlist to get started")
+                        Text("Create Playlist")
                     }
                     .buttonStyle(.bordered)
                     .tint(.accent)
                     .padding()
                 }
+            case .track where browseService.songs.isEmpty:
+                ContentUnavailableView {
+                    Label("No Tracks", systemImage: "music.note")
+                } description: {
+                    Text("Your library doesn't contain any tracks")
+                }
+            case .album where browseService.albums.isEmpty:
+                ContentUnavailableView {
+                    Label("No Albums", systemImage: "square.stack")
+                } description: {
+                    Text("Your library doesn't contain any albums")
+                }
+            case .artist where browseService.artists.isEmpty:
+                ContentUnavailableView {
+                    Label("No Artists", systemImage: "music.mic")
+                } description: {
+                    Text("Your library doesn't contain any artists")
+                }
+            default:
+                EmptyView()
             }
         }
     }
