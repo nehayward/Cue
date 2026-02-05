@@ -694,9 +694,7 @@ struct ArtistDetailView: View {
     // MARK: - Library Loading
     
     private func loadLibraryArtist() async {
-        guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        ) else { return }
+        guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(in: .whitespacesAndNewlines).removingPrefix("the ") else { return }
         
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: artistName, size: 500)
         
@@ -709,13 +707,15 @@ struct ArtistDetailView: View {
         )
         
         albums = await sonosService.libraryArtist(name: artistName)
-        tracks = await sonosService.libraryArtist(name: artistName + "/").suffix(10)
+        let allTracks = await sonosService.libraryArtist(name: artistName + "/")
+        tracks = Array(allTracks.uniqued(by: \.title).prefix(10))
     }
     
     private func loadLibraryArtistDirect() async {
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title, size: 500)
         albums = await sonosService.libraryLookup(ID: playableContent.id)
-        tracks = await sonosService.libraryLookup(ID: playableContent.id + "/").suffix(10)
+        let allTracks = await sonosService.libraryLookup(ID: playableContent.id + "/")
+        tracks = Array(allTracks.uniqued(by: \.title).prefix(10))
         artistContent = playableContent
     }
     
