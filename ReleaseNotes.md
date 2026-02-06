@@ -2,6 +2,11 @@
 
 –– New Features ––
 - Redesigned Artist Page: Full-bleed hero artwork with blur effect, stretchy parallax scrolling, artist name and actions overlaid on artwork, collapsible Popular and Albums sections, and Open in Service button
+- Popular Tracks: Library artists now show popular tracks ordered by Apple Music popularity instead of arbitrary order
+- New Artist Action Buttons: Radio, Popular, and Discography buttons now appear below artist name with glass styling
+- Artist Actions Menu: Ellipsis menu provides Play Next, Add to Queue, Replace Queue options for both Popular tracks and Discography
+- Add Popular to Playlist: Add all popular tracks to a new or existing Sonos playlist directly from the artist page
+- Queue feedback now shows track/album counts (e.g., "Playing 10 songs next", "Added 5 albums to queue")
 - Redesigned Album & Playlist Page: Full-bleed hero artwork with blur effect, stretchy parallax scrolling, album info (year, song count, duration) overlaid on artwork, tappable artist name to navigate to artist, and glass-style Play/Shuffle buttons
 - Navigation titles on artist and album pages now fade in as you scroll past the artwork
 - Quick Add to Playlist: Tap the alert after adding a song to a playlist to navigate directly to that playlist
@@ -27,7 +32,10 @@
 - Unplayable Apple Music tracks now shown as disabled on album pages
 
 –– Bug Fixes & Improvements ––
+- Fixed Intents prompting twice
 - Fixed duplicate tracks appearing in Popular section on library artist pages
+- Apple Music catalog artists now prioritized over library artists in search results
+- Popular section now shows loading spinner while fetching tracks and "No tracks found" when unavailable
 - Fixed scene music content being lost after navigating to the speaker selection screen and returning
 - Add Sonos created playlists not showing in search
 - Fixed adding Spotify and Apple Music tracks to Sonos playlists

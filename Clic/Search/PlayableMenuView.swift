@@ -28,7 +28,7 @@ struct PlayableMenuView: View {
                     Button {
                         startRadio()
                     } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
+                        Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
             case .artist, .libraryArtist:
@@ -40,7 +40,7 @@ struct PlayableMenuView: View {
                     Button {
                         startRadio()
                     } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
+                        Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
             case .playlist, .libraryPlaylist, .libraryImportedPlaylists:
@@ -102,7 +102,7 @@ struct PlayableMenuView: View {
                     Button {
                         startRadio()
                     } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
+                        Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
                 

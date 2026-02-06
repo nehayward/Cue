@@ -276,6 +276,7 @@ struct SearchScreen: View {
                                 .iconForMusicService
                                 .frame(width: 24, height: 24)
                                 .toolbarBackground(in: .circle)
+                                .allowsHitTesting(false)
                         }
                         .popoverTip(AppTip.mediaService)
                         .foregroundStyle(musicSearchSelection.brandColor.gradient)

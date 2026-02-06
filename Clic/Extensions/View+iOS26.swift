@@ -62,9 +62,7 @@ extension View {
         #if !os(visionOS)
         if #available(iOS 26.0, *) {
             self
-                .buttonStyle(.plain)
-                .padding(8)
-                .glassEffect(.clear.interactive())
+                .buttonStyle(.glass)
         } else {
             self
                 .buttonStyle(.plain)
@@ -79,6 +77,7 @@ extension View {
             .background(.thickMaterial, in: .circle)
         #endif
     }
+    
     
     @ViewBuilder
     func safeArea<V>(

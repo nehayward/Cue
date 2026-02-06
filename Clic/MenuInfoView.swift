@@ -43,9 +43,9 @@ struct MenuInfoView: View {
                 }
                 if [.spotify, .apple].contains(group.coordinatorRoom.track.musicService), group.coordinatorRoom.track.toPlayable.content.type != .libraryTrack {
                     Button {
-                        QueueManager.shared.addToQueue(item: QueueItem(playableContent: group.coordinatorRoom.track.toPlayable.toRadio, group: group, position: .now, title: "Starting radio"))
+                        QueueManager.shared.addToQueue(item: QueueItem(playableContent: group.coordinatorRoom.track.toPlayable.toRadio, group: group, position: .now, title: "Playing radio"))
                     } label: {
-                        Label("Start Radio", systemImage: "radio.fill")
+                        Label("Play Radio", systemImage: "dot.radiowaves.left.and.right")
                     }
                 }
                 Button {

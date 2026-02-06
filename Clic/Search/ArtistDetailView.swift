@@ -26,6 +26,7 @@ struct ArtistDetailView: View {
     
     @State private var artworkURL: URL?
     @State private var isLoading: Bool = false
+    @State private var isLoadingTracks: Bool = true
     @State private var albumType: AlbumCategory = .albums
     @State private var artworkLoaded: Bool = false
     @State private var artistContent: PlayableContent?
@@ -206,24 +207,117 @@ struct ArtistDetailView: View {
     }
     
     private var radioButtonOverlay: some View {
-        HStack {
+        HStack(spacing: 8) {
             if supportsRadio {
                 Button {
                     Task { await startRadio() }
                 } label: {
-                    Text("Play Radio \(Image(systemName: "radio.fill"))")
-                        .padding(4)
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .foregroundStyle(.white)
+                        .frame(width: 24, height: 24)
+                }
+                .buttonBorderShape(.circle)
+                .contentShape(.rect)
+                .glassButton()
+                .accessibilityLabel("Radio")
+                .accessibilityHint("Starts radio playback for this selection")
+            }
+
+            if !tracks.isEmpty {
+                Button {
+                    Task { await playAllTracks(position: .now) }
+                } label: {
+                    ViewThatFits(in: .horizontal) {
+                        Text("Popular \(Image(systemName: "star.fill"))")
+                            .minimumScaleFactor(0.7)
+                            .padding(.vertical, 4)
+                            .foregroundStyle(.white)
+                        Image(systemName: "star.fill")
+                    }
+                }
+                .glassButton()
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
+
+            if !currentAlbums.isEmpty {
+                Button {
+                    Task { await playDiscography(position: .next) }
+                } label: {
+                    Text("Discography \(Image(systemName: "play.fill"))")
+                        .minimumScaleFactor(0.7)
+                        .padding(.vertical, 4)
                         .foregroundStyle(.white)
                 }
                 .glassButton()
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
+
+            artistActionsMenu
+        }
+        .animation(.smooth(duration: 0.3), value: tracks.isEmpty)
+        .animation(.smooth(duration: 0.3), value: currentAlbums.isEmpty)
+        .lineLimit(1)
+    }
+
+    private var artistActionsMenu: some View {
+        Menu {
             if let artistContent, artistContent.content.location != nil {
                 OpenInServiceView(item: artistContent)
-                    .frame(width: 32, height: 32)
-                    .labelStyle(.iconOnly)
-                    .glassButton()
             }
+            Divider()
+            if !tracks.isEmpty {
+                Section("Popular Tracks") {
+                    Button {
+                        Task { await playAllTracks(position: .next) }
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
+                    }
+
+                    Button {
+                        Task { await playAllTracks(position: .end) }
+                    } label: {
+                        Label("Play Last", systemImage: "text.append")
+                    }
+
+                    Button {
+                        Task { await playAllTracks(position: .replace) }
+                    } label: {
+                        Label("Replace Queue", systemImage: "play.fill")
+                    }
+
+                    AddTracksToPlaylistMenu(tracks: tracks)
+                }
+            }
+
+            if !currentAlbums.isEmpty {
+                Section("Discography") {
+                    Button {
+                        Task { await playDiscography(position: .next) }
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
+                    }
+
+                    Button {
+                        Task { await playDiscography(position: .end) }
+                    } label: {
+                        Label("Play Last", systemImage: "text.append")
+                    }
+
+                    Button {
+                        Task { await playDiscography(position: .replace) }
+                    } label: {
+                        Label("Replace Queue", systemImage: "play.fill")
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
         }
+        .buttonBorderShape(.circle)
+        .contentShape(.rect)
+        .glassButton()
     }
     
     // MARK: - Latest Release Section
@@ -250,40 +344,40 @@ struct ArtistDetailView: View {
     }
     
     // MARK: - Popular Tracks Section
-    
+
     @ViewBuilder
     private var popularTracksSection: some View {
-        if !tracks.isEmpty {
-            Section {
-                CollapsibleHeader(
-                    title: "Popular",
-                    isExpanded: $isTopSongsExpanded,
-                    trailing: { playAllTracksButton }
-                )
-                
-                if isTopSongsExpanded {
+        Section {
+            CollapsibleHeader(
+                title: "Popular",
+                isExpanded: $isTopSongsExpanded
+            )
+
+            if isTopSongsExpanded {
+                if !tracks.isEmpty {
                     ForEach(tracks) { track in
                         PlayableContentView(item: track, hideContentType: true)
                             .listRowBackground(Color.white.opacity(0.001))
                             .listRowSeparator(.hidden)
                     }
+                } else if isLoadingTracks {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .controlSize(.regular)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.white.opacity(0.001))
+                    .listRowSeparator(.hidden)
+                } else {
+                    Text("No tracks found")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowBackground(Color.white.opacity(0.001))
+                        .listRowSeparator(.hidden)
                 }
             }
         }
-    }
-    
-    private var playAllTracksButton: some View {
-        Button {
-            Task { @MainActor in await playAllTracks() }
-        } label: {
-            Image(systemName: "play.fill")
-                .foregroundStyle(.accent)
-        }
-        .bold()
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .tint(.accent)
-        .help(Text("Play All Top Songs"))
     }
     
     // MARK: - Albums Section
@@ -308,16 +402,12 @@ struct ArtistDetailView: View {
                             .listRowBackground(Color.white.opacity(0.001))
                             .listRowSeparator(.hidden)
                     }
-                    
+
                     if isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity, alignment: .center)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                    }
-                    
-                    if !allAlbums.isEmpty {
-                        playDiscographyButton
                     }
                 }
             }
@@ -331,24 +421,6 @@ struct ArtistDetailView: View {
             }
         }
         .pickerStyle(.segmented)
-    }
-    
-    private var playDiscographyButton: some View {
-        HStack {
-            Button {
-                Task { @MainActor in await playDiscography() }
-            } label: {
-                Text("Play Discography")
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundStyle(.foreground)
-            }
-            .bold()
-            .buttonStyle(.bordered)
-            .tint(.accent)
-        }
-        .frame(maxWidth: .infinity)
-        .listRowBackground(Color.white.opacity(0.001))
-        .listRowSeparator(.hidden)
     }
     
     // MARK: - Toolbar
@@ -400,14 +472,31 @@ struct ArtistDetailView: View {
         }
     }
     
-    private func playAllTracks() async {
+    private func playAllTracks(position: QueuePosition = .next) async {
+        let trackCount = tracks.count
         let queueAllSongs: (GroupRoom) async throws -> Void = { group in
             HapticManager.shared.fireHaptic(.buttonPress)
-            alertService.showAlert(with: "Playing Top Songs", imageName: "star.fill")
-            try await sonosService.queueNext(contents: tracks, group: group)
-            await sonosService.play(ip: group.coordinatorRoom.ip)
+            switch position {
+            case .front:
+                alertService.showAlert(with: "Adding \(trackCount) songs to front", imageName: "text.insert")
+                try await sonosService.queue(contents: tracks, group: group, position: .front)
+            case .next:
+                alertService.showAlert(with: "Playing \(trackCount) songs next", imageName: "text.insert")
+                try await sonosService.queue(contents: tracks, group: group, position: .next)
+            case .end:
+                alertService.showAlert(with: "Added \(trackCount) songs to queue", imageName: "text.append")
+                try await sonosService.queue(contents: tracks, group: group, position: .end)
+            case .now:
+                alertService.showAlert(with: "Playing \(trackCount) songs", imageName: "play.fill")
+                try await sonosService.playNext(tracks, on: group)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            case .replace:
+                alertService.showAlert(with: "Replacing queue with \(trackCount) songs", imageName: "star.fill")
+                try await sonosService.queue(contents: tracks, group: group, position: .replace)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            }
         }
-        
+
         guard let group = selectedGroupService.group else {
             router?.sheet(to: .selectGroup(
                 selectedGroupService: selectedGroupService,
@@ -415,26 +504,37 @@ struct ArtistDetailView: View {
             ))
             return
         }
-        
+
         try? await queueAllSongs(group)
     }
     
-    private func playDiscography() async {
+    private func playDiscography(position: QueuePosition = .next) async {
+        let albumsToPlay = Array(currentAlbums.reversed())
+        let albumCount = albumsToPlay.count
         let queueAll: (GroupRoom) async throws -> Void = { group in
             HapticManager.shared.fireHaptic(.buttonPress)
-            let albumsToPlay = currentAlbums
-            alertService.showAlert(
-                with: "Playing \(albumsToPlay.count) albums",
-                imageName: "figure.dance"
-            )
-            try await sonosService.queue(
-                contents: albumsToPlay.reversed(),
-                group: group,
-                position: .replace
-            )
-            await sonosService.play(ip: group.coordinatorRoom.ip)
+
+            switch position {
+            case .front:
+                alertService.showAlert(with: "Adding \(albumCount) albums to front", imageName: "text.insert")
+                try await sonosService.queue(contents: albumsToPlay, group: group, position: .front)
+            case .next:
+                alertService.showAlert(with: "Playing \(albumCount) albums next", imageName: "text.insert")
+                try await sonosService.queue(contents: albumsToPlay, group: group, position: .next)
+            case .end:
+                alertService.showAlert(with: "Added \(albumCount) albums to queue", imageName: "text.append")
+                try await sonosService.queue(contents: albumsToPlay, group: group, position: .end)
+            case .now:
+                alertService.showAlert(with: "Playing \(albumCount) albums", imageName: "play.fill")
+                try await sonosService.playNext(albumsToPlay, on: group)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            case .replace:
+                alertService.showAlert(with: "Replacing queue with \(albumCount) albums", imageName: "figure.dance")
+                try await sonosService.queue(contents: albumsToPlay, group: group, position: .replace)
+                await sonosService.play(ip: group.coordinatorRoom.ip)
+            }
         }
-        
+
         guard let group = selectedGroupService.group else {
             router?.sheet(to: .selectGroup(
                 selectedGroupService: selectedGroupService,
@@ -493,8 +593,9 @@ struct ArtistDetailView: View {
             break
         }
         isLoading = false
+        isLoadingTracks = false
     }
-    
+
     // MARK: - Apple Music Loading
     
     private func loadAppleArtist() async {
@@ -695,9 +796,9 @@ struct ArtistDetailView: View {
     
     private func loadLibraryArtist() async {
         guard let artistName = playableContent.metadata?.artist?.trimmingCharacters(in: .whitespacesAndNewlines).removingPrefix("the ") else { return }
-        
+
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: artistName, size: 500)
-        
+
         artistContent = PlayableContent(
             title: artistName,
             subtitle: playableContent.subtitle,
@@ -705,17 +806,35 @@ struct ArtistDetailView: View {
             artwork: nil,
             content: playableContent.content
         )
-        
+
         albums = await sonosService.libraryArtist(name: artistName)
         let allTracks = await sonosService.libraryArtist(name: artistName + "/")
-        tracks = Array(allTracks.uniqued(by: \.title).prefix(10))
+        let uniqueTracks = Array(allTracks.uniqued(by: \.title))
+
+        // Match library tracks against Apple Music popular tracks
+        let matchedTracks = await MusicSearchService.shared.matchPopularTracks(
+            artistName: artistName,
+            librarySongs: uniqueTracks
+        )
+
+        // Use matched tracks if available, otherwise fall back to first 10 unique tracks
+        tracks = matchedTracks.isEmpty ? Array(uniqueTracks.prefix(10)) : matchedTracks
     }
     
     private func loadLibraryArtistDirect() async {
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title, size: 500)
         albums = await sonosService.libraryLookup(ID: playableContent.id)
         let allTracks = await sonosService.libraryLookup(ID: playableContent.id + "/")
-        tracks = Array(allTracks.uniqued(by: \.title).prefix(10))
+        let uniqueTracks = Array(allTracks.uniqued(by: \.title))
+
+        // Match library tracks against Apple Music popular tracks
+        let matchedTracks = await MusicSearchService.shared.matchPopularTracks(
+            artistName: playableContent.title,
+            librarySongs: uniqueTracks
+        )
+
+        // Use matched tracks if available, otherwise fall back to first 10 unique tracks
+        tracks = matchedTracks.isEmpty ? Array(uniqueTracks.prefix(10)) : matchedTracks
         artistContent = playableContent
     }
     

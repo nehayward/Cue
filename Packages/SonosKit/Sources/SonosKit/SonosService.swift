@@ -1812,67 +1812,92 @@ public final class SonosService {
         try? await updateGroups(from: [group])
     }
     
-    public func queueNext(contents: [PlayableContent], group: GroupRoom) async throws {
-        guard !contents.isEmpty else { return }
+    /// Plays the first item immediately on a Sonos group, then queues the remaining
+    /// items to play next in order.
+    ///
+    /// Note: Sonos treats `.next` as LIFO, so remaining items are enqueued in reverse
+    /// to preserve the caller’s order.
+    public func playNext(
+        _ contents: [PlayableContent],
+        on group: GroupRoom
+    ) async throws {
+        guard !contents.isEmpty else {
+            assertionFailure("playNext called with empty contents")
+            return
+        }
 
-          let queueActive = group.playbackService == .queue
+        // Ensure queue-based playback
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
 
-          if !queueActive {
-              await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-          }
+        let first = contents[0]
+        let remainder = contents.dropFirst()
 
-          // Break apart: first item plays immediately, remaining queue after.
-          let first = contents[0]
-          let remainder = Array(contents.dropFirst())
+        // Play first item immediately
+        try await api.queuePlayable(
+            playableContent: first,
+            IP: group.ip,
+            position: .now
+        )
 
-          // 1. Add first item to play NOW
-          try await api.queuePlayable(playableContent: first,
-                                      IP: group.ip,
-                                      position: .now)
+        // Activate transport
+        await next(ip: group.ip)
+        await play(ip: group.ip)
 
-          // 2. Tell Sonos to advance + play
-          await next(ip: group.ip)
-          await play(ip: group.ip)
+        try? await Task.sleep(for: .milliseconds(150))
+        try? await updateGroups(from: [group])
 
-          // Tiny stabilization delay
-          try? await Task.sleep(for: .milliseconds(150))
-          try? await updateGroups(from: [group])
+        // Queue remaining items (reverse to preserve order)
+        for content in remainder.reversed() {
+            try await api.queuePlayable(
+                playableContent: content,
+                IP: group.ip,
+                position: .next
+            )
+        }
 
-          // 3. Queue remaining so they play in the correct order.
-          //    When enqueueing at `.next`, the LATER you queue, the EARLIER it will play.
-          //    So reverse before sending.
-          for content in remainder.reversed() {
-              try await api.queuePlayable(playableContent: content,
-                                          IP: group.ip,
-                                          position: .next)
-          }
-
-          // Final group update
-          try? await Task.sleep(for: .milliseconds(150))
-          try? await updateGroups(from: [group])
+        try? await Task.sleep(for: .milliseconds(150))
+        try? await updateGroups(from: [group])
     }
     
-    public func queue(contents: [PlayableContent], group: GroupRoom, position: QueuePosition = .end) async throws {
-        var hasPlayed = false
-        let queueActive = group.playbackService == .queue
+    /// Queues items on a Sonos group at the requested position.
+    ///
+    /// Note: Sonos treats `.next` as LIFO, so `.next` insertions are reversed
+    /// to preserve the caller’s order.
+    public func queue(
+        contents: [PlayableContent],
+        group: GroupRoom,
+        position: QueuePosition = .end
+    ) async throws {
+        guard !contents.isEmpty else {
+            assertionFailure("queue called with empty contents")
+            return
+        }
+
+        // Ensure queue-based playback
+        if group.playbackService != .queue {
+            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
+        }
+
+        // Replace clears queue first
         if position == .replace {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
 
-        if !queueActive {
-            await api.setAVTransport(IP: group.ip, ID: group.coordinatorID)
-        }
-        
-        for content in contents {
-            try await api.queuePlayable(playableContent: content, IP: group.ip, position: .end)
-            if !hasPlayed, position == .next {
+        let sequence = position == .next ? contents.reversed() : contents
+        let enqueuePosition: QueuePosition = position == .replace ? .end : position
+
+        for (index, content) in sequence.enumerated() {
+            try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition)
+
+            // Start playback as soon as the first item is queued
+            if position == .now && index == 0 {
                 await next(ip: group.ip)
                 await play(ip: group.ip)
-                try? await Task.sleep(for: .milliseconds(150))
-                try? await updateGroups(from: [group])
-                hasPlayed = true
             }
         }
+
         try? await Task.sleep(for: .milliseconds(150))
         try? await updateGroups(from: [group])
     }

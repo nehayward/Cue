@@ -57,7 +57,7 @@ struct ClicApp: App {
         WindowGroup {
             NavigationSplitView {
                 SpeakerListScreen()
-                    .navigationSplitViewColumnWidth(min: 300, ideal: 340, max: 400)
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 340, max: 400)
             } detail: {
                 ContainerLargePlayerView()
             }

@@ -524,6 +524,93 @@ public final class MusicSearchService {
         return container
     }
 
+    /// Matches library songs against Apple Music's popular tracks for an artist.
+    /// Returns library songs that match popular tracks, ordered by Apple Music popularity.
+    /// - Parameters:
+    ///   - artistName: The artist name to search for on Apple Music
+    ///   - librarySongs: The library songs to match against
+    /// - Returns: Matched library songs ordered by popularity
+    public func matchPopularTracks(
+        artistName: String,
+        librarySongs: [PlayableContent]
+    ) async -> [PlayableContent] {
+        guard await requestMusicAuthorization() else { return [] }
+
+        // Search for the artist on Apple Music
+        var searchRequest = MusicCatalogSearchRequest(term: artistName, types: [Artist.self])
+        searchRequest.limit = 1
+
+        guard let searchResponse = try? await searchRequest.response(),
+              let artist = searchResponse.artists.first else {
+            return []
+        }
+
+        // Get the artist with top songs
+        let artistID = artist.id
+        var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: artistID)
+        catalogResource.properties = [.topSongs]
+
+        guard let response = try? await catalogResource.response(),
+              let artistWithSongs = response.items.first,
+              let topSongs = artistWithSongs.topSongs else {
+            return []
+        }
+
+        // Create a lookup dictionary for library songs by normalized title
+        let normalizedLibrarySongs = Dictionary(
+            librarySongs.map { song in
+                (normalizeTitle(song.title), song)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        // Match Apple Music top songs against library songs, preserving popularity order
+        var matchedSongs: [PlayableContent] = []
+        var seenTitles: Set<String> = []
+
+        for appleSong in topSongs {
+            let normalizedAppleTitle = normalizeTitle(appleSong.title)
+
+            if let librarySong = normalizedLibrarySongs[normalizedAppleTitle],
+               !seenTitles.contains(normalizedAppleTitle) {
+                matchedSongs.append(librarySong)
+                seenTitles.insert(normalizedAppleTitle)
+            }
+        }
+
+        return matchedSongs
+    }
+
+    /// Normalizes a song title for matching by removing common variations
+    private func normalizeTitle(_ title: String) -> String {
+        var normalized = title.lowercased()
+
+        // Remove common suffixes like "(Remastered)", "[Live]", etc.
+        let patterns = [
+            "\\s*\\(remaster(ed)?.*\\)$",
+            "\\s*\\[remaster(ed)?.*\\]$",
+            "\\s*\\(live.*\\)$",
+            "\\s*\\[live.*\\]$",
+            "\\s*\\(feat\\.?.*\\)$",
+            "\\s*\\[feat\\.?.*\\]$",
+            "\\s*\\(ft\\.?.*\\)$",
+            "\\s*-\\s*remaster(ed)?.*$",
+            "\\s*-\\s*\\d{4}\\s*remaster.*$"
+        ]
+
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                let range = NSRange(normalized.startIndex..., in: normalized)
+                normalized = regex.stringByReplacingMatches(in: normalized, range: range, withTemplate: "")
+            }
+        }
+
+        // Remove extra whitespace
+        normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return normalized
+    }
+
     // MARK: Tidal
     public func lookupTidalTrack(with id: String) async -> PlayableContent? {
         guard let song = await tidal.track(with: id) else { return nil }
@@ -809,27 +896,41 @@ public final class MusicSearchService {
         let titleScore = fuzzyMatchScore(source: item.title, query: query)
         let subtitleScore = fuzzyMatchScore(source: item.subtitle, query: query)
         let popularityScore = Double(item.metadata?.popularity ?? 0)
-        
+
         // Normalize scores
         let maxTitleScore = Double(query.count) // Maximum possible title score
         let maxSubtitleScore = Double(query.count) // Maximum possible subtitle score
         let maxPopularity: Double = 100 // Adjust based on your popularity scale
-        
+
         let normalizedTitleScore = Double(titleScore) / maxTitleScore
         let normalizedSubtitleScore = Double(subtitleScore) / maxSubtitleScore
         let normalizedPopularity = min(popularityScore / maxPopularity, 1.0)
-        
+
+        // Boost for catalog content over library content (especially artists)
+        let catalogBoost: Double
+        switch item.content.type {
+        case .artist:
+            catalogBoost = 0.3 // Strong boost for catalog artists
+        case .album, .track:
+            catalogBoost = 0.1 // Smaller boost for catalog albums/tracks
+        case .libraryArtist:
+            catalogBoost = -0.1 // Slight penalty for library artists
+        default:
+            catalogBoost = 0.0
+        }
+
         // Weighting factors
         let titleWeight = 0.3
         let subtitleWeight = 0.10
         let popularityWeight = 0.5
-        
+
         // Calculate weighted score
         let weightedScore =
             normalizedTitleScore * titleWeight +
             normalizedSubtitleScore * subtitleWeight +
-            normalizedPopularity * popularityWeight
-        
+            normalizedPopularity * popularityWeight +
+            catalogBoost
+
         return weightedScore
     }
 

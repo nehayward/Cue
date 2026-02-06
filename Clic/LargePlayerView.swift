@@ -288,6 +288,7 @@ struct LargePlayerView: View {
                                     .labelStyle(.iconOnly)
                                     .fontDesign(.rounded)
                             }
+                            .buttonBorderShape(.circle)
                             .glassButton()
                             .withPopoverDestinations(popoverDestination: $router.volumePopover)
                             .help("Speaker Control")
@@ -307,6 +308,7 @@ struct LargePlayerView: View {
                             }
                             .labelStyle(.iconOnly)
                         }
+                        .buttonBorderShape(.circle)
                         .glassButton()
                         .withPopoverDestinations(popoverDestination: $router.popover)
                         .help("Group Speakers")

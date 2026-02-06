@@ -114,7 +114,7 @@ extension SonosAPI {
             ("BrowseFlag", "BrowseDirectChildren"),
             ("Filter", "*"),
             ("StartingIndex", 0),
-            ("RequestedCount", 100),
+            ("RequestedCount", 200),
             ("SortCriteria", "")
         ]
 
