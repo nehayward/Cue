@@ -15,7 +15,9 @@ struct PlayHistoryView: View {
     @State private var clearHistoryConfirmation: Bool = false
 
     var body: some View {
-        NavigationLink(value: RouterDestination.fullPlayHistoryList) {
+        Button {
+            router.navigate(to: .fullPlayHistoryList)
+        } label: {
             Text("Play History")
         }
         .listRowSeparator(.hidden)

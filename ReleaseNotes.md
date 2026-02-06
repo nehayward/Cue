@@ -30,6 +30,9 @@
 - New keyboard shortcuts on Mac: Seek Forward/Backward (⌥→/⌥←), Shuffle (⌘S), Repeat (⌘R), Open Album (⇧⌘I), Open Artist (⌘I)
 - Keyboard navigation in Search: Use arrow keys to navigate suggestions and results, Enter to play or open details, Escape to clear selection. Hold arrow keys to repeat.
 - Unplayable Apple Music tracks now shown as disabled on album pages
+- Recent Searches: Horizontal scroll bar on search screen shows recently visited artists and albums as tappable artwork for quick access
+- Recent Search Queries: Last 3 search queries appear as keyboard suggestions when opening search
+- Move Next in Queue: Move any track to play next directly from the queue menu, with animated reordering
 
 –– Bug Fixes & Improvements ––
 - Fixed Intents prompting twice

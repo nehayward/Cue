@@ -31,8 +31,9 @@ struct UpNextContentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: positionWidth, alignment: .trailing)
                             .padding(.trailing, 8)
-                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
+                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                     }
+                    .geometryGroup()
                     .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
                     .listRowBackground(
@@ -132,6 +133,15 @@ struct UpNextContentView: View {
         }
     }
     
+    private func handleLocalMoveNext(_ track: PlayableContent) {
+        guard let fromIndex = upNext.firstIndex(where: { $0.trackID == track.trackID }) else { return }
+        guard fromIndex != 0 else { return }
+        withAnimation {
+            let item = upNext.remove(at: fromIndex)
+            upNext.insert(item, at: 0)
+        }
+    }
+
     private func handleLocalDelete(_ track: PlayableContent) {
         upNext.removeAll { $0.trackID == track.trackID }
         

@@ -490,6 +490,10 @@ struct MediaDetailView: View {
             return
         }
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
+        
+        if let content {
+            RecentSearchesStorage.shared.addOrMoveToFront(content)
+        }
     }
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {

@@ -81,3 +81,20 @@ final class Storage<Object: Codable> {
         object = []
     }
 }
+
+extension Storage where Object: Equatable {
+    func addOrMoveToFront(_ newObject: Object) {
+        var current = object
+        current.removeAll { $0 == newObject }
+        current.append(newObject)
+        object = current
+    }
+}
+
+enum RecentSearchesStorage {
+    static let shared = Storage<PlayableContent>(AppStorageKeys.recentlyViewed, limit: 20)
+}
+
+enum RecentQueriesStorage {
+    static let shared = Storage<String>(AppStorageKeys.recentQueries, limit: 3)
+}

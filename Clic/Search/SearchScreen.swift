@@ -30,7 +30,6 @@ struct SearchScreen: View {
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-
     var favorites: Bool = false
     var closeInspector: (() -> Void)? = nil
 
@@ -45,6 +44,8 @@ struct SearchScreen: View {
 
     @FocusState private var focusedField: SearchFocusFields?
 
+    @State private var recentQueries = RecentQueriesStorage.shared
+    @State private var lastNonEmptyQuery: String = ""
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
     
@@ -147,6 +148,10 @@ struct SearchScreen: View {
                     }
 #endif
                     
+                    if musicSearchService.query.isEmpty, !isAlarmSearch {
+                        RecentSearchesView()
+                    }
+
                     if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
                         PlayHistoryView(filters: $filters)
                     }
@@ -234,8 +239,15 @@ struct SearchScreen: View {
                         .toolbarBackground(with: true, in: .capsule)
                     }
                     #if !os(visionOS)
-                    ToolbarItemGroup(placement: .keyboard) {
-                        searchSuggestions
+                    if #available(iOS 26.0, *) {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            searchSuggestions
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    } else {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            searchSuggestions
+                        }
                     }
                     #endif
                     
@@ -365,6 +377,9 @@ struct SearchScreen: View {
         }
         .onChange(of: musicSearchService.query) {
             keyboardSelectedIndex = nil
+            if !musicSearchService.query.isEmpty {
+                lastNonEmptyQuery = musicSearchService.query
+            }
         }
         .onChange(of: musicSearchSelection) {
             keyboardSelectedIndex = nil
@@ -383,6 +398,7 @@ struct SearchScreen: View {
         .onAppear {
             if favorites { return }
             searchFieldIsPresented = true
+            lastNonEmptyQuery = ""
             musicSearchService.query = ""
 
             if musicSearchService.query.isEmpty {
@@ -392,6 +408,11 @@ struct SearchScreen: View {
             }
             if UIDevice.current.userInterfaceIdiom == .phone {
                 showKeyboard()
+            }
+        }
+        .onDisappear {
+            if !lastNonEmptyQuery.isEmpty {
+                recentQueries.addOrMoveToFront(lastNonEmptyQuery)
             }
         }
         .animation(.interactiveSpring, value: focusedField)
@@ -484,61 +505,98 @@ struct SearchScreen: View {
     private var searchSuggestions: some View {
         ScrollView(.horizontal) {
             HStack {
-                ForEach(musicSearchService.suggestions) { suggestion in
-                    if #available(iOS 26.0, *) {
-                        Button {
-                            musicSearchService.query = suggestion.searchTerm
-                            self.suggestion = suggestion.searchTerm
-                            searchCompletionTapped = true
-                            hideKeyboard()
-                        } label: {
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.secondary)
-                                Text(suggestion.displayTerm)
-                                Spacer()
+                if !recentQueries.object.isEmpty, musicSearchService.query.isEmpty {
+                    ForEach(recentQueries.object.reversed(), id: \.self) { query in
+                        if #available(iOS 26.0, *) {
+                            Button {
+                                musicSearchService.query = query
+                                suggestion = query
+                                searchCompletionTapped = true
+                                hideKeyboard()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .foregroundStyle(.secondary)
+                                    Text(query)
+                                    Spacer()
+                                }
                             }
-                        }
 #if !os(visionOS)
-                        .buttonStyle(.glass)
+                            .buttonStyle(.glass)
 #endif
-                    } else {
-                        Button {
-                            musicSearchService.query = suggestion.searchTerm
-                            self.suggestion = suggestion.searchTerm
-                            searchCompletionTapped = true
-//                            hideKeyboard()
-                        } label: {
-                            HStack {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(.secondary)
-                                Text(suggestion.displayTerm)
-                                    .fontWeight(.semibold)
-                                Spacer()
+                        } else {
+                            Button {
+                                musicSearchService.query = query
+                                suggestion = query
+                                searchCompletionTapped = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .symbolRenderingMode(.hierarchical)
+                                        .foregroundStyle(.secondary)
+                                    Text(query)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                .foregroundStyle(.primary)
                             }
-                            .foregroundStyle(.primary)
+                            .buttonStyle(.bordered)
+                            .tint(.primary)
+                            .background(.thinMaterial, in: .capsule)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.primary)
-                        .background(.thinMaterial, in: .capsule)
+                    }
+                } else {
+                    ForEach(musicSearchService.suggestions) { suggestion in
+                        if #available(iOS 26.0, *) {
+                            Button {
+                                musicSearchService.query = suggestion.searchTerm
+                                self.suggestion = suggestion.searchTerm
+                                searchCompletionTapped = true
+                                hideKeyboard()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.secondary)
+                                    Text(suggestion.displayTerm)
+                                    Spacer()
+                                }
+                            }
+#if !os(visionOS)
+                            .buttonStyle(.glass)
+#endif
+                        } else {
+                            Button {
+                                musicSearchService.query = suggestion.searchTerm
+                                self.suggestion = suggestion.searchTerm
+                                searchCompletionTapped = true
+                                //                            hideKeyboard()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.secondary)
+                                    Text(suggestion.displayTerm)
+                                        .fontWeight(.semibold)
+                                    Spacer()
+                                }
+                                .foregroundStyle(.primary)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.primary)
+                            .background(.thinMaterial, in: .capsule)
+                        }
                     }
                 }
             }
         }
-        .contentMargins(.horizontal, 20, for: .scrollContent)
         .scrollIndicators(.hidden)
         .scrollContentBackground(.hidden)
         .mask(
-            HStack(spacing: 0) {
-                LinearGradient(gradient: Gradient(colors: [Color.black.opacity(0), Color.black]),
-                               startPoint: .leading, endPoint: .trailing)
-                    .frame(width: 20)
-                Rectangle().fill(Color.black)
-                LinearGradient(gradient: Gradient(colors: [Color.black, Color.black.opacity(0)]),
-                               startPoint: .leading, endPoint: .trailing)
-                    .frame(width: 20)
-            }
-            .padding(.leading, -15)
+            LinearGradient(stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black, location: 0.92),
+                .init(color: .clear, location: 1)
+            ], startPoint: .leading, endPoint: .trailing)
         )
         .scrollClipDisabled()
     }

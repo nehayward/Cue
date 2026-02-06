@@ -31,6 +31,7 @@ struct PlexLibraryFilterView: View {
             }
             .allowsHitTesting(false)
         }
+        .buttonBorderShape(.circle)
         .glassButton()
         .id(plexLibrariesFilters.count)
     }

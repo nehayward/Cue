@@ -274,8 +274,9 @@ struct QueueScreen: View {
                         .foregroundStyle(track.trackID == currentTrackID ? .primary : .secondary)
                         .frame(width: positionWidth, alignment: .trailing)
                         .padding(.trailing, 8)
-                    QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalDelete: handleLocalDelete)
+                    QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                 }
+                .geometryGroup()
                 .listRowSeparator(.hidden)
                 .listSectionSeparator(.hidden, edges: .all)
                 .listRowBackground(
@@ -315,6 +316,21 @@ struct QueueScreen: View {
         }
     }
     
+    private func handleLocalMoveNext(_ track: PlayableContent) {
+        guard let fromIndex = group.coordinatorRoom.queue.firstIndex(where: { $0.trackID == track.trackID }) else { return }
+        let currentPosition = group.coordinatorRoom.track.position
+        // position is 1-indexed, so currentPosition is the 0-based index of the "next" slot
+        let targetIndex = min(currentPosition, group.coordinatorRoom.queue.count - 1)
+        guard fromIndex != targetIndex else { return }
+        var updated = Array(group.coordinatorRoom.queue)
+        let item = updated.remove(at: fromIndex)
+        let insertAt = fromIndex < targetIndex ? targetIndex - 1 : targetIndex
+        updated.insert(item, at: insertAt)
+        withAnimation {
+            group.coordinatorRoom.queue = OrderedSet(updated)
+        }
+    }
+
     private func handleLocalDelete(_ track: PlayableContent) {
         group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
         
@@ -394,6 +410,20 @@ struct QueueScreen: View {
                 }
             }
 
+            Button {
+                handleLocalMoveNext(content)
+                Task {
+                    guard let position = content.metadata?.position else { return }
+                    let nextPosition = group.coordinatorRoom.track.position + 1
+                    guard position != nextPosition else { return }
+                    try? await SonosService.shared.reorderQueue(group, from: position, to: nextPosition)
+                }
+            } label: {
+                Text("Move Next")
+                Text("After \(group.coordinatorRoom.track.name)")
+                Image(systemName: "text.insert")
+            }
+
             Button(role: .destructive) {
                 guard let position = content.metadata?.position else { return }
                 group.coordinatorRoom.queue.remove(at: position - 1)
@@ -401,7 +431,6 @@ struct QueueScreen: View {
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
                     group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                    
                 }
             } label: {
                 Label("Remove", systemImage: "trash")

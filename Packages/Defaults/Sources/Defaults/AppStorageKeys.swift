@@ -13,4 +13,6 @@ public enum AppStorageKeys {
     public static let defaultPlayAction = "\(Prefix.id).defaultPlayAction"
     public static let lastPlaylistID = "\(Prefix.id).lastPlaylistID"
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
+    public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
+    public static let recentQueries = "\(Prefix.id).recentQueries"
 }

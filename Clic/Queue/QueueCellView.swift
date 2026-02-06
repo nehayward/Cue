@@ -10,6 +10,7 @@ struct QueueCellView: View {
     var currentTrackID: String
     var router: Router
     var isEditing: Bool
+    var onLocalMoveNext: ((PlayableContent) -> Void)? = nil
     var onLocalDelete: ((PlayableContent) -> Void)? = nil
     
     var body: some View {
@@ -43,7 +44,7 @@ struct QueueCellView: View {
                 }
                 Spacer()
                 Menu {
-                    QueueCellMenuView(track: track, group: group, router: router, onLocalDelete: onLocalDelete)
+                    QueueCellMenuView(track: track, group: group, router: router, onLocalMoveNext: onLocalMoveNext, onLocalDelete: onLocalDelete)
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(maxWidth: 50, maxHeight: .infinity)
@@ -51,10 +52,11 @@ struct QueueCellView: View {
                         .tint(.primary)
                         .bold()
                 }
-                .transition(.identity)
+                .contentTransition(.identity)
                 .opacity(isEditing ? 0 : 1)
                 .frame(width: isEditing ? 0 : nil)
             }
+            .geometryGroup()
         }
         .swipeActions {
             Button(role: .destructive) {
@@ -73,7 +75,7 @@ struct QueueCellView: View {
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
         .draggable(track)
         #if targetEnvironment(macCatalyst)
-        .contextMenu { QueueCellMenuView(track: track, group: group, router: router, onLocalDelete: onLocalDelete) }
+        .contextMenu { QueueCellMenuView(track: track, group: group, router: router, onLocalMoveNext: onLocalMoveNext, onLocalDelete: onLocalDelete) }
         #endif
     }
     
@@ -86,6 +88,7 @@ fileprivate struct QueueCellMenuView: View {
     let track: PlayableContent
     @Bindable var group: GroupRoom
     let router: Router
+    var onLocalMoveNext: ((PlayableContent) -> Void)? = nil
     var onLocalDelete: ((PlayableContent) -> Void)? = nil
     
     var body: some View {
@@ -107,13 +110,28 @@ fileprivate struct QueueCellMenuView: View {
                 }
             }
 
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                onLocalMoveNext?(track)
+                Task {
+                    guard let position = track.metadata?.position else { return }
+                    let nextPosition = group.coordinatorRoom.track.position + 1
+                    guard position != nextPosition else { return }
+                    try? await SonosService.shared.reorderQueue(group, from: position, to: nextPosition)
+                }
+            } label: {
+                Text("Move to Top")
+                Text("After \(group.coordinatorRoom.track.name)")
+                Image(systemName: "text.insert")
+            }
+
             Button(role: .destructive) {
                 Task {
                     guard let position = track.metadata?.position else { return }
-                    
+
                     // Remove from local array first for immediate UI feedback
                     onLocalDelete?(track)
-                    
+
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
                 }

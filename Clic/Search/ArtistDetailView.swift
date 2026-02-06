@@ -594,6 +594,10 @@ struct ArtistDetailView: View {
         }
         isLoading = false
         isLoadingTracks = false
+        
+        if let artistContent {
+            RecentSearchesStorage.shared.addOrMoveToFront(artistContent)
+        }
     }
 
     // MARK: - Apple Music Loading
@@ -802,8 +806,8 @@ struct ArtistDetailView: View {
         artistContent = PlayableContent(
             title: artistName,
             subtitle: playableContent.subtitle,
-            thumbnail: nil,
-            artwork: nil,
+            thumbnail: artworkURL,
+            artwork: artworkURL,
             content: playableContent.content
         )
 
