@@ -35,10 +35,21 @@ final class SonosTrackParser {
             )
             var (musicServiceType, trackID) = MusicServiceParser().parse(xml: bodyContent.unescaped, trackURI: trackURI)
 
-            let ip = preferredIP ?? ip
+            let resolvedIP = preferredIP ?? ip
+            let rawURI = albumArtURI.unescaped.trimmingCharacters(in: .whitespacesAndNewlines)
+
             var sonosAlbumArtURL: URL?
-            if !albumArtURI.unescaped.isEmpty {
-                sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+
+            if !rawURI.isEmpty {
+                if rawURI.hasPrefix("http://") || rawURI.hasPrefix("https://") {
+                    sonosAlbumArtURL = URL(string: rawURI)
+                } else {
+                    sonosAlbumArtURL = URL(string: "http://\(resolvedIP):1400\(rawURI)")
+                }
+            }
+
+            if !isValidURL(sonosAlbumArtURL) {
+                sonosAlbumArtURL = nil
             }
             
             if trackURI.contains("x-rincon-stream") {
@@ -123,6 +134,13 @@ final class SonosTrackParser {
         }
         
         return String(text[range])
+    }
+    
+    private static func isValidURL(_ url: URL?) -> Bool {
+        guard let url else { return false }
+        guard let scheme = url.scheme, ["http", "https"].contains(scheme) else { return false }
+        guard url.host != nil else { return false }
+        return true
     }
     
     // Helper function to extract content between two strings
