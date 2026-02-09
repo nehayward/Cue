@@ -570,7 +570,8 @@ public final class MusicSearchService {
 
         for appleSong in topSongs {
             let normalizedAppleTitle = normalizeTitle(appleSong.title)
-
+            print(normalizedAppleTitle)
+            print(normalizedLibrarySongs[normalizedAppleTitle])
             if let librarySong = normalizedLibrarySongs[normalizedAppleTitle],
                !seenTitles.contains(normalizedAppleTitle) {
                 matchedSongs.append(librarySong)
@@ -581,21 +582,16 @@ public final class MusicSearchService {
         return matchedSongs
     }
 
-    /// Normalizes a song title for matching by removing common variations
+    /// Normalizes a song title for matching by stripping suffixes and all punctuation
     private func normalizeTitle(_ title: String) -> String {
         var normalized = title.lowercased()
 
-        // Remove common suffixes like "(Remastered)", "[Live]", etc.
+        // Strip all parenthesized/bracketed suffixes and dash suffixes
+        // Handles (2024 Remaster), [Live], (feat. X), - Remastered, etc.
         let patterns = [
-            "\\s*\\(remaster(ed)?.*\\)$",
-            "\\s*\\[remaster(ed)?.*\\]$",
-            "\\s*\\(live.*\\)$",
-            "\\s*\\[live.*\\]$",
-            "\\s*\\(feat\\.?.*\\)$",
-            "\\s*\\[feat\\.?.*\\]$",
-            "\\s*\\(ft\\.?.*\\)$",
-            "\\s*-\\s*remaster(ed)?.*$",
-            "\\s*-\\s*\\d{4}\\s*remaster.*$"
+            "\\s*\\([^)]*\\)",
+            "\\s*\\[[^]]*\\]",
+            "\\s*-\\s*(remaster|live|deluxe|bonus|edit|remix|version|mono|stereo).*$"
         ]
 
         for pattern in patterns {
@@ -605,8 +601,13 @@ public final class MusicSearchService {
             }
         }
 
-        // Remove extra whitespace
-        normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip all punctuation — handles smart quotes, curly apostrophes, etc.
+        normalized = String(normalized.unicodeScalars.filter {
+            CharacterSet.alphanumerics.union(.whitespaces).contains($0)
+        })
+
+        // Collapse whitespace
+        normalized = normalized.split(separator: " ").joined(separator: " ")
 
         return normalized
     }
