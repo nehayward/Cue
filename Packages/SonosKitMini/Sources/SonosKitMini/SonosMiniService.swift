@@ -52,7 +52,9 @@ public final class SonosMiniService {
 #if DEBUG
         return "192.168.4.153"
 #else
-        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip") ?? ""
+        NSUbiquitousKeyValueStore.default.string(forKey: "sonos_ip")
+            ?? UserDefaults.standard.string(forKey: "sonos_ip")
+            ?? ""
 #endif
         
     }

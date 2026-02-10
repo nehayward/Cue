@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import SonosKitMini
 
@@ -102,6 +103,8 @@ struct HouseholdScreen: View {
         Button {
             Task {
                 selectedIP = ip
+                NSUbiquitousKeyValueStore.default.set(ip, forKey: "sonos_ip")
+                UserDefaults.standard.set(ip, forKey: "sonos_ip")
                 sonosService.preferredHouseHold = await sonosService.getHouseID(for: ip)
                 switchedMessage = "Switched to Household \(index)"
                 try? await sonosService.loadWatch(useCache: false)
