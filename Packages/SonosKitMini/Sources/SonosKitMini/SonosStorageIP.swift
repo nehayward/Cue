@@ -44,7 +44,7 @@ final class SonosSystemDiscoveryService {
     
     /// Discover all Sonos devices on the network
     func discoverAllDevices() async throws -> [String] {
-        return Array(try await discoverDevices(timeout: 5))
+        return Array(try await discoverDevices(timeout: 10))
     }
     
     /// Sends a Wake-on-LAN packet to the specified MAC address

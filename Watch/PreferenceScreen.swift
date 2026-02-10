@@ -19,6 +19,23 @@ struct PreferenceScreen: View {
                 }
                 
                 Section {
+                    NavigationLink {
+                        HouseholdScreen()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "house.fill")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .frame(width: 28, height: 28)
+                                .background(.blue, in: RoundedRectangle(cornerRadius: 7))
+                            Text("Discover Systems")
+                        }
+                    }
+                } footer: {
+                    Text("Find your Sonos system if it wasn't detected automatically.")
+                }
+
+                Section {
                     if let group = SonosMiniService.shared.sorted.first(where: { $0.ip == sonosIP }) {
                         VStack(alignment: .leading) {
                             Text(group.nameWithCount)
@@ -32,14 +49,13 @@ struct PreferenceScreen: View {
                 } header: {
                     Text("Hub")
                 }
-                
+
                 VStack(alignment: .center) {
                     Text("Version **\(OSEnvironment.versionInfo)**")
                     Text("Build **\(OSEnvironment.buildNumber)**")
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
-                
             }
         }
     }

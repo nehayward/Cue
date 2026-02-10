@@ -54,10 +54,21 @@ final class SonosTrackParser {
                 }
             }
             
-            let ip = preferredIP ?? ip
+            let resolvedIP = preferredIP ?? ip
+            let rawURI = albumArtURI.unescaped.trimmingCharacters(in: .whitespacesAndNewlines)
+
             var sonosAlbumArtURL: URL?
-            if !albumArtURI.unescaped.isEmpty {
-                sonosAlbumArtURL = URL(string: "http://\(ip):1400\(albumArtURI.unescaped)")
+
+            if !rawURI.isEmpty {
+                if rawURI.hasPrefix("http://") || rawURI.hasPrefix("https://") {
+                    sonosAlbumArtURL = URL(string: rawURI)
+                } else {
+                    sonosAlbumArtURL = URL(string: "http://\(resolvedIP):1400\(rawURI)")
+                }
+            }
+
+            if !isValidURL(sonosAlbumArtURL) {
+                sonosAlbumArtURL = nil
             }
             
             if sonosAlbumArtURL == nil, !albumArtURI.unescaped.isEmpty {
@@ -151,6 +162,14 @@ final class SonosTrackParser {
         }
         return String(text[range..<endRange])
     }
+    
+    private static func isValidURL(_ url: URL?) -> Bool {
+        guard let url else { return false }
+        guard let scheme = url.scheme, ["http", "https"].contains(scheme) else { return false }
+        guard url.host != nil else { return false }
+        return true
+    }
+    
     
     // Helper function to parse track metadata
     private static func parseTrackMetaData(_ metadataString: String) -> Track.Metadata? {

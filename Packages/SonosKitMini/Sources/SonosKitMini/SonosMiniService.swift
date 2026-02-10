@@ -44,7 +44,7 @@ public final class SonosMiniService {
     }
     
     //    @ObservationIgnored private let sonosMonitor = SonosMonitor.shared
-    //    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
+    @ObservationIgnored private lazy var discoveryService = SonosSystemDiscoveryService()
     // Callback for track changes
     @ObservationIgnored public var onTrackChanged: ((SonosDevice, SonosTrack) -> Void)?
     @ObservationIgnored private lazy var api = SonosAPI()
@@ -1141,10 +1141,50 @@ public final class SonosMiniService {
     public func getSystem(useCache: Bool) async throws -> ([SonosDevice], String?) {
         async let devices = api.getDevices(ipAddress: cachedIP)
         async let houseHoldID = api.getHouseHoldID(for: cachedIP)
-        
+
         return await (try devices, houseHoldID)
     }
-    
+
+    public var preferredHouseHold: String? {
+        get { discoveryService.preferredHousehold }
+        set { discoveryService.preferredHousehold = newValue }
+    }
+
+    public func getHouseID(for ip: String) async -> String? {
+        return await api.getHouseHoldID(for: ip)
+    }
+
+    public func getAllHouseholdsIPs() async -> Set<String> {
+        guard let ips = try? await discoveryService.discoverAllDevices() else { return [] }
+
+        var householdMap = [String: String]()
+        var savedIPs = Set<String>()
+
+        await withTaskGroup(of: (String, String).self) { taskGroup in
+            for ip in ips {
+                taskGroup.addTask { [weak self] in
+                    guard let self else { return ("", "") }
+                    let householdID = await self.api.getHouseHoldID(for: ip)
+                    return (householdID ?? "", ip)
+                }
+            }
+
+            for await (householdID, ip) in taskGroup {
+                guard !householdID.isEmpty else { continue }
+                if householdMap[householdID] == nil {
+                    householdMap[householdID] = ip
+                    savedIPs.insert(ip)
+                }
+            }
+        }
+
+        return savedIPs
+    }
+
+    public func getGroups(with ip: String) async throws -> [SonosGroup] {
+        return try await api.getGroups(ipAddress: ip)
+    }
+
     @MainActor
     public func updateDevices(useCache: Bool = true) async throws {
         let newDevices = try await api.getDevices(ipAddress: cachedIP)
