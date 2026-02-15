@@ -35,6 +35,7 @@
 - Move Next in Queue: Move any track to play next directly from the queue menu, with animated reordering
 
 –– Bug Fixes & Improvements ––
+- Fixed Clic Mini not scrolling when many speakers exceed screen height
 - Fixed Intents prompting twice
 - Fixed duplicate tracks appearing in Popular section on library artist pages
 - Apple Music catalog artists now prioritized over library artists in search results

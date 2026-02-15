@@ -49,6 +49,14 @@ struct GroupMenuScreen: View {
             }
     }
     
+    private var screenMaxHeight: Double {
+        (NSScreen.main?.visibleFrame.height ?? 800) * 0.75
+    }
+
+    private var contentIdealHeight: Double {
+        Double(filteredDeviceBindings.count) * 150
+    }
+
     var mainContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
@@ -59,7 +67,7 @@ struct GroupMenuScreen: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(minWidth: 400, minHeight: max(Double(filteredDeviceBindings.count * 140), 100), maxHeight: NSScreen.main?.visibleFrame.height ?? 800)
+        .frame(minWidth: 400, minHeight: min(contentIdealHeight, screenMaxHeight))
         .onAppear {
             Task {
                 isLoading = true
