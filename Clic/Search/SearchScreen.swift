@@ -26,6 +26,7 @@ struct SearchScreen: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(ContentToAdd.self) private var contentToAdd: ContentToAdd?
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
+    @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
@@ -389,8 +390,10 @@ struct SearchScreen: View {
         }
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
-            if contentToAdd == nil{
+            if contentToAdd == nil, !miniPlayerManager.hidden {
                 MiniPlayerView()
+                    .geometryGroup()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
 #endif

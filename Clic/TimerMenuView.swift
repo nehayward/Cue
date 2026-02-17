@@ -1,15 +1,13 @@
-import CloudStorage
-import VibesDS
 import SwiftUI
 import SonosKit
 
-struct TimerMenuView: View {
-    @Environment(SonosService.self) var sonosService
-    @Environment(AlertService.self) var alertService
-    @Environment(Router.self) var router
+struct TimerMenuView<Label: View>: View {
+    @State var router = Router()
 
     var recentTimers: Storage<Duration> = Storage("sleep")
-    var group: GroupRoom
+    var onSelect: (Duration) async -> Void
+    var onClear: (() async -> Void)? = nil
+    @ViewBuilder var label: Label
 
     var body: some View {
         Menu {
@@ -17,71 +15,30 @@ struct TimerMenuView: View {
                 ControlGroup {
                     ForEach(recentTimers.object.prefix(3), id: \.self) { timer in
                         Button {
-                            Task {
-                                await sonosService.sleepTimer(group: group, duration: timer)
-                            }
+                            Task { await onSelect(timer) }
                         } label: {
                             Text(timer.formatted(.units(width: .narrow)))
                         }
                     }
                 }.controlGroupStyle(.compactMenu)
             }
-            Button {
-                Task {
-                    await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 5))
-                }
-            } label: {
-                Text("5 Minutes")
+
+            Button("5 Minutes") { Task { await onSelect(.seconds(60 * 5)) } }
+            Button("10 Minutes") { Task { await onSelect(.seconds(60 * 10)) } }
+            Button("15 Minutes") { Task { await onSelect(.seconds(60 * 15)) } }
+            Button("30 Minutes") { Task { await onSelect(.seconds(60 * 30)) } }
+            Button("1 Hour") { Task { await onSelect(.seconds(60 * 60)) } }
+
+            Button("Custom") {
+                router.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
             }
 
-            Button {
-                Task {
-                    await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 10))
-                }
-            } label: {
-                Text("10 Minutes")
-            }
-
-            Button {
-                Task {
-                    await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 15))
-                }
-            } label: {
-                Text("15 Minutes")
-            }
-
-            Button {
-                Task {
-                    await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 30))
-                }
-            } label: {
-                Text("30 Minutes")
-            }
-
-            Button {
-                Task {
-                    await sonosService.sleepTimer(group: group, duration: Duration.seconds(60 * 60))
-                }
-            } label: {
-                Text("1 hour")
-            }
-
-            Button {
-                router.presentedSheet = .customSleepTimer(group: group, recentTimers)
-            } label: {
-                Text("Custom")
-            }
-
-            Button {
-                Task {
-                    await sonosService.stopSleepTimer(group: group)
-                }
-            } label: {
-                Text("Off")
+            if let onClear {
+                Button("Off") { Task { await onClear() } }
             }
         } label: {
-            Label("Sleep Timer", systemImage: "deskclock.fill")
+            label
         }
+        .withSheetDestinations(sheetDestinations: $router.presentedSheet)
     }
 }
-

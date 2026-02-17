@@ -114,6 +114,19 @@ struct SceneBuilderScreen: View {
                     Text("Replace Queue").tag(QueuePosition.replace)
                 }
                 .pickerStyle(.menu)
+
+                HStack {
+                    Text("Sleep Timer")
+                    Spacer()
+                    TimerMenuView(onSelect: { scene.sleepTimer = $0 }, onClear: { scene.sleepTimer = nil }) {
+                        HStack(spacing: 4) {
+                            Text(scene.sleepTimer.map { $0.formatted(.units(width: .abbreviated)) } ?? "None")
+                            Image(systemName: "chevron.up.chevron.down")
+                                .imageScale(.small)
+                        }
+                        .foregroundStyle(scene.sleepTimer != nil ? .accent : .secondary)
+                    }
+                }
             } else {
                 Button {
                     router.presentedSheet = .sceneSearchAdd(adding: contentToAdd)

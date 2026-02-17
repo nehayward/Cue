@@ -1715,6 +1715,10 @@ public final class SonosService {
                 try? await playlistAction(newGroup)
             }
         }
+
+        if let duration = scene.sleepTimer {
+            await sleepTimer(group: newGroup, duration: duration)
+        }
     }
 
     public func seek(trackNumber: Int, on group: GroupRoom) async {

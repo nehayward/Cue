@@ -98,7 +98,7 @@ extension SonosAPI {
             ("ObjectID", "SQ:" + objectID),
             ("UpdateID", updateID),
             ("EnqueuedURI", content.uri),
-            ("EnqueuedURIMetaData", content.URIMetadata),
+            ("EnqueuedURIMetaData", content.content.type.isTrack ? content.URIMetadata : content.alarmURIMetadata),
             ("AddAtIndex", Double(4294967295))
         ]
 

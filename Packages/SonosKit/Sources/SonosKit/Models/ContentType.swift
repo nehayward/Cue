@@ -147,4 +147,8 @@ public enum ContentType: Equatable, Codable, Hashable, Identifiable {
     public var isPlaylist: Bool {
         [.playlist, .libraryImportedPlaylists, .libraryPlaylist].contains(self)
     }
+    
+    public var isTrack: Bool {
+        [.track, .libraryTrack].contains(self)
+    }
 }

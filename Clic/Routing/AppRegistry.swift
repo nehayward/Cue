@@ -94,9 +94,9 @@ extension View {
                     case .scenes:
                         SceneView()
                     case let .mediaDetail(content, group):
-                        let selectedGroupService = SelectedGroupService(group: group)
                         @State var router = Router.secondary
-                        
+                        let selectedGroupService = SelectedGroupService(group: group)
+
                         NavigationStack(path: $router.path) {
                             MediaDetailView(playableContent: content)
                                 .navigationBarTitleDisplayMode(.inline)
@@ -107,7 +107,11 @@ extension View {
                         }
     #if !targetEnvironment(macCatalyst) && !os(visionOS)
                         .safeArea(edge: .bottom) {
-                            MiniPlayerView()
+                            if !MiniPlayerManger.shared.hidden {
+                                MiniPlayerView()
+                                    .geometryGroup()
+                                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
                         }
     #endif
                         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -154,8 +158,8 @@ extension View {
                                     Router.main.presentedSheet = nil
                                 }
                         }
-                    case let .customSleepTimer(group, recentTimers):
-                        SleepTimerCustomView(recentTimers: recentTimers, group: group)
+                    case let .customSleepTimer(recentTimers, onSelect):
+                        SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
                     case let .browse(group: group):
                         let selectedGroupService = SelectedGroupService(group: group)
                         BrowseScreen()
@@ -299,8 +303,8 @@ extension View {
                                 Router.main.presentedSheet = nil
                             }
                     }
-                case let .customSleepTimer(group, recentTimers):
-                    SleepTimerCustomView(recentTimers: recentTimers, group: group)
+                case let .customSleepTimer(recentTimers, onSelect):
+                    SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
                 case let .browse(group: group):
                     @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()

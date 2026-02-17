@@ -17,7 +17,8 @@ struct BrowseScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
-    
+    @Environment(MiniPlayerManger.self) private var miniPlayerManager
+
     @AppStorage(AppStorageKeys.browseMediaService) private var browseMediaService: MediaSearchService = .apple
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     
@@ -53,7 +54,11 @@ struct BrowseScreen: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
 #if !targetEnvironment(macCatalyst)
         .safeArea(edge: .bottom) {
-            MiniPlayerView()
+            if !miniPlayerManager.hidden {
+                MiniPlayerView()
+                    .geometryGroup()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
 #endif
         .withAlert(enabled: showAlert)

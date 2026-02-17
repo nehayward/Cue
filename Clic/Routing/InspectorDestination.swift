@@ -17,7 +17,6 @@ enum InspectorDestination: Identifiable, Equatable {
     case scenes
     case searchAdd(adding: ContentToAdd)
     case alarms(group: GroupRoom? = nil)
-    case customSleepTimer(group: GroupRoom)
 
     var id: String {
         switch self {
@@ -51,8 +50,6 @@ enum InspectorDestination: Identifiable, Equatable {
             "searchAdd"
         case .alarms:
             "alarms"
-        case .customSleepTimer:
-            "customSleepTimer"
         }
     }
 

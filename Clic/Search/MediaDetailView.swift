@@ -16,6 +16,7 @@ struct MediaDetailView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @Environment(AlertService.self) private var alertService
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
+    @Environment(MiniPlayerManger.self) private var miniPlayerManager
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
     let playableContent: PlayableContent
@@ -102,6 +103,10 @@ struct MediaDetailView: View {
             }
         }
         .environment(\.editMode, $editMode)
+        .onChange(of: editMode.isEditing) { _, editing in
+            withAnimation(.spring) { miniPlayerManager.hidden = editing }
+        }
+        .onDisappear { miniPlayerManager.hidden = false }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
         .scrollEdgeEffectHidden26(!showNavigationTitle)

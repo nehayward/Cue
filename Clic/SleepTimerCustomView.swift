@@ -1,17 +1,14 @@
 import SwiftUI
-import Defaults
-import SonosKit
 
 struct SleepTimerCustomView: View {
-    @Environment(SonosService.self) var sonosService
     @Environment(\.dismiss) var dismiss
-
+    
     var recentTimers: Storage<Duration>
-    var group: GroupRoom
-
+    var onSelect: (Duration) async -> Void
+    
     @State private var hours: Int = 0
     @State private var minutes: Int = 1
-
+    
     var body: some View {
         NavigationStack {
             VStack {
@@ -28,16 +25,14 @@ struct SleepTimerCustomView: View {
                     }
                 }
                 .pickerStyle(.wheel)
-
+                
                 Button {
-                    Task {
-                        let duration = Duration.seconds((hours * 60 * 60) + minutes * 60)
-                        recentTimers.object.insert(duration, at: 0)
-                        await sonosService.sleepTimer(group: group, duration: duration)
-                        dismiss()
-                    }
+                    let duration = Duration.seconds((hours * 60 * 60) + minutes * 60)
+                    recentTimers.object.insert(duration, at: 0)
+                    Task { await onSelect(duration) }
+                    dismiss()
                 } label: {
-                    Text("Start")
+                    Text("Set")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -47,14 +42,8 @@ struct SleepTimerCustomView: View {
             .addDismiss(action: dismiss.callAsFunction)
             .presentationDetents([.fraction(0.4)])
             .presentationDragIndicator(.visible)
+            .presentationBackground(.background)
             .presentationCornerRadius(24)
         }
     }
-}
-
-#Preview {
-    Text("HERE")
-        .sheet(isPresented: .constant(true)) {
-//            SleepTimerCustomView(group: .gym)
-        }
 }

@@ -18,7 +18,7 @@ enum SheetDestination: Identifiable, Equatable {
     case scenes
     case searchAdd(adding: ContentToAdd)
     case alarms(group: GroupRoom? = nil)
-    case customSleepTimer(group: GroupRoom, Storage<Duration>)
+    case customSleepTimer(recentTimers: Storage<Duration>, onSelect: (Duration) async -> Void)
     case browse(group: GroupRoom? = nil)
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)

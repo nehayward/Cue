@@ -9,6 +9,7 @@ public struct SonosScene: Identifiable, Codable, Hashable {
     public var playableContent: PlayableContent?
     public var playMode: PlayMode?
     public var position: QueuePosition?
+    public var sleepTimer: Duration?
     
     public var description: String {
         let groupedRooms = rooms.map(\.name).joined(separator: ", ")
@@ -22,6 +23,10 @@ public struct SonosScene: Identifiable, Codable, Hashable {
             details += ", currently playing \(content.title) by \(content.subtitle)"
         }
         
+        if let sleepTimer {
+            details += " with a \(sleepTimer.formatted(.units(width: .abbreviated))) sleep timer"
+        }
+
         return details + "."
     }
 
@@ -32,7 +37,8 @@ public struct SonosScene: Identifiable, Codable, Hashable {
         volumeOnly: Bool = false,
         playableContent: PlayableContent? = nil,
         playMode: PlayMode = .normal,
-        position: QueuePosition = .replace
+        position: QueuePosition = .replace,
+        sleepTimer: Duration? = nil
     ) {
         self.id = id
         self.name = name
@@ -41,6 +47,7 @@ public struct SonosScene: Identifiable, Codable, Hashable {
         self.playableContent = playableContent
         self.playMode = playMode
         self.position = position
+        self.sleepTimer = sleepTimer
     }
 }
 

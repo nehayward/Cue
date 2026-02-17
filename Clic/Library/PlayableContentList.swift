@@ -24,7 +24,6 @@ struct PlayableContentList: View {
         }
         .foregroundStyle(.foreground)
         .listStyle(.plain)
-        .tint(.primary)
         .task { await loadInitialContent() }
         .overlay { loadingOverlay }
         .animation(.bouncy, value: browseService.playlists)
