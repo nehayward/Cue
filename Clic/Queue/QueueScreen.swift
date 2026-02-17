@@ -267,7 +267,8 @@ struct QueueScreen: View {
     @ViewBuilder
     private func fullQueueView(proxy: ScrollViewProxy) -> some View {
         List(selection: $selection) {
-            ForEach(Array(group.coordinatorRoom.queue.enumerated()), id: \.element.trackID) { index, track in
+            ForEach(group.coordinatorRoom.queue, id: \.trackID) { track in
+                let index = group.coordinatorRoom.queue.firstIndex(of: track) ?? 0
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())

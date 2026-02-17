@@ -61,14 +61,7 @@ public struct VibeSlider: View {
                 .frame(height: 40.0)
 #endif
             Capsule()
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onChange(of: proxy.size.width, initial: true) {
-                                width = proxy.size.width
-                            }
-                    }
-                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                 .frame(height: baseHeight)
                 .foregroundStyle(.quaternary)
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
@@ -267,14 +260,7 @@ public struct VibeSliderTV: View {
         
         ZStack(alignment: .leading) {
             Capsule()
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onChange(of: proxy.size.width, initial: true) {
-                                width = proxy.size.width
-                            }
-                    }
-                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                 .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
                 .foregroundStyle(

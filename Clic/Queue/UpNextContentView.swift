@@ -24,7 +24,8 @@ struct UpNextContentView: View {
     var body: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
-                ForEach(Array(upNext.enumerated()), id: \.element.trackID) { index, track in
+                ForEach(upNext, id: \.trackID) { track in
+                    let index = upNext.firstIndex(where: { $0.trackID == track.trackID }) ?? 0
                     HStack(spacing: 0) {
                         Text(formatPosition(startPosition + index + 1))
                             .font(.caption.monospacedDigit().smallCaps())

@@ -19,9 +19,7 @@ struct MarqueeText: View {
             }
             .scrollDisabled(true)
             .onPreferenceChange(MarqueePausedKey.self) { isPaused in
-                withAnimation {
-                    self.isPaused = isPaused
-                }
+                self.isPaused = isPaused
             }
             .mask(LinearGradient(stops: [.init(color: isPaused ? .black : .clear, location: 0.0),
                                          .init(color: .black, location: 0.04),
@@ -84,10 +82,7 @@ fileprivate struct MarqueeViewModifier: ViewModifier {
                     // Calculate effective time for shader, starting from 0 when animation begins
                     let effectiveTime = shouldAnimate ? cycleProgress * speed : 0
                     
-                    let running = effectiveTime == 0
-                    withAnimation(.snappy(duration: 0.1)) {
-                        isPaused = running
-                    }
+                    isPaused = effectiveTime == 0
                 }
                 .preference(key: MarqueePausedKey.self, value: isPaused)
         }

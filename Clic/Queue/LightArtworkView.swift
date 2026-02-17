@@ -57,7 +57,7 @@ struct LightArtworkView: View {
 }
 
 fileprivate struct OverlayIcons: View {
-    let content: PlayableContent  // Replace with your actual content type
+    let content: PlayableContent
 
     var body: some View {
         content.content.service.icon
