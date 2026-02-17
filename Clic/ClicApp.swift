@@ -738,78 +738,8 @@ struct ClicApp: App {
             }
         }
     }
-    
 }
 
-#if targetEnvironment(macCatalyst)
-// MARK: - Window Size Persistence
-extension CGRect {
-    enum CodingKeys: String, CodingKey {
-        case x, y, width, height
-    }
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let x = try container.decode(CGFloat.self, forKey: .x)
-        let y = try container.decode(CGFloat.self, forKey: .y)
-        let width = try container.decode(CGFloat.self, forKey: .width)
-        let height = try container.decode(CGFloat.self, forKey: .height)
-        self.init(x: x, y: y, width: width, height: height)
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(origin.x, forKey: .x)
-        try container.encode(origin.y, forKey: .y)
-        try container.encode(size.width, forKey: .width)
-        try container.encode(size.height, forKey: .height)
-    }
-}
-
-enum UserDefaultsConfig {
-    private static let defaultSceneLatestSystemFrameKey = "DefaultSceneLatestSystemFrame"
-    
-    static var defaultSceneLatestSystemFrame: CGRect? {
-        get {
-            guard let savedData = UserDefaults.standard.data(forKey: defaultSceneLatestSystemFrameKey) else { return nil }
-            return try? JSONDecoder().decode(CGRect.self, from: savedData)
-        }
-        set {
-            if let newValue {
-                if let newData = try? JSONEncoder().encode(newValue) {
-                    UserDefaults.standard.set(newData, forKey: defaultSceneLatestSystemFrameKey)
-                }
-            } else {
-                UserDefaults.standard.removeObject(forKey: defaultSceneLatestSystemFrameKey)
-            }
-        }
-    }
-}
-
-final class WindowSizeObserver: NSObject {
-    @objc private(set) var observedScene: UIWindowScene?
-    private var observation: NSKeyValueObservation?
-    
-    init(windowScene: UIWindowScene) {
-        self.observedScene = windowScene
-        super.init()
-        startObserving()
-    }
-    
-    deinit {
-        observation?.invalidate()
-    }
-    
-    private func startObserving() {
-        observation = observe(\.observedScene?.effectiveGeometry, options: [.new]) { _, change in
-            guard let newSystemFrame = change.newValue??.systemFrame,
-                  newSystemFrame.size != .zero,
-                  newSystemFrame.origin != .zero else { return }
-            UserDefaultsConfig.defaultSceneLatestSystemFrame = newSystemFrame
-        }
-    }
-}
-#endif
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(
@@ -985,13 +915,9 @@ class ClicSceneDelegate: NSObject, UIWindowSceneDelegate {
         windowScene.sizeRestrictions?.maximumSize = CGSize(width: 2000, height: 1500)
         
         // Restore saved window frame
-        if let savedFrame = UserDefaultsConfig.defaultSceneLatestSystemFrame {
+        if let savedFrame = WindowFrameStore.savedFrame {
             let geometry = UIWindowScene.GeometryPreferences.Mac(systemFrame: savedFrame)
-            windowScene.requestGeometryUpdate(geometry) { error in
-//                if let error = error {
-//                    print("Failed to restore window frame: \(error)")
-//                }
-            }
+            windowScene.requestGeometryUpdate(geometry)
         }
         
         // Start observing window size changes

@@ -3,6 +3,7 @@
 - Sleep Timer in Scenes: Add a sleep timer when creating a scene so playback automatically stops after a set duration
 - Mini player now hides automatically when editing a playlist, sliding back in when done
 - Fixed Clic Mini not scrolling when many speakers exceed screen height
+- Improved Mac performance: reduced CPU usage during window resizing
 
 # 2026.2
 
