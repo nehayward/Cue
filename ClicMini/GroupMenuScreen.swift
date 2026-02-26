@@ -65,8 +65,8 @@ struct GroupMenuScreen: View {
                         .frame(maxHeight: 200)
                 }
             }
+            .padding(.horizontal, 12)
         }
-        .padding(.horizontal, 12)
         .frame(minWidth: 400, minHeight: min(contentIdealHeight, screenMaxHeight))
         .onAppear {
             Task {
@@ -263,6 +263,27 @@ struct SceneButtonView: View {
                     .clipShape(.circle)
             }
             
+        }
+    }
+}
+
+private struct BottomSettingsModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .safeAreaBar(edge: .bottom) {
+                    HStack {
+                        SettingsMenuView()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal)
+                }
+        } else {
+            content
+                .overlay(alignment: .bottomTrailing) {
+                    SettingsMenuView()
+                        .padding(12)
+                }
         }
     }
 }

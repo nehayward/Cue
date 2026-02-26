@@ -42,9 +42,7 @@ struct SettingsMenuView: View {
                 .font(.title)
         }
         .menuIndicator(.hidden)
-        .buttonBorderShape(.circle)
-        .foregroundStyle(.accent)
-        .controlSize(.extraLarge)
+        .modifier(SettingsMenuStyleModifier())
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
@@ -74,6 +72,21 @@ struct SettingsMenuView: View {
     
     private func openPreferences() {
         WindowManager.shared.openPreferences()
+    }
+}
+
+private struct SettingsMenuStyleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .buttonBorderShape(.circle)
+                .foregroundStyle(.accent)
+                .controlSize(.extraLarge)
+        } else {
+            content
+                .menuStyle(.borderlessButton)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
