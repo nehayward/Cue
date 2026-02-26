@@ -12,7 +12,7 @@ private struct WidthPreferenceKey: PreferenceKey {
 public struct VibeMiniSlider: View {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.colorScheme) private var colorScheme: ColorScheme
-
+    
     @Binding private var value: Double
     @State private var localValue: Double?
     @State private var width = 0.0
@@ -23,12 +23,13 @@ public struct VibeMiniSlider: View {
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
+    private var capsuleForeground: Color { colorScheme == .dark ? .black : .white }
     private let delayDrag: Bool
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
-
+    
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
     ///   - value: A binding to the value represented by the slider.
@@ -71,7 +72,7 @@ public struct VibeMiniSlider: View {
                         width = newWidth
                     }
                 }
-//                .frame(height: isDragging ? expandedHeight : baseHeight)
+            //                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
                 .foregroundStyle(.quaternary)
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
@@ -94,17 +95,16 @@ public struct VibeMiniSlider: View {
             .font(.subheadline)
             .monospacedDigit()
             .fontDesign(.rounded)
-            .fontWeight(.semibold)
-            .foregroundStyle(.white)
-            .blendMode(.difference)
+            .fontWeight(.heavy)
+            .foregroundStyle(isDragging ? AnyShapeStyle(capsuleForeground) : AnyShapeStyle(.white))
             .contentTransition(.identity)
             .frame(minWidth: 28, minHeight: baseHeight)
             .background(isDragging ? capsuleColor : Color.clear)
             .clipShape(.capsule)
             .offset(x: offsetForValue, y: isDragging ? -24 : 0)
-            .opacity(showValue ? 1 : 0)
             .animation(.interactiveSpring, value: isDragging)
             .animation(isDragging ? nil : .interactiveSpring, value: displayValue)
+            .opacity(showValue ? 1 : 0)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
@@ -156,7 +156,7 @@ public struct VibeMiniSlider: View {
         }
         calculateNewValue(from: gesture)
     }
-
+    
     private func handleDragEnded(_ gesture: DragGesture.Value) {
 #if targetEnvironment(macCatalyst) || os(macOS)
         if gesture.translation.width == 0.0 {
@@ -171,7 +171,7 @@ public struct VibeMiniSlider: View {
         localValue = nil
         onEditingChanged(false)
     }
-
+    
     private func calculateNewValue(from gesture: DragGesture.Value) {
         guard width > 0 else { return }
         let newPercentage = gesture.location.x / width
@@ -183,7 +183,7 @@ public struct VibeMiniSlider: View {
     }
     
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
-
+    
     private var displayValue: Double {
         localValue ?? value
     }
@@ -203,7 +203,7 @@ public struct VibeMiniSlider: View {
 
 #Preview("Colors") {
     @Previewable @State var volume = 0.0
-
+    
     VStack {
         Text(volume, format: .number)
         Slider(value: $volume, in: 0...100, step: 2)
