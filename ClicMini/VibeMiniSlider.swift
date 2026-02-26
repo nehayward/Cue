@@ -23,13 +23,28 @@ public struct VibeMiniSlider: View {
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
-    private var capsuleForeground: Color { colorScheme == .dark ? .black : .white }
+    private var capsuleForeground: Color {
+      if !showBlendMode {
+        colorScheme == .dark ? .black : .white
+      } else {
+        .white
+      }
+    }
     private let delayDrag: Bool
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
-    
+
+    private var showBlendMode: Bool {
+      if #available(macOS 26.0, *) {
+        false
+      } else {
+        true
+      }
+    }
+
+
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
     ///   - value: A binding to the value represented by the slider.
@@ -97,6 +112,7 @@ public struct VibeMiniSlider: View {
             .fontDesign(.rounded)
             .fontWeight(.heavy)
             .foregroundStyle(isDragging ? AnyShapeStyle(capsuleForeground) : AnyShapeStyle(.white))
+            .blendMode(showBlendMode ? .difference : .normal)
             .contentTransition(.identity)
             .frame(minWidth: 28, minHeight: baseHeight)
             .background(isDragging ? capsuleColor : Color.clear)
