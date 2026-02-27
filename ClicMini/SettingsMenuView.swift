@@ -75,7 +75,7 @@ struct SettingsMenuView: View {
     }
 }
 
-private struct SettingsMenuStyleModifier: ViewModifier {
+struct SettingsMenuStyleModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26.0, *) {
             content
