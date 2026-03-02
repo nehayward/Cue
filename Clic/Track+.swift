@@ -4,9 +4,11 @@ import UIKit
 
 extension Track {
     @MainActor
-    public var nowPlayingURL: URL {
+    public var nowPlayingURL: URL? {
 #if canImport(UIKit)
-        return nowPlayingURLs.filter(UIApplication.shared.canOpenURL).first!
+        return nowPlayingURLs.first(where: UIApplication.shared.canOpenURL)
+#else
+        return nil
 #endif
     }
 
