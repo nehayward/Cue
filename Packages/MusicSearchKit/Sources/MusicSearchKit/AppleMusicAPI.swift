@@ -353,6 +353,26 @@ public final class AppleMusicAPI {
             return nil
         }
     }
+
+    public func searchRadioStations(term: String, limit: Int = 10) async throws -> AppleLibraryContainer? {
+        guard await requestMusicAuthorization() else { return nil }
+        guard let encodedTerm = term.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+
+        let region = (Locale.current.region?.identifier ?? "US").lowercased()
+        let searchURL = URL(string: "https://api.music.apple.com/v1/catalog/\(region)/search?term=\(encodedTerm)&types=stations&limit=\(limit)")!
+        let request = MusicDataRequest(urlRequest: .init(url: searchURL))
+        let response = try? await request.response()
+        guard let data = response?.data else { return nil }
+
+        do {
+            let searchResponse = try decoder.decode(AppleRadioSearchResponse.self, from: data)
+            guard let stations = searchResponse.results.stations else { return nil }
+            return AppleLibraryContainer(data: stations.data, meta: nil, next: stations.next)
+        } catch {
+            print("Error decoding radio search: \(error)")
+            return nil
+        }
+    }
     public func lookupUsersNew(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

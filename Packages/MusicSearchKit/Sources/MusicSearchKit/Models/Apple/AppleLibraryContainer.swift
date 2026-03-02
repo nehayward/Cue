@@ -4,6 +4,27 @@ public struct AppleLibraryContainer: Codable {
     public let data: [AppleLibraryItem]
     public let meta: AppleLibraryItem.Meta?
     public let next: String?
+
+    public init(data: [AppleLibraryItem], meta: AppleLibraryItem.Meta?, next: String?) {
+        self.data = data
+        self.meta = meta
+        self.next = next
+    }
+}
+
+// MARK: - Radio Search Response
+public struct AppleRadioSearchResponse: Codable {
+    public let results: AppleRadioSearchResults
+}
+
+public struct AppleRadioSearchResults: Codable {
+    public let stations: AppleRadioStations?
+}
+
+public struct AppleRadioStations: Codable {
+    public let href: String
+    public let next: String?
+    public let data: [AppleLibraryItem]
 }
 
 public struct AppleLibraryItem: Codable {

@@ -300,15 +300,23 @@ public final class MusicSearchService {
         if query.count < 1 { return [] }
         guard await requestMusicAuthorization() else { return [] }
         var playableContent: [PlayableContent] = []
+
+        async let radioResults = apple.searchRadioStations(term: query, limit: 5)
+
         var request = MusicCatalogSearchRequest(term: query, types: [Song.self, Album.self, Playlist.self, Artist.self])
         request.includeTopResults = false
         request.limit = 20
-        guard let results = try? await request.response() else { return [] }
 
-        playableContent.append(contentsOf: results.songs.map(\.toPlayable))
-        playableContent.append(contentsOf: results.albums.map(\.toPlayable))
-        playableContent.append(contentsOf: results.artists.map(\.toPlayable))
-        playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
+        if let results = try? await request.response() {
+            playableContent.append(contentsOf: results.songs.map(\.toPlayable))
+            playableContent.append(contentsOf: results.albums.map(\.toPlayable))
+            playableContent.append(contentsOf: results.artists.map(\.toPlayable))
+            playableContent.append(contentsOf: results.playlists.map { $0.toPlayable(isUserPlaylist: false) })
+        }
+
+        if let stations = try? await radioResults {
+            playableContent.append(contentsOf: stations.data.compactMap(\.toPlayable))
+        }
 
         return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
