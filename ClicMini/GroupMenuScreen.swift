@@ -3,7 +3,6 @@ import Combine
 import CloudKit
 import SonosKitMini
 import SwiftUI
-import Kingfisher
 
 struct GroupMenuScreen: View {
     @State private var sonosServiceMini = SonosMiniService.shared
@@ -65,8 +64,8 @@ struct GroupMenuScreen: View {
                         .frame(maxHeight: 200)
                 }
             }
+            .padding(.horizontal, 12)
         }
-        .padding(.horizontal, 12)
         .frame(minWidth: 400, minHeight: min(contentIdealHeight, screenMaxHeight))
         .onAppear {
             Task {
@@ -140,32 +139,20 @@ struct GroupMenuScreen: View {
 //                }
 //            }
 //            .frame(maxWidth: .infinity, alignment: .trailing)
-        .safeArea(edge: .top) {
-//            if #available(macOS 26.0, *) {
-                HStack {
-//                    Button {
-//                        show.toggle()
-//                    } label: {
-//                        Text("Group")
-//                    }
-//                    .popover(isPresented: $show) {
-//                        Text("HER?")
-//                    }
+        .safeArea(edge: .bottom) {
+            HStack {
+                if !scenes.isEmpty {
                     Menu {
                         ForEach(scenes) { scene in
                             SceneButtonView(scene: scene)
                         }
                     } label: {
                         Image(systemName: "bolt.fill")
+                            .font(.title)
                     }
-                    .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
+                    .modifier(SettingsMenuStyleModifier())
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.horizontal)
-        }
-        .safeArea(edge: .bottom) {
-            HStack {
                 SettingsMenuView()
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -240,9 +227,41 @@ struct GroupHeader: View {
 
 struct SceneButtonView: View {
     var scene: SonosScene
-    
+
     @State private var sonosServiceMini = SonosMiniService.shared
-    
+
+    private var sceneDetail: Text {
+        var parts: [Text] = []
+
+        if let title = scene.playableContent?.title, !title.isEmpty {
+            parts.append(Text(title))
+        }
+
+        if scene.volumeOnly {
+            parts.append(Text("Volume only"))
+        }
+
+        if let playMode = scene.playMode {
+            if playMode.isShuffleEnabled { parts.append(Text("Shuffle")) }
+            if playMode.isRepeatOneEnabled { parts.append(Text("Repeat one")) }
+            else if playMode.isRepeatAllEnabled { parts.append(Text("Repeat all")) }
+        }
+
+        if let sleepTimer = scene.sleepTimer {
+            parts.append(Text("Sleep \(sleepTimer.formatted(.units(width: .abbreviated)))"))
+        }
+
+        let roomDetails = scene.rooms.map { "\($0.name) \(Int($0.volume))%" }
+        if !roomDetails.isEmpty {
+            parts.append(Text(roomDetails.joined(separator: ", ")))
+        }
+
+        let separator = Text(" · ")
+        return parts.enumerated().reduce(Text("")) { result, item in
+            item.offset == 0 ? item.element : result + separator + item.element
+        }
+    }
+
     var body: some View {
         Button {
             Task {
@@ -250,26 +269,35 @@ struct SceneButtonView: View {
             }
         } label: {
             Text(scene.name)
-            if let url = scene.playableContent?.thumbnail, !url.absoluteString.isEmpty {
-                KFImage.url(url)
-                    .setProcessors([
-                        RoundCornerImageProcessor(cornerRadius: .infinity),
-                        ResizingImageProcessor(referenceSize: CGSize(width: 24, height: 24), mode: .aspectFit)
-                    ])
-                    .cancelOnDisappear(true)
-                    .resizable() // Needed to allow resizing in SwiftUI
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .clipShape(.circle)
-            }
-            
+            sceneDetail
+        }
+    }
+}
+
+private struct BottomSettingsModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .safeAreaBar(edge: .bottom) {
+                    HStack {
+                        SettingsMenuView()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal)
+                }
+        } else {
+            content
+                .overlay(alignment: .bottomTrailing) {
+                    SettingsMenuView()
+                        .padding(12)
+                }
         }
     }
 }
 
 extension View {
     @ViewBuilder
-    func safeArea<V>(edge: VerticalEdge, alignment: HorizontalAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> V) -> some View where V : View {
+    func safeArea<V>(edge: VerticalEdge, @ViewBuilder content: () -> V) -> some View where V : View {
         if #available(iOS 26.0, macOS 26, *) {
             self
                 .safeAreaBar(edge: edge, content: content)

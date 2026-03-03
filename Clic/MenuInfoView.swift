@@ -15,8 +15,8 @@ struct MenuInfoView: View {
         Menu {
             VStack {
                 OpenInServiceView(item:  group.coordinatorRoom.track.toPlayable)
-                if coreFeatures.nowPlaying, !group.TVMode {
-                    Link(destination: group.coordinatorRoom.track.nowPlayingURL) {
+                if coreFeatures.nowPlaying, !group.TVMode, let nowPlayingURL = group.coordinatorRoom.track.nowPlayingURL {
+                    Link(destination: nowPlayingURL) {
                         Label("Open in NowPlaying…", image: .nowPlayingAppIcon)
                     }
                 }
