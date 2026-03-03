@@ -20,12 +20,13 @@ struct VolumeControlView: View {
                 }
             } label: {
                 Image(systemName: "minus")
-                    .frame(width: 24, height: 24)
-                    .bold()
+                    .font(.caption.bold())
+                    .foregroundStyle(.primary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(.rect)
             }
-            .tint(.primary)
+            .buttonStyle(.plain)
             .buttonRepeatBehavior(.enabled)
-            .buttonBorderShape(.circle)
         
             VibeMiniSlider(value: $device.groupVolume, baseHeight: 24, showValue: true) { isEditing in
                 Task {
@@ -57,12 +58,13 @@ struct VolumeControlView: View {
                 }
             } label: {
                 Image(systemName: "plus")
-                    .frame(width: 24, height: 24)
-                    .bold()
+                    .font(.caption.bold())
+                    .foregroundStyle(.primary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(.rect)
             }
-            .tint(.primary)
+            .buttonStyle(.plain)
             .buttonRepeatBehavior(.enabled)
-            .buttonBorderShape(.circle)
         }
         .font(.caption)
         .fontDesign(.rounded)

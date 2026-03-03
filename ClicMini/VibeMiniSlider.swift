@@ -12,22 +12,38 @@ private struct WidthPreferenceKey: PreferenceKey {
 public struct VibeMiniSlider: View {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.colorScheme) private var colorScheme: ColorScheme
-
+    
     @Binding private var value: Double
+    @State private var localValue: Double?
     @State private var width = 0.0
     @State private var isDragging: Bool = false
-    @State private var startingValue: Double?
     @State private var isTouched: Bool = false
     @State private var isHovered: Bool = false
     
     private let baseHeight: Double
     private var expandedHeight: Double { baseHeight * 1.65 }
     private var capsuleColor: Color { colorScheme == .dark ? .white : .black }
+    private var capsuleForeground: Color {
+      if !showBlendMode {
+        colorScheme == .dark ? .black : .white
+      } else {
+        .white
+      }
+    }
     private let delayDrag: Bool
     private let showValue: Bool
     private var onEditingChanged: (Bool) -> Void
     private var range: ClosedRange<Double>
     private let step: Double.Stride
+
+    private var showBlendMode: Bool {
+      if #available(macOS 26.0, *) {
+        false
+      } else {
+        true
+      }
+    }
+
 
     /// Initializes a new instance of `VibeSlider`.
     /// - Parameters:
@@ -59,11 +75,6 @@ public struct VibeMiniSlider: View {
     
     public var body: some View {
         ZStack(alignment: .leading) {
-            // visionOS (on device) does not like when drag targets are smaller than 40pt tall, so add an almost-transparent (as it still needs to be interactive) that enforces an effective minimum height. If the slider is tall than this on its own it's essentially just ignored.
-#if os(visionOS)
-            Color.orange.opacity(0.0001)
-                .frame(height: 40.0)
-#endif
             Capsule()
                 .background {
                     GeometryReader { proxy in
@@ -76,48 +87,40 @@ public struct VibeMiniSlider: View {
                         width = newWidth
                     }
                 }
-//                .frame(height: isDragging ? expandedHeight : baseHeight)
+            //                .frame(height: isDragging ? expandedHeight : baseHeight)
                 .frame(height: baseHeight)
                 .foregroundStyle(.quaternary)
                 .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
                 .shadow(color: .white.opacity(0.1), radius: 0.5, y: 0.5)
                 .overlay(alignment: .leading) {
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .overlay {
-                                if isDragging {
-                                    Capsule().foregroundStyle(Color.black.opacity(0.15)).blendMode(.lighten)
-                                }
+                    Capsule()
+                        .overlay {
+                            if isDragging {
+                                Capsule().foregroundStyle(Color.black.opacity(0.15)).blendMode(.lighten)
                             }
-#if os(visionOS)
-                            .overlay(alignment: .trailing) {
-                                ZStack {
-                                    Circle()
-                                        .foregroundStyle(Color.white)
-                                        .shadow(radius: 1.0)
-                                        .padding(innerCirclePadding)
-                                        .opacity(isDragging ? 1.0 : 0.0)
-                                }
-                            }
-#endif
-                            .frame(width: calculateProgressWidth(), height: baseHeight)
-                    }
+                        }
+                        .frame(width: calculateProgressWidth(), height: baseHeight)
+                        .animation(isDragging ? nil : .smooth(duration: 0.15), value: displayValue)
                 }
                 .clipShape(.capsule) // Best attempt at fixing a bug https://twitter.com/ChristianSelig/status/1757139789457829902
 #if !os(watchOS) && !os(macOS)
                 .contentShape(.hoverEffect, .capsule)
 #endif
-            Text("\(Int(value))")
-                .monospacedDigit()
-                .fontDesign(.rounded)
-                .fontWeight(.heavy)
-                .foregroundStyle(isDragging ? AnyShapeStyle(.background) : AnyShapeStyle(.primary))
-                .frame(minWidth: 28, minHeight: baseHeight)
-                .background((isDragging || isTouched) ? capsuleColor : Color.clear)
-                .clipShape(.capsule)
-                .offset(x: offsetForValue,
-                        y: (isTouched || isDragging) ? -24 : 0)
-                .opacity(showValue ? 1 : 0)
+          Text("\(Int(displayValue))")
+            .font(.subheadline)
+            .monospacedDigit()
+            .fontDesign(.rounded)
+            .fontWeight(.heavy)
+            .foregroundStyle(isDragging ? AnyShapeStyle(capsuleForeground) : AnyShapeStyle(.white))
+            .blendMode(showBlendMode ? .difference : .normal)
+            .contentTransition(.identity)
+            .frame(minWidth: 28, minHeight: baseHeight)
+            .background(isDragging ? capsuleColor : Color.clear)
+            .clipShape(.capsule)
+            .offset(x: offsetForValue, y: isDragging ? -24 : 0)
+            .animation(.interactiveSpring, value: isDragging)
+            .animation(isDragging ? nil : .interactiveSpring, value: displayValue)
+            .opacity(showValue ? 1 : 0)
         }
         .padding(.vertical, baseHeight/2)
         .gesture(dragGesture)
@@ -135,7 +138,7 @@ public struct VibeMiniSlider: View {
         )
 #endif
 #if !os(visionOS)
-        .sensoryFeedback(trigger: value) { oldValue, newValue in
+        .sensoryFeedback(trigger: displayValue) { oldValue, newValue in
             guard isDragging else { return .none }
             return oldValue < newValue ? .decrease : .increase
         }
@@ -162,8 +165,11 @@ public struct VibeMiniSlider: View {
     }
     
     private func handleDragChanged(_ gesture: DragGesture.Value) {
-        isDragging = true
-        onEditingChanged(true)
+        if !isDragging {
+            isDragging = true
+            localValue = value
+            onEditingChanged(true)
+        }
         calculateNewValue(from: gesture)
     }
     
@@ -171,28 +177,36 @@ public struct VibeMiniSlider: View {
 #if targetEnvironment(macCatalyst) || os(macOS)
         if gesture.translation.width == 0.0 {
             let newPercentage = gesture.location.x / width
-            value = newPercentage * range.upperBound
+            localValue = min(max(range.lowerBound, newPercentage * range.upperBound), range.upperBound)
         }
 #endif
+        if let finalValue = localValue {
+            value = finalValue
+        }
         isDragging = false
+        localValue = nil
         onEditingChanged(false)
-        startingValue = nil
     }
     
     private func calculateNewValue(from gesture: DragGesture.Value) {
-        let diff = max(min(gesture.translation.width, width), -width) / width * range.upperBound
-        let stepValue = (diff / step).rounded() * step
-        if startingValue == nil {
-            startingValue = value
-        }
-        self.value = min(max(range.lowerBound, (startingValue ?? value) + stepValue), range.upperBound)
+        guard width > 0 else { return }
+        let newPercentage = gesture.location.x / width
+        let newValue = newPercentage * range.upperBound
+        let steppedValue = (newValue / step).rounded() * step
+        let clampedValue = min(max(range.lowerBound, steppedValue), range.upperBound)
+        localValue = clampedValue
+        value = clampedValue
     }
     
     private var innerCirclePadding: CGFloat { expandedHeight * 0.15 }
     
+    private var displayValue: Double {
+        localValue ?? value
+    }
+    
     private func calculateProgressWidth() -> CGFloat {
         guard width > 0, range.upperBound > 0 else { return 0 }
-        let calculatedWidth = (value / range.upperBound) * width
+        let calculatedWidth = (displayValue / range.upperBound) * width
         return max(0, calculatedWidth)
     }
     
@@ -205,7 +219,7 @@ public struct VibeMiniSlider: View {
 
 #Preview("Colors") {
     @Previewable @State var volume = 0.0
-
+    
     VStack {
         Text(volume, format: .number)
         Slider(value: $volume, in: 0...100, step: 2)
