@@ -20,19 +20,20 @@ struct PreferenceScreen: View {
                 
                 Section {
                     NavigationLink {
-                        HouseholdScreen()
+                        CodeEntryScreen()
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "house.fill")
+                            Image(systemName: "link")
                                 .font(.caption)
+                                .fontWeight(.bold)
                                 .foregroundStyle(.white)
                                 .frame(width: 28, height: 28)
                                 .background(.blue, in: RoundedRectangle(cornerRadius: 7))
-                            Text("Discover Systems")
+                            Text("Pair with Code")
                         }
                     }
                 } footer: {
-                    Text("Find your Sonos system if it wasn't detected automatically.")
+                    Text("Get a code from the Clic app on any iPhone to connect this Watch.")
                 }
 
                 Section {
