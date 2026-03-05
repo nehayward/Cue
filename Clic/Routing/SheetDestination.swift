@@ -30,6 +30,7 @@ enum SheetDestination: Identifiable, Equatable {
     case spotifyUserPlaylists
     case reorderAppleLibrarySections
     case reorderSpotifyLibrarySections
+    case shareToWatch
 
     var id: String {
         switch self {
@@ -79,6 +80,8 @@ enum SheetDestination: Identifiable, Equatable {
             "volumeControlsScreen"
         case .favorites:
             "favorites"
+        case .shareToWatch:
+            "shareToWatch"
         default:
             "\(self)"
         }

@@ -1,5 +1,6 @@
 # 2026.3
 
+- Share to Watch: Easily connect any Apple Watch to your Sonos system by generating a pairing code on your iPhone. Works with guest watches or when troubleshooting connection issues
 - Sleep Timer in Scenes: Add a sleep timer when creating a scene so playback automatically stops after a set duration
 - Mini player now hides automatically when editing a playlist, sliding back in when done
 - Fixed Clic Mini not scrolling when many speakers exceed screen height

@@ -93,6 +93,10 @@
 		E9F600C22B4E5E470039AAA6 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C12B4E5E470039AAA6 /* Nuke */; };
 		E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = E9F600C32B4E5E470039AAA6 /* NukeUI */; };
 		E9FFC29B2ACDCC490001B26F /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = E9FFC29A2ACDCC490001B26F /* OrderedCollections */; };
+		ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1C2F58A2AA00869F64 /* DropKit */; };
+		ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F1E2F58A2B000869F64 /* DropKit */; };
+		ED069F212F58A2B600869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F202F58A2B600869F64 /* DropKit */; };
+		ED069F232F58A2CE00869F64 /* DropKit in Frameworks */ = {isa = PBXBuildFile; productRef = ED069F222F58A2CE00869F64 /* DropKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -623,6 +627,7 @@
 				E92B3EEA2B60249B00724FA1 /* NukeUI in Frameworks */,
 				E9D49E4E2BC9D21B0084185E /* Analytics in Frameworks */,
 				017297652DD3C708003E7FFB /* Kingfisher in Frameworks */,
+				ED069F212F58A2B600869F64 /* DropKit in Frameworks */,
 				E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */,
 				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
 				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
@@ -657,6 +662,7 @@
 				E97563322B699B2400787E14 /* NukeUI in Frameworks */,
 				E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */,
 				E97563332B699B2400787E14 /* RevenueCatUI in Frameworks */,
+				ED069F1F2F58A2B000869F64 /* DropKit in Frameworks */,
 				E97563342B699B2400787E14 /* VibesDS in Frameworks */,
 				E97563352B699B2400787E14 /* SonosKit in Frameworks */,
 				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
@@ -701,6 +707,7 @@
 				E9F600C42B4E5E470039AAA6 /* NukeUI in Frameworks */,
 				E90F315E2BC4829500884EA5 /* Analytics in Frameworks */,
 				E96385FC2AD8E346005411BF /* RevenueCatUI in Frameworks */,
+				ED069F1D2F58A2AA00869F64 /* DropKit in Frameworks */,
 				E959B9212AB6B12D000D596E /* VibesDS in Frameworks */,
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
@@ -713,6 +720,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED069F232F58A2CE00869F64 /* DropKit in Frameworks */,
 				E959B91C2AB506BF000D596E /* CloudStorage in Frameworks */,
 				0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */,
 				E959B91F2AB65F3D000D596E /* VibesDS in Frameworks */,
@@ -876,6 +884,7 @@
 				E9D49E4D2BC9D21B0084185E /* Analytics */,
 				017297642DD3C708003E7FFB /* Kingfisher */,
 				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
+				ED069F202F58A2B600869F64 /* DropKit */,
 			);
 			productName = Sonos;
 			productReference = E92B3EFB2B60249B00724FA1 /* Clic.app */;
@@ -944,6 +953,7 @@
 				E90F315F2BC48ADD00884EA5 /* Analytics */,
 				0186D9492E674B47001387F1 /* FocusOnAppear */,
 				01A662752F27241E00C7524D /* Glur */,
+				ED069F1E2F58A2B000869F64 /* DropKit */,
 			);
 			productName = Sonos;
 			productReference = E97563432B699B2400787E14 /* Clic.app */;
@@ -1035,6 +1045,7 @@
 				E90F315D2BC4829500884EA5 /* Analytics */,
 				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
 				01A662732F27240E00C7524D /* Glur */,
+				ED069F1C2F58A2AA00869F64 /* DropKit */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -1064,6 +1075,7 @@
 				010DBB242C89605C000E278E /* Defaults */,
 				017008652D49DCB700416FD3 /* SonosKitMini */,
 				0155DC0A2D4D47EA00A452D4 /* Kingfisher */,
+				ED069F222F58A2CE00869F64 /* DropKit */,
 			);
 			productName = "SonosWatch Watch App";
 			productReference = E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */;
@@ -3493,6 +3505,22 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
 			productName = OrderedCollections;
+		};
+		ED069F1C2F58A2AA00869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F1E2F58A2B000869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F202F58A2B600869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
+		};
+		ED069F222F58A2CE00869F64 /* DropKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DropKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
