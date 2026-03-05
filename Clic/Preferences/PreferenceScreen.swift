@@ -258,6 +258,33 @@ struct PreferenceScreen: View {
                         }
                     }
                     .tint(.primary)
+
+                    Button {
+                        router.sheet(to: .shareToWatch)
+                    } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Share to Watch")
+                                Text("Connect Watch without network discovery")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "qrcode")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 0.95, green: 0.4, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                    .tint(.primary)
                 } header: {
                     HStack {
                         Text("Sonos")

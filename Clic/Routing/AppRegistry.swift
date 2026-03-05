@@ -198,6 +198,8 @@ extension View {
                         ReorderAppleLibrarySectionsView()
                     case .reorderSpotifyLibrarySections:
                         ReorderSpotifyLibrarySectionsView()
+                    case .shareToWatch:
+                        ShareToWatchView()
                     }
                 }
                 .withEnvironments()
