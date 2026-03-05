@@ -373,6 +373,7 @@ public final class AppleMusicAPI {
             return nil
         }
     }
+    
     public func lookupUsersNew(offset: Int = 0) async throws -> AppleLibraryContainer? {
         guard await requestMusicAuthorization() else { return nil }
 

@@ -51,6 +51,7 @@ extension AppleLibraryItem {
         public let releaseDate: String?
         public let artistName: String?
         public let contentRating: String?
+        public let isLive: Bool?
         
         public var releaseDateFormatted: String? {
             if let releaseDate {

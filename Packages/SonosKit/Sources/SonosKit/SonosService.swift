@@ -1753,7 +1753,7 @@ public final class SonosService {
     }
 
     private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, index: Int? = nil) async throws {
-        if [.favorite, .radio].contains(playable.content.type) {
+        if [.favorite, .radio, .liveRadio, .artistRadio, .songRadio].contains(playable.content.type) {
             try await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
         }

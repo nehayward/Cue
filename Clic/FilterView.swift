@@ -7,6 +7,7 @@ enum Filter: String, CaseIterable {
     case songs
     case albums
     case playlists
+    case radio
     case library
 
     var title: String {
@@ -23,6 +24,8 @@ enum Filter: String, CaseIterable {
             return [.album, .libraryAlbum]
         case .playlists:
             return [.playlist, .libraryPlaylist]
+        case .radio:
+            return [.radio, .liveRadio]
         case .library:
             return [.libraryAlbum, .libraryTrack, .libraryArtist, .libraryPlaylist]
         }
@@ -46,6 +49,8 @@ enum Filter: String, CaseIterable {
             return "music.mic"
         case .playlists:
             return "rectangle.stack.badge.play"
+        case .radio:
+            return "radio.fill"
         case .library:
             return librarySymbolName
         }
@@ -73,10 +78,11 @@ final class FilterSelection: Hashable, Identifiable {
     static var albums = FilterSelection(filter: .albums, isFiltered: false)
     static var playlists = FilterSelection(filter: .playlists, isFiltered: false)
     static var artist = FilterSelection(filter: .artist, isFiltered: false)
+    static var radio = FilterSelection(filter: .radio, isFiltered: false)
     static var library = FilterSelection(filter: .library, isFiltered: false)
 
     static var defaultFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist]
-    static var appleFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist, .library]
+    static var appleFilters: [FilterSelection] = [.songs, .albums, .playlists, .artist, .radio, .library]
     static var alarmFilters: [FilterSelection] = [.albums, .playlists]
 }
 

@@ -1,5 +1,6 @@
 # 2026.3
 
+- Apple Live Radio: Play Apple Music live radio stations (Apple Music 1, Apple Music Hits, Apple Music Country) directly on your Sonos speakers, with a new Radio filter in search
 - Share to Watch: Easily connect any Apple Watch to your Sonos system by generating a pairing code on your iPhone. Works with guest watches or when troubleshooting connection issues
 - Sleep Timer in Scenes: Add a sleep timer when creating a scene so playback automatically stops after a set duration
 - Mini player now hides automatically when editing a playlist, sliding back in when done

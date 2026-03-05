@@ -101,6 +101,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-sonosapi-stream:\(id)?sid=333&amp;flags=8232&amp;sn=14"
         case (.radio, .apple):
             return "x-sonosapi-radio:radio%3A\(id)?sid=204&amp;flags=32"
+        case (.liveRadio, .apple):
+            return "x-sonosapi-hls:hls%3A\(id)?sid=204&amp;flags=32"
         case (.libraryPlaylist, .apple):
             return "x-rincon-cpcontainer:1006206clibraryplaylist%3a\(id)?sid=204&amp;flags=8300&amp;sn=4"
         case (.track, .soundcloud):
@@ -254,6 +256,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case(.radio, .apple):
             return """
             &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="000c0020radio%3A\(id.encodeProgramURI)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(appleMusicServiceToken)&lt;/desc&gt;&lt;res&gt;x-sonosapi-radio:radio%3A\(id.encodeProgramURI)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+            """
+        case(.liveRadio, .apple):
+            return """
+            &lt;DIDL-Lite xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot; xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item id=&quot;00090120hls%3A\(id)&quot; parentID=&quot;(ignored)&quot; restricted=&quot;true&quot;&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id=&quot;cdudn&quot; nameSpace=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot;&gt;\(appleMusicServiceToken)&lt;/desc&gt;&lt;res&gt;x-sonosapi-hls:hls%3A\(id)?sid=204&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
             """
         case (.track, .soundcloud):
             return """

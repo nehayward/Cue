@@ -218,7 +218,9 @@ extension AppleLibraryItem {
         if let duration = attributes.durationInMillis {
             trackDuration = Duration.milliseconds(duration)
         }
-    
+
+        let resolvedType: ContentType = (attributes.isLive == true && contentType == .radio) ? .liveRadio : contentType
+
         return PlayableContent(
             title: name,
             subtitle:  [attributes.artistName, attributes.releaseDateFormatted].compactMap{ $0 }.joined(separator: " • "),
@@ -227,7 +229,7 @@ extension AppleLibraryItem {
             content: MediaContent(
                 service: .apple,
                 id: id.description,
-                type: contentType,
+                type: resolvedType,
                 location: nil
             ),
             metadata: .init(
