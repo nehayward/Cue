@@ -197,7 +197,6 @@ final class SonosTrackParser {
     }
     
     private static func checkForRadio(body: String, trackURI: String) -> Track? {
-        
         let streamContent = extractValue(between: "<r:streamContent>", and: "</r:streamContent>", from: body)
         
         guard let streamContent, !streamContent.isEmpty, streamContent != "ZPSTR_CONNECTING" else { return nil }
@@ -207,10 +206,17 @@ final class SonosTrackParser {
         
         var metadata: Track.Metadata = .init(ISRC: nil, openInURL: nil, contentType: contentType, stationID: nil)
         var musicService: MusicService = .unknown
+        var albumArtURL: URL?
         
         if body.lowercased().contains("tunein") {
             musicService = .tuneIn
             metadata.stationID = XMLParserSonos().parseStationID(from: body)
+        }
+        
+        if trackURI.contains("sid=204") || trackURI.contains("x-sonosapi-hls") {
+            if let artURI = extractValue(between: "<upnp:albumArtURI>", and: "</upnp:albumArtURI>", from: body.unescaped) {
+                albumArtURL = URL(string: artURI.unescaped)
+            }
         }
         
         if title.contains("ZPSTR_BUFFERING") {
@@ -223,6 +229,7 @@ final class SonosTrackParser {
             artist: artist,
             album: album,
             musicService: musicService,
+            sonosAlbumArtURL: albumArtURL,
             metadata: metadata
         )
     }
