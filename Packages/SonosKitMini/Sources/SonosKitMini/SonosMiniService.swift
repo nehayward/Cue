@@ -60,6 +60,7 @@ public final class SonosMiniService {
     }
     
     @ObservationIgnored lazy var streamingService = SonosStreamingService(eventHandler: self)
+    @ObservationIgnored var lastKnownGroupIDs: Set<String> = []
     
     public func updateHousehold() async throws {
         let newDevices = try await getDevices(useCache: true)
@@ -351,6 +352,7 @@ public final class SonosMiniService {
         try await updateWatchDevices(from: devices)
         
         let configs = devices.map { $0.toConfig(with: houseHoldID)}
+        lastKnownGroupIDs = Set(devices.map(\.groupID))
         await streamingService.addPlayers(configs)
         
     }

@@ -7,6 +7,7 @@
 - Mini player now hides automatically when editing a playlist, sliding back in when done
 - Fixed Clic Mini not scrolling when many speakers exceed screen height
 - Improved Mac performance: reduced CPU usage during window resizing, especially with the queue open
+- Fixed Clic Mini losing real-time updates when speakers are grouped or ungrouped
 
 # 2026.2
 
