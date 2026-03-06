@@ -17,55 +17,55 @@ public final class AppleMusicAPI {
     ///   - favorite: If true, marks the song as favorite. If false, removes favorite status
     /// - Throws: Error if the API request fails or if the song cannot be found
     public func updateFavoriteStatus(songId: String, favorite: Bool) async throws {
-        var id: String = songId
+        // Resolve to catalog ID if this is a library song
+        let catalogId: String
         if songId.hasPrefix("i") {
             guard let catalogSong = try? await librarySongCatalog(id: songId),
                   let song = catalogSong.data.first else {
                 return
             }
-            id = song.id
-            let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs/\(id)")!
-            var urlRequest = URLRequest(url: ratingURL)
-            
-            if favorite {
-                // Set favorite status with PUT
-                urlRequest.httpMethod = "PUT"
-                let body: [String: Any] = [
-                    "attributes": [
-                        "value": 1
-                    ],
-                    "type": "ratings"
-                ]
-                urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
-            } else {
-                // Remove favorite status with DELETE
-                urlRequest.httpMethod = "DELETE"
-            }
-            
-            let request = MusicDataRequest(urlRequest: urlRequest)
-            guard let response = try? await request.response() else {
-                return
-            }
-            print(String(decoding: response.data, as: UTF8.self))
+            catalogId = song.id
         } else {
-#if !targetEnvironment(macCatalyst) && !os(macOS)
-            let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(songId))
-            let response = try await request.response()
-            
-            if let song = response.items.first {
-                print(song.id.rawValue)
-                try await MusicLibrary.shared.add(song)
-                print("Song added to library successfully")
-            } else {
-                print("Song not found")
-            }
-#endif            
+            catalogId = songId
+        }
+
+        if favorite {
+            // Add song to library so it appears in Favorite Songs playlist
+            let libraryURL = URL(string: "https://api.music.apple.com/v1/me/library?ids[songs]=\(catalogId)")!
+            var libraryRequest = URLRequest(url: libraryURL)
+            libraryRequest.httpMethod = "POST"
+            _ = try? await MusicDataRequest(urlRequest: libraryRequest).response()
+
+            // Rate as favorite
+            let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs/\(catalogId)")!
+            var ratingRequest = URLRequest(url: ratingURL)
+            ratingRequest.httpMethod = "PUT"
+            let body: [String: Any] = [
+                "attributes": [
+                    "value": 1
+                ],
+                "type": "ratings"
+            ]
+            ratingRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+            _ = try? await MusicDataRequest(urlRequest: ratingRequest).response()
+        } else {
+            // Remove favorite rating
+            let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs/\(catalogId)")!
+            var ratingRequest = URLRequest(url: ratingURL)
+            ratingRequest.httpMethod = "DELETE"
+            _ = try? await MusicDataRequest(urlRequest: ratingRequest).response()
         }
     }
     
     public func isFavorite(songId: String) async throws -> Bool {
-        guard let catalogSong = try? await librarySongCatalog(id: songId), let id = catalogSong.data.first?.id else { return false }
-        let addToPlaylistURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs?ids=\(id)")!
+        let catalogId: String
+        if songId.hasPrefix("i") {
+            guard let catalogSong = try? await librarySongCatalog(id: songId), let song = catalogSong.data.first else { return false }
+            catalogId = song.id
+        } else {
+            catalogId = songId
+        }
+        let addToPlaylistURL = URL(string: "https://api.music.apple.com/v1/me/ratings/songs?ids=\(catalogId)")!
         let urlRequest = URLRequest(url: addToPlaylistURL)
         let request = MusicDataRequest(urlRequest: urlRequest)
         guard let response = try? await request.response() else { return false }
