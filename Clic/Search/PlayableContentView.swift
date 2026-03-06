@@ -16,7 +16,6 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false

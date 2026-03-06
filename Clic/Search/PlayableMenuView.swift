@@ -126,20 +126,11 @@ struct PlayableMenuView: View {
 
                 AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
-                // MARK: Add back
-//                #if !targetEnvironment(macCatalyst)
-//                if item.content.service == .apple {
-//                    Button {
-//                        Task {
-////                            try await AppleMusicAPI().favorite(songId: item.id, favorite: true)
-//                            try? await AppleMusicAPI().updateFavoriteStatus(songId: item.id, favorite: true)
-////                            isFavorite = try? await AppleMusicAPI().isFavorite(songId: group.coordinatorRoom.track.trackID)
-//                        }
-//                    } label: {
-//                        Label("Favorite in \(item.content.service.title)", systemImage: "heart.fill")
-//                    }
-//                }
-//                #endif
+
+                if [.spotify, .soundcloud, .apple].contains(item.content.service),
+                   [.track, .libraryTrack].contains(item.content.type) {
+                    FavoriteMenuButton(item: item)
+                }
             case .radio, .liveRadio, .favorite, .folder, .unique:
                 Button {
                     play()

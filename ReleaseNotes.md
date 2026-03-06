@@ -1,7 +1,7 @@
 # 2026.3
 
 - Apple Live Radio: Play Apple Music live radio stations (Apple Music 1, Apple Music Hits, Apple Music Country) directly on your Sonos speakers, with a new Radio filter in search
-- Favorite Songs: Favorite the currently playing song on Apple Music, Spotify, and SoundCloud directly from the player screen. Apple Music favorites are added to your Favorite Songs playlist and work on both iOS and Mac
+- Favorite Songs: Favorite songs on Apple Music, Spotify, and SoundCloud from the player screen or any track's context menu. Apple Music favorites are added to your Favorite Songs playlist and work on both iOS and Mac
 - Share to Watch: Easily connect any Apple Watch to your Sonos system by generating a pairing code on your iPhone. Works with guest watches or when troubleshooting connection issues
 - Sleep Timer in Scenes: Add a sleep timer when creating a scene so playback automatically stops after a set duration
 - Mini player now hides automatically when editing a playlist, sliding back in when done
