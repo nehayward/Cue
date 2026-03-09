@@ -13,13 +13,18 @@ extension SonosMiniService: SonosEventHandler {
     public func onVolumeUpdate(playerId: String, event: VolumeEvent) {
         guard let index = devices.firstIndex(where: { $0.id == playerId }) else { return }
 
-        if event.info.type == "groupVolume" {
+        if event.info.type == "groupVolume", !devices[index].isEditingVolume {
             if let groupVolume = event.volumeState?.volume {
                 updateDevice(devices[index], keyPath: \.groupVolume, value: Double(groupVolume))
             }
             if let isMuted = event.volumeState?.muted {
                 updateDevice(devices[index], keyPath: \.groupIsMuted, value: isMuted)
             }
+        }
+
+        if event.info.type == "playerVolume", let volumeState = event.volumeState {
+            updateSpeakerVolume(id: playerId, volume: volumeState.volume)
+            updateSpeakerMute(id: playerId, muted: volumeState.muted)
         }
     }
 
@@ -90,6 +95,7 @@ extension SonosMiniService: SonosEventHandler {
             }
 
             try await self.updateWatchDevices(from: self.devices)
+            await self.updateRoomVolumes()
 
             // Reconnect subscriptions when group topology changes
             // Playback/metadata/groupVolume subscriptions are tied to groupId

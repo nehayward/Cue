@@ -13,6 +13,7 @@ struct GroupItemView: View {
     @State private var miniSettingsService = MiniSettingsService.shared
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isHovering: Bool = false
+    @State private var showSpeakerVolumes: Bool = false
 
     var body: some View {
         //        let _ = Self._printChanges()
@@ -155,6 +156,34 @@ struct GroupItemView: View {
                     .transaction { transaction in
                         transaction.animation = nil
                     }
+
+                if !device.rooms.isEmpty {
+                    Button {
+                        withAnimation(.interactiveSpring) {
+                            showSpeakerVolumes.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hifispeaker.2.fill")
+                                .font(.caption2)
+                            Text("\(device.allDevices.count) speakers")
+                                .font(.caption)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .rotationEffect(.degrees(showSpeakerVolumes ? 90 : 0))
+                        }
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if showSpeakerVolumes {
+                        SpeakerVolumesView(device: device)
+                            .geometryGroup()
+                            .transition(.opacity)
+                    }
+                }
             }
             .padding(12)
             .background {
@@ -183,24 +212,20 @@ struct GroupItemView: View {
             Button {
                 Task {
                     await SonosMiniService.shared.ungroup(device: device)
-                    try? await Task.sleep(for: .milliseconds(500))
-                    try? await SonosMiniService.shared.load(useCache: false)
                 }
             } label: {
                 Label("Ungroup", systemImage: "hifispeaker.badge.minus.fill")
                     .symbolVariant(.slash)
             }
-            
+
             Divider()
         }
-        
+
         Menu {
             ForEach(availableDevicesToGroup) { availableDevice in
                 Button {
                     Task {
                         await SonosMiniService.shared.group(rooms: [availableDevice], to: device.id)
-                        try? await Task.sleep(for: .milliseconds(500))
-                        try? await SonosMiniService.shared.load(useCache: false)
                     }
                 } label: {
                     Text(availableDevice.name)

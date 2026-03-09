@@ -87,6 +87,43 @@ public final class SonosMiniService {
             devices[index][keyPath: keyPath] = value
         }
     }
+
+    /// Find a speaker by ID across all devices and their rooms
+    public func speaker(for id: String) -> SonosDevice? {
+        for device in devices {
+            if device.id == id { return device }
+            if let room = device.rooms.first(where: { $0.id == id }) { return room }
+        }
+        return nil
+    }
+
+    /// Update a speaker's volume by ID (coordinator or room member)
+    public func updateSpeakerVolume(id: String, volume: Int) {
+        // Update top-level device
+        if let i = devices.firstIndex(where: { $0.id == id }) {
+            if devices[i].volume != volume { devices[i].volume = volume }
+        }
+        // Also update any room copies inside other devices
+        for i in devices.indices {
+            if let j = devices[i].rooms.firstIndex(where: { $0.id == id }) {
+                if devices[i].rooms[j].volume != volume { devices[i].rooms[j].volume = volume }
+            }
+        }
+    }
+
+    /// Update a speaker's mute state by ID (coordinator or room member)
+    public func updateSpeakerMute(id: String, muted: Bool) {
+        // Update top-level device
+        if let i = devices.firstIndex(where: { $0.id == id }) {
+            if devices[i].isMuted != muted { devices[i].isMuted = muted }
+        }
+        // Also update any room copies inside other devices
+        for i in devices.indices {
+            if let j = devices[i].rooms.firstIndex(where: { $0.id == id }) {
+                if devices[i].rooms[j].isMuted != muted { devices[i].rooms[j].isMuted = muted }
+            }
+        }
+    }
     
     func updateZone(event: SonosZoneEvent) {
         if case let .addGroup(deviceID, newID) = event {
@@ -350,7 +387,8 @@ public final class SonosMiniService {
         
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
-        
+        await updateRoomVolumes()
+
         let configs = devices.map { $0.toConfig(with: houseHoldID)}
         lastKnownGroupIDs = Set(devices.map(\.groupID))
         await streamingService.addPlayers(configs)
@@ -1377,7 +1415,7 @@ public final class SonosMiniService {
     public func ungroup(device: SonosDevice) async {
         await api.ungroup(IP: device.ip)
     }
-    
+
     public func setDeviceVolume(ip: String, volume: Int) async {
         await api.setVolume(ipAddress: ip, volume: volume)
     }

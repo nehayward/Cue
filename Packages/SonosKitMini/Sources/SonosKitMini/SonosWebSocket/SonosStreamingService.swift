@@ -664,8 +664,8 @@ public final class SonosStreamingService {
         try await socket.seek(groupID: groupId, positionMillis: positionMillis)
     }
     
-    /// Gracefully disconnect all players without stopping the refresh timer (used during refresh)
-    private func gracefulDisconnectAll() async {
+    /// Gracefully disconnect all players without stopping the refresh timer
+    public func gracefulDisconnectAll() async {
         let playerIds = Array(connections.keys)
         
         await withTaskGroup(of: Void.self) { [weak self] group in
