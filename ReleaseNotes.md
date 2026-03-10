@@ -8,7 +8,11 @@
 - Fixed Clic Mini not scrolling when many speakers exceed screen height
 - Improved Mac performance: reduced CPU usage during window resizing, especially with the queue open
 - Clic Mini: Individual speaker volume controls and grouping/ungrouping directly from the menu bar
+
+–– Bug Fixes & Improvements ––
 - Fixed Clic Mini losing real-time updates when speakers are grouped or ungrouped
+- Fixed tracks not playing in the correct order when selecting a specific track from an album or playlist in shuffle mode
+- Play Next when swiping now only queues tracks
 
 # 2026.2
 
