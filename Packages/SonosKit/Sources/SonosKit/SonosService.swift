@@ -1753,6 +1753,11 @@ public final class SonosService {
     }
 
     private func queuePlayable(playable: PlayableContent, group: GroupRoom, position: QueuePosition = .now, index: Int? = nil) async throws {
+        if let index, index > 0, position != .next, !playable.content.type.isTrack, group.playMode != .normal {
+            await setPlayMode(group.ip, mode: .normal)
+            group.playMode = .normal
+        }
+
         if [.favorite, .radio, .liveRadio, .artistRadio, .songRadio].contains(playable.content.type) {
             try await api.setAVTransportContent(playableContent: playable, IP: group.ip)
             return
@@ -1773,8 +1778,10 @@ public final class SonosService {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
 
+        let shuffling = group.playMode.isShuffleEnabled
+
         if !queueActive {
-            try await api.queuePlayable(playableContent: playable, IP: group.ip, position: .front)
+            try await api.queuePlayable(playableContent: playable, IP: group.ip, position: .front, shuffling: shuffling)
             if let index, index > 0 {
                 let current = await api.getCurrentQueueIndex(ipAddress: group.ip)
                 await seek(trackNumber: current + index, on: group)
@@ -1785,9 +1792,9 @@ public final class SonosService {
         }
 
         let count = await api.getQueueCount(IP: group.ip)
-        try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position)
+        try await api.queuePlayable(playableContent: playable, IP: group.ip, position: position, shuffling: shuffling)
         
-        if let index, index > 0 {
+        if let index, index > 0, position == .now || position == .replace {
             let current = await api.getCurrentQueueIndex(ipAddress: group.ip)
             await seek(trackNumber: current + index, on: group)
             return
@@ -1804,6 +1811,9 @@ public final class SonosService {
     }
     
     public func replaceQueue(playable: PlayableContent, group: GroupRoom, index: Int = 0) async throws {
+        if index > 0, !playable.content.type.isTrack, group.playMode != .normal {
+            await setPlayMode(group.ip, mode: .normal)
+        }
         try await api.replaceQueue(playableContent: playable, IP: group.ip, index: index)
         await api.play(ipAddress: group.ip)
         try? await Task.sleep(for: .milliseconds(120))
@@ -1837,12 +1847,14 @@ public final class SonosService {
 
         let first = contents[0]
         let remainder = contents.dropFirst()
+        let shuffling = group.playMode.isShuffleEnabled
 
         // Play first item immediately
         try await api.queuePlayable(
             playableContent: first,
             IP: group.ip,
-            position: .now
+            position: .now,
+            shuffling: shuffling
         )
 
         // Activate transport
@@ -1857,7 +1869,8 @@ public final class SonosService {
             try await api.queuePlayable(
                 playableContent: content,
                 IP: group.ip,
-                position: .next
+                position: .next,
+                shuffling: shuffling
             )
         }
 
@@ -1889,11 +1902,12 @@ public final class SonosService {
             await api.removeAllTrackFromQueue(IP: group.ip)
         }
 
+        let shuffling = group.playMode.isShuffleEnabled
         let sequence = position == .next ? contents.reversed() : contents
         let enqueuePosition: QueuePosition = position == .replace ? .end : position
 
         for (index, content) in sequence.enumerated() {
-            try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition)
+            try await api.queuePlayable(playableContent: content, IP: group.ip, position: enqueuePosition, shuffling: shuffling)
 
             // Start playback as soon as the first item is queued
             if position == .now && index == 0 {
