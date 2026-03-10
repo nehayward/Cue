@@ -2202,7 +2202,7 @@ public final class SonosService {
         // Filter out portable models like Roam and Move
         let filteredRooms = sortedRooms.filter { room in
             guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-            let excludedModels = ["roam", "move"]
+            let excludedModels = ["roam", "move", "play"]
             return !excludedModels.contains { modelName.contains($0) }
         }
         
@@ -2218,7 +2218,7 @@ public final class SonosService {
     }
     
     func priorityDevice() -> Room? {
-        let excludedModels = ["roam", "move"]
+        let excludedModels = ["roam", "move", "play"]
         
         let allRooms = groups.flatMap(\.rooms)
         

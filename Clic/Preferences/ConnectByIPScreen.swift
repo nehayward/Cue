@@ -75,7 +75,7 @@ struct ConnectByIPScreen: View {
                      .buttonStyle(.bordered)
                      .tint(.accent)
 
-                     Text("Prefers wired devices, newer models, and excludes portable speakers like Roam or Move.")
+                     Text("Prefers wired devices, newer models, and excludes portable speakers like Roam, Move or Play.")
                          .font(.caption2)
                          .foregroundStyle(.secondary)
                          .multilineTextAlignment(.leading)

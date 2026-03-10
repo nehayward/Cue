@@ -2337,7 +2337,7 @@ public final class SonosMiniService {
         guard let room = devices.first(where: { $0.ethernetEnabled }) else {
             let filteredRooms = devices.filter { room in
                 guard let modelName = room.info?.modelDisplayName.lowercased() else { return false }
-                let notTheseModels = ["roam", "move"]
+                let notTheseModels = ["roam", "move", "play"]
                 return notTheseModels.filter { modelName.contains($0)}.count == 0
             }
             
