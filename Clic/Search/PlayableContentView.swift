@@ -16,6 +16,7 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -176,7 +177,7 @@ struct PlayableContentView: View {
         hideKeyboard()
         Task { @MainActor in
             let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, item, parent, index, total] group in
-                if let parent {
+                if let parent, position == nil {
                     let finalPosition = position ?? QueuePosition.defaultPosition(
                         for: parent.content.type,
                         replaceQueueByDefault: replaceQueueByDefault

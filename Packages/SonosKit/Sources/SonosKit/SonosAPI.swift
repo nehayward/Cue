@@ -515,26 +515,33 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func queuePlayable(playableContent: PlayableContent, IP: String, position: QueuePosition = .next) async throws {
+    func queuePlayable(playableContent: PlayableContent, IP: String, position: QueuePosition = .next, shuffling: Bool = false) async throws {
         var desiredFirstTrackNumberEnqueued: (String, Any) = ("DesiredFirstTrackNumberEnqueued", 1)
-        
+        var enqueueAsNext = 1
+
         switch position {
         case .front: break
         case .replace:
             break
         case .end:
             desiredFirstTrackNumberEnqueued.1 = 0
+            enqueueAsNext = 0
         case .now, .next:
-            let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
-            desiredFirstTrackNumberEnqueued.1  = index + 1
+            if shuffling {
+                desiredFirstTrackNumberEnqueued.1 = ""
+                enqueueAsNext = 1
+            } else {
+                let index = await getCurrentTrack(ipAddress: IP)?.position ?? 1
+                desiredFirstTrackNumberEnqueued.1 = index + 1
+            }
         }
-            
+
         let arguments: OrderedKeys = [
             ("InstanceID", 0),
             ("EnqueuedURI", playableContent.uri),
             ("EnqueuedURIMetaData", playableContent.URIMetadata),
             desiredFirstTrackNumberEnqueued,
-            ("EnqueueAsNext", 1)
+            ("EnqueueAsNext", enqueueAsNext)
         ]
 
         guard let (data, response) = try await sendQueueSoapRequest(ip: IP, action: "AddURIToQueue", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
