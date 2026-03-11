@@ -123,7 +123,7 @@ extension View {
 
     @ViewBuilder
     func sectionIndex(_ label: String) -> some View {
-        if #available(iOS 26.0, macCatalyst 26.0, *) {
+        if #available(iOS 26.0, macCatalyst 26.0, visionOS 26.0, *) {
             self.sectionIndexLabel(label)
         } else {
             self
@@ -132,10 +132,14 @@ extension View {
     
     @ViewBuilder
     func scrollEdgeEffectHidden26(_ hidden: Bool = true) -> some View {
+        #if !os(visionOS)
         if #available(iOS 26.0, macCatalyst 26.0, *) {
             self.scrollEdgeEffectHidden(hidden, for: .top)
         } else {
             self
         }
+        #else
+        self
+        #endif
     }
 }

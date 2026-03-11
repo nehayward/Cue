@@ -20,6 +20,7 @@
 		0186C9692DD83E34009F8A66 /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = 0186C9682DD83E34009F8A66 /* Nuke */; };
 		0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D9492E674B47001387F1 /* FocusOnAppear */; };
 		0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 0186D94B2E674B4F001387F1 /* FocusOnAppear */; };
+		01A1F8882F61075600C0D52B /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A1F8872F61075600C0D52B /* Glur */; };
 		01A662742F27240E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662732F27240E00C7524D /* Glur */; };
 		01A662762F27241E00C7524D /* Glur in Frameworks */ = {isa = PBXBuildFile; productRef = 01A662752F27241E00C7524D /* Glur */; };
 		01AB21442DD0F9B1004BFEE4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 01AB21432DD0F9B1004BFEE4 /* Kingfisher */; };
@@ -630,6 +631,7 @@
 				ED069F212F58A2B600869F64 /* DropKit in Frameworks */,
 				E92B3EEB2B60249B00724FA1 /* RevenueCatUI in Frameworks */,
 				E92B3EEC2B60249B00724FA1 /* VibesDS in Frameworks */,
+				01A1F8882F61075600C0D52B /* Glur in Frameworks */,
 				E92B3EED2B60249B00724FA1 /* SonosKit in Frameworks */,
 				E92B3EEE2B60249B00724FA1 /* CloudStorage in Frameworks */,
 				0186D94C2E674B4F001387F1 /* FocusOnAppear in Frameworks */,
@@ -885,6 +887,7 @@
 				017297642DD3C708003E7FFB /* Kingfisher */,
 				0186D94B2E674B4F001387F1 /* FocusOnAppear */,
 				ED069F202F58A2B600869F64 /* DropKit */,
+				01A1F8872F61075600C0D52B /* Glur */,
 			);
 			productName = Sonos;
 			productReference = E92B3EFB2B60249B00724FA1 /* Clic.app */;
@@ -3266,6 +3269,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */;
 			productName = FocusOnAppear;
+		};
+		01A1F8872F61075600C0D52B /* Glur */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */;
+			productName = Glur;
 		};
 		01A662732F27240E00C7524D /* Glur */ = {
 			isa = XCSwiftPackageProductDependency;
