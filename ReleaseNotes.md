@@ -1,3 +1,12 @@
+# 2026.4
+
+–– Bug Fixes & Improvements ––
+- Spotify Library: Playlists now navigate to playlist detail instead of playing immediately
+- Spotify Library: Albums and Liked Songs lists no longer show unnecessary alphabetical section index
+- Spotify Library: "See All" for Playlists now navigates to the full playlist browser
+- Improved list pagination: next page loads earlier as you scroll, instead of waiting until the very last item
+- Removed loading overlay on playable lists for smoother, faster navigation
+
 # 2026.3
 
 - Apple Live Radio: Play Apple Music live radio stations (Apple Music 1, Apple Music Hits, Apple Music Country) directly on your Sonos speakers, with a new Radio filter in search

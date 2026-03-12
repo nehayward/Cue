@@ -10,11 +10,11 @@ import VibesDS
 
 struct PlayableListView: View {
     @State private var isLoading: Bool = false
-    @State private var isFirstLoadEmpty: Bool = false
+    @State private var hasReachedEnd: Bool = false
     @State var items: OrderedSet<PlayableContent> = []
-    @State private var loadingTask: Task<Void, Never>?
 
     var playAllItem: PlayableContent? = nil
+    var showSectionIndex: Bool = true
     var action: ((Int) async -> ([PlayableContent]))? = nil
 
     var body: some View {
@@ -25,45 +25,40 @@ struct PlayableListView: View {
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)
-        .tint(.primary)
         .task {
-            loadingTask?.cancel()
-            loadingTask = Task {
-                await initialLoad()
-            }
-        }
-        .onDisappear {
-            loadingTask?.cancel()
-        }
-        .overlay {
-            if isLoading && items.isEmpty {
-                ProgressView()
-                    .padding()
-                    .background(.thickMaterial)
-                    .clipShape(Circle())
-            }
+            await initialLoad()
         }
     }
 
     @ViewBuilder
     private var contentSection: some View {
-        ForEach(groupedItems.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedItems[letter] ?? []) { item in
-                    PlayableContentView(item: item)
-                        .onAppear {
-                            // Only trigger when this is the last item and we haven't reached the end
-                            if item == items.last, !isLoading, !isFirstLoadEmpty {
-                                loadingTask?.cancel()
-                                loadingTask = Task {
-                                    await loadMore()
-                                }
-                            }
-                        }
+        if showSectionIndex {
+            ForEach(groupedItems.keys.sorted(), id: \.self) { letter in
+                Section(header: Text(letter)) {
+                    ForEach(groupedItems[letter] ?? []) { item in
+                        playableRow(item: item)
+                    }
+                }
+                .sectionIndex(letter)
+            }
+        } else {
+            ForEach(items) { item in
+                playableRow(item: item)
+            }
+        }
+    }
+
+    private func playableRow(item: PlayableContent) -> some View {
+        PlayableContentView(item: item)
+            .onAppear {
+                guard !isLoading, !hasReachedEnd,
+                      let index = items.firstIndex(of: item),
+                      index >= items.count - 10
+                else { return }
+                Task {
+                    await loadMore()
                 }
             }
-            .sectionIndex(letter)
-        }
     }
 
     // MARK: - Alphabetical Grouping
@@ -88,13 +83,10 @@ struct PlayableListView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let newItems = await action?(0) else { return }
-        
-        // Check if task was cancelled
-        guard !Task.isCancelled else { return }
+        guard let newItems = await action?(0), !Task.isCancelled else { return }
 
         if newItems.isEmpty {
-            isFirstLoadEmpty = true
+            hasReachedEnd = true
         } else {
             items.append(contentsOf: newItems)
         }
@@ -105,16 +97,12 @@ struct PlayableListView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let newItems = await action?(items.count) else { return }
-        
-        // Check if task was cancelled
-        guard !Task.isCancelled else { return }
+        guard let newItems = await action?(items.count), !Task.isCancelled else { return }
 
         if newItems.isEmpty {
-            isFirstLoadEmpty = true
-            return
+            hasReachedEnd = true
+        } else {
+            items.append(contentsOf: newItems)
         }
-        
-        items.append(contentsOf: newItems)
     }
 }

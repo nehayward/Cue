@@ -13,6 +13,7 @@ struct SpotifyLibraryScreen: View {
     
     @Environment(MusicSearchService.self) private var musicSearchService
     @Environment(SpotifyBrowseService.self) private var spotifyBrowseService
+    @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     
     @State private var router = Router.browse
     @State private var isLoading = true
@@ -129,7 +130,7 @@ struct SpotifyLibraryScreen: View {
                             .padding(.bottom, 12)
                     }
                 } header: {
-                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Songs", playAllItem: .spotifyLikes, action: { offset in
+                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Songs", playAllItem: .spotifyLikes, showSectionIndex: false, action: { offset in
                         await spotifyBrowseService.updateSongs()
                         return Array(spotifyBrowseService.tracks)
                     })) {
@@ -174,8 +175,7 @@ struct SpotifyLibraryScreen: View {
                     .scrollIndicators(.hidden)
                     .scrollClipDisabled()
                 } header: {
-                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", action: { offset in
-                        print(offset)
+                    NavigationLink(value: RouterDestination.playableList(title: "Spotify Albums", showSectionIndex: false, action: { offset in
                         await spotifyBrowseService.userAlbums()
                         return Array(spotifyBrowseService.albums)
                     })) {
@@ -205,7 +205,10 @@ struct SpotifyLibraryScreen: View {
             }
             if !spotifyBrowseService.playlists.isEmpty {
                 ForEach(spotifyBrowseService.playlists.prefix(10)) { item in
-                    PlayableContentView(item: item)
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
+                        PlayableContentView(item: item)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
         }
