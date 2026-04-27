@@ -80,45 +80,43 @@ struct GroupScreen: View {
                 .listRowBackground(Color.clear)
 
                 ForEach(sortedActiveRooms) { room in
-                    if let index = sonosService.sortedRooms.firstIndex(where: { $0.id == room.id }) {
-                        VStack(spacing: 0) {
-                            Button {
-                                HapticManager.shared.fireHaptic(.selection)
-                                addGroup(id: room.id)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(room.name)
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
+                    VStack(spacing: 0) {
+                        Button {
+                            HapticManager.shared.fireHaptic(.selection)
+                            addGroup(id: room.id)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(room.name)
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
 
-                                        if !room.track.name.isEmpty {
-                                            Text(room.track.name)
-                                                .font(.caption)
-                                                .lineLimit(1)
-                                                .foregroundStyle(room.isPlaying ? .accent : .secondary)
-                                        }
+                                    if !room.track.name.isEmpty {
+                                        Text(room.track.name)
+                                            .font(.caption)
+                                            .lineLimit(1)
+                                            .foregroundStyle(room.isPlaying ? .accent : .secondary)
                                     }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                                        .contentTransition(.symbolEffect(.replace))
-                                        .font(.title2)
-                                        .opacity(isSelected(room) ? 1 : 0.8)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .foregroundStyle(.primary)
-                                .fontDesign(.rounded)
-                                .padding(.horizontal)
-                                .padding(.vertical, 10)
-                                .contentShape(Rectangle())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
+                                    .contentTransition(.symbolEffect(.replace))
+                                    .font(.title2)
+                                    .opacity(isSelected(room) ? 1 : 0.8)
                             }
-                            .buttonStyle(.plain)
-                            RoomVolumeView(room: $sonosService.sortedRooms[index], delayDrag: true)
-                                .foregroundStyle(.primary)
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(.primary)
+                            .fontDesign(.rounded)
+                            .padding(.horizontal)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
                         }
-                        .listRowBackground(selections.contains(room.id) ? backgroundShape : nil)
-                        .listRowInsets(EdgeInsets())
+                        .buttonStyle(.plain)
+                        RoomVolumeView(room: room, delayDrag: true)
+                            .foregroundStyle(.primary)
                     }
+                    .listRowBackground(selections.contains(room.id) ? backgroundShape : nil)
+                    .listRowInsets(EdgeInsets())
                 }
                 VStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: 2) {

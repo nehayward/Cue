@@ -17,12 +17,12 @@ struct GroupVolumeControlView: View {
             VolumeControlView(group: group)
                 .frame(height: 40)
             VStack {
-                ForEach($group.rooms) { $room in
+                ForEach(group.rooms) { room in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(room.name)
                             .fontDesign(.rounded)
                             .bold()
-                        RoomVolumeView(room: $room) {
+                        RoomVolumeView(room: room) {
                             volumeTask?.cancel()
                             volumeTask = Task {
                                 try await Task.sleep(for: .milliseconds(300))

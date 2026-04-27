@@ -95,6 +95,6 @@ struct VolumeControlRoomView: View {
 }
 
 #Preview {
-    RoomVolumeView(room: .constant(.gym))
+    RoomVolumeView(room: .gym)
         .environment(SonosService.shared)
 }

@@ -5,15 +5,15 @@ import VibesDS
 struct RoomVolumeView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
 
-    @Binding var room: Room
+    @Bindable var room: Room
     @State private var isEditing: Bool = false
     @State private var volumeTask: Task<Void, Error>?
     var updatedVolume: (() -> Void)? = nil
 
     private let delayDrag: Bool
 
-    init(room: Binding<Room>, delayDrag: Bool = false, updatedVolume: (() -> Void)? = nil) {
-        self._room = room
+    init(room: Room, delayDrag: Bool = false, updatedVolume: (() -> Void)? = nil) {
+        self.room = room
         self.delayDrag = delayDrag
         self.updatedVolume = updatedVolume
     }
@@ -101,6 +101,6 @@ struct RoomVolumeView: View {
 }
 
 #Preview {
-    RoomVolumeView(room: .constant(.gym))
+    RoomVolumeView(room: .gym)
         .environment(SonosService.shared)
 }

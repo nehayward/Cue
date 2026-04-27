@@ -15,7 +15,8 @@ struct PlexLibraryFilterView: View {
 
     var body: some View {
         Menu {
-            ForEach($plexLibrariesFilters) { $library in
+            ForEach(plexLibrariesFilters) { library in
+                @Bindable var library = library
                 Toggle(isOn: $library.isFiltered) {
                     Text(library.filter.name)
                 }

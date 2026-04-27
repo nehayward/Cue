@@ -12,50 +12,56 @@ struct AlarmListView: View {
     var body: some View {
         List {
             ForEach(sonosService.sortedRooms) { room in
-                if alarms.contains(where: { $0.roomID == room.id }) {
+                let roomAlarms = alarms.filter { $0.roomID == room.id }
+                if !roomAlarms.isEmpty {
                     Section(room.name) {
-                        ForEach($alarms) { $alarm in
-                            if alarm.roomID == room.id {
-                                NavigationLink(value: RouterDestination.editAlarm(alarm: alarm)) {
-                                    VStack {
-                                        HStack(alignment: .center) {
-                                            VStack(alignment: .leading) {
-                                                Text(alarm.startTime, format: .dateTime.hour().minute())
-                                                    .bold()
-                                                Text(alarm.schedule.sorted(by: { $0.order < $1.order }).map(\.shortTitle).joined(separator: ", "))
-                                                if let content = sonosService.parseAlarmClockInfo(uri: alarm.programURI, metadataXML: alarm.programMetaData) {
-                                                    Text(content.title)
-                                                        .foregroundStyle(.secondary)
+                        ForEach(roomAlarms) { alarm in
+                            let enabledBinding = Binding<Bool>(
+                                get: { alarms.first(where: { $0.id == alarm.id })?.enabled ?? alarm.enabled },
+                                set: { newValue in
+                                    guard let i = alarms.firstIndex(where: { $0.id == alarm.id }) else { return }
+                                    alarms[i].enabled = newValue
+                                }
+                            )
+                            NavigationLink(value: RouterDestination.editAlarm(alarm: alarm)) {
+                                VStack {
+                                    HStack(alignment: .center) {
+                                        VStack(alignment: .leading) {
+                                            Text(alarm.startTime, format: .dateTime.hour().minute())
+                                                .bold()
+                                            Text(alarm.schedule.sorted(by: { $0.order < $1.order }).map(\.shortTitle).joined(separator: ", "))
+                                            if let content = sonosService.parseAlarmClockInfo(uri: alarm.programURI, metadataXML: alarm.programMetaData) {
+                                                Text(content.title)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                        Toggle("Enabled", isOn: enabledBinding)
+                                            .labelsHidden()
+                                            .onChange(of: enabledBinding.wrappedValue) {
+                                                guard let updated = alarms.first(where: { $0.id == alarm.id }) else { return }
+                                                Task {
+                                                    await sonosService.editAlarm(alarm: updated, content: nil)
                                                 }
                                             }
-                                            Spacer()
-                                            Toggle("Enabled", isOn: $alarm.enabled)
-                                                .labelsHidden()
-                                                .onChange(of: alarm.enabled) {
-                                                    Task {
-                                                        await sonosService.editAlarm(alarm: alarm, content: nil)
-                                                    }
-                                                }
-                                        }
-                                        HStack {
-                                            VibeSlider(value: .constant(alarm.volume))
-                                                .foregroundStyle(.accent)
-                                                .disabled(true)
-                                            Text(alarm.volume, format: .number) + Text("%")
-                                        }
                                     }
-                                    .fontDesign(.rounded)
-                                    .swipeActions {
-                                        Button(role: .destructive) {
-                                            Task {
-                                                await sonosService.deleteAlarm(alarm: alarm)
-                                                alarms.removeAll { searchAlarm in
-                                                    searchAlarm == alarm
-                                                }
-                                            }
-                                        } label: {
-                                            Label("Delete", systemImage: "trash.fill")
+                                    HStack {
+                                        VibeSlider(value: .constant(alarm.volume))
+                                            .foregroundStyle(.accent)
+                                            .disabled(true)
+                                        Text(alarm.volume, format: .number) + Text("%")
+                                    }
+                                }
+                                .fontDesign(.rounded)
+                                .swipeActions {
+                                    Button(role: .destructive) {
+                                        let alarmToDelete = alarm
+                                        alarms.removeAll { $0.id == alarmToDelete.id }
+                                        Task {
+                                            await sonosService.deleteAlarm(alarm: alarmToDelete)
                                         }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash.fill")
                                     }
                                 }
                             }

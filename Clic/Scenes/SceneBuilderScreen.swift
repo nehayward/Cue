@@ -25,7 +25,7 @@ struct SceneBuilderScreen: View {
             Section {
                 TextField("Scene Name", text: $scene.name)
                 NavigationLink {
-                   RoomSpeakerScreen(scene: $scene, selections: $selections, rooms: $rooms)
+                   RoomSpeakerScreen(scene: $scene, selections: $selections, rooms: rooms)
                 } label: {
                     VStack(alignment: .leading) {
                         ForEach(scene.rooms) { room in
@@ -225,7 +225,7 @@ struct SceneBuilderScreen: View {
         }
         .sheet(isPresented: $showSpeakers) {
             NavigationStack {
-                RoomSpeakerScreen(scene: $scene, selections: $selections, rooms: $rooms)
+                RoomSpeakerScreen(scene: $scene, selections: $selections, rooms: rooms)
             }
         }
         .presentationSizingiOS18()
@@ -244,14 +244,14 @@ fileprivate struct RoomSpeakerScreen: View {
     var isEditing: Bool = false
     @Binding var scene: SonosScene
     @Binding var selections: Set<String>
-    @Binding var rooms: [Room]
+    let rooms: [Room]
     
     @State private var groupVolume: Double = 0.0
     @State private var groupVolumeTask: Task<Void,Error>?
     
     var body: some View {
         List {
-            ForEach($rooms) { $room in
+            ForEach(rooms) { room in
                 VStack(spacing: 8) {
                     Button {
                         HapticManager.shared.fireHaptic(.selection)
@@ -287,7 +287,7 @@ fileprivate struct RoomSpeakerScreen: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    RoomVolumeView(room: $room, delayDrag: true)
+                    RoomVolumeView(room: room, delayDrag: true)
                         .foregroundStyle(.primary)
                 }
                 .listRowBackground(selections.contains(room.id) ? RoundedRectangle(cornerRadius: 12)

@@ -19,23 +19,23 @@ struct VolumeControlsScreen: View {
         
         ScrollView {
             VStack {
-                if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-                    ForEach($sonosService.sorted[groupID].rooms) { $room in
+                if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
+                    ForEach(sonosService.sorted[groupIndex].rooms) { room in
                         VStack(alignment: .leading, spacing: 0) {
                             Text(room.name)
                                 .fontWeight(.semibold)
                                 .fontDesign(.rounded)
                                 .padding(.leading)
-                            RoomVolumeView(room: $room) {
+                            RoomVolumeView(room: room) {
                                 volumeTask?.cancel()
                                 volumeTask = Task {
-                                    sonosService.sorted[groupID].isEditingVolume = true
-                                    if let volume = try? await sonosService.getGroupVolume(ip: sonosService.sorted[groupID].ip), volume != sonosService.sorted[groupID].groupVolume {
-                                        sonosService.sorted[groupID].groupVolume = volume
+                                    sonosService.sorted[groupIndex].isEditingVolume = true
+                                    if let volume = try? await sonosService.getGroupVolume(ip: sonosService.sorted[groupIndex].ip), volume != sonosService.sorted[groupIndex].groupVolume {
+                                        sonosService.sorted[groupIndex].groupVolume = volume
                                     }
                                     try? await Task.sleep(for: .milliseconds(400), tolerance: .milliseconds(100))
-                                    await sonosService.snapShotGroup(ip: sonosService.sorted[groupID].coordinatorRoom.ip)
-                                    sonosService.sorted[groupID].isEditingVolume = false
+                                    await sonosService.snapShotGroup(ip: sonosService.sorted[groupIndex].coordinatorRoom.ip)
+                                    sonosService.sorted[groupIndex].isEditingVolume = false
                                 }
                             }
                         }
@@ -47,14 +47,14 @@ struct VolumeControlsScreen: View {
         }
         .padding([.top, .horizontal])
         .safeArea(edge: .bottom) {
-            if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
+            if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
                 Button {
                     syncVolumes()
                 } label: {
                     VStack {
                         Text("Sync")
                             .fontWeight(.semibold)
-                        Text("Set all to \(Int(sonosService.sorted[groupID].groupVolume))")
+                        Text("Set all to \(Int(sonosService.sorted[groupIndex].groupVolume))")
                             .font(.caption.smallCaps())
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -72,8 +72,8 @@ struct VolumeControlsScreen: View {
     }
     
     private func syncVolumes() {
-        if let groupID = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
-            let group = sonosService.sorted[groupID]
+        if let groupIndex = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }){
+            let group = sonosService.sorted[groupIndex]
             for room in group.rooms {
                 Task {
                     await sonosService.setDeviceVolume(ip: room.ip, volume: Int(group.groupVolume))

@@ -96,8 +96,8 @@ struct FilterView: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                ForEach($filters) { $filter in
-                    FilterButton(filter: $filter, animation: animation)
+                ForEach(filters) { filter in
+                    FilterButton(filter: filter, animation: animation)
                 }
             }
             .scrollTargetLayout()
@@ -133,7 +133,7 @@ struct FilterView: View {
 }
 
 struct FilterButton: View {
-    @Binding var filter: FilterSelection
+    @Bindable var filter: FilterSelection
     let animation: Namespace.ID
     
     @State private var isHovered = false
