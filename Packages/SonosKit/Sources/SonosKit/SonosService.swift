@@ -264,33 +264,37 @@ public final class SonosService {
         var refreshGroup: Bool = false
 
         // MARK: Update Battery Info And Other Room Information
+        // Capture class references rather than holding array indices across `await`s —
+        // `groups` (and `group.rooms`) can be replaced or shrunk by other @MainActor work
+        // during suspensions, leaving stale indices that crash with Array out-of-range.
         for updateGroup in newGroup {
-            guard let index = groups.firstIndex(of: updateGroup) else { continue }
-            groups[index].coordinatorRoom.ethernetEnabled = updateGroup.coordinatorRoom.ethernetEnabled
-            groups[index].coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
-            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+            guard let group = groups.first(where: { $0.coordinatorID == updateGroup.coordinatorID }) else { continue }
+            group.coordinatorRoom.ethernetEnabled = updateGroup.coordinatorRoom.ethernetEnabled
+            group.coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
+            group.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
 
             // MARK: Fetch sleep timer for each group
-            if updateGroup.coordinatorRoom.state == .active, groups[index].coordinatorRoom.sleepTimer == nil{
-                groups[index].coordinatorRoom.sleepTimer = await api.getSleepTimer(IP: updateGroup.coordinatorRoom.ip)
+            if updateGroup.coordinatorRoom.state == .active, group.coordinatorRoom.sleepTimer == nil {
+                group.coordinatorRoom.sleepTimer = await api.getSleepTimer(IP: updateGroup.coordinatorRoom.ip)
             }
 
-            if groups[index].coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
+            if group.coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
                 // MARK: Update all rooms Info.
-                groups[index].coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
+                group.coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
             }
 
-            for roomIndex in groups[index].rooms.indices {
-                if groups[index].rooms[roomIndex].info == nil, updateGroup.coordinatorRoom.state == .active {
-                    groups[index].rooms[roomIndex].info = await api.deviceInfo(IP: groups[index].rooms[roomIndex].ip)
+            for room in group.rooms {
+                if room.info == nil, updateGroup.coordinatorRoom.state == .active {
+                    room.info = await api.deviceInfo(IP: room.ip)
                 }
 
-                guard !groups[index].rooms[roomIndex].settings.isSet else {
+                guard !room.settings.isSet else {
                     continue
                 }
-                groups[index].rooms[roomIndex].settings = await getSpeakerSettings(room: groups[index].rooms[roomIndex])
+                room.settings = await getSpeakerSettings(room: room)
             }
         }
+        
 
         if !newGroup.isEmpty, Set(newGroup) != Set(groups), !isGrouping {
             await updateGroupsRooms(from: newGroup)
@@ -1474,18 +1478,13 @@ public final class SonosService {
         }
     }
 
+    @MainActor
     public func pause(ip: String) async {
-        let groupIndex = groups.firstIndex { group in
-            group.coordinatorRoom.ip == ip
-        }
-
-        if let groupIndex {
-            for (index, _) in groups[groupIndex].rooms.enumerated() {
-                Task { @MainActor in
-                    groups[groupIndex].rooms[index].isPlaying = false
-                    groups[groupIndex].coordinatorRoom.isPlaying = false
-                }
+        if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
+            for room in group.rooms {
+                room.isPlaying = false
             }
+            group.coordinatorRoom.isPlaying = false
         }
 
         isEditing = true
@@ -1494,18 +1493,13 @@ public final class SonosService {
         isEditing = false
     }
 
+    @MainActor
     public func play(ip: String) async {
-        let groupIndex = groups.firstIndex { room in
-            room.coordinatorRoom.ip == ip
-        }
-
-        if let groupIndex {
-            Task { @MainActor in
-                for (index, _) in groups[groupIndex].rooms.enumerated() {
-                    groups[groupIndex].rooms[index].isPlaying = true
-                    groups[groupIndex].coordinatorRoom.isPlaying = true
-                }
+        if let group = groups.first(where: { $0.coordinatorRoom.ip == ip }) {
+            for room in group.rooms {
+                room.isPlaying = true
             }
+            group.coordinatorRoom.isPlaying = true
         }
         isEditing = true
         await api.play(ipAddress: ip)

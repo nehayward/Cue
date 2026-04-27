@@ -8,6 +8,8 @@
 - Removed loading overlay on playable lists for smoother, faster navigation
 - Plex Search: Playlists now appear in search results when a library filter is active
 - Fixed a rare crash that could occur when adjusting room volume, using filters, or deleting alarms
+- Fixed a long-standing crash that could occur during background speaker updates, especially when groups changed while the app was loading status
+- Play/Pause buttons now respond instantly with optimistic UI updates instead of waiting for the network round-trip
 
 # 2026.3
 
