@@ -8,7 +8,10 @@
       "Bash(find:*)",
       "WebFetch(domain:kean-docs.github.io)",
       "WebSearch",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(grep -rn 'ForEach\\(\\\\$' --include=\"*.swift\" Clic/)",
+      "Bash(xcrun xctrace *)",
+      "Read(//tmp/**)"
     ],
     "deny": []
   }
