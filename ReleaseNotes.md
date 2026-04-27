@@ -6,6 +6,8 @@
 - Spotify Library: "See All" for Playlists now navigates to the full playlist browser
 - Improved list pagination: next page loads earlier as you scroll, instead of waiting until the very last item
 - Removed loading overlay on playable lists for smoother, faster navigation
+- Plex Search: Playlists now appear in search results when a library filter is active
+- Fixed a rare crash that could occur when adjusting room volume, using filters, or deleting alarms
 
 # 2026.3
 

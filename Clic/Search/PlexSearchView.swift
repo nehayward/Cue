@@ -31,10 +31,12 @@ struct PlexSearchView: View {
         // Start with all results
         var results = plexResults
         
-        // Apply library filters if any are active
+        // Apply library filters if any are active.
+        // Playlists span libraries and have no librarySectionID, so they bypass the filter.
         if !filteredLibraryIDs.isEmpty {
-            results = results.filter {
-                guard let id = $0.metadata?.librarySectionID else { return false }
+            results = results.filter { item in
+                if item.content.type == .playlist { return true }
+                guard let id = item.metadata?.librarySectionID else { return false }
                 return filteredLibraryIDs.contains(id)
             }
         }
