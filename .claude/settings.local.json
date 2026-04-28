@@ -11,7 +11,9 @@
       "Bash(git reset:*)",
       "Bash(grep -rn 'ForEach\\(\\\\$' --include=\"*.swift\" Clic/)",
       "Bash(xcrun xctrace *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(/Users/nick/.claude/skills/swiftui-trace-analyzer/scripts/analyze-swiftui-trace.py *)",
+      "Bash(swift build *)"
     ],
     "deny": []
   }

@@ -49,8 +49,8 @@ struct PlayableContentView: View {
     }
     
     var body: some View {
-        //        let _ = Self._printChanges()
-        //        let _ = print("\(item.title) update")
+//        let _ = Self._printChanges()
+//        let _ = print("\(item.title) update")
         VStack {
             if shouldShowPlainContent {
                 content
