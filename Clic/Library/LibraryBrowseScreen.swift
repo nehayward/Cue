@@ -8,7 +8,6 @@ import OrderedCollections
 import SwiftUI
 import SonosKit
 import Defaults
-import TipKit
 
 struct LibraryBrowseScreen: View {
     @Environment(\.dismiss) var dismiss
@@ -116,5 +115,6 @@ struct LibraryBrowseScreen: View {
 #Preview {
     LibraryBrowseScreen()
         .withEnvironments()
+        .environment(SelectedGroupService())
 }
 

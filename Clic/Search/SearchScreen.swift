@@ -694,7 +694,13 @@ private struct SearchSuggestionsBar: View {
     }
 }
 
-#Preview {
-    SearchScreen()
-        .environment(SonosService.shared)
+#Preview("Empty") {
+    UserDefaults.standard.set(MediaSearchService.apple.rawValue, forKey: AppStorageKeys.mediaService)
+    let searchRouter = Router.search
+    let selectedGroupService = SelectedGroupService(group: .theater)
+
+    return SearchScreen()
+        .environment(searchRouter)
+        .environment(selectedGroupService)
+        .withEnvironments()
 }
