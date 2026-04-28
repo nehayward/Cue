@@ -1,11 +1,7 @@
-import CloudStorage
 import MusicSearchKit
 import Defaults
-import MusicKit
-import OrderedCollections
 import SwiftUI
 import SonosKit
-import Defaults
 
 struct AppleMusicSearchScreen: View {
     @Environment(\.dismiss) private var dismiss
@@ -15,7 +11,7 @@ struct AppleMusicSearchScreen: View {
 
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
 
-    var appleSearchResults: [PlayableContent]
+    var results: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var group: GroupRoom?
@@ -24,21 +20,11 @@ struct AppleMusicSearchScreen: View {
         Group {
             switch appleMusicAuthorized {
             case .authorized:
-                let filteredResults = filters.filter(\.isFiltered).isEmpty ?
-                appleSearchResults :
-                appleSearchResults.filter { item in
-                    filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
-                }
-
-                Group {
-                    ForEach(filteredResults) { item in
-                        VStack {
-                            PlayableContentView(item: item)
-                        }
-                    }
+                ForEach(results.filtered(by: filters)) { item in
+                    PlayableContentView(item: item)
                 }
                 .animation(.bouncy, value: filters)
-                .animation(.bouncy, value: appleSearchResults)
+                .animation(.bouncy, value: results)
                 .fontDesign(.rounded)
             case .notDetermined, .denied:
                 AppleMusicPermissionsView()

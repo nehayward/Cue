@@ -1,7 +1,4 @@
-import CloudStorage
-import Defaults
 import MusicSearchKit
-import OrderedCollections
 import SwiftUI
 import SonosKit
 
@@ -11,29 +8,15 @@ struct LibrarySearchView: View {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(Router.self) private var router: Router
 
-    var librarySearchResults: [PlayableContent]
+    var results: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var body: some View {
-        Group {
-            if filters.filter(\.isFiltered).isEmpty {
-                ForEach(librarySearchResults) { item in
-                    VStack {
-                        PlayableContentView(item: item)
-                    }
-                }
-            } else {
-                ForEach(librarySearchResults) { item in
-                    if filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type) {
-                        VStack {
-                            PlayableContentView(item: item)
-                        }
-                    }
-                }
-            }
+        ForEach(results.filtered(by: filters)) { item in
+            PlayableContentView(item: item)
         }
         .animation(.bouncy, value: filters)
-        .animation(.bouncy, value: librarySearchResults)
+        .animation(.bouncy, value: results)
         .fontDesign(.rounded)
     }
 }

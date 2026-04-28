@@ -61,20 +61,12 @@ public final class MusicSearchService {
     )
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
-    private var searchTasks: [MediaSearchService: Task<([PlayableContent])?, Never>] = Dictionary(uniqueKeysWithValues: MediaSearchService.allCases.map { ($0, Task { nil }) } )
 
     private let debounceDuration: Duration = .milliseconds(150)
 
     public var suggestions: [MusicCatalogSearchSuggestionsResponse.Suggestion] = []
 
-    public var appleResults: [PlayableContent] = []
-    public var spotifyResults: [PlayableContent] = []
-    public var librarySearchResults: [PlayableContent] = []
-    public var plexResults: [PlayableContent] = []
-    public var tidalResults: [PlayableContent] = []
-    public var tuneInResults: [PlayableContent] = []
-    
-    public var searchResults: [PlayableContent] = []
+    public var results: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
     public init() {
@@ -82,80 +74,75 @@ public final class MusicSearchService {
     }
 
     public func search(for providers: Set<MediaSearchService>) async {
-        if query.isEmpty { return }
+        if query.isEmpty {
+            results = []
+            return
+        }
 
-        // Cancel the previous tasks if they exist
+        let capturedQuery = query
         searchSuggestionTask.cancel()
-        searchTasks.values.forEach { $0.cancel() }
-
-        // Create suggestion task
         searchSuggestionTask = Task { [weak self] in
             guard let self else { return nil }
             try? await Task.sleep(for: debounceDuration)
             guard !Task.isCancelled else { return nil }
-            let results = await searchSuggestion(query: query)
+            let results = await searchSuggestion(query: capturedQuery)
             return results
         }
 
-        // Create a task group for concurrent search execution
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
-            // Add tasks for each provider to the group
             for provider in providers {
                 group.addTask { [weak self] in
                     guard let self else { return (provider, nil) }
                     try? await Task.sleep(for: self.debounceDuration)
                     guard !Task.isCancelled else { return (provider, nil) }
-                    
-                    let results: [PlayableContent]?
+
+                    let fetched: [PlayableContent]?
                     switch provider {
                     case .apple:
-                        results = await self.searchApple(query: self.query)
+                        fetched = await self.searchApple(query: capturedQuery)
                     case .spotify:
-                        results = await self.searchSpotify(query: self.query)
+                        fetched = await self.searchSpotify(query: capturedQuery)
                     case .library:
-                        let playableContent = await self.sonosService.librarySearch(query: self.query)
-                        results = await self.sortContentByIntelligentSearch(playableContent: playableContent, query: self.query)
+                        let playableContent = await self.sonosService.librarySearch(query: capturedQuery)
+                        fetched = await self.sortContentByIntelligentSearch(playableContent: playableContent, query: capturedQuery)
                     case .plex:
-                        results = await self.searchPlex(query: self.query)
+                        fetched = await self.searchPlex(query: capturedQuery)
                     case .tidal:
-                        results = await self.searchTidal(query: self.query)
+                        fetched = await self.searchTidal(query: capturedQuery)
                     case .tuneIn:
-                        results = await self.searchTuneIn(query: self.query)
+                        fetched = await self.searchTuneIn(query: capturedQuery)
                     case .soundcloud:
-                        results = await self.searchSoundCloud(query: self.query)
+                        fetched = await self.searchSoundCloud(query: capturedQuery)
                     }
-                    return (provider, results)
+                    // If we were cancelled during the fetch, the API may have returned []
+                    // for a cancelled URLSession call. Drop the result so we don't blank
+                    // out the UI or stomp on the next search's results.
+                    if Task.isCancelled { return (provider, nil) }
+                    return (provider, fetched)
                 }
             }
 
-            // Process results as they complete
-            for await (provider, results) in group {
-                if let results = results {
-                    switch provider {
-                    case .apple:
-                        self.appleResults = results
-                    case .spotify:
-                        self.spotifyResults = results
-                    case .library:
-                        self.librarySearchResults = results
-                    case .plex:
-                        self.plexResults = results
-                    case .tidal:
-                        self.tidalResults = results
-                    case .tuneIn:
-                        self.suggestions.removeAll()
-                        self.tuneInResults = results
-                    case .soundcloud:
-                        self.searchResults = results
-                    }
+            for await (provider, providerResults) in group {
+                // Parent (this search call) was cancelled — anything still draining out
+                // of the group is stale, do not write it.
+                if Task.isCancelled { continue }
+                // The user may have edited the query while we were awaiting; the new
+                // search() call will handle the fresh query, so drop these.
+                if self.query != capturedQuery { continue }
+                guard let providerResults else { continue }
+                if provider == .tuneIn {
+                    self.suggestions.removeAll()
                 }
+                self.results = providerResults
             }
         }
 
-        // Wait for suggestion task to complete
-        if let results = await searchSuggestionTask.value {
+        if Task.isCancelled { return }
+        if self.query != capturedQuery { return }
+
+        if let suggestionResults = await searchSuggestionTask.value {
             if !providers.contains(.tuneIn) {
-                suggestions = results.0
+                suggestions = suggestionResults.0
             }
         }
     }

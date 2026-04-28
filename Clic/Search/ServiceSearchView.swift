@@ -1,7 +1,4 @@
-import CloudStorage
-import Defaults
 import MusicSearchKit
-import OrderedCollections
 import SwiftUI
 import SonosKit
 
@@ -16,16 +13,8 @@ struct ServiceSearchView: View {
     @Binding var filters: [FilterSelection]
 
     var body: some View {
-        let filteredResults = filters.filter(\.isFiltered).isEmpty ?
-        results :
-        results.filter { item in
-            filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
-        }
-
-        ForEach(filteredResults) { item in
-            VStack {
-                PlayableContentView(item: item)
-            }
+        ForEach(results.filtered(by: filters)) { item in
+            PlayableContentView(item: item)
         }
     }
 }

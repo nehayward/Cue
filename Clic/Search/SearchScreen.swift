@@ -15,7 +15,7 @@ struct SearchScreen: View {
     enum SearchFocusFields: Hashable {
         case search
     }
-    
+
     @Environment(\.dismiss) private var dismiss
 
     @Environment(SonosService.self) private var sonosService: SonosService
@@ -49,7 +49,7 @@ struct SearchScreen: View {
     @State private var lastNonEmptyQuery: String = ""
     @State private var isLoading: Bool = false
     @State private var keyboardSelectedIndex: Int?
-    
+
     private var showAlert: Bool {
 #if targetEnvironment(macCatalyst)
         return false
@@ -68,19 +68,7 @@ struct SearchScreen: View {
 
     private var currentFilteredResults: [PlayableContent] {
         guard !musicSearchService.query.isEmpty else { return [] }
-        let raw: [PlayableContent] = switch musicSearchSelection {
-        case .spotify: musicSearchService.spotifyResults
-        case .apple: musicSearchService.appleResults
-        case .library: musicSearchService.librarySearchResults
-        case .plex: musicSearchService.plexResults
-        case .tidal: musicSearchService.tidalResults
-        case .tuneIn: musicSearchService.tuneInResults
-        case .soundcloud: musicSearchService.searchResults
-        }
-        let activeFilters = filters.filter(\.isFiltered)
-        guard !activeFilters.isEmpty else { return raw }
-        let activeTypes = Set(activeFilters.flatMap(\.filter.toContentType))
-        return raw.filter { activeTypes.contains($0.content.type) }
+        return musicSearchService.results.filtered(by: filters)
     }
 
     private var navigableCount: Int {
@@ -100,100 +88,41 @@ struct SearchScreen: View {
         @Bindable var router = router
         @Bindable var musicSearchService = musicSearchService
         @Bindable var sonosService = sonosService
-        
+
         NavigationStack(path: $router.path) {
             ScrollViewReader { proxy in
                 List(selection: .constant(selectedItemID)) {
-                    filterView
-                        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                        .overlay(alignment: .trailing) {
-                            if musicSearchSelection == .plex {
-                                ZStack(alignment: .trailing) {
-                                    // Transparent hit area to block taps below
-                                    Color.black.opacity(0.001)
-                                        .ignoresSafeArea()
-                                        .allowsHitTesting(true)
-                                    PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
-                                }
-                                .frame(width: 24, height: 24)
-                                .task {
-                                    let libraries = await musicSearchService.getPlexLibraries()
-                                    plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
-                                }
-                            }
-                        }
-//                    if UIApplication.shared.isRunningInTestFlightEnvironment(), musicSearchSelection == .plex {
-//                        LoggerView()
-//                    }
+                    SearchFilterRow(
+                        musicSearchSelection: $musicSearchSelection,
+                        filters: $filters,
+                        plexLibrariesFilters: $plexLibrariesFilters
+                    )
+
 #if targetEnvironment(macCatalyst)
                     if !searchCompletionTapped {
-                        ForEach(Array(musicSearchService.suggestions.enumerated()), id: \.element.id) { index, suggestion in
-                            Button {
-                                musicSearchService.query = suggestion.searchTerm
-                                self.suggestion = suggestion.searchTerm
-                                searchCompletionTapped = true
-                                keyboardSelectedIndex = nil
-                            } label: {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                    Text(suggestion.displayTerm)
-                                    Spacer()
-                                }
-                                .foregroundStyle(.accent)
-                            }
-                            .listRowBackground(
-                                keyboardSelectedIndex == index ?
-                                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)) : nil
-                            )
-                        }
+                        MacCatalystSuggestionsList(
+                            searchCompletionTapped: $searchCompletionTapped,
+                            suggestion: $suggestion,
+                            keyboardSelectedIndex: $keyboardSelectedIndex
+                        )
                     }
 #endif
-                    
-                    if musicSearchService.query.isEmpty, !isAlarmSearch {
-                        RecentSearchesView()
+
+                    if musicSearchService.query.isEmpty {
+                        SearchEmptyStateView(
+                            isAlarmSearch: isAlarmSearch,
+                            service: musicSearchSelection,
+                            filters: $filters
+                        )
+                    } else {
+                        SearchResultsView(
+                            service: musicSearchSelection,
+                            query: $musicSearchService.query,
+                            filters: $filters,
+                            plexLibrariesFilters: $plexLibrariesFilters
+                        )
                     }
 
-                    if !playHistoryService.history.isEmpty, musicSearchService.query.isEmpty {
-                        PlayHistoryView(filters: $filters)
-                    }
-                    
-                    if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .spotify {
-                        SpotifySearchScreen()
-                    }
-                    
-                    if musicSearchService.query.isEmpty, !isAlarmSearch,  musicSearchSelection == .apple {
-                        ApplePlaylistsView()
-                    }
-                    
-                    if musicSearchService.query.isEmpty, !isAlarmSearch {
-                        FavoritesView()
-                            .id("favorites")
-                    }
-                    
-                    if !musicSearchService.query.isEmpty {
-                        switch musicSearchSelection {
-                        case .spotify:
-                            SpotifySearchView(spotifyResults: musicSearchService.spotifyResults, filters: $filters)
-                        case .apple:
-                            AppleMusicSearchScreen(appleSearchResults: musicSearchService.appleResults, filters: $filters)
-                        case .library:
-                            LibrarySearchView(librarySearchResults: musicSearchService.librarySearchResults, filters: $filters)
-                        case .plex:
-                            PlexSearchView(
-                                query: $musicSearchService.query,
-                                plexResults: musicSearchService.plexResults,
-                                filters: $filters,
-                                plexLibrariesFilters: $plexLibrariesFilters
-                            )
-                        case .tidal:
-                            TidalSearchView(tidalResults: musicSearchService.tidalResults, filters: $filters)
-                        case .tuneIn:
-                            TuneInSearchView(tuneInResults:  musicSearchService.tuneInResults, filters: $filters)
-                        case .soundcloud:
-                            ServiceSearchView(results: musicSearchService.searchResults, filters: $filters)
-                        }
-                    }
-                    
                     if isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -242,57 +171,29 @@ struct SearchScreen: View {
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
                         ToolbarItemGroup(placement: .keyboard) {
-                            searchSuggestions
+                            SearchSuggestionsBar(
+                                searchCompletionTapped: $searchCompletionTapped,
+                                suggestion: $suggestion,
+                                hideKeyboard: hideKeyboard
+                            )
                         }
                         .sharedBackgroundVisibility(.hidden)
                     } else {
                         ToolbarItemGroup(placement: .keyboard) {
-                            searchSuggestions
+                            SearchSuggestionsBar(
+                                searchCompletionTapped: $searchCompletionTapped,
+                                suggestion: $suggestion,
+                                hideKeyboard: hideKeyboard
+                            )
                         }
                     }
                     #endif
-                    
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            ForEach(MediaSearchService.allCases, id: \.self) { service in
-                                if coreFeatures.enabledServices(service).wrappedValue {
-                                    Button {
-                                        HapticManager.shared.fireHaptic(.buttonPress)
-                                        musicSearchSelection = service
-                                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
-                                        Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
 
-                                        if service == .tuneIn {
-                                            for filter in filters {
-                                                filter.isFiltered = false
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(service.title)
-                                            service.iconForMusicService
-                                        }
-                                        .tag(service)
-                                    }
-                                    .tint(service.brandColor.gradient)
-                                    .id(service)
-                                }
-                            }
-                            Button {
-                                HapticManager.shared.fireHaptic(.buttonPress)
-                                router.presentedSheet = .settings(destination: .servicePreferenceScreen)
-                            } label: {
-                                Label("Setting…", systemImage: "gear")
-                            }
-                        } label: {
-                            musicSearchSelection
-                                .iconForMusicService
-                                .frame(width: 24, height: 24)
-                                .toolbarBackground(in: .circle)
-                                .allowsHitTesting(false)
-                        }
-                        .popoverTip(AppTip.mediaService)
-                        .foregroundStyle(musicSearchSelection.brandColor.gradient)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        MediaServiceMenu(
+                            musicSearchSelection: $musicSearchSelection,
+                            filters: $filters
+                        )
                     }
                 }
             }
@@ -309,12 +210,7 @@ struct SearchScreen: View {
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
             }
             .animation(.snappy, value: playHistoryService.history)
-            .animation(.snappy, value: musicSearchService.appleResults)
-            .animation(.snappy, value: musicSearchService.spotifyResults)
-            .animation(.snappy, value: musicSearchService.librarySearchResults)
-            .animation(.snappy, value: musicSearchService.tidalResults)
-            .animation(.snappy, value: musicSearchService.plexResults)
-            .animation(.snappy, value: musicSearchService.searchResults)
+            .animation(.snappy, value: musicSearchService.results)
             .animation(.snappy, value: filters)
             .animation(.snappy, value: searchCompletionTapped)
             .addDismiss(override: contentToAdd != nil) {
@@ -384,6 +280,7 @@ struct SearchScreen: View {
         }
         .onChange(of: musicSearchSelection) {
             keyboardSelectedIndex = nil
+            musicSearchService.results = []
         }
         .onChange(of: filters) {
             keyboardSelectedIndex = nil
@@ -490,104 +387,214 @@ struct SearchScreen: View {
             Router.main.show(destination: .player(groupID: group.coordinatorID))
         }
     }
+}
 
-    @MainActor
-    @ViewBuilder
-    private var filterView: some View {
-        if musicSearchSelection != .tuneIn {
-            VStack(spacing: 0) {
-                HStack {
-                    FilterView(selectedService: $musicSearchSelection, filters: $filters)
+// MARK: - Subviews
+
+private struct SearchFilterRow: View {
+    @Binding var musicSearchSelection: MediaSearchService
+    @Binding var filters: [FilterSelection]
+    @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
+
+    @Environment(MusicSearchService.self) private var musicSearchService
+
+    var body: some View {
+        Group {
+            if musicSearchSelection != .tuneIn {
+                VStack(spacing: 0) {
+                    HStack {
+                        FilterView(selectedService: $musicSearchSelection, filters: $filters)
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+        .overlay(alignment: .trailing) {
+            if musicSearchSelection == .plex {
+                ZStack(alignment: .trailing) {
+                    // Transparent hit area to block taps below
+                    Color.black.opacity(0.001)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(true)
+                    PlexLibraryFilterView(plexLibrariesFilters: $plexLibrariesFilters)
+                }
+                .frame(width: 24, height: 24)
+                .task {
+                    let libraries = await musicSearchService.getPlexLibraries()
+                    plexLibrariesFilters = libraries.map { GenericFilter(filter: $0) }
                 }
             }
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
         }
     }
-    
-    private var searchSuggestions: some View {
+}
+
+private struct SearchEmptyStateView: View {
+    let isAlarmSearch: Bool
+    let service: MediaSearchService
+    @Binding var filters: [FilterSelection]
+
+    @Environment(PlayHistoryService.self) private var playHistoryService
+
+    var body: some View {
+        if !isAlarmSearch {
+            RecentSearchesView()
+        }
+
+        if !playHistoryService.history.isEmpty {
+            PlayHistoryView(filters: $filters)
+        }
+
+        if !isAlarmSearch, service == .spotify {
+            SpotifySearchScreen()
+        }
+
+        if !isAlarmSearch, service == .apple {
+            ApplePlaylistsView()
+        }
+
+        if !isAlarmSearch {
+            FavoritesView()
+                .id("favorites")
+        }
+    }
+}
+
+private struct SearchResultsView: View {
+    let service: MediaSearchService
+    @Binding var query: String
+    @Binding var filters: [FilterSelection]
+    @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
+
+    @Environment(MusicSearchService.self) private var musicSearchService
+
+    var body: some View {
+        switch service {
+        case .spotify:
+            SpotifySearchView(results: musicSearchService.results, filters: $filters)
+        case .apple:
+            AppleMusicSearchScreen(results: musicSearchService.results, filters: $filters)
+        case .library:
+            LibrarySearchView(results: musicSearchService.results, filters: $filters)
+        case .plex:
+            PlexSearchView(
+                query: $query,
+                results: musicSearchService.results,
+                filters: $filters,
+                plexLibrariesFilters: $plexLibrariesFilters
+            )
+        case .tidal:
+            TidalSearchView(results: musicSearchService.results, filters: $filters)
+        case .tuneIn:
+            TuneInSearchView(results: musicSearchService.results, filters: $filters)
+        case .soundcloud:
+            ServiceSearchView(results: musicSearchService.results, filters: $filters)
+        }
+    }
+}
+
+#if targetEnvironment(macCatalyst)
+private struct MacCatalystSuggestionsList: View {
+    @Binding var searchCompletionTapped: Bool
+    @Binding var suggestion: String?
+    @Binding var keyboardSelectedIndex: Int?
+
+    @Environment(MusicSearchService.self) private var musicSearchService
+
+    var body: some View {
+        ForEach(Array(musicSearchService.suggestions.enumerated()), id: \.element.id) { index, suggestion in
+            Button {
+                musicSearchService.query = suggestion.searchTerm
+                self.suggestion = suggestion.searchTerm
+                searchCompletionTapped = true
+                keyboardSelectedIndex = nil
+            } label: {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                    Text(suggestion.displayTerm)
+                    Spacer()
+                }
+                .foregroundStyle(.accent)
+            }
+            .listRowBackground(
+                keyboardSelectedIndex == index ?
+                    RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)) : nil
+            )
+        }
+    }
+}
+#endif
+
+private struct MediaServiceMenu: View {
+    @Binding var musicSearchSelection: MediaSearchService
+    @Binding var filters: [FilterSelection]
+
+    @Environment(Router.self) private var router
+    @State private var coreFeatures = CoreFeatures.shared
+
+    var body: some View {
+        Menu {
+            ForEach(MediaSearchService.allCases, id: \.self) { service in
+                if coreFeatures.enabledServices(service).wrappedValue {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        musicSearchSelection = service
+                        Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
+                        Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
+
+                        if service == .tuneIn {
+                            for filter in filters {
+                                filter.isFiltered = false
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(service.title)
+                            service.iconForMusicService
+                        }
+                        .tag(service)
+                    }
+                    .tint(service.brandColor.gradient)
+                    .id(service)
+                }
+            }
+            Button {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                router.presentedSheet = .settings(destination: .servicePreferenceScreen)
+            } label: {
+                Label("Setting…", systemImage: "gear")
+            }
+        } label: {
+            musicSearchSelection
+                .iconForMusicService
+                .frame(width: 24, height: 24)
+                .contentShape(.circle)
+                .toolbarBackground(in: .circle)
+        }
+        .popoverTip(AppTip.mediaService)
+        .foregroundStyle(musicSearchSelection.brandColor.gradient)
+    }
+}
+
+private struct SearchSuggestionsBar: View {
+    @Binding var searchCompletionTapped: Bool
+    @Binding var suggestion: String?
+    let hideKeyboard: () -> Void
+
+    @Environment(MusicSearchService.self) private var musicSearchService
+    @State private var recentQueries = RecentQueriesStorage.shared
+
+    var body: some View {
         ScrollView(.horizontal) {
             HStack {
                 if !recentQueries.object.isEmpty, musicSearchService.query.isEmpty {
                     ForEach(recentQueries.object.reversed(), id: \.self) { query in
-                        if #available(iOS 26.0, *) {
-                            Button {
-                                musicSearchService.query = query
-                                suggestion = query
-                                searchCompletionTapped = true
-                                hideKeyboard()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .foregroundStyle(.secondary)
-                                    Text(query)
-                                    Spacer()
-                                }
-                            }
-#if !os(visionOS)
-                            .buttonStyle(.glass)
-#endif
-                        } else {
-                            Button {
-                                musicSearchService.query = query
-                                suggestion = query
-                                searchCompletionTapped = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "clock.arrow.circlepath")
-                                        .symbolRenderingMode(.hierarchical)
-                                        .foregroundStyle(.secondary)
-                                    Text(query)
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                }
-                                .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.primary)
-                            .background(.thinMaterial, in: .capsule)
-                        }
+                        recentQueryButton(query)
                     }
                 } else {
                     ForEach(musicSearchService.suggestions) { suggestion in
-                        if #available(iOS 26.0, *) {
-                            Button {
-                                musicSearchService.query = suggestion.searchTerm
-                                self.suggestion = suggestion.searchTerm
-                                searchCompletionTapped = true
-                                hideKeyboard()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundStyle(.secondary)
-                                    Text(suggestion.displayTerm)
-                                    Spacer()
-                                }
-                            }
-#if !os(visionOS)
-                            .buttonStyle(.glass)
-#endif
-                        } else {
-                            Button {
-                                musicSearchService.query = suggestion.searchTerm
-                                self.suggestion = suggestion.searchTerm
-                                searchCompletionTapped = true
-                                //                            hideKeyboard()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundStyle(.secondary)
-                                    Text(suggestion.displayTerm)
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                }
-                                .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.primary)
-                            .background(.thinMaterial, in: .capsule)
-                        }
+                        suggestionButton(suggestion)
                     }
                 }
             }
@@ -602,6 +609,88 @@ struct SearchScreen: View {
             ], startPoint: .leading, endPoint: .trailing)
         )
         .scrollClipDisabled()
+    }
+
+    @ViewBuilder
+    private func recentQueryButton(_ query: String) -> some View {
+        if #available(iOS 26.0, *) {
+            Button {
+                musicSearchService.query = query
+                suggestion = query
+                searchCompletionTapped = true
+                hideKeyboard()
+            } label: {
+                HStack {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                    Text(query)
+                    Spacer()
+                }
+            }
+#if !os(visionOS)
+            .buttonStyle(.glass)
+#endif
+        } else {
+            Button {
+                musicSearchService.query = query
+                suggestion = query
+                searchCompletionTapped = true
+            } label: {
+                HStack {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                    Text(query)
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+            }
+            .buttonStyle(.bordered)
+            .tint(.primary)
+            .background(.thinMaterial, in: .capsule)
+        }
+    }
+
+    @ViewBuilder
+    private func suggestionButton(_ suggestionItem: MusicCatalogSearchSuggestionsResponse.Suggestion) -> some View {
+        if #available(iOS 26.0, *) {
+            Button {
+                musicSearchService.query = suggestionItem.searchTerm
+                suggestion = suggestionItem.searchTerm
+                searchCompletionTapped = true
+                hideKeyboard()
+            } label: {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    Text(suggestionItem.displayTerm)
+                    Spacer()
+                }
+            }
+#if !os(visionOS)
+            .buttonStyle(.glass)
+#endif
+        } else {
+            Button {
+                musicSearchService.query = suggestionItem.searchTerm
+                suggestion = suggestionItem.searchTerm
+                searchCompletionTapped = true
+            } label: {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    Text(suggestionItem.displayTerm)
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+            }
+            .buttonStyle(.bordered)
+            .tint(.primary)
+            .background(.thinMaterial, in: .capsule)
+        }
     }
 }
 

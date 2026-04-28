@@ -1,7 +1,4 @@
-import CloudStorage
-import Defaults
 import MusicSearchKit
-import OrderedCollections
 import SwiftUI
 import SonosKit
 
@@ -10,27 +7,17 @@ struct SpotifySearchView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(Router.self) var router: Router
 
-    var spotifyResults: [PlayableContent]
+    var results: [PlayableContent]
     @Binding var filters: [FilterSelection]
 
     var group: GroupRoom?
 
     var body: some View {
-        let filteredResults = filters.filter(\.isFiltered).isEmpty ?
-        spotifyResults :
-        spotifyResults.filter { item in
-            filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
-        }
-
-        Group {
-            ForEach(filteredResults) { item in
-                VStack {
-                    PlayableContentView(item: item)
-                }
-            }
+        ForEach(results.filtered(by: filters)) { item in
+            PlayableContentView(item: item)
         }
         .animation(.bouncy, value: filters)
-        .animation(.bouncy, value: spotifyResults)
+        .animation(.bouncy, value: results)
         .fontDesign(.rounded)
     }
 }
