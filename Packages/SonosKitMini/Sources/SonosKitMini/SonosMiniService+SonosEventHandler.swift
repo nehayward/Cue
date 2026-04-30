@@ -47,18 +47,22 @@ extension SonosMiniService: SonosEventHandler {
 
             if track.id != nil {
                 let deviceAtIndex = devices[index]
-                Task { [weak self] in
+                // Cancel previous metadata task to prevent unbounded task accumulation
+                metadataUpdateTask?.cancel()
+                metadataUpdateTask = Task { [weak self] in
                     guard let self else { return }
 
                     if let duration = track.durationMillis {
                         self.updateDevice(deviceAtIndex, keyPath: \.totalDuration, value: duration)
                     }
 
+                    guard !Task.isCancelled else { return }
                     guard let currentIndex = self.devices.firstIndex(where: { $0.id == playerId }) else { return }
                     let device = self.devices[currentIndex]
                     let trackChanged = device.isPlaying && device.track.name != track.name
 
                     try? await self.updateTracks(for: [device])
+                    guard !Task.isCancelled else { return }
 
                     if trackChanged {
                         self.onTrackChanged?(device, track.toSonosTrack)
@@ -79,10 +83,13 @@ extension SonosMiniService: SonosEventHandler {
     public func onGroupUpdate(playerId: String, event: GroupEvent) {
         guard event.groupsResponse != nil else { return }
 
-        Task { [weak self] in
+        // Cancel previous group update task to prevent unbounded task accumulation
+        groupUpdateTask?.cancel()
+        groupUpdateTask = Task { [weak self] in
             guard let self else { return }
 
             let (newDevices, houseHoldID) = try await self.getSystem(useCache: true)
+            guard !Task.isCancelled else { return }
             let newDeviceIDs = Set(newDevices.map(\.id))
             let currentDeviceIDs = Set(self.devices.map(\.id))
             let newGroupIDs = Set(newDevices.map(\.groupID))
@@ -94,13 +101,15 @@ extension SonosMiniService: SonosEventHandler {
                 self.devices = newDevices
             }
 
+            guard !Task.isCancelled else { return }
             try await self.updateWatchDevices(from: self.devices)
+            guard !Task.isCancelled else { return }
             await self.updateRoomVolumes()
 
             // Reconnect subscriptions when group topology changes
             // Playback/metadata/groupVolume subscriptions are tied to groupId
             if newGroupIDs != self.lastKnownGroupIDs {
-                print("[SonosKitMini] Group topology changed, reconnecting subscriptions")
+                guard !Task.isCancelled else { return }
                 self.lastKnownGroupIDs = newGroupIDs
                 await self.streamingService.disconnectAll()
                 let configs = newDevices.map { $0.toConfig(with: houseHoldID) }
@@ -110,7 +119,9 @@ extension SonosMiniService: SonosEventHandler {
     }
 
     public func onError(playerId: String, error: Error) {
+        #if DEBUG
         print("Error for player \(playerId): \(error.localizedDescription)")
+        #endif
     }
 }
 

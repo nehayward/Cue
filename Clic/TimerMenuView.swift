@@ -5,8 +5,10 @@ struct TimerMenuView<Label: View>: View {
     @State var router = Router()
 
     var recentTimers: Storage<Duration> = Storage("sleep")
+    var inMainMenu: Bool = false
     var onSelect: (Duration) async -> Void
     var onClear: (() async -> Void)? = nil
+    
     @ViewBuilder var label: Label
 
     var body: some View {
@@ -30,7 +32,11 @@ struct TimerMenuView<Label: View>: View {
             Button("1 Hour") { Task { await onSelect(.seconds(60 * 60)) } }
 
             Button("Custom") {
-                router.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
+                if inMainMenu {
+                    Router.main.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
+                } else {
+                    router.presentedSheet = .customSleepTimer(recentTimers: recentTimers, onSelect: onSelect)
+                }
             }
 
             if let onClear {

@@ -16,6 +16,9 @@ extension View {
                     .withEnvironments()
                     .presentationSizingFitted()
                     .frame(minWidth: 200, idealWidth: 300, maxWidth: 500, minHeight: 100, maxHeight: 600)
+                    .presentationDragIndicator(.hidden)
+            case let .customSleepTimer(recentTimers, onSelect):
+                SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
             default:
                 Group {
                     switch destination {
@@ -60,8 +63,6 @@ extension View {
                                 Router.search.path.removeAll()
                                 Router.search.presentedSheet = nil
                             }
-                        // MARK: Add back later maybe
-                        //                        .environment(Router.search)
                     case let .sceneSearchAdd(adding):
                         let searchRouter = Router.search
                         @State var selectedGroupService = SelectedGroupService()
@@ -159,7 +160,7 @@ extension View {
                                 }
                         }
                     case let .customSleepTimer(recentTimers, onSelect):
-                        SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
+                        EmptyView()
                     case let .browse(group: group):
                         let selectedGroupService = SelectedGroupService(group: group)
                         BrowseScreen()
@@ -173,11 +174,9 @@ extension View {
                             SpeakerSettingsView(room: room)
                         }
                         .presentationDetents([.medium, .large])
-                        .presentationCornerRadius(24)
                     case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
                         SelectGroupView(content: content, onSelection: onSelection)
                             .presentationDetents([.fraction(0.8), .large])
-                            .presentationCornerRadius(24)
                             .environment(selectedGroupService)
                     case .plexManagement:
                         PlexManagementView()
@@ -205,6 +204,9 @@ extension View {
                 .withEnvironments()
                 .presentationSizingiOS18()
                 .frame(idealWidth: 600, idealHeight: 800)
+                #if targetEnvironment(macCatalyst)
+                .presentationDragIndicator(.hidden)
+                #endif
             }
         }
     }
@@ -337,7 +339,7 @@ extension View {
                 switch destination {
                 case let .player(groupID):
                     if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-                        LargePlayerView(group: $sonosService.sorted[group])
+                        LargePlayerView(group: sonosService.sorted[group])
                     } else {
                         GroupNoLongerAvailableScreen()
                     }
@@ -480,5 +482,11 @@ extension View {
         } else {
             self
         }
+    }
+    
+    func sheetRequirements() -> some View {
+        withEnvironments()
+        .presentationSizingiOS18()
+        .frame(idealWidth: 600, idealHeight: 800)
     }
 }

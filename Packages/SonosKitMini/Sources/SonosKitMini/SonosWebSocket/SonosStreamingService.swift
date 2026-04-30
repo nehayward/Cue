@@ -120,8 +120,10 @@ public final class SonosStreamingService {
     // Connection refresh timer management
     private var refreshTask: Task<Void, Never>?
     private var playerConfigs: [String: SonosPlayerConfig] = [:]
-    // Increased from 60s to 5 minutes to reduce refresh churn and memory pressure
-    private let connectionRefreshInterval: Duration = .seconds(60 * 5)
+    // Increased to 10 minutes to reduce refresh churn and memory pressure on watch.
+    // Each refresh cycle creates new URLSession instances, and on watchOS the old ones
+    // may not be fully released before new ones are created, causing memory growth.
+    private let connectionRefreshInterval: Duration = .seconds(60 * 10)
     private var isRefreshing: Bool = false
     
     // Group monitoring - only one player can monitor group events at a time
@@ -251,42 +253,36 @@ public final class SonosStreamingService {
         // Get tasks and socket to cancel
         let connectionTask = connectionTasks[playerId]
         let socket = connections[playerId]
-        
+
         // Cancel tasks first to stop monitoring loops
         connectionTask?.cancel()
-        
-        // Wait a brief moment for tasks to finish cancellation
-        // This allows AsyncStreams and continuations to properly terminate
-        try? await Task.sleep(for: .milliseconds(100))
-        
-        // Close connection gracefully - this releases URLSession and all resources
-        if let socket = socket {
-            socket.close() // This properly finishes all continuations and clears references
-            if debug {
-                print("DEBUG: Closed socket for player \(playerId)")
-            }
-        }
-        
-        // Clean up connection state but preserve player configs for reconnection
+
+        // Clean up connection state first to drop our strong references
         connectionTasks.removeValue(forKey: playerId)
-        let removedSocket = connections.removeValue(forKey: playerId)
-        if debug && removedSocket != nil {
-            print("DEBUG: Removed socket for player \(playerId) from connections dictionary. Remaining: \(connections.count)")
+        connections.removeValue(forKey: playerId)
+
+        // Wait for tasks to finish cancellation
+        // This allows AsyncStreams and continuations to properly terminate
+        try? await Task.sleep(for: .milliseconds(200))
+
+        // Close connection gracefully - this invalidates URLSession and all resources
+        // Must happen AFTER removing from dictionaries so our reference is the last one
+        if let socket = socket {
+            socket.close() // Finishes continuations, invalidates URLSession, clears references
         }
-        
+
         // Clear group monitoring if this player was monitoring groups
         if currentGroupMonitoringPlayerId == playerId {
             currentGroupMonitoringPlayerId = nil
-            if debug {
-                print("DEBUG: Cleared group monitoring for removed player \(playerId)")
-            }
         }
         // Note: Don't remove playerConfigs during graceful disconnect - we need them for reconnection
-        
-        // Additional wait to ensure URLSession invalidation completes
-        // This prevents accumulation of URLSession instances
-        try? await Task.sleep(for: .milliseconds(50))
-        
+
+        // Wait for URLSession invalidation to fully complete
+        // URLSession.invalidateAndCancel() is asynchronous - the session isn't freed
+        // until the invalidation callback fires. Without this wait, new sessions are
+        // created while old ones still exist, causing memory accumulation over days.
+        try? await Task.sleep(for: .milliseconds(300))
+
         // Notify connection status change
         await notifyConnectionStatusChanged()
     }
@@ -300,39 +296,36 @@ public final class SonosStreamingService {
         // Get tasks and socket to cancel
         let connectionTask = connectionTasks[playerId]
         let socket = connections[playerId]
-        
+
         // Cancel tasks
         connectionTask?.cancel()
-        
-        // Wait a brief moment for cancellation
-        try? await Task.sleep(for: .milliseconds(100))
-        
-        // Close connection
+
+        // Clean up dictionaries first to drop strong references
+        connectionTasks.removeValue(forKey: playerId)
+        connections.removeValue(forKey: playerId)
+        playerConfigs.removeValue(forKey: playerId)
+
+        // Wait for task cancellation to propagate
+        try? await Task.sleep(for: .milliseconds(200))
+
+        // Close connection and invalidate URLSession
         if let socket = socket {
             socket.close()
         }
-        
-        // Clean up
-        connectionTasks.removeValue(forKey: playerId)
-        let removedSocket = connections.removeValue(forKey: playerId)
-        playerConfigs.removeValue(forKey: playerId)
-        if debug && removedSocket != nil {
-            print("DEBUG: Permanently removed socket for player \(playerId). Remaining connections: \(connections.count)")
-        }
-        
+
         // Clear group monitoring if this player was monitoring groups
         if currentGroupMonitoringPlayerId == playerId {
             currentGroupMonitoringPlayerId = nil
-            if debug {
-                print("DEBUG: Cleared group monitoring for permanently removed player \(playerId)")
-            }
         }
-        
+
         // Stop refresh timer if no more players
         if connections.isEmpty {
             stopConnectionRefreshTimer()
         }
-        
+
+        // Wait for URLSession invalidation
+        try? await Task.sleep(for: .milliseconds(300))
+
         // Notify connection status change
         await notifyConnectionStatusChanged()
     }
@@ -597,45 +590,45 @@ public final class SonosStreamingService {
             isRefreshing = true
             return true
         }
-        
+
         guard shouldRefresh else {
             if debug {
                 print("DEBUG: Refresh already in progress, skipping")
             }
             return
         }
-        
+
         defer {
             isRefreshing = false
         }
-        
+
         if debug {
             print("DEBUG: Refreshing all connections...")
         }
-        
+
         // Get snapshot of current player configurations
         let configsToRefresh = Array(playerConfigs.values)
-        
+
         guard !configsToRefresh.isEmpty else {
             if debug {
                 print("DEBUG: No players to refresh")
             }
             return
         }
-        
+
         // Gracefully disconnect all current connections without stopping the refresh timer
         await gracefulDisconnectAll()
-        
+
         // Small delay before reconnecting
         do {
             try await Task.sleep(for: .seconds(1))
         } catch {
             return // Task was cancelled
         }
-        
+
         // Reconnect all players using addPlayers
         await addPlayers(configsToRefresh)
-        
+
         if debug {
             print("DEBUG: Connection refresh completed for \(configsToRefresh.count) players")
         }

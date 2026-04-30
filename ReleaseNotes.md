@@ -1,6 +1,9 @@
 # 2026.4
 
 –– Bug Fixes & Improvements ––
+- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
+- Fixed Custom Sleep Timer not showing
+
 - Spotify Library: Playlists now navigate to playlist detail instead of playing immediately
 - Spotify Library: Albums and Liked Songs lists no longer show unnecessary alphabetical section index
 - Spotify Library: "See All" for Playlists now navigates to the full playlist browser

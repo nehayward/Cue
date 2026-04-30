@@ -543,7 +543,9 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
         
         super.init()
         
-        let configuration = URLSessionConfiguration.default
+        // Use ephemeral config - no persistent caching, cookies, or credentials.
+        // .default maintains internal storage that grows over long-running sessions.
+        let configuration = URLSessionConfiguration.ephemeral
         // Use nil delegateQueue to avoid memory retention issues with custom OperationQueue
         // The delegate methods will run on a system-managed queue
         self.session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
@@ -1043,6 +1045,15 @@ public final class SonosWebSocket: NSObject, URLSessionWebSocketDelegate, URLSes
             return
         }
         completionHandler(.performDefaultHandling, nil)
+    }
+
+    /// Called when the session has been invalidated - this is when URLSession finally
+    /// releases its strong reference to the delegate (self). Critical for memory cleanup.
+    public func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+        // URLSession has released its delegate reference, clear our reference too
+        if self.session === session {
+            self.session = nil
+        }
     }
 }
 

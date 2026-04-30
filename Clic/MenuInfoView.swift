@@ -133,7 +133,7 @@ struct MenuInfoView: View {
                         .tint(isCrossfaded ? .accent : .secondary)
                     }
                     
-                    TimerMenuView(onSelect: {
+                    TimerMenuView(inMainMenu: true, onSelect: {
                         await SonosService.shared.sleepTimer(group: group, duration: $0)
                     }, onClear: {
                         await SonosService.shared.stopSleepTimer(group: group)

@@ -61,6 +61,7 @@ struct ClicApp: App {
             } detail: {
                 ContainerLargePlayerView()
             }
+            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .withInspector(inspectorDestination: $router.inspectorSheet)
             .visionOrnament(router: router)
             .withAlert()
@@ -74,7 +75,6 @@ struct ClicApp: App {
             .environment(playHistoryService)
             .environment(miniPlayerManager)
             .onOpenURL(perform: handle)
-            .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .onAppear {
                 guard !AppBootstrapper.shared.didLaunch else { return }
                 AppBootstrapper.shared.didLaunch = true

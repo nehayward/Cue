@@ -59,8 +59,35 @@ public final class SonosMiniService {
         
     }
     
-    @ObservationIgnored lazy var streamingService = SonosStreamingService(eventHandler: self)
+    @ObservationIgnored public lazy var streamingService = SonosStreamingService(eventHandler: self)
     @ObservationIgnored var lastKnownGroupIDs: Set<String> = []
+
+    // Tracked tasks to prevent unbounded task accumulation (memory leak fix)
+    @ObservationIgnored var metadataUpdateTask: Task<Void, Never>?
+    @ObservationIgnored var groupUpdateTask: Task<Void, any Error>?
+
+    /// Callback invoked every 24 hours for app-level cache cleanup (e.g. image caches).
+    /// Set this from the app layer since SonosKitMini doesn't know about Kingfisher/Nuke.
+    @ObservationIgnored public var onPeriodicCleanup: (() -> Void)?
+    @ObservationIgnored private var cleanupTask: Task<Void, Never>?
+
+    /// Start a repeating 24-hour cleanup timer. Call once after initial setup.
+    public func startPeriodicCleanup() {
+        guard cleanupTask == nil else { return }
+        cleanupTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(60 * 60 * 24))
+                } catch { break }
+                guard let self else { break }
+                self.onPeriodicCleanup?()
+                // Trim device data that can re-accumulate
+                for index in self.devices.indices {
+                    self.devices[index].queue.removeAll()
+                }
+            }
+        }
+    }
     
     public func updateHousehold() async throws {
         let newDevices = try await getDevices(useCache: true)
@@ -325,10 +352,6 @@ public final class SonosMiniService {
         
         if !newDevices.isEmpty && Set(newDeviceIDs) != Set(currentDeviceIDs) {
             self.devices = newDevices
-            print("Refreshed")
-            print("NewGroup \(newDevices.count), Old \(devices.count)")
-            print(newDeviceIDs)
-            print(currentDeviceIDs)
         }
         //        setupListeners()
         
@@ -398,17 +421,27 @@ public final class SonosMiniService {
     /// Cleanup method to explicitly release resources and prevent memory leaks
     /// Call this when you need to force cleanup of all connections and cached data
     public func cleanup() async {
-        // Clear callback to prevent retain cycles
+        // Cancel tracked tasks to stop any in-flight work
+        metadataUpdateTask?.cancel()
+        metadataUpdateTask = nil
+        groupUpdateTask?.cancel()
+        groupUpdateTask = nil
+        cleanupTask?.cancel()
+        cleanupTask = nil
+
+        // Clear callbacks to prevent retain cycles
         onTrackChanged = nil
-        
+        onPeriodicCleanup = nil
+
         // Disconnect all streaming connections
         await streamingService.disconnectAll()
-        
-        // Clear all device rooms arrays to free memory
+
+        // Clear all device data to free memory
         for index in devices.indices {
             devices[index].rooms.removeAll()
+            devices[index].queue.removeAll()
         }
-        
+
         // Clear devices array
         devices.removeAll()
     }

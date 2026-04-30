@@ -11,106 +11,17 @@ struct SpeakerListScreen: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(AlertService.self) private var alertService
     @Environment(Router.self) private var router
-    
-    @Environment(\.colorScheme) private var colorScheme
 
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-    
+
     @State private var hoveredID: String? = nil
-    
-    private var listRowBackground: Color {
-        #if targetEnvironment(macCatalyst)
-        Color(UIColor.secondarySystemBackground)
-        #else
-        colorScheme == .light ? Color.white : Color(uiColor: .secondarySystemFill)
-        #endif
-    }
-    
+
     var body: some View {
-        @Bindable var alertService = alertService
         @Bindable var sonosService = sonosService
         @Bindable var router = router
-        
+
         List(sonosService.sorted, selection: $router.selectedID) { group in
-            Section {
-                VStack(spacing: 12) {
-                    ZStack {
-                        TVModeViewCell(group: group)
-                            .transition(.asymmetric(
-                                insertion: .opacity,
-                                removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
-                            ))
-                            .opacity(group.TVMode ? 1 : 0)
-                        
-                        HStack(alignment: .top) {
-                            ArtworkView(group: group)
-                                .frame(width: 72, height: 72)
-                            ZoneView(group: group)
-                            Spacer()
-                            MediaControlsView(group: group)
-                        }
-                        .opacity(group.TVMode ? 0 : 1)
-                        .id(group.coordinatorRoom.track.trackID)
-                    }
-                    .padding(.horizontal, 12)
-                    VolumeControlView(group: group, delayDrag: true)
-                }
-                .padding(.top, 12)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                .dropDestinationPlay(on: group)
-                .paywall(enabled(group: group))
-                .overlay {
-                    Text(group.coordinatorRoom.state.reason)
-                        .font(.title.smallCaps())
-                        .ignoresSafeArea()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.thickMaterial)
-                        .paywall(enabled(group: group))
-                        .opacity(group.isActive ? 0 : 1)
-                }
-                .disabled(!group.isActive)
-                .listRowBackground(UIDevice.current.userInterfaceIdiom == .phone ? nil : background(group: group))
-                .onHover { isHovered in
-                    if [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom)  {
-                        withAnimation(.interactiveSpring) {
-                            hoveredID = isHovered ? group.coordinatorID : nil
-                        }
-                    }
-                }
-                .tag(group.coordinatorID)
-                .foregroundStyle(.primary)
-                .id(group.coordinatorRoom.track.trackID)
-            } header: {
-                HStack {
-                    Text(group.nameWithCount)
-                    if let sleepTimer = group.coordinatorRoom.sleepTimer, sleepTimer > Date() {
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Image(systemName: "moon.zzz.fill")
-                                .foregroundStyle(Color.primary.gradient, .indigo)
-                            Text(sleepTimer, style: .timer)
-                                .monospacedDigit()
-                        }
-                    } else if let battery = group.coordinatorRoom.battery {
-                        Spacer()
-                        Text((battery.percentage / 100), format: .percent)
-                            .foregroundStyle(.secondary)
-                        if battery.chargingState == .charging {
-                            Image(systemName: "battery.100percent.bolt")
-                                .symbolRenderingMode(.hierarchical)
-                                .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
-                        }
-                    }
-                }
-                .textCase(nil)
-                .fontDesign(.rounded)
-                .fontWeight(.semibold)
-                .foregroundStyle(.foreground)
-                .font(.headline)
-            }
-            .geometryGroup()
-            .headerProminence(.increased)
-            .tint(.primary)
+            SpeakerGroupSection(group: group, hoveredID: $hoveredID)
         }
         .listSectionSpacing(10)
         .animation(.interactiveSpring, value: sonosService.sorted)
@@ -297,7 +208,6 @@ struct SpeakerListScreen: View {
             #endif
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        .animation(.spring, value: sonosService.sorted)
         .animation(.spring, value: sonosService.isSearching)
         .animation(.spring, value: sonosService.systemState.notFound)
         .animation(.spring, value: sonosService.systemState.permissionDenied)
@@ -338,20 +248,128 @@ struct SpeakerListScreen: View {
         }
     }
     
-    private func enabled(group: GroupRoom) -> Bool {
+}
+
+fileprivate struct SpeakerGroupSection: View {
+    @Environment(SonosService.self) private var sonosService
+    @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(Router.self) private var router
+    @Environment(\.colorScheme) private var colorScheme
+
+    var group: GroupRoom
+    @Binding var hoveredID: String?
+
+    private var paywallEnabled: Bool {
         if subscriptionService.subscription.isActive { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
     }
-    
-    
-    private func background(group: GroupRoom) -> some View {
+
+    private var listRowBackground: Color {
+        #if targetEnvironment(macCatalyst)
+        Color(UIColor.secondarySystemBackground)
+        #else
+        colorScheme == .light ? Color.white : Color(uiColor: .secondarySystemFill)
+        #endif
+    }
+
+    var body: some View {
+        Section {
+            VStack(spacing: 12) {
+                ZStack {
+                    TVModeViewCell(group: group)
+                        .transition(.asymmetric(
+                            insertion: .opacity,
+                            removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
+                        ))
+                        .opacity(group.TVMode ? 1 : 0)
+
+                    HStack(alignment: .top) {
+                        ArtworkView(group: group)
+                            .frame(width: 72, height: 72)
+                        ZoneView(group: group)
+                        Spacer()
+                        MediaControlsView(group: group)
+                    }
+                    .opacity(group.TVMode ? 0 : 1)
+                    .id(group.coordinatorRoom.track.trackID)
+                }
+                .padding(.horizontal, 12)
+                VolumeControlView(group: group, delayDrag: true)
+            }
+            .padding(.top, 12)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .dropDestinationPlay(on: group)
+            .paywall(paywallEnabled)
+            .overlay {
+                Text(group.coordinatorRoom.state.reason)
+                    .font(.title.smallCaps())
+                    .ignoresSafeArea()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.thickMaterial)
+                    .paywall(paywallEnabled)
+                    .opacity(group.isActive ? 0 : 1)
+            }
+            .disabled(!group.isActive)
+            .listRowBackground(UIDevice.current.userInterfaceIdiom == .phone ? nil : background)
+            .onHover { isHovered in
+                if [.mac, .vision, .pad].contains(UIDevice.current.userInterfaceIdiom) {
+                    withAnimation(.interactiveSpring) {
+                        hoveredID = isHovered ? group.coordinatorID : nil
+                    }
+                }
+            }
+            .tag(group.coordinatorID)
+            .foregroundStyle(.primary)
+            .id(group.coordinatorRoom.track.trackID)
+        } header: {
+            SpeakerGroupHeader(group: group)
+        }
+        .geometryGroup()
+        .headerProminence(.increased)
+        .tint(.primary)
+    }
+
+    private var background: some View {
         RoundedRectangle(cornerRadius: 12)
             .fill(
                 group.coordinatorID == router.selectedID ? Color(uiColor: .systemFill) :
                     hoveredID == group.coordinatorID ? Color(uiColor: .tertiarySystemFill) :
                     listRowBackground
             )
+    }
+}
+
+fileprivate struct SpeakerGroupHeader: View {
+    var group: GroupRoom
+
+    var body: some View {
+        HStack {
+            Text(group.nameWithCount)
+            if let sleepTimer = group.coordinatorRoom.sleepTimer, sleepTimer > Date() {
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "moon.zzz.fill")
+                        .foregroundStyle(Color.primary.gradient, .indigo)
+                    Text(sleepTimer, style: .timer)
+                        .monospacedDigit()
+                }
+            } else if let battery = group.coordinatorRoom.battery {
+                Spacer()
+                Text((battery.percentage / 100), format: .percent)
+                    .foregroundStyle(.secondary)
+                if battery.chargingState == .charging {
+                    Image(systemName: "battery.100percent.bolt")
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                }
+            }
+        }
+        .textCase(nil)
+        .fontDesign(.rounded)
+        .fontWeight(.semibold)
+        .foregroundStyle(.foreground)
+        .font(.headline)
     }
 }
 

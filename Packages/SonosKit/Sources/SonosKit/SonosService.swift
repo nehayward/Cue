@@ -932,18 +932,23 @@ public final class SonosService {
     
     // Returns the new group
     public func speedGroup(rooms: [Room]) async -> GroupRoom? {
-        // If there's only one room, ungroup it and return as a single group
-        if rooms.count == 1, let room = rooms.first {
-            await api.ungroup(IP: room.ip)
-            return room.toGroup
-        }
-        
         // Get current groups, fallback to fetching them if necessary
         guard let currentGroups = !sorted.isEmpty ? sorted : try? await getGroupsFast() else {
             // Offline
             return nil
         }
         
+        
+        // If there's only one room, ungroup it and return as a single group
+        if rooms.count == 1, let room = rooms.first {
+            // MARK: Need to check selected rooms vs existing rooms
+            if let group = currentGroups.first(where: { $0.coordinatorRoom.id == room.id }), group.rooms.count == 1 {
+                return group
+            }
+            await api.ungroup(IP: room.ip)
+            return room.toGroup
+        }
+       
         let coordinatorIDs = rooms.map(\.id)
         let filteredGroups = currentGroups.filter { group in
             group.rooms.map(\.id).contains(where: coordinatorIDs.contains)

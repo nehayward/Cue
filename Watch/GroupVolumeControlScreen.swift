@@ -21,7 +21,6 @@ struct GroupVolumeControlScreen: View {
         }
         .onChange(of: scenePhase, initial: true) {
             if scenePhase == .active {
-                print("Updated \(self)")
                 updateScreen()
             }
         }

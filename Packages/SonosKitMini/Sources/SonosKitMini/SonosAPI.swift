@@ -15,7 +15,10 @@ final class SonosAPI {
     lazy var xmlTrackParser = SonosTrackParser()
 
     private lazy var privateSession: URLSession = {
-        let configuration: URLSessionConfiguration = .default
+        // Use ephemeral config - no persistent caching, cookies, or credentials.
+        // Sonos responses are real-time state on the local network that should never be cached.
+        // .default maintains internal connection pools and storage that grow over days.
+        let configuration: URLSessionConfiguration = .ephemeral
         configuration.allowsCellularAccess = false
         configuration.timeoutIntervalForRequest = 20
         return URLSession(configuration: configuration)
