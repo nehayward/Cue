@@ -278,11 +278,9 @@ fileprivate struct SpeakerGroupSection: View {
             VStack(spacing: 12) {
                 ZStack {
                     TVModeViewCell(group: group)
-                        .transition(.asymmetric(
-                            insertion: .opacity,
-                            removal: .opacity.combined(with: .scale).animation(.snappy(duration: 0))
-                        ))
+                        .blur(radius: group.TVMode ? 0 : 10)
                         .opacity(group.TVMode ? 1 : 0)
+                        .animation(.smooth, value: group.TVMode)
 
                     HStack(alignment: .top) {
                         ArtworkView(group: group)
@@ -321,7 +319,6 @@ fileprivate struct SpeakerGroupSection: View {
             }
             .tag(group.coordinatorID)
             .foregroundStyle(.primary)
-            .id(group.coordinatorRoom.track.trackID)
         } header: {
             SpeakerGroupHeader(group: group)
         }

@@ -1,6 +1,7 @@
 # 2026.4
 
 –– Bug Fixes & Improvements ––
+- Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
 - Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 

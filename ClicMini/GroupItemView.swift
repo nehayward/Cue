@@ -5,6 +5,7 @@ import Kingfisher
 struct GroupItemView: View {
     @Binding var isVisible: Bool
     @Binding var device: SonosDevice
+    @Binding var expandedGroupIDs: Set<String>
     @State private var hovered: Bool = false
     @State private var showing: Bool = false
     @State private var updateTrigger = false
@@ -13,7 +14,10 @@ struct GroupItemView: View {
     @State private var miniSettingsService = MiniSettingsService.shared
     @State private var sonosServiceMini = SonosMiniService.shared
     @State private var isHovering: Bool = false
-    @State private var showSpeakerVolumes: Bool = false
+
+    private var showSpeakerVolumes: Bool {
+        expandedGroupIDs.contains(device.id)
+    }
 
     var body: some View {
         //        let _ = Self._printChanges()
@@ -160,7 +164,11 @@ struct GroupItemView: View {
                 if !device.rooms.isEmpty {
                     Button {
                         withAnimation(.interactiveSpring) {
-                            showSpeakerVolumes.toggle()
+                            if expandedGroupIDs.contains(device.id) {
+                                expandedGroupIDs.remove(device.id)
+                            } else {
+                                expandedGroupIDs.insert(device.id)
+                            }
                         }
                     } label: {
                         HStack(spacing: 4) {

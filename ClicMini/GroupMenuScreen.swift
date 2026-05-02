@@ -8,6 +8,7 @@ struct GroupMenuScreen: View {
     @State private var isLoading: Bool = false
     @State private var scenes: [SonosScene] = []
     @State private var isVisible = false
+    @State private var expandedGroupIDs: Set<String> = []
 
     private var filteredDeviceBindings: [Binding<SonosDevice>] {
         sonosServiceMini.sortedNowPlaying
@@ -50,7 +51,10 @@ struct GroupMenuScreen: View {
     private var contentIdealHeight: Double {
         filteredDeviceBindings.reduce(0.0) { total, $device in
             let groupExtra: Double = device.rooms.isEmpty ? 0.0 : 30.0
-            return total + 150.0 + groupExtra
+            let expandedExtra: Double = expandedGroupIDs.contains(device.id)
+                ? 6.0 + Double(device.allDevices.count) * 70.0
+                : 0.0
+            return total + 150.0 + groupExtra + expandedExtra
         }
     }
 
@@ -58,7 +62,7 @@ struct GroupMenuScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
                 ForEach(filteredDeviceBindings) { $device in
-                    GroupItemView(isVisible: $isVisible, device: $device)
+                    GroupItemView(isVisible: $isVisible, device: $device, expandedGroupIDs: $expandedGroupIDs)
                 }
             }
             .padding(.horizontal, 12)
@@ -72,6 +76,9 @@ struct GroupMenuScreen: View {
             }
         }
         .overlay { GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty) }
+        .onChange(of: filteredDeviceBindings.map(\.wrappedValue.id)) { _, ids in
+            expandedGroupIDs.formIntersection(ids)
+        }
         .animation(.snappy, value: isLoading)
         .animation(.snappy, value: sonosServiceMini.devices.map(\.isPlaying))
         .safeArea(edge: .bottom) {
