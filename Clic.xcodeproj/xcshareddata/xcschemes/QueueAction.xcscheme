@@ -58,8 +58,8 @@
       launchAutomaticallySubstyle = "2">
       <RemoteRunnable
          runnableDebuggingMode = "0"
-         BundleIdentifier = "com.spotify.client"
-         RemotePath = "/var/containers/Bundle/Application/683D9835-0E43-4FC4-B96E-E053B671E585/Spotify.app">
+         BundleIdentifier = "com.apple.apps.launcher"
+         RemotePath = "/System/Applications/Apps.app">
       </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference

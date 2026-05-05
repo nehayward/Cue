@@ -1411,11 +1411,17 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
             return track
+        case (.artist, .apple):
+            guard let artist: Artist = try? await musicSearch.lookup(id: content.id) else { return nil }
+            return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.artwork?.url(width: 100, height: 100), artwork: artist.artwork?.url(width: 500, height: 500), content: content)
+        case (.artist, .spotify):
+            guard let artist = await musicSearch.spotifyArtist(id: content.id) else { return nil }
+            return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.images.thumbnail, artwork: artist.images.biggestImageURL, content: content)
         default:
             return nil
         }
     }
-    
+
     public func contentLookup(id: String, type: ContentType, service: MusicService) async -> PlayableContent? {
         let content = MediaContent(service: service, id: id, type: type, location: nil)
         

@@ -1902,6 +1902,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1941,6 +1942,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1979,6 +1981,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PlayAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Play on Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
 				LD_RUNPATH_SEARCH_PATHS = (

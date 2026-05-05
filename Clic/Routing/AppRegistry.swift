@@ -80,11 +80,7 @@ extension View {
                     case let .playContent(content):
                         PlayerSelectionView(playableContent: content)
                     case let .playMedia(url):
-                        NavigationStack {
-                            PlayerSelectionView(urlScheme: url)
-                                .navigationBarTitleDisplayMode(.inline)
-                                .navigationTitle("Choose Group")
-                        }
+                        URLPlayMediaView(url: url)
                     case let .createScene(content):
                         NavigationStack {
                             SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))
@@ -250,11 +246,7 @@ extension View {
                 case let .playContent(content):
                     PlayerSelectionView(playableContent: content)
                 case let .playMedia(url):
-                    NavigationStack {
-                        PlayerSelectionView(urlScheme: url)
-                            .navigationBarTitleDisplayMode(.inline)
-                            .navigationTitle("Choose Group")
-                    }
+                    URLPlayMediaView(url: url)
                 case let .createScene(content):
                     NavigationStack {
                         SceneBuilderScreen(contentToAdd: ContentToAdd(add: true, content: content))

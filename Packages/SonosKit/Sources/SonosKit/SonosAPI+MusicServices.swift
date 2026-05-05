@@ -29,7 +29,9 @@ extension SonosAPI {
 
     private func handleMusic(url: URL, path: String, query: String?) -> MediaContent? {
         let paths = path.split(separator: "/").map(String.init)
-        guard paths.count > 3, let type = ContentType(paths[1]), let id = paths.last else { return nil }
+        // Accept both `/<storefront>/<type>/<slug>/<id>` (4 parts) and the slug-less
+        // `/<storefront>/<type>/<id>` (3 parts) form Apple Music sometimes generates.
+        guard paths.count >= 3, let type = ContentType(paths[1]), let id = paths.last else { return nil }
         
         // Split query into individual parameters
         let queryParams = query?.components(separatedBy: "&").reduce(into: [String: String]()) { result, param in

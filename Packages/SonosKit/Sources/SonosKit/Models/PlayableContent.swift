@@ -44,6 +44,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         guard let musicService = content.service.name?.lowercased() else { return  URL(string: "clic://")!  }
         return URL(string: "clic://play/\(musicService)/\(content.type)/\(id)")!
     }
+
+    public var viewURL: URL {
+        guard content.service != .unknown,
+              let musicService = content.service.name?.lowercased() else {
+            return URL(string: "clic://")!
+        }
+        return URL(string: "clic://view/\(musicService)/\(content.type)/\(id)")!
+    }
     
     public var imageKey: String {
         if let albumID = metadata?.album, !albumID.isEmpty {

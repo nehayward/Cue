@@ -717,6 +717,27 @@ struct ClicApp: App {
                 router.sheet(to: .playMedia(url: url))
             }
 
+            if components.host?.lowercased() == "view", let url = components.url {
+                Task {
+                    guard let content = await sonosService.getContent(from: url) else { return }
+                    if content.content.type == .artist || content.content.type == .libraryArtist {
+                        router.sheet(to: .artistDetail(content: content, group: nil))
+                    } else {
+                        router.sheet(to: .mediaDetail(content: content, group: nil))
+                    }
+                }
+            }
+
+            // Fallback for the share extension: when it can't resolve the
+            // shared link itself, it forwards the original URL via
+            // clic://resolve?url=<encoded>. The main app has full
+            // SonosService/MusicKit access and can resolve it here.
+            if components.host?.lowercased() == "resolve",
+               let raw = components.queryItems?.first(where: { $0.name == "url" })?.value,
+               let originalURL = URL(string: raw) {
+                router.sheet(to: .playMedia(url: originalURL))
+            }
+
             if components.host?.lowercased() == "group", let id = components.queryItems?.first(where: { $0.name == "id" })?.value {
                 router.presentedSheet = nil
                 if let group = sonosService.groups.first(where:  { $0.coordinatorRoom.id == id} ) {

@@ -1,9 +1,19 @@
 # 2026.4
 
+–– New Features ––
+- Share Sheet: Completely rebuilt the "Play on Clic" share extension. Share song, album, playlist, or artist links from Apple Music or Spotify on iPhone, iPad, and Mac and queue to any room or group instantly
+- Share Sheet on Mac: Now shows up directly in Apple Music's, Safari's, and Notes' share menus on macOS
+- Artist Sharing: Sharing an artist link offers Play Radio (starts that artist's radio on selected rooms) and Show (jumps to the artist page in Clic)
+- View / Open in Clic: Quick actions in the share sheet's menu to jump straight into the album, playlist, or artist page in the main app, or to the room picker
+- Tap the artwork header in the share sheet to open that album/playlist/artist in Clic
+
 –– Bug Fixes & Improvements ––
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
 - Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
+- Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
+- Open in Clic now falls back gracefully when the share extension can't resolve a link, letting the main app handle lookup
+- New "View in Clic" routes auto-detect artist vs album/playlist content and open the right detail screen
 
 - Spotify Library: Playlists now navigate to playlist detail instead of playing immediately
 - Spotify Library: Albums and Liked Songs lists no longer show unnecessary alphabetical section index

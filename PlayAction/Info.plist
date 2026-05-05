@@ -16,26 +16,17 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<string>SUBQUERY (
-				extensionItems,
-				$extensionItem,
-				SUBQUERY (
-				$extensionItem.attachments,
-				$attachment,
-				ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.plain-text&quot;
-				|| ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO &quot;public.url&quot;
-				).@count &gt;= 1
-				).@count &gt; 0
-			</string>
-			<key>NSExtensionServiceAllowsFinderPreviewItem</key>
-			<true/>
-			<key>NSExtensionServiceFinderPreviewIconName</key>
-			<string>AppIcon</string>
-			<key>NSExtensionServiceRoleType</key>
-			<string>NSExtensionServiceRoleTypeViewer</string>
+			<dict>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
+				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
+				<integer>1</integer>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+			</dict>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.ui-services</string>
+		<string>com.apple.share-services</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ActionViewController</string>
 	</dict>

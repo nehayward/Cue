@@ -60,4 +60,27 @@ public final class AppleMusicSearchAPI {
             return nil
         }
     }
+
+    /// Looks up any Apple Music entity (track, album/collection, artist) by ID
+    /// against the public iTunes Search API. No auth/entitlement required.
+    /// Pass `preferredWrapperType` ("track", "collection", "artist") so the
+    /// best-matching row is picked when iTunes returns multiple wrapper types.
+    public func lookup(id: String, preferredWrapperType: String? = nil) async -> ITunesLookupItem? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "itunes.apple.com"
+        components.path = "/lookup"
+        components.queryItems = [URLQueryItem(name: "id", value: id)]
+        guard let url = components.url else { return nil }
+
+        guard let (data, _) = try? await session.data(for: URLRequest(url: url)),
+              let response = try? decoder.decode(ITunesLookupResponse.self, from: data) else {
+            return nil
+        }
+        if let preferredWrapperType,
+           let match = response.results.first(where: { $0.wrapperType == preferredWrapperType }) {
+            return match
+        }
+        return response.results.first
+    }
 }

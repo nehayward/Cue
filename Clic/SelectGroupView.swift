@@ -11,7 +11,7 @@ struct SelectGroupView: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(SelectedGroupService.self) private var selectedGroupService
     
-    @State var content: PlayableContent?
+    var content: PlayableContent?
     @State private var filter: String = ""
     @State private var groupVolume: Double = 0
     @State private var selections = Set<String>()
