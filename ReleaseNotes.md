@@ -14,7 +14,6 @@
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Open in Clic now falls back gracefully when the share extension can't resolve a link, letting the main app handle lookup
 - New "View in Clic" routes auto-detect artist vs album/playlist content and open the right detail screen
-
 - Spotify Library: Playlists now navigate to playlist detail instead of playing immediately
 - Spotify Library: Albums and Liked Songs lists no longer show unnecessary alphabetical section index
 - Spotify Library: "See All" for Playlists now navigates to the full playlist browser
