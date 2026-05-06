@@ -13,7 +13,9 @@ struct LiveActivityNowPlayingFamilyView: View {
     var body: some View {
         switch activityFamily {
         case .medium:
-            if #available(iOS 26, *) {
+            if #available(iOS 26.2, *) {
+                LiveActivityNowPlayingViewPre27(context: context)
+            } else if #available(iOS 26, *) {
                 LiveActivityNowPlayingView26(context: context)
             } else {
                 LiveActivityNowPlayingView(context: context)

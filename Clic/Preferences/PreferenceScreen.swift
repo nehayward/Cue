@@ -512,15 +512,6 @@ struct PreferenceScreen: View {
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
                 Section {
                     if UIDevice.current.userInterfaceIdiom == .phone || UIDevice.current.userInterfaceIdiom == .pad {
-                        if #available(iOS 26.0, *) {
-                            VStack(alignment: .leading) {
-                                Text("⚠️ iOS 26 Limitation")
-                                    .fontWeight(.bold)
-                                Text("Due to an iOS 26 system bug, the number of buttons in a Live Activity is currently limited. The volume step and mute button controls have been temporarily removed. We hope this will be resolved in a later update to iOS 26.")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
                         Label {
                             Toggle(isOn: $isCompact) {
                                 Text("Compact Live Activities")

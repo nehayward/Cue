@@ -43,6 +43,7 @@ extension GroupRoom {
 
 struct LiveActivityNowPlayingWidget: Widget {
     @AppStorage("isCompact", store: UserDefaults(suiteName: "group.com.clic")) var isCompact: Bool = false
+    @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ClicNowPlayingWidgetAttributes.self) { context in
@@ -177,7 +178,7 @@ struct LiveActivityNowPlayingWidget: Widget {
                                 }
                                 .tint(.primary)
                                 .buttonStyle(.liveActivity)
-                                VibeNumberSlider(value: .constant(Double(context.state.volume))) { number in
+                                VibeNumberSlider(value: .constant(Double(context.state.volume)), step: Double(liveActivityStep)) { number in
                                     Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
                                         
                                     }

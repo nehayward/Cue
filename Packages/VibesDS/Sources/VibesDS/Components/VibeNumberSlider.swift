@@ -44,11 +44,12 @@ public struct VibeNumberSlider<Content: View>: View {
                         .font(.caption)
                         .bold(isSelected(number))
                         .monospacedDigit()
-                        .scaleEffect(isSelected(number) ? 1.1 : 1)
+                        .scaleEffect(isSelected(number) ? 1.2 : 1)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background {
                             Circle()
-                                .fill(.thickMaterial)
+                                .inset(by: 1)
+                                .stroke(.white.secondary, lineWidth: 2)
                                 .opacity(isSelected(number) ? 1 : 0)
                         }
                     
