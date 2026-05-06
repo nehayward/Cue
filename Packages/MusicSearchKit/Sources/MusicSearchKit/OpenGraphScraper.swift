@@ -17,9 +17,11 @@ public struct OpenGraphMeta: Sendable, Equatable {
 
 public enum OpenGraphScraper {
     /// Fetches a URL with a browser User-Agent and extracts standard `og:*` meta tags.
-    public static func fetch(url: URL, session: URLSession = .shared) async -> OpenGraphMeta {
+    /// Pass `timeout` to override the per-request deadline (defaults to the session config).
+    public static func fetch(url: URL, session: URLSession = .shared, timeout: TimeInterval? = nil) async -> OpenGraphMeta {
         var request = URLRequest(url: url)
         request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+        if let timeout { request.timeoutInterval = timeout }
         guard let (data, _) = try? await session.data(for: request),
               let html = String(data: data, encoding: .utf8) else {
             return OpenGraphMeta()

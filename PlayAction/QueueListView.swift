@@ -145,12 +145,18 @@ struct QueueListView: View {
             try? await sonosService.load(useCache: true)
             impactFeedbackGenerator.prepare()
         }
-        .onChange(of: viewModel.url) { _, newValue in
-            Task {
-                viewModel.isLoading = true
-                content = await fetchContent(from: newValue)
-                viewModel.isLoading = false
+        .task(id: viewModel.url) {
+            guard let url = viewModel.url else { return }
+            viewModel.isLoading = true
+            defer { viewModel.isLoading = false }
+
+            let fetch = Task { await fetchContent(from: url) }
+            let deadline = Task {
+                try? await Task.sleep(for: .seconds(3))
+                fetch.cancel()
             }
+            content = await fetch.value
+            deadline.cancel()
         }
     }
 
@@ -350,28 +356,62 @@ struct QueueListView: View {
     private var emptyStateOverlay: some View {
         if content == nil, !viewModel.isLoading {
             VStack(spacing: 10) {
-                Image(systemName: "music.note.list")
-                    .font(.system(size: 38))
-                    .foregroundStyle(.secondary)
-                Text("No music link found").font(.title3.bold())
-                Text("Share a song, album, or playlist from Apple Music, Spotify, or Tidal.")
+                if let service = detectedService {
+                    service.icon
+                        .frame(width: 44, height: 44)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "music.note.list")
+                        .font(.system(size: 38))
+                        .foregroundStyle(.secondary)
+                }
+                Text(viewModel.url == nil ? "No music link found" : "Couldn't load info").font(.title3.bold())
+                Text(viewModel.url == nil
+                     ? "Share a song, album, or playlist from Apple Music, Spotify, or Tidal."
+                     : "Open in Clic to look it up there.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
                 Button {
-                    openURL?(URL(string: "clic://")!)
+                    dismiss(opening: openInClicURL)
                 } label: {
-                    Text("Open Clic")
+                    Text("Open in Clic")
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.url == nil)
             }
         }
         if content != nil, sonosService.groups.isEmpty {
             Text("No system available").font(.title).padding()
         }
         if viewModel.isLoading {
+            loadingIndicator
+        }
+    }
+
+    @ViewBuilder
+    private var loadingIndicator: some View {
+        VStack(spacing: 14) {
+            if let service = detectedService {
+                service.icon
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
             ProgressView()
         }
+    }
+
+    private var detectedService: MusicService? {
+        guard let host = viewModel.url?.host?.lowercased() else { return nil }
+        if host.contains("apple") { return .apple }
+        if host.contains("spotify") { return .spotify }
+        if host.contains("tidal") { return .tidal }
+        if host.contains("tunein") { return .tuneIn }
+        if host.contains("plex") { return .plex }
+        if host.contains("soundcloud") { return .soundcloud }
+        return nil
     }
 
     // MARK: - Actions
@@ -468,8 +508,17 @@ struct QueueListView: View {
 
     // MARK: - Lookup
 
-    private static let appleMusicAPI = AppleMusicSearchAPI()
-    private static let spotifyOpenGraph = SpotifyOpenGraphAPI()
+    private static let lookupTimeout: TimeInterval = 5
+
+    private static let lookupSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = lookupTimeout
+        config.timeoutIntervalForResource = lookupTimeout
+        return URLSession(configuration: config)
+    }()
+
+    private static let appleMusicAPI = AppleMusicSearchAPI(session: lookupSession)
+    private static let spotifyOpenGraph = SpotifyOpenGraphAPI(session: lookupSession, timeout: lookupTimeout)
 
     private func fetchContent(from url: URL?) async -> PlayableContent? {
         guard let url else { return nil }
@@ -535,7 +584,7 @@ struct QueueListView: View {
         // Fallback: scrape music.apple.com for og:* tags. Covers editorial playlists
         // (`pl.u-...` IDs) and other content the iTunes Lookup API doesn't surface.
         log.notice("iTunes lookup empty for \(lookupID, privacy: .public); falling back to og scrape")
-        let og = await AppleMusicOpenGraphAPI.lookup(url: url)
+        let og = await AppleMusicOpenGraphAPI.lookup(url: url, session: Self.lookupSession, timeout: Self.lookupTimeout)
         guard og.title != nil || og.image != nil else { return nil }
 
         let subtitle: String

@@ -55,8 +55,8 @@ public struct AppleMusicOpenGraph: Sendable, Equatable {
 }
 
 public enum AppleMusicOpenGraphAPI {
-    public static func lookup(url: URL, session: URLSession = .shared) async -> AppleMusicOpenGraph {
-        let og = await OpenGraphScraper.fetch(url: url, session: session)
+    public static func lookup(url: URL, session: URLSession = .shared, timeout: TimeInterval? = nil) async -> AppleMusicOpenGraph {
+        let og = await OpenGraphScraper.fetch(url: url, session: session, timeout: timeout)
         return AppleMusicOpenGraph(title: og.title, description: og.description, image: og.image)
     }
 }

@@ -23,14 +23,16 @@ public struct SpotifyOpenGraph: Sendable, Equatable {
 public final class SpotifyOpenGraphAPI {
     private let session: URLSession
     private let decoder: JSONDecoder
+    private let defaultTimeout: TimeInterval?
 
-    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder()) {
+    public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder(), timeout: TimeInterval? = nil) {
         self.session = session
         self.decoder = decoder
+        self.defaultTimeout = timeout
     }
 
     public func lookup(url: URL) async -> SpotifyOpenGraph {
-        async let pageOG = OpenGraphScraper.fetch(url: url, session: session)
+        async let pageOG = OpenGraphScraper.fetch(url: url, session: session, timeout: defaultTimeout)
         async let oe = fetchOEmbed(url: url)
 
         let og = await pageOG
@@ -53,8 +55,12 @@ public final class SpotifyOpenGraphAPI {
     private func fetchOEmbed(url: URL) async -> OEmbedResponse {
         var components = URLComponents(string: "https://open.spotify.com/oembed")!
         components.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
-        guard let endpoint = components.url,
-              let (data, _) = try? await session.data(for: URLRequest(url: endpoint)),
+        guard let endpoint = components.url else {
+            return OEmbedResponse(title: nil, thumbnail_url: nil, author_name: nil)
+        }
+        var request = URLRequest(url: endpoint)
+        if let defaultTimeout { request.timeoutInterval = defaultTimeout }
+        guard let (data, _) = try? await session.data(for: request),
               let decoded = try? decoder.decode(OEmbedResponse.self, from: data) else {
             return OEmbedResponse(title: nil, thumbnail_url: nil, author_name: nil)
         }
