@@ -2,9 +2,10 @@ import SwiftUI
 import SonosKit
 
 struct TVModeViewCell: View {
-    @Environment(Router.self) var routePath: Router
-    var group: GroupRoom
-
+    @Environment(Router.self) var router: Router
+    
+    let group: GroupRoom
+    
     var body: some View {
         let settings = group.tvSettings
         let nightMode = settings?.nightMode ?? false
@@ -65,7 +66,7 @@ struct TVModeViewCell: View {
         .frame(maxWidth: .infinity)
         .overlay(alignment: .topTrailing) {
             Button {
-                routePath.presentedSheet = .groupScreen(group: group)
+                router.presentedSheet = .groupScreen(group: group)
             } label: {
                 Image(systemName: "tv.and.hifispeaker.fill")
                     .symbolRenderingMode(.hierarchical)

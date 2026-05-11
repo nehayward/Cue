@@ -280,9 +280,7 @@ struct GroupScreen: View {
                 if let id = newCoordinatorID {
                     coordinatorID = id
                     Task { @MainActor in
-                        if Router.main.path.isEmpty { return }
-
-                        Router.main.path.removeAll()
+                        Router.main.selectedID = coordinatorID
                         Router.main.navigate(to: .player(groupID: coordinatorID))
                     }
                 }

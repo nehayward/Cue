@@ -1,21 +1,22 @@
 import SwiftUI
-import SonosKit
 
 struct ZoneView: View {
-    var group: GroupRoom
+    let radioStation: String
+    let song: String
+    let artist: String
 
     var body: some View {
         VStack(alignment: .leading) {
-            Text(group.coordinatorRoom.radioStation ?? "")
+            Text(radioStation)
                 .font(.caption.smallCaps())
                 .foregroundStyle(.secondary)
                 .tint(.secondary)
                 .lineLimit(1, reservesSpace: true)
-            Text(group.coordinatorRoom.track.song)
+            Text(song)
                 .foregroundStyle(.primary)
                 .tint(.primary)
                 .lineLimit(1, reservesSpace: true)
-            Text(group.coordinatorRoom.track.artist)
+            Text(artist)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .tint(.secondary)
@@ -25,15 +26,3 @@ struct ZoneView: View {
         .fontDesign(.rounded)
     }
 }
-
-//#Preview {
-//    List {
-//        Section {
-//            ZoneView(group: .constant(.garage))
-//        }
-//        Section {
-//            ZoneView(group: .constant(.theater))
-//        }
-//    }
-//    .environment(SonosService())
-//}

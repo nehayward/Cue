@@ -44,7 +44,7 @@ struct PlayerSelectionView: View {
             }
             .padding(.horizontal)
 
-            List ($sonosService.sorted) { $group in
+            List(sonosService.sorted) { group in
                 VStack(alignment: .leading) {
                     Button {
                         selectedGroupService?.group = group

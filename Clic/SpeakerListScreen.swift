@@ -11,20 +11,20 @@ struct SpeakerListScreen: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(AlertService.self) private var alertService
     @Environment(Router.self) private var router
-
+    
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-
+    
     @State private var hoveredID: String? = nil
-
+    
     var body: some View {
         @Bindable var sonosService = sonosService
         @Bindable var router = router
-
+        
         List(sonosService.sorted, selection: $router.selectedID) { group in
             SpeakerGroupSection(group: group, hoveredID: $hoveredID)
         }
         .listSectionSpacing(10)
-        .animation(.interactiveSpring, value: sonosService.sorted)
+        .animation(.interactiveSpring, value: sonosService.sorted.map(\.topologyKey))
         .animation(.interactiveSpring, value: sonosService.sortOption)
         .environment(\.defaultMinListRowHeight, 40)
         .withAppRouter()
@@ -241,11 +241,6 @@ struct SpeakerListScreen: View {
                 }
             }
         }
-        .onChange(of: router.selectedID) {
-            if let id = router.selectedID, let index = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                sonosService.selectedGroup = sonosService.sorted[index]
-            }
-        }
     }
     
 }
@@ -255,16 +250,16 @@ fileprivate struct SpeakerGroupSection: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(Router.self) private var router
     @Environment(\.colorScheme) private var colorScheme
-
-    var group: GroupRoom
+    
+    let group: GroupRoom
     @Binding var hoveredID: String?
-
+    
     private var paywallEnabled: Bool {
         if subscriptionService.subscription.isActive { return true }
         guard let index = sonosService.sorted.firstIndex(of: group) else { return false }
         return index < 1
     }
-
+    
     private var listRowBackground: Color {
         #if targetEnvironment(macCatalyst)
         Color(UIColor.secondarySystemBackground)
@@ -272,7 +267,7 @@ fileprivate struct SpeakerGroupSection: View {
         colorScheme == .light ? Color.white : Color(uiColor: .secondarySystemFill)
         #endif
     }
-
+    
     var body: some View {
         Section {
             VStack(spacing: 12) {
@@ -281,16 +276,18 @@ fileprivate struct SpeakerGroupSection: View {
                         .blur(radius: group.TVMode ? 0 : 10)
                         .opacity(group.TVMode ? 1 : 0)
                         .animation(.smooth, value: group.TVMode)
-
                     HStack(alignment: .top) {
                         ArtworkView(group: group)
                             .frame(width: 72, height: 72)
-                        ZoneView(group: group)
+                        ZoneView(
+                            radioStation: group.coordinatorRoom.radioStation ?? "",
+                            song: group.coordinatorRoom.track.song,
+                            artist: group.coordinatorRoom.track.artist
+                        )
                         Spacer()
                         MediaControlsView(group: group)
                     }
                     .opacity(group.TVMode ? 0 : 1)
-                    .id(group.coordinatorRoom.track.trackID)
                 }
                 .padding(.horizontal, 12)
                 VolumeControlView(group: group, delayDrag: true)
@@ -326,7 +323,7 @@ fileprivate struct SpeakerGroupSection: View {
         .headerProminence(.increased)
         .tint(.primary)
     }
-
+    
     private var background: some View {
         RoundedRectangle(cornerRadius: 12)
             .fill(
@@ -338,8 +335,8 @@ fileprivate struct SpeakerGroupSection: View {
 }
 
 fileprivate struct SpeakerGroupHeader: View {
-    var group: GroupRoom
-
+    let group: GroupRoom
+    
     var body: some View {
         HStack {
             Text(group.nameWithCount)
@@ -384,11 +381,11 @@ fileprivate struct SortMenuView: View {
                         }
                     }
                 )) {
-                   Label {
-                       Text(option.title)
-                   } icon: {
-                       option.icon
-                   }
+                    Label {
+                        Text(option.title)
+                    } icon: {
+                        option.icon
+                    }
                 }
             }
         } label: {

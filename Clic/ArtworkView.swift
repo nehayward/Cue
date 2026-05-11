@@ -7,7 +7,7 @@ import MusicSearchKit
 struct ArtworkView: View {
     @Environment(AlertService.self) var alertService
     
-    var group: GroupRoom
+    let group: GroupRoom
     var isDraggable: Bool = false
     var showBadge: Bool = true
     var shouldFade: Bool = false

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Battery {
+public struct Battery: Equatable {
     public let percentage: Double
     public let chargingState: ChargingState
     public let batteryTemperature: Double
@@ -36,7 +36,7 @@ public struct Battery {
     }
 }
 
-public enum ChargingState {
+public enum ChargingState: Equatable {
     case charging
     case notCharging
 }

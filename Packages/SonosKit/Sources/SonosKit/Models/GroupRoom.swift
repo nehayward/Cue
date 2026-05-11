@@ -40,7 +40,13 @@ extension GroupRoom {
     public var isActive: Bool {
         coordinatorRoom.state == .active
     }
-    
+
+    /// Stable id-only fingerprint for detecting topology changes (coordinator + sorted member ids).
+    /// Ignores volatile state like track, playback, battery, name.
+    public var topologyKey: String {
+        "\(coordinatorID):\(rooms.map(\.id).sorted().joined(separator: ","))"
+    }
+
     public var nameWithCount: String {
         switch rooms.count {
         case 0...1:
@@ -58,13 +64,17 @@ extension GroupRoom: Hashable {
     public static func == (lhs: GroupRoom, rhs: GroupRoom) -> Bool {
         lhs.coordinatorID == rhs.coordinatorID &&
         lhs.rooms == rhs.rooms &&
-        lhs.coordinatorRoom == rhs.coordinatorRoom
+        lhs.coordinatorRoom == rhs.coordinatorRoom &&
+        lhs.TVMode == rhs.TVMode &&
+        lhs.nameWithCount == rhs.nameWithCount
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(coordinatorID)
         hasher.combine(rooms)
         hasher.combine(coordinatorRoom)
+        hasher.combine(TVMode)
+        hasher.combine(nameWithCount)
     }
 }
 

@@ -16,6 +16,7 @@ struct QueueListView: View {
     @State private var selections = Set<String>()
     @State private var groupVolume: Double = 0
     @State private var isQueueing = false
+    @State private var setVolume = false
 
     var viewModel: ViewModel
     var context: NSExtensionContext?
@@ -123,7 +124,8 @@ struct QueueListView: View {
                 LazyVStack(spacing: 8) {
                     if self.content != nil {
                         multiRoomGroupsScroll
-                        everywhereButton
+                        Divider()
+                            .padding(.horizontal)
                         ForEach(sortedRooms) { roomRow($0) }
                     }
                 }
@@ -184,9 +186,9 @@ struct QueueListView: View {
             }
             .padding(8)
             .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.thinMaterial)
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.thinMaterial)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .padding(.horizontal)
@@ -211,10 +213,16 @@ struct QueueListView: View {
         Button {
             playInGroup(group)
         } label: {
-            HStack(spacing: 12) {
-                Text(group.nameWithCount).fontWeight(.semibold).lineLimit(1)
-                Spacer()
-                Text("\(Int(group.groupVolume))").font(.callout).foregroundStyle(.secondary)
+            VStack(alignment: .leading) {
+                HStack(spacing: 12) {
+                    Text(group.nameWithCount).fontWeight(.semibold).lineLimit(1)
+                    Spacer()
+                    Text("\(Int(group.groupVolume))").font(.callout).foregroundStyle(.secondary)
+                }
+                Text(group.coordinatorRoom.track.name)
+                    .font(.caption)
+                    .lineLimit(1, reservesSpace: true)
+                    .foregroundStyle(.secondary)
             }
             .padding()
             .background {
@@ -239,24 +247,23 @@ struct QueueListView: View {
         .padding(.horizontal)
     }
 
+    @ViewBuilder
     private func roomRow(_ room: Room) -> some View {
         let isSelected = selections.contains(room.id)
         let trackName = currentTrackName(for: room.id)
         let isPlaying = isRoomPlaying(room.id)
 
-        return Button {
+        Button {
             impactFeedbackGenerator.impactOccurred()
             toggleSelection(room)
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(room.name).fontWeight(.semibold)
-                    if !trackName.isEmpty {
-                        Text(trackName)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
-                    }
+                    Text(trackName)
+                        .font(.caption)
+                        .lineLimit(1, reservesSpace: true)
+                        .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
                 }
                 Spacer()
                 Text("\(Int(room.volume))").font(.callout).foregroundStyle(.secondary)
@@ -266,30 +273,47 @@ struct QueueListView: View {
                     .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(isSelected ? Color.accentColor : .primary.opacity(0.7))
             }
-            .padding(.horizontal)
             .padding(.vertical, 12)
+            .padding(.horizontal)
+            .background {
+                RoundedRectangle(cornerRadius: 12).foregroundStyle(.thinMaterial)
+            }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 
     // MARK: - Bottom bar
 
     @ViewBuilder
     private var bottomBar: some View {
-        if content != nil {
-            VStack(spacing: 12) {
-                volumeRow
+        VStack(spacing: 12) {
+            VStack {
+                Button {
+                    withAnimation(.interactiveSpring) {
+                        setVolume.toggle()
+                    }
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .bold()
+                }
+                .geometryGroup()
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
                 playButtons
             }
-            .padding()
-            .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.thinMaterial)
-                    .ignoresSafeArea(edges: .bottom)
+            if setVolume {
+                volumeRow
+                    .transition(.opacity.combined(with: .move(edge: .bottom)).animation(.interactiveSpring))
             }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
         }
+        .padding(.horizontal)
+        .padding(.top, 12)
+        .background {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .shadow(radius: 24, y: -4)
     }
 
     private var volumeRow: some View {
@@ -332,10 +356,15 @@ struct QueueListView: View {
                 .disabled(isQueueing)
             }
         } else {
-            Button { performPlay() } label: {
-                Text("Play").frame(maxWidth: .infinity).bold().fontDesign(.rounded)
+            Button {
+                performPlay()
+            } label: {
+                Text("Play")
+                    .frame(maxWidth: .infinity)
+                    .bold()
+                    .fontDesign(.rounded)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .disabled(selections.isEmpty || isQueueing)
         }
     }
@@ -450,24 +479,40 @@ struct QueueListView: View {
         if sonosService.sortedRooms.isEmpty {
             try? await sonosService.updateGroups()
         }
-        rooms = sonosService.sortedRooms
-            .filter { $0.state == .active }
-            .map { source in
-                let room = Room(id: source.id, ip: source.ip, name: source.name, channelMap: source.channelMap)
-                room.volume = source.volume
-                return room
+        let active = sonosService.sortedRooms.filter { $0.state == .active }
+        let snapshots = active.map { source in
+            let room = Room(id: source.id, ip: source.ip, name: source.name, channelMap: source.channelMap)
+            room.volume = source.volume
+            return room
+        }
+        rooms = snapshots
+        // Fetch live volume per room — the extension has no watcher to refresh these.
+        await withTaskGroup(of: (String, Double).self) { group in
+            for room in snapshots {
+                group.addTask {
+                    let volume = (try? await sonosService.getVolume(ip: room.ip)) ?? room.volume
+                    return (room.id, volume)
+                }
             }
+            for await (id, volume) in group {
+                if let room = snapshots.first(where: { $0.id == id }) {
+                    room.volume = volume
+                }
+            }
+        }
     }
 
     private func playInGroup(_ group: GroupRoom) {
         guard let content else { return }
+        isQueueing = true
         Task {
+            defer { isQueueing = false }
             impactFeedbackGenerator.impactOccurred()
-            isQueueing = true
             playHistoryService.history.remove(content)
             playHistoryService.history.insert(content, at: 0)
 
-            try await sonosService.queue(playable: content, group: group, position: .now)
+            let position: QueuePosition = content.content.type.isPlaylist ? .replace : .now
+            try await sonosService.queue(playable: content, group: group, position: position)
             await sonosService.play(ip: group.ip)
 
             dismiss(opening: URL(string: "clic://device?id=\(group.coordinatorID)"))
@@ -477,24 +522,28 @@ struct QueueListView: View {
     private func performPlay(asArtistRadio: Bool = false) {
         guard let baseContent = content else { return }
         let contentToPlay = asArtistRadio ? baseContent.asArtistRadio() : baseContent
+        isQueueing = true
 
         Task {
+            defer { isQueueing = false }
             impactFeedbackGenerator.impactOccurred()
             let selectedRooms = rooms.filter { selections.contains($0.id) }
             guard let newGroup = await sonosService.speedGroup(rooms: selectedRooms) else { return }
 
-            isQueueing = true
             playHistoryService.history.remove(contentToPlay)
             playHistoryService.history.insert(contentToPlay, at: 0)
 
-            try await sonosService.queue(playable: contentToPlay, group: newGroup, position: .now)
+            let position: QueuePosition = contentToPlay.content.type.isPlaylist ? .replace : .now
+            try await sonosService.queue(playable: contentToPlay, group: newGroup, position: position)
+            await sonosService.play(ip: newGroup.ip)
 
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await sonosService.play(ip: newGroup.ip) }
-                for room in selectedRooms {
-                    group.addTask {
-                        await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
-                        await sonosService.setRoomMute(IP: room.ip, mute: false)
+            if setVolume {
+                await withTaskGroup(of: Void.self) { group in
+                    for room in selectedRooms {
+                        group.addTask {
+                            await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
+                            await sonosService.setRoomMute(IP: room.ip, mute: false)
+                        }
                     }
                 }
             }
@@ -669,3 +718,15 @@ private extension PlayableContent {
     }
 }
 
+
+#Preview {
+    @Previewable var viewModel = QueueListView.ViewModel()
+    
+    QueueListView(viewModel: viewModel, context: nil) { url in
+        print(url)
+    }
+    .task {
+        try? await SonosService.shared.load(useCache: true)
+        viewModel.url = URL(string: "https://music.apple.com/us/playlist/a-list-pop/pl.5ee8333dbe944d9f9151e97d92d1ead9")
+    }
+}

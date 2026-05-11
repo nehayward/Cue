@@ -6,11 +6,10 @@ import Defaults
 
 struct LargePlayerView: View {
     @AppStorage(AppStorageKeys.showArtworkOnly) private var showArtworkOnly: Bool = false
-
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
-    @Bindable var group: GroupRoom
+    var group: GroupRoom
     
     @State private var isEditing: Bool = false
     @State private var shouldFade: Bool = false
@@ -32,8 +31,6 @@ struct LargePlayerView: View {
     }
     
     var body: some View {
-        @Bindable var router = router
-        
         VStack(alignment: .center) {
             if group.TVMode {
                 VStack {
@@ -118,9 +115,6 @@ struct LargePlayerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.interactiveSpring, value: showArtworkOnly)
-        .onChange(of: group, initial: true) {
-            sonosService.selectedGroup = group
-        }
         #if !targetEnvironment(macCatalyst)
         .onDisappear {
             sonosService.selectedGroup = nil
@@ -251,6 +245,10 @@ struct LargePlayerView: View {
             group.isCrossfaded = await sonosService.isCrossfaded(for: group)
             await sonosService.getSleepTimer(group: group)
         }
+        .task {
+            sonosService.selectedGroup = group
+            try? await sonosService.updateTrackInformation(for: [group])
+        }
         .modifier(ScenePhaseSyncModifier(group: group))
         .environment(AlertService.shared)
         .padding(.horizontal, 32)
@@ -259,9 +257,6 @@ struct LargePlayerView: View {
         .background {
             BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
         }
-        .onChange(of: group) {
-            shouldFade = false
-        }
         .task {
             let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
             if group.playMode != awaitedPlayMode {
@@ -269,6 +264,9 @@ struct LargePlayerView: View {
             }
             try? await Task.sleep(for: .milliseconds(400))
             shouldFade = true
+        }
+        .onChange(of: group) {
+            shouldFade = false
         }
     }
     
@@ -284,10 +282,7 @@ fileprivate struct ScenePhaseSyncModifier: ViewModifier {
             .onChange(of: scenePhase) {
                 if scenePhase == .active {
                     Task {
-                        guard let track = await sonosService.getTrack(ip: group.ip) else { return }
-                        if group.coordinatorRoom.track.trackID == track.trackID {
-                            group.coordinatorRoom.track.playbackPosition = track.playbackPosition
-                        }
+                        try? await sonosService.updateTrackInformation(for: [group])
                     }
 
                     Task {
@@ -352,7 +347,8 @@ fileprivate struct SongTitleButton: View {
 
 fileprivate struct ArtistButton: View {
     @Environment(Router.self) private var router: Router
-    @Bindable var group: GroupRoom
+
+    let group: GroupRoom
     let showArtworkOnly: Bool
 
     @State private var isHovering: Bool = false
@@ -780,8 +776,9 @@ fileprivate struct BackgroundViewCatalyst: View {
                 .opacity(group.coordinatorRoom.track.artworkURL == nil ? 0 : 1)
                 .blur(radius: 80)
             BlurView()
-                .opacity(group.TVMode ? 0 : 1)
         }
+        .opacity(group.TVMode ? 0 : 1)
+        .animation(.smooth, value: group.TVMode)
         .scaleEffect(1.3)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)

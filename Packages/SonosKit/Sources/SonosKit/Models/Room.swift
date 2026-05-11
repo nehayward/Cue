@@ -122,7 +122,11 @@ extension Room: Hashable {
     public static func == (lhs: Room, rhs: Room) -> Bool {
         lhs.id == rhs.id &&
         lhs.ip == rhs.ip &&
-        lhs.name == rhs.name
+        lhs.name == rhs.name &&
+        lhs.track.id == rhs.track.id &&
+        lhs.track.artist == rhs.track.artist &&
+        lhs.track.song == rhs.track.song &&
+        lhs.radioStation == rhs.radioStation
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -130,6 +134,10 @@ extension Room: Hashable {
         hasher.combine(ip)
         hasher.combine(state)
         hasher.combine(macAddress)
+        hasher.combine(track.id)
+        hasher.combine(track.artist)
+        hasher.combine(track.song)
+        hasher.combine(radioStation)
     }
 }
 

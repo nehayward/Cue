@@ -43,7 +43,6 @@ struct SleepTimerCustomView: View {
             .presentationDetents([.fraction(0.4)])
             .presentationDragIndicator(.visible)
             .presentationBackground(.background)
-            .presentationCornerRadius(24)
         }
     }
 }

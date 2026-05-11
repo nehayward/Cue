@@ -1,6 +1,6 @@
 import Foundation
 
-public enum PlaybackService {
+public enum PlaybackService: Equatable {
     case tv
     case queue
     case radio

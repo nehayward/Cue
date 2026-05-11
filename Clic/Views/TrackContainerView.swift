@@ -9,7 +9,6 @@ struct TrackContainerView: View {
     
     var body: some View {
         Button {
-//            print(group.coordinatorRoom.container)
             guard let uri = group.coordinatorRoom.container?.id?.objectId,
                   let serviceID = group.coordinatorRoom.container?.id?.serviceId,
                   let type = ContentType(group.coordinatorRoom.container?.type ?? "") else { return }

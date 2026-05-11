@@ -30,9 +30,11 @@ extension SonosMiniService: SonosEventHandler {
 
     public func onPlaybackUpdate(playerId: String, event: PlaybackEvent) {
         guard event.info.type == "playbackStatus", let playbackState = event.playbackState else { return }
+        guard playbackState.playbackState != "PLAYBACK_STATE_BUFFERING" else { return }
         guard let index = devices.firstIndex(where: { $0.id == playerId }) else { return }
 
         let isPlaying = playbackState.playbackState == "PLAYBACK_STATE_PLAYING"
+        
         updateDevice(devices[index], keyPath: \.isPlaying, value: isPlaying)
         updateDevice(devices[index], keyPath: \.currentPosition, value: playbackState.positionMillis)
         updateDevice(devices[index], keyPath: \.lastPositionUpdate, value: .now)
@@ -47,6 +49,16 @@ extension SonosMiniService: SonosEventHandler {
 
             if track.id != nil {
                 let deviceAtIndex = devices[index]
+
+                // On auto-advance the cloud sends metadata for the new track but not
+                // always a fresh playback event, leaving currentPosition stale near
+                // the old track's end. smoothCurrentPosition then clamps to the new
+                // totalDuration and the progress bar reads full for the whole song.
+                if deviceAtIndex.track.name != track.name {
+                    updateDevice(deviceAtIndex, keyPath: \.currentPosition, value: 0)
+                    updateDevice(deviceAtIndex, keyPath: \.lastPositionUpdate, value: .now)
+                }
+
                 // Cancel previous metadata task to prevent unbounded task accumulation
                 metadataUpdateTask?.cancel()
                 metadataUpdateTask = Task { [weak self] in

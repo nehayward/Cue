@@ -66,6 +66,8 @@ public final class SonosMiniService {
     @ObservationIgnored var metadataUpdateTask: Task<Void, Never>?
     @ObservationIgnored var groupUpdateTask: Task<Void, any Error>?
 
+    @ObservationIgnored private var hasAppliedDevicesCache = false
+
     /// Callback invoked every 24 hours for app-level cache cleanup (e.g. image caches).
     /// Set this from the app layer since SonosKitMini doesn't know about Kingfisher/Nuke.
     @ObservationIgnored public var onPeriodicCleanup: (() -> Void)?
@@ -402,12 +404,14 @@ public final class SonosMiniService {
             }
             
             self.devices = newDevices
-            
+
             // CRITICAL FIX: Disconnect all existing connections before adding new ones
             // This prevents accumulation of WebSocket connections and memory leaks
             await streamingService.disconnectAll()
         }
-        
+
+        applyDevicesCacheIfMatching()
+
         // MARK: Update Devices Info
         try await updateWatchDevices(from: devices)
         await updateRoomVolumes()
@@ -560,6 +564,7 @@ public final class SonosMiniService {
                     
                     if device.track != awaitedTrack {
                         await updateDevice(device, keyPath: \.track, value: awaitedTrack)
+                        await self.saveDevicesCache()
                     }
                     
                     if awaitedTrack.trackURI.contains("x-sonos-htastream") {
@@ -2373,14 +2378,66 @@ public final class SonosMiniService {
                 let notTheseModels = ["roam", "move", "play"]
                 return notTheseModels.filter { modelName.contains($0)}.count == 0
             }
-            
+
             if filteredRooms.isEmpty {
                 return devices.first?.ip
             }
-            
+
             return filteredRooms.first?.ip
         }
         return room.ip
+    }
+
+    /// One-shot, run on first launch only: if persisted topology matches current devices,
+    /// seed each device's track from the cache so the row paints immediately
+    /// instead of waiting for the first network pulse to populate.
+    @MainActor
+    func applyDevicesCacheIfMatching() {
+        guard !hasAppliedDevicesCache else { return }
+        hasAppliedDevicesCache = true
+        guard !devices.isEmpty, let cache = DevicesCacheStore.read() else { return }
+
+        let liveSig = Set(devices.map { "\($0.id):\($0.rooms.map(\.id).sorted().joined(separator: ","))" })
+        guard liveSig == cache.topologySignature else { return }
+
+        for cached in cache.devices {
+            guard let index = devices.firstIndex(where: { $0.id == cached.deviceID }),
+                  devices[index].track.name.isEmpty else { continue }
+
+            var track = SonosTrack(
+                trackID: cached.trackID,
+                trackURI: cached.trackURI,
+                name: cached.trackName,
+                artist: cached.trackArtist,
+                album: cached.trackAlbum,
+                musicService: cached.trackMusicService,
+                duration: .seconds(cached.trackDurationSeconds),
+                sonosAlbumArtURL: cached.trackSonosAlbumArtURL
+            )
+            track.downloadedArtworkURL = cached.trackArtworkURL
+            devices[index].track = track
+        }
+    }
+
+    /// Persist current devices + per-device track snapshot to disk.
+    @MainActor
+    func saveDevicesCache() {
+        let snapshots = devices.map { device in
+            CachedDevice(
+                deviceID: device.id,
+                memberRoomIDs: device.rooms.map(\.id).sorted(),
+                trackID: device.track.trackID,
+                trackURI: device.track.trackURI,
+                trackName: device.track.name,
+                trackArtist: device.track.artist,
+                trackAlbum: device.track.album,
+                trackArtworkURL: device.track.downloadedArtworkURL,
+                trackSonosAlbumArtURL: device.track.sonosAlbumArtURL,
+                trackMusicService: device.track.musicService,
+                trackDurationSeconds: Double(device.track.duration.components.seconds)
+            )
+        }
+        DevicesCacheStore.write(DevicesCache(devices: snapshots))
     }
 }
 

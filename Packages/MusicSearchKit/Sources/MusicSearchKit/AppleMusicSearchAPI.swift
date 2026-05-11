@@ -73,10 +73,12 @@ public final class AppleMusicSearchAPI {
         components.queryItems = [URLQueryItem(name: "id", value: id)]
         guard let url = components.url else { return nil }
 
+        print(url)
         guard let (data, _) = try? await session.data(for: URLRequest(url: url)),
               let response = try? decoder.decode(ITunesLookupResponse.self, from: data) else {
             return nil
         }
+        
         if let preferredWrapperType,
            let match = response.results.first(where: { $0.wrapperType == preferredWrapperType }) {
             return match

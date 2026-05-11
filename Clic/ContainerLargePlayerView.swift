@@ -11,9 +11,6 @@ struct ContainerLargePlayerView: View {
     @State var refreshID = UUID()
     
     var body: some View {
-        @Bindable var sonosService = sonosService
-        @Bindable var router = router
-        
         VStack {
             if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
                 LargePlayerView(group: sonosService.sorted[group])
@@ -123,10 +120,5 @@ struct ContainerLargePlayerView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
-//        .onChange(of: scenePhase) {
-//            if horizontalSizeClass != .compact, UIDevice.current.userInterfaceIdiom == .pad {
-//                refreshID = UUID()
-//            }
-//        }
     }
 }

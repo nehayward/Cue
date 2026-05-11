@@ -68,7 +68,6 @@ struct VolumeControlsScreen: View {
                 .padding([.horizontal, .bottom])
             }
         }
-        .presentationCornerRadius(24)
     }
     
     private func syncVolumes() {
