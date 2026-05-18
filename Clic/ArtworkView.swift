@@ -16,27 +16,16 @@ struct ArtworkView: View {
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
 
-    init(group: GroupRoom, isDraggable: Bool = false, showBadge: Bool = true, shouldFade: Bool = false) {
-        self.group = group
-        self.isDraggable = isDraggable
-        self.showBadge = showBadge
-        self.shouldFade = shouldFade
-        // Seed @State synchronously from the image cache so the very first
-        // paint already has the artwork — no placeholder flash on Catalyst
-        // app re-open. `.task(id:)` below handles the async load when the
-        // URL changes or there's a cache miss.
-        let request = ImageRequest(
-            url: group.coordinatorRoom.track.artworkURL,
-            processors: [.resize(width: 500)],
-            priority: .high
-        )
-        self._currentImage = State(initialValue: ImagePipeline.shared.cache.cachedImage(for: request)?.image)
-    }
+    // Snapshot of `shouldFade` taken when the artwork URL changes — see the
+    // `.task` below. The fade must be decided at skip time, not when the
+    // (possibly slow) image load lands, otherwise a late load fades in even
+    // though the user tapped Next.
+    @State private var animateArtworkChange: Bool = false
 
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
     }
-    
+
     fileprivate var imageIDKey: String {
         let suffix = "player"
         if !group.coordinatorRoom.track.album.isEmpty {
@@ -44,31 +33,55 @@ struct ArtworkView: View {
             let artist = group.coordinatorRoom.track.artist
             return [album, artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
-        
+
         if !group.coordinatorRoom.track.name.isEmpty {
             let track = group.coordinatorRoom.track.name
             let artist = group.coordinatorRoom.track.artist
             return [track, artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
-        
+
         return group.coordinatorRoom.track.trackID + suffix
+    }
+
+    private var artworkRequest: ImageRequest? {
+        guard let url = group.coordinatorRoom.track.artworkURL else { return nil }
+        return ImageRequest(
+            url: url,
+            processors: [.resize(width: 500)],
+            priority: .high,
+            userInfo: [.imageIdKey: imageIDKey]
+        )
+    }
+
+    // Synchronous memory-cache lookup used as the fallback below. On a hit
+    // the very first paint already shows the artwork — no placeholder flash
+    // on Catalyst app re-open — without needing a custom init to seed @State.
+    private var cachedImage: UIImage? {
+        guard let artworkRequest else { return nil }
+        return ImagePipeline.shared.cache.cachedImage(for: artworkRequest)?.image
+    }
+
+    // Prefer the loaded image; fall back to the cache so there's no gap
+    // before `.task` runs.
+    private var displayImage: UIImage? {
+        currentImage ?? cachedImage
     }
 
     var body: some View {
         VStack {
             VStack {
-                if let currentImage = currentImage {
-                    Image(uiImage: currentImage)
+                if let displayImage {
+                    Image(uiImage: displayImage)
                         .resizable()
                         .aspectRatio(contentMode: showBadge ? .fit : .fill)
                         .transition(.opacity)
-                        .animation(.smooth(duration: shouldFade ? defaultFadeDuration : 0), value: currentImage)
+                        .animation(.smooth(duration: animateArtworkChange ? defaultFadeDuration : 0), value: displayImage)
                 } else {
                     Rectangle()
                         .foregroundStyle(.thickMaterial)
                         .aspectRatio(contentMode: .fit)
                         .overlay {
-                            if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && currentImage == nil {
+                            if group.playbackService != .lineIn && group.coordinatorRoom.track.sonosAlbumArtURL == nil && showBadge && displayImage == nil {
                                 Image(systemName: "music.note")
                                     .resizable()
                                     .scaledToFit()
@@ -145,22 +158,21 @@ struct ArtworkView: View {
             // value comes from `init()`'s synchronous cache lookup, so this
             // only fires for cache misses or URL changes.
             .task(id: group.coordinatorRoom.track.artworkURL) {
-                guard let url = group.coordinatorRoom.track.artworkURL else {
+                // Decide the fade up front. `shouldFade` is reliably false
+                // right after a user skip (LargePlayerView only flips it back
+                // true ~200ms later), so snapshotting here means a slow image
+                // load can't fade in after the fact.
+                animateArtworkChange = shouldFade
+                guard let artworkRequest else {
                     currentImage = nil
                     return
                 }
-                let request = ImageRequest(
-                    url: url,
-                    processors: [.resize(width: 500)],
-                    priority: .high,
-                    userInfo: [.imageIdKey: imageIDKey]
-                )
-                if let cached = ImagePipeline.shared.cache.cachedImage(for: request) {
+                if let cached = ImagePipeline.shared.cache.cachedImage(for: artworkRequest) {
                     currentImage = cached.image
                     return
                 }
                 do {
-                    let image = try await ImagePipeline.shared.image(for: request)
+                    let image = try await ImagePipeline.shared.image(for: artworkRequest)
                     currentImage = image
                 } catch {
                     if !Task.isCancelled {

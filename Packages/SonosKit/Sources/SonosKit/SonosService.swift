@@ -475,8 +475,15 @@ public final class SonosService {
                     roomGroup.coordinatorRoom.track = awaitedTrack
                 }
 
-                if artworkURL != awaitedTrack.artworkURL {
-                    roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                // Compare against the on-screen track — not `awaitedTrack`, which
+                // already holds `artworkURL` from the line above, making this
+                // check always false. Guard on `unique` so a track the user
+                // skipped past during the slow lookup isn't clobbered.
+                if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                    roomGroup.coordinatorRoom.track.metadata = trackMetadata
+                    if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
+                        roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                    }
                 }
             } else {
                 if !roomGroup.isEditingPlayback, isNowPlaying {
@@ -711,6 +718,19 @@ public final class SonosService {
 
                     if !hasDisplayableInfo {
                         roomGroup.coordinatorRoom.track = awaitedTrack
+                    }
+
+                    // The hasDisplayableInfo branch assigned the track early from
+                    // Sonos's XML, so the enriched metadata and high-res artwork
+                    // from getTrackInformation still have to be written back —
+                    // otherwise the view stays on Sonos's low-res proxy art and
+                    // never gets `metadata`. Guard on `unique`: getTrackInformation
+                    // is slow and the user may have skipped past this track.
+                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                        roomGroup.coordinatorRoom.track.metadata = trackMetadata
+                        if roomGroup.coordinatorRoom.track.downloadedArtworkURL != artworkURL {
+                            roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
+                        }
                     }
 
                     Task {
