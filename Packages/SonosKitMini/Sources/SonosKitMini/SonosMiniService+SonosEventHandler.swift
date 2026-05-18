@@ -36,7 +36,7 @@ extension SonosMiniService: SonosEventHandler {
         let isPlaying = playbackState.playbackState == "PLAYBACK_STATE_PLAYING"
         
         updateDevice(devices[index], keyPath: \.isPlaying, value: isPlaying)
-        updateDevice(devices[index], keyPath: \.currentPosition, value: playbackState.positionMillis)
+        updateDevice(devices[index], keyPath: \.playbackPositionMillis, value: playbackState.positionMillis)
         updateDevice(devices[index], keyPath: \.lastPositionUpdate, value: .now)
     }
 
@@ -51,19 +51,21 @@ extension SonosMiniService: SonosEventHandler {
                 let deviceAtIndex = devices[index]
 
                 // On auto-advance the cloud sends metadata for the new track but not
-                // always a fresh playback event, leaving currentPosition stale near
+                // always a fresh playback event, leaving playbackPositionMillis stale near
                 // the old track's end. smoothCurrentPosition then clamps to the new
                 // totalDuration and the progress bar reads full for the whole song.
                 if deviceAtIndex.track.name != track.name {
-                    updateDevice(deviceAtIndex, keyPath: \.currentPosition, value: 0)
+                    updateDevice(deviceAtIndex, keyPath: \.playbackPositionMillis, value: 0)
                     updateDevice(deviceAtIndex, keyPath: \.lastPositionUpdate, value: .now)
                 }
 
-                // Cancel previous metadata task to prevent unbounded task accumulation
-                metadataUpdateTask?.cancel()
-                metadataUpdateTask = Task { [weak self] in
+                // Cancel previous metadata task FOR THIS PLAYER only.
+                // Using a per-player dictionary prevents speakers from cancelling each
+                // other's in-flight queueTotal lookups when events arrive in bursts.
+                metadataUpdateTasks[playerId]?.cancel()
+                metadataUpdateTasks[playerId] = Task { [weak self] in
+                    defer { self?.metadataUpdateTasks[playerId] = nil }
                     guard let self else { return }
-
                     if let duration = track.durationMillis {
                         self.updateDevice(deviceAtIndex, keyPath: \.totalDuration, value: duration)
                     }

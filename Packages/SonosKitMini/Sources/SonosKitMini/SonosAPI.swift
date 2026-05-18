@@ -803,26 +803,19 @@ final class SonosAPI {
 
     func getQueueCount(IP: String) async -> Int? {
         let arguments: OrderedKeys = [
-            ("ObjectID", "Q:0"),
-            ("BrowseFlag", "BrowseDirectChildren"),
-            ("Filter", "*"),
-            ("StartingIndex", 0),
-            ("RequestedCount", 1),
-            ("SortCriteria", "")
+            ("InstanceID", 0)
         ]
-
-        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "Browse", arguments: arguments, endpoint: "MediaServer/ContentDirectory") else { return nil }
-
-        if (response as? HTTPURLResponse)?.statusCode != 200 {
-            print("Failed")
+        
+        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetMediaInfo", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
+            return nil
         }
 
         let xml = String(decoding: data, as: UTF8.self)
-        let parser = GenericXMLParser(targetElement: "TotalMatches")
+        print(xml)
+        let parser = GenericXMLParser(targetElement: "NrTracks")
         if let value = parser.parseXML(xml) {
             return Int(value)
         }
-        
         return nil
     }
 

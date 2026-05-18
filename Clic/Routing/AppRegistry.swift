@@ -330,8 +330,8 @@ extension View {
             Group {
                 switch destination {
                 case let .player(groupID):
-                    if let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == groupID }) {
-                        LargePlayerView(group: sonosService.sorted[group])
+                    if sonosService.groups.contains(where: { $0.coordinatorID == groupID }) {
+                        LargePlayerView(coordinatorID: groupID)
                     } else {
                         GroupNoLongerAvailableScreen()
                     }

@@ -62,8 +62,11 @@ public final class SonosMiniService {
     @ObservationIgnored public lazy var streamingService = SonosStreamingService(eventHandler: self)
     @ObservationIgnored var lastKnownGroupIDs: Set<String> = []
 
-    // Tracked tasks to prevent unbounded task accumulation (memory leak fix)
-    @ObservationIgnored var metadataUpdateTask: Task<Void, Never>?
+    // Tracked tasks to prevent unbounded task accumulation (memory leak fix).
+    // Metadata tasks are keyed by playerId so events from different speakers don't
+    // cancel each other — that was dropping queueTotal updates for all but the last
+    // speaker to receive an event.
+    @ObservationIgnored var metadataUpdateTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored var groupUpdateTask: Task<Void, any Error>?
 
     @ObservationIgnored private var hasAppliedDevicesCache = false
@@ -426,8 +429,8 @@ public final class SonosMiniService {
     /// Call this when you need to force cleanup of all connections and cached data
     public func cleanup() async {
         // Cancel tracked tasks to stop any in-flight work
-        metadataUpdateTask?.cancel()
-        metadataUpdateTask = nil
+        for task in metadataUpdateTasks.values { task.cancel() }
+        metadataUpdateTasks.removeAll()
         groupUpdateTask?.cancel()
         groupUpdateTask = nil
         cleanupTask?.cancel()
@@ -2073,6 +2076,23 @@ public final class SonosMiniService {
     public func getQueueTotal(group: SonosDevice) async throws -> Int? {
         let count = await api.getQueueCount(IP: group.ip)
         return count
+    }
+
+    /// Refresh `queueTotal` for every visible coordinator in parallel.
+    /// Call this from the menu-bar popover's `onAppear` so re-orders or trims that
+    /// happened while the popover was closed (no metadata event fires for those)
+    /// are reflected before the user hovers the queue indicator.
+    public func refreshQueueTotals() async {
+        let targets = devices.filter { $0.isVisible && $0.state == .active }
+        await withTaskGroup(of: Void.self) { group in
+            for device in targets {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    guard let total = try? await self.getQueueTotal(group: device), total > 0 else { return }
+                    await self.updateDevice(device, keyPath: \.queueTotal, value: total)
+                }
+            }
+        }
     }
     //
     //    public func replaceQueue(playable: PlayableContent, group: GroupRoom, index: Int = 0) async throws {

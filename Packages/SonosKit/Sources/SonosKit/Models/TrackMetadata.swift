@@ -1,7 +1,7 @@
 import Foundation
 
 public extension Track {
-    struct Metadata {
+    struct Metadata: Hashable, Sendable {
         public let ISRC: String?
         public let openInURL: URL?
         public let contentType: ContentType?

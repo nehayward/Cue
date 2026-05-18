@@ -14,6 +14,11 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var isMuted: Bool = false
     public var isPlaying: Bool = false
     public var track: Track = .empty
+    /// Current playback position (ms) as last reported by the device or set by a
+    /// local seek. Lives on `Room` rather than `Track` so the high-frequency
+    /// position pulses from Sonos don't fire `Room.track` observation and
+    /// invalidate every consumer reading any track field.
+    public var playbackPosition: TimeInterval = 0
     /// Radio Station Name
     public var radioStation: String?
     public var isEditingVolume: Bool = false
@@ -115,6 +120,12 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.subs = subs
         self.info = info
         self.container = container
+    }
+}
+
+extension Room {
+    public func updatePlaybackPosition(_ newValue: TimeInterval) {
+        playbackPosition = newValue
     }
 }
 

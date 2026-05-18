@@ -105,7 +105,7 @@ struct MiniPlayerView: View {
     
     private func playPauseLabel(for group: GroupRoom) -> some View {
         PlaybackIconView(
-            value: group.coordinatorRoom.track.playbackPosition,
+            value: group.coordinatorRoom.playbackPosition,
             total: group.coordinatorRoom.track.duration,
             isPlaying: group.coordinatorRoom.isPlaying
         )

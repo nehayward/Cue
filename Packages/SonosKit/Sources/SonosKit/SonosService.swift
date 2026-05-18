@@ -380,10 +380,10 @@ public final class SonosService {
             await updateGroupsRooms(from: [roomGroup])
             await updateGroupMuteState(for: [roomGroup])
 
-            guard let awaitedTrack = await track else {
+            guard var awaitedTrack = await track else {
                 return
             }
-            
+
             if roomGroup.playbackService == .radio {
                 if let mediaInfo = await mediaInfo, let title = mediaInfo.title, !title.isEmpty {
                     if roomGroup.coordinatorRoom.radioStation != title, !title.isEmpty {
@@ -413,24 +413,30 @@ public final class SonosService {
                 roomGroup.coordinatorRoom.track.downloadedArtworkURL = previousArtwork
             }
 
-            let currentTrack = roomGroup.coordinatorRoom.track
-            if currentTrack.unique == awaitedTrack.unique {
+            // IMPORTANT: write through `roomGroup.coordinatorRoom.track.X` here,
+            // not via a captured `let currentTrack`. Track is a struct — a
+            // `let` capture is a value copy, so `currentTrack.field = newValue`
+            // mutates the local copy and the room never sees the write.
+            // (This was the silent cause of stale title/artist/artwork after
+            // foreground when the new track shared `unique` with the prior
+            // pulse's reconcile path, e.g. HLS radio metadata catching up.)
+            if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
                 if !roomGroup.isEditingPlayback,
-                   currentTrack.playbackPosition != awaitedTrack.playbackPosition {
-                    currentTrack.playbackPosition = awaitedTrack.playbackPosition
+                   roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
+                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                 }
-                if currentTrack.position != awaitedTrack.position {
-                    currentTrack.position = awaitedTrack.position
+                if roomGroup.coordinatorRoom.track.position != awaitedTrack.position {
+                    roomGroup.coordinatorRoom.track.position = awaitedTrack.position
                 }
                 // Sonos's HLS/radio metadata for Apple Music can lag — title/trackID
                 // land before albumArtist/creator. Reconcile artist/album on later
                 // pulses so a stale value doesn't stick forever. Gate on non-empty
                 // so a missing field doesn't clobber known data.
-                if !awaitedTrack.artist.isEmpty, currentTrack.artist != awaitedTrack.artist {
-                    currentTrack.artist = awaitedTrack.artist
+                if !awaitedTrack.artist.isEmpty, roomGroup.coordinatorRoom.track.artist != awaitedTrack.artist {
+                    roomGroup.coordinatorRoom.track.artist = awaitedTrack.artist
                 }
-                if !awaitedTrack.album.isEmpty, currentTrack.album != awaitedTrack.album {
-                    currentTrack.album = awaitedTrack.album
+                if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
+                    roomGroup.coordinatorRoom.track.album = awaitedTrack.album
                 }
                 return
             }
@@ -452,7 +458,7 @@ public final class SonosService {
                     // Metadata fetch failed. If Sonos gave us nothing, bail — keep prior track.
                     guard hasDisplayableInfo else { return }
                     if !roomGroup.isEditingPlayback {
-                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                        roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                     }
                     return
                 }
@@ -474,7 +480,7 @@ public final class SonosService {
                 }
             } else {
                 if !roomGroup.isEditingPlayback, isNowPlaying {
-                    roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                 }
             }
 
@@ -626,7 +632,7 @@ public final class SonosService {
                     async let track = getTrack(ip: roomGroup.coordinatorRoom.ip)
                     async let mediaInfo = api.mediaInfo(ipAddress: roomGroup.coordinatorRoom.ip)
 
-                    guard let awaitedTrack = await track else {
+                    guard var awaitedTrack = await track else {
                         return
                     }
 
@@ -655,25 +661,28 @@ public final class SonosService {
                         return
                     }
 
-                    let currentTrack = roomGroup.coordinatorRoom.track
-                    if currentTrack.unique == awaitedTrack.unique {
-                        if !roomGroup.isEditingPlayback, currentTrack.playbackPosition != awaitedTrack.playbackPosition {
-                            currentTrack.playbackPosition = awaitedTrack.playbackPosition
+                    // See twin site in `load()` — Track is a struct, so a
+                    // `let currentTrack = ...` capture is a value copy and
+                    // mutations vanish. Write through the Room property
+                    // directly so the @Observable setter actually fires.
+                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                        if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
+                            roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
-                        
-                        if currentTrack.position != awaitedTrack.position {
-                            currentTrack.position = awaitedTrack.position
+
+                        if roomGroup.coordinatorRoom.track.position != awaitedTrack.position {
+                            roomGroup.coordinatorRoom.track.position = awaitedTrack.position
                         }
-                        
+
                         // Sonos's HLS/radio metadata for Apple Music can lag — title/trackID
                         // land before albumArtist/creator. Reconcile artist/album on later
                         // pulses so a stale value doesn't stick forever. Gate on non-empty
                         // so a missing field doesn't clobber known data.
-                        if !awaitedTrack.artist.isEmpty, currentTrack.artist != awaitedTrack.artist {
-                            currentTrack.artist = awaitedTrack.artist
+                        if !awaitedTrack.artist.isEmpty, roomGroup.coordinatorRoom.track.artist != awaitedTrack.artist {
+                            roomGroup.coordinatorRoom.track.artist = awaitedTrack.artist
                         }
-                        if !awaitedTrack.album.isEmpty, currentTrack.album != awaitedTrack.album {
-                            currentTrack.album = awaitedTrack.album
+                        if !awaitedTrack.album.isEmpty, roomGroup.coordinatorRoom.track.album != awaitedTrack.album {
+                            roomGroup.coordinatorRoom.track.album = awaitedTrack.album
                         }
                         return
                     }
@@ -688,7 +697,7 @@ public final class SonosService {
                     guard let (trackMetadata, artworkURL) = await getTrackInformation(from: awaitedTrack) else {
                         guard hasDisplayableInfo else { return }
                         if !roomGroup.isEditingPlayback {
-                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
+                            roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
                         return
                     }
@@ -768,7 +777,12 @@ public final class SonosService {
     @MainActor
     public func updateGroupsCheckPlayback() async throws {
         let newGroup = try await getGroups(useCache: true)
-        if !newGroup.isEmpty && newGroup != groups {
+        // Guard on topology only — comparing full GroupRoom equality includes
+        // Track content and would fire on essentially every call, replacing
+        // `self.groups` from a fresh-from-XML snapshot with empty tracks.
+        let newSig = Set(newGroup.map(\.topologyKey))
+        let oldSig = Set(groups.map(\.topologyKey))
+        if !newGroup.isEmpty, newSig != oldSig {
             self.groups = newGroup
             self.rooms = newGroup.flatMap(\.rooms)
         }
@@ -885,14 +899,13 @@ public final class SonosService {
                         roomGroup.groupVolume = groupVolumeAwaited
                     }
 
-                    guard let awaitedTrack = await track else { return }
+                    guard var awaitedTrack = await track else { return }
 
                     guard let artworkURL = await self.getArtwork(from: awaitedTrack, size: 200) else {
                         if roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique {
                             roomGroup.coordinatorRoom.track = awaitedTrack
-                        } else {
-                            roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                         }
+                        roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         return
                     }
 
@@ -907,9 +920,8 @@ public final class SonosService {
                     if roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique {
                         roomGroup.coordinatorRoom.track = awaitedTrack
                         roomGroup.coordinatorRoom.track.downloadedArtworkURL = artworkURL
-                    } else {
-                        roomGroup.coordinatorRoom.track.playbackPosition = awaitedTrack.playbackPosition
                     }
+                    roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                     return
                 }
             }
@@ -1177,7 +1189,7 @@ public final class SonosService {
     }
 
     public func getTrackDetails(ip: String) async -> Track? {
-        guard let track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
+        guard var track = await api.getCurrentTrack(ipAddress: ip, prioritizedAlbumArtIP: prioritizedIP()) else { return nil }
         guard let (trackMetadata, artworkURL) = await self.getTrackInformation(from: track) else {
             return track
         }
@@ -1255,6 +1267,7 @@ public final class SonosService {
 
     // TODO: Change size to enum
     public func getTrackInformation(from track: Track, size: Int = 500) async -> (Track.Metadata?, URL?)? {
+        var track = track
         switch track.musicService {
         case .spotify:
 //            var imageURL: URL?
@@ -1633,6 +1646,28 @@ public final class SonosService {
 
     public func getPlaybackInfo(ip: String) async -> PlaybackStatus {
         await api.isPlaying(ipAddress: ip)
+    }
+
+    /// Probes every group's coordinator concurrently and returns the first one
+    /// reporting `.playing`, cancelling the rest. Falls back to a group in TV
+    /// mode if nothing is playing. Used by deeplinks/speedlaunch to avoid
+    /// routing on stale `isPlaying` state.
+    @MainActor
+    public func firstPlayingGroup() async -> GroupRoom? {
+        let playing = await withTaskGroup(of: GroupRoom?.self) { taskGroup -> GroupRoom? in
+            for roomGroup in groups {
+                taskGroup.addTask {
+                    let status = await self.getPlaybackInfo(ip: roomGroup.coordinatorRoom.ip)
+                    return status == .playing ? roomGroup : nil
+                }
+            }
+            for await result in taskGroup where result != nil {
+                taskGroup.cancelAll()
+                return result
+            }
+            return nil
+        }
+        return playing ?? groups.first(where: \.TVMode)
     }
 
     public func getCurrentTransportActions(ip: String) async -> AvailableActions? {
@@ -2353,7 +2388,7 @@ public final class SonosService {
             guard let group = groups.first(where: { $0.coordinatorID == cached.coordinatorID }),
                   group.coordinatorRoom.track.name.isEmpty else { continue }
 
-            let track = Track(
+            var track = Track(
                 trackID: cached.trackID,
                 name: cached.trackName,
                 artist: cached.trackArtist,

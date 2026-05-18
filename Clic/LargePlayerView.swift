@@ -9,8 +9,13 @@ struct LargePlayerView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router
 
-    var group: GroupRoom
-    
+    // Take an ID, not a `GroupRoom`. The live group is resolved from
+    // `sonosService.groups` at body time so a topology refresh (which
+    // replaces every GroupRoom instance via `self.groups = newGroup`) can't
+    // leave this view's captured reference orphaned. Async .task blocks
+    // also re-resolve at start to avoid acting on a stale instance.
+    let coordinatorID: String
+
     @State private var isEditing: Bool = false
     @State private var shouldFade: Bool = false
     @State private var isFavorite: Bool?
@@ -18,7 +23,7 @@ struct LargePlayerView: View {
     @State private var scrubbingTask: Task<Void, Error>?
     @State private var isArtworkVisible: Bool = true
     @State private var showSleepTimerCancelConfirmation: Bool = false
-        
+
     private var isMacCatalystOrPad: Bool {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return true
@@ -29,257 +34,280 @@ struct LargePlayerView: View {
         return false
 #endif
     }
-    
+
+    // Resolved fresh on every read so topology refreshes (which replace
+    // every GroupRoom instance) can't orphan us. `.task` closures should
+    // re-resolve via `self.group` inside the closure rather than relying
+    // on the body-time unwrap.
+    private var group: GroupRoom? {
+        sonosService.groups.first(where: { $0.coordinatorID == coordinatorID })
+    }
+
     var body: some View {
-        VStack(alignment: .center) {
-            if group.TVMode {
-                VStack {
-                    Spacer()
-                    Image(systemName: "tv")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .symbolRenderingMode(.hierarchical)
-                        .opacity(0.2)
-                        .overlay {
-                            if group.isMuted {
-                                Image(systemName: "speaker.slash.fill")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .foregroundStyle(.primary)
-                                    .bold()
-                                    .containerRelativeFrame(.horizontal) { size, axis in
-                                        size * 0.25
-                                    }
-                                    .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? 400 : 400)
-                                    .background {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .foregroundStyle(.ultraThinMaterial)
-                                    }
-                                    .transition(.opacity)
-                                    .tint(.primary)
-                            }
-                        }
-                        .animation(.spring, value: group.isMuted)
-                        .frame(maxWidth: 400, maxHeight: 400)
-                    TVModeView(group: group)
-                    Spacer()
-                }
-                .transition(.opacity)
-            } else {
-                ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
-                    .padding(.bottom, showArtworkOnly ? 0 : 12)
-                    .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
-                    .padding(.top, showArtworkOnly ? 100 : nil)
-                    .onGeometryChange(for: Bool.self) { proxy in
-                        proxy.size.height >= 100
-                    } action: { isArtworkVisible = $0 }
-                    .opacity(isArtworkVisible ? 1 : 0)
-                    .animation(.interactiveSpring, value: isArtworkVisible)
-                VStack {
-                    if group.coordinatorRoom.container != nil {
-                        TrackContainerView(group: group)
-                            .transition(.opacity)
-                            .contentTransition(.identity)
-                    } else {
-                        Text(group.coordinatorRoom.radioStation ?? "")
-                            .font(.caption.smallCaps())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1, reservesSpace: true)
-                            .contentTransition(.identity)
-                    }
-                }
-                .animation(.default, value: group.coordinatorRoom.container != nil)
-                .frame(height: 12)
-                SongTitleButton(group: group)
-                ArtistButton(group: group, showArtworkOnly: showArtworkOnly)
-                if !showArtworkOnly {
+        if let group {
+            VStack(alignment: .center) {
+                if group.TVMode {
                     VStack {
-                        PlaybackView(group: group)
-                        PlayerMediaControlsView(group: group, shouldFade: $shouldFade)
-                    }
-                    .geometryGroup()
-                    .transition(.opacity.combined(with: .push(from: .bottom)))
-                }
-            }
-            if !showArtworkOnly || group.TVMode {
-                VStack {
-                    VolumeControlView(group: group)
-                        .padding(.bottom, 20)
-                        .padding(.horizontal, -12)
-                        .frame(maxWidth: 500)
-                    
-                    BottomToolbarView(group: group)
-                }
-                .transition(.opacity)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.interactiveSpring, value: showArtworkOnly)
-        #if !targetEnvironment(macCatalyst)
-        .onDisappear {
-            sonosService.selectedGroup = nil
-        }
-        #endif
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(group.nameWithCount)
-                    .bold()
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .tint(.primary)
-#if !os(visionOS)
-                    .overlay {
-                        Menu {
-                            ForEach(group.rooms) { room in
-                                Text(room.name)
-                                    .bold()
-                                    .fontDesign(.rounded)
-                            }
-                        } label: {
-                            Text(group.nameWithCount)
-                                .hidden()
-                                .contentShape(Rectangle())
-                        }
-                    }
-#endif
-            }
-            
-            if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
-                if #available(iOS 26.0, visionOS 26.0, *) {
-                    ToolbarItem {
-                        Button {
-                            showSleepTimerCancelConfirmation = true
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "moon.zzz.fill")
-                                    .foregroundStyle(Color.primary.gradient, .indigo)
-                                Text(date, style: .timer)
-                                    .contentTransition(.numericText(countsDown: true))
-                                    .animation(.spring, value: date)
-                                    .monospacedDigit()
-                                    .bold()
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .modifier(RefreshOnForegroundModifier())
-                        .confirmationDialog(
-                            "Cancel Sleep Timer",
-                            isPresented: $showSleepTimerCancelConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button("Cancel Sleep Timer", role: .destructive) {
-                                Task {
-                                    await sonosService.stopSleepTimer(group: group)
+                        Spacer()
+                        Image(systemName: "tv")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .symbolRenderingMode(.hierarchical)
+                            .opacity(0.2)
+                            .overlay {
+                                if group.isMuted {
+                                    Image(systemName: "speaker.slash.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .foregroundStyle(.primary)
+                                        .bold()
+                                        .containerRelativeFrame(.horizontal) { size, axis in
+                                            size * 0.25
+                                        }
+                                        .frame(maxWidth: isMacCatalystOrPad ? 600 : 400, maxHeight: isMacCatalystOrPad ? 400 : 400)
+                                        .background {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .foregroundStyle(.ultraThinMaterial)
+                                        }
+                                        .transition(.opacity)
+                                        .tint(.primary)
                                 }
                             }
-                            Button("Keep Timer", role: .cancel) { }
-                        } message: {
-                            Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
-                        }
+                            .animation(.spring, value: group.isMuted)
+                            .frame(maxWidth: 400, maxHeight: 400)
+                        TVModeView(group: group)
+                        Spacer()
                     }
-                    #if !os(visionOS)
-                    .sharedBackgroundVisibility(.hidden)
-                    #endif
+                    .transition(.opacity)
                 } else {
-                    ToolbarItem {
-                        Button {
-                            showSleepTimerCancelConfirmation = true
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "moon.zzz.fill")
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(Color.primary.gradient, .indigo)
-                                Text(date, style: .timer)
-                                    .contentTransition(.numericText(countsDown: true))
-                                    .animation(.spring, value: date)
-                                    .monospacedDigit()
-                                    .bold()
+                    ArtworkView(group: group, isDraggable: true, showBadge: true, shouldFade: shouldFade)
+                        .padding(.bottom, showArtworkOnly ? 0 : 12)
+                        .frame(minWidth: 0, maxWidth: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? 800 : 500), minHeight: 0, maxHeight: showArtworkOnly ? .infinity : (isMacCatalystOrPad ? .infinity : 400))
+                        .padding(.top, showArtworkOnly ? 100 : nil)
+                        .onGeometryChange(for: Bool.self) { proxy in
+                            proxy.size.height >= 100
+                        } action: { isArtworkVisible = $0 }
+                        .opacity(isArtworkVisible ? 1 : 0)
+                        .animation(.interactiveSpring, value: isArtworkVisible)
+                    VStack {
+                        if group.coordinatorRoom.container != nil {
+                            TrackContainerView(group: group)
+                                .transition(.opacity)
+                                .contentTransition(.identity)
+                        } else {
+                            Text(group.coordinatorRoom.radioStation ?? "")
+                                .font(.caption.smallCaps())
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1, reservesSpace: true)
+                                .contentTransition(.identity)
+                        }
+                    }
+                    .animation(.default, value: group.coordinatorRoom.container != nil)
+                    .frame(height: 12)
+                    SongTitleButton(group: group)
+                    ArtistButton(group: group, showArtworkOnly: showArtworkOnly)
+                    if !showArtworkOnly {
+                        VStack {
+                            PlaybackView(group: group)
+                            PlayerMediaControlsView(group: group, shouldFade: $shouldFade)
+                        }
+                        .geometryGroup()
+                        .transition(.opacity.combined(with: .push(from: .bottom)))
+                    }
+                }
+                if !showArtworkOnly || group.TVMode {
+                    VStack {
+                        VolumeControlView(group: group)
+                            .padding(.bottom, 20)
+                            .padding(.horizontal, -12)
+                            .frame(maxWidth: 500)
+                        
+                        BottomToolbarView(group: group)
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.interactiveSpring, value: showArtworkOnly)
+            #if !targetEnvironment(macCatalyst)
+            .onDisappear {
+                sonosService.selectedGroup = nil
+            }
+            #endif
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(group.nameWithCount)
+                        .bold()
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                        .tint(.primary)
+    #if !os(visionOS)
+                        .overlay {
+                            Menu {
+                                ForEach(group.rooms) { room in
+                                    Text(room.name)
+                                        .bold()
+                                        .fontDesign(.rounded)
+                                }
+                            } label: {
+                                Text(group.nameWithCount)
+                                    .hidden()
+                                    .contentShape(Rectangle())
                             }
                         }
-                        .buttonStyle(.plain)
-                        .modifier(RefreshOnForegroundModifier())
-                        .confirmationDialog(
-                            "Cancel Sleep Timer",
-                            isPresented: $showSleepTimerCancelConfirmation,
-                            titleVisibility: .visible
-                        ) {
-                            Button("Cancel Sleep Timer", role: .destructive) {
-                                Task {
-                                    await sonosService.stopSleepTimer(group: group)
+    #endif
+                }
+                
+                if let date = group.coordinatorRoom.sleepTimer, date > Date.now {
+                    if #available(iOS 26.0, visionOS 26.0, *) {
+                        ToolbarItem {
+                            Button {
+                                showSleepTimerCancelConfirmation = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "moon.zzz.fill")
+                                        .foregroundStyle(Color.primary.gradient, .indigo)
+                                    Text(date, style: .timer)
+                                        .contentTransition(.numericText(countsDown: true))
+                                        .animation(.spring, value: date)
+                                        .monospacedDigit()
+                                        .bold()
                                 }
                             }
-                            Button("Keep Timer", role: .cancel) { }
-                        } message: {
-                            Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
+                            .buttonStyle(.plain)
+                            .modifier(RefreshOnForegroundModifier())
+                            .confirmationDialog(
+                                "Cancel Sleep Timer",
+                                isPresented: $showSleepTimerCancelConfirmation,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Cancel Sleep Timer", role: .destructive) {
+                                    Task {
+                                        await sonosService.stopSleepTimer(group: group)
+                                    }
+                                }
+                                Button("Keep Timer", role: .cancel) { }
+                            } message: {
+                                Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
+                            }
+                        }
+                        #if !os(visionOS)
+                        .sharedBackgroundVisibility(.hidden)
+                        #endif
+                    } else {
+                        ToolbarItem {
+                            Button {
+                                showSleepTimerCancelConfirmation = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "moon.zzz.fill")
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(Color.primary.gradient, .indigo)
+                                    Text(date, style: .timer)
+                                        .contentTransition(.numericText(countsDown: true))
+                                        .animation(.spring, value: date)
+                                        .monospacedDigit()
+                                        .bold()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .modifier(RefreshOnForegroundModifier())
+                            .confirmationDialog(
+                                "Cancel Sleep Timer",
+                                isPresented: $showSleepTimerCancelConfirmation,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Cancel Sleep Timer", role: .destructive) {
+                                    Task {
+                                        await sonosService.stopSleepTimer(group: group)
+                                    }
+                                }
+                                Button("Keep Timer", role: .cancel) { }
+                            } message: {
+                                Text("Stop the sleep timer on \(group.coordinatorRoom.name)?")
+                            }
                         }
                     }
                 }
+               
+                #if !os(visionOS)
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+                #endif
+                ToolbarItem {
+                    LikeButtonView(group: group)
+                }
+                #if !os(visionOS)
+                if #available(iOS 26.0, visionOS 26.0, *) {
+                    ToolbarSpacer(.fixed)
+                }
+                #endif
+                ToolbarItem {
+                    MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
+                        .tint(.primary)
+                        .modifier(RefreshOnForegroundModifier())
+                }
             }
-           
-            #if !os(visionOS)
-            if #available(iOS 26.0, visionOS 26.0, *) {
-                ToolbarSpacer(.fixed)
+            .toolbarTitleDisplayMode(.inline)
+            .dropDestinationPlay(on: group)
+            // .task closures re-resolve via `self.group` at start. The body
+            // shadowed `group` is the body-time instance; if SonosService
+            // replaced `groups` since then it'd be orphaned.
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                await sonosService.disconnectAll()
+                await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
+                group.isCrossfaded = await sonosService.isCrossfaded(for: group)
+                await sonosService.getSleepTimer(group: group)
             }
-            #endif
-            ToolbarItem {
-                LikeButtonView(group: group)
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                sonosService.selectedGroup = group
+                try? await sonosService.updateTrackInformation(for: [group])
             }
-            #if !os(visionOS)
-            if #available(iOS 26.0, visionOS 26.0, *) {
-                ToolbarSpacer(.fixed)
+            .modifier(ScenePhaseSyncModifier(coordinatorID: coordinatorID))
+            .environment(AlertService.shared)
+            .padding(.horizontal, 32)
+            .safeAreaPadding(.bottom)
+            .ignoresSafeArea(.keyboard)
+            .background {
+                BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
             }
-            #endif
-            ToolbarItem {
-                MenuInfoView(group: group, showArtworkOnly: $showArtworkOnly)
-                    .tint(.primary)
-                    .modifier(RefreshOnForegroundModifier())
+            .task(id: coordinatorID) {
+                guard let group = self.group else { return }
+                let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
+                if group.playMode != awaitedPlayMode {
+                    group.playMode = awaitedPlayMode
+                }
+                try? await Task.sleep(for: .milliseconds(400))
+                shouldFade = true
             }
-        }
-        .toolbarTitleDisplayMode(.inline)
-        .dropDestinationPlay(on: group)
-        .task(id: group.id) {
-            await sonosService.disconnectAll()
-            await sonosService.getTrackAudioInformation(ip: group.ip, playerID: group.coordinatorID, groupID: group.id)
-            group.isCrossfaded = await sonosService.isCrossfaded(for: group)
-            await sonosService.getSleepTimer(group: group)
-        }
-        .task {
-            sonosService.selectedGroup = group
-            try? await sonosService.updateTrackInformation(for: [group])
-        }
-        .modifier(ScenePhaseSyncModifier(group: group))
-        .environment(AlertService.shared)
-        .padding(.horizontal, 32)
-        .safeAreaPadding(.bottom)
-        .ignoresSafeArea(.keyboard)
-        .background {
-            BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
-        }
-        .task {
-            let awaitedPlayMode = await sonosService.playMode(ip: group.ip)
-            if group.playMode != awaitedPlayMode {
-                group.playMode = awaitedPlayMode
+            // Was `.onChange(of: group)` — GroupRoom.== includes track content
+            // so it fired on every song change and reset the crossfade. We only
+            // care about identity (speaker switch).
+            .onChange(of: coordinatorID) {
+                shouldFade = false
             }
-            try? await Task.sleep(for: .milliseconds(400))
-            shouldFade = true
-        }
-        .onChange(of: group) {
-            shouldFade = false
         }
     }
-    
 }
 
 fileprivate struct ScenePhaseSyncModifier: ViewModifier {
     @Environment(SonosService.self) private var sonosService: SonosService
     @Environment(\.scenePhase) private var scenePhase
-    @Bindable var group: GroupRoom
+    // Resolve fresh by id on each scenePhase change — capturing a `GroupRoom`
+    // here would survive across topology updates and act on an orphaned
+    // instance after a foreground/background cycle, which was the suspected
+    // cause of stale track info on device after wake.
+    let coordinatorID: String
 
     func body(content: Content) -> some View {
         content
             .onChange(of: scenePhase) {
+                guard let group = sonosService.groups.first(where: { $0.coordinatorID == coordinatorID }) else { return }
                 if scenePhase == .active {
                     Task {
                         try? await sonosService.updateTrackInformation(for: [group])
@@ -387,7 +415,7 @@ fileprivate struct PlaybackView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VibeSlider(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
+            VibeSlider(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 100, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24) { isEditing in
                 sonosService.isEditing = true
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
@@ -396,7 +424,7 @@ fileprivate struct PlaybackView: View {
 
                 if !isEditing {
                     Task { @MainActor in
-                        await sonosService.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
+                        await sonosService.seek(to: group.coordinatorRoom.playbackPosition, on: group)
                         sonosService.isEditing = false
                     }
                 }
@@ -408,8 +436,8 @@ fileprivate struct PlaybackView: View {
 
             HStack {
                 let duration = Duration.milliseconds(group.coordinatorRoom.track.duration)
-                let position = Duration.milliseconds(group.coordinatorRoom.track.playbackPosition)
-                let timeRemaining = group.coordinatorRoom.track.timeRemaining
+                let position = Duration.milliseconds(group.coordinatorRoom.playbackPosition)
+                let timeRemaining = Duration.milliseconds(max(0, group.coordinatorRoom.track.duration - group.coordinatorRoom.playbackPosition))
 
                 let usesHourFormat = duration.components.seconds > 3600
                 let pattern: Duration.TimeFormatStyle.Pattern = usesHourFormat ? .hourMinuteSecond : .minuteSecond
@@ -791,9 +819,10 @@ fileprivate struct TVContainer: View {
     @State var group: GroupRoom = .theater
     var body: some View {
         NavigationStack {
-            LargePlayerView(group: group)
+            LargePlayerView(coordinatorID: group.coordinatorID)
                 .environment(SonosService.shared)
                 .environment(Router())
+                .task { SonosService.shared.groups = [group] }
         }
         .colorScheme(.dark)
     }
@@ -805,17 +834,18 @@ fileprivate struct DuaLipaContainer: View {
                                             rooms: [.theater],
                                             coordinatorRoom: .theater,
                                             tvSettings: TVSettings(nightMode: true, dialogLevel: false, audioInputFormat: .dolbyStereo))
-    
+
     var body: some View {
         NavigationStack {
-            LargePlayerView(group: group)
+            LargePlayerView(coordinatorID: group.coordinatorID)
                 .withEnvironments()
                 .environment(Router())
         }
         .colorScheme(.dark)
         .task {
+            SonosService.shared.groups = [group]
             // https://open.spotify.com/track/11C4y2Yz1XbHmaQwO06s9f
-            let track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero)
+            var track = Track(trackID: "11C4y2Yz1XbHmaQwO06s9f", name: "Dance The Night", artist: "Dua Lipa", album: "Barbie The Album", musicService: .spotify, duration: 200000, playbackPosition: .zero)
             track.downloadedArtworkURL = await SonosService.shared.getArtwork(from: track)
             group.coordinatorRoom.track = track
             group.coordinatorRoom.track.duration = 200000
@@ -829,14 +859,16 @@ fileprivate struct DuaLipaContainer: View {
 }
 
 #Preview("Theater Music") {
-    @Previewable @State var group: GroupRoom = .garagePlusTheater
+    @Previewable @State var coordinatorID: String = GroupRoom.garagePlusTheater.coordinatorID
     NavigationStack {
-        LargePlayerView(group: group)
+        LargePlayerView(coordinatorID: coordinatorID)
             .environment(Router.main)
             .task {
                 try? await SonosService.shared.load(useCache: true)
-                group = SonosService.shared.groups.first(where: { $0.ip == GroupRoom.theater.ip })!
-                print(group.nameWithCount)
+                if let group = SonosService.shared.groups.first(where: { $0.ip == GroupRoom.theater.ip }) {
+                    coordinatorID = group.coordinatorID
+                    print(group.nameWithCount)
+                }
             }
     }
     .withEnvironments()

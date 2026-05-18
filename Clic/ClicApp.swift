@@ -404,7 +404,7 @@ struct ClicApp: App {
                     Task {
                         if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
                             HapticManager.shared.fireHaptic(.selection)
-                            let newPosition = group.coordinatorRoom.track.playbackPosition + 15000
+                            let newPosition = group.coordinatorRoom.playbackPosition + 15000
                             await sonosService.seek(to: newPosition, on: group)
                         }
                     }
@@ -418,7 +418,7 @@ struct ClicApp: App {
                     Task {
                         if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
                             HapticManager.shared.fireHaptic(.selection)
-                            let newPosition = max(0, group.coordinatorRoom.track.playbackPosition - 15000)
+                            let newPosition = max(0, group.coordinatorRoom.playbackPosition - 15000)
                             await sonosService.seek(to: newPosition, on: group)
                         }
                     }
@@ -538,7 +538,6 @@ struct ClicApp: App {
                     if sonosService.groups.isEmpty {
                         try? await sonosService.updateGroups()
                     }
-                    try? await sonosService.updateGroupsCheckPlayback()
                     handle(URL(string: "clic://playing")!)
                 }
             }
@@ -594,8 +593,7 @@ struct ClicApp: App {
             }
             
             if components.host?.lowercased() == "playing" {
-                let playingGroups = sonosService.groups.filter({ $0.coordinatorRoom.isPlaying || $0.TVMode })
-                guard let group = playingGroups.first else {
+                guard let group = await sonosService.firstPlayingGroup() else {
                     return
                 }
                 router.selectedID = group.coordinatorID

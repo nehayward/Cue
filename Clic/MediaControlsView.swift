@@ -27,7 +27,7 @@ struct MediaControlsView: View {
                 }
             } label: {
                 PlaybackIconView(
-                    value: group.coordinatorRoom.track.playbackPosition,
+                    value: group.coordinatorRoom.playbackPosition,
                     total: group.coordinatorRoom.track.duration,
                     isPlaying: group.coordinatorRoom.isPlaying
                 )

@@ -74,6 +74,12 @@ struct GroupMenuScreen: View {
                 try? await sonosServiceMini.loadWatch(useCache: true)
                 isLoading = false
             }
+            Task {
+                // Re-fetch queueTotal for visible speakers — the popover may have been
+                // closed while the user reordered/trimmed the queue, and those mutations
+                // don't trigger a metadata event.
+                await sonosServiceMini.refreshQueueTotals()
+            }
         }
         .overlay { GroupMenuEmptyOverlay(isLoading: isLoading, isEmpty: filteredDeviceBindings.isEmpty) }
         .onChange(of: filteredDeviceBindings.map(\.wrappedValue.id)) { _, ids in

@@ -76,9 +76,9 @@ struct GroupItemView: View {
                                                 ZStack {
                                                     Circle()
                                                         .stroke(.secondary.opacity(0.4),lineWidth: 2)
-                                                    if device.queueTotal > 0 {
+                                                    if device.queueTotal > 0 && device.track.position > 0 {
                                                         Circle()
-                                                            .trim(from: 0, to: CGFloat(min(Double(device.currentPosition) * (1.0 / Double(device.queueTotal)), 1.0)))
+                                                            .trim(from: 0, to: CGFloat(min(Double(device.track.position) / Double(device.queueTotal), 1.0)))
                                                             .stroke(
                                                                 .primary,
                                                                 style: StrokeStyle(

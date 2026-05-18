@@ -177,7 +177,7 @@ struct TVPlayerView: View {
                 Task {
                     guard let track = await SonosService.shared.getTrack(ip: group.ip) else { return }
                     if group.coordinatorRoom.track.trackID == track.trackID {
-                        group.coordinatorRoom.track.playbackPosition = track.playbackPosition
+                        group.coordinatorRoom.updatePlaybackPosition(track.playbackPosition)
                     }
                 }
             }
@@ -257,31 +257,34 @@ struct TVPlayerView: View {
     
     private func playbackView() -> some View {
         VStack(spacing: 0) {
-            VibeSliderTV(value: $group.coordinatorRoom.track.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false) { isEditing in
+            VibeSliderTV(value: $group.coordinatorRoom.playbackPosition, in: 0...group.coordinatorRoom.track.duration, step: 1000, baseHeight: UIDevice.current.userInterfaceIdiom == .phone ? 16 : 24, showValue: false) { isEditing in
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(isEditing ? 0 : 1))
                     group.isEditingPlayback = isEditing
                 }
-                
+
                 if !isEditing {
                     Task { @MainActor in
-                        await SonosService.shared.seek(to: group.coordinatorRoom.track.playbackPosition, on: group)
+                        await SonosService.shared.seek(to: group.coordinatorRoom.playbackPosition, on: group)
                     }
                 }
             }
             .frame(height: 40)
             .foregroundStyle(.primary)
             .disabled(!group.availableActions.contains(.scrubbable))
-            
+
             HStack {
-                if Duration.milliseconds(group.coordinatorRoom.track.duration).components.seconds > (60 * 60) {
-                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .hourMinuteSecond)))
+                let position = group.coordinatorRoom.playbackPosition
+                let duration = group.coordinatorRoom.track.duration
+                let timeRemaining = Duration.milliseconds(max(0, duration - position))
+                if Duration.milliseconds(duration).components.seconds > (60 * 60) {
+                    Text(Duration.milliseconds(position).formatted(.time(pattern: .hourMinuteSecond)))
                     Spacer()
-                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
+                    Text("-") + Text(timeRemaining.formatted(.time(pattern: .hourMinuteSecond)))
                 } else {
-                    Text(Duration.milliseconds(group.coordinatorRoom.track.playbackPosition).formatted(.time(pattern: .minuteSecond)))
+                    Text(Duration.milliseconds(position).formatted(.time(pattern: .minuteSecond)))
                     Spacer()
-                    Text("-") + Text(group.coordinatorRoom.track.timeRemaining.formatted(.time(pattern: .minuteSecond)))
+                    Text("-") + Text(timeRemaining.formatted(.time(pattern: .minuteSecond)))
                 }
             }
             .monospacedDigit()

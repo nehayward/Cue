@@ -19,17 +19,19 @@ public struct SonosDevice: Identifiable {
     public var quality: SonosTrackQuality?
     public var tvAudio: String = ""
     
-    public var currentPosition: Int = 0
+    /// Playback offset within the currently playing track, in milliseconds.
+    /// (Not to be confused with `track.position`, which is the 1-based queue index.)
+    public var playbackPositionMillis: Int = 0
     public var totalDuration: Int = 0
     public var lastPositionUpdate: Date = Date()
-    
-    /// Computed property for smooth position that interpolates between updates
+
+    /// Smooth-clocked playback offset: linearly interpolates from the last server update.
     public var smoothCurrentPosition: Int {
-        guard isPlaying else { return currentPosition }
-        
+        guard isPlaying else { return playbackPositionMillis }
+
         let timeSinceUpdate = Date().timeIntervalSince(lastPositionUpdate)
         let interpolatedMs = Int(timeSinceUpdate * 1000)
-        return min(currentPosition + interpolatedMs, totalDuration)
+        return min(playbackPositionMillis + interpolatedMs, totalDuration)
     }
     
     /// Computed property for current time as formatted string

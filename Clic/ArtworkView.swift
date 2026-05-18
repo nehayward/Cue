@@ -6,22 +6,33 @@ import MusicSearchKit
 
 struct ArtworkView: View {
     @Environment(AlertService.self) var alertService
-    
+
     let group: GroupRoom
     var isDraggable: Bool = false
     var showBadge: Bool = true
     var shouldFade: Bool = false
-    
+
     @State private var defaultFadeDuration: Double = 0.3
     @State private var alarmRunning: Bool = false
     @State private var currentImage: UIImage?
-    
-    @State private var imageTask: ImageTask? = nil {
-        willSet {
-            imageTask?.cancel()
-        }
+
+    init(group: GroupRoom, isDraggable: Bool = false, showBadge: Bool = true, shouldFade: Bool = false) {
+        self.group = group
+        self.isDraggable = isDraggable
+        self.showBadge = showBadge
+        self.shouldFade = shouldFade
+        // Seed @State synchronously from the image cache so the very first
+        // paint already has the artwork — no placeholder flash on Catalyst
+        // app re-open. `.task(id:)` below handles the async load when the
+        // URL changes or there's a cache miss.
+        let request = ImageRequest(
+            url: group.coordinatorRoom.track.artworkURL,
+            processors: [.resize(width: 500)],
+            priority: .high
+        )
+        self._currentImage = State(initialValue: ImagePipeline.shared.cache.cachedImage(for: request)?.image)
     }
-    
+
     var cornerRadius: CGFloat {
         UIDevice.current.userInterfaceIdiom == .phone ? 8 : 16
     }
@@ -127,54 +138,34 @@ struct ArtworkView: View {
             .onChange(of: group.rooms.contains(where: \.alarmRunning), initial: true) { old, new in
                 alarmRunning = new
             }
-            .onChange(of: group.coordinatorRoom.track.artworkURL) { old, newURL in
-                if old == newURL { return }
-                imageTask?.cancel()
-                imageTask = loadArtwork(url: newURL, imageID: imageIDKey)
-            }
-            .onAppear {
-                // Try to restore from cache first
-                let request = ImageRequest(url: group.coordinatorRoom.track.artworkURL,
-                                           processors: [.resize(width: 500)],
-                                           priority: .high,
-                                           userInfo: [.imageIdKey: imageIDKey])
-                if let image = ImagePipeline.shared.cache.cachedImage(for: request) {
-                    currentImage = image.image
-                }
-                
-                // Always ensure we have a load task if currentImage is nil
-                if currentImage == nil {
-                    imageTask = loadArtwork(url: group.coordinatorRoom.track.artworkURL, imageID: imageIDKey)
-                }
-            }
-            .onDisappear {
-                imageTask?.cancel()
-                imageTask = nil
-            }
-        }
-    }
-    
-    nonisolated private func loadArtwork(url: URL?, imageID: String) -> ImageTask? {
-        guard let url else {
-            Task { @MainActor in
-                currentImage = nil
-            }
-            return nil
-        }
-        
-        let imageRequest = ImageRequest(url: url,
-                                        processors: [.resize(width: 500)],
-                                        priority: .high,
-                                        userInfo: [.imageIdKey: imageID])
-        
-        return ImagePipeline.shared.loadImage(with: imageRequest) { result in
-            Task { @MainActor in
-                switch result {
-                case .success(let response):
-                    self.currentImage = response.image
-                default:
+            // Async load that auto-cancels when the URL changes. SwiftUI
+            // discards the in-flight load on id change so a slow request for
+            // the previous track can't complete after a fast one for the new
+            // track and overwrite `currentImage` with stale art. Initial
+            // value comes from `init()`'s synchronous cache lookup, so this
+            // only fires for cache misses or URL changes.
+            .task(id: group.coordinatorRoom.track.artworkURL) {
+                guard let url = group.coordinatorRoom.track.artworkURL else {
                     currentImage = nil
-                    break
+                    return
+                }
+                let request = ImageRequest(
+                    url: url,
+                    processors: [.resize(width: 500)],
+                    priority: .high,
+                    userInfo: [.imageIdKey: imageIDKey]
+                )
+                if let cached = ImagePipeline.shared.cache.cachedImage(for: request) {
+                    currentImage = cached.image
+                    return
+                }
+                do {
+                    let image = try await ImagePipeline.shared.image(for: request)
+                    currentImage = image
+                } catch {
+                    if !Task.isCancelled {
+                        currentImage = nil
+                    }
                 }
             }
         }

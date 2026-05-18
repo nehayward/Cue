@@ -12,8 +12,8 @@ struct ContainerLargePlayerView: View {
     
     var body: some View {
         VStack {
-            if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                LargePlayerView(group: sonosService.sorted[group])
+            if let id = router.selectedID, sonosService.groups.contains(where: { $0.coordinatorID == id }) {
+                LargePlayerView(coordinatorID: id)
                     .toolbar {
                         ToolbarItemGroup(placement: .primaryAction) {
                             if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .vision, horizontalSizeClass != .compact {

@@ -36,36 +36,35 @@ struct LaunchSpeakerIntent: AppIntent {
         guard CloudStorageSync.shared.bool(for: "com.clic.subscriptions") ?? false else {
             throw IntentError.message("Subscribe to Super in App")
         }
-        
-        guard let room = room else {
+
+        if nowPlaying {
+            await open(URL(string: "clic://playing")!)
+            return .result()
+        }
+
+        let resolvedID: String
+        if let room {
+            resolvedID = room.id
+        } else {
             let rooms = SonosService.shared.rooms
             let selectedRoom = try await $room.requestDisambiguation(among: rooms.map {
                 SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)
             })
-            
-            return await launchDevice(selectedRoom.id)
+            resolvedID = selectedRoom.id
         }
-        
-        return await launchDevice(room.id)
-    }
-    
-    @MainActor
-    private func launchDevice(_ id: String) async -> some IntentResult {
-        guard
-            let url = URL(string: "clic://device?id=\(id)"),
-            let application = UIApplication.value(forKeyPath: #keyPath(UIApplication.shared)) as? UIApplication
-        else {
-            return .result()
+
+        if let url = URL(string: "clic://device?id=\(resolvedID)") {
+            await open(url)
         }
-        
-        if nowPlaying {
-            let openURL = URL(string: "clic://playing")!
-            await application.open(openURL)
-            return .result()
-        }
-        
-        await application.open(url)
         return .result()
+    }
+
+    @MainActor
+    private func open(_ url: URL) async {
+        guard let application = UIApplication.value(forKeyPath: #keyPath(UIApplication.shared)) as? UIApplication else {
+            return
+        }
+        await application.open(url)
     }
 }
 
