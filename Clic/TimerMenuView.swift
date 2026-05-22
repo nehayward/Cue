@@ -8,7 +8,10 @@ struct TimerMenuView<Label: View>: View {
     var inMainMenu: Bool = false
     var onSelect: (Duration) async -> Void
     var onClear: (() async -> Void)? = nil
-    
+    /// When set, shows an "End of Song" item that sleeps at the end of the
+    /// current track. Omitted where there's no live playback (e.g. Scenes).
+    var onSleepAtEndOfTrack: (() async -> Void)? = nil
+
     @ViewBuilder var label: Label
 
     var body: some View {
@@ -23,6 +26,12 @@ struct TimerMenuView<Label: View>: View {
                         }
                     }
                 }.controlGroupStyle(.compactMenu)
+            }
+
+            if let onSleepAtEndOfTrack {
+                Button("End of Song") {
+                    Task { await onSleepAtEndOfTrack() }
+                }
             }
 
             Button("5 Minutes") { Task { await onSelect(.seconds(60 * 5)) } }

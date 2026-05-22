@@ -137,6 +137,8 @@ struct MenuInfoView: View {
                         await SonosService.shared.sleepTimer(group: group, duration: $0)
                     }, onClear: {
                         await SonosService.shared.stopSleepTimer(group: group)
+                    }, onSleepAtEndOfTrack: {
+                        await SonosService.shared.sleepAtEndOfTrack(group: group)
                     }) {
                         Label("Sleep Timer", systemImage: "deskclock.fill")
                     }

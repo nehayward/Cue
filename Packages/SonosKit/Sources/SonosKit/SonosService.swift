@@ -1708,6 +1708,20 @@ public final class SonosService {
         group.coordinatorRoom.sleepTimer = nil
     }
 
+    /// Sets a sleep timer that ends when the currently playing track finishes.
+    /// Fetches the live playback position so the timer length matches the
+    /// song's remaining time. Returns the duration applied, or `nil` when
+    /// nothing is playing or the track has no known length (e.g. a radio
+    /// stream, where `duration` is zero).
+    @discardableResult
+    public func sleepAtEndOfTrack(group: GroupRoom) async -> Duration? {
+        guard let track = await getTrack(ip: group.ip) else { return nil }
+        let remaining = track.timeRemaining
+        guard remaining > .zero else { return nil }
+        await sleepTimer(group: group, duration: remaining)
+        return remaining
+    }
+
     @MainActor
     public func playMode(ip: String) async -> PlayMode {
         await api.playMode(ip)

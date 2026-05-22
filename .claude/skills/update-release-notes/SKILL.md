@@ -1,0 +1,99 @@
+---
+name: update-release-notes
+description: >-
+  Add or update entries in this project's ReleaseNotes.md changelog. Use this
+  skill whenever the user wants to update release notes, add a changelog entry,
+  document what changed for a release, record a new feature or bug fix in the
+  notes, write "what's new" copy, or mentions "release notes" / "changelog" —
+  even if they don't name the file. Also use it after finishing a feature or fix
+  when the user asks to note it for the next release.
+---
+
+# Update Release Notes
+
+Adds user-facing entries to `ReleaseNotes.md` at the project root, in the right
+version section and category, matching the established style.
+
+## File structure
+
+`ReleaseNotes.md` lists versions newest-first. The **topmost** `# YYYY.N`
+heading is the version currently in development — new entries almost always go
+there.
+
+Each version has up to two categorized subsections, in this order:
+
+```
+# 2026.4
+
+–– New Features ––
+- ...
+
+–– Bug Fixes & Improvements ––
+- ...
+```
+
+The subsection-header dashes are EN DASHes (`–`, U+2013) — two of them, a space,
+the title, a space, two more. Don't retype them by hand; copy an existing header
+so the characters are exact. Older versions are sometimes inconsistent (e.g. one
+omits the `–– New Features ––` header) — follow the dominant pattern above, not
+the exceptions.
+
+## Workflow
+
+1. **Figure out what changed.**
+   - If the user described the change(s), use that.
+   - If they just said "update the release notes" with no specifics, inspect the
+     work to draft entries: recent `git log`, `git diff`, staged/unstaged
+     changes, and what was done earlier in this conversation.
+   - When unsure what to include or how to word something, show the user your
+     proposed bullets and confirm before writing.
+
+2. **Pick the version section.** Default to the topmost `# YYYY.N` heading. Only
+   start a new version when the user explicitly asks — then add a new
+   `# YYYY.N` heading at the very top (increment the minor number from the
+   previous heading, e.g. `2026.4` → `2026.5`) with a `–– New Features ––`
+   section under it.
+
+3. **Classify each entry:**
+   - **New Features** — a new capability, screen, command, integration, or
+     setting the user can now use.
+   - **Bug Fixes & Improvements** — fixes, performance work, and refinements to
+     behavior that already existed.
+
+4. **Insert the bullet(s)** at the **end** of the matching subsection, so
+   entries read oldest-to-newest within a release. A subsection runs until the
+   next `––` header or the next `# ` version heading. If the target subsection
+   doesn't exist yet, create it (New Features goes before Bug Fixes &
+   Improvements).
+
+5. **Leave older version sections untouched.**
+
+## Writing style
+
+These entries become the App Store "What's New" text — write for end users, not
+developers.
+
+- Describe what the user can now do, or what's fixed — never the implementation.
+  "Fixed a rare crash when adjusting room volume", not "Fixed nil unwrap in
+  VolumeController".
+- One bullet per distinct, user-noticeable change.
+- **Skip internal-only work** — refactors, file reorganizations, test changes,
+  and code cleanup don't belong in release notes. If the change has no visible
+  effect, don't add it.
+- New Features often lead with a short name: `Feature Name: what it does`. Use
+  it when it helps; a plain sentence is fine too.
+- Bug-fix bullets usually start with `Fixed…`, `Improved…`, `Restored…`, or
+  `Removed…`.
+- Sentence case, one line each, no trailing period.
+
+**Good — New Features:**
+- `Mac Dock Menu: Right-click the Clic icon in the Dock for full playback control without opening the app`
+- `Sleep Timer: New "End of Song" option stops playback when the current track finishes`
+
+**Good — Bug Fixes & Improvements:**
+- `Fixed Custom Sleep Timer not showing`
+- `Improved Player screen performance: fewer view updates on foreground and resize`
+
+**Avoid:**
+- `Refactored DockMenuRenderer into separate files` — internal, no user-visible effect
+- `Fixed bug` — too vague; say what was broken and where the user would have seen it

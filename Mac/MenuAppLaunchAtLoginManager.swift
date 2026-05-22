@@ -3,19 +3,23 @@ import Foundation
 import ServiceManagement
 #endif
 import OSLog
+import SonosKit
 
 #if targetEnvironment(macCatalyst)
 
+/// Owns the MacGlue bundle, ClicMini launch-at-login registration, and
+/// running-process observation. Dock-menu logic lives separately in
+/// `DockMenuCoordinator` — this class no longer knows about the dock.
 @Observable
 final class MenuAppLaunchAtLoginManager {
     @ObservationIgnored static var shared = MenuAppLaunchAtLoginManager()
     var isRunning: Bool = false
-    var macUtils: MacUtils?
+    var bridge: MacBridgeable?
 
     var isLaunchAtLoginEnabled: Bool { SMAppService.menuApp.status == .enabled }
-    
+
     init() {
-        macUtils = Self.loadDelegate()
+        bridge = Self.loadDelegate()
     }
 
     func setLaunchAtLoginEnabled(_ enabled: Bool) async throws {
@@ -49,47 +53,45 @@ final class MenuAppLaunchAtLoginManager {
             }
         }
     }
-    
+
     func monitor() {
-        macUtils?.setupRunningAppsObserver()
-        macUtils?.runningUpdate(handler: { [weak self] isRunning in
+        bridge?.setupRunningAppsObserver()
+        bridge?.runningUpdate(handler: { [weak self] isRunning in
             print("----Running-----")
             self?.isRunning = isRunning
         })
     }
-    
+
     func stopMonitor() {
-        macUtils?.stopRunningAppObserver()
+        bridge?.stopRunningAppObserver()
     }
-    
-    static func loadDelegate() -> MacUtils? {
+
+    static func loadDelegate() -> MacBridgeable? {
         let bundleFileName = "MacGlue.bundle"
         guard let bundleURL = Bundle.main.builtInPlugInsURL?.appendingPathComponent(bundleFileName) else {
             print("Failed to find MacGlue plugin URL")
             return nil
         }
-        
+
         guard let bundle = Bundle(url: bundleURL) else {
             print("Failed to create bundle from URL: \(bundleURL)")
             return nil
         }
-        
-        // Load bundle explicitly and handle errors
+
         do {
             try bundle.loadAndReturnError()
         } catch {
             print("Failed to load MacGlue bundle: \(error)")
             return nil
         }
-        
-        let className = "MacGlue.MacUtilsImpl"
-        guard let pluginClass = bundle.classNamed(className) as? MacUtils.Type else {
-            print("Failed to find MacUtilsImpl class in bundle")
+
+        let className = "MacGlue.MacBridge"
+        guard let pluginClass = bundle.classNamed(className) as? MacBridgeable.Type else {
+            print("Failed to find MacBridge class in bundle")
             return nil
         }
-        
-        let macUtils = pluginClass.init()
-        return macUtils
+
+        return pluginClass.init()
     }
 }
 

@@ -402,7 +402,7 @@ struct PreferenceScreen: View {
                     Button {
                         Task {
                             do {
-                                try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                                try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
                             } catch {
                                 clicMiniErrorMessage = error.localizedDescription
                                 showClicMiniError = true
@@ -448,7 +448,7 @@ struct PreferenceScreen: View {
                             if newValue {
                                 Task {
                                     do {
-                                        try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                                        try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
                                     } catch {
                                         clicMiniErrorMessage = error.localizedDescription
                                         showClicMiniError = true
