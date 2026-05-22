@@ -60,10 +60,12 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
         }
         let imp = imp_implementationWithBlock(block as Any)
         // Type encoding `@@:@` = returns object, self is object, _cmd is SEL,
-        // first arg is object (NSApplication). `class_replaceMethod` adds it
-        // if absent, otherwise swaps the existing implementation — Catalyst
-        // installs a default `applicationDockMenu` (the "Search" item), so we
-        // need replace, not add.
+        // first arg is object (NSApplication). `class_replaceMethod` installs
+        // our implementation whether or not one already exists: it adds the
+        // method if absent, or swaps the existing IMP if present. That keeps
+        // this correct regardless of any default `applicationDockMenu`
+        // Catalyst may provide — `class_addMethod` would silently no-op when
+        // the method is already there.
         class_replaceMethod(delegateClass, selector, imp, "@@:@")
     }
 
