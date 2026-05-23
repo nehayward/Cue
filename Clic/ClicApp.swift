@@ -51,6 +51,19 @@ struct ClicApp: App {
     
 #if targetEnvironment(macCatalyst)
     private var menuAppLaunchAtLoginManager = MenuAppLaunchAtLoginManager.shared
+
+    /// Composite key driving `.task(id:)` for the dock menu. Reading these
+    /// properties during body eval registers SwiftUI observation, so any
+    /// change re-fires the refresh task.
+    private var dockRefreshKey: DockMenuCoordinator.RefreshKey {
+        let group = router.selectedID.flatMap { id in sonosService.sorted.first(where: { $0.coordinatorID == id }) }
+        return .init(
+            selectedGroupID: router.selectedID,
+            trackUnique: group?.coordinatorRoom.track.unique,
+            isPlaying: group?.coordinatorRoom.isPlaying ?? false,
+            availableGroupIDs: sonosService.sorted.map { $0.coordinatorID }
+        )
+    }
 #endif
     
     var body: some Scene {
@@ -103,11 +116,18 @@ struct ClicApp: App {
                     Task {
                         try? await Task.sleep(for: .seconds(2))
                         do {
-                            try await menuAppLaunchAtLoginManager.macUtils?.openClicMiniApp()
+                            try await menuAppLaunchAtLoginManager.bridge?.openClicMiniApp()
                         } catch {
                             print("Failed to launch ClicMini: \(error.localizedDescription)")
                         }
                     }
+                }
+                if let bridge = menuAppLaunchAtLoginManager.bridge {
+                    DockMenuCoordinator.shared.install(
+                        bridge: bridge,
+                        router: router,
+                        sonosService: sonosService
+                    )
                 }
 #endif
                 // Try and restore selected groupID
@@ -179,6 +199,17 @@ struct ClicApp: App {
                 }
             }
             .preferredColorScheme(colorScheme.scheme)
+#if targetEnvironment(macCatalyst)
+            // Single source of truth for dock-menu refresh. The RefreshKey
+            // reads selectedID, the current group's track + isPlaying, and
+            // the list of available groups — so any change re-fires the task,
+            // and SwiftUI auto-cancels any in-flight refresh from the
+            // previous key. `.task` is a View modifier, so it must live
+            // inside WindowGroup, not on the Scene.
+            .task(id: dockRefreshKey) {
+                await DockMenuCoordinator.shared.refresh()
+            }
+#endif
         }
         .windowResizability(.contentMinSize)
         .onChange(of: scenePhase) {
@@ -197,7 +228,7 @@ struct ClicApp: App {
                     router.inspectorSheet = .browse(group: sonosService.sorted[group])
                 }
             }
-            
+
             savedGroupID = router.selectedID
         }
         .onChange(of: sonosService.groups) {
@@ -300,105 +331,7 @@ struct ClicApp: App {
                 .keyboardShortcut("f", modifiers: [.shift, .command])
             }
             CommandMenu("Playback") {
-                let groupSelected = router.selectedID.flatMap { id in
-                    sonosService.sorted.first { $0.coordinatorID == id }?.nameWithCount
-                } ?? "No Group Selected"
-                ControlGroup(groupSelected) {
-                    Button{
-                        Task {
-                            if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                                if group.coordinatorRoom.isPlaying {
-                                    HapticManager.shared.fireHaptic(.selection)
-                                    await sonosService.pause(ip: group.coordinatorRoom.ip)
-                                } else {
-                                    HapticManager.shared.fireHaptic(.selection)
-                                    await sonosService.play(ip: group.coordinatorRoom.ip)
-                                }
-                            }
-                        }
-                    } label: {
-                        if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                            Label {
-                                Text("\(group.coordinatorRoom.isPlaying ? "Pause" : "Play")")
-                            } icon: {
-                                Image(systemName: group.coordinatorRoom.isPlaying ? "pause.fill" : "play.fill")
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.space, modifiers: [])
-                    
-                    Button {
-                        Task {
-                            if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.previous(ip: group.coordinatorRoom.ip)
-                            }
-                        }
-                    } label: {
-                        if router.selectedID != nil {
-                            Label {
-                                Text("Previous Track")
-                            } icon: {
-                                Image(systemName: "backward.fill")
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.leftArrow)
-                    .disabled(router.selectedID == nil)
-                    
-                    Button {
-                        Task {
-                            if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.next(ip: group.coordinatorRoom.ip)
-                            }
-                        }
-                    } label: {
-                        if router.selectedID != nil {
-                            Label {
-                                Text("Next Track")
-                            } icon: {
-                                Image(systemName: "forward.fill")
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.rightArrow)
-                    Button {
-                        Task {
-                            if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.setRelativeGroupVolume(ip: group.ip, volume: 5)
-                            }
-                        }
-                    } label: {
-                        if router.selectedID != nil {
-                            Label {
-                                Text("Volume Up")
-                            } icon: {
-                                Image(systemName: "speaker.wave.2.fill")
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.upArrow)
-                    
-                    Button {
-                        Task {
-                            if let id = router.selectedID, let group = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
-                                HapticManager.shared.fireHaptic(.selection)
-                                await sonosService.setRelativeGroupVolume(ip: group.ip, volume: -5)
-                            }
-                        }
-                    } label: {
-                        if router.selectedID != nil {
-                            Label {
-                                Text("Volume Down")
-                            } icon: {
-                                Image(systemName: "speaker.wave.1.fill")
-                            }
-                        }
-                    }
-                    .keyboardShortcut(.downArrow)
-                }
+                PlaybackTransportControls(router: router, sonosService: sonosService)
 
                 Button {
                     Task {
@@ -523,6 +456,11 @@ struct ClicApp: App {
         switch scenePhase {
         case .active:
             sonosService.monitor()
+#if targetEnvironment(macCatalyst)
+            // Window is open — live monitoring + `.task(id:)` keep the dock
+            // menu fresh, so the background poll isn't needed.
+            DockMenuCoordinator.shared.stopBackgroundRefresh()
+#endif
             Task {
                 let startTime = Date.now
                 while sonosService.sorted.isEmpty && Date.now.timeIntervalSince(startTime) < 10 {
@@ -578,6 +516,12 @@ struct ClicApp: App {
                 sonosService.sonosPulse.cancel()
                 sonosService.watcher.cancel()
             }
+#if targetEnvironment(macCatalyst)
+            // Monitoring is now cancelled, so the cached model freezes. Poll
+            // the selected group on a slow cadence to keep the dock menu
+            // current (it's built synchronously and can't fetch on open).
+            DockMenuCoordinator.shared.startBackgroundRefresh()
+#endif
         @unknown default:
             break
         }
@@ -759,6 +703,88 @@ struct ClicApp: App {
     }
 }
 
+
+/// Transport buttons for the "Playback" command menu. Extracted into its own
+/// View because inlining all five buttons (each with conditional labels and
+/// async closures) pushed the `Commands` builder past the type-checker's
+/// reasonable-time limit.
+private struct PlaybackTransportControls: View {
+    let router: Router
+    let sonosService: SonosService
+
+    private var selectedGroup: GroupRoom? {
+        guard let id = router.selectedID else { return nil }
+        return sonosService.sorted.first { $0.coordinatorID == id }
+    }
+
+    var body: some View {
+        ControlGroup(selectedGroup?.nameWithCount ?? "No Group Selected") {
+            Button {
+                Task {
+                    guard let group = selectedGroup else { return }
+                    HapticManager.shared.fireHaptic(.selection)
+                    if group.coordinatorRoom.isPlaying {
+                        await sonosService.pause(ip: group.coordinatorRoom.ip)
+                    } else {
+                        await sonosService.play(ip: group.coordinatorRoom.ip)
+                    }
+                }
+            } label: {
+                let playing = selectedGroup?.coordinatorRoom.isPlaying ?? false
+                Label(playing ? "Pause" : "Play", systemImage: playing ? "pause.fill" : "play.fill")
+            }
+            .keyboardShortcut(.space, modifiers: [])
+
+            Button {
+                Task {
+                    guard let group = selectedGroup else { return }
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.previous(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Label("Previous Track", systemImage: "backward.fill")
+            }
+            .keyboardShortcut(.leftArrow)
+            .disabled(router.selectedID == nil)
+
+            Button {
+                Task {
+                    guard let group = selectedGroup else { return }
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.next(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Label("Next Track", systemImage: "forward.fill")
+            }
+            .keyboardShortcut(.rightArrow)
+            .disabled(router.selectedID == nil)
+
+            Button {
+                Task {
+                    guard let group = selectedGroup else { return }
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: 5)
+                }
+            } label: {
+                Label("Volume Up", systemImage: "speaker.wave.2.fill")
+            }
+            .keyboardShortcut(.upArrow)
+            .disabled(router.selectedID == nil)
+
+            Button {
+                Task {
+                    guard let group = selectedGroup else { return }
+                    HapticManager.shared.fireHaptic(.selection)
+                    await sonosService.setRelativeGroupVolume(ip: group.ip, volume: -5)
+                }
+            } label: {
+                Label("Volume Down", systemImage: "speaker.wave.1.fill")
+            }
+            .keyboardShortcut(.downArrow)
+            .disabled(router.selectedID == nil)
+        }
+    }
+}
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(

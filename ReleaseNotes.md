@@ -6,6 +6,10 @@
 - Artist Sharing: Sharing an artist link offers Play Radio (starts that artist's radio on selected rooms) and Show (jumps to the artist page in Clic)
 - View / Open in Clic: Quick actions in the share sheet's menu to jump straight into the album, playlist, or artist page in the main app, or to the room picker
 - Tap the artwork header in the share sheet to open that album/playlist/artist in Clic
+- Mac Dock Menu: Right-click the Clic icon in the Dock for full playback control without opening the app — Now Playing, play/pause, skip, volume, mute, and Repeat / Shuffle / Crossfade
+- Dock Menu: Switch the active speaker or group, favorite the current song, and set a sleep timer (15/30/45 minutes or 1 hour) — all from the Dock
+- Tap the now-playing track in the Dock menu to jump straight to that speaker in Clic
+- Sleep Timer: New "End of Song" option ends playback when the current track finishes — available in the app's Sleep Timer menu and the Mac Dock menu
 
 –– Bug Fixes & Improvements ––
 - Restored Live Activity to its former glory with 5 volume steps

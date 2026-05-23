@@ -299,8 +299,10 @@
 		01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				MacGlue/MacUtils.swift,
-				MacGlue/MacUtilsImpl.swift,
+				MacGlue/DockMenuRenderable.swift,
+				MacGlue/DockMenuRenderer.swift,
+				MacGlue/MacBridge.swift,
+				MacGlue/MacBridgeable.swift,
 				MacGlue/TopRunningAppsObserver.swift,
 			);
 			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
@@ -530,7 +532,7 @@
 		E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				MacGlue/MacUtils.swift,
+				DockMenuCoordinator.swift,
 				MenuAppLaunchAtLoginManager.swift,
 				SplitView.swift,
 			);
@@ -539,7 +541,9 @@
 		E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				MacGlue/MacUtils.swift,
+				DockMenuCoordinator.swift,
+				MacGlue/DockMenuRenderable.swift,
+				MacGlue/MacBridgeable.swift,
 				MenuAppLaunchAtLoginManager.swift,
 				SplitView.swift,
 			);
