@@ -664,6 +664,10 @@ struct ClicApp: App {
                     guard let content = await sonosService.getContent(from: url) else { return }
                     if content.content.type == .artist || content.content.type == .libraryArtist {
                         router.sheet(to: .artistDetail(content: content, group: nil))
+                    } else if content.content.type.isRadio {
+                        // Stations have no detail screen — open the play sheet
+                        // so the user can pick a room.
+                        router.sheet(to: .playMedia(url: url))
                     } else {
                         router.sheet(to: .mediaDetail(content: content, group: nil))
                     }

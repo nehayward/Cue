@@ -596,7 +596,7 @@ struct ArtistDetailView: View {
         isLoadingTracks = false
         
         if let artistContent {
-            RecentSearchesStorage.shared.addOrMoveToFront(artistContent)
+            RecentSearchesStorage.shared.addOrMoveToFront(byID: artistContent)
         }
     }
 
