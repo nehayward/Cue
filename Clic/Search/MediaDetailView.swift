@@ -497,7 +497,7 @@ struct MediaDetailView: View {
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
         
         if let content {
-            RecentSearchesStorage.shared.addOrMoveToFront(content)
+            RecentSearchesStorage.shared.addOrMoveToFront(byID: content)
         }
     }
     

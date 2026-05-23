@@ -148,14 +148,14 @@ struct LiveActivityNowPlayingViewPre27: View {
             }
             if !isCompact {
                 HStack {
-//                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -3)) {
-//                        Image(systemName: "minus")
-//                            .bold()
-//                            .frame(width: 24, height: 24)
-//                    }
-//                    .tint(.primary)
-//                    .buttonBorderShape(.circle)
-//                    .buttonStyle(.liveActivity)
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: -2)) {
+                        Image(systemName: "minus")
+                            .bold()
+                            .frame(width: 24, height: 24)
+                    }
+                    .tint(.primary)
+                    .buttonBorderShape(.circle)
+                    .buttonStyle(.liveActivity)
 
                     VibeNumberSlider(value: .constant(Double(context.state.volume)), visibleCount: 5, step: Double(liveActivityStep)) { number in
                         Button(intent: SetVolumeIntent(room: context.attributes.room, volume: Double(number))) {
@@ -163,14 +163,14 @@ struct LiveActivityNowPlayingViewPre27: View {
                         }
                     }
                     
-//                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 3)) {
-//                        Image(systemName: "plus")
-//                            .frame(width: 24, height: 24)
-//                            .bold()
-//                    }
-//                    .tint(.primary)
-//                    .buttonBorderShape(.circle)
-//                    .buttonStyle(.liveActivity)
+                    Button(intent: SetRelativeGroupVolumeIntent(room: context.attributes.room, volume: 2)) {
+                        Image(systemName: "plus")
+                            .frame(width: 24, height: 24)
+                            .bold()
+                    }
+                    .tint(.primary)
+                    .buttonBorderShape(.circle)
+                    .buttonStyle(.liveActivity)
                 }
 //                .padding([.bottom], 8)
 //                .frame(height: 48)

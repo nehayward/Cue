@@ -99,13 +99,16 @@ struct QueueListView: View {
     /// Prefers the resolved content's `clic://play/...` URL when we have it; otherwise
     /// hands the raw shared URL to the main app via `clic://resolve?url=...` so Clic
     /// (which has full MusicKit access) can do the lookup itself.
+    /// Stations route via `resolveURL` even when content is resolved, so the
+    /// main app sees the original `/station/<slug>/<id>` URL and can derive
+    /// a title (the `clic://` form drops the slug).
     private var openInClicURL: URL? {
-        if let content { return content.shareURL }
+        if let content, !content.content.type.isRadio { return content.shareURL }
         return resolveURL
     }
 
     private var viewInClicURL: URL? {
-        if let content { return content.viewURL }
+        if let content, !content.content.type.isRadio { return content.viewURL }
         return resolveURL
     }
 
@@ -166,7 +169,7 @@ struct QueueListView: View {
 
     private func contentHeader(_ content: PlayableContent) -> some View {
         Button {
-            dismiss(opening: content.viewURL)
+            dismiss(opening: viewInClicURL)
         } label: {
             HStack(alignment: .center, spacing: 14) {
                 VibeContentArtworkView(content: content)
@@ -604,6 +607,7 @@ struct QueueListView: View {
             case "song": contentType = .track
             case "playlist": contentType = .playlist
             case "artist": contentType = .artist
+            case "station": contentType = .radio
             default: return nil
             }
         } else {
@@ -634,17 +638,30 @@ struct QueueListView: View {
         // (`pl.u-...` IDs) and other content the iTunes Lookup API doesn't surface.
         log.notice("iTunes lookup empty for \(lookupID, privacy: .public); falling back to og scrape")
         let og = await AppleMusicOpenGraphAPI.lookup(url: url, session: Self.lookupSession, timeout: Self.lookupTimeout)
-        guard og.title != nil || og.image != nil else { return nil }
+
+        // Personalized stations (`ra.u-*`) often have no scrapeable og:* tags,
+        // so we fall back to a slug-derived name and skip the og-required guard.
+        let isStation = contentType == .radio
+        // Station URLs are `/<storefront>/station/<slug>/<id>`; slug is at [2].
+        // Slug-less `/<storefront>/station/<id>` (3 parts) has no name to derive.
+        let slugTitle: String? = {
+            guard isStation, pathParts.count >= 4 else { return nil }
+            let slug = pathParts[2].replacingOccurrences(of: "-", with: " ")
+            return slug.isEmpty ? nil : slug.capitalized
+        }()
+
+        guard og.title != nil || og.image != nil || slugTitle != nil else { return nil }
 
         let subtitle: String
         switch contentType {
         case .artist: subtitle = "Artist"
+        case .radio: subtitle = "Station"
         default: subtitle = og.resolvedAuthor ?? ""
         }
         log.notice("AppleMusic og.title=\(og.title ?? "nil", privacy: .public) og.description=\(og.description ?? "nil", privacy: .public) resolvedTitle=\(og.resolvedTitle ?? "nil", privacy: .public) resolvedSubtitle=\(subtitle, privacy: .public)")
 
         return PlayableContent(
-            title: og.resolvedTitle ?? og.title ?? "",
+            title: og.resolvedTitle ?? og.title ?? slugTitle ?? "",
             subtitle: subtitle,
             thumbnail: og.image,
             artwork: og.image,

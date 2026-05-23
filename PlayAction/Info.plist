@@ -13,6 +13,8 @@
 		<array>
 			<string>_sonos._tcp</string>
 		</array>
+		<key>NSLocalNetworkUsageDescription</key>
+		<string>Needed to find Sonos Devices</string>
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>

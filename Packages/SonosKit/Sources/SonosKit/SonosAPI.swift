@@ -550,9 +550,8 @@ final class SonosAPI: NSObject {
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             let body = String(decoding: data, as: UTF8.self)
-            let errorCode = extractErrorCode(from: body) // 800 not authorized
-            print("Error (\(errorCode): \(body)")
-            throw SonosServiceError.serviceUnavailable
+            let errorCode = extractErrorCode(from: body)
+            throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
         }
     }
     
@@ -580,13 +579,15 @@ final class SonosAPI: NSObject {
             ("EnqueuedURIsAndMetaData", playableContent.URIAndURIMetada)
         ]
 
-        guard let (_, response) = try await sendSoapRequest(ip: IP, action: "ReplaceAllTracks", arguments: arguments, endpoint: "MediaRenderer/Queue") else {
+        guard let (data, response) = try await sendSoapRequest(ip: IP, action: "ReplaceAllTracks", arguments: arguments, endpoint: "MediaRenderer/Queue") else {
             throw SonosServiceError.timeout
         }
 
         if let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode != 200 {
-            print("Failed", statusCode)
-            throw SonosServiceError.serviceUnavailable
+            let body = String(decoding: data, as: UTF8.self)
+            let errorCode = extractErrorCode(from: body)
+            print("ReplaceAllTracks failed (\(statusCode), upnp \(errorCode ?? "?")): \(body)")
+            throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
         }
     }
 
@@ -599,10 +600,12 @@ final class SonosAPI: NSObject {
             ("CurrentURIMetaData", URIMetadataRadio)
         ]
 
-        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-                throw SonosServiceError.serviceUnavailable
+                let body = String(decoding: data, as: UTF8.self)
+                let errorCode = extractErrorCode(from: body)
+                print("startRadio failed (upnp \(errorCode ?? "?")): \(body)")
+                throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
             }
         }
     }
@@ -765,10 +768,12 @@ final class SonosAPI: NSObject {
             ("CurrentURIMetaData", playableContent.URIMetadata)
         ]
 
-        if let (_, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
+        if let (data, response) = try? await sendSoapRequest(ip: IP, action: "SetAVTransportURI", arguments: arguments, endpoint: "MediaRenderer/AVTransport") {
             if (response as? HTTPURLResponse)?.statusCode != 200 {
-                print("Failed")
-                throw SonosServiceError.serviceUnavailable
+                let body = String(decoding: data, as: UTF8.self)
+                let errorCode = extractErrorCode(from: body)
+                print("setAVTransportContent failed (upnp \(errorCode ?? "?")): \(body)")
+                throw SonosServiceError.cantPlayContent(upnpCode: errorCode)
             }
         }
     }

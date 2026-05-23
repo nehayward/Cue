@@ -1522,9 +1522,23 @@ public final class SonosService {
         case (.artist, .spotify):
             guard let artist = await musicSearch.spotifyArtist(id: content.id) else { return nil }
             return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.images.thumbnail, artwork: artist.images.biggestImageURL, content: content)
+        case (.radio, .apple):
+            // Apple Music stations have no catalog lookup (`ra.u-*` IDs aren't
+            // catalog items). Derive a name from `/station/<slug>/<id>` so the
+            // room picker has something to show.
+            let title = Self.appleStationTitle(from: url) ?? ""
+            return PlayableContent(title: title, subtitle: "Station", thumbnail: nil, artwork: nil, content: content)
         default:
             return nil
         }
+    }
+
+    private static func appleStationTitle(from url: URL) -> String? {
+        guard url.host?.contains("music.apple.com") == true else { return nil }
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count >= 4, parts[1] == "station" else { return nil }
+        let slug = parts[2].replacingOccurrences(of: "-", with: " ")
+        return slug.isEmpty ? nil : slug.capitalized
     }
 
     public func contentLookup(id: String, type: ContentType, service: MusicService) async -> PlayableContent? {

@@ -6,14 +6,14 @@ import WidgetKit
 #endif
 
 struct PlaybackIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Set Playback"
-    static var description = IntentDescription("Control playback of selected Sonos speaker or Group it's a part of", categoryName: "Playback", searchKeywords: ["Playback"])
+    static var title: LocalizedStringResource = "Playback"
+    static var description = IntentDescription("Control playback of selected Sonos speaker or Group it's a part of", categoryName: "Playback", searchKeywords: ["Playback", "Play", "Pause"])
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
     static private var liveActivityManager = LiveActivityManagerFactory.shared
     
-    @Parameter(title: "Sonos Speaker") var room: SonosDeviceEntity?
+    @Parameter(title: "Speaker", requestValueDialog: IntentDialog("Which speaker would you like to play on?")) var room: SonosDeviceEntity?
     @Parameter(title: "Playback", default: .toggle) var playback: PlaybackOption
-    
+
     static var parameterSummary: some ParameterSummary {
         Switch(\.$playback) {
             Case(.toggle) {
@@ -41,13 +41,16 @@ struct PlaybackIntent: LiveActivityIntent {
             throw IntentError.message("Subscribe to Super in Clic")
         }
         
+        // `room` must be optional to satisfy ControlConfigurationIntent. Use
+        // the configured speaker when there is one; only call requestValue
+        // when there isn't — requestValue prompts every time it's called.
         let resolvedRoom: SonosDeviceEntity
-        if room == nil, let requestedRoom = await requestRoomIfNeeded() {
-            resolvedRoom = requestedRoom
-        } else if let existingRoom = room {
-            resolvedRoom = existingRoom
+        if let room {
+            resolvedRoom = room
         } else {
-            throw IntentError.message("No Sonos room selected")
+            resolvedRoom = try await $room.requestValue(
+                IntentDialog("Which speaker would you like to control?")
+            )
         }
 
         guard let coordinatorRoom = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: resolvedRoom.id) else {
@@ -74,25 +77,6 @@ struct PlaybackIntent: LiveActivityIntent {
         #endif
 
         return .result()
-    }
-
-    /// Requests the user to pick a Sonos room interactively if `room` is nil.
-    private func requestRoomIfNeeded() async -> SonosDeviceEntity? {
-        try? await SonosService.shared.updateGroups()
-        let rooms = SonosService.shared.rooms
-        guard !rooms.isEmpty else { return nil }
-
-        do {
-            let chosen = try await $room.requestDisambiguation(
-                among: rooms.map {
-                    SonosDeviceEntity(id: $0.id, ip: $0.ip, name: $0.name)
-                },
-                dialog: "Which Sonos speaker would you like to control?"
-            )
-            return chosen
-        } catch {
-            return nil
-        }
     }
 }
 

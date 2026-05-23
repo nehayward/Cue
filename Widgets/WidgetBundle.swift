@@ -30,6 +30,7 @@ private var body_iOS18: some Widget {
     LiveActivityNowPlayingWidget()
     #endif
     RemoteControlWidget()
+    PlaybackControlWidget()
     LaunchAppControlWidget()
     AlarmsControlWidget()
     SceneControlWidget()

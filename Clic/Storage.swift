@@ -91,8 +91,29 @@ extension Storage where Object: Equatable {
     }
 }
 
+extension Storage where Object: Identifiable {
+    func addOrMoveToFront(byID newObject: Object) {
+        var current = object
+        current.removeAll { $0.id == newObject.id }
+        current.append(newObject)
+        object = current
+    }
+
+    func dedupeByID() {
+        var seen = Set<Object.ID>()
+        let uniqued = object.reversed().filter { seen.insert($0.id).inserted }.reversed()
+        if uniqued.count != object.count {
+            object = Array(uniqued)
+        }
+    }
+}
+
 enum RecentSearchesStorage {
-    static let shared = Storage<PlayableContent>(AppStorageKeys.recentlyViewed, limit: 20)
+    static let shared: Storage<PlayableContent> = {
+        let storage = Storage<PlayableContent>(AppStorageKeys.recentlyViewed, limit: 20)
+        storage.dedupeByID()
+        return storage
+    }()
 }
 
 enum RecentQueriesStorage {
