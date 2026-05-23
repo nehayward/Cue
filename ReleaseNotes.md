@@ -12,6 +12,7 @@
 - Tap the now-playing track in the Dock menu to jump straight to that speaker in Clic
 - Sleep Timer: New "End of Song" option ends playback when the current track finishes — available in the app's Sleep Timer menu and the Mac Dock menu
 - Shortcuts: "Play Link on Clic" with a clearer "Add to Queue" parameter and a new "Automatic" default that matches the share sheet behavior (playlists replace the queue, everything else plays now)
+- Playback Control Widget (iOS 18+): New Control Center widget for per-speaker play/pause with live transport state
 
 –– Bug Fixes & Improvements ––
 - Restored Live Activity to its former glory with 5 volume steps
