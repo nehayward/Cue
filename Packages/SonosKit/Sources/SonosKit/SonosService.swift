@@ -989,6 +989,14 @@ public final class SonosService {
         return groups
     }
 
+    /// Fetches `DeviceInfo` for a Sonos speaker at the given IP. Useful for
+    /// callers that want metadata (model name, swGen — S1 vs S2, capabilities)
+    /// for a household other than the currently-monitored one, without having
+    /// to switch over and wait for a full pulse.
+    public func deviceInfo(for ip: String) async -> DeviceInfo? {
+        await api.deviceInfo(IP: ip)
+    }
+
     public func group(rooms: [Room], to coordinatorID: String) async {
         // MARK: Only group new rooms
         let nonCoordinatorRooms = rooms.filter{ $0.id != coordinatorID }

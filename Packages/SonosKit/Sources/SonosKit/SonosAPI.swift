@@ -949,7 +949,7 @@ final class SonosAPI: NSObject {
         }
     }
 
-    func deviceInfo(IP: String) async -> DeviceInfo? {
+    public func deviceInfo(IP: String) async -> DeviceInfo? {
         guard let url = URL(string: "http://\(IP):1400/info") else { return nil }
         let request = URLRequest(url: url)
         guard let (data, response) = try? await session.data(for: request) else { return nil }
