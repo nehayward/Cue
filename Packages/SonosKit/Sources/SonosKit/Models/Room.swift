@@ -39,6 +39,9 @@ public final class Room: Identifiable, @unchecked Sendable {
     public var info: DeviceInfo? = nil
     public var sleepTimer: Date? = nil
     public var alarmRunning: Bool = false
+    /// For vanished/sleeping speakers, the UTC timestamp Sonos last
+    /// reported them as reachable. Nil for currently-active rooms.
+    public var lastSeen: Date? = nil
     public var subs: [Sub] = []
     public var queue: OrderedSet<PlayableContent> = []
     public var queueTotal: Int = 0
@@ -95,7 +98,8 @@ public final class Room: Identifiable, @unchecked Sendable {
         isOutputFixed: Bool = false,
         subs: [Sub] = [],
         info: DeviceInfo? = nil,
-        container: SonosContainer? = nil
+        container: SonosContainer? = nil,
+        lastSeen: Date? = nil
     ) {
         self.id = id
         self.ip = ip
@@ -120,6 +124,7 @@ public final class Room: Identifiable, @unchecked Sendable {
         self.subs = subs
         self.info = info
         self.container = container
+        self.lastSeen = lastSeen
     }
 }
 

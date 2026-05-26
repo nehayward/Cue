@@ -100,7 +100,15 @@ extension VanishedDevice {
     var toGroup: GroupRoom? {
         guard let IP, let name, let info, let reason, let macAddress else { return nil }
 
-        let room = Room(id: id, ip: IP, name: name, state: RoomState(reason: reason), battery: Battery(info: info), macAddress: macAddress)
+        let room = Room(
+            id: id,
+            ip: IP,
+            name: name,
+            state: RoomState(reason: reason),
+            battery: Battery(info: info),
+            macAddress: macAddress,
+            lastSeen: lastSeen
+        )
         return GroupRoom(id: id,
                          coordinatorID: id,
                          rooms: [room],

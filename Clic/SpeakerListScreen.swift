@@ -84,8 +84,33 @@ struct SpeakerListScreen: View {
             }
         }
         .overlay(alignment: .center) {
-            if sonosService.sorted.isEmpty, sonosService.parserError == nil, !sonosService.systemState.notFound, !sonosService.isCellular {
-                ProgressView()
+            if sonosService.sorted.isEmpty,
+               sonosService.parserError == nil,
+               !sonosService.systemState.notFound,
+               !sonosService.systemState.permissionDenied,
+               !sonosService.isCellular {
+                if sonosService.isRunning {
+                    ProgressView()
+                } else {
+                    // No groups, no errors, and discovery isn't running — the
+                    // user almost certainly bailed out of onboarding before
+                    // granting Local Network. Offer a clear way back in
+                    // instead of an indefinite spinner.
+                    ContentUnavailableView {
+                        Label("Set Up Clic", systemImage: "sparkles")
+                    } description: {
+                        Text("Finish the welcome flow to discover your Sonos speakers.")
+                    } actions: {
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            router.presentedSheet = .onboard
+                        } label: {
+                            Text("Open Setup")
+                        }
+                        .foregroundStyle(Color.accentColor.gradient)
+                    }
+                    .background(.thinMaterial)
+                }
             }
 
             if sonosService.isCellular {
@@ -297,13 +322,10 @@ fileprivate struct SpeakerGroupSection: View {
             .dropDestinationPlay(on: group)
             .paywall(paywallEnabled)
             .overlay {
-                Text(group.coordinatorRoom.state.reason)
-                    .font(.title.smallCaps())
-                    .ignoresSafeArea()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.thickMaterial)
-                    .paywall(paywallEnabled)
-                    .opacity(group.isActive ? 0 : 1)
+                if !group.isActive {
+                    InactiveSpeakerOverlay(room: group.coordinatorRoom)
+                        .paywall(paywallEnabled)
+                }
             }
             .disabled(!group.isActive)
             .listRowBackground(UIDevice.current.userInterfaceIdiom == .phone ? nil : background)
@@ -350,12 +372,13 @@ fileprivate struct SpeakerGroupHeader: View {
                 }
             } else if let battery = group.coordinatorRoom.battery {
                 Spacer()
-                Text((battery.percentage / 100), format: .percent)
-                    .foregroundStyle(.secondary)
-                if battery.chargingState == .charging {
-                    Image(systemName: "battery.100percent.bolt")
+                HStack(spacing: 4) {
+                    Image(systemName: batterySymbol(for: battery))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(battery.percentage > 90.0 ? Color.green.gradient : Color.orange.gradient)
+                        .foregroundStyle(batteryTint(for: battery))
+                    Text((battery.percentage / 100), format: .percent)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
             }
         }
@@ -364,6 +387,34 @@ fileprivate struct SpeakerGroupHeader: View {
         .fontWeight(.semibold)
         .foregroundStyle(.foreground)
         .font(.headline)
+    }
+
+    /// Picks the battery SF symbol based on percentage + charging state.
+    /// Charging always shows the bolt variant.
+    private func batterySymbol(for battery: Battery) -> String {
+        if battery.chargingState == .charging {
+            return "battery.100percent.bolt"
+        }
+        switch battery.percentage {
+        case 75...:    return "battery.100percent"
+        case 50..<75:  return "battery.75percent"
+        case 25..<50:  return "battery.50percent"
+        case 10..<25:  return "battery.25percent"
+        default:       return "battery.0percent"
+        }
+    }
+
+    /// Tint logic: green when charging at the top, orange when charging
+    /// from low, red when discharged < 15%, orange < 30%, otherwise neutral.
+    private func batteryTint(for battery: Battery) -> Color {
+        if battery.chargingState == .charging {
+            return battery.percentage > 90 ? .green : .orange
+        }
+        switch battery.percentage {
+        case 30...:    return .secondary
+        case 15..<30:  return .orange
+        default:       return .red
+        }
     }
 }
 
@@ -393,6 +444,35 @@ fileprivate struct SortMenuView: View {
                 .accessibilityLabel(Text("Sort by"))
         }
         .tint(.primary)
+    }
+}
+
+/// Overlay rendered on a speaker-list row when its coordinator is sleeping /
+/// off / low battery. The row header already carries battery + name, so this
+/// stays minimal: state icon + reason, with a relative "last seen" line.
+private struct InactiveSpeakerOverlay: View {
+    let room: Room
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 10) {
+                Image(systemName: room.state.systemSymbol)
+                    .font(.title2)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+                Text(room.state.reason)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let lastSeen = room.lastSeen {
+                Text(lastSeen.formatted(.relative(presentation: .named)))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.regularMaterial)
     }
 }
 
