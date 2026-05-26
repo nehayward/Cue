@@ -88,30 +88,42 @@ final class MediaServerHandler {
             await server.appendRoute("NOTIFY /") { [weak self] request in
                 guard let self = self else { return HTTPResponse(statusCode: .internalServerError) }
                 let data = try await request.bodyData
-                
-//                let rinconID: String?
-//                if let SID = request.headers[.init(rawValue: "SID")], let rinconRange = SID.range(of: "RINCON_[A-Z0-9]{16}", options: .regularExpression) {
-//                    rinconID = String(SID[rinconRange])
-//                }
-//                
+
                 let xmlString = String(decoding: data, as: UTF8.self)
-            
+
                 // Parse ZoneGroupState
-                if let zoneGroupState = ZoneGroupLiteParser.parse(xmlString: xmlString) {
-                    self.onZoneGroupUpdate?(zoneGroupState)
-                    let services = ThirdPartyMediaServerDecrypter().handleItem(householdID: zoneGroupState.houseHoldData, encodedInput: zoneGroupState.thirdPartyMediaServers)
-                    if let services = services {
-                        let servers = MediaServerParser.parse(xmlString: services)
-                        // Cache the media servers
-                        KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
-                        // MARK: Update move to Keychain Manger with in Memory that can be access from MusicSearchKit and SonosKit
-                        if let plex = servers.first(where: { $0.type == .plex }) {
-                            let token = plex.token
-                            UserDefaults.standard.setValue(token, forKey: "com.clic.plexToken")
-                        }
-                        print("📦 Cached \(servers.count) media servers for household: \(zoneGroupState.houseHoldData)")
+                guard let zoneGroupState = ZoneGroupLiteParser.parse(xmlString: xmlString) else {
+                    // Most NOTIFY events from Sonos aren't ZoneGroupState
+                    // (playback, volume, queue, etc.) — staying silent for
+                    // those. Only warn when something that *looks* like a
+                    // ZoneGroupState event fails to parse, so real
+                    // regressions still surface.
+                    if xmlString.contains("<ZoneGroupState") {
+                        print("⚠️ NOTIFY looked like ZoneGroupState but ZoneGroupLiteParser returned nil (\(data.count) bytes)")
                     }
+                    return HTTPResponse(statusCode: .ok)
                 }
+                print("📨 NOTIFY ZoneGroupState received (\(data.count) bytes)")
+                self.onZoneGroupUpdate?(zoneGroupState)
+
+                guard let services = ThirdPartyMediaServerDecrypter().handleItem(
+                    householdID: zoneGroupState.houseHoldData,
+                    encodedInput: zoneGroupState.thirdPartyMediaServers
+                ) else {
+                    // Log the readable ID, not the raw `houseHoldData` (a
+                    // `Data` blob used by the decrypter that previously
+                    // printed as "32 bytes").
+                    print("⚠️ ThirdPartyMediaServerDecrypter returned nil for household \(zoneGroupState.houseHoldID)")
+                    return HTTPResponse(statusCode: .ok)
+                }
+
+                let servers = MediaServerParser.parse(xmlString: services)
+                // Cache the media servers
+                KeychainManager.shared.saveMediaServers(householdId: zoneGroupState.houseHoldID, servers: servers)
+                if let plex = servers.first(where: { $0.type == .plex }) {
+                    UserDefaults.standard.setValue(plex.token, forKey: "com.clic.plexToken")
+                }
+                print("📦 Cached \(servers.count) media servers for household: \(zoneGroupState.houseHoldID)")
                 return HTTPResponse(statusCode: .ok)
             }
         }
