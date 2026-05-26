@@ -30,7 +30,7 @@ struct PreferenceScreen: View {
     @AppStorage("LiveActivityStep", store: UserDefaults(suiteName: "group.com.clic")) private var liveActivityStep: Int = 5
     
     @AppStorage("ClicMiniEnabled") private var isMenuBarAppEnabled: Bool = true
-    
+
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
@@ -46,6 +46,7 @@ struct PreferenceScreen: View {
     @State private var uploadSuccess = false
     @State private var cacheSize: Int = 0
     @State private var isClearing = false
+
     
 #if DEBUG
     @State private var servers: [MediaServer] = []
@@ -70,17 +71,14 @@ struct PreferenceScreen: View {
                             Analytics.shared.track(.viewedManageSubscription)
                         } label: {
                             HStack(spacing: 12) {
-                                Image("clic.icon")
+                                // Same polished asset used on the Welcome
+                                // splash — keeps the brand mark consistent
+                                // between onboarding and the Preferences
+                                // entry point.
+                                Image("ClicIconGlass")
                                     .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .foregroundStyle(.white)
-                                    .padding(8)
+                                    .scaledToFit()
                                     .frame(width: 40, height: 40)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.accentColor.gradient)
-                                    )
-                                    .shadow(color: Color.accentColor.opacity(0.4), radius: 4, x: 0, y: 2)
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 6) {
                                         Text("Clic Super")
@@ -113,11 +111,31 @@ struct PreferenceScreen: View {
                             }
                         }
                         .tint(.primary)
+
+                        // Inline shimmering "Upgrade to Lifetime" link. Gold
+                        // highlight sweeps across the text on a slow loop so
+                        // it reads as premium without being distracting.
+                        Button {
+                            HapticManager.shared.fireHaptic(.buttonPress)
+                            Analytics.shared.track(.viewedPaywall)
+                            router.presentedSheet = .paywall
+                        } label: {
+                            HStack(spacing: 4) {
+                                ShimmeringUpgradeText()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .listRowSeparator(.hidden)
                     }
                 } header: {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
                 }
-                
+
                 //#if DEBUG
                 //                Section("Discovered") {
                 //                    ForEach(servers) { server in
@@ -218,7 +236,12 @@ struct PreferenceScreen: View {
 
                     NavigationLink(value: RouterDestination.houseHold) {
                         Label {
-                            Text("Switch Households")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Households")
+                                Text("Switch system")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         } icon: {
                             Image("home.fill")
                                 .resizable()
@@ -567,7 +590,12 @@ struct PreferenceScreen: View {
                     if UIDevice.current.userInterfaceIdiom == .phone {
                         Label {
                             Toggle(isOn: $autoLaunchNowPlaying) {
-                                Text("Auto Launch Watch")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Open to Now Playing on Watch")
+                                    Text("Skip the speaker list on Apple Watch and go straight to what's playing.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                             .tint(.accent)
                         } icon: {
@@ -587,7 +615,12 @@ struct PreferenceScreen: View {
                     }
                     Label {
                         Toggle(isOn: $speedLaunchNowPlaying) {
-                            Text("Auto Launch")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Open to Now Playing")
+                                Text("Skip the speaker list and go straight to what's playing.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .tint(.accent)
                     } icon: {
@@ -605,11 +638,11 @@ struct PreferenceScreen: View {
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
                 } header: {
-                    Text("Launch")
+                    Text("Quick Launch")
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 } footer: {
-                    Text("Launch to the group currently playing or in TV Mode.")
+                    Text("Open straight to what's playing instead of the speaker list.")
                 }
 #endif
                 
@@ -686,6 +719,36 @@ struct PreferenceScreen: View {
                 //                }
                 //                .disabled(!subscriptionService.subscription.isActive)
                 Section {
+                    Button {
+                        HapticManager.shared.fireHaptic(.buttonPress)
+                        router.presentedSheet = .newsletter
+                    } label: {
+                        Label {
+                            HStack {
+                                Text("Newsletter")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        } icon: {
+                            Image(systemName: "envelope.fill")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(.white)
+                                .bold()
+                                .padding(8)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(LinearGradient(colors: [Color(red: 0.20, green: 0.62, blue: 0.70), Color(red: 0.10, green: 0.45, blue: 0.55)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        }
+                    }
+                    .tint(.primary)
+
                     NavigationLink(destination: ReleaseNotesView()) {
                         Label {
                             Text("Release Notes")

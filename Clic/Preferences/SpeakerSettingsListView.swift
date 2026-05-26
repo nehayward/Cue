@@ -13,14 +13,24 @@ struct SpeakerSettingsListView: View {
         List {
             ForEach(sonosService.sortedRooms) { room in
                 NavigationLink(value: RouterDestination.speakerSettings(room: room)) {
-                    HStack {
-                        Image(systemName: "circle.square.fill")
-                            .foregroundStyle((room.info?.color ?? "") == "Black" ? .black : .white, .quaternary)
-                        Text(room.name)
-                        if let info = room.info {
-                            Text("(\(info.modelDisplayName))")
+                    HStack(spacing: 14) {
+                        Image(systemName: speakerSymbol(for: room))
+                            .font(.title2)
+                            .foregroundStyle(.primary)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(room.name)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            if let model = room.info?.modelDisplayName {
+                                Text(model)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                    .padding(.vertical, 4)
                 }
             }
         }
@@ -30,6 +40,11 @@ struct SpeakerSettingsListView: View {
             sonosService.monitor()
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
+    }
+
+    private func speakerSymbol(for room: Room) -> String {
+        if room.isSoundbar { return "tv.and.hifispeaker.fill" }
+        return "hifispeaker.fill"
     }
 }
 
