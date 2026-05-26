@@ -11,6 +11,7 @@
 		010DBB252C89605C000E278E /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 010DBB242C89605C000E278E /* Defaults */; };
 		0111797E2C934C96007FFA13 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797D2C934C96007FFA13 /* Collections */; };
 		011179802C934C9B007FFA13 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 0111797F2C934C9B007FFA13 /* Defaults */; };
+		013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0131617F2FC54BF500249DC4 /* NewsletterKit */; };
 		013686202C850AE900B1340F /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0136861F2C850AE900B1340F /* SonosKit */; };
 		014F5FEA2EC7A9B80021A334 /* Clic Mini.app in Add Clic Mini */ = {isa = PBXBuildFile; fileRef = 01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		0155DC0B2D4D47EA00A452D4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0155DC0A2D4D47EA00A452D4 /* Kingfisher */; };
@@ -37,6 +38,7 @@
 		01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */ = {isa = PBXBuildFile; productRef = 01E3D31C2E6FD74F005E769A /* FocusOnAppear */; };
 		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
 		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01FA14662FC546A800B95FA3 /* NewsletterKit */; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
@@ -689,6 +691,7 @@
 				E97563352B699B2400787E14 /* SonosKit in Frameworks */,
 				0186D94A2E674B47001387F1 /* FocusOnAppear in Frameworks */,
 				E97563362B699B2400787E14 /* CloudStorage in Frameworks */,
+				013161802FC54BF500249DC4 /* NewsletterKit in Frameworks */,
 				01A662762F27241E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -734,6 +737,7 @@
 				E9BDE58029E33B0700D230A8 /* SonosKit in Frameworks */,
 				01E3D31D2E6FD74F005E769A /* FocusOnAppear in Frameworks */,
 				E959B9182AB50684000D596E /* CloudStorage in Frameworks */,
+				01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */,
 				01A662742F27240E00C7524D /* Glur in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -977,6 +981,7 @@
 				0186D9492E674B47001387F1 /* FocusOnAppear */,
 				01A662752F27241E00C7524D /* Glur */,
 				ED069F1E2F58A2B000869F64 /* DropKit */,
+				0131617F2FC54BF500249DC4 /* NewsletterKit */,
 			);
 			productName = Sonos;
 			productReference = E97563432B699B2400787E14 /* Clic.app */;
@@ -1069,6 +1074,7 @@
 				01E3D31C2E6FD74F005E769A /* FocusOnAppear */,
 				01A662732F27240E00C7524D /* Glur */,
 				ED069F1C2F58A2AA00869F64 /* DropKit */,
+				01FA14662FC546A800B95FA3 /* NewsletterKit */,
 			);
 			productName = Sonos;
 			productReference = E9BDE56C29E3396700D230A8 /* Clic.app */;
@@ -1156,6 +1162,7 @@
 				01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				0186D9462E674B3A001387F1 /* XCRemoteSwiftPackageReference "FocusOnAppear" */,
 				01A662722F27240E00C7524D /* XCRemoteSwiftPackageReference "Glur" */,
+				01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */,
 			);
 			preferredProjectObjectVersion = 56;
 			productRefGroup = E9BDE56D29E3396700D230A8 /* Products */;
@@ -3080,6 +3087,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/VibesDS;
 		};
+		01FA14652FC546A800B95FA3 /* XCLocalSwiftPackageReference "Packages/NewsletterKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/NewsletterKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -3255,6 +3266,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = Defaults;
 		};
+		0131617F2FC54BF500249DC4 /* NewsletterKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NewsletterKit;
+		};
 		0136861F2C850AE900B1340F /* SonosKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SonosKit;
@@ -3357,6 +3372,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 01F0AD6D2D238DDB00885D20 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
+		};
+		01FA14662FC546A800B95FA3 /* NewsletterKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NewsletterKit;
 		};
 		E90F315D2BC4829500884EA5 /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;

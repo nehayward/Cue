@@ -179,7 +179,9 @@ extension View {
                     case let .volumeControlsScreen(groupID: groupID):
                         VolumeControlsScreen(groupID: groupID)
                     case .onboard:
-                        OnboardView()
+                        WelcomeScreen()
+                    case .newsletter:
+                        NewsletterSignupScreen()
                     case .spotifyUserPlaylists:
                         SpotifyPlaylistScreen()
                     case let .editScene(scene):
@@ -314,7 +316,9 @@ extension View {
                         .frame(idealWidth: 400)
                         .presentationCompactAdaptation(.popover)
                 case .onboard:
-                    OnboardView()
+                    WelcomeScreen()
+                case .newsletter:
+                    NewsletterSignupScreen()
                 default:
                     EmptyView()
                 }

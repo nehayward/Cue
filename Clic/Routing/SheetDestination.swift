@@ -27,6 +27,7 @@ enum SheetDestination: Identifiable, Equatable {
     case plexManagement
     case volumeControlsScreen(groupID: String)
     case onboard
+    case newsletter
     case spotifyUserPlaylists
     case reorderAppleLibrarySections
     case reorderSpotifyLibrarySections

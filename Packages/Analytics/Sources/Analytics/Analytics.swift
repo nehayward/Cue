@@ -19,6 +19,15 @@ final public class Analytics {
         #endif
     }
 
+    /// Overload for onboarding-funnel events. Forwards to the same Mixpanel
+    /// track with the `onboarding_*` prefix already baked into `event.name`.
+    public func track(_ event: OnboardingEvent, with metadata: [String: MixpanelType] = [:]) {
+        mixpanel?.track(event: event.name, properties: metadata)
+        #if DEBUG
+        mixpanel?.flush()
+        #endif
+    }
+
     public func setSelection(metadata: [String: String]) {
         mixpanel?.registerSuperProperties(metadata)
         #if DEBUG

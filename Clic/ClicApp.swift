@@ -93,6 +93,11 @@ struct ClicApp: App {
                 AppBootstrapper.shared.didLaunch = true
                 AppBootstrapper.shared.bootstrap()
 
+                if !hasOnboarded || OnboardingDebug.forceShow {
+                    router.presentedSheet = .onboard
+                    return
+                }
+                
                 Task { @MainActor in
                     try? await SubscriptionService.shared.checkSubscription()
                 }
@@ -452,9 +457,13 @@ struct ClicApp: App {
 
     @MainActor
     private func handleScenePhase(_ scenePhase: ScenePhase) {
-//        guard hasOnboarded else { return }
         switch scenePhase {
         case .active:
+            // Don't poke the network (which triggers the Local Network
+            // permission prompt) until onboarding has surfaced the explanation
+            // screen and the user has tapped Continue. WelcomeScreen kicks off
+            // `monitor()` on dismiss.
+            guard hasOnboarded, !OnboardingDebug.forceShow else { return }
             sonosService.monitor()
 #if targetEnvironment(macCatalyst)
             // Window is open — live monitoring + `.task(id:)` keep the dock
