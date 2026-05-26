@@ -13,6 +13,11 @@
 - Sleep Timer: New "End of Song" option ends playback when the current track finishes — available in the app's Sleep Timer menu and the Mac Dock menu
 - Shortcuts: "Play Link on Clic" with a clearer "Add to Queue" parameter and a new "Automatic" default that matches the share sheet behavior (playlists replace the queue, everything else plays now)
 - Playback Control Widget (iOS 18+): New Control Center widget for per-speaker play/pause with live transport state
+- Welcome: Brand-new first-launch onboarding — guided Local Network setup, live speaker discovery with per-speaker haptics, a music services review showing what's ready to play, and an optional newsletter signup
+- Households: Redesigned system switcher shows each household's speakers and an S1/S2 badge, with a clearer "Switch system" hint
+- Newsletter: Sign up for product updates from a new row in Preferences (also available during onboarding)
+- Music Services screen now also shows services authorized in Sonos that Clic doesn't yet support, with a link to request more
+- iHeartRadio and Audible are now recognized as known Sonos services
 
 –– Bug Fixes & Improvements ––
 - Restored Live Activity to its former glory with 5 volume steps
@@ -34,6 +39,16 @@
 - Play/Pause buttons now respond instantly with optimistic UI updates instead of waiting for the network round-trip
 - Fixed Song Radio and Artist Radio not starting
 - Fixed Clic Mini reordering on playback buffering.
+- Fixed sleeping speakers (like Move and Move 2) not appearing in the room list, which also prevented them from being woken automatically
+- Speaker row now always shows the battery icon with the right level glyph, plus a warmer tint when low or charging — not just when plugged in
+- Sleeping/off speakers now display the sleep icon, status, and a relative "last seen" time on the row
+- Music search defaults to Spotify or Apple Music based on what's authorized in your Sonos
+- Local Network permission is now requested only after you start onboarding, not on first launch
+- Preferences: "Launch" section renamed to "Quick Launch" with clearer descriptions for the Now Playing toggles
+- Speaker Settings list now uses the speaker icon and shows the model name as a subtitle
+- Fixed Sonos discovery failing on Macs / simulators with multiple network interfaces — Clic no longer binds its event listener to an unreachable link-local IP
+- Onboarding: dismissing the welcome flow before connecting to Sonos now re-presents on the next launch instead of leaving the app in an empty state
+- Onboarding: refreshed copy throughout the welcome, discovery, and music services screens for clearer setup at a glance
 
 # 2026.3
 
