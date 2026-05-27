@@ -126,8 +126,12 @@ struct PaywallButtonView: View {
 private struct ShimmerHeadline: View {
     let text: String
 
+    /// `.idleLeft` — bar parked off-screen left, invisible. Wait period.
+    /// `.sweepRight` — bar slides to off-screen right at full opacity (the visible sweep).
+    /// `.fadeOut` — instantly drop opacity to 0 while still off-screen right.
+    /// Cycle repeats: `.fadeOut` → `.idleLeft` is the long 3.4s "do nothing" stretch.
     private enum Phase: CaseIterable {
-        case rest, sweep, holdRight
+        case idleLeft, sweepRight, fadeOut
     }
 
     var body: some View {
@@ -154,12 +158,12 @@ private struct ShimmerHeadline: View {
                         .phaseAnimator(Phase.allCases) { content, phase in
                             content
                                 .offset(x: offset(for: phase, width: width))
-                                .opacity(phase == .rest ? 0 : 1)
+                                .opacity(phase == .sweepRight ? 1 : 0)
                         } animation: { phase in
                             switch phase {
-                            case .rest:       .linear(duration: 3.4)
-                            case .sweep:      .easeInOut(duration: 1.6)
-                            case .holdRight:  .linear(duration: 0)
+                            case .sweepRight:  .easeInOut(duration: 1.6)
+                            case .fadeOut:     .linear(duration: 0)
+                            case .idleLeft:    .linear(duration: 3.4)
                             }
                         }
                 }
@@ -173,8 +177,8 @@ private struct ShimmerHeadline: View {
 
     private func offset(for phase: Phase, width: CGFloat) -> CGFloat {
         switch phase {
-        case .rest, .holdRight: return -width
-        case .sweep:            return width
+        case .idleLeft:                return -width
+        case .sweepRight, .fadeOut:    return width
         }
     }
 }
