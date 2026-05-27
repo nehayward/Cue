@@ -282,7 +282,7 @@ public final class SonosService {
         let newGroup = try await getGroups(useCache: useCache)
         var refreshGroup: Bool = false
 
-        // MARK: Update Battery Info And Other Room Information
+        // MARK: Per-load state on existing groups — cheap field diffs + battery.
         // Capture class references rather than holding array indices across `await`s —
         // `groups` (and `group.rooms`) can be replaced or shrunk by other @MainActor work
         // during suspensions, leaving stale indices that crash with Array out-of-range.
@@ -297,31 +297,7 @@ public final class SonosService {
             // Battery sync: every room, not just coordinator. See
             // `updateGroups()` for context on the SPA + Move case.
             syncBatteries(from: updateGroup, into: group)
-
-            // MARK: Fetch sleep timer for each group
-            if updateGroup.coordinatorRoom.state == .active, group.coordinatorRoom.sleepTimer == nil {
-                if let timer = await api.getSleepTimer(IP: updateGroup.coordinatorRoom.ip) {
-                    group.coordinatorRoom.sleepTimer = timer
-                }
-            }
-
-            if group.coordinatorRoom.info == nil, updateGroup.coordinatorRoom.state == .active {
-                // MARK: Update all rooms Info.
-                group.coordinatorRoom.info = await api.deviceInfo(IP: updateGroup.coordinatorRoom.ip)
-            }
-
-            for room in group.rooms {
-                if room.info == nil, updateGroup.coordinatorRoom.state == .active {
-                    room.info = await api.deviceInfo(IP: room.ip)
-                }
-
-                guard !room.settings.isSet else {
-                    continue
-                }
-                room.settings = await getSpeakerSettings(room: room)
-            }
         }
-        
 
         let newSig = Set(newGroup.map(\.topologyKey))
         let oldSig = Set(groups.map(\.topologyKey))
@@ -333,16 +309,32 @@ public final class SonosService {
             refreshGroup = true
             print("Refreshed")
 
-            guard !mediaServerHandler.deviceIP.isEmpty else { return }
-            
-            // MARK: I don't want to block
-            Task {
-                try await Task.sleep(for: .milliseconds(300))
-                onServerListening()
+            if !mediaServerHandler.deviceIP.isEmpty {
+                // MARK: I don't want to block
+                Task {
+                    try await Task.sleep(for: .milliseconds(300))
+                    onServerListening()
+                }
             }
         }
-
+        
         wakeSleepingRooms(rooms: rooms)
+
+        // Refresh sleepTimer for every active coordinator (including the
+        // selected group). Placed above the selectedGroup branch so the
+        // scattered early returns below can't skip it — sleepTimer is
+        // nil-gated, so retries every load until a coordinator resolves.
+        await withTaskGroup(of: Void.self) { [weak self] taskGroup in
+            guard let self = self else { return }
+            for group in groups where group.coordinatorRoom.state == .active && group.coordinatorRoom.sleepTimer == nil {
+                taskGroup.addTask { [weak self] in
+                    guard let self = self else { return }
+                    if let timer = await self.api.getSleepTimer(IP: group.coordinatorRoom.ip) {
+                        group.coordinatorRoom.sleepTimer = timer
+                    }
+                }
+            }
+        }
 
         if let selectedGroup, !refreshGroup {
             guard let groupIndex = groups.firstIndex(where: { group in
@@ -545,8 +537,46 @@ public final class SonosService {
             }
             try await group.waitForAll()
         }
+
+        // Hydrate deviceInfo + settings for any newly-added rooms. Runs after
+        // the priority speaker-state updates above. SleepTimer is handled
+        // inside the selectedGroup branch (it's a coordinator-level setting
+        // only surfaced by the controlling group).
+        await hydrateRoomDetails()
     }
-    
+
+    /// Fetches `DeviceInfo` and speaker `settings` in parallel for every active
+    /// room across all groups. Used by `load()` after a topology change, and
+    /// callable directly from the onboarding screen to pre-warm rows so the
+    /// model name lands before the user reaches "Continue".
+    ///
+    /// Both fields are nil/`!isSet`-gated and never cleared, so this is
+    /// effectively one-shot per room — repeated calls during steady state are
+    /// no-ops. `coordinatorRoom` is the same reference as one of the entries
+    /// in `group.rooms`, so a single pass covers it without duplicating.
+    @MainActor
+    public func hydrateRoomDetails() async {
+        await withTaskGroup(of: Void.self) { [weak self] taskGroup in
+            guard let self = self else { return }
+            for group in groups where group.coordinatorRoom.state == .active {
+                for room in group.rooms {
+                    if room.info == nil {
+                        taskGroup.addTask { [weak self] in
+                            guard let self = self else { return }
+                            room.info = await self.api.deviceInfo(IP: room.ip)
+                        }
+                    }
+                    if !room.settings.isSet {
+                        taskGroup.addTask { [weak self] in
+                            guard let self = self else { return }
+                            room.settings = await self.getSpeakerSettings(room: room)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public func onServerListening() {
         // MARK: I don't want to block
         Task {

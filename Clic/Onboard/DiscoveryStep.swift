@@ -16,6 +16,11 @@ struct DiscoveryStep: View {
     /// Tracks whether we've already fired the discoverySucceeded analytics
     /// event, so it doesn't re-fire on every subsequent rooms.count change.
     @State private var didTrackSuccess = false
+    /// Holds the `.found` reveal until `hydrateRoomDetails()` finishes or a
+    /// 200ms deadline elapses — whichever comes first. Stops the speaker rows
+    /// from rendering with a placeholder model name and then text-swapping to
+    /// "Sonos Move 2" mid-cascade.
+    @State private var revealReady = false
     var advance: () -> Void
 
     private enum DiscoveryStatus: Hashable {
@@ -29,7 +34,7 @@ struct DiscoveryStep: View {
         }
         if sonosService.systemState.permissionDenied { return .denied }
         if sonosService.systemState.notFound { return .notFound }
-        if !sonosService.sorted.isEmpty { return .found }
+        if !sonosService.sorted.isEmpty, revealReady { return .found }
         return .searching
     }
 
@@ -92,9 +97,21 @@ struct DiscoveryStep: View {
             // arrives. Per-speaker haptics now live inside
             // `DiscoveredSpeakerList` so each tap lands in sync with the
             // row's cascade reveal.
-            if !didTrackSuccess, oldCount == 0, newCount > 0 {
-                didTrackSuccess = true
-                Analytics.shared.track(OnboardingEvent.discoverySucceeded)
+            guard !didTrackSuccess, oldCount == 0, newCount > 0 else { return }
+            didTrackSuccess = true
+            Analytics.shared.track(OnboardingEvent.discoverySucceeded)
+
+            // Race hydration against a 200ms deadline before revealing the
+            // list — either the model names land first (fast LAN) or we cap
+            // the wait so one slow speaker can't hang the onboarding flow.
+            Task {
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { await sonosService.hydrateRoomDetails() }
+                    group.addTask { try? await Task.sleep(for: .milliseconds(200)) }
+                    _ = await group.next()
+                    group.cancelAll()
+                }
+                revealReady = true
             }
         }
         .onChange(of: scenePhase) { _, phase in
