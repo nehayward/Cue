@@ -120,14 +120,9 @@ struct PreferenceScreen: View {
                             Analytics.shared.track(.viewedPaywall)
                             router.presentedSheet = .paywall
                         } label: {
-                            HStack(spacing: 4) {
-                                ShimmeringUpgradeText()
-                                Image(systemName: "arrow.up.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
+                            ShimmeringUpgradeText()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .listRowSeparator(.hidden)
@@ -749,24 +744,24 @@ struct PreferenceScreen: View {
                     }
                     .tint(.primary)
 
-                    NavigationLink(destination: ReleaseNotesView()) {
-                        Label {
-                            Text("Release Notes")
-                        } icon: {
-                            Image(systemName: "doc.text")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .foregroundStyle(.white)
-                                .bold()
-                                .padding(8)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.35, blue: 0.4), Color(red: 0.2, green: 0.2, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        }
-                    }
+//                    NavigationLink(destination: ReleaseNotesView()) {
+//                        Label {
+//                            Text("Release Notes")
+//                        } icon: {
+//                            Image(systemName: "doc.text")
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fit)
+//                                .foregroundStyle(.white)
+//                                .bold()
+//                                .padding(8)
+//                                .frame(width: 32, height: 32)
+//                                .background(
+//                                    RoundedRectangle(cornerRadius: 8)
+//                                        .fill(LinearGradient(colors: [Color(red: 0.35, green: 0.35, blue: 0.4), Color(red: 0.2, green: 0.2, blue: 0.25)], startPoint: .topLeading, endPoint: .bottomTrailing))
+//                                )
+//                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+//                        }
+//                    }
                     NavigationLink(destination: HelpWebView()) {
                         Label {
                             Text("Help & FAQ")
