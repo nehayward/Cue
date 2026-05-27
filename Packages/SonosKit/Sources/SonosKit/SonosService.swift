@@ -144,9 +144,13 @@ public final class SonosService {
         system = try await findSystem(useCache: true)
 
         // MARK: Update Battery Info
-        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+        // Copy each room's battery individually so a battery speaker (Move)
+        // grouped under an AC coordinator (SPA) refreshes too. The earlier
+        // filter on `coordinatorRoom.battery != nil` dropped the whole group
+        // when the coordinator was AC-only, silently skipping the Move.
+        for updateGroup in newGroup {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == updateGroup.coordinatorID }) else { continue }
-            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+            syncBatteries(from: updateGroup, into: groups[index])
         }
 
         let newSig = Set(newGroup.map(\.topologyKey))
@@ -161,10 +165,10 @@ public final class SonosService {
     public func updateHousehold() async throws {
         let newGroup = try await getGroups(useCache: true)
 
-        // MARK: Update Battery Info
-        for updateGroup in newGroup.filter({ $0.coordinatorRoom.battery != nil }) {
+        // MARK: Update Battery Info — see `updateGroups()` for the why.
+        for updateGroup in newGroup {
             guard let index = groups.firstIndex(where: { $0.coordinatorID == updateGroup.coordinatorID }) else { continue }
-            groups[index].coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
+            syncBatteries(from: updateGroup, into: groups[index])
         }
 
         let newSig = Set(newGroup.map(\.topologyKey))
@@ -178,6 +182,21 @@ public final class SonosService {
 
     public func group(with id: String) -> GroupRoom? {
         sorted.first(where: { $0.coordinatorID == id})
+    }
+
+    /// Copies battery state from a freshly-parsed `updateGroup` into the
+    /// matching rooms of an already-stored `storedGroup`. Iterates every
+    /// room — not just the coordinator — so a battery speaker (Move)
+    /// grouped under an AC coordinator (SPA) doesn't get silently skipped.
+    /// `coordinatorRoom` is touched explicitly in case it's a distinct
+    /// reference from anything in `rooms`.
+    private func syncBatteries(from updateGroup: GroupRoom, into storedGroup: GroupRoom) {
+        for updateRoom in updateGroup.rooms {
+            if let room = storedGroup.rooms.first(where: { $0.id == updateRoom.id }) {
+                room.battery = updateRoom.battery
+            }
+        }
+        storedGroup.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
     }
 
     @MainActor
@@ -275,9 +294,9 @@ public final class SonosService {
             if group.coordinatorRoom.micEnabled != updateGroup.coordinatorRoom.micEnabled {
                 group.coordinatorRoom.micEnabled = updateGroup.coordinatorRoom.micEnabled
             }
-            if group.coordinatorRoom.battery != updateGroup.coordinatorRoom.battery {
-                group.coordinatorRoom.battery = updateGroup.coordinatorRoom.battery
-            }
+            // Battery sync: every room, not just coordinator. See
+            // `updateGroups()` for context on the SPA + Move case.
+            syncBatteries(from: updateGroup, into: group)
 
             // MARK: Fetch sleep timer for each group
             if updateGroup.coordinatorRoom.state == .active, group.coordinatorRoom.sleepTimer == nil {

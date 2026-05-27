@@ -370,7 +370,7 @@ fileprivate struct SpeakerGroupHeader: View {
                     Text(sleepTimer, style: .timer)
                         .monospacedDigit()
                 }
-            } else if let battery = group.coordinatorRoom.battery {
+            } else if let battery = group.lowestBattery {
                 Spacer()
                 HStack(spacing: 4) {
                     Image(systemName: batterySymbol(for: battery))

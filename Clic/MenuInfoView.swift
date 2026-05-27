@@ -191,7 +191,10 @@ struct BatteryInfoMenuView: View {
     var group: GroupRoom
 
     var body: some View {
-        if let battery = group.coordinatorRoom.battery {
+        // Read the lowest battery across the whole group so a battery
+        // speaker (e.g. Move) grouped under an AC coordinator (e.g. SPA)
+        // still surfaces here.
+        if let battery = group.lowestBattery {
             Label {
                 Text("\(Int(battery.percentage))%")
                 if battery.chargingState == .charging {

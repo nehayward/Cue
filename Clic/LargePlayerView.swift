@@ -43,6 +43,12 @@ struct LargePlayerView: View {
         sonosService.groups.first(where: { $0.coordinatorID == coordinatorID })
     }
 
+    /// Toolbar subtitle: lowest battery percentage among the group's
+    /// battery-powered rooms. Nil for AC-only groups (hides the subtitle).
+    private var lowestBatteryPercent: Int? {
+        group?.lowestBattery.map { Int($0.percentage.rounded()) }
+    }
+
     var body: some View {
         if let group {
             VStack(alignment: .center) {
@@ -137,26 +143,39 @@ struct LargePlayerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(group.nameWithCount)
-                        .bold()
-                        .fontDesign(.rounded)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                        .tint(.primary)
-    #if !os(visionOS)
-                        .overlay {
-                            Menu {
-                                ForEach(group.rooms) { room in
-                                    Text(room.name)
-                                        .bold()
-                                        .fontDesign(.rounded)
-                                }
-                            } label: {
-                                Text(group.nameWithCount)
-                                    .hidden()
-                                    .contentShape(Rectangle())
-                            }
+                    VStack(spacing: 0) {
+                        Text(group.nameWithCount)
+                            .bold()
+                            .fontDesign(.rounded)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.center)
+                            .tint(.primary)
+                        // Subtitle for groups containing at least one
+                        // battery-powered speaker (Roam / Move). Shows the
+                        // lowest battery in the group since that's the one
+                        // at risk first — matches how multi-speaker stereo
+                        // pairs experience runtime.
+                        if let percent = lowestBatteryPercent {
+                            Text("\(percent)%")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                         }
+                    }
+    #if !os(visionOS)
+                    .overlay {
+                        Menu {
+                            ForEach(group.rooms) { room in
+                                Text(room.name)
+                                    .bold()
+                                    .fontDesign(.rounded)
+                            }
+                        } label: {
+                            Text(group.nameWithCount)
+                                .hidden()
+                                .contentShape(Rectangle())
+                        }
+                    }
     #endif
                 }
                 
