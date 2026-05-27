@@ -43,7 +43,27 @@ struct DiscoveredSpeakerList: View {
                     .frame(height: 24)
             }
         }
-        .onAppear { rowsIn = true }
+        .onAppear {
+            rowsIn = true
+            fireCascadeHaptics()
+        }
+    }
+
+    /// Fires one haptic per row, with the same 60ms-per-index spacing as the
+    /// row cascade — so each tap lands as its row springs in. The first row
+    /// gets the heavier success notification ("we found it"), the rest get
+    /// selection ticks.
+    private func fireCascadeHaptics() {
+        Task { @MainActor in
+            for index in rooms.indices {
+                if index > 0 { try? await Task.sleep(for: .milliseconds(60)) }
+                if index == 0 {
+                    HapticManager.shared.fireHaptic(.notification(.success))
+                } else {
+                    HapticManager.shared.fireHaptic(.selection)
+                }
+            }
+        }
     }
 }
 

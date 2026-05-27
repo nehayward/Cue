@@ -47,13 +47,14 @@ final class CoreFeatures {
     /// authorized in Sonos. Called from onboarding once discovery succeeds so
     /// the user doesn't see search/browse tabs for services they can't use.
     ///
-    /// `.library` and `.apple` stay enabled regardless — both work via local
-    /// playback / MusicKit and don't depend on a Sonos service authorization.
+    /// `.library` always stays enabled (local files don't need authorization).
+    /// Every other service — including Apple Music — is gated on the Sonos
+    /// installed set, because plenty of users don't subscribe to Apple Music
+    /// and would otherwise see a tab that returns no playable results.
     @MainActor
     func syncEnabledServices(from installed: Set<SonosServiceType>) {
-        let mapping: [(MediaSearchService, SonosServiceType?)] = [
+        let mapping: [(MediaSearchService, SonosServiceType)] = [
             (.apple, .appleMusic),
-            (.library, nil),         // local — always available
             (.plex, .plex),
             (.spotify, .spotify),
             (.tidal, .tidal),
@@ -62,29 +63,25 @@ final class CoreFeatures {
         ]
 
         for (service, sonosType) in mapping {
-            let enabled: Bool
-            if service == .apple || service == .library {
-                enabled = true
-            } else if let sonosType {
-                enabled = installed.contains(sonosType)
-            } else {
-                enabled = true
-            }
-            setFeature(value: enabled, service.title)
+            setFeature(value: installed.contains(sonosType), service.title)
         }
+        // Local library never depends on Sonos.
+        setFeature(value: true, MediaSearchService.library.title)
     }
 
-    /// Preferred default service after discovery — Spotify first, then Apple,
-    /// then whatever else the user has, falling back to Apple Music for the
-    /// no-Sonos / first-launch case.
+    /// Preferred default service after discovery — Apple Music first, then
+    /// Spotify, then whatever else the user has authorized. Falls back to
+    /// `.library` when nothing is installed (e.g. no Sonos system found, or
+    /// none of the supported services are set up), since that's the one
+    /// service we can always guarantee works.
     static func preferredDefaultService(from installed: Set<SonosServiceType>) -> MediaSearchService {
-        if installed.contains(.spotify) { return .spotify }
         if installed.contains(.appleMusic) { return .apple }
+        if installed.contains(.spotify) { return .spotify }
         if installed.contains(.tidal) { return .tidal }
         if installed.contains(.plex) { return .plex }
         if installed.contains(.soundcloud) { return .soundcloud }
         if installed.contains(.tunein) { return .tuneIn }
-        return .apple
+        return .library
     }
 
     private func feature(feature: FeatureKeys) -> Bool {

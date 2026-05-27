@@ -13,14 +13,9 @@ struct DiscoveryStep: View {
     /// Continue so the UI shows the searching state first and then transitions
     /// to "not found" — mirroring the real discovery cadence.
     @State private var mockSearchDone = false
-    /// Tracks the group count we've already haptic'd for, so each newly-arrived
-    /// group fires exactly one `.selection` tap.
-    @State private var lastHapticCount = 0
-    /// Held false for a short beat after the first speaker arrives, so the
-    /// list mounts with most/all speakers in place and the cascade-in animation
-    /// has something satisfying to reveal — rather than rooms popping in one
-    /// at a time before the user has even seen the list appear.
-    @State private var canRevealList = false
+    /// Tracks whether we've already fired the discoverySucceeded analytics
+    /// event, so it doesn't re-fire on every subsequent rooms.count change.
+    @State private var didTrackSuccess = false
     var advance: () -> Void
 
     private enum DiscoveryStatus: Hashable {
@@ -34,11 +29,7 @@ struct DiscoveryStep: View {
         }
         if sonosService.systemState.permissionDenied { return .denied }
         if sonosService.systemState.notFound { return .notFound }
-        // Hold on .searching until `canRevealList` flips — gives discovery a
-        // beat to collect more speakers before we swap to the list. Without
-        // this, the list would mount with a single row and the rest would pop
-        // in one at a time, defeating the cascade reveal.
-        if !sonosService.sorted.isEmpty && canRevealList { return .found }
+        if !sonosService.sorted.isEmpty { return .found }
         return .searching
     }
 
@@ -97,24 +88,13 @@ struct DiscoveryStep: View {
                 .padding(.bottom, 36)
         }
         .onChange(of: sonosService.rooms.count) { oldCount, newCount in
-            // Haptic per newly-discovered speaker; only fire when count grew.
-            if newCount > lastHapticCount {
-                HapticManager.shared.fireHaptic(.selection)
-            }
-            lastHapticCount = newCount
-            // First speaker landed — fire the success tap and start a short
-            // hold (1.2s) so additional speakers have time to come in before
-            // we reveal the list. The cascade then animates the full set in
-            // one satisfying sweep instead of dribbling in.
-            if oldCount == 0, newCount > 0 {
-                HapticManager.shared.fireHaptic(.notification(.success))
+            // Fire the analytics event exactly once, when the first speaker
+            // arrives. Per-speaker haptics now live inside
+            // `DiscoveredSpeakerList` so each tap lands in sync with the
+            // row's cascade reveal.
+            if !didTrackSuccess, oldCount == 0, newCount > 0 {
+                didTrackSuccess = true
                 Analytics.shared.track(OnboardingEvent.discoverySucceeded)
-                Task {
-                    try? await Task.sleep(for: .milliseconds(1200))
-                    withAnimation(.easeInOut(duration: 0.35)) {
-                        canRevealList = true
-                    }
-                }
             }
         }
         .onChange(of: scenePhase) { _, phase in

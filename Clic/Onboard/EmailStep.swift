@@ -82,6 +82,17 @@ struct EmailStep: View {
                 .submitLabel(.go)
                 .onSubmit(submit)
 
+            // Required disclosure for collecting an email address — gets us
+            // through App Review without questions and lets users tap
+            // straight to the policy if they want details. Sits right under
+            // the input so the consent context is adjacent to the field.
+            Link(destination: URL(string: "https://clic.dance/privacy")!) {
+                Text("Privacy")
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .underline()
+            }
+
             if case let .failure(message) = state {
                 Text(message)
                     .font(.footnote)
@@ -110,17 +121,6 @@ struct EmailStep: View {
                         .frame(maxWidth: .infinity)
                 }
                 .foregroundStyle(.white.opacity(0.7))
-
-                // Required disclosure for collecting an email address —
-                // gets us through App Review without questions and lets
-                // users tap straight to the policy if they want details.
-                Link(destination: URL(string: "https://clic.dance/privacy")!) {
-                    Text("Privacy")
-                        .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.55))
-                        .underline()
-                }
-                .padding(.top, 2)
             }
             .padding(.horizontal, 28)
             .padding(.bottom, 44)
