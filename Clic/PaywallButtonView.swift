@@ -36,7 +36,7 @@ struct PaywallButtonView: View {
 
                     ShimmerHeadline(text: headline)
 
-                    Text("Widgets, Shortcuts, and more.")
+                    Text("Lock screen controls, Widgets, Shortcuts, and more.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
                         .lineLimit(2, reservesSpace: false)
@@ -51,9 +51,10 @@ struct PaywallButtonView: View {
             .overlay(cardBorder)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .background(tealAura)
+            .padding(6)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(NoDimButtonStyle())
         .buttonBorderShape(.roundedRectangle(radius: cornerRadius))
         .fontDesign(.rounded)
     }
@@ -127,6 +128,15 @@ struct PaywallButtonView: View {
             .fill(Color.accentColor.opacity(0.18))
             .blur(radius: 18)
             .padding(-2)
+    }
+}
+
+/// Keeps the label fully opaque while pressed. `.buttonStyle(.plain)` still
+/// dims its label on press, which makes the teal stroke + aura on this card
+/// look washed-out on tap.
+private struct NoDimButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
     }
 }
 

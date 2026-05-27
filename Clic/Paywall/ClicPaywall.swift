@@ -47,11 +47,6 @@ struct ClicPaywall: View {
                 .padding(.top, 24)
 
                 VStack(spacing: 12) {
-                    Text("WHAT YOU GET")
-                        .font(.caption2.weight(.semibold))
-                        .tracking(1.4)
-                        .foregroundStyle(Color.accentColor)
-
                     ComparisonTable(rows: comparisonRows)
                 }
                 .padding(.horizontal)

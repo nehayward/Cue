@@ -13,15 +13,15 @@ struct PlayOnClicIntent: AppIntent {
     static var title: LocalizedStringResource = "Play Link on Clic"
     static var isDiscoverable: Bool = true
     static var description = IntentDescription(
-        "Play an Apple Music or Spotify song, album, playlist, or artist link on a Sonos speaker or group.",
+        "Play a music link — song, album, playlist, or artist — on a Sonos speaker or group.",
         categoryName: "Playback",
-        searchKeywords: ["Play", "Queue", "Music", "Sonos", "Apple Music", "Spotify", "Link"]
+        searchKeywords: ["Play", "Queue", "Music", "Sonos", "Spotify", "Link"]
     )
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(
         title: "Music Link",
-        requestValueDialog: IntentDialog("Paste an Apple Music or Spotify link.")
+        requestValueDialog: IntentDialog("Paste a music link.")
     )
     var link: URL
 
