@@ -187,6 +187,7 @@ struct SceneBuilderScreen: View {
             }
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .task {
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)

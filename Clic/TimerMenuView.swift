@@ -55,5 +55,6 @@ struct TimerMenuView<Label: View>: View {
             label
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 }

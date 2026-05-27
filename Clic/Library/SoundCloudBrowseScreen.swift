@@ -201,6 +201,7 @@ struct SoundCloudBrowseScreen: View {
                 }
             }
         }
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 }
 

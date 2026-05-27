@@ -9,34 +9,18 @@ extension View {
                 .redacted(reason: .placeholder)
                 .frame(maxWidth: .infinity)
                 .overlay {
+                    // Whole-row tap target — no visible pill, just a clear
+                    // hit area. Previous design stacked a centered "Tap to
+                    // Unlock" pill on every locked row, which competed with
+                    // the PaywallButtonView card sitting just below. The
+                    // redaction is enough of a "you can't access this" cue;
+                    // the corner lock glyph clarifies that it's locked rather
+                    // than loading.
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
-                        Router.main.sheet(to: .paywall)
+                        Router.main.fullScreenCover(to: .paywall)
                     } label: {
-                        ZStack {
-                            // Transparent fill stretches the tap target to the
-                            // whole row so users can tap anywhere on the redacted
-                            // content to open the paywall.
-                            Color.clear
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "lock.fill")
-                                    .font(.subheadline.weight(.semibold))
-                                Text("Get Clic Super")
-                                    .font(.subheadline.weight(.semibold))
-                                    .fontDesign(.rounded)
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 11)
-                            .background(
-                                Capsule()
-                                    .fill(Color.accentColor.opacity(0.22))
-                                    .blur(radius: 18)
-                            )
-                            .glassPill()
-                        }
-                        .contentShape(Rectangle())
+                        Color.clear.contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

@@ -54,7 +54,7 @@ struct MiniPlayerView: View {
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
             guard subscriptionService.subscription.isActive else {
-                Router.main.sheet(to: .paywall)
+                Router.main.fullScreenCover(to: .paywall)
                 return
             }
             Router.main.inspectorSheet = nil

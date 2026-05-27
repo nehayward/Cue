@@ -11,20 +11,32 @@ struct PaywallButtonView: View {
     @Environment(SonosService.self) var sonosService: SonosService
     @Environment(Router.self) var router: Router?
 
+    /// Personalizes the headline. When > 0 the card reads
+    /// "Unlock N more rooms" — concrete and tied to the user's actual setup,
+    /// which converts harder than a generic "Unlock Everything." "Rooms"
+    /// rather than "groups" because the section headers in the speaker list
+    /// are already named after rooms (Kitchen, Living Room, …) — that's the
+    /// user's mental model. "Groups" is Sonos jargon; "speakers" is wrong
+    /// (a group can contain multiple speakers).
+    var lockedCount: Int = 0
+
     private let cornerRadius: CGFloat = 18
+
+    private var headline: String {
+        lockedCount > 0 ? "Unlock \(lockedCount) more rooms" : "Unlock Every Room"
+    }
 
     var body: some View {
         Button(action: tap) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("JOIN 2,000+ LISTENERS")
+                    Text("JOIN 2,000+ MEMBERS")
                         .font(.caption2.weight(.semibold))
-                        .tracking(1.4)
                         .foregroundStyle(Color.accentColor)
 
-                    ShimmerHeadline(text: "Unlock Everything")
+                    ShimmerHeadline(text: headline)
 
-                    Text("Widgets, Watch, Scenes, and more.")
+                    Text("Widgets, Shortcuts, and more.")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
                         .lineLimit(2, reservesSpace: false)
@@ -49,7 +61,7 @@ struct PaywallButtonView: View {
     private func tap() {
         HapticManager.shared.fireHaptic(.buttonPress)
         Analytics.shared.track(.viewedPaywall)
-        router?.presentedSheet = .paywall
+        router?.presentedFullScreenCover = .paywall
     }
 
     /// Bottom CTA styled like the "Claim offer" / "Get lifetime" buttons on
@@ -57,7 +69,7 @@ struct PaywallButtonView: View {
     private var ctaPill: some View {
         HStack {
             Spacer()
-            Text("Get Clic Super")
+            Text("Start Free Trial")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Color.accentColor)
             Spacer()

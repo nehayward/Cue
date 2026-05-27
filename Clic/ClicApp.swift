@@ -75,6 +75,7 @@ struct ClicApp: App {
                 ContainerLargePlayerView()
             }
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+            .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
             .withInspector(inspectorDestination: $router.inspectorSheet)
             .visionOrnament(router: router)
             .withAlert()
@@ -94,7 +95,7 @@ struct ClicApp: App {
                 AppBootstrapper.shared.bootstrap()
 
                 if !hasOnboarded || OnboardingDebug.forceShow {
-                    router.presentedSheet = .onboard
+                    router.presentedFullScreenCover = .onboard
                     return
                 }
                 
@@ -559,7 +560,7 @@ struct ClicApp: App {
             }
             
             if components.host?.lowercased() == "subscribe" {
-                router.presentedSheet = .paywall
+                router.presentedFullScreenCover = .paywall
                 return
             }
             

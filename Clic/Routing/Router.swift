@@ -13,6 +13,11 @@ import SonosKit
     var selectedID: String?
     var path: [RouterDestination] = []
     var presentedSheet: SheetDestination?
+    /// Destinations presented as `fullScreenCover` rather than `.sheet`.
+    /// Currently used for `.paywall` and `.onboard` — moments where we want
+    /// full canvas and no swipe-to-dismiss. Use `fullScreenCover(to:)` to
+    /// route, rather than `sheet(to:)`, so intent reads at the call site.
+    var presentedFullScreenCover: SheetDestination?
     var secondarySheet: SheetDestination?
 
     @MainActor var inspectorSheet: InspectorDestination?
@@ -30,6 +35,12 @@ import SonosKit
 
     func sheet(to: SheetDestination?) {
         presentedSheet = to
+    }
+
+    /// Counterpart to `sheet(to:)` for destinations that should present as a
+    /// fullScreenCover rather than a sheet (paywall, onboarding).
+    func fullScreenCover(to: SheetDestination?) {
+        presentedFullScreenCover = to
     }
     
     @MainActor

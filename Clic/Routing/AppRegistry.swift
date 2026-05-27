@@ -25,19 +25,6 @@ extension View {
                     case let .groupScreen(group):
                         GroupScreen(coordinatorID: group.coordinatorID, sheetDestination: sheetDestinations)
                             .customizeWindowSizeForMacOS15()
-                    case .paywall:
-                        ClicPaywall()
-                        //                    PaywallView(displayCloseButton: true)
-                        //                        .onPurchaseCompleted { transaction, customerInfo in
-                        //                                ///                     print("Purchase completed: \(customerInfo.entitlements)")
-                        //                                ///                     self.displayPaywall = false
-                        //                                ///                 }
-                        //                            ///                 print(
-                        //                            print("Complete")
-                        //                        }
-                        //                        .onAppear {
-                        //                            Analytics.shared.track(.viewedPaywall)
-                        //                        }
                     case let .settings(destination):
                         PreferenceScreen(destination: destination)
                     case .favorites:
@@ -178,8 +165,6 @@ extension View {
                         PlexManagementView()
                     case let .volumeControlsScreen(groupID: groupID):
                         VolumeControlsScreen(groupID: groupID)
-                    case .onboard:
-                        WelcomeScreen()
                     case .newsletter:
                         NewsletterSignupScreen()
                     case .spotifyUserPlaylists:
@@ -197,6 +182,12 @@ extension View {
                         ReorderSpotifyLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
+                    case .paywall, .onboard:
+                        // Routed via `withFullScreenCoverDestinations` —
+                        // listed here to keep the switch exhaustive but never
+                        // reached because the sheet binding doesn't fire for
+                        // these destinations in practice.
+                        EmptyView()
                     }
                 }
                 .withEnvironments()
@@ -209,6 +200,35 @@ extension View {
         }
     }
     
+    /// FullScreenCover variant of `withSheetDestinations`. Used for paywall +
+    /// onboarding, where we want full canvas, no swipe-to-dismiss, and a
+    /// "this is a moment" presentation. Route via `router.presentedFullScreenCover`
+    /// (or `router.fullScreenCover(to:)`) instead of `presentedSheet`.
+    ///
+    /// On native macOS `fullScreenCover` isn't available, so this is a no-op —
+    /// destinations that need to surface on native macOS should also live in
+    /// `withSheetDestinations` or `withPopoverDestinations`. (Currently every
+    /// shipping target uses Mac Catalyst, so this branch is in practice
+    /// always live.)
+    func withFullScreenCoverDestinations(destinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
+        #if !os(macOS)
+        return fullScreenCover(item: destinations, onDismiss: onDismiss) { destination in
+            switch destination {
+            case .paywall:
+                ClicPaywall()
+                    .withEnvironments()
+            case .onboard:
+                WelcomeScreen()
+                    .withEnvironments()
+            default:
+                EmptyView()
+            }
+        }
+        #else
+        return self
+        #endif
+    }
+
     func withPopoverDestinations(popoverDestination: Binding<SheetDestination?>) -> some View {
         popover(item: popoverDestination) { destination in
             Group {

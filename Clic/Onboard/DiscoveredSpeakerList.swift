@@ -30,6 +30,11 @@ struct DiscoveredSpeakerList: View {
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 4)
+            // Cap at ~500pt so the discovered speaker list reads as a
+            // centered column on iPad / Mac fullScreenCover. iPhone widths
+            // are below the cap so this is a no-op there.
+            .frame(maxWidth: 500)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .scrollIndicators(.hidden)
         // Soft fade-in/out at the scroll edges — matches `ServicesStep` so

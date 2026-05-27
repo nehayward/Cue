@@ -122,7 +122,7 @@ struct WelcomeScreen: View {
                 .id(Step.services)
                 .transition(slideTransition)
         case .paywall:
-            PaywallStep(finish: { goTo(.email) })
+            PaywallStep()
                 .id(Step.paywall)
                 .transition(slideTransition)
         case .email:

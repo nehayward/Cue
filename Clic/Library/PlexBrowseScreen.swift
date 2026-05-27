@@ -101,6 +101,7 @@ struct PlexBrowseScreen: View {
                 isLoading = false
             }
         }
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
     }
 
     private func updatePlexBrowseService() async {

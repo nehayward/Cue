@@ -75,7 +75,7 @@ struct SpeakerListScreen: View {
                             router.sheet(to: .createScene(content: nil))
                         }
                     } else {
-                        router.sheet(to: .paywall)
+                        router.fullScreenCover(to: .paywall)
                     }
                 }
                 .tint(.primary)
@@ -103,7 +103,7 @@ struct SpeakerListScreen: View {
                     } actions: {
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedSheet = .onboard
+                            router.presentedFullScreenCover = .onboard
                         } label: {
                             Text("Open Setup")
                         }
@@ -160,7 +160,10 @@ struct SpeakerListScreen: View {
                 }
                 
                 if !subscriptionService.subscription.isActive {
-                    PaywallButtonView()
+                    // Free tier shows index < 1, so everything past the first
+                    // group is locked — pass that count through so the card
+                    // reads "Unlock 3 more speakers" instead of generic copy.
+                    PaywallButtonView(lockedCount: max(0, sonosService.sorted.count - 1))
                         .padding(.horizontal)
                         .padding(.vertical, 8)
                         .transition(.scale)
@@ -189,17 +192,8 @@ struct SpeakerListScreen: View {
                         Label("Create Scene", systemImage: "plus")
                     }
                 } label: {
-                    if !scenes.isEmpty {
-                        Image(systemName: "bolt.fill")
-                            .allowsHitTesting(false)
-                    } else {
-                        VStack {
-                            Image(systemName: "bolt.fill")
-                            Text("Create Scene")
-                                .font(.caption2)
-                        }
+                    Image(systemName: "bolt.fill")
                         .allowsHitTesting(false)
-                    }
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     if subscriptionService.subscription.isActive {
@@ -209,7 +203,7 @@ struct SpeakerListScreen: View {
                             router.sheet(to: .createScene(content: nil))
                         }
                     } else {
-                        router.sheet(to: .paywall)
+                        router.fullScreenCover(to: .paywall)
                     }
                 }
                 .tint(.primary)
@@ -339,7 +333,7 @@ fileprivate struct SpeakerGroupSection: View {
             .tag(group.coordinatorID)
             .foregroundStyle(.primary)
         } header: {
-            SpeakerGroupHeader(group: group)
+            SpeakerGroupHeader(group: group, isLocked: !paywallEnabled)
         }
         .geometryGroup()
         .headerProminence(.increased)
@@ -358,10 +352,19 @@ fileprivate struct SpeakerGroupSection: View {
 
 fileprivate struct SpeakerGroupHeader: View {
     let group: GroupRoom
-    
+    var isLocked: Bool = false
+
     var body: some View {
-        HStack {
+        HStack(spacing: 6) {
             Text(group.nameWithCount)
+            if isLocked {
+                // `.secondary` reads as ambient info in both light and dark
+                // mode — teal here was too loud for a label-modifier glyph
+                // (the lock describes the row, it isn't a CTA on its own).
+                Image(systemName: "lock.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
             if let sleepTimer = group.coordinatorRoom.sleepTimer, sleepTimer > Date() {
                 Spacer()
                 HStack(spacing: 4) {

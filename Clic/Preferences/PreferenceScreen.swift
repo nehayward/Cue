@@ -118,7 +118,7 @@ struct PreferenceScreen: View {
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
                             Analytics.shared.track(.viewedPaywall)
-                            router.presentedSheet = .paywall
+                            router.presentedFullScreenCover = .paywall
                         } label: {
                             ShimmeringUpgradeText()
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -829,6 +829,7 @@ struct PreferenceScreen: View {
         }
         .environment(router)
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .withAlert()
         .task {
             try? await subscriptionService.checkSubscription()

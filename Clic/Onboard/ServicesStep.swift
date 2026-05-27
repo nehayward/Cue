@@ -113,6 +113,12 @@ struct ServicesStep: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 4)
+                // Cap rows at ~500pt on iPad / Mac fullScreenCover so the
+                // service list reads as a centered column instead of
+                // stretching edge-to-edge. iPhone widths are below the cap
+                // so this is a no-op there.
+                .frame(maxWidth: 500)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
             .scrollIndicators(.hidden)
             .mask {

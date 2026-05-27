@@ -127,6 +127,7 @@ struct AlarmView: View {
             }
         }
         .withSheetDestinations(sheetDestinations: $router.presentedSheet)
+        .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
         .fontDesign(.rounded)
         .navigationTitle("Save Alarm")
         .navigationBarTitleDisplayMode(.inline)
