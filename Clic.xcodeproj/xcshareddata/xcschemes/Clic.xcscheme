@@ -65,7 +65,7 @@
          <EnvironmentVariable
             key = "SUBSCRIBED"
             value = "false"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "FORCE_ONBOARDING"

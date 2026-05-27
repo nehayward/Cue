@@ -49,6 +49,17 @@
 - Fixed Sonos discovery failing on Macs / simulators with multiple network interfaces — Clic no longer binds its event listener to an unreachable link-local IP
 - Onboarding: dismissing the welcome flow before connecting to Sonos now re-presents on the next launch instead of leaving the app in an empty state
 - Onboarding: refreshed copy throughout the welcome, discovery, and music services screens for clearer setup at a glance
+- Onboarding: each newly-discovered speaker now gets its own haptic tap in time with the row cascade — feels like speakers are checking in one by one
+- Onboarding: discovered speakers appear immediately instead of after a brief hold
+- Onboarding: Apple Music is no longer enabled by default if it isn't authorized in your Sonos system
+- Onboarding: privacy disclosure moved next to the email field on the newsletter step
+- Player: shows the lowest battery in the group below the speaker name in the title bar
+- Fixed battery indicator not appearing when a Roam or Move is grouped under an AC-powered speaker (Beam, SPA, etc.) — was previously checking only the coordinator's battery
+- Fixed battery percentage going stale for non-coordinator speakers in a group — every room now refreshes on each update cycle
+- Help & FAQ now extends behind the home indicator so the page footer renders at full height
+- Preferences: redesigned the "Upgrade to Lifetime" link with a calmer accent gradient (no shimmer, no arrow)
+- Mac: paywall sheet can now be dismissed with the Escape key
+- Refreshed the Clic Super pitch card with new feature copy and a cleaner layout
 
 # 2026.3
 
