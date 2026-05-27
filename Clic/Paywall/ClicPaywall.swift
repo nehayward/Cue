@@ -75,6 +75,15 @@ struct ClicPaywall: View {
             .font(.title)
             .foregroundStyle(.secondary)
         }
+        #if targetEnvironment(macCatalyst)
+        // SwiftUI's `.keyboardShortcut(.cancelAction)` doesn't reliably reach
+        // the first responder inside a sheet on Mac Catalyst — we drop down to
+        // a UIKeyCommand-backed VC that's guaranteed to receive Escape.
+        .background {
+            EscapeKeyCatcher { dismiss() }
+                .frame(width: 0, height: 0)
+        }
+        #endif
         .onAppear {
             Analytics.shared.track(.viewedPaywall)
         }
@@ -123,6 +132,44 @@ struct FeatureCard: View {
             ClicPaywall()
         }
 }
+
+#if targetEnvironment(macCatalyst)
+/// Hosts a UIViewController that registers a UIKeyCommand for the Escape key.
+/// SwiftUI's `.keyboardShortcut` doesn't reliably propagate through sheet
+/// presentation on Catalyst, but a first-responder VC with `keyCommands` does.
+private struct EscapeKeyCatcher: UIViewControllerRepresentable {
+    let onEscape: () -> Void
+
+    func makeUIViewController(context: Context) -> EscapeKeyViewController {
+        let vc = EscapeKeyViewController()
+        vc.onEscape = onEscape
+        return vc
+    }
+
+    func updateUIViewController(_ vc: EscapeKeyViewController, context: Context) {
+        vc.onEscape = onEscape
+    }
+}
+
+private final class EscapeKeyViewController: UIViewController {
+    var onEscape: (() -> Void)?
+
+    override var canBecomeFirstResponder: Bool { true }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        becomeFirstResponder()
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(handleEscape))]
+    }
+
+    @objc private func handleEscape() {
+        onEscape?()
+    }
+}
+#endif
 
 fileprivate enum Icons {
     case watch

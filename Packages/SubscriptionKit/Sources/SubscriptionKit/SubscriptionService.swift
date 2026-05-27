@@ -36,11 +36,11 @@ public final class SubscriptionService {
 //            sync.set(true, for: keyID)
 //        }
 
-//        subscription = .notActive
-//        sync.set(false, for: keyID)
-//    
-        subscription = .active
-        sync.set(true, for: keyID)
+        subscription = .notActive
+        sync.set(false, for: keyID)
+    
+//        subscription = .active
+//        sync.set(true, for: keyID)
 
 //        Task { @MainActor in
 //            setup()
