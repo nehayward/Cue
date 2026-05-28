@@ -4,6 +4,21 @@ import WebKit
 struct HelpWebView: View {
     @State private var isLoading = true
 
+    // Hide the site's own fixed header (`<header class="header">`) so the
+    // iOS nav bar is the only chrome — otherwise the page shows the
+    // "Clic" logo + hamburger above the FAQ content, duplicating the
+    // app's navigation. The header is `position: fixed`, so removing it
+    // doesn't shift any layout. Body top-padding uses
+    // `env(safe-area-inset-top)` so content stays below the (now
+    // translucent) iOS nav bar — works because the site already sets
+    // `viewport-fit=cover`.
+    static let injectedCSS = """
+    header.header { display: none !important; }
+    body { padding-top: env(safe-area-inset-top) !important; }
+    main > section.text-center { display: none !important; }
+    main { padding-top: 1rem !important; }
+    """
+
     var body: some View {
         ZStack {
             // Backstop color shown while the page is loading. Matches the
@@ -12,7 +27,11 @@ struct HelpWebView: View {
             Color(.systemBackground)
                 .ignoresSafeArea()
 
-            WebView(url: URL(string: "https://clic.dance/help")!, isLoading: $isLoading)
+            WebView(
+                url: URL(string: "https://clic.dance/help")!,
+                injectedCSS: HelpWebView.injectedCSS,
+                isLoading: $isLoading
+            )
                 // Extend the page edge-to-edge so the dark page background
                 // bleeds under the iOS nav bar and home indicator. WKWebView
                 // still needs `contentInsetAdjustmentBehavior = .never`
@@ -41,25 +60,10 @@ struct HelpWebView: View {
 
 struct WebView: UIViewRepresentable {
     let url: URL
+    let injectedCSS: String
     @Binding var isLoading: Bool
 
     func makeUIView(context: Context) -> WKWebView {
-        // Hide the site's own fixed header (`<header class="header">`) so the
-        // iOS nav bar is the only chrome — otherwise the page shows the
-        // "Clic" logo + hamburger above the FAQ content, duplicating the
-        // app's navigation. The header is `position: fixed`, so removing it
-        // doesn't shift any layout. Body top-padding uses
-        // `env(safe-area-inset-top)` so content stays below the (now
-        // translucent) iOS nav bar — works because the site already sets
-        // `viewport-fit=cover`. Combined with the WebView's
-        // `.opacity(isLoading ? 0 : 1)` overlay, the style applies before
-        // the page is ever visible — no flash of the un-hidden header.
-        let injectedCSS = """
-        header.header { display: none !important; }
-        body { padding-top: env(safe-area-inset-top) !important; }
-        main > section.text-center { display: none !important; }
-        main { padding-top: 1rem !important; }
-        """
         let hideHeader = WKUserScript(
             source: """
             var s = document.createElement('style');
@@ -71,6 +75,10 @@ struct WebView: UIViewRepresentable {
         )
         let config = WKWebViewConfiguration()
         config.userContentController.addUserScript(hideHeader)
+        // Without this, iOS fullscreens <video> on play even with the
+        // `playsinline` attribute set — WKWebView ignores playsinline
+        // unless inline playback is explicitly allowed.
+        config.allowsInlineMediaPlayback = true
 
         let webView = WKWebView(frame: .zero, configuration: config)
         // Transparent so the ZStack's backstop color shows through during

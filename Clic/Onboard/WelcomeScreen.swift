@@ -33,10 +33,10 @@ struct WelcomeScreen: View {
 
     @State private var step: Step = .welcome
     @State private var installedServices: Set<SonosServiceType> = []
-    /// Set when the user closes onboarding from a state where it can't be
-    /// completed (specifically: no Sonos system found). We skip the
-    /// `hasOnboarded = true` write so they get re-prompted next launch — by
-    /// which time they may have actually set up Sonos.
+    /// Set when the user closes onboarding before reaching Services. Used
+    /// only to distinguish the analytics event (bailed vs completed) —
+    /// `hasOnboarded` is written either way so the sheet doesn't
+    /// re-present on next launch. Users can re-run setup from Preferences.
     @State private var didBailOut = false
 
     var body: some View {
@@ -50,13 +50,11 @@ struct WelcomeScreen: View {
                     if step != .paywall {
                         Button {
                             HapticManager.shared.fireHaptic(.selection)
-                            // Dismissing before the user reaches Services
-                            // means they haven't actually granted Local
-                            // Network or seen what's authorized — defer
-                            // marking onboarding complete so we re-present
-                            // next launch. They get the safety valve of the
-                            // X without ending up in a `hasOnboarded = true`
-                            // state with no `monitor()` running.
+                            // Closing before Services is recorded as a
+                            // "bailed" analytics event but still marks
+                            // onboarding complete — users found the repeat
+                            // re-presentation annoying and can restart
+                            // setup from Preferences if they need to.
                             if step == .welcome || step == .discovery {
                                 didBailOut = true
                             }
@@ -88,14 +86,18 @@ struct WelcomeScreen: View {
         }
         .onDisappear {
             guard !OnboardingDebug.forceShow else { return }
-            if didBailOut {
-                Analytics.shared.track(OnboardingEvent.bailed)
-                return
-            }
-            Analytics.shared.track(OnboardingEvent.completed)
+            Analytics.shared.track(didBailOut ? OnboardingEvent.bailed : OnboardingEvent.completed)
+            // Mark onboarding done regardless of bail vs complete — the
+            // sheet shouldn't keep re-presenting on every launch. Direct
+            // write + synchronize on the app-group store because
+            // @AppStorage's setter alone races view teardown on
+            // fullScreenCover dismiss.
+            GroupStorageKeys.storage?.set(true, forKey: GroupStorageKeys.hasOnboarded)
+            GroupStorageKeys.storage?.synchronize()
             hasOnboarded = true
-            // Onboarding gated `monitor()` at scene-active; kick it off now
-            // that we've earned the user's consent for Local Network.
+            // Kick discovery off — even if the user bailed before granting
+            // Local Network, monitor() is harmless without permission and
+            // will start finding speakers if they granted it later.
             sonosService.monitor()
         }
     }

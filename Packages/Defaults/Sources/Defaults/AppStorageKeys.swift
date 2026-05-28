@@ -15,4 +15,8 @@ public enum AppStorageKeys {
     public static let lastPlaylistTitle = "\(Prefix.id).lastPlaylistTitle"
     public static let recentlyViewed = "\(Prefix.id).recentlyViewed"
     public static let recentQueries = "\(Prefix.id).recentQueries"
+    public static let lastSeenWhatsNewVersion = "\(Prefix.id).lastSeenWhatsNewVersion"
+    public static let lastSeenSettingsBadgeVersion = "\(Prefix.id).lastSeenSettingsBadgeVersion"
+    public static let latestReleaseVersion = "\(Prefix.id).latestReleaseVersion"
+    public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
 }

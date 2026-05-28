@@ -66,20 +66,26 @@ struct QueueScreen: View {
                 .toolbar {
                     ToolbarItemGroup(placement: .principal) {
                         VStack(alignment: .leading) {
-                            Text("\(queueMode.title)" + (group.playbackService != .queue ? " not active" : ""))
-                                .bold()
-                            if queueMode == .full {
-                                HStack(spacing: 0) {
-                                    Text(group.coordinatorRoom.queueTotal, format: .number)
-                                        .contentTransition(.numericText())
-                                    Text("\(totalDuration.components.seconds > 0 ? " • " : "")")
-                                    if totalDuration.components.seconds > 0  {
-                                        Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                            HStack(spacing: 4) {
+                                Text(queueMode.title)
+                                if group.playbackService == .queue {
+                                    if queueMode == .full {
+                                        Text("(\(group.coordinatorRoom.queueTotal, format: .number))")
+                                            .contentTransition(.numericText())
+                                            .monospacedDigit()
                                     }
+                                } else {
+                                    Text("not active")
+                                        .foregroundStyle(.secondary)
                                 }
-                                .foregroundStyle(.secondary)
+                            }
+                            .bold()
+                            if queueMode == .full, totalDuration.components.seconds > 0 {
+                                Text(totalDuration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)))
+                                    .foregroundStyle(.secondary)
                             }
                         }
+                        .fixedSize(horizontal: true, vertical: false)
                     }
                     
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -461,23 +467,37 @@ fileprivate struct MoreInfoView: View {
 
     var body: some View {
         Menu {
-            Button(editMode.isEditing ? "Done" : "Edit") {
+            Button {
                 withAnimation {
                     editMode = editMode.isEditing ? .inactive : .active
                 }
+            } label: {
+                Label(editMode.isEditing ? "Done" : "Edit",
+                      systemImage: editMode.isEditing ? "checkmark" : "pencil")
             }
-            
+
             Button {
                 queueMode = queueMode == .full ? .upNext : .full
             } label: {
-                Label(queueMode == .full ? "Up Next" : "Queue", systemImage: queueMode == .full ? "text.insert" : "list.bullet")
+                Label(queueMode == .full ? "Up Next" : "Queue",
+                      systemImage: queueMode == .full ? "text.line.first.and.arrowtriangle.forward" : "list.bullet")
             }
+
+            Button {
+                Task {
+                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+                }
+            } label: {
+                Label("Refresh Queue", systemImage: "arrow.clockwise")
+            }
+
             Button {
                 Task {
                     router.presentedSheet = .newPlaylist(group: group)
                 }
             } label: {
-                Text("Save Queue")
+                Label("Save Queue", systemImage: "square.and.arrow.down")
                 Text("Create Sonos Playlist")
             }
 
@@ -491,7 +511,7 @@ fileprivate struct MoreInfoView: View {
             Button(role: .destructive) {
                 clearQueueConfirmation.toggle()
             } label: {
-                Text("Clear Queue")
+                Label("Clear Queue", systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis")

@@ -1,0 +1,7 @@
+// Shared marketing version + build number for Debug and Release.
+// Bump these in one place when shipping a new build so both configs
+// stay in sync (and the in-app "What's New" fetcher resolves against
+// the same /api/releases/<version>.json regardless of build flavor).
+// Beta keeps its own values — it has a separate lifecycle.
+VERSION_NUMBER = 2026.4
+BUILD_NUMBER = 631

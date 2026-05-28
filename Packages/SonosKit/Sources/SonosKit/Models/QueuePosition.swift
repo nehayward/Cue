@@ -17,7 +17,7 @@ public enum QueuePosition: Codable {
         case .now:
             return "Play"
         case .replace:
-            return "Replace queue"
+            return "Replace Queue"
         }
     }
 }

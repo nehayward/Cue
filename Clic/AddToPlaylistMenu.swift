@@ -47,11 +47,11 @@ struct AddTracksToPlaylistMenu: View {
                 Button(playlist.title) {
                     Task {
                         alertService.showAlert(with: "Adding \(tracks.count) tracks…", imageName: "plus")
-                        
+
                         for track in tracks {
                             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
                         }
-                        
+
                         alertService.showAlert(with: "Added \(tracks.count) tracks to \(playlist.title)", imageName: "checkmark")
                         
                         UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)

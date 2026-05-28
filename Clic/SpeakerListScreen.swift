@@ -1,4 +1,5 @@
 import CloudStorage
+import Defaults
 import SwiftUI
 import SonosKit
 import SubscriptionKit
@@ -11,9 +12,25 @@ struct SpeakerListScreen: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(AlertService.self) private var alertService
     @Environment(Router.self) private var router
-    
+
     @CloudStorage("com.clic.scenes") var scenes: [SonosScene] = []
-    
+
+    @AppStorage(Defaults.AppStorageKeys.lastSeenSettingsBadgeVersion)
+    private var lastSeenSettingsBadgeVersion: String = ""
+
+    @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion)
+    private var latestReleaseVersion: String = ""
+
+    private var hasUnseenWhatsNew: Bool {
+        // Strict: never show the badge until the worker has confirmed
+        // notes for this bundle's version. Separate from the in-Preferences
+        // banner's "seen" state so tapping the gear clears the dot without
+        // dismissing the banner the user hasn't actually read.
+        guard !latestReleaseVersion.isEmpty else { return false }
+        if WhatsNewDebug.forceShowBanner { return true }
+        return lastSeenSettingsBadgeVersion != latestReleaseVersion
+    }
+
     @State private var hoveredID: String? = nil
     
     var body: some View {
@@ -32,9 +49,23 @@ struct SpeakerListScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    // Clear the toolbar dot the moment the user opens
+                    // Preferences — they've seen the badge. The in-Preferences
+                    // banner stays until they actually tap into What's New.
+                    if !latestReleaseVersion.isEmpty {
+                        lastSeenSettingsBadgeVersion = latestReleaseVersion
+                    }
                     router.presentedSheet = .settings()
                 } label: {
                     Image(systemName: "switch.2")
+                        .overlay(alignment: .topTrailing) {
+                            if hasUnseenWhatsNew {
+                                Circle()
+                                    .fill(Color.accentColor)
+                                    .frame(width: 7, height: 7)
+                                    .offset(x: 4, y: -3)
+                            }
+                        }
                 }
                 #if targetEnvironment(macCatalyst)
                 .tint(.primary)
@@ -89,47 +120,7 @@ struct SpeakerListScreen: View {
                !sonosService.systemState.notFound,
                !sonosService.systemState.permissionDenied,
                !sonosService.isCellular {
-                if sonosService.isRunning {
-                    ProgressView()
-                } else {
-                    // No groups, no errors, and discovery isn't running — the
-                    // user almost certainly bailed out of onboarding before
-                    // granting Local Network. Offer a clear way back in
-                    // instead of an indefinite spinner.
-                    VStack(spacing: 20) {
-                        Image("ClicIconGlass")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 96, height: 96)
-                            .shadow(color: .black.opacity(0.45), radius: 18, y: 10)
-                            .shadow(color: Color.accentColor.opacity(0.25), radius: 24)
-                            .accessibilityHidden(true)
-
-                        VStack(spacing: 6) {
-                            Text("Set Up Clic")
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text("Finish setup to discover your Sonos speakers.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                        }
-
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            router.presentedFullScreenCover = .onboard
-                        } label: {
-                            Text("Continue Setup")
-                                .font(.body.weight(.semibold))
-                        }
-                        .foregroundStyle(Color.accentColor.gradient)
-                        .padding(.top, 4)
-                    }
-                    .padding(.horizontal, 24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.thinMaterial)
-                }
+                ProgressView()
             }
 
             if sonosService.isCellular {

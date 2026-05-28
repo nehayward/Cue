@@ -18,6 +18,8 @@
 - Newsletter: Sign up for product updates from a new row in Preferences (also available during onboarding)
 - Music Services screen now also shows services authorized in Sonos that Clic doesn't yet support, with a link to request more
 - iHeartRadio and Audible are now recognized as known Sonos services
+- What's New: A new banner in Preferences highlights the latest update, with a dot on the gear icon when there's something you haven't read yet
+- Queue: New "Refresh Queue" action in the More menu to manually re-pull the queue from Sonos
 
 –– Bug Fixes & Improvements ––
 - Restored Live Activity to its former glory with 5 volume steps
@@ -60,6 +62,10 @@
 - Preferences: redesigned the "Upgrade to Lifetime" link with a calmer accent gradient (no shimmer, no arrow)
 - Mac: paywall sheet can now be dismissed with the Escape key
 - Refreshed the Clic Super pitch card with new feature copy and a cleaner layout
+- Queue header now shows the count inline as "Queue (50)"; Up Next reports how many tracks are left instead of the full queue size
+- Queue: More menu items now have icons for faster scanning
+- Fixed "Continue Setup" briefly appearing on first launch after onboarding while speaker discovery was still warming up
+- Help & FAQ: Embedded videos no longer auto-fullscreen on iOS
 
 # 2026.3
 

@@ -33,6 +33,19 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.colorScheme) private var colorScheme: ColorSchemePreference = .system
     @AppStorage(Defaults.AppStorageKeys.speedLaunchNowPlaying) private var speedLaunchNowPlaying: Bool = false
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
+    @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
+    @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
+    @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
+
+    private var hasUnseenWhatsNew: Bool {
+        // Strict: the worker must have returned 200 for this bundle's
+        // version. No data → no banner, even when forcing for debug.
+        guard !latestReleaseVersion.isEmpty else { return false }
+        if WhatsNewDebug.forceShowBanner { return true }
+        return lastSeenWhatsNewVersion != latestReleaseVersion
+    }
+
+    @State private var presentWhatsNew = false
     @CloudStorage("com.clic.autoLaunchNowPlaying") private var autoLaunchNowPlaying: Bool = true
     
 #if targetEnvironment(macCatalyst)
@@ -57,6 +70,20 @@ struct PreferenceScreen: View {
         
         NavigationStack(path: $router.path) {
             Form {
+                if hasUnseenWhatsNew {
+                    Section {
+                        whatsNewBanner
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .top)),
+                                removal: .opacity
+                            ))
+                    } header: {
+                        Spacer(minLength: 0).listRowInsets(EdgeInsets())
+                    }
+                }
+
                 Section {
                     if !subscriptionService.subscription.isActive {
                         PaywallButtonView()
@@ -730,6 +757,49 @@ struct PreferenceScreen: View {
 //                                .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
 //                        }
 //                    }
+                    if !latestReleaseVersion.isEmpty {
+                        NavigationLink(destination: WhatsNewWebView()) {
+                            Label {
+                                HStack {
+                                    Text("What's New")
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    if hasUnseenWhatsNew {
+                                        Circle()
+                                            .fill(Color.accentColor)
+                                            .frame(width: 8, height: 8)
+                                    }
+                                }
+                            } icon: {
+                                Image(systemName: "sparkles")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .foregroundStyle(.white)
+                                    .bold()
+                                    .padding(8)
+                                    .frame(width: 32, height: 32)
+                                    .background {
+                                        // Match the "NEW IN x.y" banner surface.
+                                        // ZStack isn't a ShapeStyle, so use the
+                                        // closure form + .clipShape.
+                                        ZStack {
+                                            Color(red: 10/255, green: 10/255, blue: 10/255)
+                                            LinearGradient(
+                                                stops: [
+                                                    .init(color: Self.webTeal.opacity(0.55), location: 0.0),
+                                                    .init(color: Color.clear, location: 0.45),
+                                                    .init(color: Color.clear, location: 0.55),
+                                                    .init(color: Self.webTeal.opacity(0.40), location: 1.0)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        }
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                    .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                            }
+                        }
+                    }
                     NavigationLink(destination: HelpWebView()) {
                         Label {
                             Text("Help & FAQ")
@@ -785,8 +855,12 @@ struct PreferenceScreen: View {
                     .frame(maxWidth: .infinity)
                 }
             }
+            .animation(.smooth(duration: 0.35), value: hasUnseenWhatsNew)
             .navigationTitle("Preferences")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $presentWhatsNew) {
+                WhatsNewWebView()
+            }
             .withAppRouter()
             .environment(\.defaultMinListHeaderHeight, 0)
             .addDismiss {
@@ -825,6 +899,79 @@ struct PreferenceScreen: View {
         .customizeWindowSizeForMacOS15()
         .presentationSizingiOS18()
         .preferredColorScheme(colorScheme.scheme)
+    }
+
+    // Palette mirrors the website (--gradient-start: #5AADC4) so the in-app
+    // banner reads as the same surface as the /latest page reels card.
+    private static let webTeal = Color(red: 90/255, green: 173/255, blue: 196/255)
+    private static let webTealAccent = Color(red: 124/255, green: 221/255, blue: 232/255) // #7CDDE8
+
+    private struct WhatsNewBannerButtonStyle: ButtonStyle {
+        func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+            configuration.label
+                .opacity(configuration.isPressed ? 0.7 : 1.0)
+                .animation(.easeOut(duration: 0.18), value: configuration.isPressed)
+        }
+    }
+
+    @ViewBuilder
+    private var whatsNewBanner: some View {
+        Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
+            presentWhatsNew = true
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("NEW")
+                        .font(.caption2.weight(.heavy))
+                        .tracking(1.2)
+                        .foregroundStyle(Self.webTealAccent)
+                    Text(whatsNewHeadline)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(
+                // Website-style surface: mostly black with teal pulled in from
+                // the leading and trailing edges. Holds up in both light and
+                // dark mode since the base is solid.
+                ZStack {
+                    Color(red: 10/255, green: 10/255, blue: 10/255)
+                    LinearGradient(
+                        stops: [
+                            .init(color: Self.webTeal.opacity(0.16), location: 0.0),
+                            .init(color: Color.clear, location: 0.30),
+                            .init(color: Color.clear, location: 0.70),
+                            .init(color: Self.webTeal.opacity(0.10), location: 1.0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 0, style: .continuous)
+                    .strokeBorder(.white.opacity(0.06), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 0, style: .continuous))
+        }
+        .buttonStyle(WhatsNewBannerButtonStyle())
+    }
+
+    private var whatsNewHeadline: String {
+        latestReleaseHeadline.isEmpty
+            ? "See what's new in this update."
+            : latestReleaseHeadline
     }
 
     private var subscriptionStatusLine: Text {

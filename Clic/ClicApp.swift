@@ -94,15 +94,9 @@ struct ClicApp: App {
                 AppBootstrapper.shared.didLaunch = true
                 AppBootstrapper.shared.bootstrap()
 
-                if !hasOnboarded || OnboardingDebug.forceShow {
-                    router.presentedFullScreenCover = .onboard
-                    return
-                }
-                
-                Task { @MainActor in
-                    try? await SubscriptionService.shared.checkSubscription()
-                }
-
+                // Wire callbacks before the onboarding gate so events fired
+                // during onboarding (Sonos discovery forming the first group,
+                // a paywall-step purchase) don't fall on the floor.
                 SonosService.shared.groupsChanged = { groups in
                     guard subscriptionService.subscription.isActive else { return }
                     liveActivityManager.createActivity(shouldLoad: false)
@@ -115,6 +109,19 @@ struct ClicApp: App {
                         WidgetCenter.shared.reloadAllTimelines()
                     }
 #endif
+                }
+                
+                Task.detached(priority: .utility) {
+                    await LatestReleaseFetcher.refresh()
+                }
+
+                if !hasOnboarded || OnboardingDebug.forceShow {
+                    router.presentedFullScreenCover = .onboard
+                    return
+                }
+
+                Task { @MainActor in
+                    try? await SubscriptionService.shared.checkSubscription()
                 }
 
 #if targetEnvironment(macCatalyst)

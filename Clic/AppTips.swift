@@ -18,9 +18,9 @@ enum AppTip: Tip {
     var message: Text? {
         switch self {
         case .mediaService:
-            Text("Content playback requires authorization in the Sonos app. Go to Preferences in Clic to customize what services are shown.")
+            Text("Authorize services in the Sonos app to play them here.")
         case .libraryMediaService:
-            Text("Content playback requires authorization in the Sonos app. Go to Preferences in Clic to customize what services are shown.")
+            Text("Authorize services in the Sonos app to play them here.")
         }
     }
     
