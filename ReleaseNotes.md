@@ -22,6 +22,8 @@
 - Queue: New "Refresh Queue" action in the More menu to manually re-pull the queue from Sonos
 
 –– Bug Fixes & Improvements ––
+- Fixed Repeat and Shuffle toggles in the Mac Dock menu not reflecting the change after tapping
+- Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Restored Live Activity to its former glory with 5 volume steps
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
 - Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
@@ -66,6 +68,10 @@
 - Queue: More menu items now have icons for faster scanning
 - Fixed "Continue Setup" briefly appearing on first launch after onboarding while speaker discovery was still warming up
 - Help & FAQ: Embedded videos no longer auto-fullscreen on iOS
+- Clic Mini: Redesigned the keyboard-shortcut notification — a cleaner now-playing card with larger artwork, song, and artist, plus a brief skip indicator when you change tracks
+- Clic Mini: Volume and track-skip notifications now appear instantly when you press the shortcut instead of lagging behind
+- Clic Mini: Tap the notification to dismiss it
+- Fixed the Clic Mini notification sometimes disappearing abruptly instead of fading out
 
 # 2026.3
 

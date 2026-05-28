@@ -8,6 +8,8 @@ import Foundation
     case next
     case volumeUp
     case volumeDown
+    case volumeUpLarge
+    case volumeDownLarge
     case toggleRepeat
     case toggleShuffle
     case toggleCrossfade

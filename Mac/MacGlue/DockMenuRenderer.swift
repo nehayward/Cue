@@ -185,7 +185,9 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
             menu.addItem(disabledLabel("Volume — \(state.volume)%"))
         }
         menu.addItem(actionItem(title: "Volume Up", command: .volumeUp, enabled: hasSpeaker))
+        menu.addItem(alternateItem(title: "Volume Up (+5)", command: .volumeUpLarge, enabled: hasSpeaker))
         menu.addItem(actionItem(title: "Volume Down", command: .volumeDown, enabled: hasSpeaker))
+        menu.addItem(alternateItem(title: "Volume Down (−5)", command: .volumeDownLarge, enabled: hasSpeaker))
         menu.addItem(toggleItem(title: "Mute", isOn: state.isMuted, command: .toggleMute, enabled: hasSpeaker))
         let hasAnySpeaker = !state.groupIDs.isEmpty
         menu.addItem(actionItem(title: "Mute All Speakers", command: .muteAll, enabled: hasAnySpeaker))
@@ -286,6 +288,14 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
         item.target = self
         item.tag = command.rawValue
         item.isEnabled = enabled
+        return item
+    }
+
+    /// Like `actionItem`, but shown only when the user holds Option.
+    private func alternateItem(title: String, command: DockCommand, enabled: Bool) -> NSMenuItem {
+        let item = actionItem(title: title, command: command, enabled: enabled)
+        item.isAlternate = true
+        item.keyEquivalentModifierMask = .option
         return item
     }
 

@@ -125,6 +125,7 @@ extension SonosTrackInfo {
             trackID: id?.objectId ?? "",
             trackURI: id?.objectId ?? "",
             name: name ?? "",
+            artist: artist?.name ?? "",
             album: album?.name ?? "",
             sonosAlbumArtURL: URL(string: imageUrl ?? "")
         )

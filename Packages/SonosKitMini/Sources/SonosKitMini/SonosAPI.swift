@@ -399,38 +399,15 @@ final class SonosAPI {
         }
         return .transitioning
     }
-//
-//    public func playMode(_ IP: String) async -> PlayMode {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0)
-//        ]
-//
-//        guard let (data, _) = try? await sendSoapRequest(ip: IP, action: "GetTransportSettings", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return .normal
-//        }
-//        let xml = String(decoding: data, as: UTF8.self)
-//        return xmlParser.parsePlaybackMode(xml) ?? .normal
-//    }
-//
-//    public func setPlayMode(_ IP: String, playMode: PlayMode) async {
-//        let arguments: OrderedKeys = [
-//            ("InstanceID", 0),
-//            ("NewPlayMode", playMode.sonosMode.uppercased())
-//        ]
-//
-//        guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "SetPlayMode", arguments: arguments, endpoint: "MediaRenderer/AVTransport") else {
-//            return
-//        }
-//
-//        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-//            print("Failed")
-//            return
-//        }
-//
-//        let xml = String(decoding: data, as: UTF8.self)
-//        print(xml)
-//    }
-//
+
+    public func setPlayMode(_ IP: String, playMode: PlayMode) async {
+        let arguments: OrderedKeys = [
+            ("InstanceID", 0),
+            ("NewPlayMode", playMode.sonosMode.uppercased())
+        ]
+        try? await sendSoapRequest(ip: IP, action: "SetPlayMode", arguments: arguments, endpoint: "MediaRenderer/AVTransport")
+    }
+
     func mediaInfo(ipAddress: String) async -> (PlaybackService?, Int?) {
            let arguments: OrderedKeys = [
                ("InstanceID", 0)

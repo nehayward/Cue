@@ -1852,14 +1852,9 @@ public final class SonosMiniService {
     //        group.coordinatorRoom.sleepTimer = nil
     //    }
     //
-    //    @MainActor
-    //    public func playMode(ip: String) async -> PlayMode {
-    //        await api.playMode(ip)
-    //    }
-    //
-    //    public func setPlayMode(_ IP: String, mode: PlayMode) async {
-    //        await api.setPlayMode(IP, playMode: mode)
-    //    }
+    public func setPlayMode(_ ip: String, mode: PlayMode) async {
+        await api.setPlayMode(ip, playMode: mode)
+    }
     //
     //    public func playbackService(ip: String) async -> PlaybackService? {
     //        await api.mediaInfo(ipAddress: ip)
@@ -1973,6 +1968,10 @@ public final class SonosMiniService {
             }
         }
         
+        if let playMode = scene.playMode, playMode != .normal {
+            await setPlayMode(newGroup.ip, mode: playMode)
+        }
+
         await snapShotGroup(ip: newGroup.ip)
     }
     //
