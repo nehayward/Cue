@@ -1,4 +1,4 @@
-#include "Shared.xcconfig"
+#include "Version.xcconfig"
 
 MAC_ENABLED = NO
 BUNDLE_ID = com.nick.Clic

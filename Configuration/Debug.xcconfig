@@ -1,4 +1,4 @@
-#include "Shared.xcconfig"
+#include "Version.xcconfig"
 
 BUNDLE_ID = com.nick.Clic
 //BUNDLE_ID = com.nick.clic.debug
