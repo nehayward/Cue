@@ -90,6 +90,121 @@ for src in "$SOURCE_DIR"/*.jpg "$SOURCE_DIR"/*.jpeg "$SOURCE_DIR"/*.png; do
 	image_count=$((image_count + 1))
 done
 
+# OG share card (1200x630 for Reddit / iMessage / Twitter / Discord previews).
+# Rendered as SVG then converted to PNG via rsvg-convert. Composites up to 3
+# feature phones cascading on the right, version + bullets on the left.
+#
+# HERO_SLUGS = comma-separated slugs, in "front to back" order (first = most
+#              prominent). Falls back to HERO_SLUG, or the first poster.
+# BULLETS    = pipe-separated bullet text.
+HERO_SLUGS="${HERO_SLUGS:-${HERO_SLUG:-}}"
+if [[ -z "$HERO_SLUGS" ]]; then
+	for p in "$OUT_DIR"/*.jpg; do
+		HERO_SLUGS="$(basename "$p" .jpg)"
+		break
+	done
+fi
+BULLETS="${BULLETS:-}"
+
+if [[ -n "$HERO_SLUGS" ]]; then
+	if ! command -v rsvg-convert >/dev/null 2>&1; then
+		echo "  (skipping og card — rsvg-convert not installed; brew install librsvg)"
+	else
+		OG_OUT="$OUT_DIR/og.png"
+		echo "▶ og card: og.png (heroes=$HERO_SLUGS)"
+
+		# Build cascading phone nodes — front phone first in HERO_SLUGS, rendered
+		# last (on top). Each phone sized to 9:19.5 iPhone aspect.
+		IFS=',' read -ra SLUGS <<< "$HERO_SLUGS"
+		PW=148; PH=320; BZ=8
+		BASE_X=624; BASE_Y=155
+		STEP_X=180; STEP_Y=0
+		PHONE_DEFS=""
+		PHONE_NODES=""
+		COUNT=${#SLUGS[@]}
+		(( COUNT > 3 )) && COUNT=3
+		for ((idx = COUNT - 1; idx >= 0; idx--)); do
+			slug="${SLUGS[$idx]}"
+			poster="$OUT_DIR/$slug.jpg"
+			if [[ ! -f "$poster" ]]; then
+				echo "  (warning: $slug.jpg not found, skipping)"
+				continue
+			fi
+			b64=$(base64 < "$poster" | tr -d '\n')
+			pxe=$((BASE_X + STEP_X * idx))
+			pye=$((BASE_Y + STEP_Y * idx))
+			bxe=$((pxe - BZ)); bye=$((pye - BZ))
+			bwe=$((PW + BZ * 2)); bhe=$((PH + BZ * 2))
+			PHONE_DEFS+="<clipPath id=\"sc${idx}\"><rect x=\"$pxe\" y=\"$pye\" width=\"$PW\" height=\"$PH\" rx=\"28\" ry=\"28\"/></clipPath>"
+			PHONE_NODES+="<g>"
+			PHONE_NODES+="<rect x=\"$bxe\" y=\"$bye\" width=\"$bwe\" height=\"$bhe\" rx=\"34\" ry=\"34\" fill=\"#15191e\" stroke=\"rgba(255,255,255,0.16)\" stroke-width=\"1.5\"/>"
+			PHONE_NODES+="<image x=\"$pxe\" y=\"$pye\" width=\"$PW\" height=\"$PH\" xlink:href=\"data:image/jpeg;base64,$b64\" preserveAspectRatio=\"xMidYMid slice\" clip-path=\"url(#sc${idx})\"/>"
+			PHONE_NODES+="<rect x=\"$((bxe + 1))\" y=\"$((bye + 1))\" width=\"$((bwe - 2))\" height=\"$((bhe - 2))\" rx=\"33\" ry=\"33\" fill=\"none\" stroke=\"rgba(255,255,255,0.06)\" stroke-width=\"1\"/>"
+			PHONE_NODES+="</g>"
+		done
+
+		BULLET_SVG=""
+		if [[ -n "$BULLETS" ]]; then
+			IFS='|' read -ra ITEMS <<< "$BULLETS"
+			y=400
+			for item in "${ITEMS[@]}"; do
+				safe=$(printf '%s' "$item" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g')
+				BULLET_SVG+="<g transform=\"translate(95, $y)\"><circle cx=\"0\" cy=\"-9\" r=\"4\" fill=\"#7CDDE8\"/><text x=\"22\" y=\"0\" font-size=\"26\" fill=\"rgba(255,255,255,0.9)\" font-weight=\"500\">${safe}</text></g>"
+				y=$((y + 50))
+			done
+		fi
+
+		SVG_FILE="$OUT_DIR/og.svg"
+		cat > "$SVG_FILE" <<EOF
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="630" viewBox="0 0 1200 630">
+	<defs>
+		<radialGradient id="gTL" cx="0" cy="0" r="700" gradientUnits="userSpaceOnUse">
+			<stop offset="0%" stop-color="#5AADC4" stop-opacity="0.32"/>
+			<stop offset="55%" stop-color="#5AADC4" stop-opacity="0"/>
+		</radialGradient>
+		<radialGradient id="gBR" cx="1200" cy="630" r="720" gradientUnits="userSpaceOnUse">
+			<stop offset="0%" stop-color="#5AADC4" stop-opacity="0.22"/>
+			<stop offset="55%" stop-color="#5AADC4" stop-opacity="0"/>
+		</radialGradient>
+		<radialGradient id="gBL" cx="0" cy="630" r="520" gradientUnits="userSpaceOnUse">
+			<stop offset="0%" stop-color="#285A82" stop-opacity="0.3"/>
+			<stop offset="60%" stop-color="#285A82" stop-opacity="0"/>
+		</radialGradient>
+		<radialGradient id="gTR" cx="1200" cy="0" r="500" gradientUnits="userSpaceOnUse">
+			<stop offset="0%" stop-color="#4899AD" stop-opacity="0.14"/>
+			<stop offset="60%" stop-color="#4899AD" stop-opacity="0"/>
+		</radialGradient>
+		<radialGradient id="gCenter" cx="600" cy="315" r="500" gradientUnits="userSpaceOnUse">
+			<stop offset="0%" stop-color="#000" stop-opacity="0.45"/>
+			<stop offset="75%" stop-color="#000" stop-opacity="0"/>
+		</radialGradient>
+		$PHONE_DEFS
+	</defs>
+
+	<rect width="1200" height="630" fill="#060606"/>
+	<rect width="1200" height="630" fill="url(#gTL)"/>
+	<rect width="1200" height="630" fill="url(#gBR)"/>
+	<rect width="1200" height="630" fill="url(#gBL)"/>
+	<rect width="1200" height="630" fill="url(#gTR)"/>
+	<rect width="1200" height="630" fill="url(#gCenter)"/>
+
+	$PHONE_NODES
+
+	<g font-family="SF Pro Rounded, ui-rounded, -apple-system, system-ui, Helvetica, sans-serif">
+		<text x="90" y="140" font-size="22" letter-spacing="4" font-weight="700" fill="#7CDDE8">WHAT'S NEW</text>
+		<text x="90" y="280" font-size="132" font-weight="700" fill="white">$VERSION</text>
+		$BULLET_SVG
+	</g>
+</svg>
+EOF
+
+		rsvg-convert -w 1200 -h 630 "$SVG_FILE" -o "$OG_OUT"
+		rm -f "$SVG_FILE"
+		size=$(du -h "$OG_OUT" | cut -f1)
+		echo "  → og.png ($size)"
+	fi
+fi
+
 echo
 echo "==> Done. ${video_count} video(s), ${image_count} image(s)."
 echo "    Upload contents of:"

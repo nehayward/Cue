@@ -21,7 +21,6 @@ struct PreferenceScreen: View {
     var destination: RouterDestination? = nil
     
     @State private var router = Router()
-    @State private var showManageSubscriptions = false
     @State private var isShowingMailView = false
     @State private var refreshSonosLibrary = false
     
@@ -67,14 +66,10 @@ struct PreferenceScreen: View {
                     } else {
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
-                            showManageSubscriptions = true
-                            Analytics.shared.track(.viewedManageSubscription)
+                            Analytics.shared.track(.viewedPaywall)
+                            router.presentedFullScreenCover = .paywall
                         } label: {
                             HStack(spacing: 12) {
-                                // Same polished asset used on the Welcome
-                                // splash — keeps the brand mark consistent
-                                // between onboarding and the Preferences
-                                // entry point.
                                 Image("ClicIconGlass")
                                     .resizable()
                                     .scaledToFit()
@@ -88,21 +83,9 @@ struct PreferenceScreen: View {
                                             .font(.subheadline)
                                             .foregroundStyle(Color.accentColor.gradient)
                                     }
-                                    if let info = subscriptionService.subscription.info, let expiration = info.expirationDate {
-                                        if info.willRenew {
-                                            Text("Renews \(Text(expiration, style: .date))")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                        } else {
-                                            Text("Expires \(Text(expiration, style: .date))")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    } else {
-                                        Text("Active subscription")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                    }
+                                    subscriptionStatusLine
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -111,21 +94,6 @@ struct PreferenceScreen: View {
                             }
                         }
                         .tint(.primary)
-
-                        // Inline shimmering "Upgrade to Lifetime" link. Gold
-                        // highlight sweeps across the text on a slow loop so
-                        // it reads as premium without being distracting.
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            Analytics.shared.track(.viewedPaywall)
-                            router.presentedFullScreenCover = .paywall
-                        } label: {
-                            ShimmeringUpgradeText()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .listRowSeparator(.hidden)
                     }
                 } header: {
                     Spacer(minLength: 0).listRowInsets(EdgeInsets())
@@ -819,7 +787,6 @@ struct PreferenceScreen: View {
             }
             .navigationTitle("Preferences")
             .navigationBarTitleDisplayMode(.inline)
-            .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
             .withAppRouter()
             .environment(\.defaultMinListHeaderHeight, 0)
             .addDismiss {
@@ -859,7 +826,36 @@ struct PreferenceScreen: View {
         .presentationSizingiOS18()
         .preferredColorScheme(colorScheme.scheme)
     }
-    
+
+    private var subscriptionStatusLine: Text {
+        let info = subscriptionService.subscription.info
+        let plan = info.flatMap { planName(for: $0.productIdentifier) }
+
+        if plan == "Lifetime" {
+            return Text("Lifetime")
+        }
+        if let info, let expiration = info.expirationDate {
+            let dateText = Text(expiration, style: .date)
+            let verb = info.willRenew ? "Renews" : "Expires"
+            if let plan {
+                return Text("\(plan) · \(verb) \(dateText)")
+            }
+            return Text("\(verb) \(dateText)")
+        }
+        if let plan {
+            return Text(plan)
+        }
+        return Text("Active subscription")
+    }
+
+    private func planName(for productIdentifier: String) -> String? {
+        let id = productIdentifier.lowercased()
+        if id.contains("lifetime") { return "Lifetime" }
+        if id.contains("annual") || id.contains("yearly") { return "Annual" }
+        if id.contains("month") { return "Monthly" }
+        return nil
+    }
+
     var colorSchemeSection: some View {
         Section {
             Label {

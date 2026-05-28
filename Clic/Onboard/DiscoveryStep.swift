@@ -101,6 +101,15 @@ struct DiscoveryStep: View {
             didTrackSuccess = true
             Analytics.shared.track(OnboardingEvent.discoverySucceeded)
 
+            // Kick off the media-server + Sonos event subscription as soon as
+            // we have a topology. Otherwise an X-out before the user reaches
+            // the end of onboarding leaves `groups` populated but no push
+            // channel for transport updates — the main scene-active handler
+            // only fires `onServerListening()` once `hasOnboarded` flips,
+            // which a bail-out never does. Safe to call repeatedly; the
+            // server short-circuits if already listening.
+            sonosService.onServerListening()
+
             // Race hydration against a 200ms deadline before revealing the
             // list — either the model names land first (fast LAN) or we cap
             // the wait so one slow speaker can't hang the onboarding flow.

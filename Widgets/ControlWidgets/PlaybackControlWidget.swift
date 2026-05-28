@@ -43,10 +43,21 @@ struct SetPlaybackIntent: SetValueIntent {
               let group = await SonosService.shared.getGroupCoordinatorWithRoom(roomID: room.id) else {
             return .result()
         }
+        let ip = group.ip
         if value {
-            await SonosService.shared.play(ip: group.ip)
+            await SonosService.shared.play(ip: ip)
         } else {
-            await SonosService.shared.pause(ip: group.ip)
+            await SonosService.shared.pause(ip: ip)
+        }
+        // Wait until the device actually reports the requested state. iOS
+        // re-reads `currentValue` right after this returns, and Sonos can
+        // still report the prior state for a beat after the command lands —
+        // returning early makes the toggle snap back to the wrong side.
+        let target: PlaybackStatus = value ? .playing : .paused
+        for _ in 0..<8 {
+            let status = await SonosService.shared.getPlaybackInfo(ip: ip)
+            if status == target { break }
+            try? await Task.sleep(for: .milliseconds(120))
         }
         return .result()
     }

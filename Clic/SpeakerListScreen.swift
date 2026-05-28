@@ -96,19 +96,38 @@ struct SpeakerListScreen: View {
                     // user almost certainly bailed out of onboarding before
                     // granting Local Network. Offer a clear way back in
                     // instead of an indefinite spinner.
-                    ContentUnavailableView {
-                        Label("Set Up Clic", systemImage: "sparkles")
-                    } description: {
-                        Text("Finish the welcome flow to discover your Sonos speakers.")
-                    } actions: {
+                    VStack(spacing: 20) {
+                        Image("ClicIconGlass")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 96, height: 96)
+                            .shadow(color: .black.opacity(0.45), radius: 18, y: 10)
+                            .shadow(color: Color.accentColor.opacity(0.25), radius: 24)
+                            .accessibilityHidden(true)
+
+                        VStack(spacing: 6) {
+                            Text("Set Up Clic")
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Text("Finish setup to discover your Sonos speakers.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        }
+
                         Button {
                             HapticManager.shared.fireHaptic(.buttonPress)
                             router.presentedFullScreenCover = .onboard
                         } label: {
-                            Text("Open Setup")
+                            Text("Continue Setup")
+                                .font(.body.weight(.semibold))
                         }
                         .foregroundStyle(Color.accentColor.gradient)
+                        .padding(.top, 4)
                     }
+                    .padding(.horizontal, 24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.thinMaterial)
                 }
             }
