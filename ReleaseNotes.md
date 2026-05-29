@@ -2,10 +2,8 @@
 
 –– New Features ––
 - Share Sheet: Completely rebuilt the "Play on Clic" share extension. Share song, album, playlist, or artist links from Apple Music or Spotify on iPhone, iPad, and Mac and queue to any room or group instantly
-- Share Sheet on Mac: Now shows up directly in Apple Music's, Safari's, and Notes' share menus on macOS
 - Artist Sharing: Sharing an artist link offers Play Radio (starts that artist's radio on selected rooms) and Show (jumps to the artist page in Clic)
 - Apple Music Stations: Share any Apple Music station link (including personalized stations) to queue and play it on Sonos
-- View / Open in Clic: Quick actions in the share sheet's menu to jump straight into the album, playlist, or artist page in the main app, or to the room picker
 - Tap the artwork header in the share sheet to open that album/playlist/artist in Clic
 - Mac Dock Menu: Right-click the Clic icon in the Dock for full playback control without opening the app — Now Playing, play/pause, skip, volume, mute, and Repeat / Shuffle / Crossfade
 - Dock Menu: Switch the active speaker or group, favorite the current song, and set a sleep timer (15/30/45 minutes or 1 hour) — all from the Dock
@@ -16,17 +14,11 @@
 - Welcome: Brand-new first-launch onboarding — guided Local Network setup, live speaker discovery with per-speaker haptics, a music services review showing what's ready to play, and an optional newsletter signup
 - Households: Redesigned system switcher shows each household's speakers and an S1/S2 badge, with a clearer "Switch system" hint
 - Newsletter: Sign up for product updates from a new row in Preferences (also available during onboarding)
-- Music Services screen now also shows services authorized in Sonos that Clic doesn't yet support, with a link to request more
-- iHeartRadio and Audible are now recognized as known Sonos services
-- What's New: A new banner in Preferences highlights the latest update, with a dot on the gear icon when there's something you haven't read yet
-- Queue: New "Refresh Queue" action in the More menu to manually re-pull the queue from Sonos
 
 –– Bug Fixes & Improvements ––
-- Fixed Repeat and Shuffle toggles in the Mac Dock menu not reflecting the change after tapping
-- Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Restored Live Activity to its former glory with 5 volume steps
+- Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
-- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available
@@ -40,34 +32,14 @@
 - Plex Search: Playlists now appear in search results when a library filter is active
 - Fixed a rare crash that could occur when adjusting room volume, using filters, or deleting alarms
 - Fixed a long-standing crash that could occur during background speaker updates, especially when groups changed while the app was loading status
-- Play/Pause buttons now respond instantly with optimistic UI updates instead of waiting for the network round-trip
 - Fixed Song Radio and Artist Radio not starting
 - Fixed Clic Mini reordering on playback buffering.
 - Fixed sleeping speakers (like Move and Move 2) not appearing in the room list, which also prevented them from being woken automatically
 - Speaker row now always shows the battery icon with the right level glyph, plus a warmer tint when low or charging — not just when plugged in
 - Sleeping/off speakers now display the sleep icon, status, and a relative "last seen" time on the row
-- Music search defaults to Spotify or Apple Music based on what's authorized in your Sonos
 - Local Network permission is now requested only after you start onboarding, not on first launch
-- Preferences: "Launch" section renamed to "Quick Launch" with clearer descriptions for the Now Playing toggles
 - Speaker Settings list now uses the speaker icon and shows the model name as a subtitle
-- Fixed Sonos discovery failing on Macs / simulators with multiple network interfaces — Clic no longer binds its event listener to an unreachable link-local IP
-- Onboarding: dismissing the welcome flow before connecting to Sonos now re-presents on the next launch instead of leaving the app in an empty state
-- Onboarding: refreshed copy throughout the welcome, discovery, and music services screens for clearer setup at a glance
-- Onboarding: each newly-discovered speaker now gets its own haptic tap in time with the row cascade — feels like speakers are checking in one by one
-- Onboarding: discovered speakers appear immediately instead of after a brief hold
-- Onboarding: Apple Music is no longer enabled by default if it isn't authorized in your Sonos system
-- Onboarding: privacy disclosure moved next to the email field on the newsletter step
-- Player: shows the lowest battery in the group below the speaker name in the title bar
-- Fixed battery indicator not appearing when a Roam or Move is grouped under an AC-powered speaker (Beam, SPA, etc.) — was previously checking only the coordinator's battery
-- Fixed battery percentage going stale for non-coordinator speakers in a group — every room now refreshes on each update cycle
-- Help & FAQ now extends behind the home indicator so the page footer renders at full height
-- Preferences: redesigned the "Upgrade to Lifetime" link with a calmer accent gradient (no shimmer, no arrow)
-- Mac: paywall sheet can now be dismissed with the Escape key
-- Refreshed the Clic Super pitch card with new feature copy and a cleaner layout
 - Queue header now shows the count inline as "Queue (50)"; Up Next reports how many tracks are left instead of the full queue size
-- Queue: More menu items now have icons for faster scanning
-- Fixed "Continue Setup" briefly appearing on first launch after onboarding while speaker discovery was still warming up
-- Help & FAQ: Embedded videos no longer auto-fullscreen on iOS
 - Clic Mini: Redesigned the keyboard-shortcut notification — a cleaner now-playing card with larger artwork, song, and artist, plus a brief skip indicator when you change tracks
 - Clic Mini: Volume and track-skip notifications now appear instantly when you press the shortcut instead of lagging behind
 - Clic Mini: Tap the notification to dismiss it
