@@ -485,15 +485,6 @@ fileprivate struct MoreInfoView: View {
 
             Button {
                 Task {
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
-                }
-            } label: {
-                Label("Refresh Queue", systemImage: "arrow.clockwise")
-            }
-
-            Button {
-                Task {
                     router.presentedSheet = .newPlaylist(group: group)
                 }
             } label: {
@@ -530,7 +521,6 @@ fileprivate struct MoreInfoView: View {
                     .bold()
             }
         }
-        .tint(.primary)
     }
 }
 
