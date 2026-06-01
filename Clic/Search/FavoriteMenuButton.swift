@@ -8,7 +8,8 @@ struct FavoriteMenuButton: View {
     @State private var isFavorite = false
 
     private var service: MusicService { item.content.service }
-    private var trackID: String { item.id }
+    private var contentID: String { item.id }
+    private var contentType: ContentType { item.content.type }
 
     var body: some View {
         Button {
@@ -18,19 +19,33 @@ struct FavoriteMenuButton: View {
             Task {
                 switch service {
                 case .spotify:
-                    if newFavorite {
-                        await MusicSearchService.shared.saveSpotifyTrack(id: trackID)
-                    } else {
-                        await MusicSearchService.shared.deleteSpotifyTrack(id: trackID)
+                    switch contentType {
+                    case .album, .libraryAlbum:
+                        if newFavorite {
+                            await MusicSearchService.shared.saveSpotifyAlbum(id: contentID)
+                        } else {
+                            await MusicSearchService.shared.deleteSpotifyAlbum(id: contentID)
+                        }
+                    default:
+                        if newFavorite {
+                            await MusicSearchService.shared.saveSpotifyTrack(id: contentID)
+                        } else {
+                            await MusicSearchService.shared.deleteSpotifyTrack(id: contentID)
+                        }
                     }
                 case .soundcloud:
                     if newFavorite {
-                        await MusicSearchService.shared.likeSoundCloudTrack(id: trackID)
+                        await MusicSearchService.shared.likeSoundCloudTrack(id: contentID)
                     } else {
-                        await MusicSearchService.shared.unlikeSoundCloudTrack(id: trackID)
+                        await MusicSearchService.shared.unlikeSoundCloudTrack(id: contentID)
                     }
                 case .apple:
-                    try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: trackID, favorite: newFavorite)
+                    switch contentType {
+                    case .album, .libraryAlbum:
+                        try? await AppleMusicAPI.shared.updateAlbumFavoriteStatus(albumId: contentID, favorite: newFavorite)
+                    default:
+                        try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: contentID, favorite: newFavorite)
+                    }
                 default:
                     break
                 }
@@ -47,14 +62,25 @@ struct FavoriteMenuButton: View {
         .task {
             switch service {
             case .spotify:
-                isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: trackID)
+                switch contentType {
+                case .album, .libraryAlbum:
+                    isFavorite = await MusicSearchService.shared.isSpotifyAlbumSaved(id: contentID)
+                default:
+                    isFavorite = await MusicSearchService.shared.isSpotifyTrackSaved(id: contentID)
+                }
             case .soundcloud:
-                isFavorite = await MusicSearchService.shared.isSoundCloudTrackLiked(id: trackID) ?? false
+                isFavorite = await MusicSearchService.shared.isSoundCloudTrackLiked(id: contentID) ?? false
             case .apple:
-                isFavorite = (try? await AppleMusicAPI.shared.isFavorite(songId: trackID)) ?? false
+                switch contentType {
+                case .album, .libraryAlbum:
+                    isFavorite = (try? await AppleMusicAPI.shared.isAlbumFavorite(albumId: contentID)) ?? false
+                default:
+                    isFavorite = (try? await AppleMusicAPI.shared.isFavorite(songId: contentID)) ?? false
+                }
             default:
                 break
             }
         }
     }
+
 }

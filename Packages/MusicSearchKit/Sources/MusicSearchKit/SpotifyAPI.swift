@@ -444,6 +444,54 @@ public final class SpotifyAPI {
         }
     }
 
+    public func saveAlbum(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/albums"
+        components.queryItems = [URLQueryItem(name: "ids", value: id)]
+        guard let url = components.url else { return false }
+        do {
+            let _: EmptyResponse = try await authorizedRequest(url, method: "PUT")
+            return true
+        } catch {
+            logger.error("Failed to save album: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    public func deleteAlbum(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/albums"
+        components.queryItems = [URLQueryItem(name: "ids", value: id)]
+        guard let url = components.url else { return false }
+        do {
+            let _: EmptyResponse = try await authorizedRequest(url, method: "DELETE")
+            return true
+        } catch {
+            logger.error("Failed to delete album: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    public func isAlbumSaved(id: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me/albums/contains"
+        components.queryItems = [URLQueryItem(name: "ids", value: id)]
+        guard let url = components.url else { return false }
+        do {
+            let savedStatus: [Bool] = try await authorizedRequest(url)
+            return savedStatus.first ?? false
+        } catch {
+            logger.error("Failed to check if album is saved: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     enum AuthError: Error {
         case missingToken
         case invalidToken

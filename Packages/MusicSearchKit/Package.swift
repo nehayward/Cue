@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .library(
             name: "MusicSearchKit",
+            type: .dynamic,
             targets: ["MusicSearchKit"]),
     ],
     dependencies: [

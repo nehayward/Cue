@@ -1,3 +1,8 @@
+# 2026.5
+
+–– New Features ––
+- Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
+
 # 2026.4
 
 –– New Features ––

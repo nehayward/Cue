@@ -57,6 +57,37 @@ public final class AppleMusicAPI {
         }
     }
     
+    public func updateAlbumFavoriteStatus(albumId: String, favorite: Bool) async throws {
+        let ratingURL = URL(string: "https://api.music.apple.com/v1/me/ratings/albums/\(albumId)")!
+        var ratingRequest = URLRequest(url: ratingURL)
+        if favorite {
+            ratingRequest.httpMethod = "PUT"
+            let body: [String: Any] = ["attributes": ["value": 1], "type": "ratings"]
+            ratingRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } else {
+            ratingRequest.httpMethod = "DELETE"
+        }
+        if favorite {
+            let libraryURL = URL(string: "https://api.music.apple.com/v1/me/library?ids[albums]=\(albumId)")!
+            var libraryRequest = URLRequest(url: libraryURL)
+            libraryRequest.httpMethod = "POST"
+            _ = try? await MusicDataRequest(urlRequest: libraryRequest).response()
+        }
+        _ = try? await MusicDataRequest(urlRequest: ratingRequest).response()
+    }
+
+    public func isAlbumFavorite(albumId: String) async throws -> Bool {
+        let url = URL(string: "https://api.music.apple.com/v1/me/ratings/albums?ids=\(albumId)")!
+        let request = MusicDataRequest(urlRequest: URLRequest(url: url))
+        guard let response = try? await request.response() else { return false }
+        struct RatingResponse: Codable { let data: [RatingItem] }
+        struct RatingItem: Codable { let id: String }
+        if let ratingResponse = try? decoder.decode(RatingResponse.self, from: response.data) {
+            return !ratingResponse.data.isEmpty
+        }
+        return false
+    }
+
     public func isFavorite(songId: String) async throws -> Bool {
         let catalogId: String
         if songId.hasPrefix("i") {

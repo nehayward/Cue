@@ -139,6 +139,12 @@ struct PlayableMenuView: View {
                 }
             }
         }
+        
+        if [.spotify, .apple].contains(item.content.service),
+           [.album, .libraryAlbum].contains(item.content.type) {
+            FavoriteMenuButton(item: item)
+        }
+        
         OpenInServiceView(item: item)
 
         Button {

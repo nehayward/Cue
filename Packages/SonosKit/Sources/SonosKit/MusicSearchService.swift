@@ -252,6 +252,19 @@ public final class MusicSearchService {
     public func deleteSpotifyTrack(id: String) async -> Bool {
         await spotifySearchAPI.deleteTrack(id: id)
     }
+
+    public func isSpotifyAlbumSaved(id: String) async -> Bool {
+        await spotifySearchAPI.isAlbumSaved(id: id)
+    }
+
+    public func saveSpotifyAlbum(id: String) async -> Bool {
+        await spotifySearchAPI.saveAlbum(id: id)
+    }
+
+    public func deleteSpotifyAlbum(id: String) async -> Bool {
+        await spotifySearchAPI.deleteAlbum(id: id)
+    }
+
     
     public func searchSpotify(query: String) async -> [PlayableContent] {
         var playableContent: [PlayableContent] = []

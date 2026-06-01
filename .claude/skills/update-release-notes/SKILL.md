@@ -11,8 +11,12 @@ description: >-
 
 # Update Release Notes
 
-Adds user-facing entries to `ReleaseNotes.md` at the project root, in the right
-version section and category, matching the established style.
+Adds entries to both `Changelog.md` (technical detail, developer-facing) and
+`ReleaseNotes.md` (user-facing App Store copy) at the project root, in the right
+version section, matching the established style of each file.
+
+`Changelog.md` is the source of truth for what changed and why. `ReleaseNotes.md`
+is distilled from it for end users. Always update both.
 
 ## File structure
 
@@ -48,11 +52,10 @@ the exceptions.
    - When unsure what to include or how to word something, show the user your
      proposed bullets and confirm before writing.
 
-2. **Pick the version section.** Default to the topmost `# YYYY.N` heading. Only
-   start a new version when the user explicitly asks — then add a new
-   `# YYYY.N` heading at the very top (increment the minor number from the
-   previous heading, e.g. `2026.4` → `2026.5`) with a `–– New Features ––`
-   section under it.
+2. **Pick the version section.**
+   - Read `Configuration/Version.xcconfig` and extract the `VERSION_NUMBER` value — that is the current in-development version.
+   - Find the matching `# VERSION_NUMBER` heading in `ReleaseNotes.md` and add entries there. If that heading doesn't exist yet, create it at the very top with a `–– New Features ––` section under it.
+   - Never assume the topmost heading matches the current version — always verify against the config file.
 
 3. **Classify each entry:**
    - **New Features** — a new capability, screen, command, integration, or

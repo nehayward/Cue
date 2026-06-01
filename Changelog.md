@@ -1,0 +1,26 @@
+# Changelog
+
+Developer-facing record of changes per version. More detailed than ReleaseNotes.md — includes the what and why, not just the what. Use this as source material when writing App Store release notes.
+
+---
+
+## 2026.5
+
+### Spotify album saving
+- Added `saveAlbum`, `deleteAlbum`, `isAlbumSaved` to `SpotifyAPI` (`PUT/DELETE/GET /v1/me/albums`)
+- Added `saveSpotifyAlbum`, `deleteSpotifyAlbum`, `isSpotifyAlbumSaved` wrappers to `MusicSearchService`
+- `FavoriteMenuButton` now routes `.album`/`.libraryAlbum` content to album endpoints for Spotify; tracks fall through to the existing track endpoints
+- Works from search results, album detail page (`MediaDetailView` → `PlayableMenuView`), and anywhere else `FavoriteMenuButton` appears
+
+### Apple Music album favoriting
+- Added `updateAlbumFavoriteStatus(albumId:favorite:)` and `isAlbumFavorite(albumId:)` to `AppleMusicAPI`
+- Uses `PUT/DELETE /v1/me/ratings/albums/{id}` (same rating system as songs)
+- Adds album to library first (`POST /v1/me/library?ids[albums]=`) before rating — required for the rating to persist (same pattern as songs)
+- `FavoriteMenuButton` routes `.album`/`.libraryAlbum` for Apple Music to these new methods
+
+### Spotify artist following (removed)
+- Explored `PUT/DELETE /v1/me/following?type=artist` — returns 403 Insufficient client scope
+- App does not request `user-follow-modify` OAuth scope; would require user re-auth to add
+- Feature removed; artist follow button not shown anywhere
+
+---
