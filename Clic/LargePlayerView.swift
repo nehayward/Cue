@@ -295,6 +295,7 @@ struct LargePlayerView: View {
             .background {
                 BackgroundViewCatalyst(group: group, shouldFade: shouldFade)
             }
+            .hardwareVolumeControl(group: group)
             .task(id: coordinatorID) {
                 guard let group = self.group else { return }
                 let awaitedPlayMode = await sonosService.playMode(ip: group.ip)

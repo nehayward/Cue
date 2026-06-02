@@ -19,4 +19,5 @@ public enum AppStorageKeys {
     public static let lastSeenSettingsBadgeVersion = "\(Prefix.id).lastSeenSettingsBadgeVersion"
     public static let latestReleaseVersion = "\(Prefix.id).latestReleaseVersion"
     public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
+    public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
 }

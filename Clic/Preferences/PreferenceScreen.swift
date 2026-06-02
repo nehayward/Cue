@@ -36,6 +36,7 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.lastSeenWhatsNewVersion) private var lastSeenWhatsNewVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
+    @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -409,6 +410,35 @@ struct PreferenceScreen: View {
                 } footer: {
                     Text( "When enabled, tapping a song or album will replace the current queue instead of adding it next. You can still use long-press to access 'Play Next' and 'Play Last' options.")
                 }
+#if os(iOS) && !targetEnvironment(macCatalyst)
+                Section {
+                    Label {
+                        Toggle(isOn: $useHardwareVolumeButtons) {
+                            Text("Use iPhone Volume Buttons")
+                        }
+                        .tint(.accent)
+                    } icon: {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .foregroundStyle(.white)
+                            .bold()
+                            .padding(8)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(colors: [Color(red: 0.95, green: 0.5, blue: 0.3), Color(red: 0.85, green: 0.35, blue: 0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                } header: {
+                    Text("Hardware Volume")
+                        .foregroundStyle(.primary)
+                        .headerProminence(.increased)
+                } footer: {
+                    Text("When enabled, the iPhone's volume buttons control the speaker's volume on the player screen instead of the iPhone's own volume.")
+                }
+#endif
 #if targetEnvironment(macCatalyst)
                 Section {
                     // Open Clic Mini button

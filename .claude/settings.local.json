@@ -13,7 +13,8 @@
       "Bash(xcrun xctrace *)",
       "Read(//tmp/**)",
       "Bash(/Users/nick/.claude/skills/swiftui-trace-analyzer/scripts/analyze-swiftui-trace.py *)",
-      "Bash(swift build *)"
+      "Bash(swift build *)",
+      "Bash(grep -n \"^        \\\\.\\\\|^        }$\\\\|var body\" Clic/LargePlayerView.swift)"
     ],
     "deny": []
   }
