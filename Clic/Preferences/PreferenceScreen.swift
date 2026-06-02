@@ -386,7 +386,12 @@ struct PreferenceScreen: View {
                 Section {
                     Label {
                         Toggle(isOn: $replaceQueueByDefault) {
-                            Text("Replace Queue by Default")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Replace Queue by Default")
+                                Text("Play Now replaces the queue instead of adding to it. Long-press for Play Next and Play Last options.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .tint(.accent)
                     } icon: {
@@ -403,22 +408,19 @@ struct PreferenceScreen: View {
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
-                } header: {
-                    Text("Playback")
-                        .foregroundStyle(.primary)
-                        .headerProminence(.increased)
-                } footer: {
-                    Text( "When enabled, tapping a song or album will replace the current queue instead of adding it next. You can still use long-press to access 'Play Next' and 'Play Last' options.")
-                }
 #if os(iOS) && !targetEnvironment(macCatalyst)
-                Section {
                     Label {
                         Toggle(isOn: $useHardwareVolumeButtons) {
-                            Text("Use iPhone Volume Buttons")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Use iPhone Volume Buttons")
+                                Text("Control selected group volume instead of iPhone volume.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .tint(.accent)
                     } icon: {
-                        Image(systemName: "speaker.wave.2.fill")
+                        Image(systemName: "button.vertical.left.press.fill")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .foregroundStyle(.white)
@@ -431,14 +433,12 @@ struct PreferenceScreen: View {
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
+#endif
                 } header: {
-                    Text("Hardware Volume")
+                    Text("Playback")
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
-                } footer: {
-                    Text("When enabled, the iPhone's volume buttons control the speaker's volume on the player screen instead of the iPhone's own volume.")
                 }
-#endif
 #if targetEnvironment(macCatalyst)
                 Section {
                     // Open Clic Mini button
@@ -610,12 +610,7 @@ struct PreferenceScreen: View {
                     if UIDevice.current.userInterfaceIdiom == .phone {
                         Label {
                             Toggle(isOn: $autoLaunchNowPlaying) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Open to Now Playing on Watch")
-                                    Text("Skip the speaker list on Apple Watch and go straight to what's playing.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text("Apple Watch")
                             }
                             .tint(.accent)
                         } icon: {
@@ -635,12 +630,7 @@ struct PreferenceScreen: View {
                     }
                     Label {
                         Toggle(isOn: $speedLaunchNowPlaying) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Open to Now Playing")
-                                Text("Skip the speaker list and go straight to what's playing.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text("iPhone & iPad")
                         }
                         .tint(.accent)
                     } icon: {
@@ -662,7 +652,7 @@ struct PreferenceScreen: View {
                         .foregroundStyle(.primary)
                         .headerProminence(.increased)
                 } footer: {
-                    Text("Open straight to what's playing instead of the speaker list.")
+                    Text("Opens to Now Playing instead of the room list.")
                 }
 #endif
                 

@@ -2,6 +2,7 @@
 
 –– New Features ––
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
+- Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
 
 # 2026.4
 
