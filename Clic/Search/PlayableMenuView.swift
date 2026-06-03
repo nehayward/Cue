@@ -12,15 +12,18 @@ struct PlayableMenuView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
+    @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
 
     var item: PlayableContent
 
     var body: some View {
         VStack {
-            Button {
-                router.sheet(to: .createScene(content: item))
-            } label: {
-                Label("Create Scene", systemImage: "bolt.fill")
+            if item.content.type != .folder {
+                Button {
+                    router.sheet(to: .createScene(content: item))
+                } label: {
+                    Label("Create Scene", systemImage: "bolt.fill")
+                }
             }
             switch item.content.type {
             case .artistRadio, .songRadio:
@@ -131,7 +134,13 @@ struct PlayableMenuView: View {
                    [.track, .libraryTrack].contains(item.content.type) {
                     FavoriteMenuButton(item: item)
                 }
-            case .radio, .liveRadio, .favorite, .folder, .unique:
+            case .folder:
+                Button {
+                    playFolder()
+                } label: {
+                    Label("Play All Playlists in Folder", systemImage: "play.fill")
+                }
+            case .radio, .liveRadio, .favorite, .unique:
                 Button {
                     play()
                 } label: {
@@ -147,11 +156,13 @@ struct PlayableMenuView: View {
         
         OpenInServiceView(item: item)
 
-        Button {
-            selectedGroupService.group = nil
-            play()
-        } label: {
-            Label("Play in Another Room…", systemImage: "hifispeaker.arrow.forward.fill")
+        if item.content.type != .folder {
+            Button {
+                selectedGroupService.group = nil
+                play()
+            } label: {
+                Label("Play in Another Room…", systemImage: "hifispeaker.arrow.forward.fill")
+            }
         }
         
         if item.content.service == .library, item.content.type == .playlist {
@@ -195,6 +206,25 @@ struct PlayableMenuView: View {
         }
     }
     
+    private func playFolder() {
+        Task { @MainActor in
+            hideKeyboard()
+            let enqueueFolder: ((GroupRoom) async throws -> Void) = { [self] group in
+                guard let browseService = appleMusicBrowseService else { return }
+                let (playlists, _) = await browseService.getPlaylistFolderContents(id: item.id, offset: 0)
+                let items = playlists.enumerated().map { index, playlist in
+                    QueueItem(playableContent: playlist, group: group, position: index == 0 ? .replace : .end, title: "Playing Folder \(item.title)", showBanner: true)
+                }
+                QueueManager.shared.add(items: items)
+            }
+            guard let group = selectedGroupService.group else {
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: enqueueFolder, content: item))
+                return
+            }
+            try await enqueueFolder(group)
+        }
+    }
+
     private func startRadio() {
         Task { @MainActor in
             hideKeyboard()

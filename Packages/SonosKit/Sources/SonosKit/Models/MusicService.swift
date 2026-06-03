@@ -210,6 +210,28 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     }
 }
 
+extension MusicService {
+    public init(from decoder: Decoder) throws {
+        struct Key: CodingKey {
+            var stringValue: String; var intValue: Int? { nil }
+            init(stringValue: String) { self.stringValue = stringValue }
+            init?(intValue: Int) { nil }
+        }
+        let container = try decoder.container(keyedBy: Key.self)
+        switch container.allKeys.first?.stringValue {
+        case "apple":      self = .apple
+        case "spotify":    self = .spotify
+        case "airplay":    self = .airplay
+        case "library":    self = .library
+        case "plex":       self = .plex
+        case "tidal":      self = .tidal
+        case "tuneIn":     self = .tuneIn
+        case "soundcloud": self = .soundcloud
+        default:           self = .unknown
+        }
+    }
+}
+
 #if canImport(UIKit) && !os(watchOS) && !os(visionOS)
 import UIKit
 
