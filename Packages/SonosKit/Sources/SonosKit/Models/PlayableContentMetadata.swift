@@ -19,6 +19,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
     public let isSingle: Bool?
     public let fingerprint: String?
     public let librarySectionID: String?
+    public var userRating: Double?
 
     // Initializer
     public init(
@@ -38,7 +39,8 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         isExplicit: Bool? = false,
         isSingle: Bool? = false,
         fingerprint: String? = nil,
-        librarySectionID: String? = nil
+        librarySectionID: String? = nil,
+        userRating: Double? = nil
     ) {
         self.duration = duration
         self.popularity = popularity
@@ -57,6 +59,7 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         self.isSingle = isSingle
         self.fingerprint = fingerprint
         self.librarySectionID = librarySectionID
+        self.userRating = userRating
     }
 
     // Equatable conformance
@@ -76,7 +79,8 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         lhs.isPlayable == rhs.isPlayable &&
         lhs.isExplicit == rhs.isExplicit &&
         lhs.isSingle == rhs.isSingle &&
-        lhs.fingerprint == rhs.fingerprint
+        lhs.fingerprint == rhs.fingerprint &&
+        lhs.userRating == rhs.userRating
     }
 
     // Hashable conformance
@@ -97,5 +101,6 @@ public struct PlayableContentMetadata: Sendable, Equatable, Codable, Hashable {
         hasher.combine(isExplicit)
         hasher.combine(isSingle)
         hasher.combine(fingerprint)
+        hasher.combine(userRating)
     }
 }

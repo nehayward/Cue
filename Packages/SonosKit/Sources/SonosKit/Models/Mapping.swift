@@ -752,7 +752,8 @@ extension PlexMetadata {
                 artistID: artistID,
                 album: album,
                 albumID: albumID,
-                audioCodec: audioCodec
+                audioCodec: audioCodec,
+                userRating: userRating
             )
         )
     }

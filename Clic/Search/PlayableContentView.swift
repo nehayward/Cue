@@ -15,6 +15,7 @@ struct PlayableContentView: View {
     @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
+    @Environment(PlexRatingCache.self) private var plexRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
     let item: PlayableContent
@@ -104,12 +105,19 @@ struct PlayableContentView: View {
                             .animation(.snappy, value: isCurrentlyPlaying)
                         
                         Spacer(minLength: 0)
-                        
+
+                        if item.content.service == .plex,
+                           (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(MusicService.plex.brandColor)
+                                .font(.caption2)
+                        }
+
                         if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }
                     }
-                    
+
                     Text(subtitleText)
                         .lineLimit(1)
                         .truncationMode(.head)

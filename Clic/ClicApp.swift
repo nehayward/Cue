@@ -35,6 +35,7 @@ struct ClicApp: App {
     private var playlistContainer = PlaylistContainer.shared
     private var playHistoryService = PlayHistoryService.shared
     private var miniPlayerManager = MiniPlayerManger.shared
+    private var plexRatingCache = PlexRatingCache.shared
 
     @CloudStorage(CloudKeys.hasSubscription) private var activeSubscription: Bool = false
     @CloudStorage(CloudKeys.scenes) var scenes: [SonosScene] = []
@@ -88,6 +89,7 @@ struct ClicApp: App {
             .environment(playlistContainer)
             .environment(playHistoryService)
             .environment(miniPlayerManager)
+            .environment(plexRatingCache)
             .onOpenURL(perform: handle)
             .onAppear {
                 guard !AppBootstrapper.shared.didLaunch else { return }

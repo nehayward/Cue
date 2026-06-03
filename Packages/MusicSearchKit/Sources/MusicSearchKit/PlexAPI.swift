@@ -98,6 +98,31 @@ public final class PlexAPI {
         self.serverID = UserDefaults.standard.string(forKey: "com.clic.plexServer")
     }
 
+    public func rateTrack(ratingKey: String, rating: Int) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              var rateURL = getBaseURL(for: plexServer)?.appending(path: ":/rate") else {
+            return false
+        }
+        rateURL.append(queryItems: [
+            URLQueryItem(name: "key", value: ratingKey),
+            URLQueryItem(name: "identifier", value: "com.plexapp.plugins.library"),
+            URLQueryItem(name: "rating", value: "\(rating)")
+        ])
+        var request = URLRequest(url: rateURL)
+        request.httpMethod = "PUT"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    public func getTrackRating(ratingKey: String) async -> Double? {
+        guard let song = await lookupPlexSong(key: ratingKey) else { return nil }
+        return song.metadata?.first?.userRating
+    }
+
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {

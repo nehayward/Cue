@@ -130,8 +130,7 @@ struct PlayableMenuView: View {
                 AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
 
-                if [.spotify, .soundcloud, .apple].contains(item.content.service),
-                   [.track, .libraryTrack].contains(item.content.type) {
+                if [.spotify, .soundcloud, .apple, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
                     FavoriteMenuButton(item: item)
                 }
             case .folder:

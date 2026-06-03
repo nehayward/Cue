@@ -4,6 +4,7 @@
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
 - Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
+- Plex Track Ratings: Rate Plex tracks with a heart from the player or the track menu — the heart fills based on your 1–5 star rating and a badge appears on rated tracks in your library
 
 –– Bug Fixes & Improvements ––
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically

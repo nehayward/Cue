@@ -5,6 +5,7 @@ import SwiftUI
 struct FavoriteMenuButton: View {
     let item: PlayableContent
 
+    @Environment(PlexRatingCache.self) private var plexRatingCache
     @State private var isFavorite = false
 
     private var service: MusicService { item.content.service }
@@ -46,6 +47,10 @@ struct FavoriteMenuButton: View {
                     default:
                         try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: contentID, favorite: newFavorite)
                     }
+                case .plex:
+                    let rating = newFavorite ? 10.0 : 0.0
+                    plexRatingCache.set(rating, for: contentID)
+                    await MusicSearchService.shared.ratePlexTrack(trackID: contentID, rating: Int(rating))
                 default:
                     break
                 }
@@ -77,10 +82,20 @@ struct FavoriteMenuButton: View {
                 default:
                     isFavorite = (try? await AppleMusicAPI.shared.isFavorite(songId: contentID)) ?? false
                 }
+            case .plex:
+                if let cached = plexRatingCache.ratings[contentID] {
+                    isFavorite = cached > 0
+                } else if let existing = item.metadata?.userRating {
+                    plexRatingCache.set(existing, for: contentID)
+                    isFavorite = existing > 0
+                } else {
+                    let fetched = await MusicSearchService.shared.getPlexTrackRating(trackID: contentID) ?? 0
+                    plexRatingCache.set(fetched, for: contentID)
+                    isFavorite = fetched > 0
+                }
             default:
                 break
             }
         }
     }
-
 }

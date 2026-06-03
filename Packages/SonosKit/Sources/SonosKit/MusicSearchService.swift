@@ -1061,6 +1061,23 @@ public final class MusicSearchService {
         let (tracks, _) = await getSoundCloudLikedTracks()
         return tracks.contains { $0.content.id == id }
     }
+
+    public func ratePlexTrack(trackID: String, rating: Int) async -> Bool {
+        guard let ratingKey = plexRatingKey(from: trackID) else { return false }
+        return await PlexAPI.shared.rateTrack(ratingKey: ratingKey, rating: rating)
+    }
+
+    public func getPlexTrackRating(trackID: String) async -> Double? {
+        guard let ratingKey = plexRatingKey(from: trackID) else { return nil }
+        return await PlexAPI.shared.getTrackRating(ratingKey: ratingKey)
+    }
+
+    private func plexRatingKey(from trackID: String) -> String? {
+        let decoded = trackID.removingPercentEncoding ?? trackID
+        // Format: clientID:3:ratingKey
+        guard let separatorRange = decoded.range(of: ":3:") else { return nil }
+        return String(decoded[separatorRange.upperBound...])
+    }
     
     public func getSoundCloudLikedPlaylists(cursor: String? = nil) async -> (playlists: [PlayableContent], nextCursor: String?) {
         guard let response = await soundCloud.getLikedPlaylists(cursor: cursor) else { 
