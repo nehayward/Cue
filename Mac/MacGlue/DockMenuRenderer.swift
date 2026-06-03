@@ -139,39 +139,16 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
     private func populate(_ menu: NSMenu) {
         let hasSpeaker = state.speakerName != nil
 
-        // Room name doubles as the "Switch Speaker" submenu trigger. The
-        // submenu has a disabled "Switch Speaker" header at the top so it's
-        // obvious what the chevron is for.
-        let roomHeader = NSMenuItem(title: state.speakerName ?? "No Speaker Selected", action: nil, keyEquivalent: "")
-        roomHeader.submenu = makeGroupsSubmenu()
-        roomHeader.isEnabled = !state.groupIDs.isEmpty
-        menu.addItem(roomHeader)
-
-        menu.addItem(.separator())
-
-        // Now Playing: disabled label + a single clickable line "title — artist".
-        menu.addItem(disabledLabel("Now Playing"))
-
-        let trackItem = actionItem(title: nowPlayingLine(), command: .openSpeaker, enabled: hasSpeaker)
-        trackItem.indentationLevel = 1
-        menu.addItem(trackItem)
-
-        menu.addItem(.separator())
-
-        // Favorite — the toggle command resolves the current state itself,
-        // so the item label stays a plain verb.
-        menu.addItem(actionItem(title: "Favorite", command: .toggleFavorite, enabled: hasSpeaker && state.favoriteSupported))
-
-        menu.addItem(.separator())
-
-        // Transport
-        menu.addItem(actionItem(title: state.isPlaying ? "Pause" : "Play", command: .playPause, enabled: hasSpeaker))
-        menu.addItem(actionItem(title: "Next", command: .next, enabled: hasSpeaker))
-        menu.addItem(actionItem(title: "Previous", command: .previous, enabled: hasSpeaker))
+        // Sleep Timer submenu
+        let sleepItem = NSMenuItem(title: "Sleep Timer", action: nil, keyEquivalent: "")
+        sleepItem.submenu = makeSleepTimerSubmenu(enabled: hasSpeaker)
+        sleepItem.isEnabled = hasSpeaker
+        menu.addItem(sleepItem)
 
         menu.addItem(.separator())
 
         // Playback modes
+        menu.addItem(disabledLabel("Playback"))
         menu.addItem(toggleItem(title: "Repeat", isOn: state.isRepeatAll, command: .toggleRepeat, enabled: hasSpeaker))
         menu.addItem(toggleItem(title: "Shuffle", isOn: state.isShuffle, command: .toggleShuffle, enabled: hasSpeaker))
         menu.addItem(toggleItem(title: "Crossfade", isOn: state.isCrossfade, command: .toggleCrossfade, enabled: hasSpeaker))
@@ -195,11 +172,31 @@ final class DockMenuRenderer: NSObject, DockMenuRenderable, @unchecked Sendable 
 
         menu.addItem(.separator())
 
-        // Sleep Timer submenu
-        let sleepItem = NSMenuItem(title: "Sleep Timer", action: nil, keyEquivalent: "")
-        sleepItem.submenu = makeSleepTimerSubmenu(enabled: hasSpeaker)
-        sleepItem.isEnabled = hasSpeaker
-        menu.addItem(sleepItem)
+        // Room name doubles as the "Switch Speaker" submenu trigger.
+        let roomHeader = NSMenuItem(title: state.speakerName ?? "No Speaker Selected", action: nil, keyEquivalent: "")
+        roomHeader.submenu = makeGroupsSubmenu()
+        roomHeader.isEnabled = !state.groupIDs.isEmpty
+        menu.addItem(roomHeader)
+
+        menu.addItem(.separator())
+
+        // Now Playing: disabled label, track line, and Favorite grouped together.
+        menu.addItem(disabledLabel("Now Playing"))
+
+        let trackItem = actionItem(title: nowPlayingLine(), command: .openSpeaker, enabled: hasSpeaker)
+        trackItem.indentationLevel = 1
+        menu.addItem(trackItem)
+
+        // Favorite — the toggle command resolves the current state itself,
+        // so the item label stays a plain verb.
+        menu.addItem(actionItem(title: "Favorite", command: .toggleFavorite, enabled: hasSpeaker && state.favoriteSupported))
+
+        menu.addItem(.separator())
+
+        // Transport
+        menu.addItem(actionItem(title: state.isPlaying ? "Pause" : "Play", command: .playPause, enabled: hasSpeaker))
+        menu.addItem(actionItem(title: "Next", command: .next, enabled: hasSpeaker))
+        menu.addItem(actionItem(title: "Previous", command: .previous, enabled: hasSpeaker))
 
         // NB: Catalyst auto-appends "Options" / "Show All Windows" / "Hide" /
         // "Quit". Don't add them ourselves — that's where duplicate-block

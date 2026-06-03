@@ -3,6 +3,7 @@
 –– New Features ––
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
+- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
 
 # 2026.4
 

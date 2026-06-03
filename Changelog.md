@@ -30,4 +30,10 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - App does not request `user-follow-modify` OAuth scope; would require user re-auth to add
 - Feature removed; artist follow button not shown anywhere
 
+### Mac Dock menu reorder
+- `DockMenuRenderer.populate` reordered so the least-used controls are at the top and transport is at the bottom (closest to the Dock icon, where the cursor already is)
+- New order: Sleep Timer → Playback section header (Repeat / Shuffle / Crossfade inline) → Volume → Speaker switcher → Now Playing + Favorite → Transport
+- Repeat / Shuffle / Crossfade previously had no section label; now preceded by a disabled "Playback" header instead of a submenu
+- Favorite moved from its own separator-bounded section into the Now Playing group, directly below the track line
+
 ---
