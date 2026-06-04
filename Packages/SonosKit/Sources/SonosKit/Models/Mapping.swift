@@ -659,6 +659,16 @@ extension PlexAlbum {
 extension PlexAlbumItem {
     public var toPlayable: PlayableContent? {
         guard let id = sonosID, let title else { return nil }
+        if type == "artist" {
+            return PlayableContent(
+                title: title,
+                subtitle: "",
+                thumbnail: thumbImageURL,
+                artwork: thumbImageURL,
+                content: .init(service: .plex, id: id, type: .artist, location: nil),
+                metadata: .init(popularity: nil)
+            )
+        }
         return PlayableContent(
             title: title,
             subtitle: [parentTitle, year?.description].compactMap{ $0 }.joined(separator: " • "),

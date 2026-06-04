@@ -815,30 +815,24 @@ struct ArtistDetailView: View {
         let allTracks = await sonosService.libraryArtist(name: artistName + "/")
         let uniqueTracks = Array(allTracks.uniqued(by: \.title))
 
-        // Match library tracks against Apple Music popular tracks
-        let matchedTracks = await MusicSearchService.shared.matchPopularTracks(
+        let result = await MusicSearchService.shared.matchPopularTracks(
             artistName: artistName,
             librarySongs: uniqueTracks
         )
-
-        // Use matched tracks if available, otherwise fall back to first 10 unique tracks
-        tracks = matchedTracks.isEmpty ? Array(uniqueTracks.prefix(10)) : matchedTracks
+        tracks = result.tracks.isEmpty ? Array(uniqueTracks.prefix(10)) : result.tracks
     }
-    
+
     private func loadLibraryArtistDirect() async {
         artworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: playableContent.title, size: 500)
         albums = await sonosService.libraryLookup(ID: playableContent.id)
         let allTracks = await sonosService.libraryLookup(ID: playableContent.id + "/")
         let uniqueTracks = Array(allTracks.uniqued(by: \.title))
 
-        // Match library tracks against Apple Music popular tracks
-        let matchedTracks = await MusicSearchService.shared.matchPopularTracks(
+        let result = await MusicSearchService.shared.matchPopularTracks(
             artistName: playableContent.title,
             librarySongs: uniqueTracks
         )
-
-        // Use matched tracks if available, otherwise fall back to first 10 unique tracks
-        tracks = matchedTracks.isEmpty ? Array(uniqueTracks.prefix(10)) : matchedTracks
+        tracks = result.tracks.isEmpty ? Array(uniqueTracks.prefix(10)) : result.tracks
         artistContent = playableContent
     }
     
@@ -998,34 +992,42 @@ struct ArtistDetailView: View {
         async let allTask = MusicSearchService.shared.getPlexArtistAllAlbums(
             id: playableContent.content.id
         )
-        
-        let (albumsResult, (liveResult, singlesResult, othersResult)) = await (albumsTask, allTask)
-        
+        async let topTracksTask = MusicSearchService.shared.lookupPlexArtistTopTracks(
+            id: playableContent.content.id,
+            artistName: playableContent.title
+        )
+
+        let (albumsResult, (liveResult, singlesResult, othersResult), topTracksResult) = await (albumsTask, allTask, topTracksTask)
+
         albums = albumsResult
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
-        
+        tracks = topTracksResult
+
         albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
         artistContent = playableContent
     }
     
     private func loadPlexArtistData(id: String, setAlbums: Bool) async {
+        let artistName = playableContent.metadata?.artist ?? playableContent.title
         async let albumsTask = MusicSearchService.shared.lookupPlexArtistAlbums(id: id)
         async let allTask = MusicSearchService.shared.getPlexArtistAllAlbums(id: id)
         async let artistTask = MusicSearchService.shared.lookupPlexArtist(id: id)
-        
-        let (albumsResult, (liveResult, singlesResult, othersResult), artistResult) = await (
-            albumsTask, allTask, artistTask
+        async let topTracksTask = MusicSearchService.shared.lookupPlexArtistTopTracks(id: id, artistName: artistName)
+
+        let (albumsResult, (liveResult, singlesResult, othersResult), artistResult, topTracksResult) = await (
+            albumsTask, allTask, artistTask, topTracksTask
         )
-        
+
         if setAlbums {
             albums = albumsResult
         }
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
-        
+        tracks = topTracksResult
+
         if let artistResult {
             artistContent = artistResult
             artworkURL = playableContent.artwork

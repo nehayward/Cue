@@ -787,6 +787,41 @@ public final class PlexAPI {
         }
     }
 
+    public func lookupArtistTopTracks(key: String, limit: Int = 10) async -> [PlexMetadata] {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken else {
+            return []
+        }
+
+        guard var tracksURL = getBaseURL(for: plexServer)?.appending(path: "library/metadata/\(key)/allLeaves") else {
+            return []
+        }
+        tracksURL.append(queryItems: [
+            URLQueryItem(name: "sort", value: "viewCount:desc"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "0"),
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)")
+        ])
+
+        var request = URLRequest(url: tracksURL)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else { return [] }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexLibraryItem>.self, from: data).mediaContainer
+            return await enrichMetadata(metadata: container.metadata)
+        } catch {
+            #if MUSICSEARCHKIT_VERBOSE_LOGGING
+            print(String(decoding: data, as: UTF8.self))
+            print(error)
+            #endif
+            return []
+        }
+    }
+
     public func lookupArtistAlbums(key: String) async -> PlexLibraryItem? {
         guard let plexServer = await getPlexServer() else {
             return nil
