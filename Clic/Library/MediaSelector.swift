@@ -47,7 +47,7 @@ struct MediaSelector: View {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
             } label: {
-                Label("Setting…", systemImage: "gear")
+                Label("Settings…", systemImage: "gear")
             }
         } label: {
             browseMediaService.iconForMusicService
