@@ -387,16 +387,14 @@ struct ArtistDetailView: View {
         if !allAlbums.isEmpty || isLoading || !albums.isEmpty {
             Section {
                 CollapsibleHeader(
-                    title: supportsAlbumCategories ? nil : "Albums",
-                    isExpanded: $isAlbumsExpanded,
-                    header: {
-                        if supportsAlbumCategories && !allAlbums.isEmpty {
-                            albumCategoryPicker
-                        }
-                    }
+                    title: "Albums",
+                    isExpanded: $isAlbumsExpanded
                 )
-                
                 if isAlbumsExpanded {
+                    if supportsAlbumCategories && !allAlbums.isEmpty {
+                        albumCategoryPicker
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    }
                     ForEach(currentAlbums) { album in
                         PlayableContentView(item: album, hideContentType: true)
                             .listRowBackground(Color.white.opacity(0.001))
