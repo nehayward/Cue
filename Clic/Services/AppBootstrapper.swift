@@ -12,6 +12,7 @@ final class AppBootstrapper {
         UITextField.appearance().clearButtonMode = .whileEditing
         SubscriptionService.shared.initialize(key: CloudKeys.hasSubscription)
         Analytics.shared.configure(token: "343f1efbe07acecdefdcd6f71f351673", userID: SubscriptionService.shared.userID)
+        RemoteFeatureFlags.shared.fetch()
 
         if let musicService = UserDefaults.standard.string(forKey: AppStorageKeys.mediaService) {
             Analytics.shared.setSelection(metadata: ["MusicService": musicService])

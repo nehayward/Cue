@@ -52,7 +52,6 @@ public final class MusicSearchService {
     private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let tuneIn = TuneInAPI()
-    private let lastFM = LastFMAPI()
     private let sonosService = SonosService.shared
 
     private let soundCloud = SoundCloudAPI(
@@ -533,104 +532,6 @@ public final class MusicSearchService {
         return container
     }
 
-    /// Matches library songs against Apple Music's popular tracks for an artist.
-    /// Returns library songs that match popular tracks, ordered by Apple Music popularity.
-    /// - Parameters:
-    ///   - artistName: The artist name to search for on Apple Music
-    ///   - librarySongs: The library songs to match against
-    /// - Returns: Matched library songs ordered by popularity
-    public func matchPopularTracks(
-        artistName: String,
-        librarySongs: [PlayableContent]
-    ) async -> (tracks: [PlayableContent], usedLastFM: Bool) {
-        // Prefer shorter title when two library songs normalize to the same string
-        // (avoids returning a remix when the original is present)
-        let librarySongsByTitle = Dictionary(
-            librarySongs.map { (normalizeTitle($0.title), $0) },
-            uniquingKeysWith: { $0.title.count <= $1.title.count ? $0 : $1 }
-        )
-
-        // Try Last.fm first
-        let lastFMTracks = await lastFM.artistTopTracks(artist: artistName, limit: 50)
-        if !lastFMTracks.isEmpty {
-            var matched: [PlayableContent] = []
-            var matchedIDs: Set<String> = []
-            for lfmTrack in lastFMTracks {
-                let lfmNorm = normalizeTitle(lfmTrack.name)
-                if let song = librarySongsByTitle[lfmNorm], !matchedIDs.contains(song.id) {
-                    matched.append(song)
-                    matchedIDs.insert(song.id)
-                } else {
-                    let lfmWords = lfmNorm.split(separator: " ")
-                    if let song = librarySongs.first(where: {
-                        !matchedIDs.contains($0.id) &&
-                        normalizeTitle($0.title).split(separator: " ").starts(with: lfmWords)
-                    }) {
-                        matched.append(song)
-                        matchedIDs.insert(song.id)
-                    }
-                }
-                if matched.count >= 10 { break }
-            }
-            if !matched.isEmpty { return (matched, true) }
-        }
-
-        // Fall back to Apple Music top songs
-        guard await requestMusicAuthorization() else { return ([], false) }
-        var searchRequest = MusicCatalogSearchRequest(term: artistName, types: [Artist.self])
-        searchRequest.limit = 1
-        guard let searchResponse = try? await searchRequest.response(),
-              let artist = searchResponse.artists.first else { return ([], false) }
-
-        var catalogResource = MusicCatalogResourceRequest<Artist>(matching: \.id, equalTo: artist.id)
-        catalogResource.properties = [.topSongs]
-        guard let response = try? await catalogResource.response(),
-              let artistWithSongs = response.items.first,
-              let topSongs = artistWithSongs.topSongs else { return ([], false) }
-
-        var matchedSongs: [PlayableContent] = []
-        var seenTitles: Set<String> = []
-        for appleSong in topSongs {
-            let norm = normalizeTitle(appleSong.title)
-            if let librarySong = librarySongsByTitle[norm], !seenTitles.contains(norm) {
-                matchedSongs.append(librarySong)
-                seenTitles.insert(norm)
-            }
-        }
-        return (matchedSongs, false)
-    }
-
-    /// Normalizes a song title for matching by stripping suffixes and all punctuation
-    private func normalizeTitle(_ title: String) -> String {
-        var normalized = title.lowercased()
-
-        // Strip all parenthesized/bracketed suffixes and dash suffixes
-        // Handles (2024 Remaster), [Live], (feat. X), - Remastered, etc.
-        let patterns = [
-            "\\s*\\([^)]*\\)",
-            "\\s*\\[[^]]*\\]",
-            "\\s*-\\s*(remaster|live|deluxe|bonus|edit|remix|version|mono|stereo).*$",
-            "\\s+(?:feat\\.?|featuring|ft\\.?)\\s+.+$"
-        ]
-
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let range = NSRange(normalized.startIndex..., in: normalized)
-                normalized = regex.stringByReplacingMatches(in: normalized, range: range, withTemplate: "")
-            }
-        }
-
-        // Strip all punctuation — handles smart quotes, curly apostrophes, etc.
-        normalized = String(normalized.unicodeScalars.filter {
-            CharacterSet.alphanumerics.union(.whitespaces).contains($0)
-        })
-
-        // Collapse whitespace
-        normalized = normalized.split(separator: " ").joined(separator: " ")
-
-        return normalized
-    }
-
     // MARK: Tidal
     public func lookupTidalTrack(with id: String) async -> PlayableContent? {
         guard let song = await tidal.track(with: id) else { return nil }
@@ -749,45 +650,9 @@ public final class MusicSearchService {
         return (liveAlbums, remixesAndSingles, others)
     }
 
-    public func lookupPlexArtistTopTracks(id: String, artistName: String) async -> [PlayableContent] {
+    public func lookupPlexTracks(id: String) async -> [PlayableContent] {
         guard let key = id.removingPercentEncoding?.components(separatedBy: ":").last else { return [] }
-
-        async let lastFMTask = lastFM.artistTopTracks(artist: artistName, limit: 50)
-        async let plexTask = plex.lookupArtistTopTracks(key: key, limit: 150)
-
-        let (lastFMTracks, plexTracks) = await (lastFMTask, plexTask)
-
-        guard !lastFMTracks.isEmpty else {
-            return Array(plexTracks.prefix(10).map(\.toPlayable))
-        }
-
-        let plexByTitle = Dictionary(
-            plexTracks.map { (normalizeTitle($0.title), $0) },
-            uniquingKeysWith: { $0.title.count <= $1.title.count ? $0 : $1 }
-        )
-
-        var matched: [PlayableContent] = []
-        var matchedIDs: Set<String> = []
-        for lfmTrack in lastFMTracks {
-            let lfmNorm = normalizeTitle(lfmTrack.name)
-            // Exact normalized match
-            if let plexTrack = plexByTitle[lfmNorm], !matchedIDs.contains(plexTrack.ratingKey) {
-                matched.append(plexTrack.toPlayable)
-                matchedIDs.insert(plexTrack.ratingKey)
-            } else {
-                // Prefix fallback: Plex title starts with all Last.fm words (catches "Song Title - Single Mix" etc.)
-                let lfmWords = lfmNorm.split(separator: " ")
-                if let plexTrack = plexTracks.first(where: {
-                    !matchedIDs.contains($0.ratingKey) &&
-                    normalizeTitle($0.title).split(separator: " ").starts(with: lfmWords)
-                }) {
-                    matched.append(plexTrack.toPlayable)
-                    matchedIDs.insert(plexTrack.ratingKey)
-                }
-            }
-            if matched.count >= 10 { break }
-        }
-        return matched
+        return await plex.lookupArtistTopTracks(key: key, limit: 150).map(\.toPlayable)
     }
 
     public func lookupPlexArtist(id: String) async -> PlayableContent? {

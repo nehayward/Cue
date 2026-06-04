@@ -15,6 +15,7 @@ struct ArtistDetailView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AlertService.self) private var alertService
+    @Environment(RemoteFeatureFlags.self) private var remoteFlags
     
     let playableContent: PlayableContent
     @State private var tracks: [PlayableContent] = []
@@ -55,7 +56,6 @@ struct ArtistDetailView: View {
             case .all: "All"
             }
         }
-        
         
         static func firstAvailable(
             albums: [PlayableContent],
@@ -815,11 +815,7 @@ struct ArtistDetailView: View {
         let allTracks = await sonosService.libraryArtist(name: artistName + "/")
         let uniqueTracks = Array(allTracks.uniqued(by: \.title))
 
-        let result = await MusicSearchService.shared.matchPopularTracks(
-            artistName: artistName,
-            librarySongs: uniqueTracks
-        )
-        tracks = result.tracks.isEmpty ? Array(uniqueTracks.prefix(10)) : result.tracks
+        tracks = await popularTracks(for: artistName, from: uniqueTracks)
     }
 
     private func loadLibraryArtistDirect() async {
@@ -828,12 +824,17 @@ struct ArtistDetailView: View {
         let allTracks = await sonosService.libraryLookup(ID: playableContent.id + "/")
         let uniqueTracks = Array(allTracks.uniqued(by: \.title))
 
-        let result = await MusicSearchService.shared.matchPopularTracks(
-            artistName: playableContent.title,
-            librarySongs: uniqueTracks
-        )
-        tracks = result.tracks.isEmpty ? Array(uniqueTracks.prefix(10)) : result.tracks
+        tracks = await popularTracks(for: playableContent.title, from: uniqueTracks)
         artistContent = playableContent
+    }
+
+    private func popularTracks(for artistName: String, from songs: [PlayableContent]) async -> [PlayableContent] {
+        if remoteFlags.isEnabled(.lastFM) {
+            let matched = await PopularTracksService.shared.matchLastFM(artistName: artistName, songs: songs)
+            if !matched.isEmpty { return matched }
+        }
+        let matched = await PopularTracksService.shared.matchAppleMusic(artistName: artistName, songs: songs)
+        return matched.isEmpty ? Array(songs.prefix(10)) : matched
     }
     
     // MARK: - Tidal Loading
@@ -992,32 +993,31 @@ struct ArtistDetailView: View {
         async let allTask = MusicSearchService.shared.getPlexArtistAllAlbums(
             id: playableContent.content.id
         )
-        async let topTracksTask = MusicSearchService.shared.lookupPlexArtistTopTracks(
-            id: playableContent.content.id,
-            artistName: playableContent.title
-        )
 
-        let (albumsResult, (liveResult, singlesResult, othersResult), topTracksResult) = await (albumsTask, allTask, topTracksTask)
+        let (albumsResult, (liveResult, singlesResult, othersResult)) = await (albumsTask, allTask)
 
         albums = albumsResult
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
-        tracks = topTracksResult
+
+        if remoteFlags.isEnabled(.lastFM) {
+            let plexTracks = await MusicSearchService.shared.lookupPlexTracks(id: playableContent.content.id)
+            tracks = await PopularTracksService.shared.matchLastFM(artistName: playableContent.title, songs: plexTracks)
+        }
 
         albumType = .firstAvailable(albums: albums, live: liveAlbums, singles: singles, all: allAlbums)
         artistContent = playableContent
     }
-    
+
     private func loadPlexArtistData(id: String, setAlbums: Bool) async {
         let artistName = playableContent.metadata?.artist ?? playableContent.title
         async let albumsTask = MusicSearchService.shared.lookupPlexArtistAlbums(id: id)
         async let allTask = MusicSearchService.shared.getPlexArtistAllAlbums(id: id)
         async let artistTask = MusicSearchService.shared.lookupPlexArtist(id: id)
-        async let topTracksTask = MusicSearchService.shared.lookupPlexArtistTopTracks(id: id, artistName: artistName)
 
-        let (albumsResult, (liveResult, singlesResult, othersResult), artistResult, topTracksResult) = await (
-            albumsTask, allTask, artistTask, topTracksTask
+        let (albumsResult, (liveResult, singlesResult, othersResult), artistResult) = await (
+            albumsTask, allTask, artistTask
         )
 
         if setAlbums {
@@ -1026,7 +1026,11 @@ struct ArtistDetailView: View {
         allAlbums = albumsResult + liveResult + singlesResult + othersResult
         liveAlbums = liveResult
         singles = singlesResult
-        tracks = topTracksResult
+
+        if remoteFlags.isEnabled(.lastFM) {
+            let plexTracks = await MusicSearchService.shared.lookupPlexTracks(id: id)
+            tracks = await PopularTracksService.shared.matchLastFM(artistName: artistName, songs: plexTracks)
+        }
 
         if let artistResult {
             artistContent = artistResult

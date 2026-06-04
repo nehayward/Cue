@@ -482,6 +482,7 @@ extension View {
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)
             .environment(CoreFeatures.shared)
+            .environment(RemoteFeatureFlags.shared)
     }
     
     @ViewBuilder
