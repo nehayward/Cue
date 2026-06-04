@@ -26,9 +26,12 @@
 			<string></string>
 		</array>
 		<key>NSAppIconActionTintColorName</key>
-		<string>Accent</string>
+		<string>ShortcutsForeground</string>
 		<key>NSAppIconComplementingColorNames</key>
-		<string>Accent</string>
+		<array>
+			<string>ShortcutsBackground1</string>
+			<string>ShortcutsBackground2</string>
+		</array>
 	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -41,6 +44,15 @@
 			<array>
 				<string>clic</string>
 			</array>
+		</dict>
+	</array>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Sonos</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>Click</string>
 		</dict>
 	</array>
 	<key>LSApplicationQueriesSchemes</key>

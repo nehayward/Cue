@@ -28,9 +28,12 @@
 				<string></string>
 			</array>
 			<key>NSAppIconActionTintColorName</key>
-			<string>Accent</string>
+			<string>ShortcutsForeground</string>
 			<key>NSAppIconComplementingColorNames</key>
-			<string>Accent</string>
+			<array>
+				<string>ShortcutsBackground1</string>
+				<string>ShortcutsBackground2</string>
+			</array>
 		</dict>
 	</dict>
 	<key>CFBundleURLTypes</key>

@@ -51,6 +51,16 @@ struct ClicAppShortcutProvider: AppShortcutsProvider {
         )
         
         AppShortcut(
+            intent: CreateLiveActivityIntent(),
+            phrases: [
+                "Start live activity in \(.applicationName)",
+                "Start \(\.$room) live activity in \(.applicationName)"
+            ],
+            shortTitle: "Start Live Activity",
+            systemImageName: "plus.capsule.fill"
+        )
+
+        AppShortcut(
             intent: EndAllLiveActivitiesIntent(),
             phrases: [
                 "End all live activities in \(.applicationName)"

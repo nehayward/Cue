@@ -34,6 +34,7 @@ private var body_iOS18: some Widget {
     LaunchAppControlWidget()
     AlarmsControlWidget()
     SceneControlWidget()
+    StartLiveActivityControlWidget()
     EndAllLiveActivityControlWidget()
 //    SceneWidget()
 }

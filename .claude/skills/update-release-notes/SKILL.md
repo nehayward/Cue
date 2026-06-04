@@ -54,7 +54,7 @@ the exceptions.
 
 2. **Pick the version section.**
    - Read `Configuration/Version.xcconfig` and extract the `VERSION_NUMBER` value — that is the current in-development version.
-   - Find the matching `# VERSION_NUMBER` heading in `ReleaseNotes.md` and add entries there. If that heading doesn't exist yet, create it at the very top with a `–– New Features ––` section under it.
+   - Find the matching `# VERSION_NUMBER` heading in `ReleaseNotes.md` and the matching `## VERSION_NUMBER` heading in `Changelog.md`. Add entries to both. If a heading doesn't exist yet, create it at the very top.
    - Never assume the topmost heading matches the current version — always verify against the config file.
 
 3. **Classify each entry:**
@@ -63,13 +63,20 @@ the exceptions.
    - **Bug Fixes & Improvements** — fixes, performance work, and refinements to
      behavior that already existed.
 
-4. **Insert the bullet(s)** at the **end** of the matching subsection, so
-   entries read oldest-to-newest within a release. A subsection runs until the
-   next `––` header or the next `# ` version heading. If the target subsection
-   doesn't exist yet, create it (New Features goes before Bug Fixes &
-   Improvements).
+4. **Update `ReleaseNotes.md`** — insert the bullet(s) at the **end** of the
+   matching subsection, so entries read oldest-to-newest within a release. A
+   subsection runs until the next `––` header or the next `# ` version heading.
+   If the target subsection doesn't exist yet, create it (New Features goes
+   before Bug Fixes & Improvements).
 
-5. **Leave older version sections untouched.**
+5. **Update `Changelog.md`** — add a `### Feature name` section under the
+   current version heading with technical bullet points explaining the what and
+   why (file names, method names, data-flow decisions). Insert it before the
+   `---` separator that closes the version block, or after the last existing
+   `###` section for that version. Match the existing style: backtick for
+   identifiers, dash bullets, concise sentences.
+
+6. **Leave older version sections untouched.**
 
 ## Writing style
 
