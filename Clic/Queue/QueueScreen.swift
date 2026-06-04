@@ -154,7 +154,7 @@ struct QueueScreen: View {
                                 .contentTransition(.symbolEffect(.automatic))
                         }
                         
-                        MoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode)
+                        MoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode, upNextTracks: $upNextTracks)
                     }
                 }
             }
@@ -461,8 +461,11 @@ struct QueueScreen: View {
 fileprivate struct MoreInfoView: View {
     var group: GroupRoom
     var router: Router
+    
     @Binding var editMode: EditMode
     @Binding var queueMode: QueueMode
+    @Binding var upNextTracks: [PlayableContent]
+    
     @State private var clearQueueConfirmation: Bool = false
 
     var body: some View {
@@ -512,9 +515,11 @@ fileprivate struct MoreInfoView: View {
         .help("Info")
         .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
             Button {
+                upNextTracks.removeAll()
+                group.coordinatorRoom.queue.removeAll()
+        
                 Task {
                     try await SonosService.shared.clearQueue(group.coordinatorRoom.ip)
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
                 }
             } label: {
                 Text("Clear Queue")
