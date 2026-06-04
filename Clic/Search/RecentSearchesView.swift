@@ -22,6 +22,7 @@ struct RecentSearchesView: View {
                                 } label: {
                                     Label("Remove", systemImage: "trash")
                                 }
+                                PlayableMenuView(item: item)
                             } label: {
                                 VStack(spacing: 6) {
                                     ContentArtworkView(content: item, preferredSize: 70)
