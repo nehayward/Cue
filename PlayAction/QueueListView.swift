@@ -190,10 +190,6 @@ struct QueueListView: View {
             }
             content = await fetch.value
             deadline.cancel()
-            if let content {
-                print("[QueueListView] thumbnail: \(content.thumbnail?.absoluteString ?? "nil")")
-                print("[QueueListView] artwork:   \(content.artwork?.absoluteString ?? "nil")")
-            }
             if let type = content?.content.type {
                 queuePosition = type.isPlaylist ? .replace : .now
             }
