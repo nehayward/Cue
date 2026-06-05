@@ -1,11 +1,11 @@
-public enum QueuePosition: String, Codable, CaseIterable, Identifiable {
+public enum QueuePosition: Codable, CaseIterable, Identifiable {
     case now
     case next
     case front
     case end
     case replace
     
-    public var id: String { self.rawValue }
+    public var id: String { self.shortTitle }
     
     /// A user-friendly title describing the queue position.
     public var title: String {
