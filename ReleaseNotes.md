@@ -1,6 +1,12 @@
 # 2026.5
 
 –– New Features ––
+- Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
+- Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
+–– Bug Fixes & Improvements ––
+- Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
+
+–– New Features ––
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
 - Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group

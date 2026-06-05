@@ -57,6 +57,23 @@ public struct AppleMusicOpenGraph: Sendable, Equatable {
 public enum AppleMusicOpenGraphAPI {
     public static func lookup(url: URL, session: URLSession = .shared, timeout: TimeInterval? = nil) async -> AppleMusicOpenGraph {
         let og = await OpenGraphScraper.fetch(url: url, session: session, timeout: timeout)
-        return AppleMusicOpenGraph(title: og.title, description: og.description, image: og.image)
+        return AppleMusicOpenGraph(title: og.title, description: og.description, image: squareArtwork(from: og.image))
+    }
+
+    /// Apple's CDN URLs end with `/{w}x{h}{variant}.jpg` — rewrite to `600x600cc.jpg`
+    /// to get a square crop instead of the landscape social-card image.
+    private static func squareArtwork(from url: URL?) -> URL? {
+        guard let url, url.host?.contains("mzstatic.com") == true else { return url }
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        // Replace the last path component (e.g. "1200x630SC.DN01-60.jpg") with square crop
+        var path = components?.path ?? url.path
+        if let slashRange = path.range(of: "/", options: .backwards) {
+            let lastSegment = String(path[slashRange.upperBound...])
+            if lastSegment.contains("x") && lastSegment.hasSuffix(".jpg") {
+                path.replaceSubrange(slashRange.upperBound..., with: "600x600cc.jpg")
+                components?.path = path
+            }
+        }
+        return components?.url ?? url
     }
 }

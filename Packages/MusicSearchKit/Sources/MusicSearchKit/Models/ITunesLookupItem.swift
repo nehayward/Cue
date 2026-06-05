@@ -23,7 +23,7 @@ public struct ITunesLookupItem: Decodable, Sendable, Equatable {
 
     public func artworkURL(size: Int) -> URL? {
         guard let raw = artworkUrl100 else { return nil }
-        let scaled = raw.replacingOccurrences(of: "100x100bb", with: "\(size)x\(size)bb")
+        let scaled = raw.replacingOccurrences(of: "100x100bb", with: "\(size)x\(size)cc")
         return URL(string: scaled)
     }
 

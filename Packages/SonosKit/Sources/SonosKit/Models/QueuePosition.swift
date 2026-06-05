@@ -1,23 +1,57 @@
-public enum QueuePosition: Codable {
+public enum QueuePosition: String, Codable, CaseIterable, Identifiable {
+    case now
+    case next
     case front
     case end
-    case next
-    case now
     case replace
+    
+    public var id: String { self.rawValue }
     
     /// A user-friendly title describing the queue position.
     public var title: String {
         switch self {
         case .front:
-            return "Add to the front of the queue"
+            return "Add to Front"
         case .end:
-            return "Play last"
+            return "Add to End"
         case .next:
-            return "Play next"
+            return "Play Next"
         case .now:
-            return "Play"
+            return "Play Now"
         case .replace:
             return "Replace Queue"
+        }
+    }
+    
+    /// A user-friendly title describing the queue position.
+    public var shortTitle: String {
+        switch self {
+        case .front:
+            return "Front"
+        case .end:
+            return "Last"
+        case .next:
+            return "Next"
+        case .now:
+            return "Now"
+        case .replace:
+            return "Replace"
+        }
+    }
+    
+    /// A user-friendly title describing the queue position.
+    public var symbol: String {
+        switch self {
+        case .front:
+            return "text.insert"
+        case .end:
+            return "text.append"
+        case .next:
+            return "forward.end.fill"
+        case .now:
+            return "play.fill"
+        case .replace:
+            return "text.badge.xmark"
         }
     }
 }

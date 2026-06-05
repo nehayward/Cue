@@ -6,6 +6,27 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.5
 
+### ClicAction extension ("Listen with Clic")
+- New `com.apple.ui-services` Action extension that appears in the Actions row of the share sheet (separate from PlayAction which sits in the Share row)
+- Display name: "Listen with Clic"; bundle ID `$(BUNDLE_ID).ClicAction`
+- Shares `QueueListView.swift`, `ActionViewController.swift`, and `PlayHistoryService.swift` from the PlayAction folder via `PBXFileSystemSynchronizedRootGroup` + exclusion sets — no file duplication
+- Embedded in both Clic iOS and Clic Mac targets
+
+### Share sheet queue position selector
+- `QueuePosition` picker added to the content header (hidden for radio content)
+- Pre-selects `.replace` for playlists, `.now` for everything else when content loads
+- Options: Now / Next / Last / Replace (Front excluded as irrelevant for the share context)
+- Both `performPlay` and `playInGroup` now use the `queuePosition` state instead of hardcoded logic
+
+### Share sheet UI refinements
+- Room subtitle shows current track name if playing, grouped info ("Grouped with Kitchen +2") if in a multi-room group but nothing playing, or "—" if idle and ungrouped
+- Volume button replaced with a capsule `Label("Volume", …)` using small caps so its function is self-evident
+- Content header card uses `.glassEffect(.regular.interactive())` on iOS 26; falls back to `.thinMaterial` on earlier OS
+
+### Apple Music artwork quality fixes
+- `ITunesLookupItem.artworkURL(size:)` now requests `cc` (crop-center) format instead of `bb` (background letterbox) — eliminates white padding on album/playlist artwork throughout the app
+- `AppleMusicOpenGraphAPI` rewrites the landscape `og:image` social-card URL (1200×630) to a square 600×600cc crop from Apple's CDN before storing it in `PlayableContent.artwork` — fixes blurry/cropped artwork in the share sheet for editorial playlists
+
 ### Hardware volume buttons (iOS)
 - `HardwareVolumeService` intercepts hardware button presses via AVAudioSession KVO on `outputVolume`; translates deltas into `setRelativeGroupVolume` calls on the active Sonos group
 - `MPVolumeView` kept in the SwiftUI hierarchy (1×1, alpha 0.0001) to suppress the system volume HUD

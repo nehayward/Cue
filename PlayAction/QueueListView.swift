@@ -4,8 +4,6 @@ import MusicSearchKit
 import VibesDS
 import OSLog
 
-private let log = Logger(subsystem: "com.nick.Clic.QueueAction", category: "queue")
-
 struct QueueListView: View {
     private let sonosService: SonosService = .shared
     private let playHistoryService = PlayHistoryService.shared
@@ -17,6 +15,7 @@ struct QueueListView: View {
     @State private var groupVolume: Double = 0
     @State private var isQueueing = false
     @State private var setVolume = false
+    @State private var queuePosition: QueuePosition = .now
 
     var viewModel: ViewModel
     var context: NSExtensionContext?
@@ -54,6 +53,12 @@ struct QueueListView: View {
         sonosService.sortedRooms.first { $0.id == id }?.track.name ?? ""
     }
 
+    private func liveGroup(for roomID: String) -> GroupRoom? {
+        guard let group = sonosService.groups.first(where: { $0.rooms.contains { $0.id == roomID } }),
+              group.rooms.count > 1 else { return nil }
+        return group
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -68,7 +73,7 @@ struct QueueListView: View {
                         .accessibilityHidden(true)
                 }
         }
-        .tint(.teal)
+        .tint(.primary)
     }
 
     @ToolbarContentBuilder
@@ -121,23 +126,46 @@ struct QueueListView: View {
 
     private var queueContent: some View {
         VStack(spacing: 0) {
-            if let content { contentHeader(content) }
-
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    if self.content != nil {
-                        multiRoomGroupsScroll
-                        Divider()
-                            .padding(.horizontal)
-                        ForEach(sortedRooms) { roomRow($0) }
+            if #available(iOS 26.0, *) {
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        if self.content != nil {
+                            multiRoomGroupsScroll
+                            Divider()
+                                .padding(.horizontal)
+                            ForEach(sortedRooms) { roomRow($0) }
+                        }
                     }
+                    .disabled(isQueueing)
+                    .fontDesign(.rounded)
+                    .onAppear { Task { await refreshRooms() } }
+                    .animation(.default, value: sonosService.sorted)
+                    .animation(.default, value: selections)
+                    .animation(.default, value: groupVolume)
                 }
-                .disabled(isQueueing)
-                .fontDesign(.rounded)
-                .onAppear { Task { await refreshRooms() } }
-                .animation(.default, value: sonosService.sorted)
-                .animation(.default, value: selections)
-                .animation(.default, value: groupVolume)
+                .safeAreaBar(edge: .top) {
+                    if let content { contentHeader(content) }
+                }
+            } else {
+                if let content {
+                    contentHeader(content)
+                }
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        if self.content != nil {
+                            multiRoomGroupsScroll
+                            Divider()
+                                .padding(.horizontal)
+                            ForEach(sortedRooms) { roomRow($0) }
+                        }
+                    }
+                    .disabled(isQueueing)
+                    .fontDesign(.rounded)
+                    .onAppear { Task { await refreshRooms() } }
+                    .animation(.default, value: sonosService.sorted)
+                    .animation(.default, value: selections)
+                    .animation(.default, value: groupVolume)
+                }
             }
         }
         .foregroundStyle(.primary)
@@ -162,38 +190,60 @@ struct QueueListView: View {
             }
             content = await fetch.value
             deadline.cancel()
+            if let content {
+                print("[QueueListView] thumbnail: \(content.thumbnail?.absoluteString ?? "nil")")
+                print("[QueueListView] artwork:   \(content.artwork?.absoluteString ?? "nil")")
+            }
+            if let type = content?.content.type {
+                queuePosition = type.isPlaylist ? .replace : .now
+            }
         }
     }
 
     // MARK: - Sections
 
     private func contentHeader(_ content: PlayableContent) -> some View {
-        Button {
-            dismiss(opening: viewInClicURL)
-        } label: {
-            HStack(alignment: .center, spacing: 14) {
-                VibeContentArtworkView(content: content)
-                    .frame(width: 64, height: 64)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .environment(sonosService)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(content.title).font(.headline).lineLimit(2)
-                    Text(content.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        VStack {
+            Button {
+                dismiss(opening: viewInClicURL)
+            } label: {
+                HStack(alignment: .center, spacing: 14) {
+                    VibeContentArtworkView(content: content)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .environment(sonosService)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(content.title).font(.headline).lineLimit(2)
+                        Text(content.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Image(systemName: "info.circle")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("View in Clic")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "info.circle")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("View in Clic")
+                .padding(8)
+                .background {
+                    if #available(iOS 26.0, *) {
+                        Color.clear
+                    } else {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.thinMaterial)
+                    }
+                }
+                .glassEffectIfAvailable(cornerRadius: 12)
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .padding(8)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.thinMaterial)
+            .buttonStyle(.plain)
+            if !content.content.type.isRadio {
+                Picker("Play", selection: $queuePosition) {
+                    ForEach([QueuePosition.now, .next, .end, .replace]) { position in
+                        Text(position.shortTitle).tag(position)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(.plain)
         .padding(.horizontal)
         .padding(.bottom, 8)
     }
@@ -253,8 +303,15 @@ struct QueueListView: View {
     @ViewBuilder
     private func roomRow(_ room: Room) -> some View {
         let isSelected = selections.contains(room.id)
-        let trackName = currentTrackName(for: room.id)
         let isPlaying = isRoomPlaying(room.id)
+        let group = liveGroup(for: room.id)
+        let trackName = currentTrackName(for: room.id)
+        let subtitle: String = {
+            if !trackName.isEmpty { return trackName }
+            guard let g = group else { return "—" }
+            let extra = g.rooms.count - 1
+            return "Grouped with \(g.coordinatorRoom.name)\(extra > 1 ? " +\(extra - 1)" : "")"
+        }()
 
         Button {
             impactFeedbackGenerator.impactOccurred()
@@ -263,7 +320,7 @@ struct QueueListView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(room.name).fontWeight(.semibold)
-                    Text(trackName)
+                    Text(subtitle)
                         .font(.caption)
                         .lineLimit(1, reservesSpace: true)
                         .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
@@ -289,20 +346,24 @@ struct QueueListView: View {
 
     @ViewBuilder
     private var bottomBar: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             VStack {
                 Button {
                     withAnimation(.interactiveSpring) {
                         setVolume.toggle()
                     }
                 } label: {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .bold()
+                    Label("Volume", systemImage: "speaker.wave.2.fill")
+                        .font(.caption.smallCaps())
                 }
                 .geometryGroup()
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(.primary.opacity(0.8))
+                .colorScheme(.light)
+                
                 playButtons
+                    .tint(.teal)
             }
             if setVolume {
                 volumeRow
@@ -310,13 +371,12 @@ struct QueueListView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, 12)
+        .padding(.top, 8)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 24)
                 .fill(.ultraThinMaterial)
                 .ignoresSafeArea(edges: .bottom)
         }
-        .shadow(radius: 24, y: -4)
     }
 
     private var volumeRow: some View {
@@ -514,8 +574,7 @@ struct QueueListView: View {
             playHistoryService.history.remove(content)
             playHistoryService.history.insert(content, at: 0)
 
-            let position: QueuePosition = content.content.type.isPlaylist ? .replace : .now
-            try await sonosService.queue(playable: content, group: group, position: position)
+            try await sonosService.queue(playable: content, group: group, position: queuePosition)
             await sonosService.play(ip: group.ip)
 
             dismiss(opening: URL(string: "clic://device?id=\(group.coordinatorID)"))
@@ -536,8 +595,7 @@ struct QueueListView: View {
             playHistoryService.history.remove(contentToPlay)
             playHistoryService.history.insert(contentToPlay, at: 0)
 
-            let position: QueuePosition = contentToPlay.content.type.isPlaylist ? .replace : .now
-            try await sonosService.queue(playable: contentToPlay, group: newGroup, position: position)
+            try await sonosService.queue(playable: contentToPlay, group: newGroup, position: queuePosition)
             await sonosService.play(ip: newGroup.ip)
 
             if setVolume {
@@ -574,8 +632,6 @@ struct QueueListView: View {
 
     private func fetchContent(from url: URL?) async -> PlayableContent? {
         guard let url else { return nil }
-        log.notice("fetchContent: \(url.absoluteString, privacy: .public)")
-
         if url.host?.contains("music.apple.com") == true,
            let result = await lookupAppleMusic(url: url) {
             return result
@@ -624,7 +680,6 @@ struct QueueListView: View {
         let media = MediaContent(service: .apple, id: lookupID, type: contentType, location: url)
 
         if let item = await Self.appleMusicAPI.lookup(id: lookupID, preferredWrapperType: preferredWrapper) {
-            log.notice("iTunes wrapperType=\(item.wrapperType ?? "nil", privacy: .public) title=\(item.displayTitle, privacy: .public) subtitle=\(item.displaySubtitle, privacy: .public)")
             return PlayableContent(
                 title: item.displayTitle,
                 subtitle: item.displaySubtitle,
@@ -636,7 +691,6 @@ struct QueueListView: View {
 
         // Fallback: scrape music.apple.com for og:* tags. Covers editorial playlists
         // (`pl.u-...` IDs) and other content the iTunes Lookup API doesn't surface.
-        log.notice("iTunes lookup empty for \(lookupID, privacy: .public); falling back to og scrape")
         let og = await AppleMusicOpenGraphAPI.lookup(url: url, session: Self.lookupSession, timeout: Self.lookupTimeout)
 
         // Personalized stations (`ra.u-*`) often have no scrapeable og:* tags,
@@ -658,7 +712,6 @@ struct QueueListView: View {
         case .radio: subtitle = "Station"
         default: subtitle = og.resolvedAuthor ?? ""
         }
-        log.notice("AppleMusic og.title=\(og.title ?? "nil", privacy: .public) og.description=\(og.description ?? "nil", privacy: .public) resolvedTitle=\(og.resolvedTitle ?? "nil", privacy: .public) resolvedSubtitle=\(subtitle, privacy: .public)")
 
         return PlayableContent(
             title: og.resolvedTitle ?? og.title ?? slugTitle ?? "",
@@ -681,7 +734,7 @@ struct QueueListView: View {
       
         return PlayableContent(
             title: og.title ?? "",
-            subtitle: og.description ?? "",
+            subtitle: og.description?.capitalized ?? "",
             thumbnail: og.image,
             artwork: og.image,
             content: MediaContent(service: .spotify, id: id, type: contentType, location: normalized)
@@ -716,6 +769,19 @@ struct QueueListView: View {
     }
 }
 
+// MARK: - View helpers
+
+private extension View {
+    @ViewBuilder
+    func glassEffectIfAvailable(cornerRadius: CGFloat) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius, style: .continuous))
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - PlayableContent helpers
 
 private extension PlayableContent {
@@ -744,6 +810,59 @@ private extension PlayableContent {
     }
     .task {
         try? await SonosService.shared.load(useCache: true)
-        viewModel.url = URL(string: "https://music.apple.com/us/playlist/a-list-pop/pl.5ee8333dbe944d9f9151e97d92d1ead9")
+        viewModel.url = URL(string: "https://music.apple.com/us/playlist/todays-hits/pl.f4d106fed2bd41149aaacabb233eb5eb")
+    }
+}
+
+
+#Preview("Radio") {
+    @Previewable var viewModel = QueueListView.ViewModel()
+    
+    QueueListView(viewModel: viewModel, context: nil) { url in
+        print(url)
+    }
+    .task {
+        try? await SonosService.shared.load(useCache: true)
+        viewModel.url = URL(string: "https://music.apple.com/us/station/elton-john-similar-artists-station/ra.54657")
+    }
+}
+
+
+
+#Preview("Song") {
+    @Previewable var viewModel = QueueListView.ViewModel()
+    
+    QueueListView(viewModel: viewModel, context: nil) { url in
+        print(url)
+    }
+    .task {
+        try? await SonosService.shared.load(useCache: true)
+        viewModel.url = URL(string: "https://open.spotify.com/track/25jgQBxuUkGDdCG1WGKKN9?si=11d390b443bc42db")
+    }
+}
+
+#Preview("Album") {
+    @Previewable var viewModel = QueueListView.ViewModel()
+    
+    QueueListView(viewModel: viewModel, context: nil) { url in
+        print(url)
+    }
+    .task {
+        try? await SonosService.shared.load(useCache: true)
+        viewModel.url = URL(string: "https://open.spotify.com/album/6NC5rf0j1JcmXhKNlZqWkr?si=4WM1auarTf65ihxF-7UcJw")
+    }
+}
+
+
+
+#Preview("Album") {
+    @Previewable var viewModel = QueueListView.ViewModel()
+    
+    QueueListView(viewModel: viewModel, context: nil) { url in
+        print(url)
+    }
+    .task {
+        try? await SonosService.shared.load(useCache: true)
+        viewModel.url = URL(string: "https://open.spotify.com/album/6NC5rf0j1JcmXhKNlZqWkr?si=4WM1auarTf65ihxF-7UcJw")
     }
 }

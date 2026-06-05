@@ -39,6 +39,15 @@
 		01F0AD6F2D238DDB00885D20 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 01F0AD6E2D238DDB00885D20 /* KeyboardShortcuts */; };
 		01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		01FA14672FC546A800B95FA3 /* NewsletterKit in Frameworks */ = {isa = PBXBuildFile; productRef = 01FA14662FC546A800B95FA3 /* NewsletterKit */; };
+		AA00CA0B0000000000000001 /* ClicAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA00CA020000000000000001 /* ClicAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA00CA0C0000000000000001 /* ClicAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA00CA020000000000000001 /* ClicAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA00CA170000000000000001 /* SonosKit in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA110000000000000001 /* SonosKit */; };
+		AA00CA180000000000000001 /* VibesDS in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA120000000000000001 /* VibesDS */; };
+		AA00CA190000000000000001 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA130000000000000001 /* CloudStorage */; };
+		AA00CA1A0000000000000001 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA140000000000000001 /* NukeUI */; };
+		AA00CA1B0000000000000001 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA150000000000000001 /* Defaults */; };
+		AA00CA1C0000000000000001 /* OrderedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = AA00CA160000000000000001 /* OrderedCollections */; };
+		AA00CA1D0000000000000001 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */; };
 		E90F315E2BC4829500884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315D2BC4829500884EA5 /* Analytics */; };
 		E90F31602BC48ADD00884EA5 /* Analytics in Frameworks */ = {isa = PBXBuildFile; productRef = E90F315F2BC48ADD00884EA5 /* Analytics */; };
 		E91976DD2C0A1B1E000FA449 /* CloudStorage in Frameworks */ = {isa = PBXBuildFile; productRef = E91976DC2C0A1B1E000FA449 /* CloudStorage */; };
@@ -117,6 +126,20 @@
 			remoteGlobalIDString = 01F0B0AA2D286EC000885D20;
 			remoteInfo = MacGlue;
 		};
+		AA00CA0D0000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00CA010000000000000001;
+			remoteInfo = ClicAction;
+		};
+		AA00CA0E0000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA00CA010000000000000001;
+			remoteInfo = ClicAction;
+		};
 		E9249A662C0A6CCB00D8B920 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = E9BDE56429E3396700D230A8 /* Project object */;
@@ -190,6 +213,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				01F0B0BB2D28742200885D20 /* MacGlue.bundle in Embed Foundation Extensions */,
+				AA00CA0C0000000000000001 /* ClicAction.appex in Embed Foundation Extensions */,
 				E9D637772CEBF06D00434339 /* QueueAction.appex in Embed Foundation Extensions */,
 				E975633C2B699B2400787E14 /* Widgets.appex in Embed Foundation Extensions */,
 			);
@@ -202,6 +226,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				AA00CA0B0000000000000001 /* ClicAction.appex in Embed Foundation Extensions */,
 				E9249A652C0A6CCB00D8B920 /* QueueAction.appex in Embed Foundation Extensions */,
 				E97C0D542A325CC6005AB0E0 /* Widgets.appex in Embed Foundation Extensions */,
 			);
@@ -247,6 +272,7 @@
 		01CB341C2DC4F851006406B6 /* Clic TV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Clic TV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		01E41E572D15EEB500E89679 /* Defaults.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Defaults.xcframework; path = Packages/Defaults/Defaults.xcframework; sourceTree = "<group>"; };
 		01F0B0AB2D286EC000885D20 /* MacGlue.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MacGlue.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00CA020000000000000001 /* ClicAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ClicAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92B3EFB2B60249B00724FA1 /* Clic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E92E472D2B36086B00DE6647 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		E92E47432B360C5C00DE6647 /* QueueAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QueueAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -262,6 +288,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PlayHistoryService.swift,
+			);
+			target = AA00CA010000000000000001 /* ClicAction */;
+		};
 		01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -312,6 +345,7 @@
 		01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				ActionViewController.swift,
 				QueueListView.swift,
 			);
 			target = E9BDE56B29E3396700D230A8 /* Clic */;
@@ -322,6 +356,20 @@
 				SplitView.swift,
 			);
 			target = E92B3E862B60249B00724FA1 /* Clic (Vision) */;
+		};
+		AA00CA1E0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA00CA010000000000000001 /* ClicAction */;
+		};
+		AA00CA1F0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA00CA010000000000000001 /* ClicAction */;
 		};
 		E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -594,11 +642,12 @@
 		010855CA2D15FB9F00DD9B84 /* Packages */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Packages; sourceTree = "<group>"; };
 		01C129702D0CB4E9009F9E90 /* ClicMini */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01E41E302D15DFB200E89679 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicMini; sourceTree = "<group>"; };
 		01CB341F2DC4FA46006406B6 /* TV */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01CB34222DC4FAE3006406B6 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TV; sourceTree = "<group>"; };
-		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CD92E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDA2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDB2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDC2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
+		AA00CA0A0000000000000001 /* ClicAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (AA00CA1E0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = ClicAction; sourceTree = "<group>"; };
+		E91B7FBA2CEBC162004C279D /* Clic */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B811A2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CD92E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811B2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01B9C56F2E73C13C00CDE053 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B811C2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDA2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811D2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDB2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, 01B10FDB2E43F1B300CDA80A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01676CDC2E8B862A000AC9C0 /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, E91B811E2CEBC162004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 012CCD362FD3338900A07E7D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Clic; sourceTree = "<group>"; };
 		E91B813B2CEBC171004C279D /* Watch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816D2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Watch; sourceTree = "<group>"; };
 		E91B815B2CEBC171004C279D /* Mac */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E9D6375B2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E9D6375C2CEBEBA300434339 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01FF08422D11F3B90078CD62 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 01F0B0C42D2876EE00885D20 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Mac; sourceTree = "<group>"; };
 		E91B81632CEBC171004C279D /* WatchWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B816B2CEBC171004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = WatchWidgets; sourceTree = "<group>"; };
-		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
+		E91B81742CEBC222004C279D /* PlayAction */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (01F2A5D62FAE525700C98AF9 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B81792CEBC222004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, AA00CA1F0000000000000001 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PlayAction; sourceTree = "<group>"; };
 		E91B829A2CEBC291004C279D /* Widgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83292CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832A2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832B2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832C2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E91B832D2CEBC291004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Widgets; sourceTree = "<group>"; };
 		E91B83322CEBC298004C279D /* Configuration */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E91B83342CEBC299004C279D /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Configuration; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -635,6 +684,20 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00CA080000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA00CA1B0000000000000001 /* Defaults in Frameworks */,
+				AA00CA1A0000000000000001 /* NukeUI in Frameworks */,
+				AA00CA190000000000000001 /* CloudStorage in Frameworks */,
+				AA00CA180000000000000001 /* VibesDS in Frameworks */,
+				AA00CA170000000000000001 /* SonosKit in Frameworks */,
+				AA00CA1C0000000000000001 /* OrderedCollections in Frameworks */,
+				AA00CA1D0000000000000001 /* UniformTypeIdentifiers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -771,6 +834,7 @@
 				E91B829A2CEBC291004C279D /* Widgets */,
 				E91B81632CEBC171004C279D /* WatchWidgets */,
 				E91B81742CEBC222004C279D /* PlayAction */,
+				AA00CA0A0000000000000001 /* ClicAction */,
 				01C129702D0CB4E9009F9E90 /* ClicMini */,
 				E9BDE56D29E3396700D230A8 /* Products */,
 				E9BDE57E29E33B0700D230A8 /* Frameworks */,
@@ -785,6 +849,7 @@
 				E9C03AFC2A586F5E00FB9118 /* Clic Watch.app */,
 				E9B12B532A5F31790008868C /* Widgets Watch.appex */,
 				E92E47432B360C5C00DE6647 /* QueueAction.appex */,
+				AA00CA020000000000000001 /* ClicAction.appex */,
 				E92B3EFB2B60249B00724FA1 /* Clic.app */,
 				E97563432B699B2400787E14 /* Clic.app */,
 				01C1296F2D0CB4E9009F9E90 /* Clic Mini.app */,
@@ -881,6 +946,35 @@
 			productReference = 01F0B0AB2D286EC000885D20 /* MacGlue.bundle */;
 			productType = "com.apple.product-type.bundle";
 		};
+		AA00CA010000000000000001 /* ClicAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00CA030000000000000001 /* Build configuration list for PBXNativeTarget "ClicAction" */;
+			buildPhases = (
+				AA00CA070000000000000001 /* Sources */,
+				AA00CA080000000000000001 /* Frameworks */,
+				AA00CA090000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA00CA0A0000000000000001 /* ClicAction */,
+				E91B81742CEBC222004C279D /* PlayAction */,
+			);
+			name = ClicAction;
+			packageProductDependencies = (
+				AA00CA110000000000000001 /* SonosKit */,
+				AA00CA120000000000000001 /* VibesDS */,
+				AA00CA130000000000000001 /* CloudStorage */,
+				AA00CA140000000000000001 /* NukeUI */,
+				AA00CA150000000000000001 /* Defaults */,
+				AA00CA160000000000000001 /* OrderedCollections */,
+			);
+			productName = ClicAction;
+			productReference = AA00CA020000000000000001 /* ClicAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E92B3E862B60249B00724FA1 /* Clic (Vision) */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Clic (Vision)" */;
@@ -962,6 +1056,7 @@
 				E97562C92B699B2400787E14 /* PBXTargetDependency */,
 				E9D637792CEBF06D00434339 /* PBXTargetDependency */,
 				01F0B0BD2D28742200885D20 /* PBXTargetDependency */,
+				AA00CA100000000000000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
@@ -1055,6 +1150,7 @@
 				E97C0D532A325CC6005AB0E0 /* PBXTargetDependency */,
 				E9C03B082A586F6100FB9118 /* PBXTargetDependency */,
 				E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */,
+				AA00CA0F0000000000000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E91B7FBA2CEBC162004C279D /* Clic */,
@@ -1126,6 +1222,9 @@
 					01F0B0AA2D286EC000885D20 = {
 						CreatedOnToolsVersion = 16.2;
 					};
+					AA00CA010000000000000001 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					E92E47422B360C5C00DE6647 = {
 						CreatedOnToolsVersion = 15.1;
 					};
@@ -1177,6 +1276,7 @@
 				E92B3E862B60249B00724FA1 /* Clic (Vision) */,
 				01CB33E92DC4F851006406B6 /* Clic (TV) */,
 				E92E47422B360C5C00DE6647 /* QueueAction */,
+				AA00CA010000000000000001 /* ClicAction */,
 				01C1296E2D0CB4E9009F9E90 /* Clic Mini */,
 				01F0B0AA2D286EC000885D20 /* MacGlue */,
 			);
@@ -1200,6 +1300,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		01F0B0A92D286EC000885D20 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA00CA090000000000000001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1282,6 +1389,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA00CA070000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E92B3E9C2B60249B00724FA1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1345,6 +1459,16 @@
 			platformFilter = maccatalyst;
 			target = 01F0B0AA2D286EC000885D20 /* MacGlue */;
 			targetProxy = 01F0B0BC2D28742200885D20 /* PBXContainerItemProxy */;
+		};
+		AA00CA0F0000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00CA010000000000000001 /* ClicAction */;
+			targetProxy = AA00CA0D0000000000000001 /* PBXContainerItemProxy */;
+		};
+		AA00CA100000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00CA010000000000000001 /* ClicAction */;
+			targetProxy = AA00CA0E0000000000000001 /* PBXContainerItemProxy */;
 		};
 		E9249A672C0A6CCB00D8B920 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1748,6 +1872,124 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				WRAPPER_EXTENSION = bundle;
+			};
+			name = Release;
+		};
+		AA00CA040000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ClicAction/ClicAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClicAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).ClicAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA00CA050000000000000001 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Beta.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ClicAction/ClicAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClicAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).ClicAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
+		AA00CA060000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = E91B83322CEBC298004C279D /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ClicAction/ClicAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Z9QV6PA2TY;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClicAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Listen with Clic";
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Our app uses Music for search and playback on Sonos device.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID).ClicAction";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = NO;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -2996,6 +3238,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		AA00CA030000000000000001 /* Build configuration list for PBXNativeTarget "ClicAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00CA040000000000000001 /* Debug */,
+				AA00CA050000000000000001 /* Beta */,
+				AA00CA060000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E92B3EF72B60249B00724FA1 /* Build configuration list for PBXNativeTarget "Clic (Vision)" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -3376,6 +3628,33 @@
 		01FA14662FC546A800B95FA3 /* NewsletterKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = NewsletterKit;
+		};
+		AA00CA110000000000000001 /* SonosKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SonosKit;
+		};
+		AA00CA120000000000000001 /* VibesDS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VibesDS;
+		};
+		AA00CA130000000000000001 /* CloudStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E959B9162AB50684000D596E /* XCRemoteSwiftPackageReference "CloudStorage" */;
+			productName = CloudStorage;
+		};
+		AA00CA140000000000000001 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9F600C02B4E5E470039AAA6 /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
+		};
+		AA00CA150000000000000001 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Defaults;
+		};
+		AA00CA160000000000000001 /* OrderedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E9FFC2992ACDCC490001B26F /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = OrderedCollections;
 		};
 		E90F315D2BC4829500884EA5 /* Analytics */ = {
 			isa = XCSwiftPackageProductDependency;

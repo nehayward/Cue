@@ -83,6 +83,7 @@ public struct VibeContentArtworkView: View {
             .frame(width: overlaySize, height: overlaySize, alignment: .bottomTrailing)
             .shadow(radius: 2)
             .padding(4)
+            .foregroundStyle(.white)
     }
     
     // MARK: - Calculate Overlay Size
