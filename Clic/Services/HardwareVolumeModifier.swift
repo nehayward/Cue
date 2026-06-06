@@ -23,10 +23,12 @@ private struct HardwareVolumeControlModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(
-                VolumeViewRepresentable(view: volumeView)
-                    .frame(width: 1, height: 1)
-            )
+            .background {
+                if enabled {
+                    VolumeViewRepresentable(view: volumeView)
+                        .frame(width: 1, height: 1)
+                }
+            }
             .task(id: enabled ? group.coordinatorID : nil) {
                 if enabled {
                     HardwareVolumeService.shared.start(
