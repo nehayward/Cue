@@ -167,6 +167,15 @@ struct SearchScreen: View {
                         }
                         .frame(idealWidth: 800)
                         .toolbarBackground(with: true, in: .capsule)
+                        #if targetEnvironment(macCatalyst)
+                        .overlay {
+                            Capsule()
+                                .strokeBorder(
+                                    focusedField == .search ? Color.accentColor : Color.clear,
+                                    lineWidth: 2
+                                )
+                        }
+                        #endif
                     }
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
