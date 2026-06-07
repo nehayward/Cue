@@ -58,6 +58,10 @@ public final class Room: Identifiable, @unchecked Sendable {
         }
         return false
     }
+
+    public var isArcUltra: Bool {
+        info?.modelDisplayName.lowercased().hasSuffix("arc ultra") ?? false
+    }
     
     public var supportsLineIn: Bool {
         guard let info else { return false }

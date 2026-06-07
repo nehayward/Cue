@@ -286,13 +286,30 @@ public final class SonosMiniService {
                 changed = true
             }
             
-            if let nightMode = renderingControl.nightMode,
-               let dialogLevel = renderingControl.dialogLevel {
-                let newSettings = SonosTVSettings(
-                    nightMode: nightMode,
-                    dialogLevel: dialogLevel == 1,
-                    audioInputFormat: nil
-                )
+            if let nightMode = renderingControl.nightMode {
+                let isArcUltra = device.isArcUltra
+                let newSettings: SonosTVSettings
+                if isArcUltra {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: false,
+                        speechEnhanceEnabled: renderingControl.speechEnhanceEnabled,
+                        dialogLevelValue: renderingControl.dialogLevel ?? device.TVSettings?.dialogLevelValue ?? 1,
+                        audioInputFormat: nil
+                    )
+                } else if let dialogLevel = renderingControl.dialogLevel {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: dialogLevel == 1,
+                        audioInputFormat: nil
+                    )
+                } else {
+                    newSettings = SonosTVSettings(
+                        nightMode: nightMode,
+                        dialogLevel: device.TVSettings?.dialogLevel ?? false,
+                        audioInputFormat: nil
+                    )
+                }
                 if device.TVSettings != newSettings {
                     device.TVSettings = newSettings
                     changed = true
@@ -1861,20 +1878,40 @@ public final class SonosMiniService {
     //    }
     //
     //    // MARK: TV
-    public func getTVSettings(ip: String) async throws -> SonosTVSettings {
+    public func getTVSettings(ip: String, isArcUltra: Bool = false) async throws -> SonosTVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
-        async let dialogLevel = api.getDialogLevel(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
-        
-        return try await SonosTVSettings(
-            nightMode: nightMode,
-            dialogLevel: dialogLevel,
-            audioInputFormat: audioInputFormat
-        )
+
+        if isArcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
+            return try await SonosTVSettings(
+                nightMode: nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: speechEnhanceEnabled,
+                dialogLevelValue: dialogLevelValue,
+                audioInputFormat: audioInputFormat
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: ip)
+            return try await SonosTVSettings(
+                nightMode: nightMode,
+                dialogLevel: dialogLevel,
+                audioInputFormat: audioInputFormat
+            )
+        }
     }
-    
+
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
+    }
+
+    public func setSpeechEnhanceEnabled(_ IP: String, enabled: Bool) async throws {
+        try await api.setSpeechEnhanceEnabled(IP: IP, enabled: enabled)
+    }
+
+    public func setDialogLevelValue(_ IP: String, value: Int) async throws {
+        try await api.setDialogLevelValue(IP: IP, value: value)
     }
     
     public func setNightMode(_ IP: String, enabled: Bool) async throws {

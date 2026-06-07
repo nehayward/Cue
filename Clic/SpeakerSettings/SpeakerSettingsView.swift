@@ -138,13 +138,44 @@ struct SpeakerSettingsView: View {
                         }
                     }
                     
-                    Toggle(isOn: $room.theaterSettings.dialogLevel) {
-                        Text("Speech Enhancement")
-                    }
-                    .onChange(of: room.theaterSettings.dialogLevel) { oldValue, newValue in
-                        if oldValue != newValue {
+                    if room.isArcUltra {
+                        Toggle(isOn: Binding(
+                            get: { room.theaterSettings.speechEnhanceEnabled ?? false },
+                            set: { room.theaterSettings.speechEnhanceEnabled = $0 }
+                        )) {
+                            Text("Speech Enhancement")
+                        }
+                        .onChange(of: room.theaterSettings.speechEnhanceEnabled) { oldValue, newValue in
+                            guard let newValue, oldValue != newValue else { return }
                             Task {
-                                try? await sonosService.setDialogLevel(room.ip, enabled: newValue)
+                                try? await sonosService.setSpeechEnhanceEnabled(room.ip, enabled: newValue)
+                            }
+                        }
+
+                        if room.theaterSettings.speechEnhanceEnabled == true {
+                            Picker("Dialog Level", selection: $room.theaterSettings.dialogLevelValue) {
+                                Text("Low").tag(1)
+                                Text("Medium").tag(2)
+                                Text("High").tag(3)
+                                Text("Max").tag(4)
+                            }
+                            .onChange(of: room.theaterSettings.dialogLevelValue) { oldValue, newValue in
+                                if oldValue != newValue {
+                                    Task {
+                                        try? await sonosService.setDialogLevelValue(room.ip, value: newValue)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Toggle(isOn: $room.theaterSettings.dialogLevel) {
+                            Text("Speech Enhancement")
+                        }
+                        .onChange(of: room.theaterSettings.dialogLevel) { oldValue, newValue in
+                            if oldValue != newValue {
+                                Task {
+                                    try? await sonosService.setDialogLevel(room.ip, enabled: newValue)
+                                }
                             }
                         }
                     }

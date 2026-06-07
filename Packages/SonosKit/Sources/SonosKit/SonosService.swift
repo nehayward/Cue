@@ -2112,20 +2112,40 @@ public final class SonosService {
     }
 
     // MARK: TV
-    public func getTVSettings(ip: String) async throws -> TVSettings {
+    public func getTVSettings(ip: String, isArcUltra: Bool = false) async throws -> TVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
-        async let dialogLevel = api.getDialogLevel(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)
-        
-        return try await TVSettings(
-            nightMode: nightMode,
-            dialogLevel: dialogLevel,
-            audioInputFormat: audioInputFormat
-        )
+
+        if isArcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: ip)
+            return try await TVSettings(
+                nightMode: nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: speechEnhanceEnabled,
+                dialogLevelValue: dialogLevelValue,
+                audioInputFormat: audioInputFormat
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: ip)
+            return try await TVSettings(
+                nightMode: nightMode,
+                dialogLevel: dialogLevel,
+                audioInputFormat: audioInputFormat
+            )
+        }
     }
 
     public func setDialogLevel(_ IP: String, enabled: Bool) async throws {
         try await api.setDialogLevel(IP: IP, enabled: enabled)
+    }
+
+    public func setSpeechEnhanceEnabled(_ IP: String, enabled: Bool) async throws {
+        try await api.setSpeechEnhanceEnabled(IP: IP, enabled: enabled)
+    }
+
+    public func setDialogLevelValue(_ IP: String, value: Int) async throws {
+        try await api.setDialogLevelValue(IP: IP, value: value)
     }
 
     public func setNightMode(_ IP: String, enabled: Bool) async throws {
@@ -2689,7 +2709,6 @@ public final class SonosService {
     // MARK: Theater Settings
     public func getTheaterSettings(room: Room) async -> TheaterSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: room.ip)
-        async let dialogLevel = api.getDialogLevel(IP: room.ip)
         async let nightMode = api.getNightMode(IP: room.ip)
         async let subGain = api.getEQValue(IP: room.ip, eq: .subGain)
         async let isSubEnabled = api.getEQValue(IP: room.ip, eq: .subEnable)
@@ -2699,19 +2718,53 @@ public final class SonosService {
         async let surroundEnabled = api.getEQValue(IP: room.ip, eq: .surroundEnable)
         async let heightLevel = api.getEQValue(IP: room.ip, eq: .heightChannelLevel)
 
-        return TheaterSettings(
-            isSet: true,
-            nightMode: (try? await nightMode) ?? false,
-            dialogLevel: (try? await dialogLevel) ?? false,
-            audioInputFormat: (try? await audioInputFormat) ?? .unknown,
-            surroundLevel: await surroundLevel ?? 0.0,
-            musicSurroundLevel: await musicSurroundLevel ?? 0.0,
-            isSurroundEnable: await (surroundEnabled ?? 0) == 1 ? true : false,
-            surroundMode:  await surroundMode ?? 0.0,
-            heightChannel: await heightLevel ?? 0.0,
-            subGain: await subGain ?? 0.0,
-            isSubEnabled: await (isSubEnabled ?? 0) == 1 ? true : false
+        let commonSettings: (nightMode: Bool, audioInputFormat: AudioInputFormat, surroundLevel: Double, musicSurroundLevel: Double, isSurroundEnable: Bool, surroundMode: Double, heightChannel: Double, subGain: Double, isSubEnabled: Bool)
+        commonSettings = await (
+            nightMode: (try? nightMode) ?? false,
+            audioInputFormat: (try? audioInputFormat) ?? .unknown,
+            surroundLevel: surroundLevel ?? 0.0,
+            musicSurroundLevel: musicSurroundLevel ?? 0.0,
+            isSurroundEnable: (surroundEnabled ?? 0) == 1,
+            surroundMode: surroundMode ?? 0.0,
+            heightChannel: heightLevel ?? 0.0,
+            subGain: subGain ?? 0.0,
+            isSubEnabled: (isSubEnabled ?? 0) == 1
         )
+
+        if room.isArcUltra {
+            async let speechEnhanceEnabled = api.getSpeechEnhanceEnabled(IP: room.ip)
+            async let dialogLevelValue = api.getDialogLevelValue(IP: room.ip)
+            return await TheaterSettings(
+                isSet: true,
+                nightMode: commonSettings.nightMode,
+                dialogLevel: false,
+                speechEnhanceEnabled: (try? speechEnhanceEnabled) ?? false,
+                dialogLevelValue: (try? dialogLevelValue) ?? 1,
+                audioInputFormat: commonSettings.audioInputFormat,
+                surroundLevel: commonSettings.surroundLevel,
+                musicSurroundLevel: commonSettings.musicSurroundLevel,
+                isSurroundEnable: commonSettings.isSurroundEnable,
+                surroundMode: commonSettings.surroundMode,
+                heightChannel: commonSettings.heightChannel,
+                subGain: commonSettings.subGain,
+                isSubEnabled: commonSettings.isSubEnabled
+            )
+        } else {
+            async let dialogLevel = api.getDialogLevel(IP: room.ip)
+            return await TheaterSettings(
+                isSet: true,
+                nightMode: commonSettings.nightMode,
+                dialogLevel: (try? dialogLevel) ?? false,
+                audioInputFormat: commonSettings.audioInputFormat,
+                surroundLevel: commonSettings.surroundLevel,
+                musicSurroundLevel: commonSettings.musicSurroundLevel,
+                isSurroundEnable: commonSettings.isSurroundEnable,
+                surroundMode: commonSettings.surroundMode,
+                heightChannel: commonSettings.heightChannel,
+                subGain: commonSettings.subGain,
+                isSubEnabled: commonSettings.isSubEnabled
+            )
+        }
     }
 
     // MARK: - Alarms
