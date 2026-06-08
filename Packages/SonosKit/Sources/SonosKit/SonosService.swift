@@ -66,13 +66,49 @@ public final class SonosService {
         cachedIPVerified = false
     }
 
-    public var preferredHouseHold: String? { 
+    public var preferredHouseHold: String? {
         get {
             sonosSystemDiscoverService.preferredHouseHold
         }
         set {
             sonosSystemDiscoverService.preferredHouseHold = newValue
         }
+    }
+
+    /// All households this device has ever successfully connected to, ordered by
+    /// most-recently connected. Persisted in iCloud so it syncs across devices.
+    public var knownHouseholds: [SonosHousehold] {
+        sonosSystemDiscoverService.knownHouseholds
+    }
+
+    /// Switches the active household, resets all state, and restarts monitoring.
+    /// The race in getGroups will test the household's last known IP immediately
+    /// while Bonjour discovery runs in parallel in case the IP has changed.
+    @MainActor
+    public func switchHousehold(to id: String) {
+        sonosSystemDiscoverService.switchToHousehold(id: id)
+        clearDevices()
+        monitor()
+    }
+
+    /// Removes a household from the known list. If it was the active household,
+    /// the next discovery will start fresh (no preferred household).
+    public func removeHousehold(id: String) {
+        var households = sonosSystemDiscoverService.knownHouseholds
+        households.removeAll { $0.id == id }
+        sonosSystemDiscoverService.knownHouseholds = households
+        if sonosSystemDiscoverService.preferredHouseHold == id {
+            sonosSystemDiscoverService.preferredHouseHold = nil
+            cachedIPVerified = false
+        }
+    }
+
+    /// Renames a household in the known list.
+    public func renameHousehold(id: String, name: String) {
+        var households = sonosSystemDiscoverService.knownHouseholds
+        guard let idx = households.firstIndex(where: { $0.id == id }) else { return }
+        households[idx].name = name
+        sonosSystemDiscoverService.knownHouseholds = households
     }
 
     public var parserError: String?
