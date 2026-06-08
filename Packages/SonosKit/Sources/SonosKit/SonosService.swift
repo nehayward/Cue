@@ -999,9 +999,32 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
+        let cachedIP = sonosSystemDiscoverService.sonosStorageIP.sonosIP
+        if useCache && !cachedIP.isEmpty {
+            // Race the saved IP against a 2-second timeout so that switching
+            // networks triggers Bonjour discovery immediately rather than
+            // waiting for the full URLSession timeout (15 s).
+            let cached: [GroupRoom]? = try? await withThrowingTaskGroup(of: [GroupRoom].self) { group in
+                group.addTask { [weak self] in
+                    guard let self else { throw SonosServiceError.sonosSystemNotFound }
+                    return try await self.api.getGroups(ipAddress: cachedIP)
+                }
+                group.addTask {
+                    try await Task.sleep(for: .seconds(2))
+                    throw SonosServiceError.sonosSystemNotFound
+                }
+                guard let result = try await group.next() else {
+                    throw SonosServiceError.sonosSystemNotFound
+                }
+                group.cancelAll()
+                return result
+            }
+            if let cached { return cached }
+            let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: false)
+            return try await api.getGroups(ipAddress: ip)
+        }
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
-        let groups = try await api.getGroups(ipAddress: ip)
-        return groups
+        return try await api.getGroups(ipAddress: ip)
     }
 
     @MainActor
