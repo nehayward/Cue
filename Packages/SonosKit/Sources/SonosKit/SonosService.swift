@@ -1001,27 +1001,36 @@ public final class SonosService {
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
         let cachedIP = sonosSystemDiscoverService.sonosStorageIP.sonosIP
         if useCache && !cachedIP.isEmpty {
-            // Race the saved IP against a 2-second timeout so that switching
-            // networks triggers Bonjour discovery immediately rather than
-            // waiting for the full URLSession timeout (15 s).
-            let cached: [GroupRoom]? = try? await withThrowingTaskGroup(of: [GroupRoom].self) { group in
+            // Race the saved IP against fresh Bonjour discovery so both run
+            // concurrently. On the same network the cached IP wins instantly;
+            // on a new network discovery wins as soon as it finds a device.
+            let result = await withTaskGroup(of: Result<[GroupRoom], Error>.self) { group in
                 group.addTask { [weak self] in
-                    guard let self else { throw SonosServiceError.sonosSystemNotFound }
-                    return try await self.api.getGroups(ipAddress: cachedIP)
+                    guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                    do { return .success(try await self.api.getGroups(ipAddress: cachedIP)) }
+                    catch { return .failure(error) }
                 }
-                group.addTask {
-                    try await Task.sleep(for: .seconds(2))
-                    throw SonosServiceError.sonosSystemNotFound
+                group.addTask { [weak self] in
+                    guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                    do {
+                        let ip = try await self.sonosSystemDiscoverService.getFirstIP(useCache: false)
+                        return .success(try await self.api.getGroups(ipAddress: ip))
+                    } catch {
+                        return .failure(error)
+                    }
                 }
-                guard let result = try await group.next() else {
-                    throw SonosServiceError.sonosSystemNotFound
+                var lastError: Error = SonosServiceError.sonosSystemNotFound
+                while let r = await group.next() {
+                    if case .success(let groups) = r {
+                        group.cancelAll()
+                        return Result.success(groups)
+                    } else if case .failure(let error) = r {
+                        lastError = error
+                    }
                 }
-                group.cancelAll()
-                return result
+                return Result.failure(lastError)
             }
-            if let cached { return cached }
-            let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: false)
-            return try await api.getGroups(ipAddress: ip)
+            return try result.get()
         }
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         return try await api.getGroups(ipAddress: ip)

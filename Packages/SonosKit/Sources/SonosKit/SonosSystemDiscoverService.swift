@@ -151,6 +151,8 @@ final class SonosSystemDiscoverService {
             try? await Task.sleep(for: .milliseconds(100))
 
             while true {
+                if Task.isCancelled { break }
+
                 // Check for timeout
                 if Date.now > startTime.addingTimeInterval(maxDiscoveryTime) {
                     break
