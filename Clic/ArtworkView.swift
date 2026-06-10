@@ -28,19 +28,24 @@ struct ArtworkView: View {
 
     fileprivate var imageIDKey: String {
         let suffix = "player"
-        if !group.coordinatorRoom.track.album.isEmpty {
-            let album = group.coordinatorRoom.track.album
-            let artist = group.coordinatorRoom.track.artist
-            return [album, artist, suffix].compactMap { $0 }.joined(separator: ".")
+        let track = group.coordinatorRoom.track
+        if !track.album.isEmpty {
+            // Spotify sends dc:creator (per-track artist) rather than r:albumArtist,
+            // so the artist field varies on featured tracks within the same album.
+            // Omit artist from the key for Spotify so all tracks on one album share
+            // the same Nuke cache entry and the same-album carry in SonosService
+            // produces an immediate cache hit rather than a redundant network fetch.
+            if track.musicService == .spotify {
+                return [track.album, suffix].joined(separator: ".")
+            }
+            return [track.album, track.artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
 
-        if !group.coordinatorRoom.track.name.isEmpty {
-            let track = group.coordinatorRoom.track.name
-            let artist = group.coordinatorRoom.track.artist
-            return [track, artist, suffix].compactMap { $0 }.joined(separator: ".")
+        if !track.name.isEmpty {
+            return [track.name, track.artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
 
-        return group.coordinatorRoom.track.trackID + suffix
+        return track.trackID + suffix
     }
 
     private var artworkRequest: ImageRequest? {
@@ -175,9 +180,10 @@ struct ArtworkView: View {
                     let image = try await ImagePipeline.shared.image(for: artworkRequest)
                     currentImage = image
                 } catch {
-                    if !Task.isCancelled {
-                        currentImage = nil
-                    }
+                    // Swallow errors silently — the Sonos proxy for Spotify is
+                    // unreliable right at track boundaries (the speaker may not
+                    // have fetched the new art yet). Keeping the previous image
+                    // is better than flashing a grey placeholder.
                 }
             }
         }
