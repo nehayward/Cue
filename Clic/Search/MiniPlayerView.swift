@@ -9,13 +9,6 @@ struct MiniPlayerView: View {
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(\.colorScheme) var colorScheme: ColorScheme
 
-    #if os(tvOS)
-    private enum TVFocusedField: Equatable {
-        case previous, play, next
-    }
-    @FocusState private var tvFocusedField: TVFocusedField?
-    #endif
-
     private var selectedGroup: GroupRoom? {
         guard let groupID = selectedGroupService.group?.coordinatorID else {
             return nil
@@ -64,45 +57,53 @@ struct MiniPlayerView: View {
     @ViewBuilder
     private var tvBody: some View {
         if let group = selectedGroup {
+            let settings = group.tvSettings
+            let nightMode = settings?.nightMode ?? false
+            let dialogLevel = settings?.dialogLevel ?? false
+
             HStack(spacing: 20) {
                 artworkView(for: group)
                 trackInfoView(for: group)
                 Spacer()
-                if group.coordinatorRoom.track != .empty {
-                    Button {
-                        Task {
-                            await sonosService.previous(ip: group.ip)
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    } label: {
-                        Image(systemName: "backward.fill")
-                            .padding(4)
+                Button {
+                    guard let settings else { return }
+                    Task {
+                        try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
+                        group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                     }
-                    .buttonBorderShape(.circle)
-                    .disabled(!group.availableActions.contains(.previous))
-                    .focused($tvFocusedField, equals: .previous)
-
-                    Button {
-                        Task { await sonosService.togglePlayPause(for: group) }
-                    } label: {
-                        playPauseLabel(for: group)
-                    }
-                    .buttonBorderShape(.circle)
-                    .focused($tvFocusedField, equals: .play)
-
-                    Button {
-                        Task {
-                            await sonosService.next(ip: group.ip)
-                            try? await sonosService.updateGroups(from: [group])
-                        }
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .padding(4)
-                    }
-                    .buttonBorderShape(.circle)
-                    .disabled(!group.availableActions.contains(.next))
-                    .focused($tvFocusedField, equals: .next)
+                } label: {
+                    Label("Night Mode", systemImage: "moon.zzz.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.hierarchical)
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(nightMode ? .accent : .secondary.opacity(0.8))
+                        .frame(width: 40, height: 36)
                 }
+                .buttonStyle(.bordered)
+                .tint(nightMode ? .accent : nil)
+                .animation(.spring, value: nightMode)
+                .disabled(settings == nil)
+
+                MuteButton(group: group)
+
+                Button {
+                    guard let settings else { return }
+                    Task {
+                        try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
+                        group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                    }
+                } label: {
+                    Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.hierarchical)
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
+                        .frame(width: 40, height: 36)
+                }
+                .buttonStyle(.bordered)
+                .tint(dialogLevel ? .accent : nil)
+                .animation(.spring, value: dialogLevel)
+                .disabled(settings == nil)
             }
             .foregroundStyle(.primary)
             .tint(.primary)
@@ -112,8 +113,8 @@ struct MiniPlayerView: View {
                 Capsule().foregroundStyle(.ultraThinMaterial)
             }
             .padding(.horizontal, 8)
-            .opacity(tvFocusedField != nil ? 1 : 0.5)
-            .animation(.easeInOut, value: tvFocusedField)
+            .opacity(group.TVMode ? 1 : 0.5)
+            .animation(.easeInOut, value: group.TVMode)
             .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
         }
     }
