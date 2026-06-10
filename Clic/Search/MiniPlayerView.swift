@@ -9,6 +9,13 @@ struct MiniPlayerView: View {
     @Environment(SubscriptionService.self) var subscriptionService
     @Environment(\.colorScheme) var colorScheme: ColorScheme
 
+    #if os(tvOS)
+    private enum TVFocusedField: Equatable {
+        case previous, play, next
+    }
+    @FocusState private var tvFocusedField: TVFocusedField?
+    #endif
+
     private var selectedGroup: GroupRoom? {
         guard let groupID = selectedGroupService.group?.coordinatorID else {
             return nil
@@ -17,7 +24,9 @@ struct MiniPlayerView: View {
     }
     
     var body: some View {
-#if !targetEnvironment(macCatalyst) && !os(visionOS)
+#if os(tvOS)
+        tvBody
+#elseif !targetEnvironment(macCatalyst) && !os(visionOS)
         if selectedGroup != nil {
             VStack {
                 if let group = selectedGroup {
@@ -50,6 +59,65 @@ struct MiniPlayerView: View {
         }
 #endif
     }
+
+#if os(tvOS)
+    @ViewBuilder
+    private var tvBody: some View {
+        if let group = selectedGroup {
+            HStack(spacing: 20) {
+                artworkView(for: group)
+                trackInfoView(for: group)
+                Spacer()
+                if group.coordinatorRoom.track != .empty {
+                    Button {
+                        Task {
+                            await sonosService.previous(ip: group.ip)
+                            try? await sonosService.updateGroups(from: [group])
+                        }
+                    } label: {
+                        Image(systemName: "backward.fill")
+                            .padding(4)
+                    }
+                    .buttonBorderShape(.circle)
+                    .disabled(!group.availableActions.contains(.previous))
+                    .focused($tvFocusedField, equals: .previous)
+
+                    Button {
+                        Task { await sonosService.togglePlayPause(for: group) }
+                    } label: {
+                        playPauseLabel(for: group)
+                    }
+                    .buttonBorderShape(.circle)
+                    .focused($tvFocusedField, equals: .play)
+
+                    Button {
+                        Task {
+                            await sonosService.next(ip: group.ip)
+                            try? await sonosService.updateGroups(from: [group])
+                        }
+                    } label: {
+                        Image(systemName: "forward.fill")
+                            .padding(4)
+                    }
+                    .buttonBorderShape(.circle)
+                    .disabled(!group.availableActions.contains(.next))
+                    .focused($tvFocusedField, equals: .next)
+                }
+            }
+            .foregroundStyle(.primary)
+            .tint(.primary)
+            .padding()
+            .frame(maxWidth: 600)
+            .background {
+                Capsule().foregroundStyle(.ultraThinMaterial)
+            }
+            .padding(.horizontal, 8)
+            .opacity(tvFocusedField != nil ? 1 : 0.5)
+            .animation(.easeInOut, value: tvFocusedField)
+            .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
+        }
+    }
+#endif
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
