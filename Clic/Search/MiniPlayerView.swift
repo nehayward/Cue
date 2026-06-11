@@ -17,9 +17,10 @@ struct MiniPlayerView: View {
     }
     
     var body: some View {
+#if !targetEnvironment(macCatalyst) && !os(visionOS)
 #if os(tvOS)
         tvBody
-#elseif !targetEnvironment(macCatalyst) && !os(visionOS)
+#else
         if selectedGroup != nil {
             VStack {
                 if let group = selectedGroup {
@@ -50,6 +51,7 @@ struct MiniPlayerView: View {
         } else {
             EmptyView()
         }
+#endif
 #endif
     }
 
