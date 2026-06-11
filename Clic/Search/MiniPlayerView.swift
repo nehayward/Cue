@@ -23,7 +23,7 @@ struct MiniPlayerView: View {
                 if let group = selectedGroup {
                     VStack(spacing: 8) {
                         groupInfoButton(for: group)
-                        tvControlsView(for: group)
+                        TVControlsView(group: group)
                         VolumeControlView(group: group)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(height: 12)
@@ -50,54 +50,6 @@ struct MiniPlayerView: View {
             EmptyView()
         }
 #endif
-    }
-
-    private func tvControlsView(for group: GroupRoom) -> some View {
-        let settings = group.tvSettings
-        let nightMode = settings?.nightMode ?? false
-        let dialogLevel = settings?.dialogLevel ?? false
-
-        return HStack(spacing: 16) {
-            Button {
-                guard let settings else { return }
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
-                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
-                }
-            } label: {
-                Label("Night Mode", systemImage: "moon.zzz.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .labelStyle(.iconOnly)
-                    .foregroundStyle(nightMode ? .accent : .secondary.opacity(0.8))
-            }
-            .buttonStyle(.bordered)
-            .tint(nightMode ? .accent : nil)
-            .animation(.spring, value: nightMode)
-            .disabled(settings == nil)
-
-            MuteButton(group: group)
-
-            Button {
-                guard let settings else { return }
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
-                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
-                }
-            } label: {
-                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                    .symbolRenderingMode(.hierarchical)
-                    .labelStyle(.iconOnly)
-                    .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
-            }
-            .buttonStyle(.bordered)
-            .tint(dialogLevel ? .accent : nil)
-            .animation(.spring, value: dialogLevel)
-            .disabled(settings == nil)
-        }
-        .opacity(group.TVMode ? 1 : 0)
-        .animation(.easeInOut, value: group.TVMode)
     }
 
     private func groupInfoButton(for group: GroupRoom) -> some View {
@@ -175,6 +127,58 @@ struct MiniPlayerView: View {
         }
         .buttonBorderShape(.circle)
         .disabled(!group.availableActions.contains(.next))
+    }
+}
+
+private struct TVControlsView: View {
+    let group: GroupRoom
+
+    var body: some View {
+        let settings = group.tvSettings
+        let nightMode = settings?.nightMode ?? false
+        let dialogLevel = settings?.dialogLevel ?? false
+
+        HStack(spacing: 16) {
+            Button {
+                guard let settings else { return }
+                Task {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
+                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Label("Night Mode", systemImage: "moon.zzz.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(nightMode ? .accent : .secondary.opacity(0.8))
+            }
+            .buttonStyle(.bordered)
+            .tint(nightMode ? .accent : nil)
+            .animation(.spring, value: nightMode)
+            .disabled(settings == nil)
+
+            MuteButton(group: group)
+
+            Button {
+                guard let settings else { return }
+                Task {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
+                    group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
+                }
+            } label: {
+                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                    .symbolRenderingMode(.hierarchical)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
+            }
+            .buttonStyle(.bordered)
+            .tint(dialogLevel ? .accent : nil)
+            .animation(.spring, value: dialogLevel)
+            .disabled(settings == nil)
+        }
+        .opacity(group.TVMode ? 1 : 0)
+        .animation(.easeInOut, value: group.TVMode)
     }
 }
 
