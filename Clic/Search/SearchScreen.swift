@@ -44,6 +44,9 @@ struct SearchScreen: View {
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
 
     @FocusState private var focusedField: SearchFocusFields?
+    #if targetEnvironment(macCatalyst)
+    @State private var searchBarFocused: Bool = false
+    #endif
 
     @State private var recentQueries = RecentQueriesStorage.shared
     @State private var lastNonEmptyQuery: String = ""
@@ -167,6 +170,13 @@ struct SearchScreen: View {
                         }
                         .frame(idealWidth: 800)
                         .toolbarBackground(with: true, in: .capsule)
+                        #if targetEnvironment(macCatalyst)
+                        .overlay {
+                            Capsule()
+                                .strokeBorder(Color.accentColor, lineWidth: 2)
+                                .opacity(searchBarFocused ? 1 : 0)
+                        }
+                        #endif
                     }
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
@@ -328,6 +338,14 @@ struct SearchScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
+        #if targetEnvironment(macCatalyst)
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { _ in
+            searchBarFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { _ in
+            searchBarFocused = false
+        }
+        #endif
     }
 
     @MainActor
