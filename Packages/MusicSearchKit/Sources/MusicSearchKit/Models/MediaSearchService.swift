@@ -119,8 +119,19 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         }
     }
 
-    @ViewBuilder
     public var iconForMusicService: some View {
+        // Wrap the icon in a Label with `.iconOnly` so toolbar/menu hit
+        // targets stay aligned on iOS 26 (a bare Image misaligns the tap area).
+        Label {
+            Text(title)
+        } icon: {
+            iconImageForMusicService
+        }
+        .labelStyle(.iconOnly)
+    }
+
+    @ViewBuilder
+    private var iconImageForMusicService: some View {
         switch self {
         case .apple:
             Image(systemName: "apple.logo")
