@@ -175,7 +175,6 @@ struct SearchScreen: View {
                             Capsule()
                                 .strokeBorder(Color.accentColor, lineWidth: 2)
                                 .opacity(searchBarFocused ? 1 : 0)
-                                .animation(.easeInOut(duration: 0.2), value: searchBarFocused)
                         }
                         #endif
                     }
@@ -341,7 +340,9 @@ struct SearchScreen: View {
         )
         #if targetEnvironment(macCatalyst)
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { _ in
-            searchBarFocused = true
+            withAnimation(.easeIn(duration: 0.2)) {
+                searchBarFocused = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { _ in
             searchBarFocused = false
