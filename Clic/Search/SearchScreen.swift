@@ -566,14 +566,19 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            musicSearchSelection
-                .iconForMusicService
-                .frame(width: 24, height: 24)
-                .toolbarBackground(in: .circle)
-                // Extend the tap target to the standard 44pt (centered on the
-                // visible 24pt icon) to fix the offset hit area on iOS 26.
-                .frame(width: 44, height: 44)
-                .contentShape(.circle)
+            // iconOnly Label fixes the iOS 26 toolbar hit target. iconOnly
+            // re-tints the icon with the control color, so re-apply the brand
+            // color on the Label; keep the frame on the image for sizing.
+            Label {
+                Text(musicSearchSelection.title)
+            } icon: {
+                musicSearchSelection
+                    .iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
+            .labelStyle(.iconOnly)
+            .foregroundStyle(musicSearchSelection.brandColor.gradient)
+            .toolbarBackground(in: .circle)
         }
         .popoverTip(AppTip.mediaService)
         .foregroundStyle(musicSearchSelection.brandColor.gradient)
