@@ -50,9 +50,16 @@ struct MediaSelector: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            browseMediaService.iconForMusicService
-                .frame(width: 24, height: 24)
-                .toolbarBackground(in: .circle)
+            // iconOnly Label keeps the toolbar hit target aligned on iOS 26,
+            // while the frame stays on the image so it keeps its size + brand color.
+            Label {
+                Text(browseMediaService.title)
+            } icon: {
+                browseMediaService.iconForMusicService
+                    .frame(width: 24, height: 24)
+            }
+            .labelStyle(.iconOnly)
+            .toolbarBackground(in: .circle)
         }
         .contentShape(Rectangle())
         .popoverTip(AppTip.libraryMediaService)
