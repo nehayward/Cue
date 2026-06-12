@@ -23,7 +23,6 @@ struct MiniPlayerView: View {
                 if let group = selectedGroup {
                     VStack(spacing: 8) {
                         groupInfoButton(for: group)
-                        TVControlsView(group: group)
                         VolumeControlView(group: group)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                             .frame(height: 12)
@@ -64,12 +63,26 @@ struct MiniPlayerView: View {
         } label: {
             HStack {
                 artworkView(for: group)
-                trackInfoView(for: group)
-                Spacer()
-                if group.coordinatorRoom.track != .empty {
-                    playPauseButton(for: group)
-                    nextTrackButton(for: group)
+                ZStack(alignment: .leading) {
+                    HStack {
+                        trackInfoView(for: group)
+                        Spacer()
+                        if group.coordinatorRoom.track != .empty {
+                            playPauseButton(for: group)
+                            nextTrackButton(for: group)
+                        }
+                    }
+                    .opacity(group.TVMode ? 0 : 1)
+
+                    HStack {
+                        tvInputInfoView(for: group)
+                        Spacer()
+                        MiniTVControlsView(group: group)
+                    }
+                    .opacity(group.TVMode ? 1 : 0)
                 }
+                .frame(maxWidth: .infinity)
+                .animation(.easeInOut, value: group.TVMode)
             }
         }
     }
@@ -83,8 +96,20 @@ struct MiniPlayerView: View {
         VStack(alignment: .leading) {
             Text(group.nameWithCount)
                 .font(.caption2)
-            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter{ !$0.isEmpty }.joined(separator: " • "))
+            MarqueeText([group.coordinatorRoom.track.song, group.coordinatorRoom.track.artist].filter { !$0.isEmpty }.joined(separator: " • "))
                 .transition(.slide)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fontDesign(.rounded)
+        .lineLimit(1, reservesSpace: true)
+    }
+
+    private func tvInputInfoView(for group: GroupRoom) -> some View {
+        VStack(alignment: .leading) {
+            Text(group.nameWithCount)
+                .font(.caption2)
+            Text(group.tvSettings?.audioInputFormat.description ?? " ")
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -99,19 +124,15 @@ struct MiniPlayerView: View {
                 await sonosService.togglePlayPause(for: group)
             }
         } label: {
-            playPauseLabel(for: group)
+            PlaybackIconView(
+                value: group.coordinatorRoom.playbackPosition,
+                total: group.coordinatorRoom.track.duration,
+                isPlaying: group.coordinatorRoom.isPlaying
+            )
+            .font(.title)
         }
         .buttonStyle(.plain)
         .buttonBorderShape(.circle)
-    }
-
-    private func playPauseLabel(for group: GroupRoom) -> some View {
-        PlaybackIconView(
-            value: group.coordinatorRoom.playbackPosition,
-            total: group.coordinatorRoom.track.duration,
-            isPlaying: group.coordinatorRoom.isPlaying
-        )
-        .font(.title)
     }
 
     private func nextTrackButton(for group: GroupRoom) -> some View {
@@ -130,7 +151,7 @@ struct MiniPlayerView: View {
     }
 }
 
-private struct TVControlsView: View {
+private struct MiniTVControlsView: View {
     let group: GroupRoom
 
     var body: some View {
@@ -138,7 +159,7 @@ private struct TVControlsView: View {
         let nightMode = settings?.nightMode ?? false
         let dialogLevel = settings?.dialogLevel ?? false
 
-        HStack(spacing: 16) {
+        HStack(spacing: 8) {
             Button {
                 guard let settings else { return }
                 Task {
@@ -147,9 +168,8 @@ private struct TVControlsView: View {
                     group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                 }
             } label: {
-                Label("Night Mode", systemImage: "moon.zzz.fill")
+                Image(systemName: "moon.zzz.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .labelStyle(.iconOnly)
                     .foregroundStyle(nightMode ? .accent : .secondary.opacity(0.8))
             }
             .buttonStyle(.bordered)
@@ -157,7 +177,21 @@ private struct TVControlsView: View {
             .animation(.spring, value: nightMode)
             .disabled(settings == nil)
 
-            MuteButton(group: group)
+            Button {
+                Task {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    await SonosService.shared.setGroupMute(group: group, mute: !group.isMuted)
+                    withAnimation { group.isMuted.toggle() }
+                }
+            } label: {
+                Image(systemName: group.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                    .contentTransition(.symbolEffect)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(group.isMuted ? .accent : .secondary.opacity(0.8))
+            }
+            .buttonStyle(.bordered)
+            .tint(group.isMuted ? .accent : nil)
+            .animation(.spring, value: group.isMuted)
 
             Button {
                 guard let settings else { return }
@@ -167,9 +201,8 @@ private struct TVControlsView: View {
                     group.tvSettings = try await SonosService.shared.getTVSettings(ip: group.coordinatorRoom.ip)
                 }
             } label: {
-                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                Image(systemName: "person.wave.2.fill")
                     .symbolRenderingMode(.hierarchical)
-                    .labelStyle(.iconOnly)
                     .foregroundStyle(dialogLevel ? .accent : .secondary.opacity(0.8))
             }
             .buttonStyle(.bordered)
@@ -177,8 +210,7 @@ private struct TVControlsView: View {
             .animation(.spring, value: dialogLevel)
             .disabled(settings == nil)
         }
-        .opacity(group.TVMode ? 1 : 0)
-        .animation(.easeInOut, value: group.TVMode)
+        .controlSize(.small)
     }
 }
 
