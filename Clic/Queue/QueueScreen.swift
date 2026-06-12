@@ -116,7 +116,8 @@ struct QueueScreen: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: "shuffle")
+                            Label("Shuffle", systemImage: "shuffle")
+                                .labelStyle(.iconOnly)
                                 .foregroundStyle(group.playMode.contains(.shuffle) ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
@@ -149,7 +150,8 @@ struct QueueScreen: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                            Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
+                                .labelStyle(.iconOnly)
                                 .foregroundStyle(group.playMode.isRepeatEnabled ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }

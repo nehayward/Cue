@@ -131,7 +131,8 @@ struct SpotifyPlaylistScreen: View {
                         Button {
                             showChangeUserConfirmation = true
                         } label: {
-                            Image(systemName: "person.fill")
+                            Label("Change User", systemImage: "person.fill")
+                                .labelStyle(.iconOnly)
                         }
                     }
                 }

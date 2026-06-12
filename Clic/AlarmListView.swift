@@ -85,7 +85,8 @@ struct AlarmListView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 NavigationLink(value: RouterDestination.addAlarm(group: group)) {
-                    Image(systemName: "plus")
+                    Label("Add", systemImage: "plus")
+                        .labelStyle(.iconOnly)
                 }
             }
         }
