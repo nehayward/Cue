@@ -203,7 +203,8 @@ struct SpeakerListScreen: View {
                         Label("Create Scene", systemImage: "plus")
                     }
                 } label: {
-                    Image(systemName: "bolt.fill")
+                    Label("Scenes", systemImage:"bolt.fill")
+                        .labelStyle(.iconOnly)
                         .allowsHitTesting(false)
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
