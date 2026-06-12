@@ -18,19 +18,15 @@ struct MiniPlayerView: View {
 
     var body: some View {
 #if !targetEnvironment(macCatalyst) && !os(visionOS)
-        if selectedGroup != nil {
-            VStack {
-                if let group = selectedGroup {
-                    VStack(spacing: 8) {
-                        groupInfoButton(for: group)
-                        VolumeControlView(group: group)
-                            .foregroundStyle(colorScheme == .dark ? .white : .black)
-                            .frame(height: 12)
-                    }
-                    .foregroundStyle(.primary)
-                    .tint(.primary)
-                }
+        if let group = selectedGroup {
+            VStack(spacing: 8) {
+                groupInfoButton(for: group)
+                VolumeControlView(group: group)
+                    .foregroundStyle(colorScheme == .dark ? .white : .black)
+                    .frame(height: 12)
             }
+            .foregroundStyle(.primary)
+            .tint(.primary)
             .padding()
             .frame(maxWidth: 600)
             .background {
@@ -45,8 +41,6 @@ struct MiniPlayerView: View {
             .padding(.horizontal, 8)
             .animation(.interactiveSpring.delay(0.3), value: selectedGroupService.group)
             .animation(.interactiveSpring, value: selectedGroupService.group?.coordinatorRoom.track)
-        } else {
-            EmptyView()
         }
 #endif
     }
