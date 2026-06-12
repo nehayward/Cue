@@ -88,8 +88,18 @@ struct MiniPlayerView: View {
     }
 
     private func artworkView(for group: GroupRoom) -> some View {
-        ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
-            .frame(width: 40, height: 40)
+        ZStack {
+            ContentArtworkView(content: group.coordinatorRoom.track.toPlayable)
+                .opacity(group.TVMode ? 0 : 1)
+            Image(systemName: "tv")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .symbolRenderingMode(.hierarchical)
+                .padding(6)
+                .opacity(group.TVMode ? 1 : 0)
+        }
+        .frame(width: 40, height: 40)
+        .animation(.easeInOut, value: group.TVMode)
     }
 
     private func trackInfoView(for group: GroupRoom) -> some View {
