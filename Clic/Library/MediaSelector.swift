@@ -53,6 +53,9 @@ struct MediaSelector: View {
             browseMediaService.iconForMusicService
                 .frame(width: 24, height: 24)
                 .toolbarBackground(in: .circle)
+                // Extend the tap target to the standard 44pt (centered on the
+                // visible 24pt icon) to fix the offset hit area on iOS 26.
+                .frame(width: 44, height: 44)
         }
         .contentShape(Rectangle())
         .popoverTip(AppTip.libraryMediaService)
