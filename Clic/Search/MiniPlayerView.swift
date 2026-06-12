@@ -53,6 +53,7 @@ struct MiniPlayerView: View {
     
     private func groupInfoButton(for group: GroupRoom) -> some View {
         Button {
+            HapticManager.shared.fireHaptic(.buttonPress)
             guard subscriptionService.subscription.isActive else {
                 Router.main.fullScreenCover(to: .paywall)
                 return
