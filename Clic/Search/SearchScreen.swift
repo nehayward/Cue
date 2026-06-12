@@ -566,18 +566,11 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            // iconOnly Label keeps the toolbar hit target aligned on iOS 26,
-            // while the frame stays on the image so it keeps its size + brand color.
-            Label {
-                Text(musicSearchSelection.title)
-            } icon: {
-                musicSearchSelection
-                    .iconForMusicService
-                    .frame(width: 24, height: 24)
-                    .contentShape(.circle)
-            }
-            .labelStyle(.iconOnly)
-            .toolbarBackground(in: .circle)
+            musicSearchSelection
+                .iconForMusicService
+                .frame(width: 24, height: 24)
+                .contentShape(.circle)
+                .toolbarBackground(in: .circle)
         }
         .popoverTip(AppTip.mediaService)
         .foregroundStyle(musicSearchSelection.brandColor.gradient)
