@@ -340,9 +340,7 @@ struct SearchScreen: View {
         )
         #if targetEnvironment(macCatalyst)
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { _ in
-            withAnimation(.easeIn(duration: 0.2)) {
-                searchBarFocused = true
-            }
+            searchBarFocused = true
         }
         .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { _ in
             searchBarFocused = false
