@@ -774,6 +774,7 @@ private struct PlaybackTransportControls: View {
                 Task {
                     guard let group = selectedGroup else { return }
                     HapticManager.shared.fireHaptic(.selection)
+                    group.coordinatorRoom.playbackPosition = 0
                     await sonosService.next(ip: group.coordinatorRoom.ip)
                 }
             } label: {
