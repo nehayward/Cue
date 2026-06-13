@@ -36,7 +36,7 @@ struct ArtworkView: View {
             // the same Nuke cache entry and the same-album carry in SonosService
             // produces an immediate cache hit rather than a redundant network fetch.
             if track.musicService == .spotify {
-                return [track.album, suffix].joined(separator: ".")
+                return [track.album, String(describing: track.musicService), suffix].joined(separator: ".")
             }
             return [track.album, track.artist, suffix].compactMap { $0 }.joined(separator: ".")
         }
