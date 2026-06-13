@@ -27,25 +27,11 @@ struct ArtworkView: View {
     }
 
     fileprivate var imageIDKey: String {
-        let suffix = "player"
         let track = group.coordinatorRoom.track
-        if !track.album.isEmpty {
-            // Spotify sends dc:creator (per-track artist) rather than r:albumArtist,
-            // so the artist field varies on featured tracks within the same album.
-            // Omit artist from the key for Spotify so all tracks on one album share
-            // the same Nuke cache entry and the same-album carry in SonosService
-            // produces an immediate cache hit rather than a redundant network fetch.
-            if track.musicService == .spotify {
-                return [track.album, String(describing: track.musicService), suffix].joined(separator: ".")
-            }
-            return [track.album, track.artist, suffix].compactMap { $0 }.joined(separator: ".")
-        }
-
-        if !track.name.isEmpty {
-            return [track.name, track.artist, suffix].compactMap { $0 }.joined(separator: ".")
-        }
-
-        return track.trackID + suffix
+        let service = String(describing: track.musicService)
+        if !track.album.isEmpty { return "\(track.album).\(service).player" }
+        if !track.name.isEmpty  { return "\(track.name).\(service).player" }
+        return track.trackID + ".player"
     }
 
     private var artworkRequest: ImageRequest? {
