@@ -18,6 +18,7 @@
 –– Bug Fixes & Improvements ––
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
+- Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 
 # 2026.4
 
