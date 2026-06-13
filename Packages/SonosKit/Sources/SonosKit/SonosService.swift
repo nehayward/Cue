@@ -468,7 +468,6 @@ public final class SonosService {
                 // every track change within an album, causing a visible flash.
                 if !awaitedTrack.album.isEmpty,
                    awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
-                   awaitedTrack.musicService == roomGroup.coordinatorRoom.track.musicService,
                    let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
                     awaitedTrack.downloadedArtworkURL = priorURL
                 }
@@ -761,7 +760,6 @@ public final class SonosService {
                     // Same-album carry: see twin site above.
                     if !awaitedTrack.album.isEmpty,
                        awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
-                       awaitedTrack.musicService == roomGroup.coordinatorRoom.track.musicService,
                        let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
                         awaitedTrack.downloadedArtworkURL = priorURL
                     }
