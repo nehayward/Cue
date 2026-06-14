@@ -143,6 +143,7 @@ struct MiniPlayerView: View {
         Button {
             Task {
                 HapticManager.shared.fireHaptic(.buttonPress)
+                group.coordinatorRoom.playbackPosition = 0
                 await sonosService.next(ip: group.ip)
                 try? await sonosService.updateGroups(from: [group])
             }

@@ -5,10 +5,6 @@
 - Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
-–– Bug Fixes & Improvements ––
-- Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
-
-–– New Features ––
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
 - Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
@@ -17,9 +13,11 @@
 - Start Live Activity Shortcut: New shortcut and Control Center widget (iOS 18+) to start a Live Activity for any speaker — configure a speaker once and tap to get Now Playing on your Lock Screen instantly
 
 –– Bug Fixes & Improvements ––
+- Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
+- Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
 
 # 2026.4
 

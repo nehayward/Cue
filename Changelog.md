@@ -118,4 +118,9 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - **Fix 2 (ArtworkView.imageIDKey):** simplified to `album.service.player` for all services — Spotify same-album tracks share one cache entry regardless of featured-artist variation in `dc:creator`; including `service` prevents cross-service collisions (e.g. a Plex album with the same name as a Spotify album)
 - **Fix 3 (ArtworkView error handler):** swallow load errors silently instead of nil-ing `currentImage`; the `guard let artworkRequest else { currentImage = nil }` path still clears artwork when the track genuinely has no URL
 
+### Unified queue context menu
+- `UpNextContentView` and `QueueScreen` (full queue) now share a single `.contextMenu(forSelectionType: String.self)` path; the single-selection branch (`trackIDs.count == 1`) builds the full action set — `AddToPlaylistMenu`, View Album, View Artist, and Play Next — while multi-selection keeps `AddTracksToPlaylistMenu` + bulk Remove
+- Removed the `#if targetEnvironment(macCatalyst)` per-row `.contextMenu { menu(content:) }` from `fullQueueView` and deleted the now-unused `menu(content:)` builder — Catalyst right-click now flows through the same selection-based menu instead of a parallel per-row one
+- Both views were previously inconsistent: Up Next only offered Add to Playlist + Remove, while the full queue had a richer Mac-only per-row menu. Single code path means feature parity across Up Next / Full Queue and iOS / Mac
+
 ---

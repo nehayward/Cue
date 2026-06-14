@@ -548,6 +548,7 @@ fileprivate struct PlayerMediaControlsView: View {
                 selectionTrack?.cancel()
                 selectionTrack = Task {
                     HapticManager.shared.fireHaptic(.selection)
+                    group.coordinatorRoom.playbackPosition = 0
                     shouldFade = false
                     sonosService.isEditing = true
                     await sonosService.next(ip: group.coordinatorRoom.ip)
