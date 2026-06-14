@@ -3,52 +3,44 @@ import Defaults
 
 /// Context-menu controls for auditioning a track's short preview clip.
 ///
-/// The "Auto-Preview" toggle (a checkmark option, off by default) controls
-/// whether the preview starts automatically when a track's menu appears. When
-/// enabled, opening a menu plays the clip right away and toggling another track
-/// swaps to it, so users can quickly audition one song after another. Previews
-/// keep playing after the menu is dismissed and stop only when the user taps
-/// the option again. Tapping never dismisses the menu. Preview audio plays in a
-/// mixed, ambient session so it layers over anything already playing.
+/// - "Preview Song" plays the clip while the menu stays open (it doesn't
+///   dismiss the menu); the preview stops automatically when the menu is
+///   dismissed.
+/// - "Auto-Preview" is a persisted checkmark setting (off by default). When on,
+///   opening a track's menu starts the clip automatically.
+///
+/// SwiftUI context menus render their content as a static snapshot, so the
+/// Auto-Preview control is a dismiss-on-tap button (matching `FavoriteMenuButton`)
+/// rather than an in-place `Toggle`, which would never visually update while the
+/// menu is open. Preview audio plays in a mixed, ambient session so it layers
+/// over anything already playing.
 struct SongPreviewButton: View {
     @Environment(AudioPlaybackService.self) private var audioService
     @AppStorage(Defaults.AppStorageKeys.autoPreviewSongs) private var autoPreviewEnabled = false
 
     let previewURL: URL
 
-    private var isPreviewing: Bool {
-        audioService.isPreviewing(previewURL)
-    }
-
     var body: some View {
         Button {
-            if isPreviewing {
-                audioService.stop()
-            } else {
-                Task { await audioService.preview(url: previewURL) }
-            }
+            Task { await audioService.preview(url: previewURL) }
         } label: {
-            Label(
-                isPreviewing ? "Stop Preview" : "Preview Song",
-                systemImage: isPreviewing ? "stop.circle.fill" : "play.circle"
-            )
+            Label("Preview Song", systemImage: "play.circle")
         }
         .menuActionDismissBehavior(.disabled)
         .onAppear {
             guard autoPreviewEnabled else { return }
             Task { await audioService.preview(url: previewURL) }
         }
-
-        Toggle(isOn: $autoPreviewEnabled) {
-            Label("Auto-Preview", systemImage: "wand.and.stars")
-        }
-        .menuActionDismissBehavior(.disabled)
-        .onChange(of: autoPreviewEnabled) { _, enabled in
-            if enabled {
-                Task { await audioService.preview(url: previewURL) }
-            } else if isPreviewing {
+        .onDisappear {
+            if audioService.isPreviewing(previewURL) {
                 audioService.stop()
             }
+        }
+
+        Button {
+            autoPreviewEnabled.toggle()
+        } label: {
+            Label("Auto-Preview", systemImage: autoPreviewEnabled ? "checkmark.circle.fill" : "circle")
         }
     }
 }

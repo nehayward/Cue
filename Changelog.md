@@ -7,10 +7,9 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 ## 2026.5
 
 ### Song previews in the context menu
-- The Apple Music / Spotify track menu gets two options: a Preview Song / Stop Preview button for one-off auditions, and an "Auto-Preview" checkmark toggle (`AppStorageKeys.autoPreviewSongs`, off by default)
-- With Auto-Preview on, opening a track's menu starts the clip automatically (`onAppear`), and flipping the toggle starts/stops the current clip immediately (`onChange`), so users can quickly audition songs one after another
-- Previews keep playing after the menu is dismissed and stop only when the user taps Stop Preview (or toggles Auto-Preview off); tapping never dismisses the menu (`menuActionDismissBehavior(.disabled)`)
-- Opening another track's menu swaps the preview to that track; `preview(url:)` is a no-op if the same clip is already playing
+- The Apple Music / Spotify track menu gets two options: "Preview Song" plays the clip while the menu stays open (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed (`onDisappear`)
+- "Auto-Preview" is a persisted checkmark setting (`AppStorageKeys.autoPreviewSongs`, off by default); when on, opening a track's menu starts the clip automatically (`onAppear`)
+- Auto-Preview is a dismiss-on-tap button (matching `FavoriteMenuButton`) rather than an in-place `Toggle` — SwiftUI context menus render their content as a static snapshot, so a `Toggle` with dismiss disabled never visually updates its checkmark while the menu is open; dismissing lets the state show correctly on the next open
 - Preview audio runs through `AudioPlaybackService.preview(url:)` using a mixed, ambient `AVAudioSession` (`.ambient` + `.mixWithOthers`) so it layers over other audio and respects the silent switch — distinct from the ducking `.playback` session used by `play(url:)`
 - Only shown for tracks that actually carry a `previewURL` (mapped from Apple Music `previewAssets` and Spotify `previewUrl`)
 
