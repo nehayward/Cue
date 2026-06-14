@@ -6,6 +6,12 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.5
 
+### Song previews in the context menu
+- Long-press an Apple Music or Spotify track to get a "Preview Song" option that auditions the track's short preview clip
+- Tapping toggles between Preview Song / Stop Preview without dismissing the menu (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed
+- Preview audio runs through `AudioPlaybackService.preview(url:)` using a mixed, ambient `AVAudioSession` (`.ambient` + `.mixWithOthers`) so it layers over other audio and respects the silent switch — distinct from the ducking `.playback` session used by `play(url:)`
+- Only shown for tracks that actually carry a `previewURL` (mapped from Apple Music `previewAssets` and Spotify `previewUrl`)
+
 ### ClicAction extension ("Listen with Clic")
 - New `com.apple.ui-services` Action extension that appears in the Actions row of the share sheet (separate from PlayAction which sits in the Share row)
 - Display name: "Listen with Clic"; bundle ID `$(BUNDLE_ID).ClicAction`

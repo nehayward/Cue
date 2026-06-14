@@ -30,6 +30,12 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     var isPlaying: Bool {
         playbackState == .playing
     }
+
+    /// True when `url` is the track currently loaded for preview and it is
+    /// actively loading or playing. Used to drive the preview menu button state.
+    func isPreviewing(_ url: URL) -> Bool {
+        currentTrack == url && (playbackState == .loading || playbackState == .playing)
+    }
     
     // MARK: - Private Properties
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
@@ -42,19 +48,32 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     
     // MARK: - Public Methods
     @MainActor
-    public func play(url: URL) async {
+    public func play(
+        url: URL,
+        category: AVAudioSession.Category = .playback,
+        options: AVAudioSession.CategoryOptions = [.duckOthers]
+    ) async {
         // Stop any currently playing audio
         stop()
-        
+
         currentTrack = url
         playbackState = .loading
-        
+
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            try await playAudioData(data)
+            try await playAudioData(data, category: category, options: options)
         } catch {
             playbackState = .error(error.localizedDescription)
         }
+    }
+
+    /// Plays a short song preview using a mixed, ambient audio session so it
+    /// layers over other audio and respects the silent switch. No-op if the
+    /// same preview is already loading or playing.
+    @MainActor
+    public func preview(url: URL) async {
+        guard !isPreviewing(url) else { return }
+        await play(url: url, category: .ambient, options: [.mixWithOthers])
     }
     
     @MainActor
@@ -107,8 +126,12 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     }
         
     @MainActor
-    private func playAudioData(_ data: Data) async throws {
-        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
+    private func playAudioData(
+        _ data: Data,
+        category: AVAudioSession.Category = .playback,
+        options: AVAudioSession.CategoryOptions = [.duckOthers]
+    ) async throws {
+        try AVAudioSession.sharedInstance().setCategory(category, mode: .default, options: options)
         try AVAudioSession.sharedInstance().setActive(true)
         audioPlayer = try AVAudioPlayer(data: data)
         audioPlayer?.delegate = self

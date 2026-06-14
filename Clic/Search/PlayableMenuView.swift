@@ -81,6 +81,13 @@ struct PlayableMenuView: View {
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
+                if [.spotify, .apple].contains(item.content.service),
+                   [.track, .libraryTrack].contains(item.content.type),
+                   let previewURL = item.previewURL,
+                   !previewURL.absoluteString.isEmpty {
+                    SongPreviewButton(previewURL: previewURL)
+                }
+
                 ControlGroup("Queue \(item.title)") {
                     Button {
                         play(position: .now)
