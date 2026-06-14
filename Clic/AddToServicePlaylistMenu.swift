@@ -8,6 +8,7 @@ import MusicSearchKit
 /// Spotify playlist, etc.), so it's only shown for `.apple`, `.spotify`, and `.plex` tracks.
 struct AddToServicePlaylistMenu: View {
     @Environment(AlertService.self) private var alertService
+    @Environment(\.undoManager) private var undoManager
 
     var itemToAdd: PlayableContent
 
@@ -67,7 +68,13 @@ struct AddToServicePlaylistMenu: View {
     private func add(to playlist: PlayableContent) {
         Task {
             let success = await addTrack(to: playlist.id)
-            await MainActor.run { showResult(success: success, playlistTitle: playlist.title) }
+            await MainActor.run {
+                if success {
+                    // Make the add undoable via the native Edit menu / ⌘Z (Spotify & Plex only).
+                    PlaylistEditCoordinator.shared.registerExternalAdd(track: itemToAdd, to: playlist, undoManager: undoManager)
+                }
+                showResult(success: success, playlistTitle: playlist.title)
+            }
         }
     }
 

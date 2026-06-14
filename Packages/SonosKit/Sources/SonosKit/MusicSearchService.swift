@@ -366,6 +366,28 @@ public final class MusicSearchService {
         return await plex.deletePlaylist(ratingKey: playlistKey)
     }
 
+    // MARK: Service-agnostic dispatch
+
+    /// Adds `track` to `playlist`, dispatching to the playlist's service.
+    public func addToServicePlaylist(track: PlayableContent, playlist: PlayableContent) async -> Bool {
+        switch playlist.content.service {
+        case .apple: return await addToApplePlaylist(track: track, playlistID: playlist.content.id)
+        case .spotify: return await addToSpotifyPlaylist(track: track, playlistID: playlist.content.id)
+        case .plex: return await addToPlexPlaylist(track: track, playlistID: playlist.content.id)
+        default: return false
+        }
+    }
+
+    /// Removes `track` from `playlist`, dispatching to the playlist's service.
+    /// Apple Music has no remove endpoint, so it returns `false`.
+    public func removeFromServicePlaylist(track: PlayableContent, playlist: PlayableContent) async -> Bool {
+        switch playlist.content.service {
+        case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id)
+        case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
+        default: return false
+        }
+    }
+
     public func isSpotifyAlbumSaved(id: String) async -> Bool {
         await spotifySearchAPI.isAlbumSaved(id: id)
     }
