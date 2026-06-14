@@ -34,6 +34,11 @@ struct MediaDetailView: View {
     var maxHeight: Double {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
+
+    /// Playlists whose tracks can be removed/reordered in-place (Sonos, Spotify, Plex).
+    private var isEditablePlaylist: Bool {
+        playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist
+    }
     
     var body: some View {
         @Bindable var router = router
@@ -60,9 +65,9 @@ struct MediaDetailView: View {
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
-                    } else if playableContent.isSpotifyPlaylist {
+                    } else if playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist {
                         Button(role: .destructive) {
-                            removeSpotifyTrack(at: index)
+                            removeServiceTrack(at: index)
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
@@ -119,13 +124,13 @@ struct MediaDetailView: View {
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
-            if (playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist) && !selection.isEmpty {
+            if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
                     Task {
                         for index in Array(selection).sorted(by: >) {
-                            if playableContent.isSpotifyPlaylist {
+                            if playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist {
                                 guard tracks.indices.contains(index) else { continue }
-                                let removed = await musicSearchService.removeFromSpotifyPlaylist(track: tracks[index], playlistID: playableContent.content.id)
+                                let removed = await removeTrackFromServicePlaylist(tracks[index])
                                 if removed { tracks.remove(at: index) }
                             } else {
                                 try await SonosService.shared.removeTrackFromPlaylist(
@@ -176,7 +181,7 @@ struct MediaDetailView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist {
+                if isEditablePlaylist {
                     Button(editMode.isEditing ? "Done" : "Edit") {
                         withAnimation {
                             editMode = editMode.isEditing ? .inactive : .active
@@ -537,14 +542,14 @@ struct MediaDetailView: View {
         }
     }
 
-    /// Removes a single track from the underlying Spotify playlist, optimistically updating the list
-    /// and restoring it if the request fails (e.g. the playlist isn't owned by the user).
-    private func removeSpotifyTrack(at index: Int) {
+    /// Removes a single track from the underlying Spotify/Plex playlist, optimistically updating the
+    /// list and restoring it if the request fails (e.g. the playlist isn't owned by the user).
+    private func removeServiceTrack(at index: Int) {
         guard tracks.indices.contains(index) else { return }
         let removedTrack = tracks[index]
         tracks.remove(at: index)
         Task {
-            let success = await musicSearchService.removeFromSpotifyPlaylist(track: removedTrack, playlistID: playableContent.content.id)
+            let success = await removeTrackFromServicePlaylist(removedTrack)
             if !success {
                 await MainActor.run {
                     tracks.insert(removedTrack, at: min(index, tracks.count))
@@ -552,6 +557,15 @@ struct MediaDetailView: View {
                 }
             }
         }
+    }
+
+    private func removeTrackFromServicePlaylist(_ track: PlayableContent) async -> Bool {
+        if playableContent.isSpotifyPlaylist {
+            return await musicSearchService.removeFromSpotifyPlaylist(track: track, playlistID: playableContent.content.id)
+        } else if playableContent.isPlexPlaylist {
+            return await musicSearchService.removeFromPlexPlaylist(track: track, playlistID: playableContent.content.id)
+        }
+        return false
     }
 }
 

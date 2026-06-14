@@ -123,6 +123,91 @@ public final class PlexAPI {
         return song.metadata?.first?.userRating
     }
 
+    // MARK: - Playlist Management
+
+    /// The library item uri Plex expects when seeding or adding tracks to a playlist.
+    private func libraryItemURI(machineIdentifier: String, ratingKey: String) -> String {
+        "server://\(machineIdentifier)/com.plexapp.plugins.library/library/metadata/\(ratingKey)"
+    }
+
+    /// Creates a new audio playlist seeded with a single track (Plex requires an initial item).
+    /// - Returns: The new playlist's ratingKey, or `nil` on failure.
+    public func createPlaylist(title: String, trackRatingKey: String) async -> String? {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists") else {
+            return nil
+        }
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "audio"),
+            URLQueryItem(name: "title", value: title),
+            URLQueryItem(name: "smart", value: "0"),
+            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey))
+        ])
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (data, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { return nil }
+        let container = try? decoder.decode(PlexContainer<PlexUserPlaylistContainer>.self, from: data)
+        return container?.mediaContainer.metadata.first?.ratingKey
+    }
+
+    /// Adds a track to an existing playlist.
+    public func addToPlaylist(playlistRatingKey: String, trackRatingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let machineIdentifier = plexServer.clientIdentifier,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items") else {
+            return false
+        }
+        url.append(queryItems: [
+            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey))
+        ])
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    /// Removes a single item (identified by its playlist item id) from a playlist.
+    public func removeFromPlaylist(playlistRatingKey: String, playlistItemID: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items/\(playlistItemID)") else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
+    /// Deletes a playlist entirely.
+    public func deletePlaylist(ratingKey: String) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              let url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(ratingKey)") else {
+            return false
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
     public func search(for query: String, limit: Int = 50) async -> PlexResults? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {

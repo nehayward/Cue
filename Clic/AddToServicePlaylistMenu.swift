@@ -2,10 +2,10 @@ import SwiftUI
 import SonosKit
 import MusicSearchKit
 
-/// Adds a track to one of the user's native Apple Music or Spotify playlists.
+/// Adds a track to one of the user's native Apple Music, Spotify, or Plex playlists.
 ///
-/// The menu is shown for `.apple` and `.spotify` tracks only, and targets playlists on the
-/// track's own service (you can't add an Apple Music song to a Spotify playlist and vice versa).
+/// The menu targets playlists on the track's own service (you can't add an Apple Music song to a
+/// Spotify playlist, etc.), so it's only shown for `.apple`, `.spotify`, and `.plex` tracks.
 struct AddToServicePlaylistMenu: View {
     @Environment(AlertService.self) private var alertService
 
@@ -20,6 +20,7 @@ struct AddToServicePlaylistMenu: View {
         switch service {
         case .apple: return "Apple Music"
         case .spotify: return "Spotify"
+        case .plex: return "Plex"
         default: return ""
         }
     }
@@ -37,7 +38,7 @@ struct AddToServicePlaylistMenu: View {
             if isLoading {
                 Label("Loading…", systemImage: "ellipsis")
             } else if playlists.isEmpty {
-                Label("No editable playlists", systemImage: "music.note.list")
+                Label("No playlists", systemImage: "music.note.list")
             } else {
                 ForEach(playlists) { playlist in
                     Button(playlist.title) {
@@ -58,6 +59,7 @@ struct AddToServicePlaylistMenu: View {
         switch service {
         case .apple: return await MusicSearchService.shared.appleUserPlaylists()
         case .spotify: return await MusicSearchService.shared.spotifyEditablePlaylists()
+        case .plex: return await MusicSearchService.shared.plexUserPlaylists()
         default: return []
         }
     }
@@ -72,22 +74,18 @@ struct AddToServicePlaylistMenu: View {
     private func createPlaylistAndAdd() {
         Task {
             let name = itemToAdd.metadata?.album ?? itemToAdd.title
+            // Each service creates the playlist and adds the track in one step.
             let created: PlayableContent?
             switch service {
-            case .apple: created = await MusicSearchService.shared.createApplePlaylist(name: name)
-            case .spotify: created = await MusicSearchService.shared.createSpotifyPlaylist(name: name)
+            case .apple: created = await MusicSearchService.shared.createApplePlaylist(name: name, addingTrack: itemToAdd)
+            case .spotify: created = await MusicSearchService.shared.createSpotifyPlaylist(name: name, addingTrack: itemToAdd)
+            case .plex: created = await MusicSearchService.shared.createPlexPlaylist(name: name, track: itemToAdd)
             default: created = nil
             }
 
-            guard let created else {
-                await MainActor.run { showResult(success: false, playlistTitle: name) }
-                return
-            }
-
-            let success = await addTrack(to: created.id)
             await MainActor.run {
-                showResult(success: success, playlistTitle: created.title, created: true)
-                if success { playlists.insert(created, at: 0) }
+                showResult(success: created != nil, playlistTitle: created?.title ?? name, created: true)
+                if let created { playlists.insert(created, at: 0) }
             }
         }
     }
@@ -96,6 +94,7 @@ struct AddToServicePlaylistMenu: View {
         switch service {
         case .apple: return await MusicSearchService.shared.addToApplePlaylist(track: itemToAdd, playlistID: playlistID)
         case .spotify: return await MusicSearchService.shared.addToSpotifyPlaylist(track: itemToAdd, playlistID: playlistID)
+        case .plex: return await MusicSearchService.shared.addToPlexPlaylist(track: itemToAdd, playlistID: playlistID)
         default: return false
         }
     }

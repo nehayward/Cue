@@ -271,9 +271,10 @@ public final class MusicSearchService {
         }
     }
 
-    /// Creates a new Apple Music library playlist and returns it as `PlayableContent`.
-    public func createApplePlaylist(name: String) async -> PlayableContent? {
+    /// Creates a new Apple Music library playlist containing `track` and returns it as `PlayableContent`.
+    public func createApplePlaylist(name: String, addingTrack track: PlayableContent) async -> PlayableContent? {
         guard let id = try? await apple.createLibraryPlaylist(name: name) else { return nil }
+        _ = await addToApplePlaylist(track: track, playlistID: id)
         return PlayableContent(
             title: name,
             subtitle: "",
@@ -295,9 +296,10 @@ public final class MusicSearchService {
         await spotifySearchAPI.editableUserPlaylists().compactMap(\.toPlayable)
     }
 
-    /// Creates a new Spotify playlist and returns it as `PlayableContent`.
-    public func createSpotifyPlaylist(name: String) async -> PlayableContent? {
+    /// Creates a new Spotify playlist containing `track` and returns it as `PlayableContent`.
+    public func createSpotifyPlaylist(name: String, addingTrack track: PlayableContent) async -> PlayableContent? {
         guard let id = await spotifySearchAPI.createPlaylist(name: name) else { return nil }
+        _ = await addToSpotifyPlaylist(track: track, playlistID: id)
         return PlayableContent(
             title: name,
             subtitle: "",
@@ -321,6 +323,47 @@ public final class MusicSearchService {
     /// Removes a Spotify playlist from the user's library (unfollow).
     public func deleteSpotifyPlaylist(playlistID: String) async -> Bool {
         await spotifySearchAPI.unfollowPlaylist(playlistID: playlistID)
+    }
+
+    // MARK: Plex
+
+    /// Extracts a Plex ratingKey from a `PlayableContent` id of the form `{clientId}:3:{ratingKey}`.
+    private func plexRatingKey(from id: String) -> String? {
+        id.removingPercentEncoding?.components(separatedBy: ":").last
+    }
+
+    /// The user's Plex audio playlists, as `PlayableContent`.
+    public func plexUserPlaylists() async -> [PlayableContent] {
+        await plex.playlists().map(\.toPlayable)
+    }
+
+    /// Creates a new Plex playlist seeded with `track` and returns it as `PlayableContent`.
+    public func createPlexPlaylist(name: String, track: PlayableContent) async -> PlayableContent? {
+        guard let trackKey = plexRatingKey(from: track.content.id) else { return nil }
+        guard let newKey = await plex.createPlaylist(title: name, trackRatingKey: trackKey) else { return nil }
+        // Refetch so the returned content carries the sonos-formatted id and artwork.
+        return await plex.lookupPlaylist(key: newKey)?.toPlayable
+    }
+
+    /// Adds a track to a Plex playlist.
+    public func addToPlexPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        guard let trackKey = plexRatingKey(from: track.content.id),
+              let playlistKey = plexRatingKey(from: playlistID) else { return false }
+        return await plex.addToPlaylist(playlistRatingKey: playlistKey, trackRatingKey: trackKey)
+    }
+
+    /// Removes a track from a Plex playlist. Requires the track's `playlistItemID` (populated when
+    /// the track was loaded from a playlist).
+    public func removeFromPlexPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        guard let playlistItemID = track.metadata?.playlistItemID,
+              let playlistKey = plexRatingKey(from: playlistID) else { return false }
+        return await plex.removeFromPlaylist(playlistRatingKey: playlistKey, playlistItemID: playlistItemID)
+    }
+
+    /// Deletes a Plex playlist.
+    public func deletePlexPlaylist(playlistID: String) async -> Bool {
+        guard let playlistKey = plexRatingKey(from: playlistID) else { return false }
+        return await plex.deletePlaylist(ratingKey: playlistKey)
     }
 
     public func isSpotifyAlbumSaved(id: String) async -> Bool {

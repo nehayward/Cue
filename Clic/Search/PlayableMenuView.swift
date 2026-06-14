@@ -81,10 +81,15 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if item.content.service == .spotify {
+                if [.spotify, .plex].contains(item.content.service) {
                     Button(role: .destructive) {
                         Task {
-                            let removed = await MusicSearchService.shared.deleteSpotifyPlaylist(playlistID: item.content.id)
+                            let removed: Bool
+                            switch item.content.service {
+                            case .spotify: removed = await MusicSearchService.shared.deleteSpotifyPlaylist(playlistID: item.content.id)
+                            case .plex: removed = await MusicSearchService.shared.deletePlexPlaylist(playlistID: item.content.id)
+                            default: removed = false
+                            }
                             await MainActor.run {
                                 if removed {
                                     alertService.showAlert(with: "Removed \(item.title)", imageName: "trash")
@@ -148,7 +153,7 @@ struct PlayableMenuView: View {
                 AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
 
-                if [.apple, .spotify].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
+                if [.apple, .spotify, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
                     AddToServicePlaylistMenu(itemToAdd: item)
                 }
 

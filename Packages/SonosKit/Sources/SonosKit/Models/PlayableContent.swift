@@ -437,6 +437,10 @@ extension PlayableContent {
     public var isSpotifyPlaylist: Bool {
         content.type.isPlaylist && content.service == .spotify
     }
+
+    public var isPlexPlaylist: Bool {
+        content.type.isPlaylist && content.service == .plex
+    }
 }
 
 /// TODO: ADD

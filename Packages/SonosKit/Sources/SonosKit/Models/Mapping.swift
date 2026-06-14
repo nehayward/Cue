@@ -763,7 +763,8 @@ extension PlexMetadata {
                 album: album,
                 albumID: albumID,
                 audioCodec: audioCodec,
-                userRating: userRating
+                userRating: userRating,
+                playlistItemID: playlistItemID.map(String.init)
             )
         )
     }
