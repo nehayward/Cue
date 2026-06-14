@@ -20,4 +20,5 @@ public enum AppStorageKeys {
     public static let latestReleaseVersion = "\(Prefix.id).latestReleaseVersion"
     public static let latestReleaseHeadline = "\(Prefix.id).latestReleaseHeadline"
     public static let useHardwareVolumeButtons = "\(Prefix.id).useHardwareVolumeButtons"
+    public static let autoPreviewSongs = "\(Prefix.id).autoPreviewSongs"
 }

@@ -1,7 +1,7 @@
 # 2026.5
 
 –– New Features ––
-- Song Previews: Long-press an Apple Music or Spotify track and a quick clip starts playing right away — keep browsing to audition the next song, and tap Stop Preview whenever you're done
+- Song Previews: Long-press an Apple Music or Spotify track to hear a quick clip — tap Preview Song to play one, or turn on Auto-Preview so clips start the moment you open a track's menu, letting you breeze through songs and tap Stop Preview when you're done
 - Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
