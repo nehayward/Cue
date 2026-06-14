@@ -5,6 +5,7 @@
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 –– Bug Fixes & Improvements ––
 - Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
+- Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
 
 –– New Features ––
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page

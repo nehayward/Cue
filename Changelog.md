@@ -95,4 +95,10 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - Repeat / Shuffle / Crossfade previously had no section label; now preceded by a disabled "Playback" header instead of a submenu
 - Favorite moved from its own separator-bounded section into the Now Playing group, directly below the track line
 
+### Music service menu icon hit target (iOS 26)
+- The music service selector `Menu` labels in `MediaSelector.swift` and `SearchScreen.swift` had an offset/undersized tap area on iOS 26
+- Wrapped each label in an `.iconOnly` `Label` to restore the standard toolbar hit target
+- `.iconOnly` re-tints the icon with the control color, so re-applied `.foregroundStyle(brandColor.gradient)` on the `Label` to restore the per-service brand color
+- Kept `.frame(width: 24, height: 24)` on the icon image so sizing stays correct
+
 ---
