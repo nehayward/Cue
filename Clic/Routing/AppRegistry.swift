@@ -19,6 +19,9 @@ extension View {
                     .presentationDragIndicator(.hidden)
             case let .customSleepTimer(recentTimers, onSelect):
                 SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
+            case let .confirmDeletePlaylist(content):
+                DeletePlaylistConfirmationView(content: content)
+                    .withEnvironments()
             default:
                 Group {
                     switch destination {
@@ -149,6 +152,8 @@ extension View {
                         BrowseScreen()
                             .environment(selectedGroupService)
                     case .newPlaylist:
+                        EmptyView()
+                    case .confirmDeletePlaylist:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)

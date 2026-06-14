@@ -22,6 +22,7 @@ enum SheetDestination: Identifiable, Equatable {
     case browse(group: GroupRoom? = nil)
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
+    case confirmDeletePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
     case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, content: PlayableContent? = nil)
     case plexManagement
@@ -71,6 +72,8 @@ enum SheetDestination: Identifiable, Equatable {
             "new.playlist"
         case .renamePlaylist:
             "rename.playlist"
+        case let .confirmDeletePlaylist(content):
+            content.id + "confirmDelete"
         case .speakerSettings:
             "speaker.configuration"
         case .selectGroup:

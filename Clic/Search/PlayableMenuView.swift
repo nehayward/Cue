@@ -83,22 +83,7 @@ struct PlayableMenuView: View {
 
                 if [.spotify, .plex].contains(item.content.service) {
                     Button(role: .destructive) {
-                        Task {
-                            let removed: Bool
-                            switch item.content.service {
-                            case .spotify: removed = await MusicSearchService.shared.deleteSpotifyPlaylist(playlistID: item.content.id)
-                            case .plex: removed = await MusicSearchService.shared.deletePlexPlaylist(playlistID: item.content.id)
-                            default: removed = false
-                            }
-                            await MainActor.run {
-                                if removed {
-                                    alertService.showAlert(with: "Removed \(item.title)", imageName: "trash")
-                                    router.dismiss = true
-                                } else {
-                                    alertService.showAlert(with: "Couldn't remove \(item.title)", imageName: "exclamationmark.triangle")
-                                }
-                            }
-                        }
+                        router.sheet(to: .confirmDeletePlaylist(content: item))
                     } label: {
                         Label("Delete Playlist", systemImage: "trash")
                     }
@@ -193,9 +178,7 @@ struct PlayableMenuView: View {
         
         if item.content.service == .library, item.content.type == .playlist {
             Button(role: .destructive) {
-                Task {
-                    await sonosService.delete(playlistID: item.id)
-                }
+                router.sheet(to: .confirmDeletePlaylist(content: item))
             } label: {
                 Label("Delete from Library", systemImage: "trash")
             }

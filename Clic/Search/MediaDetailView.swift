@@ -127,11 +127,16 @@ struct MediaDetailView: View {
             if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
                     Task {
+                        var undoable: [(track: PlayableContent, index: Int)] = []
                         for index in Array(selection).sorted(by: >) {
                             if playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist {
                                 guard tracks.indices.contains(index) else { continue }
-                                let removed = await removeTrackFromServicePlaylist(tracks[index])
-                                if removed { tracks.remove(at: index) }
+                                let track = tracks[index]
+                                let removed = await removeTrackFromServicePlaylist(track)
+                                if removed {
+                                    undoable.append((track, index))
+                                    tracks.remove(at: index)
+                                }
                             } else {
                                 try await SonosService.shared.removeTrackFromPlaylist(
                                     playlistID: playableContent.id,
@@ -141,6 +146,7 @@ struct MediaDetailView: View {
                             }
                         }
                         selection.removeAll()
+                        offerUndo(for: undoable)
                     }
                 } label: {
                     Text("Delete Selected (\(selection.count))")
@@ -550,8 +556,10 @@ struct MediaDetailView: View {
         tracks.remove(at: index)
         Task {
             let success = await removeTrackFromServicePlaylist(removedTrack)
-            if !success {
-                await MainActor.run {
+            await MainActor.run {
+                if success {
+                    offerUndo(for: [(removedTrack, index)])
+                } else {
                     tracks.insert(removedTrack, at: min(index, tracks.count))
                     alertService.showAlert(with: "Couldn't remove track", imageName: "exclamationmark.triangle")
                 }
@@ -566,6 +574,31 @@ struct MediaDetailView: View {
             return await musicSearchService.removeFromPlexPlaylist(track: track, playlistID: playableContent.content.id)
         }
         return false
+    }
+
+    private func addTrackToServicePlaylist(_ track: PlayableContent) async -> Bool {
+        if playableContent.isSpotifyPlaylist {
+            return await musicSearchService.addToSpotifyPlaylist(track: track, playlistID: playableContent.content.id)
+        } else if playableContent.isPlexPlaylist {
+            return await musicSearchService.addToPlexPlaylist(track: track, playlistID: playableContent.content.id)
+        }
+        return false
+    }
+
+    /// Presents a tappable "Undo" banner that re-adds the removed track(s). The service appends them,
+    /// so the original ordering isn't guaranteed until the playlist is reloaded.
+    @MainActor
+    private func offerUndo(for removed: [(track: PlayableContent, index: Int)]) {
+        guard !removed.isEmpty else { return }
+        let message = removed.count == 1 ? "Removed \(removed[0].track.title)" : "Removed \(removed.count) tracks"
+        alertService.showUndoAlert(with: message) {
+            Task { @MainActor in
+                for item in removed.sorted(by: { $0.index < $1.index }) {
+                    guard await addTrackToServicePlaylist(item.track) else { continue }
+                    tracks.insert(item.track, at: min(item.index, tracks.count))
+                }
+            }
+        }
     }
 }
 
