@@ -2,9 +2,11 @@ import SwiftUI
 
 /// Context-menu option for auditioning a track's short preview clip.
 ///
-/// Tapping toggles the preview without dismissing the menu, and the preview
-/// stops automatically when the menu is dismissed. Preview audio plays in a
-/// mixed, ambient session so it layers over anything already playing.
+/// The preview starts automatically when the menu appears and keeps playing —
+/// even after the menu is dismissed — until the user taps the option again to
+/// stop it, so they can quickly audition one song after another. Tapping never
+/// dismisses the menu. Preview audio plays in a mixed, ambient session so it
+/// layers over anything already playing.
 struct SongPreviewButton: View {
     @Environment(AudioPlaybackService.self) private var audioService
 
@@ -28,10 +30,8 @@ struct SongPreviewButton: View {
             )
         }
         .menuActionDismissBehavior(.disabled)
-        .onDisappear {
-            if isPreviewing {
-                audioService.stop()
-            }
+        .onAppear {
+            Task { await audioService.preview(url: previewURL) }
         }
     }
 }

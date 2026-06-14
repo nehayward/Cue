@@ -7,8 +7,9 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 ## 2026.5
 
 ### Song previews in the context menu
-- Long-press an Apple Music or Spotify track to get a "Preview Song" option that auditions the track's short preview clip
-- Tapping toggles between Preview Song / Stop Preview without dismissing the menu (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed
+- Long-press an Apple Music or Spotify track and the preview clip starts playing automatically (`onAppear`), so you can quickly audition songs one after another
+- The preview keeps playing after the menu is dismissed and only stops when the user taps the option again — the label toggles between Preview Song / Stop Preview, and tapping never dismisses the menu (`menuActionDismissBehavior(.disabled)`)
+- Opening another track's menu swaps the preview to that track; `preview(url:)` is a no-op if the same clip is already playing
 - Preview audio runs through `AudioPlaybackService.preview(url:)` using a mixed, ambient `AVAudioSession` (`.ambient` + `.mixWithOthers`) so it layers over other audio and respects the silent switch — distinct from the ducking `.playback` session used by `play(url:)`
 - Only shown for tracks that actually carry a `previewURL` (mapped from Apple Music `previewAssets` and Spotify `previewUrl`)
 
