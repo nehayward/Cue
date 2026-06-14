@@ -80,6 +80,24 @@ struct PlayableMenuView: View {
                         Label("Rename", systemImage: "textformat")
                     }
                 }
+
+                if item.content.service == .spotify {
+                    Button(role: .destructive) {
+                        Task {
+                            let removed = await MusicSearchService.shared.deleteSpotifyPlaylist(playlistID: item.content.id)
+                            await MainActor.run {
+                                if removed {
+                                    alertService.showAlert(with: "Removed \(item.title)", imageName: "trash")
+                                    router.dismiss = true
+                                } else {
+                                    alertService.showAlert(with: "Couldn't remove \(item.title)", imageName: "exclamationmark.triangle")
+                                }
+                            }
+                        }
+                    } label: {
+                        Label("Delete Playlist", systemImage: "trash")
+                    }
+                }
             case .album, .track, .libraryTrack, .libraryAlbum:
                 ControlGroup("Queue \(item.title)") {
                     Button {
@@ -129,6 +147,10 @@ struct PlayableMenuView: View {
 
                 AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
+
+                if [.apple, .spotify].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
+                    AddToServicePlaylistMenu(itemToAdd: item)
+                }
 
                 if [.spotify, .soundcloud, .apple, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
                     FavoriteMenuButton(item: item)

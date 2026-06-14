@@ -433,6 +433,10 @@ extension PlayableContent {
     public var isSonosPlaylist: Bool {
         content.type == .playlist && content.service == .library
     }
+
+    public var isSpotifyPlaylist: Bool {
+        content.type.isPlaylist && content.service == .spotify
+    }
 }
 
 /// TODO: ADD

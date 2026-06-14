@@ -60,6 +60,12 @@ struct MediaDetailView: View {
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
+                    } else if playableContent.isSpotifyPlaylist {
+                        Button(role: .destructive) {
+                            removeSpotifyTrack(at: index)
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
                     }
                 }
                 .opacity(item.isPlayable ? 1 : 0.6)
@@ -113,15 +119,21 @@ struct MediaDetailView: View {
         .listStyle(.plain)
         .contentMargins(.top, 0, for: .scrollContent)
         .safeAreaInset(edge: .bottom) {
-            if playableContent.isSonosPlaylist && !selection.isEmpty {
+            if (playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist) && !selection.isEmpty {
                 Button(role: .destructive) {
                     Task {
                         for index in Array(selection).sorted(by: >) {
-                            try await SonosService.shared.removeTrackFromPlaylist(
-                                playlistID: playableContent.id,
-                                index: index
-                            )
-                            tracks.remove(at: index)
+                            if playableContent.isSpotifyPlaylist {
+                                guard tracks.indices.contains(index) else { continue }
+                                let removed = await musicSearchService.removeFromSpotifyPlaylist(track: tracks[index], playlistID: playableContent.content.id)
+                                if removed { tracks.remove(at: index) }
+                            } else {
+                                try await SonosService.shared.removeTrackFromPlaylist(
+                                    playlistID: playableContent.id,
+                                    index: index
+                                )
+                                tracks.remove(at: index)
+                            }
                         }
                         selection.removeAll()
                     }
@@ -164,7 +176,7 @@ struct MediaDetailView: View {
             }
             
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if playableContent.isSonosPlaylist {
+                if playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist {
                     Button(editMode.isEditing ? "Done" : "Edit") {
                         withAnimation {
                             editMode = editMode.isEditing ? .inactive : .active
@@ -522,6 +534,23 @@ struct MediaDetailView: View {
         Task {
             guard let sourceIndex = source.first else { return }
             try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+        }
+    }
+
+    /// Removes a single track from the underlying Spotify playlist, optimistically updating the list
+    /// and restoring it if the request fails (e.g. the playlist isn't owned by the user).
+    private func removeSpotifyTrack(at index: Int) {
+        guard tracks.indices.contains(index) else { return }
+        let removedTrack = tracks[index]
+        tracks.remove(at: index)
+        Task {
+            let success = await musicSearchService.removeFromSpotifyPlaylist(track: removedTrack, playlistID: playableContent.content.id)
+            if !success {
+                await MainActor.run {
+                    tracks.insert(removedTrack, at: min(index, tracks.count))
+                    alertService.showAlert(with: "Couldn't remove track", imageName: "exclamationmark.triangle")
+                }
+            }
         }
     }
 }

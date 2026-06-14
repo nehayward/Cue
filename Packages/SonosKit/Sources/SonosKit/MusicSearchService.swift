@@ -253,6 +253,76 @@ public final class MusicSearchService {
         await spotifySearchAPI.deleteTrack(id: id)
     }
 
+    // MARK: - Playlist Management
+
+    /// The user's editable Apple Music library playlists, as `PlayableContent`.
+    public func appleUserPlaylists() async -> [PlayableContent] {
+        guard let container = try? await apple.getUserPlaylists(limit: 100) else { return [] }
+        return container.data.compactMap { item in
+            guard let name = item.attributes.name else { return nil }
+            return PlayableContent(
+                title: name,
+                subtitle: "",
+                thumbnail: item.attributes.artwork?.urlWithSize(width: 100, height: 100),
+                artwork: item.attributes.artwork?.urlWithSize(width: 600, height: 600),
+                content: MediaContent(service: .apple, id: item.id, type: .libraryPlaylist, location: nil),
+                metadata: .init()
+            )
+        }
+    }
+
+    /// Creates a new Apple Music library playlist and returns it as `PlayableContent`.
+    public func createApplePlaylist(name: String) async -> PlayableContent? {
+        guard let id = try? await apple.createLibraryPlaylist(name: name) else { return nil }
+        return PlayableContent(
+            title: name,
+            subtitle: "",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: .apple, id: id, type: .libraryPlaylist, location: nil),
+            metadata: .init()
+        )
+    }
+
+    /// Adds a track to an Apple Music library playlist.
+    public func addToApplePlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        let type = track.content.type == .libraryTrack ? "library-songs" : "songs"
+        return (try? await apple.addSongToPlaylist(songId: track.content.id, type: type, playlistID: playlistID)) ?? false
+    }
+
+    /// The user's editable Spotify playlists (owned or collaborative), as `PlayableContent`.
+    public func spotifyEditablePlaylists() async -> [PlayableContent] {
+        await spotifySearchAPI.editableUserPlaylists().compactMap(\.toPlayable)
+    }
+
+    /// Creates a new Spotify playlist and returns it as `PlayableContent`.
+    public func createSpotifyPlaylist(name: String) async -> PlayableContent? {
+        guard let id = await spotifySearchAPI.createPlaylist(name: name) else { return nil }
+        return PlayableContent(
+            title: name,
+            subtitle: "",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: .spotify, id: id, type: .playlist, location: URL(string: "https://open.spotify.com/playlist/\(id)")),
+            metadata: nil
+        )
+    }
+
+    /// Adds a track to a Spotify playlist.
+    public func addToSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: ["spotify:track:\(track.content.id)"])
+    }
+
+    /// Removes a track from a Spotify playlist.
+    public func removeFromSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        await spotifySearchAPI.removeTracksFromPlaylist(playlistID: playlistID, trackURIs: ["spotify:track:\(track.content.id)"])
+    }
+
+    /// Removes a Spotify playlist from the user's library (unfollow).
+    public func deleteSpotifyPlaylist(playlistID: String) async -> Bool {
+        await spotifySearchAPI.unfollowPlaylist(playlistID: playlistID)
+    }
+
     public func isSpotifyAlbumSaved(id: String) async -> Bool {
         await spotifySearchAPI.isAlbumSaved(id: id)
     }
