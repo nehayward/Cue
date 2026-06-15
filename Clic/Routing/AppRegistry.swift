@@ -457,7 +457,7 @@ extension View {
             }
             .withEnvironments()
 #if targetEnvironment(macCatalyst)
-            .inspectorColumnWidth(min: 360, ideal: 500, max: 600)
+            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
 #else
             .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
             .presentationBackgroundInteraction(.disabled)

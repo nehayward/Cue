@@ -460,6 +460,17 @@ public final class SonosService {
                 // displayable name/artist — assign immediately so the row never sits blank
                 // while we wait on `getTrackInformation` (which can be slow or rate-limited
                 // for Spotify/Apple Music). Metadata then enhances the track in place.
+                //
+                // Same-album carry: if the new track is on the same album, inherit the
+                // existing artwork URL so ArtworkView's artworkURL never briefly becomes
+                // the Sonos proxy (or nil) before the CDN URL arrives. Spotify sends only
+                // dc:creator (per-track artist), so without this the URL changes twice on
+                // every track change within an album, causing a visible flash.
+                if !awaitedTrack.album.isEmpty,
+                   awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
+                   let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
+                    awaitedTrack.downloadedArtworkURL = priorURL
+                }
                 let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                 if hasDisplayableInfo {
                     roomGroup.coordinatorRoom.track = awaitedTrack
@@ -745,6 +756,13 @@ public final class SonosService {
 
                     // Sonos's XML already provides displayable name/artist — assign now so
                     // the row never sits blank waiting on `getTrackInformation`.
+                    //
+                    // Same-album carry: see twin site above.
+                    if !awaitedTrack.album.isEmpty,
+                       awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
+                       let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
+                        awaitedTrack.downloadedArtworkURL = priorURL
+                    }
                     let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                     if hasDisplayableInfo {
                         roomGroup.coordinatorRoom.track = awaitedTrack

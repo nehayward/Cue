@@ -24,7 +24,7 @@ struct QueueCellView: View {
                 await SonosService.shared.play(ip: group.coordinatorRoom.ip)
             }
         } label: {
-            HStack {
+            HStack(alignment: .center) {
                 LightArtworkView(content: track, contentType: track.content.type, showMusicSource: true)
                     .frame(width: 50, height: 50)
                     #if DEBUG && SCREENSHOT
@@ -36,7 +36,7 @@ struct QueueCellView: View {
                 VStack(alignment: .leading) {
                     Text(track.title)
                         .lineLimit(1)
-                        .foregroundStyle(isTrackPlaying ? .accent : .primary)
+                        .foregroundStyle(isTrackPlaying ? AnyShapeStyle(.accent) : AnyShapeStyle(.primary))
                     Text(track.subtitle)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -45,6 +45,8 @@ struct QueueCellView: View {
                 Spacer()
                 Menu {
                     QueueCellMenuView(track: track, group: group, router: router, onLocalMoveNext: onLocalMoveNext, onLocalDelete: onLocalDelete)
+                        .tint(.white)
+                        .foregroundStyle(.white)
                 } label: {
                     Image(systemName: "ellipsis")
                         .frame(maxWidth: 50, maxHeight: .infinity)
@@ -56,8 +58,8 @@ struct QueueCellView: View {
                 .opacity(isEditing ? 0 : 1)
                 .frame(width: isEditing ? 0 : nil)
             }
-            .geometryGroup()
         }
+        .tint(.primary)
         .swipeActions {
             Button(role: .destructive) {
                 Task {
@@ -71,16 +73,18 @@ struct QueueCellView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .tint(.red)
         }
-        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0))
-        .draggable(track)
-        #if targetEnvironment(macCatalyst)
-        .contextMenu { QueueCellMenuView(track: track, group: group, router: router, onLocalMoveNext: onLocalMoveNext, onLocalDelete: onLocalDelete) }
-        #endif
+        .draggable(track) {
+            Text(track.title)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        }
     }
     
     private var isTrackPlaying: Bool {
-        return currentTrackID == track.trackID && group.playbackService == .queue
+        currentTrackID == track.trackID && group.playbackService == .queue
     }
 }
 
@@ -141,4 +145,3 @@ fileprivate struct QueueCellMenuView: View {
         }
     }
 }
-

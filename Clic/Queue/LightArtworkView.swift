@@ -41,16 +41,17 @@ struct LightArtworkView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .clipped()
-        .task {
+        .task(id: content.imageKey) {
             if ImagePipeline.shared.cache.containsCachedImage(for: ImageRequest(url: content.thumbnail, userInfo: [.imageIdKey: content.imageKey])) {
+                self.thumbnail = content.thumbnail
                 return
             }
-            
+
             guard let newThumbnail = await SonosService.shared.getArtwork(from: content, size: 50) else {
                 self.thumbnail = content.artwork
                 return
             }
-            
+
             self.thumbnail = newThumbnail
         }
     }
@@ -66,6 +67,7 @@ fileprivate struct OverlayIcons: View {
             }
             .padding(2)
             .shadow(radius: 3)
+            .foregroundStyle(.white)
     }
 }
 

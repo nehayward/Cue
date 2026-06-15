@@ -5,44 +5,22 @@ import SwiftUI
 import Collections
 import Defaults
 
-enum QueueMode: String, CaseIterable {
-    case full = "full"
-    case upNext = "upNext"
-    
-    var title: String {
-        switch self {
-        case .full:
-            return "Queue"
-        case .upNext:
-            return "Up Next"
-        }
-    }
-    
-    var icon: String {
-        switch self {
-        case .full:
-            return "list.bullet"
-        case .upNext:
-            return "forward.fill"
-        }
-    }
-}
-
 struct QueueScreen: View {
     @Environment(PlayHistoryService.self) var playHistoryService
-    @State private var editMode: EditMode = .inactive
     @AppStorage(AppStorageKeys.queueMode) private var queueMode: QueueMode = .upNext
 
     var group: GroupRoom
     var closeInspector: (() -> Void)? = nil
     
+    @State private var editMode: EditMode = .inactive
     @State private var router = Router()
     @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
     @State private var currentTrackID: String = ""
+    @State private var currentGroupIP: String = ""
     @State private var selection: Set<String> = []
     @State private var upNextTracks: [PlayableContent] = []
-
+    
     var body: some View {
 //        let _ = Self._printChanges()
         NavigationStack(path: $router.path) {
@@ -52,7 +30,6 @@ struct QueueScreen: View {
                         fullQueueView(proxy: proxy)
                     } else {
                         UpNextContentView(editMode: $editMode, group: group, currentTrackID: currentTrackID, router: router, selection: $selection, upNext: $upNextTracks)
-                            .listStyle(.plain)
                     }
                 }
                 .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
@@ -85,9 +62,9 @@ struct QueueScreen: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    
+
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button {
                             var currentPlayMode = group.playMode
@@ -156,7 +133,8 @@ struct QueueScreen: View {
                                 .contentTransition(.symbolEffect(.automatic))
                         }
                         
-                        MoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode, upNextTracks: $upNextTracks)
+                        QueueMoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode, upNextTracks: $upNextTracks)
+                            .contentTransition(.identity)
                     }
                 }
             }
@@ -177,106 +155,61 @@ struct QueueScreen: View {
                 }
             }
         }
-        .overlay(
-            Button {
-                closeInspector?()
-            } label: {
-                EmptyView()
+        .overlay {
+            VStack {
+                Button { closeInspector?() } label: { EmptyView() }
+                    .keyboardShortcut(.escape, modifiers: [])
+                Button {
+                    withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+                } label: { EmptyView() }
+                    .keyboardShortcut("e", modifiers: [])
             }
-            .keyboardShortcut(.escape, modifiers: [])
             .frame(width: 0, height: 0)
+            .accessibility(hidden: true)
             .hidden()
-        )
+        }
         .safeArea(edge: .bottom) {
             if !selection.isEmpty {
-                Button(role: .destructive) {
-                    Task {
-                        // Get selected tracks from the appropriate source
-                        let selectedTracks: [PlayableContent]
-                        if queueMode == .full {
-                            selectedTracks = selection.compactMap { trackID in
-                                group.coordinatorRoom.queue.elements.first { $0.trackID == trackID }
-                            }
-                        } else {
-                            selectedTracks = upNextTracks.filter { track in
-                                selection.contains(track.trackID)
-                            }
-                        }
+                HStack {
+                    Button {
                         
-                        // Sort by position (descending) to avoid index shifting issues
-                        let sortedTracks = selectedTracks.sorted { track1, track2 in
-                            (track1.metadata?.position ?? 0) > (track2.metadata?.position ?? 0)
-                        }
+                            selection.removeAll()
                         
-                        // Remove from local arrays first for immediate UI feedback
-                        if queueMode == .upNext {
-                            for track in sortedTracks {
-                                upNextTracks.removeAll { $0.trackID == track.trackID }
-                            }
-                            // MARK: Update Track Position
-                            Task {
-                                try? await Task.sleep(for: .milliseconds(200))
-                                guard let position = sortedTracks.last?.metadata?.position else { return }
-                                for index in upNextTracks.indices {
-                                    if let currentPosition = upNextTracks[index].metadata?.position, currentPosition >= position {
-                                        upNextTracks[index].metadata?.position = currentPosition - sortedTracks.count
-                                    }
-                                }
-                            }
-                        } else {
-                            for track in sortedTracks {
-                                group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
-                            }
-                            
-                            Task {
-                                try? await Task.sleep(for: .milliseconds(200))
-                                guard let position = sortedTracks.last?.metadata?.position else { return }
-                                for index in group.coordinatorRoom.queue.indices {
-                                    guard let currentPosition = group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position else { continue }
-                                    var currentItem = group.coordinatorRoom.queue[index]
-                                    group.coordinatorRoom.queue.remove(currentItem)
-                                    currentItem.metadata?.position = currentPosition - sortedTracks.count
-                                    group.coordinatorRoom.queue.insert(currentItem, at: index)
-                                }
-                                try? await SonosService.shared.updateTrackInformation(for: [group])
-                                let id = group.coordinatorRoom.track.toPlayable.trackID
-                                currentTrackID = id
-                            }
-                        }
-                        
-                        // Remove tracks using their actual queue positions
-                        for track in sortedTracks {
-                            guard let position = track.metadata?.position else { continue }
-                            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                        }
-                        
-                        // Update queue total
-                        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
-                        
-                        // Clear selection
-                        selection.removeAll()
+                    } label: {
+                        Label("Deselect All", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
+                            .symbolRenderingMode(.hierarchical)
                     }
-                } label: {
-                    Text("Delete Selected (\(selection.count))")
-                        .frame(maxWidth: .infinity)
-                        .monospacedDigit()
-                        .bold()
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.circle)
+                    .foregroundStyle(Color(UIColor.systemBackground))
+                    .tint(Color(UIColor.label))
+
+                    Button(role: .destructive) {
+                        Task {
+                            if queueMode == .full {
+                                await deleteFullQueueTracks(selection)
+                            } else {
+                                await deleteUpNextTracks(selection)
+                            }
+                        }
+                    } label: {
+                        Text("Remove \(selection.count) Tracks")
+                            .monospacedDigit()
+                    }
+                    .buttonStyle(.bordered)
+                    
                 }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-                .offset(y: !selection.isEmpty ? 0 : 200)
-#if targetEnvironment(macCatalyst)
-                .padding(.bottom)
-#endif
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.interactiveSpring, value: selection)
     }
     
     @ViewBuilder
     private func fullQueueView(proxy: ScrollViewProxy) -> some View {
         List(selection: $selection) {
-            ForEach(group.coordinatorRoom.queue, id: \.trackID) { track in
-                let index = group.coordinatorRoom.queue.firstIndex(of: track) ?? 0
+            ForEach(Array(group.coordinatorRoom.queue.enumerated()), id: \.element.trackID) { index, track in
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())
@@ -285,23 +218,51 @@ struct QueueScreen: View {
                         .padding(.trailing, 8)
                     QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                 }
-                .geometryGroup()
                 .listRowSeparator(.hidden)
                 .listSectionSeparator(.hidden, edges: .all)
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.clear)
-                        .padding(.horizontal, 4)
-                )
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                #if targetEnvironment(macCatalyst)
-                .contextMenu { menu(content: track) }
-                #endif
             }
             .onMove(perform: move)
         }
+        .tint(.accentColor.opacity(0.5))
+        .contextMenu(forSelectionType: String.self) { trackIDs in
+            let tracks = trackIDs.compactMap { id in group.coordinatorRoom.queue.elements.first { $0.trackID == id } }
+            if tracks.first?.content.service != .unknown {
+                if trackIDs.count == 1, let track = tracks.first {
+                    AddToPlaylistMenu(itemToAdd: track)
+
+                    Button {
+                        router.navigate(to: .mediaDetail(content: track, group: group))
+                    } label: { Label("View Album", systemImage: "smallcircle.filled.circle.fill") }
+
+                    Button {
+                        router.navigate(to: .artistDetail(content: track, group: group))
+                    } label: { Label("View Artist", systemImage: "music.mic") }
+
+                    Button {
+                        handleLocalMoveNext(track)
+                        Task {
+                            guard let position = track.metadata?.position else { return }
+                            let nextPosition = group.coordinatorRoom.track.position + 1
+                            guard position != nextPosition else { return }
+                            try? await SonosService.shared.reorderQueue(group, from: position, to: nextPosition)
+                        }
+                    } label: {
+                        Text("Play Next")
+                        Text("After \(group.coordinatorRoom.track.name)")
+                        Image(systemName: "text.insert")
+                    }
+                } else {
+                    AddTracksToPlaylistMenu(tracks: tracks)
+                }
+            }
+            Button(role: .destructive) {
+                Task { await deleteFullQueueTracks(trackIDs) }
+            } label: {
+                Label(trackIDs.count == 1 ? "Remove" : "Remove \(trackIDs.count) Tracks", systemImage: "xmark")
+            }
+        }
         .environment(\.editMode, $editMode)
-        .scrollContentBackground(.hidden)
         .listStyle(.plain)
         .overlay {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
@@ -316,9 +277,11 @@ struct QueueScreen: View {
             }
         }
         .task(id: group.coordinatorRoom.track.trackID) {
+            if group.ip != currentGroupIP {
+                currentTrackID = ""
+                currentGroupIP = group.ip
+            }
             isLoading = true
-            let id = group.coordinatorRoom.track.toPlayable.trackID
-            currentTrackID = id
             await scrollToNowPlaying(proxy)
             group.playMode = await SonosService.shared.playMode(ip: group.ip)
             isLoading = false
@@ -362,19 +325,11 @@ struct QueueScreen: View {
     }
 
     private func move(from source: IndexSet, to destination: Int) {
-        // TODO: Fix swap positions
-        group.coordinatorRoom.queue.elements.move(fromOffsets: source, toOffset: destination)
         guard let sourceIndex = source.first else { return }
-
+        group.coordinatorRoom.queue.elements.move(fromOffsets: source, toOffset: destination)
         Task {
-            try await SonosService.shared.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
-            group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+            try? await SonosService.shared.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
         }
-    }
-
-    private func isTrackPlaying(for song: PlayableContent) -> Bool {
-        guard let position = song.metadata?.position else { return false }
-        return group.coordinatorRoom.track.position == position && group.playbackService == .queue
     }
 
     private var totalDuration: Duration {
@@ -400,53 +355,62 @@ struct QueueScreen: View {
         }
     }
 
-    @MainActor
-    private func menu(content: PlayableContent) -> some View {
-        VStack {
-            if content.content.service != .unknown {
-                AddToPlaylistMenu(itemToAdd: content)
-
-                Button {
-                    router.navigate(to: .mediaDetail(content: content, group: group))
-                } label: {
-                    Label("View Album", systemImage: "smallcircle.circle.fill")
-                }
-
-                Button {
-                    router.navigate(to: .artistDetail(content: content, group: group))
-                } label: {
-                    Label("View Artist", systemImage: "music.mic")
-                }
-            }
-
-            Button {
-                handleLocalMoveNext(content)
-                Task {
-                    guard let position = content.metadata?.position else { return }
-                    let nextPosition = group.coordinatorRoom.track.position + 1
-                    guard position != nextPosition else { return }
-                    try? await SonosService.shared.reorderQueue(group, from: position, to: nextPosition)
-                }
-            } label: {
-                Text("Move Next")
-                Text("After \(group.coordinatorRoom.track.name)")
-                Image(systemName: "text.insert")
-            }
-
-            Button(role: .destructive) {
-                guard let position = content.metadata?.position else { return }
-                group.coordinatorRoom.queue.remove(at: position - 1)
-                Task {
-                    try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
-                    group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
-                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                }
-            } label: {
-                Label("Remove", systemImage: "trash")
+    private func deleteFullQueueTracks(_ trackIDs: Set<String>) async {
+        let selectedTracks = trackIDs.compactMap { id in
+            group.coordinatorRoom.queue.elements.first { $0.trackID == id }
+        }
+        let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
+        withAnimation {
+            for track in sortedTracks {
+                group.coordinatorRoom.queue.removeAll { $0.trackID == track.trackID }
             }
         }
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let position = sortedTracks.last?.metadata?.position else { return }
+            for index in group.coordinatorRoom.queue.indices {
+                guard let currentPosition = group.coordinatorRoom.queue[index].metadata?.position, currentPosition >= position else { continue }
+                var item = group.coordinatorRoom.queue[index]
+                group.coordinatorRoom.queue.remove(item)
+                item.metadata?.position = currentPosition - sortedTracks.count
+                group.coordinatorRoom.queue.insert(item, at: index)
+            }
+            try? await SonosService.shared.updateTrackInformation(for: [group])
+            currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+        }
+        for track in sortedTracks {
+            guard let position = track.metadata?.position else { continue }
+            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+        }
+        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        selection.removeAll()
     }
-    
+
+    private func deleteUpNextTracks(_ trackIDs: Set<String>) async {
+        let selectedTracks = upNextTracks.filter { trackIDs.contains($0.trackID) }
+        let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
+        withAnimation {
+            for track in sortedTracks {
+                upNextTracks.removeAll { $0.trackID == track.trackID }
+            }
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let position = sortedTracks.last?.metadata?.position else { return }
+            for index in upNextTracks.indices {
+                if let currentPosition = upNextTracks[index].metadata?.position, currentPosition >= position {
+                    upNextTracks[index].metadata?.position = currentPosition - sortedTracks.count
+                }
+            }
+        }
+        for track in sortedTracks {
+            guard let position = track.metadata?.position else { continue }
+            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+        }
+        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        selection.removeAll()
+    }
+
     private func scrollToNowPlaying(_ proxy: ScrollViewProxy) async {
         let queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
         if self.group.coordinatorRoom.queue != queue, !queue.isEmpty {
@@ -454,80 +418,14 @@ struct QueueScreen: View {
         }
         try? await Task.sleep(for: .milliseconds(10))
         let id = group.coordinatorRoom.track.toPlayable.trackID
+        if !currentTrackID.isEmpty {
+            withAnimation {
+                proxy.scrollTo(id, anchor: .top)
+            }
+        } else {
+            proxy.scrollTo(id, anchor: .top)
+        }
         currentTrackID = id
-        proxy.scrollTo(id, anchor: .top)
-    }
-}
-
-
-fileprivate struct MoreInfoView: View {
-    var group: GroupRoom
-    var router: Router
-    
-    @Binding var editMode: EditMode
-    @Binding var queueMode: QueueMode
-    @Binding var upNextTracks: [PlayableContent]
-    
-    @State private var clearQueueConfirmation: Bool = false
-
-    var body: some View {
-        Menu {
-            Button {
-                withAnimation {
-                    editMode = editMode.isEditing ? .inactive : .active
-                }
-            } label: {
-                Label(editMode.isEditing ? "Done" : "Edit",
-                      systemImage: editMode.isEditing ? "checkmark" : "pencil")
-            }
-
-            Button {
-                queueMode = queueMode == .full ? .upNext : .full
-            } label: {
-                Label(queueMode == .full ? "Up Next" : "Queue",
-                      systemImage: queueMode == .full ? "text.line.first.and.arrowtriangle.forward" : "list.bullet")
-            }
-
-            Button {
-                Task {
-                    router.presentedSheet = .newPlaylist(group: group)
-                }
-            } label: {
-                Label("Save Queue", systemImage: "square.and.arrow.down")
-                Text("Create Sonos Playlist")
-            }
-
-            Button {
-                HapticManager.shared.fireHaptic(.buttonPress)
-                Router.main.presentedSheet = .search(group: group)
-            } label: {
-                Label("Search", systemImage: "magnifyingglass")
-                    .fontDesign(.rounded)
-            }
-            Button(role: .destructive) {
-                clearQueueConfirmation.toggle()
-            } label: {
-                Label("Clear Queue", systemImage: "trash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .frame(height: 44)
-                .contentShape(.rect)
-        }
-        .help("Info")
-        .confirmationDialog("Clear Queue", isPresented: $clearQueueConfirmation, titleVisibility: .hidden) {
-            Button {
-                upNextTracks.removeAll()
-                group.coordinatorRoom.queue.removeAll()
-        
-                Task {
-                    try await SonosService.shared.clearQueue(group.coordinatorRoom.ip)
-                }
-            } label: {
-                Text("Clear Queue")
-                    .bold()
-            }
-        }
     }
 }
 
