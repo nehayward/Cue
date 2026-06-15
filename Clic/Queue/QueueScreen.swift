@@ -6,7 +6,6 @@ import Collections
 import Defaults
 
 struct QueueScreen: View {
-    @Environment(PlayHistoryService.self) var playHistoryService
     @AppStorage(AppStorageKeys.queueMode) private var queueMode: QueueMode = .upNext
 
     var group: GroupRoom
@@ -264,14 +263,12 @@ struct QueueScreen: View {
         .listStyle(.plain)
         .overlay {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 16) {
-                    ForEach(playHistoryService.history.prefix(6)) { item in
-                        PlayableCardView(item: item, hideAction: true)
-                            .frame(width: 120, height: 120)
-                    }
-                    .fontDesign(.rounded)
-                }
-                .padding(.horizontal, 8)
+                EmptyQueueView(
+                    title: "Your queue is empty",
+                    message: "Add songs, albums, or playlists to build a queue. Pick up where you left off below.",
+                    systemImage: "list.bullet"
+                )
+                .transition(.opacity)
             }
         }
         .task(id: group.coordinatorRoom.track.trackID) {

@@ -46,13 +46,6 @@ struct UpNextContentView: View {
                     }
                 }
                 .onMove(perform: move)
-                
-                if upNext.isEmpty, !isLoading {
-                    ContentUnavailableView("Nothing up next", systemImage: "music.note.list")
-                        .transition(.opacity)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                }
 
                 // Fixed-height spacer prevents layout shift during pagination
                 if hasMoreTracks() {
@@ -114,6 +107,13 @@ struct UpNextContentView: View {
             .overlay {
                 if isLoading, upNext.isEmpty {
                     ProgressView()
+                } else if upNext.isEmpty {
+                    EmptyQueueView(
+                        title: "Nothing up next",
+                        message: "When something's playing, what's coming up shows here. Tap below to start something new.",
+                        systemImage: "music.note.list"
+                    )
+                    .transition(.opacity)
                 }
             }
         }
