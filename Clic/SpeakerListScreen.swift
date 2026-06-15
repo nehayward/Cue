@@ -457,8 +457,9 @@ fileprivate struct SortMenuView: View {
                 }
             }
         } label: {
-            Image(systemName: "arrow.up.arrow.down")
+            Label("Sort", systemImage: "arrow.up.arrow.down")
                 .accessibilityLabel(Text("Sort by"))
+                .labelStyle(.iconOnly)
         }
         .tint(.primary)
     }

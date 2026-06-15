@@ -584,19 +584,11 @@ private struct MediaServiceMenu: View {
                 Label("Settings…", systemImage: "gear")
             }
         } label: {
-            // iconOnly Label fixes the iOS 26 toolbar hit target. iconOnly
-            // re-tints the icon with the control color, so re-apply the brand
-            // color on the Label; keep the frame on the image for sizing.
-            Label {
-                Text(musicSearchSelection.title)
-            } icon: {
-                musicSearchSelection
-                    .iconForMusicService
-                    .frame(width: 24, height: 24)
-            }
-            .labelStyle(.iconOnly)
-            .foregroundStyle(musicSearchSelection.brandColor.gradient)
-            .toolbarBackground(in: .circle)
+            musicSearchSelection
+                .iconForMusicService
+                .frame(width: 24, height: 24)
+                .contentShape(.circle)
+                .toolbarBackground(in: .circle)
         }
         .popoverTip(AppTip.mediaService)
         .foregroundStyle(musicSearchSelection.brandColor.gradient)
