@@ -25,15 +25,20 @@ struct LikeButtonView: View {
                 if newRating > 0 { favoriteAnimationTrigger += 1 }
                 Task { await MusicSearchService.shared.ratePlexTrack(trackID: trackID, rating: Int(newRating)) }
             } label: {
-                plexHeartImage
-                    .help("Favorite Song")
-                    .accessibilityLabel("Favorite Song")
-                    .phaseAnimator(
-                        [1.0, 1.25, 1.0],
-                        trigger: favoriteAnimationTrigger,
-                        content: { content, scale in content.scaleEffect(scale) },
-                        animation: { _ in .bouncy.delay(0.20) }
-                    )
+                Label {
+                    Text("Favorite")
+                } icon: {
+                    plexHeartImage
+                }
+                .labelStyle(.iconOnly)
+                .help("Favorite Song")
+                .accessibilityLabel("Favorite Song")
+                .phaseAnimator(
+                    [1.0, 1.25, 1.0],
+                    trigger: favoriteAnimationTrigger,
+                    content: { content, scale in content.scaleEffect(scale) },
+                    animation: { _ in .bouncy.delay(0.20) }
+                )
             }
             .task(id: group.coordinatorRoom.track.id) {
                 let fetched = await MusicSearchService.shared.getPlexTrackRating(trackID: trackID)
@@ -52,25 +57,30 @@ struct LikeButtonView: View {
                 if newFavorite { favoriteAnimationTrigger += 1 }
                 Task { await performAction(service: service, favorite: newFavorite) }
             } label: {
-                Image(systemName: service == .apple ? "star" : "heart")
-                    .symbolVariant(isFavorite ? .fill : .none)
-                    .foregroundStyle(foregroundStyle(for: service))
-                    .help("Favorite Song")
-                    .accessibilityLabel("Favorite Song")
-                    .phaseAnimator(
-                        [1.0, 1.25, 1.0],
-                        trigger: favoriteAnimationTrigger,
-                        content: { content, scale in content.scaleEffect(scale) },
-                        animation: { _ in .bouncy.delay(0.20) }
-                    )
+                Label {
+                    Text("Favorite")
+                } icon: {
+                    Image(systemName: service == .apple ? "star" : "heart")
+                        .symbolVariant(isFavorite ? .fill : .none)
+                        .foregroundStyle(foregroundStyle(for: service))
+                }
+                .labelStyle(.iconOnly)
+                .help("Favorite Song")
+                .accessibilityLabel("Favorite Song")
+                .phaseAnimator(
+                    [1.0, 1.25, 1.0],
+                    trigger: favoriteAnimationTrigger,
+                    content: { content, scale in content.scaleEffect(scale) },
+                    animation: { _ in .bouncy.delay(0.20) }
+                )
             }
+            .buttonBorderShape(.circle)
             .task(id: group.coordinatorRoom.track.id) {
                 let result = await checkFavorite(service: service)
                 var transaction = Transaction(animation: .none)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { isFavorite = result }
             }
-
         default:
             EmptyView()
         }
