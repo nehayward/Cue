@@ -648,17 +648,30 @@ public final class SpotifyAPI {
 
                 // check the http status code and refresh + retry if we received 401 Unauthorized
                 if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
-                    if allowRetry {
-                        print("Received 401 Unauthorized, attempting token refresh")
-                        retryCount += 1
-                        if retryCount < maxRetries {
-                            guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
-                                throw AuthError.invalidToken
-                            }
-                            try await handler.handleTokenRefresh(householdId: credentials.householdId, token: token.0, key: token.1)
-                        }
+                    // If retries are disabled, don't attempt a refresh.
+                    guard allowRetry else {
+                        throw AuthError.invalidToken
                     }
-                    throw AuthError.invalidToken
+
+                    retryCount += 1
+                    // Out of retries — surface the failure rather than looping forever.
+                    guard retryCount < maxRetries else {
+                        throw AuthError.invalidToken
+                    }
+
+                    logger.warning("Received 401 Unauthorized, refreshing token (attempt \(retryCount) of \(self.maxRetries))")
+                    guard let token = try? await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
+                        throw AuthError.invalidToken
+                    }
+
+                    // Persist the refreshed token. handleTokenRefresh invalidates the cached
+                    // credentials, so the next loop iteration reads the new token instead of the
+                    // stale one. Without this retry the request fails even though the refresh
+                    // succeeded, which left the browse screen blank until a manual pull-to-refresh.
+                    try await handler.handleTokenRefresh(householdId: credentials.householdId, token: token.0, key: token.1)
+
+                    // Retry the request with the freshly refreshed credentials.
+                    continue
                 }
 
                 do {

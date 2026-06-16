@@ -80,7 +80,9 @@ struct QueueListView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.callout.weight(.semibold))
+                Label("Close", systemImage: "xmark")
+                    .labelStyle(.iconOnly)
+                    .font(.callout.weight(.semibold))
             }
             .accessibilityLabel("Close")
         }

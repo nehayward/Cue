@@ -247,7 +247,8 @@ struct ReorderSectionsView<SectionID: Codable & Hashable & CaseIterable & RawRep
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "checkmark")
+                        Label("Done", systemImage: "checkmark")
+                            .labelStyle(.iconOnly)
                             .fontWeight(.semibold)
                     }
                 }

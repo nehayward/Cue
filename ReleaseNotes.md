@@ -17,6 +17,7 @@
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 - Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
+- Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
 
 # 2026.4
 

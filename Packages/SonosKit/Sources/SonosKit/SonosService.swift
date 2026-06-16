@@ -2261,9 +2261,9 @@ public final class SonosService {
         return playableContent.first
     }
 
-    public func libraryLookup(ID: String) async -> [PlayableContent] {
+    public func libraryLookup(ID: String, offset: Int = 0, requestedCount: Int = 100) async -> [PlayableContent] {
         guard let ip = prioritizedIP() else { return [] }
-        let playableContent = await api.libraryLookup(IP: ip, id: ID)
+        let playableContent = await api.libraryLookup(IP: ip, id: ID, offset: offset, requestedCount: requestedCount)
         return playableContent
     }
 

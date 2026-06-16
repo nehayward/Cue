@@ -495,8 +495,11 @@ extension View {
         if override || Router.main.presentedSheet != nil  {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Dismiss", systemImage: "xmark", role: .cancel) {
+                    Button(role: .cancel) {
                         action()
+                    } label: {
+                        Label("Dismiss", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
                     }
                     .keyboardShortcut(.escape, modifiers: [])
                 }
