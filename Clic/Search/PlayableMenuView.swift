@@ -136,10 +136,10 @@ struct PlayableMenuView: View {
                 }
 
                 AddToLastPlaylistButton(itemToAdd: item)
-                AddToPlaylistMenu(itemToAdd: item)
-
-                if [.apple, .spotify, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {
-                    AddToServicePlaylistMenu(itemToAdd: item)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: item))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
                 }
 
                 if [.spotify, .soundcloud, .apple, .plex].contains(item.content.service), [.track, .libraryTrack].contains(item.content.type) {

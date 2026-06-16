@@ -22,6 +22,9 @@ extension View {
             case let .confirmDeletePlaylist(content):
                 DeletePlaylistConfirmationView(content: content)
                     .withEnvironments()
+            case let .addToPlaylist(content):
+                AddToPlaylistSheet(content: content)
+                    .withEnvironments()
             default:
                 Group {
                     switch destination {
@@ -154,6 +157,8 @@ extension View {
                     case .newPlaylist:
                         EmptyView()
                     case .confirmDeletePlaylist:
+                        EmptyView()
+                    case .addToPlaylist:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)
