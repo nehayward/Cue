@@ -84,6 +84,7 @@ public final class SonosService {
     @ObservationIgnored var streamingService: SonosStreamingService?
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
+    @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
 
     public var sortOption: SonosSortOption {
         didSet {
@@ -454,8 +455,10 @@ public final class SonosService {
 
             // Only get track information if the track ID has changed
             let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
+                || !attemptedTrackInfoUniques.contains(awaitedTrack.unique)
             
             if shouldGetTrackInfo {
+                attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                 // Sonos's XML (`dc:title`, `dc:creator`, `r:albumArtist`) already gives us
                 // displayable name/artist — assign immediately so the row never sits blank
                 // while we wait on `getTrackInformation` (which can be slow or rate-limited
@@ -732,7 +735,8 @@ public final class SonosService {
                     // `let currentTrack = ...` capture is a value copy and
                     // mutations vanish. Write through the Room property
                     // directly so the @Observable setter actually fires.
-                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
+                       attemptedTrackInfoUniques.contains(awaitedTrack.unique) {
                         if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
@@ -754,6 +758,7 @@ public final class SonosService {
                         return
                     }
 
+                    attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                     // Sonos's XML already provides displayable name/artist — assign now so
                     // the row never sits blank waiting on `getTrackInformation`.
                     //
@@ -1353,6 +1358,9 @@ public final class SonosService {
         case .soundcloud:
             guard let track = await musicSearch.lookupSoundCloudTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .deezer:
+            guard let track = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return track.artwork
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library:
@@ -1455,6 +1463,19 @@ public final class SonosService {
                     song: nil
                 ),
                 track.artwork
+            )
+        case .deezer:
+            guard let deezerTrack = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return (
+                Track.Metadata(
+                    ISRC: nil,
+                    openInURL: URL(string: "https://www.deezer.com/track/\(track.trackID)"),
+                    contentType: .track,
+                    song: nil,
+                    album: deezerTrack.metadata?.album,
+                    artist: deezerTrack.metadata?.artist
+                ),
+                deezerTrack.artwork
             )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
@@ -1591,6 +1612,14 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: content.id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: content.id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: content.id)
+        case (.artist, .deezer):
+            return await musicSearch.lookupDeezerArtist(id: content.id)
         case (.artist, .apple):
             guard let artist: Artist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.artwork?.url(width: 100, height: 100), artwork: artist.artwork?.url(width: 500, height: 500), content: content)
@@ -1672,6 +1701,12 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist

@@ -44,7 +44,7 @@ struct LikeButtonView: View {
                 withTransaction(transaction) { plexRating = rating }
             }
 
-        case .spotify, .soundcloud, .apple:
+        case .spotify, .soundcloud, .apple, .deezer:
             Button {
                 let newFavorite = !isFavorite
                 isFavorite = newFavorite
@@ -54,7 +54,7 @@ struct LikeButtonView: View {
             } label: {
                 Image(systemName: service == .apple ? "star" : "heart")
                     .symbolVariant(isFavorite ? .fill : .none)
-                    .foregroundStyle(foregroundStyle(for: service))
+                    .foregroundStyle(service.brandColor.gradient)
                     .help("Favorite Song")
                     .accessibilityLabel("Favorite Song")
                     .phaseAnimator(
@@ -116,6 +116,9 @@ struct LikeButtonView: View {
         case .soundcloud:
             if favorite { await MusicSearchService.shared.likeSoundCloudTrack(id: trackID) }
             else { await MusicSearchService.shared.unlikeSoundCloudTrack(id: trackID) }
+        case .deezer:
+            if favorite { await MusicSearchService.shared.likeDeezerTrack(id: trackID) }
+            else { await MusicSearchService.shared.unlikeDeezerTrack(id: trackID) }
         case .apple:
             try? await AppleMusicAPI.shared.updateFavoriteStatus(songId: trackID, favorite: favorite)
         default:
@@ -128,6 +131,7 @@ struct LikeButtonView: View {
         case .spotify: await MusicSearchService.shared.isSpotifyTrackSaved(id: trackID)
         case .soundcloud: await MusicSearchService.shared.isSoundCloudTrackLiked(id: trackID) ?? false
         case .apple: (try? await AppleMusicAPI.shared.isFavorite(songId: trackID)) ?? false
+        case .deezer: await MusicSearchService.shared.isDeezerTrackLiked(id: trackID)
         default: false
         }
     }

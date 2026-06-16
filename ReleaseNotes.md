@@ -1,3 +1,8 @@
+# 2026.6
+
+–– New Features ––
+- Deezer: Full Deezer integration — search tracks, albums, artists, and playlists, browse Deezer charts, view album and artist pages, start a Mix from any track or artist, and open content directly in the Deezer app
+
 # 2026.5
 
 –– New Features ––

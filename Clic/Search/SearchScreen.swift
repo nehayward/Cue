@@ -506,7 +506,9 @@ private struct SearchResultsView: View {
             TidalSearchView(results: musicSearchService.results, filters: $filters)
         case .tuneIn:
             TuneInSearchView(results: musicSearchService.results, filters: $filters)
-        case .soundcloud:
+        default:
+            // ServiceSearchView handles all remaining services (SoundCloud, Deezer, etc.)
+            // New services get a working generic search view without touching this switch.
             ServiceSearchView(results: musicSearchService.results, filters: $filters)
         }
     }
