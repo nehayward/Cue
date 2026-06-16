@@ -327,11 +327,6 @@ public final class MusicSearchService {
 
     // MARK: Plex
 
-    /// Extracts a Plex ratingKey from a `PlayableContent` id of the form `{clientId}:3:{ratingKey}`.
-    private func plexRatingKey(from id: String) -> String? {
-        id.removingPercentEncoding?.components(separatedBy: ":").last
-    }
-
     /// The user's Plex audio playlists, as `PlayableContent`.
     public func plexUserPlaylists() async -> [PlayableContent] {
         await plex.playlists().map(\.toPlayable)
