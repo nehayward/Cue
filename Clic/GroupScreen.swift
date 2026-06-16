@@ -194,7 +194,8 @@ struct GroupScreen: View {
                           if scenes.isEmpty {
                             Label("Create Scene", systemImage: "plus")
                           } else {
-                            Image(systemName: "plus")
+                            Label("Add", systemImage: "plus")
+                                .labelStyle(.iconOnly)
                           }
                         }
                     } else {

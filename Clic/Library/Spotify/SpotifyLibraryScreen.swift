@@ -47,7 +47,8 @@ struct SpotifyLibraryScreen: View {
                     Button {
                         router.presentedSheet = .reorderSpotifyLibrarySections
                     } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
+                            .labelStyle(.iconOnly)
                     }
                 }
 #if !os(visionOS)

@@ -57,7 +57,8 @@ struct SpeakerListScreen: View {
                     }
                     router.presentedSheet = .settings()
                 } label: {
-                    Image(systemName: "switch.2")
+                    Label("Settings", systemImage: "switch.2")
+                        .labelStyle(.iconOnly)
                         .overlay(alignment: .topTrailing) {
                             if hasUnseenWhatsNew {
                                 Circle()
@@ -202,7 +203,8 @@ struct SpeakerListScreen: View {
                         Label("Create Scene", systemImage: "plus")
                     }
                 } label: {
-                    Image(systemName: "bolt.fill")
+                    Label("Scenes", systemImage:"bolt.fill")
+                        .labelStyle(.iconOnly)
                         .allowsHitTesting(false)
                 } primaryAction: {
                     HapticManager.shared.fireHaptic(.buttonPress)
@@ -223,6 +225,7 @@ struct SpeakerListScreen: View {
                     router.sheet(to: .search())
                 } label: {
                     Label("Search", systemImage: "magnifyingglass")
+                        .labelStyle(.iconOnly)
                 }
                 .tint(.primary)
                 Spacer()
@@ -230,7 +233,8 @@ struct SpeakerListScreen: View {
                     HapticManager.shared.fireHaptic(.buttonPress)
                     router.sheet(to: .browse())
                 } label: {
-                    Image("home.fill")
+                    Label("Browse", image: "home.fill")
+                        .labelStyle(.iconOnly)
                 }
                 .tint(.primary)
             }
@@ -453,8 +457,9 @@ fileprivate struct SortMenuView: View {
                 }
             }
         } label: {
-            Image(systemName: "arrow.up.arrow.down")
+            Label("Sort", systemImage: "arrow.up.arrow.down")
                 .accessibilityLabel(Text("Sort by"))
+                .labelStyle(.iconOnly)
         }
         .tint(.primary)
     }

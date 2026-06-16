@@ -145,16 +145,9 @@ struct MenuInfoView: View {
                 }
             }
         } label: {
-#if os(visionOS)
-            Image(systemName: "ellipsis")
-            
-#elseif targetEnvironment(macCatalyst)
             Label("Menu", systemImage: "ellipsis")
+                .labelStyle(.iconOnly)
                 .padding(.vertical)
-#else
-            Image(systemName: "ellipsis")
-                .padding(.vertical)
-#endif
         }
         .id(group.coordinatorID)
         .accessibilityLabel("Menu")

@@ -54,7 +54,7 @@ struct MediaSelector: View {
                 .frame(width: 24, height: 24)
                 .toolbarBackground(in: .circle)
         }
-        .contentShape(Rectangle())
+        .contentShape(.rect)
         .popoverTip(AppTip.libraryMediaService)
         .onChange(of: coreFeatures.features) {
             if coreFeatures.isEnabled(browseMediaService) {

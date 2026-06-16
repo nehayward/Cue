@@ -116,4 +116,10 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - Removed the `#if targetEnvironment(macCatalyst)` per-row `.contextMenu { menu(content:) }` from `fullQueueView` and deleted the now-unused `menu(content:)` builder — Catalyst right-click now flows through the same selection-based menu instead of a parallel per-row one
 - Both views were previously inconsistent: Up Next only offered Add to Playlist + Remove, while the full queue had a richer Mac-only per-row menu. Single code path means feature parity across Up Next / Full Queue and iOS / Mac
 
+### Music service menu icon hit target (iOS 26)
+- The music service selector `Menu` labels in `MediaSelector.swift` and `SearchScreen.swift` had an offset/undersized tap area on iOS 26
+- Wrapped each label in an `.iconOnly` `Label` to restore the standard toolbar hit target
+- `.iconOnly` re-tints the icon with the control color, so re-applied `.foregroundStyle(brandColor.gradient)` on the `Label` to restore the per-service brand color
+- Kept `.frame(width: 24, height: 24)` on the icon image so sizing stays correct
+
 ---
