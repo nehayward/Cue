@@ -134,7 +134,8 @@ struct PlayableContentList: View {
                     Button {
                         router.presentedSheet = .newPlaylist()
                     } label: {
-                        Image(systemName: "plus")
+                        Label("Add", systemImage: "plus")
+                            .labelStyle(.iconOnly)
                     }
                 }
             }

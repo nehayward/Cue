@@ -39,6 +39,7 @@ struct PlayHistoryFullView: View {
                         clearHistoryConfirmation.toggle()
                     } label: {
                         Label("Remove All", systemImage: "trash.fill")
+                            .labelStyle(.iconOnly)
                     }
                     .confirmationDialog("Clear Play History", isPresented: $clearHistoryConfirmation) {
                         Button {

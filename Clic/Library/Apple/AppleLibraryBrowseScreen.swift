@@ -55,7 +55,8 @@ struct AppleLibraryBrowseScreen: View {
                     Button {
                         router.presentedSheet = .reorderAppleLibrarySections
                     } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
+                            .labelStyle(.iconOnly)
                     }
                 }
 #if !os(visionOS)
