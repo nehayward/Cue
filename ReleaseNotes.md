@@ -12,6 +12,7 @@
 - Start Live Activity Shortcut: New shortcut and Control Center widget (iOS 18+) to start a Live Activity for any speaker — configure a speaker once and tap to get Now Playing on your Lock Screen instantly
 
 –– Bug Fixes & Improvements ––
+- Fixed speaker discovery incorrectly reporting "On Cellular" and refusing to connect when Wi-Fi Assist is enabled — the app now connects whenever Wi-Fi or Ethernet is available
 - Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
