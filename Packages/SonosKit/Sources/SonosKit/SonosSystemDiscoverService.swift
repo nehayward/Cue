@@ -74,9 +74,10 @@ final class SonosSystemDiscoverService {
             // Instead, only treat the device as cellular-only when no Wi-Fi or
             // wired interface is available at all. Sonos devices are reachable
             // over either, so the presence of one means discovery can proceed.
-            let hasLocalInterface = path.availableInterfaces.contains {
-                $0.type == .wifi || $0.type == .wiredEthernet
-            }
+            let localInterfaceTypes: Set<NWInterface.InterfaceType> = [.wifi, .wiredEthernet]
+            let hasLocalInterface = path.availableInterfaces
+                .map(\.type)
+                .contains(where: localInterfaceTypes.contains)
             self?.cellularUpdateTask?.cancel()
             self?.cellularUpdateTask = Task { @MainActor [weak self] in
                 self?.isCellular = !hasLocalInterface
