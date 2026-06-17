@@ -160,7 +160,7 @@ struct PlayableMenuView: View {
                 selectedGroupService.group = nil
                 play()
             } label: {
-                Label("Play in Another Room…", systemImage: "hifispeaker.arrow.forward.fill")
+                Label("Move to Room…", systemImage: "hifispeaker.arrow.forward.fill")
             }
         }
         
