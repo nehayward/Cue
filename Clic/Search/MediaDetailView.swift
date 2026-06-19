@@ -78,7 +78,7 @@ struct MediaDetailView: View {
                         return
                     }
 
-                    let hasMore = totalSongs == nil || tracks.count < totalSongs!
+                    let hasMore = totalSongs.map { tracks.count < $0 } ?? true
                     let nearEnd = index >= tracks.count - Self.prefetchThreshold
                     if nearEnd && isLoadingMore && hasMore {
                         await updateTracks(offset: tracks.count)
