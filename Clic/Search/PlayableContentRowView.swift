@@ -98,7 +98,7 @@ struct PlayableContentRowView: View {
             .contentShape(.rect)
             .background {
                 if let displayColor {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 4)
                         .foregroundStyle(displayColor.opacity(0.2))
                 }
             }
