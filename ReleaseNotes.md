@@ -19,6 +19,8 @@
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 - Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
 - Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
+- Search and library results now lay out in a two-column grid, so you see more at a glance
+- SoundCloud Library: Liked Songs and Playlists now lay out in a two-column grid with a filter button to reorder or hide sections, matching the Apple Music and Spotify libraries
 
 # 2026.4
 
@@ -41,6 +43,7 @@
 - Restored Live Activity to its former glory with 5 volume steps
 - Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
+- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available

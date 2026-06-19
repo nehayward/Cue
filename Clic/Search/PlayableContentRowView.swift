@@ -6,18 +6,23 @@ import OrderedCollections
 import SonosKit
 import SwiftUI
 
-struct PlayableContentView: View {
+struct PlayableContentRowView: View {
     private static let swipeableTypes: Set<ContentType> = [.playlist, .libraryPlaylist, .album, .track, .libraryTrack, .libraryAlbum]
     
     @Environment(Router.self) private var router: Router?
     @Environment(ContentToAdd.self) private var adding: ContentToAdd?
-    @Environment(AlertService.self) private var alertService: AlertService
-    @Environment(PlaylistContainer.self) private var playlistsContainer: PlaylistContainer
-    @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
-    @Environment(PlexRatingCache.self) private var plexRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+    @State private var averageColor: Color?
+
+    private var displayColor: Color? {
+        if let averageColor { return averageColor }
+        if let cached = UIImage.cachedAverageColor(forKey: item.imageKey) {
+            return Color(uiColor: cached)
+        }
+        return nil
+    }
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -42,7 +47,7 @@ struct PlayableContentView: View {
         if item.subtitle.isEmpty {
             return item.content.type.title
         }
-        return "\(item.content.type.title) • \(item.subtitle)"
+        return "\(item.subtitle)"
     }
     
     private var shouldShowPlainContent: Bool {
@@ -50,37 +55,12 @@ struct PlayableContentView: View {
     }
     
     var body: some View {
-//        let _ = Self._printChanges()
-//        let _ = print("\(item.title) update")
-        VStack {
-            if shouldShowPlainContent {
-                content
-            } else {
-                switch item.content.type {
-                case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService?.group)) {
-                        content
-                    }
-                case .artist, .libraryArtist:
-                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService?.group)) {
-                        content
-                    }
-                case .folder:
-                    NavigationLink(value: RouterDestination.folderBrowse(item: item, title: item.title)) {
-                        folderContent
-                    }
-                case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
-                    content
-                }
-            }
-        }
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailingInset))
-        .listRowSeparator(.hidden)
+        content
     }
     
     private var content: some View {
-        Button {
-            play()
+        Menu {
+           PlayableMenuView(item: item)
         } label: {
             HStack {
                 if let index {
@@ -91,77 +71,58 @@ struct PlayableContentView: View {
                 }
                 
                 if !hideArtwork {
-                    ContentArtworkView(content: item)
-                        .frame(width: 50, height: 50)
-                        .allowsHitTesting(!hideArtwork)
+                    ContentArtworkView(content: item) { color in
+                        averageColor = color
+                    }
+                    .frame(width: 50, height: 50)
+                    .allowsHitTesting(!hideArtwork)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(item.title)
                             .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
-                        
                         Spacer(minLength: 0)
-
-                        if item.content.service == .plex,
-                           (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(MusicService.plex.brandColor)
-                                .font(.caption2)
-                        }
-
                         if item.metadata?.isExplicit == true {
                             Image(systemName: "e.square.fill")
                         }
                     }
-
+                    
                     Text(subtitleText)
                         .lineLimit(1)
-                        .opacity(0.7)
-                        .font(.footnote)
-                }
-                
-                Spacer(minLength: 0)
-                
-                if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
-                    Menu {
-                        PlayableMenuView(item: item)
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .tint(.primary)
+                        .opacity(0.80)
+                        .font(.caption)
                 }
             }
             .fontDesign(.rounded)
-            .contentShape(Rectangle())
-        }
-        .swipeActions {
-            if Self.swipeableTypes.contains(item.content.type) {
-                Button {
-                    play(position: .next)
-                } label: {
-                    Label("Play Next", systemImage: "text.insert")
+            .contentShape(.rect)
+            .background {
+                if let displayColor {
+                    RoundedRectangle(cornerRadius: 4)
+                        .foregroundStyle(displayColor.opacity(0.2))
                 }
             }
-        }
-        .contextMenu {
-            if adding == nil, !hideDetails {
-                PlayableMenuView(item: item)
+        } primaryAction: {
+            switch item.content.type {
+            case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
+                router?.navigate(to: .mediaDetail(content: item, group: selectedGroupService?.group))
+            case .artist, .libraryArtist:
+                router?.navigate(to: .artistDetail(content: item, group: selectedGroupService?.group))
+            case .folder:
+                router?.navigate(to:  .folderBrowse(item: item, title: item.title))
+            case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
+                play()
             }
         }
-        .draggable(item)
+        .foregroundStyle(.primary)
     }
     
     private var folderContent: some View {
         Label {
             Text(item.title)
             Text(item.content.type.title)
-                .truncationMode(.head)
-                .foregroundStyle(.secondary)
+                .font(.caption)
+                .opacity(0.8)
         } icon: {
             Image(systemName: "folder.fill")
                 .foregroundStyle(.accent)
@@ -220,3 +181,14 @@ struct PlayableContentView: View {
         }
     }
 }
+
+//#Preview {
+//    ScrollView {
+//        HStack {
+//            PlayableContentRowView(item: .bazAlbum)
+//            PlayableContentRowView(item: .harry)
+//        }
+//    }
+//    .preferredColorScheme(.dark)
+//    
+//}

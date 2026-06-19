@@ -180,6 +180,8 @@ extension View {
                         ReorderAppleLibrarySectionsView()
                     case .reorderSpotifyLibrarySections:
                         ReorderSpotifyLibrarySectionsView()
+                    case .reorderSoundCloudLibrarySections:
+                        ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
                     case .paywall, .onboard:

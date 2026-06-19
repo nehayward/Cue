@@ -22,6 +22,7 @@ struct PlayableListView: View {
             PlayAllButtonView(item: playAllItem)
             contentSection
         }
+        .animation(.default, value: items)
         .miniPlayerOnScrollHandler()
         .foregroundStyle(.foreground)
         .listStyle(.plain)

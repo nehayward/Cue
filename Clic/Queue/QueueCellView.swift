@@ -38,8 +38,8 @@ struct QueueCellView: View {
                         .lineLimit(1)
                         .foregroundStyle(isTrackPlaying ? AnyShapeStyle(.accent) : AnyShapeStyle(.primary))
                     Text(track.subtitle)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .opacity(0.7)
+                        .font(.footnote)
                         .lineLimit(1)
                 }
                 Spacer()
