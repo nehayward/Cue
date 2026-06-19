@@ -480,6 +480,7 @@ extension View {
             .environment(AppleMusicBrowseService.shared)
             .environment(SpotifyBrowseService.shared)
             .environment(SoundCloudBrowseService.shared)
+            .environment(DeezerBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)

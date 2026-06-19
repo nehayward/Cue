@@ -79,7 +79,8 @@ struct QueueCellView: View {
             Text(track.title)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .background(.background, in: .capsule)
+                .contentShape(.dragPreview, .capsule)
         }
     }
     

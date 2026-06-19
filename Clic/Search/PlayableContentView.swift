@@ -153,7 +153,13 @@ struct PlayableContentView: View {
                 PlayableMenuView(item: item)
             }
         }
-        .draggable(item)
+        .draggable(item) {
+            Text(item.title)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.background, in: .capsule)
+                .contentShape(.dragPreview, .capsule)
+        }
     }
     
     private var folderContent: some View {

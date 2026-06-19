@@ -85,7 +85,7 @@ struct ArtistDetailView: View {
     
     private var supportsRadio: Bool {
         guard let artistContent else { return false }
-        return [.spotify, .apple].contains(artistContent.content.service)
+        return artistContent.content.service.supportsRadio
             && artistContent.content.type != .libraryArtist
     }
 
@@ -587,6 +587,12 @@ struct ArtistDetailView: View {
             await loadPlexAlbumArtist()
         case (.artist, .plex):
             await loadPlexArtist()
+        case (.artist, .deezer):
+            await loadDeezerArtist()
+        case (.track, .deezer):
+            await loadDeezerTrackArtist()
+        case (.album, .deezer):
+            await loadDeezerAlbumArtist()
         default:
             break
         }
@@ -1036,8 +1042,55 @@ struct ArtistDetailView: View {
         }
     }
     
+    // MARK: - Deezer Loading
+
+    private func loadDeezerArtist() async {
+        artworkURL = playableContent.artwork
+        artistContent = playableContent
+        async let topTracks = MusicSearchService.shared.lookupDeezerArtistTopTracks(id: playableContent.content.id)
+        async let artistAlbums = MusicSearchService.shared.lookupDeezerArtistAlbums(id: playableContent.content.id)
+        tracks = await topTracks
+        albums = await artistAlbums
+    }
+
+    private func loadDeezerTrackArtist() async {
+        let artistID: String?
+        if let existing = playableContent.metadata?.artistID {
+            artistID = existing
+        } else {
+            artistID = await MusicSearchService.shared.lookupDeezerTrack(with: playableContent.content.id)?.metadata?.artistID
+        }
+        guard let artistID else {
+            artworkURL = playableContent.artwork
+            artistContent = playableContent
+            return
+        }
+        await loadDeezerArtistData(id: artistID)
+    }
+
+    private func loadDeezerAlbumArtist() async {
+        guard let artistID = playableContent.metadata?.artistID else {
+            artworkURL = playableContent.artwork
+            artistContent = playableContent
+            return
+        }
+        await loadDeezerArtistData(id: artistID)
+    }
+
+    private func loadDeezerArtistData(id: String) async {
+        async let artist = MusicSearchService.shared.lookupDeezerArtist(id: id)
+        async let topTracks = MusicSearchService.shared.lookupDeezerArtistTopTracks(id: id)
+        async let artistAlbums = MusicSearchService.shared.lookupDeezerArtistAlbums(id: id)
+        if let artistResult = await artist {
+            artistContent = artistResult
+            artworkURL = artistResult.artwork
+        }
+        tracks = await topTracks
+        albums = await artistAlbums
+    }
+
     // MARK: - Helpers
-    
+
     private func sortAlbumsByYear(_ albums: [PlayableContent]) -> [PlayableContent] {
         albums.sorted { album1, album2 in
             let year1 = album1.metadata?.albumYear ?? .now

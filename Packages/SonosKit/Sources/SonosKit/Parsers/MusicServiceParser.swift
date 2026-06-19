@@ -10,12 +10,18 @@ public final class MusicServiceParser {
     private let appleLibraryPattern = #/librarytrack:(.*?)\?/#
     private let spotifyPattern = #/spotify:track:(\w+)|track:(\w+)/#
     private let soundcloudPattern = #/soundcloud:tracks:(\d+)/#
+    private let deezerPattern = #/deezer:tracks:(\d+)|tr-[a-z]+:(\d+)/#
     private let tuneinPattern = #/:(.*?)\?/#
     private lazy var plexRegex = try? NSRegularExpression(pattern: "([^:]+:\\d+:\\d+)")
     
     public func lookup(uri: String, serviceID: String, type: ContentType) -> (MusicService, TrackID, ContentType)? {
-        let service = serviceLookup(serviceID: serviceID)
-        guard let (id, lookupType) = parse(uri: uri, service: service) else { return nil }
+        var service = serviceLookup(serviceID: serviceID)
+        if service == .unknown {
+            let decoded = uri.removingPercentEncoding ?? uri
+            service = identifyService(from: uri, decoded: decoded)
+        }
+        guard service != .unknown,
+              let (id, lookupType) = parse(uri: uri, service: service) else { return nil }
         return (service, id, lookupType ?? type)
     }
     
@@ -29,6 +35,8 @@ public final class MusicServiceParser {
             return .apple
         case "160":
             return .soundcloud
+        case "2", "519", "250":
+            return .deezer
         case "212":
             return .plex
         case "174":
@@ -56,6 +64,20 @@ public final class MusicServiceParser {
             let components = uri.components(separatedBy: ":")
             guard let last = components.last else { return nil }
             return (last, nil)
+        case .deezer:
+            // Handles track (tr-flac:ID), album (0004006calbum-ID), playlist (0006006cplaylist_spotify%3Aplaylist-ID)
+            let decoded = uri.removingPercentEncoding ?? uri
+            if decoded.contains("playlist") {
+                guard let id = decoded.components(separatedBy: "-").last, !id.isEmpty else { return nil }
+                return (id, .playlist)
+            } else if decoded.contains("album") {
+                guard let id = decoded.components(separatedBy: "-").last, !id.isEmpty else { return nil }
+                return (id, .album)
+            } else {
+                // track: tr-flac:ID or tr-mp3:ID
+                guard let id = decoded.components(separatedBy: ":").last?.components(separatedBy: "?").first, !id.isEmpty else { return nil }
+                return (id, .track)
+            }
         case .plex:
             return (uri, nil)
         case .library:
@@ -87,11 +109,14 @@ public final class MusicServiceParser {
         // Single lowercased allocation
         let normalized = uri.lowercased()
         
-        // Ordered by likelihood/specificity
+        // Ordered by likelihood/specificity — deezer playlist format contains "spotify" so check first
+        if normalized.contains("playlist_spotify") { return .deezer }
         if normalized.contains("spotify") { return .spotify }
         if normalized.contains("airplay") { return .airplay }
         if normalized.contains("x-file-cifs") { return .library }
         if normalized.contains("soundcloud") { return .soundcloud }
+        if normalized.contains("deezer") || normalized.contains("tr-flac") || normalized.contains("tr-mp3") { return .deezer }
+        if xml?.contains("RINCON519") == true { return .deezer }
         
         // Check for Tidal (pattern match only if string contains hint)
         if normalized.contains("tidal") || (try? tidalPattern.firstMatch(in: decodedURI)) != nil {
@@ -113,6 +138,7 @@ public final class MusicServiceParser {
         case .tidal: return extractTidalTrackID(from: uri)
         case .plex: return extractPlexTrackID(from: uri)
         case .soundcloud: return extractSoundCloudID(from: uri)
+        case .deezer: return extractDeezerTrackID(from: uri)
         case .tuneIn: return extractTuneInTrackID(from: uri)
         case .library, .unknown: return uri
         case .airplay: return ""
@@ -170,6 +196,13 @@ public final class MusicServiceParser {
     private func extractSoundCloudID(from uri: String) -> TrackID {
         if let result = try? soundcloudPattern.firstMatch(in: uri) {
             return String(result.1)
+        }
+        return ""
+    }
+
+    private func extractDeezerTrackID(from uri: String) -> TrackID {
+        if let result = try? deezerPattern.firstMatch(in: uri) {
+            return String(result.1 ?? result.2 ?? "")
         }
         return ""
     }

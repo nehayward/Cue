@@ -4,6 +4,26 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ---
 
+## 2026.6
+
+### Deezer integration
+- Added `DeezerAPI` client in `MusicSearchKit` — no auth required, hits public `api.deezer.com` endpoints
+- Full search: tracks, albums, artists, playlists (concurrent `async let` in `MusicSearchService.searchDeezer`)
+- Browse screen (`DeezerBrowseScreen`) powered by `DeezerBrowseService` showing Top Tracks, Albums, Artists, and Playlists from Deezer charts
+- Correct Sonos URIs verified via SOAP capture:
+  - Track: `x-sonos-http:tr-flac%3A{id}?sid=2&flags=32`
+  - Album: `x-rincon-cpcontainer:0004006calbum-{id}`
+  - Playlist: `x-rincon-cpcontainer:0006006cplaylist_spotify%3Aplaylist-{id}`
+  - Radio/Mix: `x-sonosapi-radio:radio-track-{id}?sid=2&flags=8300`, title prefixed "Mix {title}"
+- Deezer service token auto-detected and stored from Sonos server discovery in `ServicePreferenceScreen`; token read from `GroupStorageKeys.deezerMusicTokenID` at enqueue time
+- `MusicServiceParser`: service IDs "2", "519", "250" → `.deezer`; `playlist_spotify` URI check ordered before generic `spotify` check to avoid misidentification
+- `SonosServiceType.deezer` added to `MediaServer.swift`; `CoreFeatures.syncEnabledServices` maps `.deezer → .deezer`; included in `preferredDefaultService` fallback chain
+- View Album, View Artist, Open in Deezer, and Play Radio (Mix) all wired up — radio available from track context menu, artist page, and large player
+- `SonosAPI+MusicServices`: parses `deezer.com/{locale}/{type}/{id}` share URLs, strips 2-letter locale prefix
+- Added `Docs/AddingMusicService.md` — comprehensive guide and checklist for integrating future services
+
+---
+
 ## 2026.5
 
 ### ClicAction extension ("Listen with Clic")

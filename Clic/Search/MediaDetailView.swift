@@ -519,6 +519,24 @@ struct MediaDetailView: View {
             if nextCursor == nil {
                 isLoadingMore = false
             }
+        case (.album, .deezer):
+            newTracks = await musicSearchService.lookupDeezerAlbumTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.playlist, .deezer):
+            newTracks = await musicSearchService.lookupDeezerPlaylistTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.track, .deezer):
+            let albumID: String?
+            if let existing = playableContent.metadata?.albumID {
+                albumID = existing
+            } else {
+                albumID = await musicSearchService.lookupDeezerTrack(with: playableContent.content.id)?.metadata?.albumID
+            }
+            guard let albumID else { return }
+            guard let album = await musicSearchService.lookupDeezerAlbum(with: albumID) else { return }
+            content = album
+            newTracks = await musicSearchService.lookupDeezerAlbumTracks(id: albumID)
+            isLoadingMore = false
         default:
             return
         }

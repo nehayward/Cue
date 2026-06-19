@@ -20,6 +20,8 @@ extension SonosAPI {
             parseTidal(url: url, path: components.path)
         case let .some(host) where host.contains("tunein"):
             parseTuneIn(components: components)
+        case let .some(host) where host.contains("deezer"):
+            parseDeezer(url: url, path: components.path)
         default:
             nil
         }
@@ -59,6 +61,19 @@ extension SonosAPI {
         let paths = path.split(separator: "/").map(String.init)
         guard paths.count > 2, let type = ContentType(paths[1]), let id = paths.last else { return nil }
         return MediaContent(service: .tidal, id: id, type: type, location: url)
+    }
+
+    private func parseDeezer(url: URL, path: String) -> MediaContent? {
+        var paths = path.split(separator: "/").map(String.init)
+        // Strip locale prefix like "us", "gb", "fr" (2-letter country code)
+        if let first = paths.first, first.count == 2, first.allSatisfy(\.isLetter) {
+            paths.removeFirst()
+        }
+        // paths is now [type, id] e.g. ["playlist", "2249258602"]
+        guard paths.count >= 2,
+              let type = ContentType(paths[0]),
+              let id = paths.last else { return nil }
+        return MediaContent(service: .deezer, id: id, type: type, location: url)
     }
 
     private func parseTuneIn(components: URLComponents) -> MediaContent? {

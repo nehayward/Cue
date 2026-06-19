@@ -40,6 +40,12 @@ struct FavoriteMenuButton: View {
                     } else {
                         await MusicSearchService.shared.unlikeSoundCloudTrack(id: contentID)
                     }
+                case .deezer:
+                    if newFavorite {
+                        await MusicSearchService.shared.likeDeezerTrack(id: contentID)
+                    } else {
+                        await MusicSearchService.shared.unlikeDeezerTrack(id: contentID)
+                    }
                 case .apple:
                     switch contentType {
                     case .album, .libraryAlbum:
@@ -75,6 +81,8 @@ struct FavoriteMenuButton: View {
                 }
             case .soundcloud:
                 isFavorite = await MusicSearchService.shared.isSoundCloudTrackLiked(id: contentID) ?? false
+            case .deezer:
+                isFavorite = await MusicSearchService.shared.isDeezerTrackLiked(id: contentID)
             case .apple:
                 switch contentType {
                 case .album, .libraryAlbum:
