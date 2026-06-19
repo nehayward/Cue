@@ -27,6 +27,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Tracks", systemImage: "music.note")
                     }
+                    .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
@@ -36,6 +37,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Albums", systemImage: "smallcircle.circle.fill")
                     }
+                    .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
@@ -45,6 +47,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Artists", systemImage: "music.mic")
                     }
+                    .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableGridScreen(
@@ -54,11 +57,13 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Playlists", systemImage: "music.note.list")
                     }
+                    .listRowInsets(.default)
                     .listRowSeparator(.hidden)
 
                     if !deezerBrowseService.userPlaylists.isEmpty {
                         ForEach(deezerBrowseService.userPlaylists.prefix(5)) { item in
                             PlayableContentView(item: item)
+                                .listRowInsets(.default)
                                 .listRowSeparator(.hidden)
                         }
                     } else if isLoading {
@@ -81,6 +86,7 @@ struct DeezerBrowseScreen: View {
                                 }
                             }
                         }
+                        .listRowInsets(.default)
                         .listRowSeparator(.hidden)
                         .listSectionSeparator(.hidden)
                     }
@@ -106,7 +112,6 @@ struct DeezerBrowseScreen: View {
             .animation(hasLoadedOnce ? .default : nil, value: deezerBrowseService.recentlyPlayed)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
-            .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Deezer")
