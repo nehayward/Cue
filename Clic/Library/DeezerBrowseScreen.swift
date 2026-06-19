@@ -64,14 +64,19 @@ struct DeezerBrowseScreen: View {
 
                     if !deezerBrowseService.recentlyPlayed.isEmpty {
                         Section {
-                            ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
-                                PlayableContentView(item: item)
-                            }
-                        } header: {
                             Text("Recently Played")
-                                .foregroundStyle(.secondary)
+                                .fontDesign(.rounded)
+                                .fontWeight(.semibold)
+
+                            ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
+                                PlayableContentRowView(item: item)
+                                    .padding(.bottom, 8)
+                                    .geometryGroup()
+                            }
                         }
-                        .headerProminence(.increased)
+                        .listRowInsets(.default)
+                        .listRowSeparator(.hidden)
+                        .listSectionSeparator(.hidden)
                     }
 
                 } else if !isLoading {
