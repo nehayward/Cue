@@ -27,6 +27,8 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Tracks", systemImage: "music.note")
                     }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Favorite Albums",
@@ -35,6 +37,8 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Albums", systemImage: "smallcircle.circle.fill")
                     }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Favorite Artists",
@@ -43,6 +47,8 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Artists", systemImage: "music.mic")
                     }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
@@ -51,10 +57,14 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Playlists", systemImage: "music.note.list")
                     }
+                    .listRowInsets(.default)
+                    .listRowSeparator(.hidden)
 
                     if !deezerBrowseService.userPlaylists.isEmpty {
                         ForEach(deezerBrowseService.userPlaylists.prefix(5)) { item in
                             PlayableContentView(item: item)
+                                .listRowInsets(.default)
+                                .listRowSeparator(.hidden)
                         }
                     } else if isLoading {
                         ProgressView()
@@ -64,14 +74,21 @@ struct DeezerBrowseScreen: View {
 
                     if !deezerBrowseService.recentlyPlayed.isEmpty {
                         Section {
-                            ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
-                                PlayableContentView(item: item)
-                            }
-                        } header: {
                             Text("Recently Played")
-                                .foregroundStyle(.secondary)
+                                .fontDesign(.rounded)
+                                .fontWeight(.semibold)
+
+                            LazyVGrid(columns: [.init(), .init()]) {
+                                ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
+                                    PlayableContentRowView(item: item)
+                                        .buttonStyle(.plain)
+                                        .geometryGroup()
+                                }
+                            }
                         }
-                        .headerProminence(.increased)
+                        .listRowInsets(.default)
+                        .listRowSeparator(.hidden)
+                        .listSectionSeparator(.hidden)
                     }
 
                 } else if !isLoading {
@@ -87,11 +104,14 @@ struct DeezerBrowseScreen: View {
                     }
                 }
             }
+            .listSectionSpacing(4)
+            .listStyle(.plain)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
             .animation(.default, value: deezerBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: deezerBrowseService.recentlyPlayed)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .miniPlayerOnScrollHandler()
-            .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
             .foregroundStyle(.primary)
             .navigationTitle("Deezer")
