@@ -514,16 +514,21 @@ struct MediaDetailView: View {
     }
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
-        var idCounts: [String: Int] = [:]
-        
+        // Seed counts from the already-loaded tracks in a single pass, then update as we
+        // append. Avoids re-scanning the whole (growing) tracks array for every new row,
+        // which otherwise makes each page append slower the further you paginate.
+        var idCounts: [String: Int] = tracks.reduce(into: [:]) { counts, track in
+            counts[track.id, default: 0] += 1
+        }
+
         for var newTrack in newTracks {
             let originalID = newTrack.id
-            let existingCount = idCounts[originalID] ?? tracks.filter { $0.id == originalID }.count
-            
+            let existingCount = idCounts[originalID, default: 0]
+
             if existingCount > 0 {
                 newTrack.metadata?.position = existingCount + 1
             }
-            
+
             idCounts[originalID] = existingCount + 1
             tracks.append(newTrack)
         }
