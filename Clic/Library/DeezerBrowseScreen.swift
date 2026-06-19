@@ -76,7 +76,6 @@ struct DeezerBrowseScreen: View {
                                 }
                             }
                         }
-                        .listRowInsets(.default)
                         .listRowSeparator(.hidden)
                         .listSectionSeparator(.hidden)
                     }
