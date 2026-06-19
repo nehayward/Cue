@@ -27,6 +27,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Tracks", systemImage: "music.note")
                     }
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Favorite Albums",
@@ -35,6 +36,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Albums", systemImage: "smallcircle.circle.fill")
                     }
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableList(
                         title: "Favorite Artists",
@@ -43,6 +45,7 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Favorite Artists", systemImage: "music.mic")
                     }
+                    .listRowSeparator(.hidden)
 
                     NavigationLink(value: RouterDestination.playableGridScreen(
                         title: "Playlists",
@@ -51,10 +54,12 @@ struct DeezerBrowseScreen: View {
                     )) {
                         Label("Playlists", systemImage: "music.note.list")
                     }
+                    .listRowSeparator(.hidden)
 
                     if !deezerBrowseService.userPlaylists.isEmpty {
                         ForEach(deezerBrowseService.userPlaylists.prefix(5)) { item in
                             PlayableContentView(item: item)
+                                .listRowSeparator(.hidden)
                         }
                     } else if isLoading {
                         ProgressView()
