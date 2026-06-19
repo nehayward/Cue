@@ -25,7 +25,12 @@ struct MediaDetailView: View {
     @State private var tracks: [PlayableContent] = []
     @State private var isLoaded: Bool = false
     @State private var isLoadingMore: Bool = true
+    @State private var isFetchingPage: Bool = false
     @State private var totalSongs: Int?
+
+    /// Number of rows before the end at which we start prefetching the next page.
+    /// Loading ahead of the visible edge hides network latency so scrolling stays smooth.
+    private static let prefetchThreshold = 10
     @State private var duration: Duration?
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
@@ -73,10 +78,10 @@ struct MediaDetailView: View {
                         return
                     }
 
-                    if index >= tracks.count - 1 && isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
-                        Task {
-                            await updateTracks(offset: tracks.count)
-                        }
+                    let hasMore = totalSongs == nil || tracks.count < totalSongs!
+                    let nearEnd = index >= tracks.count - Self.prefetchThreshold
+                    if nearEnd && isLoadingMore && hasMore {
+                        await updateTracks(offset: tracks.count)
                     }
                 }
                 .listRowBackground(Color.white.opacity(0.001))
@@ -365,8 +370,15 @@ struct MediaDetailView: View {
     }
     
     private func updateTracks(offset: Int = 0) async {
+        // Avoid firing duplicate concurrent requests for the same page. With prefetching,
+        // several near-the-end rows can trigger a load before the first one returns; this
+        // guard collapses them into a single in-flight fetch.
+        guard !isFetchingPage else { return }
+        isFetchingPage = true
+
         // Ensure isLoaded is set even if we return early
         defer {
+            isFetchingPage = false
             if offset == 0 {
                 isLoaded = true
             }
