@@ -68,10 +68,12 @@ struct DeezerBrowseScreen: View {
                                 .fontDesign(.rounded)
                                 .fontWeight(.semibold)
 
-                            ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
-                                PlayableContentRowView(item: item)
-                                    .padding(.bottom, 8)
-                                    .geometryGroup()
+                            LazyVGrid(columns: [.init(), .init()]) {
+                                ForEach(deezerBrowseService.recentlyPlayed.prefix(10)) { item in
+                                    PlayableContentRowView(item: item)
+                                        .buttonStyle(.plain)
+                                        .geometryGroup()
+                                }
                             }
                         }
                         .listRowInsets(.default)
