@@ -26,6 +26,10 @@ struct MediaDetailView: View {
     @State private var isLoaded: Bool = false
     @State private var isLoadingMore: Bool = true
     @State private var isFetchingPage: Bool = false
+    /// Raw number of source items consumed so far. This is the real pagination offset for
+    /// offset-based services and can exceed `tracks.count` when a page contains items that
+    /// drop out (e.g. Spotify playlists with removed/local tracks that decode to nil).
+    @State private var loadedItemCount: Int = 0
     @State private var totalSongs: Int?
 
     /// Number of rows before the end at which we start prefetching the next page.
@@ -78,10 +82,10 @@ struct MediaDetailView: View {
                         return
                     }
 
-                    let hasMore = totalSongs.map { tracks.count < $0 } ?? true
+                    let hasMore = totalSongs.map { loadedItemCount < $0 } ?? true
                     let nearEnd = index >= tracks.count - Self.prefetchThreshold
                     if nearEnd && isLoadingMore && hasMore {
-                        await updateTracks(offset: tracks.count)
+                        await updateTracks(offset: loadedItemCount)
                     }
                 }
                 .listRowBackground(Color.white.opacity(0.001))
@@ -145,7 +149,7 @@ struct MediaDetailView: View {
             }
         }
         .task {
-            await updateTracks(offset: tracks.count)
+            await updateTracks(offset: loadedItemCount)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -394,6 +398,10 @@ struct MediaDetailView: View {
         }
 
         var newTracks: [PlayableContent] = []
+        // How many raw source items this page consumed. Defaults to the number of playable
+        // tracks produced, but services that can drop items mid-page (Spotify) override it
+        // with the true page size so the next offset doesn't re-read the dropped rows.
+        var consumedCount: Int?
         switch (playableContent.content.type, playableContent.content.service) {
         case (.album, .apple):
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
@@ -420,6 +428,9 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             totalSongs = playlist.total
+            // Advance by the raw page size, not the playable count: a page can contain items
+            // (removed/local tracks) that decode to nil, and offset is a raw playlist index.
+            consumedCount = playlist.items.count
             newTracks = playlist.items
                 .compactMap {
                     $0.track?.toPlayable(
@@ -429,6 +440,11 @@ struct MediaDetailView: View {
                         fingerprint: $0.uid
                     )
                 }
+            // Stop once we've consumed the whole playlist; dropped items mean tracks.count
+            // alone never reaches total, which would otherwise keep refetching empty tails.
+            if playlist.items.isEmpty || offset + playlist.items.count >= playlist.total {
+                isLoadingMore = false
+            }
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
@@ -507,7 +523,8 @@ struct MediaDetailView: View {
             return
         }
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
-        
+        loadedItemCount += consumedCount ?? newTracks.count
+
         if let content {
             RecentSearchesStorage.shared.addOrMoveToFront(byID: content)
         }
