@@ -96,6 +96,8 @@ struct DeezerBrowseScreen: View {
             }
             .listSectionSpacing(4)
             .listStyle(.plain)
+            .listRowSeparator(.hidden)
+            .listSectionSeparator(.hidden)
             .animation(.default, value: deezerBrowseService.userPlaylists)
             .animation(hasLoadedOnce ? .default : nil, value: deezerBrowseService.recentlyPlayed)
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
