@@ -122,4 +122,22 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `.iconOnly` re-tints the icon with the control color, so re-applied `.foregroundStyle(brandColor.gradient)` on the `Label` to restore the per-service brand color
 - Kept `.frame(width: 24, height: 24)` on the icon image so sizing stays correct
 
+### Search & library results grid layout
+- New `PlayableContentGridView` — a two-column `LazyVGrid` that renders the extracted `PlayableContentRowView` per item (`.geometryGroup()` per cell)
+- Used by search results and `AppleLibraryBrowseScreen` in place of the prior single-column list
+- `SpotifySearchScreenUpdated` consolidated back to `SpotifySearchScreen` (preview + `SearchEmptyStateView` references updated)
+- `RecentSearchesView` titles now leading-aligned and full-width (`maxWidth: .infinity`) instead of a fixed 70pt frame; tighter `VStack` spacing
+
+### Average color extraction performance
+- `UIImage.findAverageColor` now uses integer multiply (`r * r`) instead of `pow()` in the `.squareRoot` path — exact and far cheaper per pixel
+- Pixel loop iterates rows contiguously (`y` outer, `x` inner) for better CPU cache locality
+- Cache reads/writes go through `NSLock.withLock`, collapsing the lock/unlock boilerplate
+
+### SoundCloud library screen parity with Spotify
+- `SoundCloudBrowseScreen` rewritten from a `ScrollView` of horizontal carousels to a `List` of reorderable sections, matching `SpotifyLibraryScreen` and `AppleLibraryBrowseScreen`
+- Liked Songs and Playlists now render as two-column `LazyVGrid`s of `PlayableContentRowView` (7 tracks + Play All, 8 playlists) with `NavigationLink` headers into the full lists
+- Added `SoundCloudLibrarySection` enum, a `soundcloudLibrary` `SectionConfigurationStore`, and `ReorderSoundCloudLibrarySectionsView` so sections can be reordered/hidden via the toolbar filter button
+- New `.reorderSoundCloudLibrarySections` sheet destination wired through `SheetDestination` and `AppRegistry`
+- Auth-error and empty states preserved as List fallbacks; loading stays cursor-based (`updateLikedTracks`/`loadMoreTracks`) since SoundCloud has no offset/limit API
+
 ---

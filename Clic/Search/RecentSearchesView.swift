@@ -11,6 +11,26 @@ struct RecentSearchesView: View {
         let items = recentSearches.object.reversed()
         if !items.isEmpty {
             Section {
+                HStack {
+                    Text("Recent")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Menu {
+                        Button(role: .destructive) {
+                            withAnimation {
+                                recentSearches.clear()
+                            }
+                        } label: {
+                            Label("Clear All Recents", systemImage: "trash")
+                        }
+                    } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                    .contentShape(.rect)
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                }
+                .fontDesign(.rounded)
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 16) {
                         ForEach(Array(items), id: \.id) { item in
@@ -24,7 +44,7 @@ struct RecentSearchesView: View {
                                 }
                                 PlayableMenuView(item: item)
                             } label: {
-                                VStack(spacing: 6) {
+                                VStack(spacing: 4) {
                                     ContentArtworkView(content: item, preferredSize: 70)
                                         .frame(width: 70, height: 70)
                                         .clipped()
@@ -54,21 +74,6 @@ struct RecentSearchesView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
-            } header: {
-                HStack {
-                    Text("Recent")
-                        .fontDesign(.rounded)
-                        .bold()
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Clear") {
-                        withAnimation {
-                            recentSearches.clear()
-                        }
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                }
             }
         }
     }
