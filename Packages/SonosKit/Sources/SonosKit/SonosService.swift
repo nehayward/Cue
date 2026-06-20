@@ -1564,7 +1564,16 @@ public final class SonosService {
     }
 
     public func getContent(from url: URL) async -> PlayableContent? {
-        guard let content = api.parse(url: url) else { return nil }
+        var parsed = api.parse(url: url)
+        // The Deezer app shares short "smart" links (link.deezer.com, *.page.link)
+        // that carry no type/id, so the path parser can't read them. Resolve them
+        // to the canonical deezer.com/<type>/<id> URL, then re-parse.
+        if parsed == nil, DeezerLinkResolver.isShareLink(url),
+           let resolved = await DeezerLinkResolver.resolve(url),
+           let resolvedContent = api.parse(url: resolved) {
+            parsed = resolvedContent
+        }
+        guard let content = parsed else { return nil }
         switch (content.type, content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
