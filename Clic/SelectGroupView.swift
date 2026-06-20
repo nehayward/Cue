@@ -50,10 +50,14 @@ struct SelectGroupView: View {
                                     Button {
                                         play(group: group)
                                     } label: {
-                                        HStack(spacing: 12) {
+                                        HStack(spacing: 10) {
+                                            Image(systemName: "rectangle.3.group.fill")
+                                                .font(.callout)
+                                                .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .secondary)
+
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(group.nameWithCount)
-                                                    .fontWeight(.semibold)
+                                                    .font(.subheadline.weight(.semibold))
                                                     .lineLimit(1)
 
                                                 if !group.coordinatorRoom.track.name.isEmpty {
@@ -64,16 +68,22 @@ struct SelectGroupView: View {
                                                 }
                                             }
 
-                                            Spacer()
+                                            Spacer(minLength: 4)
 
                                             Text("\(Int(group.groupVolume))")
-                                                .font(.callout)
+                                                .font(.footnote.weight(.semibold))
+                                                .monospacedDigit()
                                                 .foregroundStyle(.secondary)
                                         }
-                                        .padding()
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 12)
                                         .background {
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .foregroundStyle(.thinMaterial)
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .fill(.ultraThinMaterial)
+                                                .overlay {
+                                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                        .strokeBorder(group.coordinatorRoom.isPlaying ? Color.accentColor.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1)
+                                                }
                                         }
                                         .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
                                             length / 1.75
@@ -99,15 +109,36 @@ struct SelectGroupView: View {
                                 }
                             }
                         } label: {
-                            Text(allSelected ? "Deselect All" : "Everywhere")
-                                .contentTransition(.identity)
-                                .frame(maxWidth: .infinity)
-                                .bold()
+                            HStack(spacing: 10) {
+                                Image(systemName: allSelected ? "speaker.slash.fill" : "speaker.wave.3.fill")
+                                    .font(.callout)
+                                    .contentTransition(.symbolEffect(.replace))
+                                Text(allSelected ? "Deselect All" : "Everywhere")
+                                    .fontWeight(.bold)
+                                    .contentTransition(.identity)
+                                Spacer(minLength: 4)
+                                if !selections.isEmpty {
+                                    Text("\(selections.count) of \(activeRooms.count)")
+                                        .font(.subheadline.weight(.semibold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .foregroundStyle(.accent)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.accentColor.opacity(allSelected ? 0.22 : 0.14))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                                    }
+                            }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
                         .fontDesign(.rounded)
-                        .tint(.accent)
-                        .foregroundStyle(.accent)
                         .padding(.horizontal)
                         
                         // Playing rooms first, then others
@@ -176,9 +207,13 @@ struct SelectGroupView: View {
                                 }
                             }
                         } label: {
-                            Text("Play")
-                                .bold()
-                                .frame(maxWidth: .infinity)
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                Text(selections.count > 1 ? "Play in \(selections.count) Rooms" : "Play")
+                                    .contentTransition(.identity)
+                            }
+                            .bold()
+                            .frame(maxWidth: .infinity)
                         }
                         .transition(.slide)
                         .buttonStyle(.borderedProminent)
@@ -252,11 +287,12 @@ struct SelectGroupView: View {
                 }
             }
         } label: {
+            let isSelected = selections.contains(room.id)
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(room.name)
-                        .fontWeight(.semibold)
-                    
+                        .font(.body.weight(.semibold))
+
                     if !room.track.name.isEmpty {
                         Text(room.track.name)
                             .font(.caption)
@@ -264,22 +300,49 @@ struct SelectGroupView: View {
                             .foregroundStyle(room.isPlaying ? .accent : .secondary)
                     }
                 }
-                
-                Spacer()
-                
+
+                Spacer(minLength: 4)
+
+                if room.isMuted {
+                    Image(systemName: "speaker.slash.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 Text("\(Int(room.volume))")
-                    .font(.callout)
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
-                
-                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.quaternary))
+
+                ZStack {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
+                        .opacity(isSelected ? 0 : 1)
+                    Circle()
+                        .fill(Color.accentColor)
+                        .opacity(isSelected ? 1 : 0)
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .opacity(isSelected ? 1 : 0)
+                }
+                .frame(width: 26, height: 26)
+                .animation(.snappy, value: isSelected)
             }
             .fontDesign(.rounded)
-            .padding(.horizontal)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(isSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
+                    }
+            }
         } primaryAction: {
             HapticManager.shared.fireHaptic(.selection)
             if selections.contains(room.id) {
