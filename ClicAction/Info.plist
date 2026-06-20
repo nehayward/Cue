@@ -19,13 +19,13 @@
 		<dict>
 			<key>NSExtensionActivationRule</key>
 			<string>SUBQUERY(extensionItems, $extensionItem, SUBQUERY($extensionItem.attachments, $attachment, (ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url") || (ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text")).@count > 0).@count > 0</string>
+			<key>NSExtensionServiceRoleType</key>
+			<string>NSExtensionServiceRoleTypeViewer</string>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ui-services</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ActionViewController</string>
-		<key>NSExtensionServiceRoleType</key>
-		<string>NSExtensionServiceRoleTypeViewer</string>
 	</dict>
 </dict>
 </plist>
