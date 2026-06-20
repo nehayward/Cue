@@ -46,7 +46,7 @@ extension View {
             if glass {
                 self
                     .padding(8)
-                    .glassEffect(.clear.interactive())
+                    .glassEffect(.regular.interactive())
             } else {
                 self
             }
