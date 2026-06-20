@@ -50,14 +50,10 @@ struct SelectGroupView: View {
                                     Button {
                                         play(group: group)
                                     } label: {
-                                        HStack(spacing: 10) {
-                                            Image(systemName: "rectangle.3.group.fill")
-                                                .font(.callout)
-                                                .foregroundStyle(group.coordinatorRoom.isPlaying ? .accent : .secondary)
-
+                                        HStack(spacing: 12) {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(group.nameWithCount)
-                                                    .font(.subheadline.weight(.semibold))
+                                                    .fontWeight(.semibold)
                                                     .lineLimit(1)
 
                                                 if !group.coordinatorRoom.track.name.isEmpty {
@@ -68,22 +64,16 @@ struct SelectGroupView: View {
                                                 }
                                             }
 
-                                            Spacer(minLength: 4)
+                                            Spacer()
 
                                             Text("\(Int(group.groupVolume))")
-                                                .font(.footnote.weight(.semibold))
-                                                .monospacedDigit()
+                                                .font(.callout)
                                                 .foregroundStyle(.secondary)
                                         }
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 12)
+                                        .padding()
                                         .background {
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .fill(.ultraThinMaterial)
-                                                .overlay {
-                                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                        .strokeBorder(group.coordinatorRoom.isPlaying ? Color.accentColor.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1)
-                                                }
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .foregroundStyle(.thinMaterial)
                                         }
                                         .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
                                             length / 1.75
@@ -93,6 +83,7 @@ struct SelectGroupView: View {
                             }
                             .padding(.horizontal)
                         }
+                        .padding(.top)
                         .scrollIndicators(.hidden)
                         .scrollClipDisabled()
                         Divider()
@@ -110,9 +101,6 @@ struct SelectGroupView: View {
                             }
                         } label: {
                             HStack(spacing: 10) {
-                                Image(systemName: allSelected ? "speaker.slash.fill" : "speaker.wave.3.fill")
-                                    .font(.callout)
-                                    .contentTransition(.symbolEffect(.replace))
                                 Text(allSelected ? "Deselect All" : "Everywhere")
                                     .fontWeight(.bold)
                                     .contentTransition(.identity)
@@ -313,6 +301,7 @@ struct SelectGroupView: View {
                     .font(.footnote.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+                    .frame(minWidth: 22)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4)
                     .background(Capsule().fill(.quaternary))
