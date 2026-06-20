@@ -20,6 +20,7 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `SonosServiceType.deezer` added to `MediaServer.swift`; `CoreFeatures.syncEnabledServices` maps `.deezer → .deezer`; included in `preferredDefaultService` fallback chain
 - View Album, View Artist, Open in Deezer, and Play Radio (Mix) all wired up — radio available from track context menu, artist page, and large player
 - `SonosAPI+MusicServices`: parses `deezer.com/{locale}/{type}/{id}` share URLs, strips 2-letter locale prefix
+- `DeezerLinkResolver` (`MusicSearchKit`): resolves the Deezer *app's* short "smart" links — `link.deezer.com/s/{token}` (Branch.io) and legacy `deezer.page.link` / `dzr.page.link` (Firebase) — which carry no type/id in the path. Follows the redirect with a desktop User-Agent, then scans the final URL / interstitial HTML for the canonical `deezer.com/{type}/{id}` link. Wired into `SonosService.getContent(from:)`, so sharing from the Deezer app (not just the website) now works in PlayAction and everywhere else
 - Added `Docs/AddingMusicService.md` — comprehensive guide and checklist for integrating future services
 
 ---
