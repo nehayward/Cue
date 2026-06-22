@@ -72,8 +72,9 @@ struct SelectGroupView: View {
                                         }
                                         .padding()
                                         .background {
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .foregroundStyle(.thinMaterial)
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                   .fill(Color.primary.opacity(0.06))
+                                                   .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                                         }
                                         .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
                                             length / 1.75
@@ -190,7 +191,6 @@ struct SelectGroupView: View {
                                         try await onSelection?(newGroup)
                                         try await Task.sleep(for: .seconds(1))
                                         await sonosService.snapShotGroup(ip: newGroup.ip)
-                                        print("DONE!")
                                     }
                                 }
                             }
