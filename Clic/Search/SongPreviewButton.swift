@@ -65,14 +65,14 @@ struct SongPreviewButton: View {
 
     var body: some View {
         Button {
-            Task { await AudioPlaybackService.shared.preview(url: previewURL) }
+            AudioPlaybackService.shared.preview(url: previewURL)
         } label: {
             Label("Preview Song", systemImage: "play.circle")
         }
         .menuActionDismissBehavior(.disabled)
-        .task {
+        .onAppear {
             guard autoPreviewEnabled else { return }
-            await AudioPlaybackService.shared.preview(url: previewURL)
+            AudioPlaybackService.shared.preview(url: previewURL)
         }
 
         Button {

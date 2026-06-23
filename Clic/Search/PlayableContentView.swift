@@ -183,7 +183,7 @@ struct PlayableContentView: View {
                !previewURL.absoluteString.isEmpty,
                [.track, .libraryTrack].contains(item.content.type) {
                 Button {
-                    Task { await AudioPlaybackService.shared.preview(url: previewURL) }
+                    AudioPlaybackService.shared.preview(url: previewURL)
                 } label: {
                     Label("Preview", systemImage: "play.circle.fill")
                 }
