@@ -80,12 +80,19 @@ extension MusicKit.Track {
         artworkURL = processURL(artworkURL)
         thumbnailURL = processURL(thumbnailURL)
 
+        let previewURL: URL?
+        switch self {
+        case .song(let song): previewURL = song.previewAssets?.first?.url
+        default: previewURL = nil
+        }
+
         return PlayableContent(
             title: title,
             subtitle: artistName,
             thumbnail: thumbnailURL,
             artwork: artworkURL,
             content: MediaContent(service: .apple, id: id.description, type: .track, location: url),
+            previewURL: previewURL,
             metadata: PlayableContentMetadata(
                 duration: durationSeconds,
                 artist: artistName,

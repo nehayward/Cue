@@ -16,6 +16,7 @@ struct PlayableContentView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @Environment(PlexRatingCache.self) private var plexRatingCache
+    @Environment(AudioPlaybackService.self) private var audioService: AudioPlaybackService
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     
     let item: PlayableContent
@@ -152,6 +153,12 @@ struct PlayableContentView: View {
             if adding == nil, !hideDetails {
                 PlayableMenuView(item: item)
             }
+        } preview: {
+            ContentArtworkView(content: item, preferredSize: 240)
+                .frame(width: 240, height: 240)
+                .onDisappear {
+                    audioService.stopPreview()
+                }
         }
         .draggable(item) {
             Text(item.title)
