@@ -420,7 +420,7 @@ struct MediaDetailView: View {
             newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
-            newTracks = playlist.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(playlist)
         case (.libraryPlaylist, .apple):
             let (tracks, playlistCount) = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id, offset: offset)
             newTracks = tracks

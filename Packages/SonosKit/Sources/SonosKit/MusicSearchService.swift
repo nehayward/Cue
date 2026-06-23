@@ -384,10 +384,11 @@ public final class MusicSearchService {
         return response.items.first
     }
 
-    /// Converts a MusicKit track collection to PlayableContent, enriching each Song
+    /// Converts a MusicKit track sequence to PlayableContent, enriching each Song
     /// with its previewAssets via a single batch catalog request.
-    public func tracksToPlayableWithPreviews(_ tracks: MusicItemCollection<MusicKit.Track>) async -> [PlayableContent] {
-        let songIDs = tracks.compactMap { track -> MusicItemID? in
+    public func tracksToPlayableWithPreviews(_ tracks: some Sequence<MusicKit.Track>) async -> [PlayableContent] {
+        let trackArray = Array(tracks)
+        let songIDs = trackArray.compactMap { track -> MusicItemID? in
             guard case .song(let song) = track else { return nil }
             return song.id
         }
@@ -405,7 +406,7 @@ public final class MusicSearchService {
             }
         }
 
-        return tracks.map { track in
+        return trackArray.map { track in
             var playable = track.toPlayable
             if case .song(let song) = track {
                 playable.previewURL = previewURLs[song.id]
