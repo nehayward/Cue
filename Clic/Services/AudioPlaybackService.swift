@@ -53,9 +53,11 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     public func play(
         url: URL,
         category: AVAudioSession.Category = .playback,
-        options: AVAudioSession.CategoryOptions = [.duckOthers]
+        options: AVAudioSession.CategoryOptions = [.duckOthers],
+        isPreview: Bool = false
     ) async {
-        stop()
+        stop()               // clears isPreviewMode to false
+        isPreviewMode = isPreview  // re-set correctly after stop()
 
         currentTrack = url
         playbackState = .loading
@@ -75,8 +77,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @MainActor
     public func preview(url: URL) async {
         guard !isPreviewing(url) else { return }
-        isPreviewMode = true
-        await play(url: url, category: .ambient, options: [.mixWithOthers])
+        await play(url: url, category: .ambient, options: [.mixWithOthers], isPreview: true)
     }
 
     /// Stops playback only when we're in preview mode — will not interrupt
