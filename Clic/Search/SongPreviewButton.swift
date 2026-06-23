@@ -3,8 +3,8 @@ import SonosKit
 import Defaults
 
 /// Context menu peek preview for a track. Mirrors the PlayableContentView cell
-/// layout (artwork + title + subtitle) and adds a 2px accent-color progress bar
-/// that fills as the preview clip plays.
+/// layout (artwork + title + subtitle) and uses the same left-anchored accent
+/// background fill that grows as the preview clip plays.
 ///
 /// Uses AudioPlaybackService.shared directly rather than environment so it is
 /// safe inside context menu preview views, which may not inherit all environment
@@ -21,32 +21,29 @@ struct SongPreviewCard: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ContentArtworkView(content: item, showMusicSource: false)
-                    .frame(width: 50, height: 50)
+        HStack(spacing: 12) {
+            ContentArtworkView(content: item, showMusicSource: false)
+                .frame(width: 50, height: 50)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title)
-                        .lineLimit(1)
-                        .fontDesign(.rounded)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .lineLimit(1)
+                    .fontDesign(.rounded)
 
-                    Text(item.subtitle.isEmpty ? item.content.type.title : item.subtitle)
-                        .lineLimit(1)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fontDesign(.rounded)
-                }
-
-                Spacer(minLength: 0)
+                Text(item.subtitle.isEmpty ? item.content.type.title : item.subtitle)
+                    .lineLimit(1)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fontDesign(.rounded)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
 
-            Rectangle()
-                .fill(Color.accentColor)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(alignment: .leading) {
+            Color.accentColor.opacity(0.12)
                 .scaleEffect(x: progressFraction, anchor: .leading)
-                .frame(maxWidth: .infinity, minHeight: 2, maxHeight: 2)
                 .animation(.linear(duration: 0.3), value: progressFraction)
         }
     }
