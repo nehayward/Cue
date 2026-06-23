@@ -3,17 +3,18 @@ import Defaults
 
 /// Context-menu controls for auditioning a track's short preview clip.
 ///
-/// - "Preview Song" plays the clip while the menu stays open (it doesn't
-///   dismiss the menu); the preview stops automatically when the menu is
-///   dismissed.
-/// - "Auto-Preview" is a persisted checkmark setting (off by default). When on,
-///   opening a track's menu starts the clip automatically.
+/// - "Preview Song" plays the clip; the menu stays open. The preview stops
+///   when the menu is dismissed.
+/// - "Auto-Preview" (off by default) starts clips automatically when a track's
+///   menu opens. It is a dismiss-on-tap button so its checkmark state renders
+///   correctly on reopen (SwiftUI context menus snapshot their content and
+///   don't re-render in place).
 ///
-/// SwiftUI context menus render their content as a static snapshot, so the
-/// Auto-Preview control is a dismiss-on-tap button (matching `FavoriteMenuButton`)
-/// rather than an in-place `Toggle`, which would never visually update while the
-/// menu is open. Preview audio plays in a mixed, ambient session so it layers
-/// over anything already playing.
+/// Two mechanisms handle stop-on-dismiss reliably:
+/// 1. `.task` for auto-preview — it is automatically cancelled by SwiftUI when
+///    the view disappears, aborting the in-flight URLSession request before
+///    audio can start.
+/// 2. `onDisappear` calling `stopPreview()` for audio that is already playing.
 struct SongPreviewButton: View {
     @Environment(AudioPlaybackService.self) private var audioService
     @AppStorage(Defaults.AppStorageKeys.autoPreviewSongs) private var autoPreviewEnabled = false
@@ -27,14 +28,12 @@ struct SongPreviewButton: View {
             Label("Preview Song", systemImage: "play.circle")
         }
         .menuActionDismissBehavior(.disabled)
-        .onAppear {
+        .task {
             guard autoPreviewEnabled else { return }
-            Task { await audioService.preview(url: previewURL) }
+            await audioService.preview(url: previewURL)
         }
         .onDisappear {
-            if audioService.isPreviewing(previewURL) {
-                audioService.stop()
-            }
+            audioService.stopPreview()
         }
 
         Button {

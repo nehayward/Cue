@@ -15,7 +15,7 @@ enum PlaybackState: Equatable {
 @Observable
 public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     public static var shared = AudioPlaybackService()
-    
+
     // MARK: - Public Properties
     var currentTrack: URL?
     var playbackState: PlaybackState = .idle
@@ -26,26 +26,28 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             audioPlayer?.volume = volume
         }
     }
-    
+
+    /// Set when audio was started via `preview(url:)`. Guards `stopPreview()`
+    /// so it never cuts off real Sonos-triggered playback.
+    private(set) var isPreviewMode = false
+
     var isPlaying: Bool {
         playbackState == .playing
     }
 
-    /// True when `url` is the track currently loaded for preview and it is
-    /// actively loading or playing. Used to drive the preview menu button state.
     func isPreviewing(_ url: URL) -> Bool {
-        currentTrack == url && (playbackState == .loading || playbackState == .playing)
+        currentTrack == url && isPreviewMode && (playbackState == .loading || playbackState == .playing)
     }
-    
+
     // MARK: - Private Properties
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
     @ObservationIgnored private var progressObserver: Any?
-    
+
     // MARK: - Initialization
     override init() {
         super.init()
     }
-    
+
     // MARK: - Public Methods
     @MainActor
     public func play(
@@ -53,7 +55,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         category: AVAudioSession.Category = .playback,
         options: AVAudioSession.CategoryOptions = [.duckOthers]
     ) async {
-        // Stop any currently playing audio
         stop()
 
         currentTrack = url
@@ -61,21 +62,31 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
+            guard !Task.isCancelled else { return }
             try await playAudioData(data, category: category, options: options)
         } catch {
+            guard !Task.isCancelled else { return }
             playbackState = .error(error.localizedDescription)
         }
     }
 
-    /// Plays a short song preview using a mixed, ambient audio session so it
-    /// layers over other audio and respects the silent switch. No-op if the
-    /// same preview is already loading or playing.
+    /// Plays a short preview in a mixed ambient session so it layers over other
+    /// audio. No-op if the same clip is already loading or playing.
     @MainActor
     public func preview(url: URL) async {
         guard !isPreviewing(url) else { return }
+        isPreviewMode = true
         await play(url: url, category: .ambient, options: [.mixWithOthers])
     }
-    
+
+    /// Stops playback only when we're in preview mode — will not interrupt
+    /// any other audio the app may be managing.
+    @MainActor
+    public func stopPreview() {
+        guard isPreviewMode else { return }
+        stop()
+    }
+
     @MainActor
     public func pause() {
         guard let audioPlayer = audioPlayer, audioPlayer.isPlaying else { return }
@@ -83,7 +94,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         playbackState = .paused
         stopProgressObserver()
     }
-    
+
     @MainActor
     public func resume() {
         guard let audioPlayer = audioPlayer, playbackState == .paused else { return }
@@ -91,7 +102,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         playbackState = .playing
         startProgressObserver()
     }
-    
+
     @MainActor
     public func stop() {
         audioPlayer?.stop()
@@ -100,6 +111,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         playbackProgress = 0
         duration = 0
         currentTrack = nil
+        isPreviewMode = false
         stopProgressObserver()
         do {
             try AVAudioSession.sharedInstance().setActive(false)
@@ -107,24 +119,15 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             print(error)
         }
     }
-    
+
     @MainActor
     public func seek(to position: TimeInterval) {
         guard let audioPlayer = audioPlayer else { return }
         audioPlayer.currentTime = position
         playbackProgress = position
     }
-    
+
     // MARK: - Private Methods
-    private func setupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to setup audio session: \(error)")
-        }
-    }
-        
     @MainActor
     private func playAudioData(
         _ data: Data,
@@ -137,13 +140,13 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         audioPlayer?.delegate = self
         audioPlayer?.volume = volume
         audioPlayer?.prepareToPlay()
-        
+
         duration = audioPlayer?.duration ?? 0
-        
+
         guard let audioPlayer = audioPlayer else {
             throw AudioPlaybackError.playerInitializationFailed
         }
-        
+
         if audioPlayer.play() {
             playbackState = .playing
             startProgressObserver()
@@ -151,25 +154,22 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             throw AudioPlaybackError.playbackFailed
         }
     }
-    
+
     @MainActor
     private func startProgressObserver() {
         stopProgressObserver()
-        
-        // Use CADisplayLink for smoother progress updates tied to display refresh
-        // Higher frequency for smoother animations, especially during scrubbing
         let displayLink = CADisplayLink(target: self, selector: #selector(updateProgress))
-        displayLink.preferredFramesPerSecond = 30 // Update 30 times per second for smooth UI
+        displayLink.preferredFramesPerSecond = 30
         displayLink.add(to: .main, forMode: .common)
         progressObserver = displayLink
     }
-    
+
     @MainActor
     @objc private func updateProgress() {
         guard let audioPlayer = audioPlayer, playbackState == .playing else { return }
         playbackProgress = audioPlayer.currentTime
     }
-    
+
     private func stopProgressObserver() {
         if let displayLink = progressObserver as? CADisplayLink {
             displayLink.invalidate()
@@ -188,13 +188,15 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
             } else {
                 playbackState = .error("Playback finished unsuccessfully")
             }
+            isPreviewMode = false
             stopProgressObserver()
         }
     }
-    
+
     public func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         Task { @MainActor in
             playbackState = .error(error?.localizedDescription ?? "Decode error occurred")
+            isPreviewMode = false
             stopProgressObserver()
         }
     }
@@ -206,7 +208,7 @@ enum AudioPlaybackError: LocalizedError {
     case playbackFailed
     case invalidURL
     case networkError
-    
+
     var errorDescription: String? {
         switch self {
         case .playerInitializationFailed:
