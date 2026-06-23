@@ -31,6 +31,8 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     /// so it never cuts off real Sonos-triggered playback.
     private(set) var isPreviewMode = false
 
+    @ObservationIgnored private var previewTask: Task<Void, Never>?
+
     var isPlaying: Bool {
         playbackState == .playing
     }
@@ -64,20 +66,32 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                playbackState = .stopped
+                isPreviewMode = false
+                return
+            }
             try await playAudioData(data, category: category, options: options)
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                playbackState = .stopped
+                isPreviewMode = false
+                return
+            }
             playbackState = .error(error.localizedDescription)
         }
     }
 
     /// Plays a short preview in a mixed ambient session so it layers over other
     /// audio. No-op if the same clip is already loading or playing.
+    /// Manages its own Task internally — call sites do not need `Task { await ... }`.
     @MainActor
-    public func preview(url: URL) async {
+    public func preview(url: URL) {
         guard !isPreviewing(url) else { return }
-        await play(url: url, category: .ambient, options: [.mixWithOthers], isPreview: true)
+        previewTask?.cancel()
+        previewTask = Task { @MainActor in
+            await play(url: url, category: .ambient, options: [.mixWithOthers], isPreview: true)
+        }
     }
 
     /// Stops playback only when we're in preview mode — will not interrupt
@@ -106,6 +120,8 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
     @MainActor
     public func stop() {
+        previewTask?.cancel()
+        previewTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         playbackState = .stopped
