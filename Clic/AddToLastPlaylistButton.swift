@@ -48,15 +48,10 @@ struct AddToLastPlaylistButton: View {
     private func add(to playlist: LastPlaylist) {
         Task {
             alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
-            switch playlist.service {
-            case .apple:
-                _ = await MusicSearchService.shared.addToApplePlaylist(track: itemToAdd, playlistID: playlist.id)
-            case .spotify:
-                _ = await MusicSearchService.shared.addToSpotifyPlaylist(track: itemToAdd, playlistID: playlist.id)
-            case .plex:
-                _ = await MusicSearchService.shared.addToPlexPlaylist(track: itemToAdd, playlistID: playlist.id)
-            default:
-                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
+            await playlist.add(itemToAdd)
+
+            // For Sonos playlists, let tapping the toast open the playlist.
+            if playlist.service == .library {
                 let playlists = await sonosService.sonosPlaylists()
                 if let match = playlists.first(where: { $0.id == playlist.id }) {
                     alertService.alert.handleTap = {

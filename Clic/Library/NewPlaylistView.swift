@@ -1,8 +1,6 @@
 import FocusOnAppear
 import SwiftUI
-import UIKit
 import SonosKit
-import Defaults
 
 struct NewPlaylistView: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -66,11 +64,7 @@ struct NewPlaylistView: View {
                     }
 
                     // Save as last used playlist and rebuild menu
-                    UserDefaults.standard.set(newPlaylist.id, forKey: AppStorageKeys.lastPlaylistID)
-                    UserDefaults.standard.set(newPlaylist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-                    #if targetEnvironment(macCatalyst)
-                    UIMenuSystem.main.setNeedsRebuild()
-                    #endif
+                    LastPlaylist.save(newPlaylist)
                 }
             }
             dismiss()

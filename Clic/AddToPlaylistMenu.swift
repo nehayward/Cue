@@ -1,8 +1,6 @@
 import SwiftUI
-import UIKit
 import SonosKit
 import MusicSearchKit
-import Defaults
 
 struct AddTracksToPlaylistMenu: View {
     @Environment(SonosService.self) var sonosService: SonosService
@@ -28,12 +26,8 @@ struct AddTracksToPlaylistMenu: View {
                     alertService.showAlert(with: "Added \(tracks.count) tracks to \(playlistTitle)", imageName: "plus")
                     playlistsContainer.playlists = playLists
                     
-                    UserDefaults.standard.set(newPlaylist.id, forKey: AppStorageKeys.lastPlaylistID)
-                    UserDefaults.standard.set(newPlaylist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-#if targetEnvironment(macCatalyst)
-                    UIMenuSystem.main.setNeedsRebuild()
-#endif
-                    
+                    LastPlaylist.save(newPlaylist)
+
                     alertService.alert.handleTap = {
                         Router.main.presentedSheet = .mediaDetail(content: newPlaylist, group: nil)
                     }
@@ -54,12 +48,8 @@ struct AddTracksToPlaylistMenu: View {
 
                         alertService.showAlert(with: "Added \(tracks.count) tracks to \(playlist.title)", imageName: "checkmark")
                         
-                        UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
-                        UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-#if targetEnvironment(macCatalyst)
-                        UIMenuSystem.main.setNeedsRebuild()
-#endif
-                        
+                        LastPlaylist.save(playlist)
+
                         alertService.alert.handleTap = {
                             Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
                         }
@@ -95,11 +85,7 @@ struct AddToPlaylistMenu: View {
                         playlistsContainer.playlists = playLists
 
                         // Save as last used playlist and rebuild menu
-                        UserDefaults.standard.set(newPlaylist.id, forKey: AppStorageKeys.lastPlaylistID)
-                        UserDefaults.standard.set(newPlaylist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-                        #if targetEnvironment(macCatalyst)
-                        UIMenuSystem.main.setNeedsRebuild()
-                        #endif
+                        LastPlaylist.save(newPlaylist)
 
                         // Set up tap to navigate to playlist
                         alertService.alert.handleTap = {
@@ -118,11 +104,7 @@ struct AddToPlaylistMenu: View {
                             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
 
                             // Save as last used playlist and rebuild menu
-                            UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
-                            UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-                            #if targetEnvironment(macCatalyst)
-                            UIMenuSystem.main.setNeedsRebuild()
-                            #endif
+                            LastPlaylist.save(playlist)
 
                             // Set up tap to navigate to playlist
                             alertService.alert.handleTap = {

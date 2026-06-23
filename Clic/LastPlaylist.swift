@@ -24,6 +24,23 @@ struct LastPlaylist {
         return LastPlaylist(id: id, title: title, service: MusicService(service: raw) ?? .library)
     }
 
+    /// Adds `track` to this playlist via the appropriate service. Returns whether it succeeded.
+    /// Streaming services dispatch through `MusicSearchService`; everything else goes to Sonos.
+    @discardableResult
+    func add(_ track: PlayableContent) async -> Bool {
+        switch service {
+        case .apple:
+            return await MusicSearchService.shared.addToApplePlaylist(track: track, playlistID: id)
+        case .spotify:
+            return await MusicSearchService.shared.addToSpotifyPlaylist(track: track, playlistID: id)
+        case .plex:
+            return await MusicSearchService.shared.addToPlexPlaylist(track: track, playlistID: id)
+        default:
+            await SonosService.shared.addToPlaylist(playlistID: id, playableContent: track)
+            return true
+        }
+    }
+
     /// Persists `content` as the last-used playlist and refreshes the Mac menu bar.
     static func save(_ content: PlayableContent) {
         let defaults = UserDefaults.standard

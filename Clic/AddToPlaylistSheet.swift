@@ -15,6 +15,8 @@ struct AddToPlaylistSheet: View {
 
     let content: PlayableContent
 
+    private let musicService = MusicSearchService.shared
+
     @AppStorage(AppStorageKeys.addToPlaylistSegment) private var storedSegment: String = ""
 
     @State private var segment: Segment = .service
@@ -98,18 +100,24 @@ struct AddToPlaylistSheet: View {
 
     // MARK: - Subviews
 
+    /// Square artwork with a placeholder, used by both the banner and the playlist rows.
+    @ViewBuilder
+    private func artwork(_ url: URL?, size: CGFloat, cornerRadius: CGFloat) -> some View {
+        LazyImage(url: url) { phase in
+            if let image = phase.image {
+                image.resizable().scaledToFill()
+            } else {
+                Rectangle().fill(.quaternary)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+    }
+
     @ViewBuilder
     private var banner: some View {
         HStack(spacing: 12) {
-            LazyImage(url: content.artwork ?? content.thumbnail) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Rectangle().fill(.quaternary)
-                }
-            }
-            .frame(width: 56, height: 56)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            artwork(content.artwork ?? content.thumbnail, size: 56, cornerRadius: 8)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(content.title)
@@ -164,15 +172,7 @@ struct AddToPlaylistSheet: View {
     private func row(for playlist: PlayableContent) -> some View {
         let isSelected = selected[playlist.id] != nil
         HStack(spacing: 12) {
-            LazyImage(url: playlist.thumbnail ?? playlist.artwork) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Rectangle().fill(.quaternary)
-                }
-            }
-            .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            artwork(playlist.thumbnail ?? playlist.artwork, size: 44, cornerRadius: 6)
 
             Text(playlist.title)
                 .lineLimit(1)
@@ -208,9 +208,9 @@ struct AddToPlaylistSheet: View {
 
     private func fetchServicePlaylists() async -> [PlayableContent] {
         switch service {
-        case .apple: return await MusicSearchService.shared.appleUserPlaylists()
-        case .spotify: return await MusicSearchService.shared.spotifyEditablePlaylists()
-        case .plex: return await MusicSearchService.shared.plexUserPlaylists()
+        case .apple: return await musicService.appleUserPlaylists()
+        case .spotify: return await musicService.spotifyEditablePlaylists()
+        case .plex: return await musicService.plexUserPlaylists()
         default: return []
         }
     }
@@ -223,7 +223,7 @@ struct AddToPlaylistSheet: View {
                 await add(content, to: playlist)
             }
             await MainActor.run {
-                persistLast(targets.last)
+                if let last = targets.last { LastPlaylist.save(last) }
                 let subtitle: LocalizedStringKey = targets.count == 1
                     ? "Added to \(targets[0].title)"
                     : "Added to \(targets.count) playlists"
@@ -237,7 +237,7 @@ struct AddToPlaylistSheet: View {
         if playlist.content.service == .library {
             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
         } else {
-            _ = await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playlist)
+            _ = await musicService.addToServicePlaylist(track: track, playlist: playlist)
             PlaylistEditCoordinator.shared.registerExternalAdd(track: track, to: playlist, undoManager: undoManager)
         }
     }
@@ -249,9 +249,9 @@ struct AddToPlaylistSheet: View {
             let created: PlayableContent?
             if segment == .service {
                 switch service {
-                case .apple: created = await MusicSearchService.shared.createApplePlaylist(name: name, addingTrack: content)
-                case .spotify: created = await MusicSearchService.shared.createSpotifyPlaylist(name: name, addingTrack: content)
-                case .plex: created = await MusicSearchService.shared.createPlexPlaylist(name: name, track: content)
+                case .apple: created = await musicService.createApplePlaylist(name: name, addingTrack: content)
+                case .spotify: created = await musicService.createSpotifyPlaylist(name: name, addingTrack: content)
+                case .plex: created = await musicService.createPlexPlaylist(name: name, track: content)
                 default: created = nil
                 }
             } else {
@@ -264,16 +264,11 @@ struct AddToPlaylistSheet: View {
 
             await MainActor.run {
                 if let created {
-                    persistLast(created)
+                    LastPlaylist.save(created)
                     alertService.showAlertContent(with: content, subtitle: "Created \(created.title)", symbolName: "plus")
                 }
                 dismiss()
             }
         }
-    }
-
-    private func persistLast(_ playlist: PlayableContent?) {
-        guard let playlist else { return }
-        LastPlaylist.save(playlist)
     }
 }

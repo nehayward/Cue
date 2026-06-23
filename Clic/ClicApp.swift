@@ -852,10 +852,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             )
 
             // Add to Last Playlist command (dynamic title)
-            let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle)
             let addToLastPlaylistAction: UIMenuElement
 
-            if let title = lastPlaylistTitle {
+            if let title = LastPlaylist.current?.title {
                 addToLastPlaylistAction = UIKeyCommand(
                     title: "Add to \(title)",
                     image: UIImage(systemName: "plus"),
@@ -895,9 +894,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                                 await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: currentTrack.toPlayable)
 
                                 // Save as last used playlist and rebuild menu
-                                UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
-                                UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-                                UIMenuSystem.main.setNeedsRebuild()
+                                LastPlaylist.save(playlist)
 
                                 // Set up tap to navigate to playlist
                                 alertService.alert.handleTap = {
@@ -936,8 +933,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let sonosService = SonosService.shared
         let alertService = AlertService.shared
 
-        guard let lastPlaylistID = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistID),
-              let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle) else {
+        guard let last = LastPlaylist.current else {
             alertService.showAlert(with: "No Recent Playlist", imageName: "exclamationmark.triangle")
             return
         }
@@ -951,14 +947,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let currentTrack = group.coordinatorRoom.track.toPlayable
 
         Task { @MainActor in
-            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(lastPlaylistTitle)", symbolName: "plus")
-            await sonosService.addToPlaylist(playlistID: lastPlaylistID, playableContent: currentTrack)
+            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(last.title)", symbolName: "plus")
+            await last.add(currentTrack)
 
-            // Set up tap to navigate to playlist
-            let playlists = await sonosService.sonosPlaylists()
-            if let playlist = playlists.first(where: { $0.id == lastPlaylistID }) {
-                alertService.alert.handleTap = {
-                    Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+            // For Sonos playlists, let tapping the toast open the playlist.
+            if last.service == .library {
+                let playlists = await sonosService.sonosPlaylists()
+                if let playlist = playlists.first(where: { $0.id == last.id }) {
+                    alertService.alert.handleTap = {
+                        Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                    }
                 }
             }
         }
