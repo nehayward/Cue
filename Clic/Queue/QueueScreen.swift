@@ -7,6 +7,7 @@ import Defaults
 
 struct QueueScreen: View {
     @Environment(PlayHistoryService.self) var playHistoryService
+    @Environment(MusicSearchService.self) var musicSearchService: MusicSearchService?
     @AppStorage(AppStorageKeys.queueMode) private var queueMode: QueueMode = .upNext
 
     var group: GroupRoom
@@ -412,7 +413,9 @@ struct QueueScreen: View {
     }
 
     private func scrollToNowPlaying(_ proxy: ScrollViewProxy) async {
-        let queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+        var fetched = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip)
+        if let musicSearchService { fetched = await musicSearchService.enrichWithPreviews(fetched) }
+        let queue = OrderedSet(fetched)
         if self.group.coordinatorRoom.queue != queue, !queue.isEmpty {
             self.group.coordinatorRoom.queue = queue
         }
