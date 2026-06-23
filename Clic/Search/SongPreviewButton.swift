@@ -51,11 +51,9 @@ struct SongPreviewCard: View {
 
 /// Context-menu and ellipsis-menu option for auditioning a track's preview clip.
 ///
-/// - "Preview Song" plays the clip; the menu stays open.
-/// - "Auto-Preview" (off by default) starts clips automatically on menu open.
-///   It is a dismiss-on-tap button (matching FavoriteMenuButton) because
-///   SwiftUI context menus snapshot their content — a Toggle with dismiss
-///   disabled never updates its checkmark while open.
+/// "Preview Song" plays the clip and keeps the menu open. When the
+/// `autoPreviewSongs` setting (toggled in Preferences → Playback) is on, the
+/// clip starts automatically as soon as the menu opens.
 struct SongPreviewButton: View {
     @AppStorage(Defaults.AppStorageKeys.autoPreviewSongs) private var autoPreviewEnabled = false
 
@@ -72,16 +70,5 @@ struct SongPreviewButton: View {
             guard autoPreviewEnabled else { return }
             AudioPlaybackService.shared.preview(url: previewURL)
         }
-
-        Button {
-            autoPreviewEnabled.toggle()
-            if autoPreviewEnabled {
-                AudioPlaybackService.shared.preview(url: previewURL)
-            }
-        } label: {
-            Label("Auto-Preview", systemImage: autoPreviewEnabled ? "checkmark.circle.fill" : "circle")
-        }
-        .menuActionDismissBehavior(.disabled)
-
     }
 }
