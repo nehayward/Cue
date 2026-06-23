@@ -384,6 +384,36 @@ public final class MusicSearchService {
         return response.items.first
     }
 
+    /// Converts a MusicKit track collection to PlayableContent, enriching each Song
+    /// with its previewAssets via a single batch catalog request.
+    public func tracksToPlayableWithPreviews(_ tracks: MusicItemCollection<MusicKit.Track>) async -> [PlayableContent] {
+        let songIDs = tracks.compactMap { track -> MusicItemID? in
+            guard case .song(let song) = track else { return nil }
+            return song.id
+        }
+
+        var previewURLs: [MusicItemID: URL] = [:]
+        if !songIDs.isEmpty {
+            var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: songIDs)
+            request.properties = [.previewAssets]
+            if let response = try? await request.response() {
+                for song in response.items {
+                    if let url = song.previewAssets?.first?.url {
+                        previewURLs[song.id] = url
+                    }
+                }
+            }
+        }
+
+        return tracks.map { track in
+            var playable = track.toPlayable
+            if case .song(let song) = track {
+                playable.previewURL = previewURLs[song.id]
+            }
+            return playable
+        }
+    }
+
     public func lookup(id: String) async throws -> Playlist? {
         guard await requestMusicAuthorization() else { return nil }
         let playlistID = MusicItemID(id)

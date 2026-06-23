@@ -407,7 +407,7 @@ struct MediaDetailView: View {
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryAlbum, .apple):
             if let album = await musicSearchService.appleLibraryAlbum(id: playableContent.id), let playableAlbum = album.data.first?.toPlayable {
                 content = playableAlbum
@@ -450,14 +450,14 @@ struct MediaDetailView: View {
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryTrack, .apple):
             guard let catalogSong = await musicSearchService.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
             guard let song: Song = try? await musicSearchService.lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.track, .spotify):
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumID = song.album.id else { return }
