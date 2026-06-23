@@ -160,10 +160,6 @@ struct PlayableMenuView: View {
         }
         
         OpenInServiceView(item: item)
-            .task {
-                defer { AudioPlaybackService.shared.stopPreview() }
-                try? await Task.sleep(nanoseconds: .max)
-            }
 
         if item.content.type != .folder {
             Button {
