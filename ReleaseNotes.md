@@ -1,23 +1,27 @@
 # 2026.5
 
 –– New Features ––
+- Deezer: Full Deezer integration — search tracks, albums, artists, and playlists, browse Deezer charts, view album and artist pages, start a Mix from any track or artist, and open content directly in the Deezer app
 - Listen with Clic: A second share sheet action that appears in the Actions row — share any song, album, or playlist link and queue it to any room without leaving your current app
 - Queue Position: Choose how a shared link is queued — Play Now, Play Next, Add to Last, or Replace Queue — right from the share sheet; playlists default to Replace
 - TV Mode Controls: Night mode, speech enhancement, and mute buttons now appear in the mini player when a Sonos soundbar is in TV mode — artwork swaps to a TV icon and the audio input format is shown in place of the track name
 - Favorite Albums: Save a Spotify album or love an Apple Music album directly from search results or the album detail page
 - Volume Buttons: Use the iPhone's physical volume buttons to control your Sonos speaker volume on the player screen — enable the toggle in Playback preferences
-- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
 - Plex Track Ratings: Rate Plex tracks with a heart from the player or the track menu — the heart fills based on your 1–5 star rating and a badge appears on rated tracks in your library
 - Popular Tracks: Artist pages for Plex and library artists now show a Popular Tracks section ordered by global popularity, sourced from Last.fm and powered by Audioscrobbler
 - Start Live Activity Shortcut: New shortcut and Control Center widget (iOS 18+) to start a Live Activity for any speaker — configure a speaker once and tap to get Now Playing on your Lock Screen instantly
 
 –– Bug Fixes & Improvements ––
+- Mac Dock Menu: Reordered menu items — transport controls and Now Playing are at the bottom (closest to the Dock icon), with Sleep Timer at the top; Repeat, Shuffle, and Crossfade grouped under a "Playback" section; Favorite moved into the Now Playing group
+- Fixed speaker discovery incorrectly reporting "On Cellular" and refusing to connect when Wi-Fi Assist is enabled — the app now connects whenever Wi-Fi or Ethernet is available
 - Apple Music artwork now loads as a square crop instead of a letterboxed image with white padding
 - Play Folder: Playing an Apple Music playlist folder now queues all playlists in order — first replaces the queue, the rest append automatically
 - Fixed a crash that could occur when play history or queue data stored by a different app version contained an unrecognized music service
 - Fixed artwork flickering when skipping between tracks on the same Spotify album, including albums with featured artists
 - Right-clicking or long-pressing a single queue track now offers the full set of actions — Add to Playlist, View Album, View Artist, and Play Next — in both Up Next and Full Queue on iPhone, iPad, and Mac
 - Fixed the music service icon in the search and library menus being hard to tap on iOS 26, and restored its brand color and size
+- Search and library results now lay out in a two-column grid, so you see more at a glance
+- SoundCloud Library: Liked Songs and Playlists now lay out in a two-column grid with a filter button to reorder or hide sections, matching the Apple Music and Spotify libraries
 
 # 2026.4
 
@@ -40,6 +44,7 @@
 - Restored Live Activity to its former glory with 5 volume steps
 - Dock Menu: Volume Up / Down now adjusts by 2% by default; hold Option for a 5% jump
 - Clic Mini: Menu bar window now smoothly grows and shrinks when expanding a group's per-speaker volume controls
+- Improved Player screen performance: reduced unnecessary view updates on foreground, inspector toggle, hover, and resize for smoother behavior on Mac
 - Fixed Custom Sleep Timer not showing
 - Fixed Apple Music links without a slug (e.g. `music.apple.com/us/album/<id>`) failing to open
 - Fixed Apple Music station links not parsing in the share sheet, Shortcuts, or "Open in Clic" — station name is now derived from the URL when richer metadata isn't available

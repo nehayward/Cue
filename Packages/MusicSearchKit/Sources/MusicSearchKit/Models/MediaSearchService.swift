@@ -14,6 +14,7 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
     case tidal
     case tuneIn
     case soundcloud
+    case deezer
 
     public var title: String {
         switch self {
@@ -31,6 +32,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             "TuneIn"
         case .soundcloud:
             "SoundCloud"
+        case .deezer:
+            "Deezer"
         }
     }
     
@@ -49,6 +52,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
         case .tuneIn:
             false
         case .soundcloud:
+            true
+        case .deezer:
             true
         }
     }
@@ -80,12 +85,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud:
+        case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
             let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
-            
+
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -132,12 +137,12 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(brandColor.gradient)
-        case .tuneIn, .soundcloud:
+        case .tuneIn, .soundcloud, .deezer:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .module, with: nil)!
             let templated = base.withRenderingMode(.alwaysTemplate)
             let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
-            
+
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -187,6 +192,8 @@ public enum MediaSearchService: String, Sendable, Codable, CaseIterable {
                 .primary
         case .soundcloud:
             Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
+        case .deezer:
+            Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         }
     }
 }

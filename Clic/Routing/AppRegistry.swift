@@ -190,6 +190,8 @@ extension View {
                         ReorderAppleLibrarySectionsView()
                     case .reorderSpotifyLibrarySections:
                         ReorderSpotifyLibrarySectionsView()
+                    case .reorderSoundCloudLibrarySections:
+                        ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
                     case .paywall, .onboard:
@@ -488,6 +490,7 @@ extension View {
             .environment(AppleMusicBrowseService.shared)
             .environment(SpotifyBrowseService.shared)
             .environment(SoundCloudBrowseService.shared)
+            .environment(DeezerBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)

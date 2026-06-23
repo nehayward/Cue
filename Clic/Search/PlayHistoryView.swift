@@ -7,35 +7,41 @@ import SonosKit
 import SwiftUI
 
 struct PlayHistoryView: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(Router.self) var router: Router
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
 
     @Binding var filters: [FilterSelection]
     @State private var clearHistoryConfirmation: Bool = false
 
+    private var activeTypes: Set<ContentType>? {
+        let active = filters.filter(\.isFiltered)
+        guard !active.isEmpty else { return nil }
+        return Set(active.flatMap(\.filter.toContentType))
+    }
+
+    private var filteredHistory: [PlayableContent] {
+        guard let activeTypes else { return Array(playHistoryService.history) }
+        return playHistoryService.history.filter { activeTypes.contains($0.content.type) }
+    }
+
     var body: some View {
-        Button {
-            router.navigate(to: .fullPlayHistoryList)
-        } label: {
-            Text("Play History")
-        }
-        .listRowSeparator(.hidden)
-        .foregroundStyle(.secondary)
-        .fontDesign(.rounded)
-        .bold()
-        
-        let filteredHistory = playHistoryService.history.filter { item in
-            if filters.filter(\.isFiltered).isEmpty {
-                return true
-            } else {
-                return filters.filter(\.isFiltered).flatMap(\.filter.toContentType).contains(item.content.type)
+        let history = filteredHistory
+
+        Section {
+            NavigationLink(value: RouterDestination.fullPlayHistoryList) {
+                Text("Play History")
+                    .fontDesign(.rounded)
+                    .fontWeight(.semibold)
+            }
+            .listRowSeparator(.hidden)
+
+            ForEach(history.prefix(5)) { item in
+                PlayableContentView(item: item)
             }
         }
+        .listRowSpacing(0)
+        .listSectionSpacing(0)
+        .listRowInsets(.default)
 
-        ForEach(filteredHistory.prefix(5)) { item in
-            PlayableContentView(item: item)
-        }
-        .fontDesign(.rounded)
+        
     }
 }

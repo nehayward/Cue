@@ -5,10 +5,11 @@ import MusicSearchKit
 extension PlayableContent {
     public var toRadio: PlayableContent {
         let type: ContentType = content.type == .artist ? .artistRadio : .songRadio
+        let radioTitle = content.service == .deezer ? "Mix \(title)" : title
         let content = MediaContent(service: content.service, id: content.id + ".radio", type: type, location: nil)
         var metadata = metadata ?? PlayableContentMetadata()
         metadata.radioStation = true
-        return PlayableContent(title: title, subtitle: title, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
+        return PlayableContent(title: radioTitle, subtitle: radioTitle, thumbnail: thumbnail, artwork: artwork, content: content, metadata: metadata)
     }
 }
 

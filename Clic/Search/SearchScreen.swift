@@ -132,7 +132,6 @@ struct SearchScreen: View {
                             .listRowSeparator(.hidden)
                     }
                 }
-                .listSectionSpacing(12)
                 .onAppear {
                     if favorites {
                         searchFieldIsPresented = false
@@ -208,7 +207,6 @@ struct SearchScreen: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                 isLoading = true
                 if suggestion == nil {
@@ -506,7 +504,9 @@ private struct SearchResultsView: View {
             TidalSearchView(results: musicSearchService.results, filters: $filters)
         case .tuneIn:
             TuneInSearchView(results: musicSearchService.results, filters: $filters)
-        case .soundcloud:
+        default:
+            // ServiceSearchView handles all remaining services (SoundCloud, Deezer, etc.)
+            // New services get a working generic search view without touching this switch.
             ServiceSearchView(results: musicSearchService.results, filters: $filters)
         }
     }
@@ -713,12 +713,7 @@ private struct SearchSuggestionsBar: View {
 }
 
 #Preview("Empty") {
-    UserDefaults.standard.set(MediaSearchService.apple.rawValue, forKey: AppStorageKeys.mediaService)
-    let searchRouter = Router.search
-    let selectedGroupService = SelectedGroupService(group: .theater)
-
-    return SearchScreen()
-        .environment(searchRouter)
-        .environment(selectedGroupService)
-        .withEnvironments()
+    SearchScreen()
+        .environment(Router.search)
+        .forPreview()
 }

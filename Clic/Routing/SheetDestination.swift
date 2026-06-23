@@ -33,6 +33,7 @@ enum SheetDestination: Identifiable, Equatable {
     case spotifyUserPlaylists
     case reorderAppleLibrarySections
     case reorderSpotifyLibrarySections
+    case reorderSoundCloudLibrarySections
     case shareToWatch
 
     var id: String {

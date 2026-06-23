@@ -15,25 +15,27 @@ struct PlayAllButtonView: View {
     let item: PlayableContent?
     
     var body: some View {
-        if let item {
+        if item != nil {
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 Task {
                     await play()
                 }
             } label: {
-                Label("Play All", systemImage: "play.fill")
+                Text("Play All")
                     .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(.background)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .fontDesign(.rounded)
             .listRowSeparator(.hidden, edges: .all)
             .listRowBackground(Color.clear)
-            .animation(.snappy, value: selectedGroupService?.group?.coordinatorRoom.track.trackID)
-            .tint(.primary)
+            .contentShape(.rect)
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .foregroundStyle(.ultraThickMaterial)
+            }
         } else {
             EmptyView()
         }

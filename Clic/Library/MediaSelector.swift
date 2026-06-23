@@ -22,14 +22,7 @@ struct MediaSelector: View {
     var body: some View {
         Menu {
             ForEach(MediaSearchService.allCases, id: \.self) { service in
-                if coreFeatures.enabledServices(service).wrappedValue, [
-                        .apple,
-                        .library,
-                        .plex,
-                        .spotify,
-                        .soundcloud
-                    ]
-                    .contains(service) {
+                if coreFeatures.enabledServices(service).wrappedValue, service.isBrowseSupported {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         browseMediaService = service

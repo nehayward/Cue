@@ -43,6 +43,8 @@ struct BrowseScreen: View {
                 LibraryBrowseScreen()
             case .soundcloud:
                 SoundCloudBrowseScreen()
+            case .deezer:
+                DeezerBrowseScreen()
             default:
                 NavigationStack {
                     EmptyView()
