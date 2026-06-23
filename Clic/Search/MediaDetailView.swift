@@ -18,7 +18,8 @@ struct MediaDetailView: View {
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+    @State private var audioService = AudioPlaybackService.shared
+
     let playableContent: PlayableContent
     @State private var content: PlayableContent?
     @State private var editMode: EditMode = .inactive
@@ -115,7 +116,10 @@ struct MediaDetailView: View {
         .onChange(of: editMode.isEditing) { _, editing in
             withAnimation(.spring) { miniPlayerManager.hidden = editing }
         }
-        .onDisappear { miniPlayerManager.hidden = false }
+        .onDisappear {
+            miniPlayerManager.hidden = false
+            AudioPlaybackService.shared.stopPreview()
+        }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
         .scrollEdgeEffectHidden26(!showNavigationTitle)
@@ -317,6 +321,22 @@ struct MediaDetailView: View {
                 .glassButton()
                 .foregroundStyle(.primary)
                 
+                if let firstPreviewURL = tracks.first(where: { $0.previewURL != nil })?.previewURL {
+                    Button {
+                        if audioService.isPreviewMode {
+                            AudioPlaybackService.shared.stopPreview()
+                        } else {
+                            Task { await AudioPlaybackService.shared.preview(url: firstPreviewURL) }
+                        }
+                    } label: {
+                        Image(systemName: audioService.isPreviewMode ? "stop.circle.fill" : "play.circle")
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonBorderShape(.circle)
+                    .contentShape(.rect)
+                    .glassButton()
+                }
+
                 if let content {
                     Menu {
                         PlayableMenuView(item: content)

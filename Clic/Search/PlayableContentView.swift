@@ -169,13 +169,25 @@ struct PlayableContentView: View {
                 .scaleEffect(x: isPreviewing ? previewProgress : 0, anchor: .leading)
                 .animation(.linear(duration: 0.3), value: previewProgress)
         }
-        .swipeActions {
+        .swipeActions(edge: .trailing) {
             if Self.swipeableTypes.contains(item.content.type) {
                 Button {
                     play(position: .next)
                 } label: {
                     Label("Play Next", systemImage: "text.insert")
                 }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if let previewURL = item.previewURL,
+               !previewURL.absoluteString.isEmpty,
+               [.track, .libraryTrack].contains(item.content.type) {
+                Button {
+                    Task { await AudioPlaybackService.shared.preview(url: previewURL) }
+                } label: {
+                    Label("Preview", systemImage: "play.circle.fill")
+                }
+                .tint(.accentColor)
             }
         }
         .contextMenu {
