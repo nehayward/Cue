@@ -58,26 +58,22 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         options: AVAudioSession.CategoryOptions = [.duckOthers],
         isPreview: Bool = false
     ) async {
-        stop()               // clears isPreviewMode to false
-        isPreviewMode = isPreview  // re-set correctly after stop()
+        // Tear down any existing audio WITHOUT cancelling previewTask — this
+        // runs inside previewTask, so cancelling here would cancel ourselves.
+        teardownAudio()
+        isPreviewMode = isPreview  // re-set correctly after teardown
 
         currentTrack = url
         playbackState = .loading
 
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
-            guard !Task.isCancelled else {
-                playbackState = .stopped
-                isPreviewMode = false
-                return
-            }
+            // Superseded by a newer preview or an explicit stop — that caller
+            // owns the resulting state, so just bail without touching it.
+            guard !Task.isCancelled else { return }
             try await playAudioData(data, category: category, options: options)
         } catch {
-            guard !Task.isCancelled else {
-                playbackState = .stopped
-                isPreviewMode = false
-                return
-            }
+            guard !Task.isCancelled else { return }
             playbackState = .error(error.localizedDescription)
         }
     }
@@ -120,8 +116,17 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
     @MainActor
     public func stop() {
+        // Cancel the in-flight preview load so it doesn't resume into playback
+        // after the user asked to stop, then tear down audio + state.
         previewTask?.cancel()
         previewTask = nil
+        teardownAudio()
+    }
+
+    /// Tears down the player and resets playback state. Does NOT cancel
+    /// previewTask, so it is safe to call from inside that task (via `play`).
+    @MainActor
+    private func teardownAudio() {
         audioPlayer?.stop()
         audioPlayer = nil
         playbackState = .stopped
