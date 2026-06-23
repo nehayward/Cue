@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import SonosKit
 import MusicSearchKit
 import NukeUI
@@ -275,11 +274,6 @@ struct AddToPlaylistSheet: View {
 
     private func persistLast(_ playlist: PlayableContent?) {
         guard let playlist else { return }
-        UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
-        UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-        UserDefaults.standard.set(playlist.content.service.sonosRawValue, forKey: AppStorageKeys.lastPlaylistService)
-        #if targetEnvironment(macCatalyst)
-        UIMenuSystem.main.setNeedsRebuild()
-        #endif
+        LastPlaylist.save(playlist)
     }
 }

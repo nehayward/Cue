@@ -1,70 +1,66 @@
 import SwiftUI
 import SonosKit
-import Defaults
 
 /// One-tap shortcut to add the current item to the most recently used playlist. The icon reflects the
 /// destination service (Apple Music / Spotify / Plex / Sonos). For streaming playlists it only appears
 /// when the item is from the same service, since you can't add across services.
 struct AddToLastPlaylistButton: View {
-    @Environment(SonosService.self) var sonosService: SonosService
-    @Environment(AlertService.self) var alertService: AlertService
-
-    @AppStorage(AppStorageKeys.lastPlaylistID) private var lastPlaylistID: String?
-    @AppStorage(AppStorageKeys.lastPlaylistTitle) private var lastPlaylistTitle: String?
-    @AppStorage(AppStorageKeys.lastPlaylistService) private var lastPlaylistServiceRaw: String?
+    @Environment(SonosService.self) private var sonosService
+    @Environment(AlertService.self) private var alertService
 
     var itemToAdd: PlayableContent
 
-    private var lastService: MusicService {
-        MusicService(service: lastPlaylistServiceRaw ?? "library") ?? .library
-    }
-
-    /// Streaming playlists can only take tracks from the same service; Sonos accepts anything.
-    private var isCompatible: Bool {
-        lastService == .library || lastService == itemToAdd.content.service
+    /// The last-used playlist, but only when it can actually accept this item. Streaming playlists
+    /// only take tracks from the same service; Sonos accepts anything.
+    private var lastPlaylist: LastPlaylist? {
+        guard let last = LastPlaylist.current,
+              last.service == .library || last.service == itemToAdd.content.service else {
+            return nil
+        }
+        return last
     }
 
     var body: some View {
-        if let lastPlaylistID, let lastPlaylistTitle, isCompatible {
+        if let lastPlaylist {
             Button {
-                add(playlistID: lastPlaylistID, title: lastPlaylistTitle)
+                add(to: lastPlaylist)
             } label: {
                 Label {
-                    Text("Add to \(lastPlaylistTitle)")
+                    Text("Add to \(lastPlaylist.title)")
                 } icon: {
-                    icon
+                    icon(for: lastPlaylist.service)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private var icon: some View {
-        switch lastService {
+    private func icon(for service: MusicService) -> some View {
+        switch service {
         case .apple, .spotify, .plex:
-            lastService.icon
+            service.icon
                 .frame(width: 20, height: 20)
         default:
             Image(systemName: "text.badge.plus")
         }
     }
 
-    private func add(playlistID: String, title: String) {
+    private func add(to playlist: LastPlaylist) {
         Task {
-            alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(title)", symbolName: "plus")
-            switch lastService {
+            alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
+            switch playlist.service {
             case .apple:
-                _ = await MusicSearchService.shared.addToApplePlaylist(track: itemToAdd, playlistID: playlistID)
+                _ = await MusicSearchService.shared.addToApplePlaylist(track: itemToAdd, playlistID: playlist.id)
             case .spotify:
-                _ = await MusicSearchService.shared.addToSpotifyPlaylist(track: itemToAdd, playlistID: playlistID)
+                _ = await MusicSearchService.shared.addToSpotifyPlaylist(track: itemToAdd, playlistID: playlist.id)
             case .plex:
-                _ = await MusicSearchService.shared.addToPlexPlaylist(track: itemToAdd, playlistID: playlistID)
+                _ = await MusicSearchService.shared.addToPlexPlaylist(track: itemToAdd, playlistID: playlist.id)
             default:
-                await sonosService.addToPlaylist(playlistID: playlistID, playableContent: itemToAdd)
+                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: itemToAdd)
                 let playlists = await sonosService.sonosPlaylists()
-                if let playlist = playlists.first(where: { $0.id == playlistID }) {
+                if let match = playlists.first(where: { $0.id == playlist.id }) {
                     alertService.alert.handleTap = {
-                        Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                        Router.main.presentedSheet = .mediaDetail(content: match, group: nil)
                     }
                 }
             }
