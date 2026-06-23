@@ -80,7 +80,9 @@ struct QueueListView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.callout.weight(.semibold))
+                Label("Close", systemImage: "xmark")
+                    .labelStyle(.iconOnly)
+                    .font(.callout.weight(.semibold))
             }
             .accessibilityLabel("Close")
         }
@@ -499,6 +501,7 @@ struct QueueListView: View {
         if host.contains("tunein") { return .tuneIn }
         if host.contains("plex") { return .plex }
         if host.contains("soundcloud") { return .soundcloud }
+        if host.contains("deezer") || host.hasSuffix("dzr.page.link") { return .deezer }
         return nil
     }
 

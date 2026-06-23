@@ -27,6 +27,7 @@ struct ContainerLargePlayerView: View {
                                     }
                                 } label: {
                                     Label("Search", systemImage: "magnifyingglass")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .id(refreshID)
                                 .help("Search")
@@ -42,6 +43,7 @@ struct ContainerLargePlayerView: View {
                                     }
                                 } label: {
                                     Label("Browse", image: "home.fill")
+                                        .labelStyle(.iconOnly)
                                 }
                                 .id(refreshID)
                                 .help("Browse")

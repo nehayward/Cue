@@ -74,7 +74,7 @@ struct PlayableContentView: View {
                 }
             }
         }
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailingInset))
         .listRowSeparator(.hidden)
     }
     
@@ -101,8 +101,7 @@ struct PlayableContentView: View {
                         Text(item.title)
                             .lineLimit(1)
                             .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .bold : .regular)
-                            .animation(.snappy, value: isCurrentlyPlaying)
+                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
                         
                         Spacer(minLength: 0)
 
@@ -120,8 +119,8 @@ struct PlayableContentView: View {
 
                     Text(subtitleText)
                         .lineLimit(1)
-                        .truncationMode(.head)
-                        .foregroundStyle(.secondary)
+                        .opacity(0.7)
+                        .font(.footnote)
                 }
                 
                 Spacer(minLength: 0)
@@ -154,7 +153,13 @@ struct PlayableContentView: View {
                 PlayableMenuView(item: item)
             }
         }
-        .draggable(item)
+        .draggable(item) {
+            Text(item.title)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.background, in: .capsule)
+                .contentShape(.dragPreview, .capsule)
+        }
     }
     
     private var folderContent: some View {

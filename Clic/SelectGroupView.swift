@@ -38,14 +38,12 @@ struct SelectGroupView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if let content {
-                    PlayableContentView(item: content, hideDetails: true)
-                        .padding()
-                        .glass26()
-                        .padding([.vertical, .horizontal])
+                    PlayableContentRowView(item: content)
+                        .padding([.top, .horizontal])
                 }
                 
                 ScrollView {
-                    LazyVStack {
+                    LazyVStack(spacing: 8) {
                         ScrollView(.horizontal) {
                             HStack {
                                 ForEach(sonosService.groups.filter { $0.rooms.count > 1 } ) { group in

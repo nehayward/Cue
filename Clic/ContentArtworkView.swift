@@ -9,9 +9,10 @@ struct ContentArtworkView: View {
     var content: PlayableContent
     var showMusicSource: Bool = true
     var preferredSize: Double = 50.0
+    var foundAverageColor: ((Color) -> Void)? = nil
     
     @State private var fetchedArtworkURL: URL?
-    
+
     private var isCircular: Bool {
         content.content.type.isArtist || content.content.type == .artistRadio
     }
@@ -48,6 +49,11 @@ struct ContentArtworkView: View {
                 image
                     .resizable()
                     .scaledToFit()
+                    .onAppear {
+                        guard let color = state.imageContainer?.image.findAverageColor(cacheKey: content.imageKey) else { return }
+                        let averageColor = Color(uiColor: color)
+                        foundAverageColor?(averageColor)
+                    }
             } else {
                 Rectangle()
                     .aspectRatio(contentMode: .fit)
@@ -73,10 +79,15 @@ struct ContentArtworkView: View {
 #endif
         .clipShape(.rect(cornerRadius: isCircular ? preferredSize / 2 : 4))
         .overlay(alignment: .bottomTrailing) {
-            OverlayIcons(service: content.content.service, isRadio: content.content.type.isRadio, size: preferredSize)
+            OverlayIcons(content: content, service: content.content.service, isRadio: content.content.type.isRadio, size: preferredSize)
                 .opacity(showMusicSource ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .onAppear {
+            guard let foundAverageColor,
+                  let cached = UIImage.cachedAverageColor(forKey: content.imageKey) else { return }
+            foundAverageColor(Color(uiColor: cached))
+        }
         .task(id: content.id) {
             guard needsArtworkFetch, fetchedArtworkURL == nil else { return }
             fetchedArtworkURL = await MusicSearchService.shared.appleLibraryArtistArtwork(name: content.title)
@@ -96,6 +107,7 @@ fileprivate struct PlaceHolderView: View {
 }
 
 fileprivate struct OverlayIcons: View {
+    var content: PlayableContent
     let service: MusicService
     let isRadio: Bool
     let size: Double
@@ -103,7 +115,7 @@ fileprivate struct OverlayIcons: View {
     var body: some View {
         service.icon
             .opacity(isRadio ? 0 : 1)
-            .frame(width: 12, height: 12, alignment: .bottomLeading)
+            .frame(width: 18, height: 18, alignment: .bottomLeading)
             .padding(2)
             .overlay {
                 Image(systemName: "radio.fill")
@@ -114,6 +126,7 @@ fileprivate struct OverlayIcons: View {
                     .opacity(isRadio ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .foregroundStyle(content.content.type.isArtist ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
     }
 }
 

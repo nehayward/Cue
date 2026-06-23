@@ -13,7 +13,7 @@ struct AppleLibraryBrowseScreen: View {
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(\.dismiss) var dismiss
-
+    
     @State private var router = Router.browse
     @State private var isLoading = true
     @State private var configStore = SectionConfigurationStores.shared.appleLibrary
@@ -32,9 +32,9 @@ struct AppleLibraryBrowseScreen: View {
                     sectionView(for: section)
                 }
             }
-            #if targetEnvironment(macCatalyst)
+#if targetEnvironment(macCatalyst)
             .listStyle(.plain)
-            #endif
+#endif
             .contentMargins(.top, EdgeInsets(), for: .scrollContent)
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .fontDesign(.rounded)
@@ -55,7 +55,8 @@ struct AppleLibraryBrowseScreen: View {
                     Button {
                         router.presentedSheet = .reorderAppleLibrarySections
                     } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
+                        Label("Filter", systemImage: "line.3.horizontal.decrease")
+                            .labelStyle(.iconOnly)
                     }
                 }
 #if !os(visionOS)
@@ -93,7 +94,7 @@ struct AppleLibraryBrowseScreen: View {
     @ViewBuilder
     private func sectionView(for section: AppleLibrarySection) -> some View {
         @Bindable var appleMusicBrowseService = appleMusicBrowseService
-
+        
         switch section {
         case .artists:
             NavigationLink(value: RouterDestination.playableLibraryList(title: "Artists", items: $appleMusicBrowseService.userArtists, action: { offset in
@@ -129,91 +130,76 @@ struct AppleLibraryBrowseScreen: View {
                 .listRowSeparator(.hidden)
         case .recentlyPlayed:
             Section {
-                if !appleMusicBrowseService.usersRecents.isEmpty {
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            ForEach(appleMusicBrowseService.usersRecents.prefix(3)) { item in
-                                PlayableCardView(item: item)
-                            }
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-            } header: {
                 NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Played", items: $appleMusicBrowseService.usersRecents, action: { offset in
                     await appleMusicBrowseService.updateUsersRecentPlayed(offset: offset)
                 })) {
-                    HStack {
-                        Text("Recently Played")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
+                    Text("Recently Played")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
                 }
-                .foregroundStyle(.secondary)
+                .tag(UUID().uuidString)
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                
+                PlayableContentGridView(items: Array(appleMusicBrowseService.usersRecents), limit: 6)
             }
-            .headerProminence(.increased)
+            .listSectionSpacing(0)
+            .listRowInsets(.default)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
             
         case .recentlyAdded:
             Section {
-                if !appleMusicBrowseService.usersRecentsAdded.isEmpty {
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            ForEach(appleMusicBrowseService.usersRecentsAdded.prefix(3)) { item in
-                                PlayableCardView(item: item)
-                            }
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-            } header: {
                 NavigationLink(value: RouterDestination.playableGridScreen(title: "Recently Added", items: $appleMusicBrowseService.usersRecentsAdded, action: { offset in
                     await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: offset)
                 })) {
-                    HStack {
-                        Text("Recently Added")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
+                    Text("Recently Added")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
                 }
-                .foregroundStyle(.secondary)
+                PlayableContentGridView(items: Array(appleMusicBrowseService.usersRecentsAdded), limit: 6)
             }
-            .headerProminence(.increased)
+            .listSectionSpacing(0)
+            .listRowInsets(.default)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
             
         case .recommendedAlbums:
             Section {
+                NavigationLink(value: RouterDestination.playableGridScreen(title: "Recommended Albums", items: $appleMusicBrowseService.recommendedAlbums, action: { offset in
+                    await appleMusicBrowseService.updateRecommendedAlbums(offset: offset)
+                })) {
+                    Text("Recommended Albums")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                
                 if !appleMusicBrowseService.recommendedAlbums.isEmpty {
-                    VStack(spacing: 16) {
-                        HStack(spacing: 12) {
-                            ForEach(appleMusicBrowseService.recommendedAlbums.prefix(3)) { item in
-                                PlayableCardView(item: item)
-                            }
+                    HStack(spacing: 12) {
+                        ForEach(appleMusicBrowseService.recommendedAlbums.prefix(2)) { item in
+                            PlayableCardView(item: item)
                         }
                     }
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
-            } header: {
-                NavigationLink(value: RouterDestination.playableGridScreen(title: "Recommended Albums", items: $appleMusicBrowseService.recommendedAlbums, action: { offset in
-                    await appleMusicBrowseService.updateRecommendedAlbums(offset: offset)
-                })) {
-                    HStack {
-                        Text("Recommended Albums")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .foregroundStyle(.secondary)
             }
-            .headerProminence(.increased)
-            
+            .listSectionSpacing(0)
+            .listRowInsets(.default)
         case .personalStations:
             Section {
+                NavigationLink(value: RouterDestination.playableGridScreen(title: "Personal Stations", items: $appleMusicBrowseService.userStations, action: { offset in
+                    await appleMusicBrowseService.updateRadioStations(offset: offset)
+                })) {
+                    Text("Personal Stations")
+                        .fontDesign(.rounded)
+                        .fontWeight(.semibold)
+                }
+                .listRowBackground(Color.clear)
                 if !appleMusicBrowseService.userStations.isEmpty {
                     VStack(spacing: 16) {
                         HStack(spacing: 12) {
@@ -225,19 +211,8 @@ struct AppleLibraryBrowseScreen: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
-            } header: {
-                NavigationLink(value: RouterDestination.playableGridScreen(title: "Personal Stations", items: $appleMusicBrowseService.userStations, action: { offset in
-                    await appleMusicBrowseService.updateRadioStations(offset: offset)
-                })) {
-                    HStack {
-                        Text("Personal Stations")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                }
-                .foregroundStyle(.secondary)
             }
-            .headerProminence(.increased)
+            .listRowInsets(.default)
         }
     }
     
@@ -247,11 +222,13 @@ struct AppleLibraryBrowseScreen: View {
             group.addTask {
                 await appleMusicBrowseService.updateUsersApplePlaylistFolders(offset: 0)
             }
+            
             group.addTask {
-                await appleMusicBrowseService.updateUsersRecentPlayed(offset: 0, limit: 4)
+                await appleMusicBrowseService.updateUsersRecentPlayed(offset: 0, limit: 6)
             }
+            
             group.addTask {
-                await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: 0, limit: 4)
+                await appleMusicBrowseService.updateUsersRecentAddedTracks(offset: 0, limit: 6)
             }
             
             group.addTask {
@@ -261,15 +238,15 @@ struct AppleLibraryBrowseScreen: View {
             group.addTask {
                 await appleMusicBrowseService.updateRecommendedAlbums(offset: 0, limit: 4)
             }
-        
+            
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleAlbums()
             }
-             
+            
             group.addTask {
                 await appleMusicBrowseService.updateUsersAppleArtists()
             }
-          
+            
         }
         isLoading = false
     }

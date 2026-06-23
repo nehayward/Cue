@@ -75,8 +75,10 @@ final class QueueManager {
             await sonosService.play(ip: group.coordinatorRoom.ip)
         }
 
-        playHistoryService.history.remove(playableContent)
-        playHistoryService.history.insert(playableContent, at: 0)
+        withAnimation {
+            playHistoryService.history.remove(playableContent)
+            playHistoryService.history.insert(playableContent, at: 0)
+        }
     }
     
     @MainActor
