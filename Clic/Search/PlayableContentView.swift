@@ -144,20 +144,28 @@ struct PlayableContentView: View {
                 Spacer(minLength: 0)
 
                 if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
-                    if isPreviewing {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.title2)
+                    // Keep the Menu in the tree at all times — swapping it out for the
+                    // stop icon via if/else churns the Menu's identity and underlying
+                    // gesture recognizers, which left taps landing mid-rebuild. Instead
+                    // disable it while previewing (so taps fall through to the cell's
+                    // stop handler) and overlay the stop icon on top.
+                    Menu {
+                        PlayableMenuView(item: item)
+                    } label: {
+                        Image(systemName: "ellipsis")
                             .frame(width: 44, height: 44)
-                            .foregroundStyle(Color.accentColor)
-                    } else {
-                        Menu {
-                            PlayableMenuView(item: item)
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
+                            .contentShape(Rectangle())
+                            .opacity(isPreviewing ? 0 : 1)
+                    }
+                    .tint(.primary)
+                    .disabled(isPreviewing)
+                    .overlay {
+                        if isPreviewing {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color.accentColor)
+                                .allowsHitTesting(false)
                         }
-                        .tint(.primary)
                     }
                 }
             }
