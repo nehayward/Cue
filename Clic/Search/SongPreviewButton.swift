@@ -3,11 +3,15 @@ import Defaults
 
 /// Context menu peek preview for a track. Mirrors the PlayableContentView cell
 /// layout (artwork + title + subtitle) and adds a 2px accent-color progress bar
-/// that fills as the preview clip plays. onDisappear stops the preview when the
-/// menu is dismissed — reliable here because the preview view is rendered by
-/// UIKit as a proper view controller, unlike menu item views which are snapshotted.
+/// that fills as the preview clip plays.
+///
+/// Uses AudioPlaybackService.shared directly rather than environment so it is
+/// safe inside context menu preview views, which may not inherit all environment
+/// values from their parent.
 struct SongPreviewCard: View {
-    @Environment(AudioPlaybackService.self) private var audioService
+    // @State on an @Observable reference type ensures SwiftUI tracks property
+    // accesses and re-renders when playbackProgress / duration change.
+    @State private var audioService = AudioPlaybackService.shared
     let item: PlayableContent
 
     private var progressFraction: Double {
@@ -45,7 +49,7 @@ struct SongPreviewCard: View {
                 .animation(.linear(duration: 0.3), value: progressFraction)
         }
         .onDisappear {
-            audioService.stopPreview()
+            AudioPlaybackService.shared.stopPreview()
         }
     }
 }
@@ -57,26 +61,21 @@ struct SongPreviewCard: View {
 ///   It is a dismiss-on-tap button (matching FavoriteMenuButton) because
 ///   SwiftUI context menus snapshot their content — a Toggle with dismiss
 ///   disabled never updates its checkmark while open.
-///
-/// Stop-on-dismiss is handled at two points:
-/// • contextMenu: SongPreviewCard.onDisappear (reliable UIKit view lifecycle)
-/// • ellipsis Menu: PlayableMenuView.onDisappear on OpenInServiceView
 struct SongPreviewButton: View {
-    @Environment(AudioPlaybackService.self) private var audioService
     @AppStorage(Defaults.AppStorageKeys.autoPreviewSongs) private var autoPreviewEnabled = false
 
     let previewURL: URL
 
     var body: some View {
         Button {
-            Task { await audioService.preview(url: previewURL) }
+            Task { await AudioPlaybackService.shared.preview(url: previewURL) }
         } label: {
             Label("Preview Song", systemImage: "play.circle")
         }
         .menuActionDismissBehavior(.disabled)
         .task {
             guard autoPreviewEnabled else { return }
-            await audioService.preview(url: previewURL)
+            await AudioPlaybackService.shared.preview(url: previewURL)
         }
 
         Button {

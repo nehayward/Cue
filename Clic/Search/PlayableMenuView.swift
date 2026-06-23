@@ -13,8 +13,6 @@ struct PlayableMenuView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
-    @Environment(AudioPlaybackService.self) private var audioService: AudioPlaybackService
-
     var item: PlayableContent
 
     var body: some View {
@@ -163,7 +161,7 @@ struct PlayableMenuView: View {
         
         OpenInServiceView(item: item)
             .onDisappear {
-                audioService.stopPreview()
+                AudioPlaybackService.shared.stopPreview()
             }
 
         if item.content.type != .folder {
