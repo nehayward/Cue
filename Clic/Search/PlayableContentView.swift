@@ -94,7 +94,11 @@ struct PlayableContentView: View {
     
     private var content: some View {
         Button {
-            play()
+            if isPreviewing {
+                AudioPlaybackService.shared.stopPreview()
+            } else {
+                play()
+            }
         } label: {
             HStack {
                 if let index {
@@ -141,14 +145,10 @@ struct PlayableContentView: View {
 
                 if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
                     if isPreviewing {
-                        Button {
-                            AudioPlaybackService.shared.stopPreview()
-                        } label: {
-                            Image(systemName: "stop.circle.fill")
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .tint(.accentColor)
+                        Image(systemName: "stop.circle.fill")
+                            .font(.title2)
+                            .frame(width: 44, height: 44)
+                            .foregroundStyle(Color.accentColor)
                     } else {
                         Menu {
                             PlayableMenuView(item: item)

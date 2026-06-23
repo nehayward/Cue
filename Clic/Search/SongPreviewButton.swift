@@ -48,9 +48,6 @@ struct SongPreviewCard: View {
                 .frame(maxWidth: .infinity, minHeight: 2, maxHeight: 2)
                 .animation(.linear(duration: 0.3), value: progressFraction)
         }
-        .onDisappear {
-            AudioPlaybackService.shared.stopPreview()
-        }
     }
 }
 
