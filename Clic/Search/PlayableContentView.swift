@@ -87,6 +87,9 @@ struct PlayableContentView: View {
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailingInset))
         .listRowSeparator(.hidden)
+        .onDisappear {
+            if isPreviewing { AudioPlaybackService.shared.stopPreview() }
+        }
     }
     
     private var content: some View {
