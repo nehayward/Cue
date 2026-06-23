@@ -1,9 +1,6 @@
 import Foundation
 import AVFoundation
 import Observation
-#if canImport(UIKit)
-import UIKit
-#endif
 
 enum PlaybackState: Equatable {
     case idle
@@ -45,9 +42,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     // MARK: - Private Properties
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
     @ObservationIgnored private var progressObserver: Any?
-    #if canImport(UIKit)
-    @ObservationIgnored private var menuDismissMonitor: MenuDismissRecognizer?
-    #endif
 
     // MARK: - Initialization
     override init() {
@@ -84,9 +78,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     public func preview(url: URL) async {
         guard !isPreviewing(url) else { return }
         await play(url: url, category: .ambient, options: [.mixWithOthers], isPreview: true)
-        #if canImport(UIKit)
-        registerMenuDismissMonitor()
-        #endif
     }
 
     /// Stops playback only when we're in preview mode — will not interrupt
@@ -115,9 +106,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
     @MainActor
     public func stop() {
-        #if canImport(UIKit)
-        removeMenuDismissMonitor()
-        #endif
         audioPlayer?.stop()
         audioPlayer = nil
         playbackState = .stopped
@@ -214,55 +202,6 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
         }
     }
 }
-
-// MARK: - Menu Dismiss Detection
-#if canImport(UIKit)
-extension AudioPlaybackService {
-    @MainActor
-    private func registerMenuDismissMonitor() {
-        guard isPreviewMode else { return }
-        removeMenuDismissMonitor()
-        guard let window = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .first(where: { $0.activationState == .foregroundActive })?
-            .windows.first(where: { $0.isKeyWindow }) else { return }
-        let recognizer = MenuDismissRecognizer { [weak self] in
-            self?.stopPreview()
-        }
-        window.addGestureRecognizer(recognizer)
-        menuDismissMonitor = recognizer
-    }
-
-    @MainActor
-    private func removeMenuDismissMonitor() {
-        guard let monitor = menuDismissMonitor else { return }
-        monitor.view?.removeGestureRecognizer(monitor)
-        menuDismissMonitor = nil
-    }
-}
-
-private final class MenuDismissRecognizer: UIGestureRecognizer, UIGestureRecognizerDelegate {
-    private let onFire: () -> Void
-
-    init(onFire: @escaping () -> Void) {
-        self.onFire = onFire
-        super.init(target: nil, action: nil)
-        cancelsTouchesInView = false
-        delaysTouchesBegan = false
-        delegate = self
-    }
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-        super.touchesBegan(touches, with: event)
-        state = .recognized
-        onFire()
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        true
-    }
-}
-#endif
 
 // MARK: - Error Types
 enum AudioPlaybackError: LocalizedError {

@@ -17,7 +17,8 @@ struct PlayableContentView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @Environment(PlexRatingCache.self) private var plexRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+    @State private var audioService = AudioPlaybackService.shared
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -47,6 +48,16 @@ struct PlayableContentView: View {
     
     private var shouldShowPlainContent: Bool {
         hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
+    }
+
+    private var isPreviewing: Bool {
+        guard let url = item.previewURL else { return false }
+        return audioService.isPreviewing(url)
+    }
+
+    private var previewProgress: Double {
+        guard audioService.duration > 0 else { return 0 }
+        return min(1, audioService.playbackProgress / audioService.duration)
     }
     
     var body: some View {
@@ -82,62 +93,83 @@ struct PlayableContentView: View {
         Button {
             play()
         } label: {
-            HStack {
-                if let index {
-                    Text(index, format: .number)
-                        .font(.caption.monospacedDigit())
-                        .frame(width: 30, alignment: .center)
-                        .foregroundStyle(.secondary)
-                }
-                
-                if !hideArtwork {
-                    ContentArtworkView(content: item)
-                        .frame(width: 50, height: 50)
-                        .allowsHitTesting(!hideArtwork)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(item.title)
+            VStack(spacing: 0) {
+                HStack {
+                    if let index {
+                        Text(index, format: .number)
+                            .font(.caption.monospacedDigit())
+                            .frame(width: 30, alignment: .center)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !hideArtwork {
+                        ContentArtworkView(content: item)
+                            .frame(width: 50, height: 50)
+                            .allowsHitTesting(!hideArtwork)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(item.title)
+                                .lineLimit(1)
+                                .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
+                                .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+
+                            Spacer(minLength: 0)
+
+                            if item.content.service == .plex,
+                               (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
+                                Image(systemName: "heart.fill")
+                                    .foregroundStyle(MusicService.plex.brandColor)
+                                    .font(.caption2)
+                            }
+
+                            if item.metadata?.isExplicit == true {
+                                Image(systemName: "e.square.fill")
+                            }
+                        }
+
+                        Text(subtitleText)
                             .lineLimit(1)
-                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
-                        
-                        Spacer(minLength: 0)
-
-                        if item.content.service == .plex,
-                           (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                            Image(systemName: "heart.fill")
-                                .foregroundStyle(MusicService.plex.brandColor)
-                                .font(.caption2)
-                        }
-
-                        if item.metadata?.isExplicit == true {
-                            Image(systemName: "e.square.fill")
-                        }
+                            .opacity(0.7)
+                            .font(.footnote)
                     }
 
-                    Text(subtitleText)
-                        .lineLimit(1)
-                        .opacity(0.7)
-                        .font(.footnote)
+                    Spacer(minLength: 0)
+
+                    if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                        if isPreviewing {
+                            Button {
+                                AudioPlaybackService.shared.stopPreview()
+                            } label: {
+                                Image(systemName: "stop.circle.fill")
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .tint(.accentColor)
+                        } else {
+                            Menu {
+                                PlayableMenuView(item: item)
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .tint(.primary)
+                        }
+                    }
                 }
-                
-                Spacer(minLength: 0)
-                
-                if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
-                    Menu {
-                        PlayableMenuView(item: item)
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .tint(.primary)
+                .fontDesign(.rounded)
+                .contentShape(Rectangle())
+
+                if isPreviewing {
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .scaleEffect(x: previewProgress, anchor: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 2, maxHeight: 2)
+                        .animation(.linear(duration: 0.3), value: previewProgress)
                 }
             }
-            .fontDesign(.rounded)
-            .contentShape(Rectangle())
         }
         .swipeActions {
             if Self.swipeableTypes.contains(item.content.type) {
