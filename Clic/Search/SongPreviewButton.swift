@@ -79,7 +79,7 @@ struct SongPreviewButton: View {
         Button {
             autoPreviewEnabled.toggle()
             if autoPreviewEnabled {
-                Task { await AudioPlaybackService.shared.preview(url: previewURL) }
+                AudioPlaybackService.shared.preview(url: previewURL)
             }
         } label: {
             Label("Auto-Preview", systemImage: autoPreviewEnabled ? "checkmark.circle.fill" : "circle")
