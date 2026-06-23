@@ -28,10 +28,12 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 ## 2026.5
 
 ### Song previews in the context menu
-- The Apple Music / Spotify track menu gets two options: "Preview Song" plays the clip while the menu stays open (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed (`onDisappear`)
-- "Auto-Preview" is a persisted checkmark setting (`AppStorageKeys.autoPreviewSongs`, off by default); when on, opening a track's menu starts the clip automatically (`onAppear`)
-- Auto-Preview is a dismiss-on-tap button (matching `FavoriteMenuButton`) rather than an in-place `Toggle` — SwiftUI context menus render their content as a static snapshot, so a `Toggle` with dismiss disabled never visually updates its checkmark while the menu is open; dismissing lets the state show correctly on the next open
-- Preview audio runs through `AudioPlaybackService.preview(url:)` using a mixed, ambient `AVAudioSession` (`.ambient` + `.mixWithOthers`) so it layers over other audio and respects the silent switch — distinct from the ducking `.playback` session used by `play(url:)`
+- The Apple Music / Spotify track menu gets two options: "Preview Song" plays the clip while the menu stays open (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed
+- "Auto-Preview" is a persisted checkmark setting (`AppStorageKeys.autoPreviewSongs`, off by default); when on, opening a track's menu starts the clip automatically
+- Auto-Preview uses `.task` (not `Task {}`) so SwiftUI cancels it if the menu closes before the network fetch completes — fixes a race where `onDisappear` fired before the task started and audio played anyway
+- `onDisappear` calls `audioService.stopPreview()` for audio already playing; `stopPreview()` is guarded by `isPreviewMode` so it cannot cut off real app audio
+- Auto-Preview is a dismiss-on-tap button (matching `FavoriteMenuButton`) rather than a `Toggle` — SwiftUI context menus snapshot their content, so a `Toggle` with dismiss disabled never updates its checkmark while open
+- Preview audio runs through `AudioPlaybackService.preview(url:)` using `.ambient` + `.mixWithOthers` so it layers over other audio and respects the silent switch
 - Only shown for tracks that actually carry a `previewURL` (mapped from Apple Music `previewAssets` and Spotify `previewUrl`)
 
 ### ClicAction extension ("Listen with Clic")
