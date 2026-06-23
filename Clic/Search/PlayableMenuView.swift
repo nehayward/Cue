@@ -160,8 +160,9 @@ struct PlayableMenuView: View {
         }
         
         OpenInServiceView(item: item)
-            .onDisappear {
-                AudioPlaybackService.shared.stopPreview()
+            .task {
+                defer { AudioPlaybackService.shared.stopPreview() }
+                try? await Task.sleep(nanoseconds: .max)
             }
 
         if item.content.type != .folder {
