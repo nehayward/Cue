@@ -52,23 +52,17 @@ struct PlayableMenuView: View {
                     } label: {
                         Label("Replace", systemImage: "play.fill")
                     }
-
-                    Button {
-                        play(position: .next)
-                    } label: {
-                        Label("Play Next", systemImage: "text.insert")
-                    }
-
-                    Button {
-                        play(position: .end)
-                    } label: {
-                        Label("Play Last", systemImage: "text.append")
-                    }
                     
                     Button {
                         play(position: .replace, shuffle: true)
                     } label: {
                         Label("Shuffle", systemImage: "shuffle")
+                    }
+
+                    Button {
+                        play(position: .next)
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
                     }
                 }
 

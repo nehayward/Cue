@@ -1,4 +1,5 @@
 import SwiftUI
+import SonosKit
 import Defaults
 
 /// Context menu peek preview for a track. Mirrors the PlayableContentView cell
@@ -67,7 +68,7 @@ struct SongPreviewButton: View {
         Button {
             Task { await AudioPlaybackService.shared.preview(url: previewURL) }
         } label: {
-            Label("Preview Song", systemImage: "play.circle")
+            Label("Preview Song", systemImage: "music.note")
         }
         .menuActionDismissBehavior(.disabled)
         .task {
@@ -77,8 +78,13 @@ struct SongPreviewButton: View {
 
         Button {
             autoPreviewEnabled.toggle()
+            if autoPreviewEnabled {
+                Task { await AudioPlaybackService.shared.preview(url: previewURL) }
+            }
         } label: {
             Label("Auto-Preview", systemImage: autoPreviewEnabled ? "checkmark.circle.fill" : "circle")
         }
+        .menuActionDismissBehavior(.disabled)
+
     }
 }

@@ -176,6 +176,7 @@ struct PlayableContentView: View {
                 } label: {
                     Label("Play Next", systemImage: "text.insert")
                 }
+                .tint(.accentColor)
             }
         }
         .swipeActions(edge: .leading) {
@@ -185,9 +186,9 @@ struct PlayableContentView: View {
                 Button {
                     Task { await AudioPlaybackService.shared.preview(url: previewURL) }
                 } label: {
-                    Label("Preview", systemImage: "play.circle.fill")
+                    Label("Preview", systemImage: "music.note")
                 }
-                .tint(.accentColor)
+                .tint(.blue)
             }
         }
         .contextMenu {
@@ -196,6 +197,7 @@ struct PlayableContentView: View {
             }
         } preview: {
             SongPreviewCard(item: item)
+                .contentShape(.contextMenuPreview, .rect)
         }
         .draggable(item) {
             Text(item.title)
