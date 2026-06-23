@@ -96,83 +96,78 @@ struct PlayableContentView: View {
         Button {
             play()
         } label: {
-            VStack(spacing: 0) {
-                HStack {
-                    if let index {
-                        Text(index, format: .number)
-                            .font(.caption.monospacedDigit())
-                            .frame(width: 30, alignment: .center)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if !hideArtwork {
-                        ContentArtworkView(content: item)
-                            .frame(width: 50, height: 50)
-                            .allowsHitTesting(!hideArtwork)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(item.title)
-                                .lineLimit(1)
-                                .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                                .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
-
-                            Spacer(minLength: 0)
-
-                            if item.content.service == .plex,
-                               (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
-                                Image(systemName: "heart.fill")
-                                    .foregroundStyle(MusicService.plex.brandColor)
-                                    .font(.caption2)
-                            }
-
-                            if item.metadata?.isExplicit == true {
-                                Image(systemName: "e.square.fill")
-                            }
-                        }
-
-                        Text(subtitleText)
-                            .lineLimit(1)
-                            .opacity(0.7)
-                            .font(.footnote)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
-                        if isPreviewing {
-                            Button {
-                                AudioPlaybackService.shared.stopPreview()
-                            } label: {
-                                Image(systemName: "stop.circle.fill")
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                            }
-                            .tint(.accentColor)
-                        } else {
-                            Menu {
-                                PlayableMenuView(item: item)
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                            }
-                            .tint(.primary)
-                        }
-                    }
+            HStack {
+                if let index {
+                    Text(index, format: .number)
+                        .font(.caption.monospacedDigit())
+                        .frame(width: 30, alignment: .center)
+                        .foregroundStyle(.secondary)
                 }
-                .fontDesign(.rounded)
-                .contentShape(Rectangle())
 
-                if isPreviewing {
-                    Rectangle()
-                        .fill(Color.accentColor)
-                        .scaleEffect(x: previewProgress, anchor: .leading)
-                        .frame(maxWidth: .infinity, minHeight: 2, maxHeight: 2)
-                        .animation(.linear(duration: 0.3), value: previewProgress)
+                if !hideArtwork {
+                    ContentArtworkView(content: item)
+                        .frame(width: 50, height: 50)
+                        .allowsHitTesting(!hideArtwork)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(item.title)
+                            .lineLimit(1)
+                            .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
+                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+
+                        Spacer(minLength: 0)
+
+                        if item.content.service == .plex,
+                           (plexRatingCache.ratings[item.id] ?? item.metadata?.userRating ?? 0) > 0 {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(MusicService.plex.brandColor)
+                                .font(.caption2)
+                        }
+
+                        if item.metadata?.isExplicit == true {
+                            Image(systemName: "e.square.fill")
+                        }
+                    }
+
+                    Text(subtitleText)
+                        .lineLimit(1)
+                        .opacity(0.7)
+                        .font(.footnote)
+                }
+
+                Spacer(minLength: 0)
+
+                if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                    if isPreviewing {
+                        Button {
+                            AudioPlaybackService.shared.stopPreview()
+                        } label: {
+                            Image(systemName: "stop.circle.fill")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .tint(.accentColor)
+                    } else {
+                        Menu {
+                            PlayableMenuView(item: item)
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .tint(.primary)
+                    }
                 }
             }
+            .fontDesign(.rounded)
+            .contentShape(Rectangle())
+        }
+        .background(alignment: .leading) {
+            Color.accentColor.opacity(0.12)
+                .scaleEffect(x: isPreviewing ? previewProgress : 0, anchor: .leading)
+                .animation(.linear(duration: 0.3), value: previewProgress)
         }
         .swipeActions {
             if Self.swipeableTypes.contains(item.content.type) {
