@@ -395,8 +395,7 @@ public final class MusicSearchService {
 
         var previewURLs: [MusicItemID: URL] = [:]
         if !songIDs.isEmpty {
-            var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: songIDs)
-            request.properties = [.previewAssets]
+            let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: songIDs)
             if let response = try? await request.response() {
                 for song in response.items {
                     if let url = song.previewAssets?.first?.url {
