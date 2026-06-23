@@ -554,6 +554,7 @@ extension SpotifyAlbumTrackItems {
             thumbnail: thumbnail,
             artwork: artwork,
             content: MediaContent(service: .spotify, id: id, type: .track, location: URL(string: externalUrls?.spotify ?? "")),
+            previewURL: URL(string: previewUrl ?? ""),
             metadata: PlayableContentMetadata(
                 duration: Duration.milliseconds(
                     durationMs
