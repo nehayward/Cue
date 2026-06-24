@@ -65,11 +65,12 @@ public final class Room: Identifiable, @unchecked Sendable {
         if let capabilities = info.capabilities {
             return capabilities.contains("LINE_IN")
         }
-        // Fallback when capabilities haven't been reported yet. Keep these model names
-        // specific: broad substrings like "Play" or "Era" also match models without a
-        // line-in (Play:1/Play:3/Playbar/Playbase, Era 100), which surfaced the
-        // "Switch to Line In" action on devices that don't support it.
-        let keywords = ["Amp", "Connect", "Port", "Five", "Play:5", "Era 300", "Move 2"]
+        // Fallback when capabilities haven't been reported yet. "Era" and "Move 2" stay
+        // broad — every Era (100/100 SL/300) and Move 2 supports line-in via the USB-C
+        // adapter — but "Play:5" must be specific: the bare "Play" substring also matched
+        // Play:1/Play:3/Playbar/Playbase, which have no line-in and wrongly surfaced the
+        // "Switch to Line In" action.
+        let keywords = ["Amp", "Connect", "Port", "Five", "Play:5", "Era", "Move 2"]
         return keywords.contains(where: info.modelDisplayName.contains)
     }
     
