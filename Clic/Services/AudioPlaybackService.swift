@@ -79,11 +79,11 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     }
 
     /// Plays a short preview in a mixed ambient session so it layers over other
-    /// audio. No-op if the same clip is already loading or playing.
+    /// audio. An explicit call always (re)starts the clip from the beginning —
+    /// even if the same URL is already previewing — so the user can replay it.
     /// Manages its own Task internally — call sites do not need `Task { await ... }`.
     @MainActor
     public func preview(url: URL) {
-        guard !isPreviewing(url) else { return }
         previewTask?.cancel()
         previewTask = Task { @MainActor in
             await play(url: url, category: .ambient, options: [.mixWithOthers], isPreview: true)

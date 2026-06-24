@@ -66,7 +66,10 @@ struct SongPreviewButton: View {
         }
         .menuActionDismissBehavior(.disabled)
         .onAppear {
-            guard autoPreviewEnabled else { return }
+            // Auto-start once when the menu opens, but don't restart a clip that
+            // is already auditioning (explicit taps handle replay themselves).
+            guard autoPreviewEnabled,
+                  !AudioPlaybackService.shared.isPreviewing(previewURL) else { return }
             AudioPlaybackService.shared.preview(url: previewURL)
         }
     }
