@@ -14,26 +14,27 @@ struct EmptyQueueView: View {
     var systemImage: String = "music.note.list"
 
     private var recentlyPlayed: [PlayableContent] {
-        Array(playHistoryService.history.prefix(6))
+        Array(playHistoryService.history.prefix(12))
     }
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 12)]
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                header
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 28) {
+                    header
 
-                if !recentlyPlayed.isEmpty {
-                    recentlySection
+                    if !recentlyPlayed.isEmpty {
+                        recentlySection
+                    }
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
             }
-            .padding(.horizontal)
-            .padding(.top, 32)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollBounceBehavior(.basedOnSize)
         .fontDesign(.rounded)
     }
 
