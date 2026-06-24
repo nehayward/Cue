@@ -37,7 +37,7 @@ struct AddToLastPlaylistButton: View {
     @ViewBuilder
     private func icon(for service: MusicService) -> some View {
         switch service {
-        case .apple, .spotify, .plex:
+        case .apple, .spotify, .plex, .deezer:
             service.icon
                 .frame(width: 20, height: 20)
         default:

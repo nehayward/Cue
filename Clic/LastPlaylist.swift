@@ -37,6 +37,8 @@ struct LastPlaylist {
             return await MusicSearchService.shared.addToSpotifyPlaylist(track: track, playlistID: id)
         case .plex:
             return await MusicSearchService.shared.addToPlexPlaylist(track: track, playlistID: id)
+        case .deezer:
+            return await MusicSearchService.shared.addToDeezerPlaylist(track: track, playlistID: id)
         default:
             await SonosService.shared.addToPlaylist(playlistID: id, playableContent: track)
             return true

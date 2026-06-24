@@ -493,6 +493,15 @@ extension PlayableContent {
     public var isPlexPlaylist: Bool {
         content.type.isPlaylist && content.service == .plex
     }
+
+    public var isDeezerPlaylist: Bool {
+        content.type.isPlaylist && content.service == .deezer
+    }
+
+    /// Streaming playlists whose tracks Clic can remove in place (Spotify, Plex, Deezer).
+    public var isEditableServicePlaylist: Bool {
+        isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist
+    }
 }
 
 /// TODO: ADD

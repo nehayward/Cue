@@ -74,6 +74,54 @@ public final class DeezerAPI {
         await fetchList("/user/me/history", queryItems: .authed(token: accessToken, index: 0, limit: limit))
     }
 
+    // MARK: - Playlist management (requires the `manage_library` OAuth scope)
+
+    /// Creates a new playlist for the authenticated user. Returns the new playlist id.
+    public func createPlaylist(title: String, accessToken: String) async -> String? {
+        guard let url = deezerURL("/user/me/playlists", queryItems: [
+            URLQueryItem(name: "title", value: title),
+            URLQueryItem(name: "access_token", value: accessToken)
+        ]) else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        guard let (data, _) = try? await session.data(for: request),
+              let response = try? decoder.decode(DeezerCreatePlaylistResponse.self, from: data) else { return nil }
+        return String(response.id)
+    }
+
+    /// Adds tracks (by Deezer track id) to a playlist.
+    public func addTracks(playlistID: String, trackIDs: [String], accessToken: String) async -> Bool {
+        guard !trackIDs.isEmpty else { return true }
+        return await mutate("/playlist/\(playlistID)/tracks", method: "POST",
+                            queryItems: [URLQueryItem(name: "songs", value: trackIDs.joined(separator: ","))],
+                            accessToken: accessToken)
+    }
+
+    /// Removes tracks (by Deezer track id) from a playlist.
+    public func removeTracks(playlistID: String, trackIDs: [String], accessToken: String) async -> Bool {
+        guard !trackIDs.isEmpty else { return true }
+        return await mutate("/playlist/\(playlistID)/tracks", method: "DELETE",
+                            queryItems: [URLQueryItem(name: "songs", value: trackIDs.joined(separator: ","))],
+                            accessToken: accessToken)
+    }
+
+    /// Deletes a playlist owned by the authenticated user.
+    public func deletePlaylist(playlistID: String, accessToken: String) async -> Bool {
+        await mutate("/playlist/\(playlistID)", method: "DELETE", queryItems: [], accessToken: accessToken)
+    }
+
+    /// Deezer mutation endpoints return the bare JSON literal `true` on success, or an error object.
+    private func mutate(_ path: String, method: String, queryItems: [URLQueryItem], accessToken: String) async -> Bool {
+        var items = queryItems
+        items.append(URLQueryItem(name: "access_token", value: accessToken))
+        guard let url = deezerURL(path, queryItems: items) else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        guard let (data, _) = try? await session.data(for: request),
+              let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else { return false }
+        return (object as? Bool) ?? false
+    }
+
     // MARK: - Favorites via Sonos SMAPI
 
     public func rateItem(credentials: SMAPICredentials, smapiID: String, rating: Int) async -> Bool {
@@ -121,6 +169,12 @@ public final class DeezerAPI {
         if !queryItems.isEmpty { components.queryItems = queryItems }
         return components.url
     }
+}
+
+// MARK: - Response models
+
+private struct DeezerCreatePlaylistResponse: Decodable {
+    let id: Int
 }
 
 // MARK: - URLQueryItem helpers

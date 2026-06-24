@@ -35,7 +35,7 @@ struct AddToPlaylistSheet: View {
 
     /// The track's own service supports playlists *and* the item is a track (not an album).
     private var hasServiceSegment: Bool {
-        [.apple, .spotify, .plex].contains(service) && [.track, .libraryTrack].contains(content.content.type)
+        [.apple, .spotify, .plex, .deezer].contains(service) && [.track, .libraryTrack].contains(content.content.type)
     }
 
     private var currentPlaylists: [PlayableContent] {
@@ -211,6 +211,7 @@ struct AddToPlaylistSheet: View {
         case .apple: return await musicService.appleUserPlaylists()
         case .spotify: return await musicService.spotifyEditablePlaylists()
         case .plex: return await musicService.plexUserPlaylists()
+        case .deezer: return await musicService.deezerUserPlaylists()
         default: return []
         }
     }
@@ -252,6 +253,7 @@ struct AddToPlaylistSheet: View {
                 case .apple: created = await musicService.createApplePlaylist(name: name, addingTrack: content)
                 case .spotify: created = await musicService.createSpotifyPlaylist(name: name, addingTrack: content)
                 case .plex: created = await musicService.createPlexPlaylist(name: name, track: content)
+                case .deezer: created = await musicService.createDeezerPlaylist(name: name, track: content)
                 default: created = nil
                 }
             } else {

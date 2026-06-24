@@ -66,9 +66,9 @@ final class PlaylistEditCoordinator {
     }
 
     /// Registers native undo for an add that already happened elsewhere (e.g. the "Add to Playlist"
-    /// menu). Only meaningful where the inverse (remove) is supported — Spotify and Plex.
+    /// menu). Only meaningful where the inverse (remove) is supported — Spotify, Plex, and Deezer.
     func registerExternalAdd(track: PlayableContent, to playlist: PlayableContent, undoManager: UndoManager?) {
-        guard [.spotify, .plex].contains(playlist.content.service) else { return }
+        guard [.spotify, .plex, .deezer].contains(playlist.content.service) else { return }
         undoManager?.registerUndo(withTarget: self) { coordinator in
             MainActor.assumeIsolated {
                 coordinator.remove(track: track, at: 0, playlist: playlist, undoManager: undoManager, showToast: false)

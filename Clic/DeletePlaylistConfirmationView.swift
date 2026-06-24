@@ -67,6 +67,8 @@ struct DeletePlaylistConfirmationView: View {
                 success = await MusicSearchService.shared.deleteSpotifyPlaylist(playlistID: content.content.id)
             case .plex:
                 success = await MusicSearchService.shared.deletePlexPlaylist(playlistID: content.content.id)
+            case .deezer:
+                success = await MusicSearchService.shared.deleteDeezerPlaylist(playlistID: content.content.id)
             case .library:
                 await SonosService.shared.delete(playlistID: content.id)
                 success = true

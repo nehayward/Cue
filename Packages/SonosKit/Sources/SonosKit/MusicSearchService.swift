@@ -364,6 +364,45 @@ public final class MusicSearchService {
         return await plex.deletePlaylist(ratingKey: playlistKey)
     }
 
+    // MARK: Deezer
+
+    /// Creates a new Deezer playlist seeded with `track` and returns it as `PlayableContent`.
+    /// Requires a Deezer token with the `manage_library` scope.
+    public func createDeezerPlaylist(name: String, track: PlayableContent) async -> PlayableContent? {
+        guard let token = await deezerToken(),
+              let newID = await deezer.createPlaylist(title: name, accessToken: token) else { return nil }
+        _ = await deezer.addTracks(playlistID: newID, trackIDs: [track.content.id], accessToken: token)
+        // Prefer a refetch so the content carries artwork and counts; fall back to a minimal
+        // representation if the new playlist isn't queryable yet.
+        if let refetched = await lookupDeezerPlaylist(with: newID) { return refetched }
+        return PlayableContent(
+            title: name,
+            subtitle: "",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: .deezer, id: newID, type: .playlist, location: URL(string: "https://www.deezer.com/playlist/\(newID)")),
+            metadata: nil
+        )
+    }
+
+    /// Adds a track to a Deezer playlist.
+    public func addToDeezerPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        guard let token = await deezerToken() else { return false }
+        return await deezer.addTracks(playlistID: playlistID, trackIDs: [track.content.id], accessToken: token)
+    }
+
+    /// Removes a track from a Deezer playlist.
+    public func removeFromDeezerPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
+        guard let token = await deezerToken() else { return false }
+        return await deezer.removeTracks(playlistID: playlistID, trackIDs: [track.content.id], accessToken: token)
+    }
+
+    /// Deletes a Deezer playlist.
+    public func deleteDeezerPlaylist(playlistID: String) async -> Bool {
+        guard let token = await deezerToken() else { return false }
+        return await deezer.deletePlaylist(playlistID: playlistID, accessToken: token)
+    }
+
     // MARK: Service-agnostic dispatch
 
     /// Adds `track` to `playlist`, dispatching to the playlist's service.
@@ -372,6 +411,7 @@ public final class MusicSearchService {
         case .apple: return await addToApplePlaylist(track: track, playlistID: playlist.content.id)
         case .spotify: return await addToSpotifyPlaylist(track: track, playlistID: playlist.content.id)
         case .plex: return await addToPlexPlaylist(track: track, playlistID: playlist.content.id)
+        case .deezer: return await addToDeezerPlaylist(track: track, playlistID: playlist.content.id)
         default: return false
         }
     }
@@ -382,6 +422,7 @@ public final class MusicSearchService {
         switch playlist.content.service {
         case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id)
         case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
+        case .deezer: return await removeFromDeezerPlaylist(track: track, playlistID: playlist.content.id)
         default: return false
         }
     }

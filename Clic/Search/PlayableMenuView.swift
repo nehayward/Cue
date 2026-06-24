@@ -81,7 +81,7 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                if [.spotify, .plex].contains(item.content.service) {
+                if [.spotify, .plex, .deezer].contains(item.content.service) {
                     Button(role: .destructive) {
                         router.sheet(to: .confirmDeletePlaylist(content: item))
                     } label: {

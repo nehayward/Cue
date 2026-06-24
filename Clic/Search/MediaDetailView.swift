@@ -53,9 +53,9 @@ struct MediaDetailView: View {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
 
-    /// Playlists whose tracks can be removed/reordered in-place (Sonos, Spotify, Plex).
+    /// Playlists whose tracks can be removed/reordered in-place (Sonos, Spotify, Plex, Deezer).
     private var isEditablePlaylist: Bool {
-        playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist
+        playableContent.isSonosPlaylist || playableContent.isEditableServicePlaylist
     }
     
     var body: some View {
@@ -83,7 +83,7 @@ struct MediaDetailView: View {
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
-                    } else if playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist {
+                    } else if playableContent.isEditableServicePlaylist {
                         Button(role: .destructive) {
                             editor.removeTrack(at: index, undoManager: undoManager)
                         } label: {
@@ -144,7 +144,7 @@ struct MediaDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
-                    if playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist {
+                    if playableContent.isEditableServicePlaylist {
                         editor.removeSelected(Array(selection), undoManager: undoManager)
                         selection.removeAll()
                     } else {
