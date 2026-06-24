@@ -77,33 +77,22 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 if queueMode == .full {
+                                    // Rows are keyed by a reorder-stable occurrence key, so simply
+                                    // swapping in the new order animates rows sliding into place.
                                     let newQueue = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip)
-                                    // Reorder the existing rows to the new order first so the list
-                                    // visibly shuffles, then settle to the canonical fetched data.
-                                    let reordered = reorderedPreservingIdentity(Array(group.coordinatorRoom.queue), toMatch: newQueue)
                                     withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
-                                        group.coordinatorRoom.queue = OrderedSet(reordered)
+                                        group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     }
-                                    try? await Task.sleep(for: .seconds(shuffleAnimationDuration))
-                                    group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     try? await SonosService.shared.updateTrackInformation(for: [group])
-                                    let id = group.coordinatorRoom.track.toPlayable.trackID
-                                    currentTrackID = id
+                                    currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
                                     try? await Task.sleep(for: .milliseconds(50))
-                                    withAnimation {
-                                        proxy.scrollTo(id)
-                                    }
+                                    scrollToNowPlayingRow(proxy)
                                 } else {
                                     let position = await SonosService.shared.getTrack(ip: group.coordinatorRoom.ip)?.position ?? 0
                                     let newTracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: position, total: 50)
-                                    // Reorder the existing rows to the new order first so the list
-                                    // visibly shuffles, then settle to the canonical fetched data.
-                                    let reordered = reorderedPreservingIdentity(upNextTracks, toMatch: newTracks)
                                     withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
-                                        upNextTracks = reordered
+                                        upNextTracks = newTracks
                                     }
-                                    try? await Task.sleep(for: .seconds(shuffleAnimationDuration))
-                                    upNextTracks = newTracks
                                 }
                             }
                         } label: {
@@ -133,12 +122,9 @@ struct QueueScreen: View {
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
                                 try? await SonosService.shared.updateTrackInformation(for: [group])
-                                let id = group.coordinatorRoom.track.toPlayable.trackID
-                                currentTrackID = id
+                                currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
                                 try? await Task.sleep(for: .milliseconds(50))
-                                withAnimation {
-                                    proxy.scrollTo(id)
-                                }
+                                scrollToNowPlayingRow(proxy)
                             }
                         } label: {
                             Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
@@ -226,7 +212,8 @@ struct QueueScreen: View {
     @ViewBuilder
     private func fullQueueView(proxy: ScrollViewProxy) -> some View {
         List(selection: $selection) {
-            ForEach(Array(group.coordinatorRoom.queue.enumerated()), id: \.element.trackID) { index, track in
+            ForEach(Array(group.coordinatorRoom.queue.keyedByOccurrence().enumerated()), id: \.element.key) { index, keyed in
+                let track = keyed.track
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())
@@ -242,10 +229,10 @@ struct QueueScreen: View {
             .onMove(perform: move)
         }
         .tint(.accentColor.opacity(0.5))
-        .contextMenu(forSelectionType: String.self) { trackIDs in
-            let tracks = trackIDs.compactMap { id in group.coordinatorRoom.queue.elements.first { $0.trackID == id } }
+        .contextMenu(forSelectionType: String.self) { selectedKeys in
+            let tracks = group.coordinatorRoom.queue.tracks(forKeys: selectedKeys)
             if tracks.first?.content.service != .unknown {
-                if trackIDs.count == 1, let track = tracks.first {
+                if selectedKeys.count == 1, let track = tracks.first {
                     AddToPlaylistMenu(itemToAdd: track)
 
                     Button {
@@ -274,9 +261,9 @@ struct QueueScreen: View {
                 }
             }
             Button(role: .destructive) {
-                Task { await deleteFullQueueTracks(trackIDs) }
+                Task { await deleteFullQueueTracks(selectedKeys) }
             } label: {
-                Label(trackIDs.count == 1 ? "Remove" : "Remove \(trackIDs.count) Tracks", systemImage: "xmark")
+                Label(selectedKeys.count == 1 ? "Remove" : "Remove \(selectedKeys.count) Tracks", systemImage: "xmark")
             }
         }
         .environment(\.editMode, $editMode)
@@ -351,21 +338,12 @@ struct QueueScreen: View {
 
     private let shuffleAnimationDuration: TimeInterval = 0.35
 
-    /// Reorders `current` to match the song order of `target` (matched by content id) while
-    /// reusing the existing elements. Because the reused rows keep their identity, SwiftUI
-    /// animates them sliding into their shuffled positions instead of cross-fading. Songs in
-    /// `target` that aren't already on screen fall back to the freshly fetched element.
-    private func reorderedPreservingIdentity(_ current: [PlayableContent], toMatch target: [PlayableContent]) -> [PlayableContent] {
-        guard !current.isEmpty else { return target }
-        var buckets: [String: [PlayableContent]] = [:]
-        for item in current {
-            buckets[item.id, default: []].append(item)
-        }
-        return target.map { track in
-            if buckets[track.id]?.isEmpty == false {
-                return buckets[track.id]!.removeFirst()
-            }
-            return track
+    /// Scrolls the full queue to the now-playing row. Rows are identified by their occurrence
+    /// key, so the scroll target has to be resolved the same way rather than from `trackID`.
+    private func scrollToNowPlayingRow(_ proxy: ScrollViewProxy, anchor: UnitPoint? = nil) {
+        guard let key = group.coordinatorRoom.queue.occurrenceKey(forPosition: group.coordinatorRoom.track.position) else { return }
+        withAnimation {
+            proxy.scrollTo(key, anchor: anchor)
         }
     }
 
@@ -392,10 +370,8 @@ struct QueueScreen: View {
         }
     }
 
-    private func deleteFullQueueTracks(_ trackIDs: Set<String>) async {
-        let selectedTracks = trackIDs.compactMap { id in
-            group.coordinatorRoom.queue.elements.first { $0.trackID == id }
-        }
+    private func deleteFullQueueTracks(_ selectedKeys: Set<String>) async {
+        let selectedTracks = group.coordinatorRoom.queue.tracks(forKeys: selectedKeys)
         let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
         withAnimation {
             for track in sortedTracks {
@@ -423,8 +399,8 @@ struct QueueScreen: View {
         selection.removeAll()
     }
 
-    private func deleteUpNextTracks(_ trackIDs: Set<String>) async {
-        let selectedTracks = upNextTracks.filter { trackIDs.contains($0.trackID) }
+    private func deleteUpNextTracks(_ selectedKeys: Set<String>) async {
+        let selectedTracks = upNextTracks.tracks(forKeys: selectedKeys)
         let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
         withAnimation {
             for track in sortedTracks {
@@ -454,15 +430,12 @@ struct QueueScreen: View {
             self.group.coordinatorRoom.queue = queue
         }
         try? await Task.sleep(for: .milliseconds(10))
-        let id = group.coordinatorRoom.track.toPlayable.trackID
         if !currentTrackID.isEmpty {
-            withAnimation {
-                proxy.scrollTo(id, anchor: .top)
-            }
-        } else {
-            proxy.scrollTo(id, anchor: .top)
+            scrollToNowPlayingRow(proxy, anchor: .top)
+        } else if let key = group.coordinatorRoom.queue.occurrenceKey(forPosition: group.coordinatorRoom.track.position) {
+            proxy.scrollTo(key, anchor: .top)
         }
-        currentTrackID = id
+        currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
     }
 }
 
