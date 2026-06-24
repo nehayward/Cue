@@ -7,6 +7,8 @@ import UIKit
 
 /// The most recently used playlist, persisted across the `lastPlaylist*` UserDefaults keys.
 /// Centralizes reading and writing so call sites don't repeat the raw key access.
+/// Main-actor isolated because adding/saving touch `@MainActor` services (MusicSearchService, UIMenuSystem).
+@MainActor
 struct LastPlaylist {
     let id: String
     let title: String
