@@ -77,7 +77,15 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 if queueMode == .full {
-                                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
+                                    let newQueue = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip)
+                                    // Reorder the existing rows to the new order first so the list
+                                    // visibly shuffles, then settle to the canonical fetched data.
+                                    let reordered = reorderedPreservingIdentity(Array(group.coordinatorRoom.queue), toMatch: newQueue)
+                                    withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
+                                        group.coordinatorRoom.queue = OrderedSet(reordered)
+                                    }
+                                    try? await Task.sleep(for: .milliseconds(shuffleAnimationMilliseconds))
+                                    group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     try? await SonosService.shared.updateTrackInformation(for: [group])
                                     let id = group.coordinatorRoom.track.toPlayable.trackID
                                     currentTrackID = id
@@ -86,10 +94,16 @@ struct QueueScreen: View {
                                         proxy.scrollTo(id)
                                     }
                                 } else {
-                                    isLoading = true
                                     let position = await SonosService.shared.getTrack(ip: group.coordinatorRoom.ip)?.position ?? 0
-                                    upNextTracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: position, total: 50)
-                                    isLoading = false
+                                    let newTracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: position, total: 50)
+                                    // Reorder the existing rows to the new order first so the list
+                                    // visibly shuffles, then settle to the canonical fetched data.
+                                    let reordered = reorderedPreservingIdentity(upNextTracks, toMatch: newTracks)
+                                    withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
+                                        upNextTracks = reordered
+                                    }
+                                    try? await Task.sleep(for: .milliseconds(shuffleAnimationMilliseconds))
+                                    upNextTracks = newTracks
                                 }
                             }
                         } label: {
@@ -329,6 +343,27 @@ struct QueueScreen: View {
         group.coordinatorRoom.queue.elements.move(fromOffsets: source, toOffset: destination)
         Task {
             try? await SonosService.shared.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
+        }
+    }
+
+    private let shuffleAnimationDuration: TimeInterval = 0.35
+    private var shuffleAnimationMilliseconds: Int { Int(shuffleAnimationDuration * 1000) }
+
+    /// Reorders `current` to match the song order of `target` (matched by content id) while
+    /// reusing the existing elements. Because the reused rows keep their identity, SwiftUI
+    /// animates them sliding into their shuffled positions instead of cross-fading. Songs in
+    /// `target` that aren't already on screen fall back to the freshly fetched element.
+    private func reorderedPreservingIdentity(_ current: [PlayableContent], toMatch target: [PlayableContent]) -> [PlayableContent] {
+        guard !current.isEmpty else { return target }
+        var buckets: [String: [PlayableContent]] = [:]
+        for item in current {
+            buckets[item.id, default: []].append(item)
+        }
+        return target.map { track in
+            if buckets[track.id]?.isEmpty == false {
+                return buckets[track.id]!.removeFirst()
+            }
+            return track
         }
     }
 

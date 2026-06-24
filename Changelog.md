@@ -6,6 +6,12 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.6
 
+### Queue shuffle animation
+- Tapping the shuffle button in the queue now animates the Up Next and Full Queue lists reordering into their shuffled positions instead of snapping
+- `QueueScreen` reorders the on-screen rows to the freshly fetched Sonos order while reusing the existing elements (`reorderedPreservingIdentity`), so SwiftUI animates rows sliding into place rather than cross-fading — rows are keyed by `trackID` (`content.id` + position), which otherwise changes on every shuffle
+- After the animation settles, the canonical fetched queue (with correct position metadata) is applied so reorder/delete operations still target the right Sonos indices
+- No-op when the returned order is unchanged, so there's no regression for sources that don't reorder
+
 ### Deezer integration
 - Added `DeezerAPI` client in `MusicSearchKit` — no auth required, hits public `api.deezer.com` endpoints
 - Full search: tracks, albums, artists, playlists (concurrent `async let` in `MusicSearchService.searchDeezer`)
