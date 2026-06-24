@@ -104,6 +104,9 @@ struct QueueScreen: View {
                                 .foregroundStyle(group.playMode.contains(.shuffle) ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
+                        // iOS toolbars override foregroundStyle on the label with the bar tint,
+                        // so drive the active color via tint, which the toolbar respects.
+                        .tint(group.playMode.contains(.shuffle) ? Color.accentColor : Color.secondary)
                         
                         Button {
                             var currentPlayMode = group.playMode
@@ -135,7 +138,8 @@ struct QueueScreen: View {
                                 .foregroundStyle(group.playMode.isRepeatEnabled ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
-                        
+                        .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
+
                         QueueMoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode, upNextTracks: $upNextTracks)
                             .contentTransition(.identity)
                     }
