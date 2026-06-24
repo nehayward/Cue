@@ -1,7 +1,7 @@
 # 2026.6
 
 –– New Features ––
-- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — it plays while the menu is open and stops when you close it; turn on Auto-Preview to have clips start automatically as you browse
+- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
 
 –– Bug Fixes & Improvements ––
 

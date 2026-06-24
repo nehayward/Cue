@@ -170,12 +170,19 @@ struct PlayableContentView: View {
                 }
             }
             .fontDesign(.rounded)
-            .contentShape(Rectangle())
-        }
-        .background(alignment: .leading) {
-            Color.accentColor.opacity(0.12)
-                .scaleEffect(x: isPreviewing ? previewProgress : 0, anchor: .leading)
-                .animation(.linear(duration: 0.3), value: previewProgress)
+            .contentShape(.rect)
+            .overlay(alignment: .bottom) {
+                // Gated on isPreviewing so stopping removes the bar instantly,
+                // instead of animating its width back down to zero.
+                if isPreviewing {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient)
+                        .frame(height: 2)
+                        .scaleEffect(x: previewProgress, anchor: .leading)
+                        .animation(.linear(duration: 0.3), value: previewProgress)
+                        .ignoresSafeArea()
+                }
+            }
         }
         .swipeActions(edge: .trailing) {
             if Self.swipeableTypes.contains(item.content.type) {

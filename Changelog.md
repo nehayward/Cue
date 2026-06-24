@@ -27,14 +27,12 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.5
 
-### Song previews in the context menu
-- The Apple Music / Spotify track menu gets two options: "Preview Song" plays the clip while the menu stays open (`menuActionDismissBehavior(.disabled)`), and the preview stops automatically when the menu is dismissed
-- "Auto-Preview" is a persisted checkmark setting (`AppStorageKeys.autoPreviewSongs`, off by default); when on, opening a track's menu starts the clip automatically
-- Auto-Preview uses `.task` (not `Task {}`) so SwiftUI cancels it if the menu closes before the network fetch completes — fixes a race where `onDisappear` fired before the task started and audio played anyway
-- `onDisappear` calls `audioService.stopPreview()` for audio already playing; `stopPreview()` is guarded by `isPreviewMode` so it cannot cut off real app audio
-- Auto-Preview is a dismiss-on-tap button (matching `FavoriteMenuButton`) rather than a `Toggle` — SwiftUI context menus snapshot their content, so a `Toggle` with dismiss disabled never updates its checkmark while open
-- Preview audio runs through `AudioPlaybackService.preview(url:)` using `.ambient` + `.mixWithOthers` so it layers over other audio and respects the silent switch
+### Song previews
+- The Apple Music / Spotify track menu gets a "Preview Song" action that plays the clip while the menu stays open (`menuActionDismissBehavior(.disabled)`); a leading-swipe "Preview" action on list rows is the other entry point
+- Preview audio runs through `AudioPlaybackService.preview(url:)` using `.ambient` + `.mixWithOthers` so it layers over other audio and respects the silent switch; an explicit call always (re)starts the clip from the beginning, so a track can be re-previewed after it's already played
+- `PlayableContentView` (list rows) and `PlayableContentRowView` (browse grids) show a bottom progress bar that fills as the clip plays plus a stop affordance — tapping an auditioning row/cell stops it. The bar is gated on `isPreviewing` so stopping removes it instantly instead of animating its width back to zero
 - Only shown for tracks that actually carry a `previewURL` (mapped from Apple Music `previewAssets` and Spotify `previewUrl`)
+- Dropped the auto-preview-on-menu-open behaviour and its `AppStorageKeys.autoPreviewSongs` setting. SwiftUI exposes no reliable "menu was presented" signal, so every trigger we tried (`onAppear`, `.id(UUID())`, `.task(id:)`) either missed presentations or re-fired on re-render and replayed the clip right after the user stopped it. Preview is now driven entirely by the explicit button + swipe; also removed the unused `SongPreviewCard` peek view
 
 ### ClicAction extension ("Listen with Clic")
 - New `com.apple.ui-services` Action extension that appears in the Actions row of the share sheet (separate from PlayAction which sits in the Share row)

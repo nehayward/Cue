@@ -37,7 +37,6 @@ struct PreferenceScreen: View {
     @AppStorage(Defaults.AppStorageKeys.latestReleaseVersion) private var latestReleaseVersion: String = ""
     @AppStorage(Defaults.AppStorageKeys.latestReleaseHeadline) private var latestReleaseHeadline: String = ""
     @AppStorage(Defaults.AppStorageKeys.useHardwareVolumeButtons) private var useHardwareVolumeButtons: Bool = false
-    @AppStorage(Defaults.AppStorageKeys.autoPreviewSongs) private var autoPreviewSongs: Bool = false
 
     private var hasUnseenWhatsNew: Bool {
         // Strict: the worker must have returned 200 for this bundle's
@@ -406,30 +405,6 @@ struct PreferenceScreen: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(LinearGradient(colors: [Color(red: 0.7, green: 0.5, blue: 0.95), Color(red: 0.55, green: 0.35, blue: 0.85)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            )
-                            .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
-                    }
-                    Label {
-                        Toggle(isOn: $autoPreviewSongs) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-Preview Songs")
-                                Text("Automatically play a short preview clip when you open a track's menu.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .tint(.accent)
-                    } icon: {
-                        Image(systemName: "play.circle.fill")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(.white)
-                            .bold()
-                            .padding(8)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(colors: [Color(red: 0.3, green: 0.8, blue: 0.85), Color(red: 0.2, green: 0.65, blue: 0.75)], startPoint: .topLeading, endPoint: .bottomTrailing))
                             )
                             .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
                     }
