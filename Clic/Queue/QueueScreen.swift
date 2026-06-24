@@ -275,6 +275,8 @@ struct QueueScreen: View {
         }
         .environment(\.editMode, $editMode)
         .listStyle(.plain)
+        // Breathing room so the last row clears the bottom selection bar and stays tappable.
+        .contentMargins(.bottom, 16, for: .scrollContent)
         .overlay {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 16) {

@@ -69,6 +69,8 @@ struct UpNextContentView: View {
                 }
             }
             .listStyle(.plain)
+            // Breathing room so the last row clears the bottom selection bar and stays tappable.
+            .contentMargins(.bottom, 16, for: .scrollContent)
             .tint(.accentColor.opacity(0.5))
             .contextMenu(forSelectionType: String.self) { selectedKeys in
                 let tracks = upNext.tracks(forKeys: selectedKeys)
