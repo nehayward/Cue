@@ -31,6 +31,12 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `DeezerLinkResolver` (`MusicSearchKit`): resolves the Deezer *app's* short "smart" links — `link.deezer.com/s/{token}` (Branch.io) and legacy `deezer.page.link` / `dzr.page.link` (Firebase) — which carry no type/id in the path. Follows the redirect with a desktop User-Agent, then scans the final URL / interstitial HTML for the canonical `deezer.com/{type}/{id}` link. Wired into `SonosService.getContent(from:)`, so sharing from the Deezer app (not just the website) now works in PlayAction and everywhere else
 - Added `Docs/AddingMusicService.md` — comprehensive guide and checklist for integrating future services
 
+### Line-in support detection
+- `Room.supportsLineIn` now prefers the device-reported `LINE_IN` capability from the `/info` endpoint (`DeviceInfo.capabilities`) instead of relying solely on model-name matching — authoritative across firmware/models
+- Tightened the fallback model keywords used when capabilities aren't reported: the bare `"Play"` substring matched Play:1/Play:3/Playbar/Playbase (no line-in), wrongly surfacing the "Switch to Line In" action in `MenuInfoView`
+- `"Play:5"` kept; the 2026 portable "Play" matched by exact last-token comparison so its siblings are excluded
+- `"Era"` left broad (Era 100/100 SL/300 all support line-in via the USB-C adapter); `"Move 2"`, `"Five"`, `"Amp"`, `"Connect"`, `"Port"` unchanged
+
 ---
 
 ## 2026.5

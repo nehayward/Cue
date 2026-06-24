@@ -33,6 +33,7 @@ struct PlayHistoryView: View {
                     .fontWeight(.semibold)
             }
             .listRowSeparator(.hidden)
+            .tag(UUID().uuidString)
 
             ForEach(history.prefix(5)) { item in
                 PlayableContentView(item: item)
