@@ -8,7 +8,6 @@ struct UpNextContentView: View {
     @Binding var editMode: EditMode
 
     var group: GroupRoom
-    var currentTrackID: String
     var router: Router
     @Binding var selection: Set<String>
     @Binding var upNext: [PlayableContent]
@@ -33,7 +32,7 @@ struct UpNextContentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: positionWidth, alignment: .trailing)
                             .padding(.trailing, 8)
-                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
+                        QueueCellView(track: track, group: group, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                     }
                     .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)

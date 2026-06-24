@@ -16,6 +16,9 @@ struct QueueScreen: View {
     @State private var router = Router()
     @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
+    // First-load scroll sentinel: empty means we haven't scrolled to now-playing for this
+    // group yet (so the initial scroll is unanimated). The now-playing highlight no longer
+    // uses this — it compares queue position directly.
     @State private var currentTrackID: String = ""
     @State private var currentGroupIP: String = ""
     @State private var selection: Set<String> = []
@@ -29,7 +32,7 @@ struct QueueScreen: View {
                     if queueMode == .full {
                         fullQueueView(proxy: proxy)
                     } else {
-                        UpNextContentView(editMode: $editMode, group: group, currentTrackID: currentTrackID, router: router, selection: $selection, upNext: $upNextTracks)
+                        UpNextContentView(editMode: $editMode, group: group, router: router, selection: $selection, upNext: $upNextTracks)
                     }
                 }
                 .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
@@ -217,10 +220,10 @@ struct QueueScreen: View {
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())
-                        .foregroundStyle(track.trackID == currentTrackID ? .primary : .secondary)
+                        .foregroundStyle(track.metadata?.position == group.coordinatorRoom.track.position ? .primary : .secondary)
                         .frame(width: positionWidth, alignment: .trailing)
                         .padding(.trailing, 8)
-                    QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
+                    QueueCellView(track: track, group: group, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                 }
                 .listRowSeparator(.hidden)
                 .listSectionSeparator(.hidden, edges: .all)
