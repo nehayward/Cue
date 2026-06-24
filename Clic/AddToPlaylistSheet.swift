@@ -51,7 +51,10 @@ struct AddToPlaylistSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                banner
+                PlayableContentRowView(item: content, hideContentType: true)
+                    .allowsHitTesting(false)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 if hasServiceSegment {
                     Picker("Destination", selection: $segment) {
                         Text(service.title).tag(Segment.service)
@@ -67,12 +70,23 @@ struct AddToPlaylistSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("Cancel")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { addSelectedAndDismiss() }
-                        .fontWeight(.semibold)
-                        .disabled(selected.isEmpty)
+                    Button {
+                        addSelectedAndDismiss()
+                    } label: {
+                        Image(systemName: "checkmark")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.green)
+                    }
+                    .disabled(selected.isEmpty)
+                    .accessibilityLabel("Done")
                 }
             }
             .searchable(text: $query, prompt: "Find playlist")
@@ -100,7 +114,7 @@ struct AddToPlaylistSheet: View {
 
     // MARK: - Subviews
 
-    /// Square artwork with a placeholder, used by both the banner and the playlist rows.
+    /// Square artwork with a placeholder, used by the playlist rows.
     @ViewBuilder
     private func artwork(_ url: URL?, size: CGFloat, cornerRadius: CGFloat) -> some View {
         LazyImage(url: url) { phase in
@@ -112,28 +126,6 @@ struct AddToPlaylistSheet: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-    }
-
-    @ViewBuilder
-    private var banner: some View {
-        HStack(spacing: 12) {
-            artwork(content.artwork ?? content.thumbnail, size: 56, cornerRadius: 8)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(content.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                if !content.subtitle.isEmpty {
-                    Text(content.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
     }
 
     @ViewBuilder
@@ -181,7 +173,7 @@ struct AddToPlaylistSheet: View {
 
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .imageScale(.large)
-                .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
         }
         .contentShape(.rect)
     }
