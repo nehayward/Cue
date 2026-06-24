@@ -1,3 +1,8 @@
+# 2026.6
+
+–– Bug Fixes & Improvements ––
+- Fixed "Switch to Line In" appearing on speakers that don't support line-in
+
 # 2026.5
 
 –– New Features ––
