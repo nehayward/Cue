@@ -34,7 +34,11 @@ struct MenuInfoView: View {
                     }
                     if !group.TVMode {
                         AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
-                        AddToPlaylistMenu(itemToAdd: group.coordinatorRoom.track.toPlayable)
+                        Button {
+                            router.sheet(to: .addToPlaylist(content: group.coordinatorRoom.track.toPlayable))
+                        } label: {
+                            Label("Add to Playlist…", systemImage: "text.badge.plus")
+                        }
                     }
                 }
                 
