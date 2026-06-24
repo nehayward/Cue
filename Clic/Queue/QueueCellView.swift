@@ -100,7 +100,11 @@ fileprivate struct QueueCellMenuView: View {
         VStack {
             if track.content.service != .unknown {
                 AddToLastPlaylistButton(itemToAdd: track)
-                AddToPlaylistMenu(itemToAdd: track)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: track))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
+                }
 
                 Button {
                     router.navigate(to: .mediaDetail(content: track, group: group))

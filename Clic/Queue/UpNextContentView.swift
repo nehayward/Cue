@@ -74,7 +74,9 @@ struct UpNextContentView: View {
                 let tracks = trackIDs.compactMap { id in upNext.first { $0.trackID == id } }
                 if tracks.first?.content.service != .unknown {
                     if trackIDs.count == 1, let track = tracks.first {
-                        AddToPlaylistMenu(itemToAdd: track)
+                        Button {
+                            router.sheet(to: .addToPlaylist(content: track))
+                        } label: { Label("Add to Playlist…", systemImage: "text.badge.plus") }
 
                         Button {
                             router.navigate(to: .mediaDetail(content: track, group: group))
