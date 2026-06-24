@@ -60,11 +60,17 @@ public final class Room: Identifiable, @unchecked Sendable {
     }
     
     public var supportsLineIn: Bool {
-        let keywords = ["Amp", "Era", "Five", "Move 2", "Play", "Connect", "Port"]
-        if let info {
-            return keywords.contains(where: info.modelDisplayName.contains)
+        guard let info else { return false }
+        // Prefer the device-reported capability — it's authoritative across firmware/models.
+        if let capabilities = info.capabilities {
+            return capabilities.contains("LINE_IN")
         }
-        return false
+        // Fallback when capabilities haven't been reported yet. Keep these model names
+        // specific: broad substrings like "Play" or "Era" also match models without a
+        // line-in (Play:1/Play:3/Playbar/Playbase, Era 100), which surfaced the
+        // "Switch to Line In" action on devices that don't support it.
+        let keywords = ["Amp", "Connect", "Port", "Five", "Play:5", "Era 300", "Move 2"]
+        return keywords.contains(where: info.modelDisplayName.contains)
     }
     
     public var supportsFixedOutput: Bool {
