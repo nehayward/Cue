@@ -6,8 +6,7 @@ import Defaults
 /// layout (artwork + title + subtitle) and uses the same left-anchored accent
 /// background fill that grows as the preview clip plays.
 ///
-/// Uses AudioPlaybackService.shared directly rather than environment so it is
-/// safe inside context menu preview views, which may not inherit all environment
+/// The progress fill and text styling intentionally read their layout/styling
 /// values from their parent.
 struct SongPreviewCard: View {
     // @State on an @Observable reference type ensures SwiftUI tracks property
@@ -16,12 +15,14 @@ struct SongPreviewCard: View {
     let item: PlayableContent
 
     private var progressFraction: Double {
-        guard audioService.isPreviewMode, audioService.duration > 0 else { return 0 }
+        guard let url = item.previewURL,
+              audioService.isPreviewing(url),
+              audioService.duration > 0 else { return 0 }
         return min(1, audioService.playbackProgress / audioService.duration)
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             ContentArtworkView(content: item, showMusicSource: false)
                 .frame(width: 50, height: 50)
 
@@ -39,8 +40,6 @@ struct SongPreviewCard: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
         .background(alignment: .leading) {
             Color.accentColor.opacity(0.12)
                 .scaleEffect(x: progressFraction, anchor: .leading)

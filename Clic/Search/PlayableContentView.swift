@@ -203,9 +203,6 @@ struct PlayableContentView: View {
             if adding == nil, !hideDetails {
                 PlayableMenuView(item: item)
             }
-        } preview: {
-            SongPreviewCard(item: item)
-                .contentShape(.contextMenuPreview, .rect)
         }
         .draggable(item) {
             Text(item.title)
