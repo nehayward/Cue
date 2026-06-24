@@ -84,7 +84,7 @@ struct QueueScreen: View {
                                     withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
                                         group.coordinatorRoom.queue = OrderedSet(reordered)
                                     }
-                                    try? await Task.sleep(for: .milliseconds(shuffleAnimationMilliseconds))
+                                    try? await Task.sleep(for: .seconds(shuffleAnimationDuration))
                                     group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     try? await SonosService.shared.updateTrackInformation(for: [group])
                                     let id = group.coordinatorRoom.track.toPlayable.trackID
@@ -102,7 +102,7 @@ struct QueueScreen: View {
                                     withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
                                         upNextTracks = reordered
                                     }
-                                    try? await Task.sleep(for: .milliseconds(shuffleAnimationMilliseconds))
+                                    try? await Task.sleep(for: .seconds(shuffleAnimationDuration))
                                     upNextTracks = newTracks
                                 }
                             }
@@ -167,6 +167,9 @@ struct QueueScreen: View {
                 if let playbackService = await SonosService.shared.playbackService(ip: group.ip) {
                     group.playbackService = playbackService
                 }
+                // Sync the shuffle/repeat state for both modes; the full-queue view's
+                // task only runs when that mode is visible, leaving Up Next stale.
+                group.playMode = await SonosService.shared.playMode(ip: group.ip)
             }
         }
         .overlay {
@@ -347,7 +350,6 @@ struct QueueScreen: View {
     }
 
     private let shuffleAnimationDuration: TimeInterval = 0.35
-    private var shuffleAnimationMilliseconds: Int { Int(shuffleAnimationDuration * 1000) }
 
     /// Reorders `current` to match the song order of `target` (matched by content id) while
     /// reusing the existing elements. Because the reused rows keep their identity, SwiftUI
