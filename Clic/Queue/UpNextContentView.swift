@@ -5,7 +5,6 @@ import OrderedCollections
 
 struct UpNextContentView: View {
     @Environment(PlayHistoryService.self) var playHistoryService
-    @Environment(MusicSearchService.self) var musicSearchService: MusicSearchService?
     @Binding var editMode: EditMode
 
     var group: GroupRoom
@@ -124,8 +123,7 @@ struct UpNextContentView: View {
         isLoading = true
         isPaginating = false
         currentStartingIndex = group.coordinatorRoom.track.position
-        var tracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: currentStartingIndex, total: pageSize)
-        if let musicSearchService { tracks = await musicSearchService.enrichWithPreviews(tracks) }
+        let tracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: currentStartingIndex, total: pageSize)
         if hasLoaded {
             withAnimation(.easeInOut(duration: 0.25)) {
                 upNext = tracks
@@ -150,8 +148,7 @@ struct UpNextContentView: View {
 
         isPaginating = true
         let nextStartingIndex = currentStartingIndex + upNext.count
-        var nextBatch = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: nextStartingIndex, total: pageSize)
-        if let musicSearchService { nextBatch = await musicSearchService.enrichWithPreviews(nextBatch) }
+        let nextBatch = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: nextStartingIndex, total: pageSize)
 
         // Append without animation to prevent scroll interruption on Catalyst
         withAnimation(nil) {

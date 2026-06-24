@@ -432,47 +432,6 @@ public final class MusicSearchService {
         }
     }
 
-    /// Enriches already-parsed PlayableContent items (e.g. from the Sonos queue)
-    /// with Apple Music preview URLs via a batch catalog lookup.
-    ///
-    /// Only `.apple` and `.libraryTrack` items with a non-empty `content.id` are
-    /// looked up — others are returned unchanged. Uses the same chunked approach
-    /// as `tracksToPlayableWithPreviews` to stay within API caps.
-    public func enrichWithPreviews(_ items: [PlayableContent]) async -> [PlayableContent] {
-        let batchSize = 100
-
-        let appleIDs: [MusicItemID] = items.compactMap { item in
-            guard [.apple, .library].contains(item.content.service),
-                  [.track, .libraryTrack].contains(item.content.type),
-                  item.previewURL == nil,
-                  !item.content.id.isEmpty else { return nil }
-            return MusicItemID(item.content.id)
-        }
-
-        guard !appleIDs.isEmpty else { return items }
-        guard await requestMusicAuthorization() else { return items }
-
-        var previewURLs: [String: URL] = [:]
-        for chunk in stride(from: 0, to: appleIDs.count, by: batchSize) {
-            let ids = Array(appleIDs[chunk..<min(chunk + batchSize, appleIDs.count)])
-            let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids)
-            if let response = try? await request.response() {
-                for song in response.items {
-                    if let url = song.previewAssets?.first?.url {
-                        previewURLs[song.id.rawValue] = url
-                    }
-                }
-            }
-        }
-
-        return items.map { item in
-            guard previewURLs[item.content.id] != nil else { return item }
-            var enriched = item
-            enriched.previewURL = previewURLs[item.content.id]
-            return enriched
-        }
-    }
-
     public func lookup(id: String) async throws -> Playlist? {
         guard await requestMusicAuthorization() else { return nil }
         let playlistID = MusicItemID(id)

@@ -12,32 +12,16 @@ struct QueueCellView: View {
     var isEditing: Bool
     var onLocalMoveNext: ((PlayableContent) -> Void)? = nil
     var onLocalDelete: ((PlayableContent) -> Void)? = nil
-
-    @State private var audioService = AudioPlaybackService.shared
-
-    private var isPreviewing: Bool {
-        guard let url = track.previewURL else { return false }
-        return audioService.isPreviewing(url)
-    }
-
-    private var previewProgress: Double {
-        guard audioService.duration > 0 else { return 0 }
-        return min(1, audioService.playbackProgress / audioService.duration)
-    }
-
+    
     var body: some View {
 //        let _ = Self._printChanges()
 //        let _ = print("\(track.title) update")
         Button {
-            if isPreviewing {
-                AudioPlaybackService.shared.stopPreview()
-            } else {
-                Task {
-                    HapticManager.shared.fireHaptic(.buttonPress)
-                    guard let position = track.metadata?.position else { return }
-                    await SonosService.shared.seek(trackNumber: position, on: group)
-                    await SonosService.shared.play(ip: group.coordinatorRoom.ip)
-                }
+            Task {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                guard let position = track.metadata?.position else { return }
+                await SonosService.shared.seek(trackNumber: position, on: group)
+                await SonosService.shared.play(ip: group.coordinatorRoom.ip)
             }
         } label: {
             HStack(alignment: .center) {
@@ -69,35 +53,19 @@ struct QueueCellView: View {
                         .background(.clear)
                         .tint(.primary)
                         .bold()
-                        .opacity(isPreviewing ? 0 : 1)
                 }
                 .contentTransition(.identity)
                 .opacity(isEditing ? 0 : 1)
                 .frame(width: isEditing ? 0 : nil)
-                .disabled(isPreviewing)
-                .overlay {
-                    if isPreviewing, !isEditing {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(Color.accentColor)
-                            .allowsHitTesting(false)
-                    }
-                }
             }
         }
         .tint(.primary)
-        .background(alignment: .leading) {
-            Color.accentColor.opacity(0.12)
-                .scaleEffect(x: isPreviewing ? previewProgress : 0, anchor: .leading)
-                .animation(.linear(duration: 0.3), value: previewProgress)
-        }
-        .onDisappear {
-            if isPreviewing { AudioPlaybackService.shared.stopPreview() }
-        }
-        .swipeActions(edge: .trailing) {
+        .swipeActions {
             Button(role: .destructive) {
                 Task {
                     guard let position = track.metadata?.position else { return }
+                    
+                    // Remove from local array first for immediate UI feedback
                     onLocalDelete?(track)
                     try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
                     group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
@@ -106,23 +74,6 @@ struct QueueCellView: View {
                 Label("Delete", systemImage: "trash")
             }
             .tint(.red)
-        }
-        .swipeActions(edge: .leading) {
-            if let previewURL = track.previewURL,
-               !previewURL.absoluteString.isEmpty,
-               [.track, .libraryTrack].contains(track.content.type) {
-                Button {
-                    AudioPlaybackService.shared.preview(url: previewURL)
-                } label: {
-                    Label("Preview", systemImage: "play.circle.fill")
-                }
-                .tint(.accentColor)
-            }
-        }
-        .contextMenu {
-            QueueCellMenuView(track: track, group: group, router: router, onLocalMoveNext: onLocalMoveNext, onLocalDelete: onLocalDelete)
-        } preview: {
-            SongPreviewCard(item: track)
         }
         .draggable(track) {
             Text(track.title)
@@ -148,11 +99,6 @@ fileprivate struct QueueCellMenuView: View {
     var body: some View {
         VStack {
             if track.content.service != .unknown {
-                if let previewURL = track.previewURL, !previewURL.absoluteString.isEmpty,
-                   [.track, .libraryTrack].contains(track.content.type) {
-                    SongPreviewButton(previewURL: previewURL)
-                }
-
                 AddToLastPlaylistButton(itemToAdd: track)
                 AddToPlaylistMenu(itemToAdd: track)
 
