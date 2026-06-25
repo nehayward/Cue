@@ -207,11 +207,16 @@ struct MediaDetailView: View {
             
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if isEditablePlaylist {
-                    Button(editMode.isEditing ? "Done" : "Edit") {
+                    Button {
                         withAnimation {
                             editMode = editMode.isEditing ? .inactive : .active
                         }
+                    } label: {
+                        Label(editMode.isEditing ? "Done" : "Edit",
+                              systemImage: editMode.isEditing ? "checkmark" : "pencil")
+                            .labelStyle(.iconOnly)
                     }
+                    .glassButton()
                 }
             }
         }
