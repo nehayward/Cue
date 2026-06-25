@@ -216,7 +216,6 @@ struct MediaDetailView: View {
                               systemImage: editMode.isEditing ? "checkmark" : "pencil")
                             .labelStyle(.iconOnly)
                     }
-                    .glassButton()
                 }
             }
         }
