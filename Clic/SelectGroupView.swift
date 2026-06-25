@@ -21,10 +21,12 @@ struct SelectGroupView: View {
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
     var onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil
 
-    /// Whether the queue-position selector applies — shown whenever there's
-    /// queueable content (i.e. not radio).
+    /// Whether the queue-position selector applies — shown when a caller wires
+    /// `onQueueSelection` (a real queue flow) and the content can be queued
+    /// (i.e. not radio). Grouping/radio callers that only pass `onSelection`
+    /// don't get a non-functional picker.
     private var showsQueuePositions: Bool {
-        content.map { !$0.content.type.isRadio } ?? false
+        onQueueSelection != nil && (content.map { !$0.content.type.isRadio } ?? false)
     }
 
     private var activeRooms: [Room] {
