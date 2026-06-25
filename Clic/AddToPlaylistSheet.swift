@@ -83,8 +83,10 @@ struct AddToPlaylistSheet: View {
                     } label: {
                         Image(systemName: "checkmark")
                             .fontWeight(.semibold)
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.primary)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
                     .disabled(selected.isEmpty)
                     .accessibilityLabel("Done")
                 }
