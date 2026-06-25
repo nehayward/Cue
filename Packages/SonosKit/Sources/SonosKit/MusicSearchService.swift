@@ -427,18 +427,19 @@ public final class MusicSearchService {
         }
     }
 
-    /// Whether the authenticated user can edit `playlist` (owns it or it's collaborative). Used to
-    /// gate the editing UI, since streaming services let you browse playlists you can't modify.
-    /// Apple Music has no edit API, so it returns `false`.
+    /// Whether the authenticated user can edit `playlist`. Used to gate the editing UI, since
+    /// streaming services let you browse playlists you can't modify. Apple Music has no edit API.
+    /// Checks membership in the user's own playlists (the same list the add-to-playlist sheet uses),
+    /// which is more reliable than a per-playlist owner lookup.
     public func canEditServicePlaylist(_ playlist: PlayableContent) async -> Bool {
+        let id = playlist.content.id
         switch playlist.content.service {
         case .spotify:
-            return await spotifySearchAPI.isPlaylistEditable(id: playlist.content.id)
+            return await spotifyEditablePlaylists().contains { $0.id == id }
+        case .deezer:
+            return await deezerUserPlaylists().contains { $0.id == id }
         case .plex:
             return true // Plex playlists live on the user's own server.
-        case .deezer:
-            guard let token = await deezerToken() else { return false }
-            return await deezer.isPlaylistEditable(id: playlist.content.id, accessToken: token)
         default:
             return false
         }

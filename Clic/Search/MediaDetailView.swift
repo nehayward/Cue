@@ -226,7 +226,6 @@ struct MediaDetailView: View {
                               systemImage: editMode.isEditing ? "checkmark" : "pencil")
                             .labelStyle(.iconOnly)
                     }
-                    .tint(editMode.isEditing ? .green : nil)
                     .keyboardShortcut("e", modifiers: [])
                 }
             }
