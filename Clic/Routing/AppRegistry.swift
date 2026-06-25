@@ -24,6 +24,7 @@ extension View {
                     .withEnvironments()
             case let .addToPlaylist(content):
                 AddToPlaylistSheet(content: content)
+                    .presentationDragIndicator(.hidden)
                     .withEnvironments()
             default:
                 Group {
