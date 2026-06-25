@@ -563,6 +563,27 @@ public final class SpotifyAPI {
         }
     }
 
+    /// Reorders items in a playlist. `rangeStart` is the index of the first item to move,
+    /// `insertBefore` is the index to move it before, `rangeLength` how many contiguous items.
+    public func reorderPlaylistItems(playlistID: String, rangeStart: Int, insertBefore: Int, rangeLength: Int = 1) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(playlistID)/tracks"
+        guard let url = components.url else { return false }
+
+        let body: [String: Any] = ["range_start": rangeStart, "insert_before": insertBefore, "range_length": rangeLength]
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return false }
+
+        do {
+            let _: SpotifySnapshotResponse = try await authorizedRequest(url, method: "PUT", body: data)
+            return true
+        } catch {
+            logger.error("Failed to reorder playlist: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     /// Adds tracks (Spotify URIs, e.g. `spotify:track:ID`) to a playlist.
     public func addTracksToPlaylist(playlistID: String, trackURIs: [String]) async -> Bool {
         guard !trackURIs.isEmpty else { return true }

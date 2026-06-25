@@ -53,9 +53,15 @@ struct MediaDetailView: View {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
 
-    /// Playlists whose tracks can be removed/reordered in-place (Sonos, Spotify, Plex, Deezer).
+    /// Playlists whose tracks can be removed in-place (Sonos, Spotify, Plex, Deezer).
     private var isEditablePlaylist: Bool {
         playableContent.isSonosPlaylist || playableContent.isEditableServicePlaylist
+    }
+
+    /// Playlists whose tracks can be reordered. Excludes Apple Music (no reorder API) and Deezer
+    /// (its reorder takes a full track-id list, unsafe for a paginated/partially loaded playlist).
+    private var canReorderTracks: Bool {
+        playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist
     }
     
     var body: some View {
@@ -112,7 +118,7 @@ struct MediaDetailView: View {
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            .onMove(perform: playableContent.isSonosPlaylist ? move : nil)
+            .onMove(perform: canReorderTracks ? move : nil)
             if tracks.isEmpty {
                 if !isLoaded {
                     ProgressView()
@@ -160,13 +166,14 @@ struct MediaDetailView: View {
                         }
                     }
                 } label: {
-                    Text("Delete Selected (\(selection.count))")
+                    Text("Remove (\(selection.count))")
                         .frame(maxWidth: .infinity)
                         .monospacedDigit()
                         .bold()
                         .geometryGroup()
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.red)
                 .padding(.horizontal)
 #if targetEnvironment(macCatalyst)
                 .padding(.bottom)
@@ -596,10 +603,14 @@ struct MediaDetailView: View {
     }
     
     private func move(from source: IndexSet, to destination: Int) {
-        tracks.move(fromOffsets: source, toOffset: destination)
-        Task {
-            guard let sourceIndex = source.first else { return }
-            try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+        if playableContent.isSonosPlaylist {
+            tracks.move(fromOffsets: source, toOffset: destination)
+            Task {
+                guard let sourceIndex = source.first else { return }
+                try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+            }
+        } else {
+            editor.moveTrack(from: source, to: destination, playlist: playableContent)
         }
     }
 }

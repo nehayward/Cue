@@ -427,6 +427,29 @@ public final class MusicSearchService {
         }
     }
 
+    /// Reorders a track within `playlist`. `orderedTracks` is the desired final order and
+    /// `from`/`to` are the SwiftUI move offsets (source index and destination offset).
+    ///
+    /// Supported where the move is positional or item-based: Spotify (range move) and Plex
+    /// (move-after-item). Apple Music has no reorder endpoint, and Deezer's only takes a full
+    /// track-id list, which would truncate a paginated (partially loaded) playlist — so both
+    /// return `false`.
+    public func reorderServicePlaylist(playlist: PlayableContent, orderedTracks: [PlayableContent], from: Int, to: Int) async -> Bool {
+        switch playlist.content.service {
+        case .spotify:
+            return await spotifySearchAPI.reorderPlaylistItems(playlistID: playlist.content.id, rangeStart: from, insertBefore: to)
+        case .plex:
+            let finalIndex = to > from ? to - 1 : to
+            guard orderedTracks.indices.contains(finalIndex),
+                  let playlistKey = plexRatingKey(from: playlist.content.id),
+                  let movedItemID = orderedTracks[finalIndex].metadata?.playlistItemID else { return false }
+            let afterItemID = finalIndex > 0 ? orderedTracks[finalIndex - 1].metadata?.playlistItemID : nil
+            return await plex.movePlaylistItem(playlistRatingKey: playlistKey, playlistItemID: movedItemID, afterItemID: afterItemID)
+        default:
+            return false
+        }
+    }
+
     public func isSpotifyAlbumSaved(id: String) async -> Bool {
         await spotifySearchAPI.isAlbumSaved(id: id)
     }

@@ -65,6 +65,24 @@ final class PlaylistEditCoordinator {
                       undoManager: undoManager)
     }
 
+    /// Reorders a track within the editing playlist, optimistically updating the visible list and
+    /// reverting if the service rejects the move. Reorder isn't undoable (parity with Sonos move).
+    func moveTrack(from source: IndexSet, to destination: Int, playlist: PlayableContent) {
+        guard owns(playlist), source.first != nil else { return }
+        let sourceIndex = source.first!
+        let previous = tracks
+        tracks.move(fromOffsets: source, toOffset: destination)
+        let reordered = tracks
+
+        Task {
+            let success = await service.reorderServicePlaylist(playlist: playlist, orderedTracks: reordered, from: sourceIndex, to: destination)
+            if !success {
+                tracks = previous
+                alertService.showAlert(with: "Couldn't reorder track", imageName: "exclamationmark.triangle")
+            }
+        }
+    }
+
     /// Registers native undo for an add that already happened elsewhere (e.g. the "Add to Playlist"
     /// menu). Only meaningful where the inverse (remove) is supported — Spotify, Plex, and Deezer.
     func registerExternalAdd(track: PlayableContent, to playlist: PlayableContent, undoManager: UndoManager?) {

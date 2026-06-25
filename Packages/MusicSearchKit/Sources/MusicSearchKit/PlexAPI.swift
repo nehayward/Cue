@@ -176,6 +176,25 @@ public final class PlexAPI {
         return (200...299).contains(http.statusCode)
     }
 
+    /// Moves a playlist item after another item, or to the front when `afterItemID` is nil.
+    public func movePlaylistItem(playlistRatingKey: String, playlistItemID: String, afterItemID: String?) async -> Bool {
+        guard let plexServer = await getPlexServer(),
+              let token = plexServer.accessToken,
+              var url = getBaseURL(for: plexServer)?.appending(path: "playlists/\(playlistRatingKey)/items/\(playlistItemID)/move") else {
+            return false
+        }
+        if let afterItemID {
+            url.append(queryItems: [URLQueryItem(name: "after", value: afterItemID)])
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse else { return false }
+        return (200...299).contains(http.statusCode)
+    }
+
     /// Removes a single item (identified by its playlist item id) from a playlist.
     public func removeFromPlaylist(playlistRatingKey: String, playlistItemID: String) async -> Bool {
         guard let plexServer = await getPlexServer(),
