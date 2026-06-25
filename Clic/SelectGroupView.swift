@@ -12,12 +12,21 @@ struct SelectGroupView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     
     var content: PlayableContent?
+    var defaultPosition: QueuePosition = .now
     @State private var filter: String = ""
     @State private var groupVolume: Double = 0
     @State private var selections = Set<String>()
-    
+    @State private var selectedPosition: QueuePosition = .now
+
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
-    
+    var onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil
+
+    /// Whether the queue-position selector applies — only when a caller wires
+    /// `onQueueSelection` and the content can actually be queued (i.e. not radio).
+    private var showsQueuePositions: Bool {
+        onQueueSelection != nil && (content.map { !$0.content.type.isRadio } ?? false)
+    }
+
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
     }
@@ -41,7 +50,18 @@ struct SelectGroupView: View {
                     PlayableContentRowView(item: content)
                         .padding([.top, .horizontal])
                 }
-                
+
+                if showsQueuePositions {
+                    Picker("Play", selection: $selectedPosition) {
+                        ForEach([QueuePosition.now, .next, .end, .replace]) { position in
+                            Text(position.shortTitle).tag(position)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ScrollView(.horizontal) {
@@ -188,7 +208,11 @@ struct SelectGroupView: View {
                                             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
                                             await sonosService.setRoomMute(IP: room.ip, mute: false)
                                         }
-                                        try await onSelection?(newGroup)
+                                        if let onQueueSelection {
+                                            try await onQueueSelection(newGroup, selectedPosition)
+                                        } else {
+                                            try await onSelection?(newGroup)
+                                        }
                                         try await Task.sleep(for: .seconds(1))
                                         await sonosService.snapShotGroup(ip: newGroup.ip)
                                     }
@@ -197,7 +221,8 @@ struct SelectGroupView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "play.fill")
-                                Text("Play")
+                                Text(showsQueuePositions ? selectedPosition.title : "Play")
+                                    .contentTransition(.identity)
                             }
                             .bold()
                             .frame(maxWidth: .infinity)
@@ -221,6 +246,7 @@ struct SelectGroupView: View {
         .foregroundStyle(.primary)
         .fontDesign(.rounded)
         .task {
+            selectedPosition = defaultPosition
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
             }

@@ -191,17 +191,17 @@ struct PlayableMenuView: View {
         }
         Task { @MainActor in
             hideKeyboard()
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                 if shuffle {
                     await sonosService.setPlayMode(group.ip, mode: [.normal, .shuffle])
                 }
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title, showBanner: true))
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title, showBanner: true))
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: position, content: item))
                 return
             }
-            try await queueSong(group)
+            try await queueSong(group, position)
         }
     }
     
