@@ -25,6 +25,11 @@ struct GenreListView: View {
                 })) {
                     Text(genre.title)
                 }
+                .task {
+                    if browseService.genres.firstIndex(of: genre) ?? 0 >= browseService.genres.count / 2 {
+                        await browseService.updateGenres(offset: browseService.genres.count)
+                    }
+                }
             }
         }
         .miniPlayerOnScrollHandler()
