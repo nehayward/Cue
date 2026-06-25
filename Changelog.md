@@ -35,7 +35,7 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `PlayableContentList`: replaced the one-shot `.task` load-more indicator with an `.onAppear` sentinel gated by `isLoadingMore` / `hasMoreContent`, so pages load as the user nears the bottom without racing the initial load
 - `GenreListView`: added a guarded near-the-end paging trigger (`isLoadingMore` / `hasMoreGenres`); `FolderBrowseView`: added offset paging for Sonos folder contents via `browseFolder(folderID:offset:)`, Apple Music folders keep their single-request path
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
-- `PlayableContentList`: consolidated the three alphabetical-grouping closures into one `sectioned(_:)` helper that groups and sorts once per render, down from O(letters × items) caused by re-subscripting the computed dictionary per section
+- Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
 ---
 

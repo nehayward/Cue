@@ -3,6 +3,14 @@ import MusicKit
 import MusicSearchKit
 import OrderedCollections
 
+/// An alphabetical bucket of library items (e.g. all albums under "D"),
+/// precomputed so list views can render sections without regrouping per render.
+public struct LibrarySection: Identifiable, Equatable {
+    public let letter: String
+    public let items: [PlayableContent]
+    public var id: String { letter }
+}
+
 @Observable
 public final class LibraryBrowseService {
     public static var shared = LibraryBrowseService()
@@ -17,6 +25,12 @@ public final class LibraryBrowseService {
     public var playlists: OrderedSet<PlayableContent> = []
     public var importedPlaylists: OrderedSet<PlayableContent> = []
     public var folders: OrderedSet<PlayableContent> = []
+
+    /// Alphabetically grouped views of `albums` / `artists` / `playlists`,
+    /// recomputed only when the underlying set changes (not on every render).
+    public private(set) var albumSections: [LibrarySection] = []
+    public private(set) var artistSections: [LibrarySection] = []
+    public private(set) var playlistSections: [LibrarySection] = []
 
     public init() { }
 
@@ -46,6 +60,9 @@ public final class LibraryBrowseService {
         for newAlbum in newAlbums {
             albums.updateOrAppend(newAlbum)
         }
+        if !newAlbums.isEmpty {
+            albumSections = Self.groupedSections(from: albums)
+        }
         return newAlbums.count >= pageSize
     }
 
@@ -57,6 +74,9 @@ public final class LibraryBrowseService {
         let newArtists = await sonosAPI.getLibraryItems(IP: ip, type: .artist, offset: max(offset, 0), requestedCount: pageSize)
         for newArtist in newArtists {
             artists.updateOrAppend(newArtist)
+        }
+        if !newArtists.isEmpty {
+            artistSections = Self.groupedSections(from: artists)
         }
         return newArtists.count >= pageSize
     }
@@ -89,6 +109,31 @@ public final class LibraryBrowseService {
         guard let ip = sonosService.prioritizedIP() else { return }
         let newPlaylists = await sonosAPI.getLibraryItems(IP: ip, type: .playlist, offset: 0, requestedCount: 0)
         playlists = OrderedSet(newPlaylists)
+        playlistSections = Self.groupedSections(from: playlists)
+    }
+
+    /// Removes a playlist locally and refreshes the grouped sections.
+    @MainActor
+    public func removePlaylist(id: String) {
+        playlists.removeAll { $0.id == id }
+        playlistSections = Self.groupedSections(from: playlists)
+    }
+
+    /// Groups items into alphabetical sections sorted by leading letter,
+    /// bucketing non-letter titles under "#". Computed once per data change.
+    private static func groupedSections<S: Sequence>(from items: S) -> [LibrarySection] where S.Element == PlayableContent {
+        let groups = Dictionary(grouping: items) { item -> String in
+            guard let scalar = item.title
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .unicodeScalars
+                .first,
+                  CharacterSet.letters.contains(scalar)
+            else { return "#" }
+
+            return String(scalar).uppercased()
+        }
+
+        return groups.keys.sorted().map { LibrarySection(letter: $0, items: groups[$0] ?? []) }
     }
     
     @MainActor

@@ -62,7 +62,7 @@ struct PlayableContentList: View {
 
     @ViewBuilder
     private var albumSections: some View {
-        ForEach(groupedAlbums, id: \.letter) { section in
+        ForEach(browseService.albumSections) { section in
             Section(header: Text(section.letter)) {
                 ForEach(section.items) { item in
                     VStack {
@@ -76,7 +76,7 @@ struct PlayableContentList: View {
 
     @ViewBuilder
     private var artistSections: some View {
-        ForEach(groupedArtists, id: \.letter) { section in
+        ForEach(browseService.artistSections) { section in
             Section(header: Text(section.letter)) {
                 ForEach(section.items) { item in
                     VStack {
@@ -90,7 +90,7 @@ struct PlayableContentList: View {
 
     @ViewBuilder
     private var playlistSections: some View {
-        ForEach(groupedPlaylists, id: \.letter) { section in
+        ForEach(browseService.playlistSections) { section in
             Section(header: Text(section.letter)) {
                 ForEach(section.items) { item in
                     VStack {
@@ -100,7 +100,7 @@ struct PlayableContentList: View {
                         Button("Delete", role: .destructive) {
                             Task {
                                 await sonosService.delete(playlistID: item.id)
-                                browseService.playlists.removeAll { $0.id == item.id }
+                                browseService.removePlaylist(id: item.id)
                             }
                         }
                     }
@@ -223,37 +223,5 @@ struct PlayableContentList: View {
         default:
             hasMoreContent = false
         }
-    }
-
-    // MARK: - Alphabetical Grouping
-
-    private var groupedAlbums: [(letter: String, items: [PlayableContent])] {
-        sectioned(browseService.albums)
-    }
-
-    private var groupedArtists: [(letter: String, items: [PlayableContent])] {
-        sectioned(browseService.artists)
-    }
-
-    private var groupedPlaylists: [(letter: String, items: [PlayableContent])] {
-        sectioned(browseService.playlists)
-    }
-
-    /// Groups items into alphabetical sections sorted by leading letter.
-    /// Computes the grouping a single time so section views don't re-run it
-    /// once per letter (previously O(letters × items) per render).
-    private func sectioned<S: Sequence>(_ items: S) -> [(letter: String, items: [PlayableContent])] where S.Element == PlayableContent {
-        let groups = Dictionary(grouping: items) { item -> String in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-
-            return String(scalar).uppercased()
-        }
-
-        return groups.keys.sorted().map { (letter: $0, items: groups[$0] ?? []) }
     }
 }
