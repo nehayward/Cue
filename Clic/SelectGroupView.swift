@@ -133,6 +133,7 @@ struct SelectGroupView: View {
                                         .font(.subheadline.weight(.semibold))
                                         .monospacedDigit()
                                         .foregroundStyle(.secondary)
+                                        .transaction { $0.animation = nil }
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -163,7 +164,7 @@ struct SelectGroupView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .contentMargins(.bottom, EdgeInsets(top: 0, leading: 0, bottom: 120, trailing: 0), for: .scrollContent)
+                .contentMargins(.bottom, EdgeInsets(top: 0, leading: 0, bottom: 150, trailing: 0), for: .scrollContent)
                 .overlay(alignment: .bottom) {
                     VStack {
                         HStack {
@@ -243,7 +244,7 @@ struct SelectGroupView: View {
                         .transition(.slide)
                         .disabled(selections.isEmpty)
                         .opacity(selections.isEmpty ? 0.4 : 1)
-                        .animation(.default, value: selections.isEmpty)
+                        .animation(.interactiveSpring, value: selections.isEmpty)
                     }
                     .padding()
                     .background {
@@ -266,10 +267,10 @@ struct SelectGroupView: View {
         .addDismiss {
             dismiss()
         }
-        .animation(.default, value: sonosService.sorted)
-        .animation(.default, value: selections)
-        .animation(.default, value: playingRooms.map(\.id))
-        .animation(.default, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
+        .animation(.interactiveSpring, value: sonosService.sorted)
+        .animation(.interactiveSpring, value: selections)
+        .animation(.interactiveSpring, value: playingRooms.map(\.id))
+        .animation(.interactiveSpring, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
     }
     
     @ViewBuilder
@@ -358,7 +359,7 @@ struct SelectGroupView: View {
                         .opacity(isSelected ? 1 : 0)
                 }
                 .frame(width: 26, height: 26)
-                .animation(.snappy, value: isSelected)
+                .animation(.interactiveSpring, value: isSelected)
             }
             .fontDesign(.rounded)
             .padding(.horizontal, 16)
