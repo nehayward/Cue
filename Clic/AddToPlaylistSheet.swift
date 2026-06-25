@@ -29,6 +29,9 @@ struct AddToPlaylistSheet: View {
     @State private var showNewPlaylistAlert = false
     @State private var newPlaylistName: String = ""
     @State private var recentIDs: [String] = []
+    // PlayableContentRowView embeds PlayableMenuView, which needs a SelectedGroupService that the
+    // sheet's environment doesn't provide. Supply a throwaway one (the header is non-interactive).
+    @State private var headerGroupService = SelectedGroupService(group: nil)
 
     enum Segment: String { case service, sonos }
 
@@ -67,7 +70,12 @@ struct AddToPlaylistSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                banner
+                PlayableContentRowView(item: content, hideContentType: true)
+                    .environment(headerGroupService)
+                    .environment(PlexRatingCache.shared)
+                    .allowsHitTesting(false)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 if hasServiceSegment {
                     Picker("Destination", selection: $segment) {
                         Text(service.title).tag(Segment.service)
@@ -129,7 +137,7 @@ struct AddToPlaylistSheet: View {
 
     // MARK: - Subviews
 
-    /// Square artwork with a placeholder, used by the header banner and the playlist rows.
+    /// Square artwork with a placeholder, used by the playlist rows.
     @ViewBuilder
     private func artwork(_ url: URL?, size: CGFloat, cornerRadius: CGFloat) -> some View {
         LazyImage(url: url) { phase in
@@ -141,32 +149,6 @@ struct AddToPlaylistSheet: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-    }
-
-    /// Row-styled header for the track being added. Kept dependency-free on purpose:
-    /// PlayableContentRowView embeds the full action menu and requires group/router
-    /// environments the sheet doesn't provide (crashes on Catalyst).
-    @ViewBuilder
-    private var banner: some View {
-        HStack(spacing: 12) {
-            artwork(content.artwork ?? content.thumbnail, size: 50, cornerRadius: 6)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(content.title)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-                if !content.subtitle.isEmpty {
-                    Text(content.subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .fontDesign(.rounded)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
     }
 
     @ViewBuilder
