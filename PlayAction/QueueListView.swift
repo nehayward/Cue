@@ -342,11 +342,10 @@ struct QueueListView: View {
                         .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
                         .opacity(isSelected ? 0 : 1)
                     Circle()
-                        .fill(Color.accentColor)
+                        .fill(.teal.gradient)
                         .opacity(isSelected ? 1 : 0)
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.black)
                         .opacity(isSelected ? 1 : 0)
                 }
                 .frame(width: 26, height: 26)
@@ -387,7 +386,7 @@ struct QueueListView: View {
                 .colorScheme(.light)
                 
                 playButtons
-                    .tint(.accent)
+                    .tint(.accentColor)
             }
             if setVolume {
                 volumeRow
@@ -456,7 +455,6 @@ struct QueueListView: View {
                 .bold()
                 .fontDesign(.rounded)
                 .padding(.vertical, 14)
-                .foregroundStyle(.accent)
                 .background {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Color.accentColor.opacity(0.15))
