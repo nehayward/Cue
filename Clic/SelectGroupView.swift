@@ -197,14 +197,15 @@ struct SelectGroupView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "play.fill")
-                                Text(selections.count > 1 ? "Play in \(selections.count) Rooms" : "Play")
-                                    .contentTransition(.identity)
+                                Text("Play")
                             }
                             .bold()
                             .frame(maxWidth: .infinity)
                         }
                         .transition(.slide)
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.bordered)
+                        .tint(.accent)
+                        .foregroundStyle(.accent)
                         .disabled(selections.isEmpty)
                     }
                     .padding()
