@@ -223,8 +223,16 @@ struct AddToPlaylistSheet: View {
                     ? "Added to \(targets[0].title)"
                     : "Added to \(targets.count) playlists"
                 alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
+                if let target = targets.last { deepLink(to: target) }
                 dismiss()
             }
+        }
+    }
+
+    /// Makes the resulting toast tap through to the playlist's detail screen.
+    private func deepLink(to playlist: PlayableContent) {
+        alertService.alert.handleTap = {
+            Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
         }
     }
 
@@ -262,6 +270,7 @@ struct AddToPlaylistSheet: View {
                 if let created {
                     LastPlaylist.save(created)
                     alertService.showAlertContent(with: content, subtitle: "Created \(created.title)", symbolName: "plus")
+                    deepLink(to: created)
                 }
                 dismiss()
             }
