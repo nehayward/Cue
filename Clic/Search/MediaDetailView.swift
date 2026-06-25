@@ -53,15 +53,22 @@ struct MediaDetailView: View {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
 
-    /// Playlists whose tracks can be removed in-place (Sonos, Spotify, Plex, Deezer).
+    /// For a non-Sonos service playlist, whether the user can actually edit it (owns it or it's
+    /// collaborative). Confirmed at load — streaming services let you browse playlists you can't edit.
+    @State private var serviceEditable = false
+
+    /// Playlists whose tracks can be removed in-place. Streaming playlists also require confirmed
+    /// ownership, so editing isn't offered on followed/editorial playlists.
     private var isEditablePlaylist: Bool {
-        playableContent.isSonosPlaylist || playableContent.isEditableServicePlaylist
+        playableContent.isSonosPlaylist || (playableContent.isEditableServicePlaylist && serviceEditable)
     }
 
     /// Playlists whose tracks can be reordered. Excludes Apple Music (no reorder API) and Deezer
-    /// (its reorder takes a full track-id list, unsafe for a paginated/partially loaded playlist).
+    /// (its reorder takes a full track-id list, unsafe for a paginated/partially loaded playlist),
+    /// and requires confirmed ownership for streaming playlists.
     private var canReorderTracks: Bool {
-        playableContent.isSonosPlaylist || playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist
+        playableContent.isSonosPlaylist
+            || ((playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist) && serviceEditable)
     }
     
     var body: some View {
@@ -89,7 +96,7 @@ struct MediaDetailView: View {
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
-                    } else if playableContent.isEditableServicePlaylist {
+                    } else if playableContent.isEditableServicePlaylist && serviceEditable {
                         Button(role: .destructive) {
                             editor.removeTrack(at: index, undoManager: undoManager)
                         } label: {
@@ -182,7 +189,10 @@ struct MediaDetailView: View {
         }
         .task {
             editor.configure(playlist: playableContent)
+            // Confirm edit permission concurrently so it doesn't delay track loading.
+            async let editable = confirmServiceEditable()
             await updateTracks(offset: loadedItemCount)
+            serviceEditable = await editable
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -608,6 +618,12 @@ struct MediaDetailView: View {
         }
     }
     
+    /// Whether the current streaming playlist is editable by the user (owned/collaborative).
+    private func confirmServiceEditable() async -> Bool {
+        guard playableContent.isEditableServicePlaylist else { return false }
+        return await musicSearchService.canEditServicePlaylist(playableContent)
+    }
+
     private func move(from source: IndexSet, to destination: Int) {
         if playableContent.isSonosPlaylist {
             tracks.move(fromOffsets: source, toOffset: destination)

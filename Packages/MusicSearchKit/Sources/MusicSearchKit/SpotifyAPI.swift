@@ -521,6 +521,12 @@ public final class SpotifyAPI {
         }
     }
 
+    /// Whether the authenticated user can edit the playlist — they own it or it's collaborative.
+    public func isPlaylistEditable(id: String) async -> Bool {
+        guard let me = await currentUser(), let details = await playlist(id: id) else { return false }
+        return details.collaborative || details.owner.id == me.id
+    }
+
     /// The authenticated user's playlists that they can modify (owned or collaborative).
     public func editableUserPlaylists() async -> [SpotifyUserPlaylists] {
         guard let me = await currentUser() else { return [] }

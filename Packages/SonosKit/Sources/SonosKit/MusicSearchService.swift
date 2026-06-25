@@ -427,6 +427,23 @@ public final class MusicSearchService {
         }
     }
 
+    /// Whether the authenticated user can edit `playlist` (owns it or it's collaborative). Used to
+    /// gate the editing UI, since streaming services let you browse playlists you can't modify.
+    /// Apple Music has no edit API, so it returns `false`.
+    public func canEditServicePlaylist(_ playlist: PlayableContent) async -> Bool {
+        switch playlist.content.service {
+        case .spotify:
+            return await spotifySearchAPI.isPlaylistEditable(id: playlist.content.id)
+        case .plex:
+            return true // Plex playlists live on the user's own server.
+        case .deezer:
+            guard let token = await deezerToken() else { return false }
+            return await deezer.isPlaylistEditable(id: playlist.content.id, accessToken: token)
+        default:
+            return false
+        }
+    }
+
     /// Reorders a track within `playlist`. `orderedTracks` is the desired final order and
     /// `from`/`to` are the SwiftUI move offsets (source index and destination offset).
     ///
