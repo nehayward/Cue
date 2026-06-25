@@ -16,6 +16,8 @@ struct GenreListView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
 
     @State private var alertService = AlertService()
+    @State private var isLoadingMore = false
+    @State private var hasMoreGenres = true
 
     var body: some View {
         List {
@@ -26,9 +28,7 @@ struct GenreListView: View {
                     Text(genre.title)
                 }
                 .task {
-                    if browseService.genres.firstIndex(of: genre) ?? 0 >= browseService.genres.count / 2 {
-                        await browseService.updateGenres(offset: browseService.genres.count)
-                    }
+                    await loadMoreIfNeeded(currentGenre: genre)
                 }
             }
         }
@@ -38,8 +38,21 @@ struct GenreListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .fontDesign(.rounded)
         .task {
-            await browseService.updateGenres()
+            hasMoreGenres = await browseService.updateGenres()
         }
+    }
+
+    /// Loads the next page of genres as the user nears the end, guarded so it
+    /// doesn't re-fire redundant requests once the list is exhausted.
+    private func loadMoreIfNeeded(currentGenre: PlayableContent) async {
+        guard !isLoadingMore, hasMoreGenres,
+              (browseService.genres.firstIndex(of: currentGenre) ?? 0) >= browseService.genres.count / 2
+        else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        hasMoreGenres = await browseService.updateGenres(offset: browseService.genres.count)
     }
 }
 

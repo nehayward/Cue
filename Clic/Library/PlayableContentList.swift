@@ -62,37 +62,37 @@ struct PlayableContentList: View {
 
     @ViewBuilder
     private var albumSections: some View {
-        ForEach(groupedAlbums.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedAlbums[letter] ?? []) { item in
+        ForEach(groupedAlbums, id: \.letter) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var artistSections: some View {
-        ForEach(groupedArtists.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedArtists[letter] ?? []) { item in
+        ForEach(groupedArtists, id: \.letter) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
 
     @ViewBuilder
     private var playlistSections: some View {
-        ForEach(groupedPlaylists.keys.sorted(), id: \.self) { letter in
-            Section(header: Text(letter)) {
-                ForEach(groupedPlaylists[letter] ?? []) { item in
+        ForEach(groupedPlaylists, id: \.letter) { section in
+            Section(header: Text(section.letter)) {
+                ForEach(section.items) { item in
                     VStack {
                         PlayableContentView(item: item)
                     }
@@ -106,7 +106,7 @@ struct PlayableContentList: View {
                     }
                 }
             }
-            .sectionIndex(letter)
+            .sectionIndex(section.letter)
         }
     }
     
@@ -227,42 +227,33 @@ struct PlayableContentList: View {
 
     // MARK: - Alphabetical Grouping
 
-    private var groupedAlbums: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.albums) { item in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-            
-            return String(scalar).uppercased()
-        }
+    private var groupedAlbums: [(letter: String, items: [PlayableContent])] {
+        sectioned(browseService.albums)
     }
 
-    private var groupedArtists: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.artists) { item in
-            guard let scalar = item.title
-                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-                .unicodeScalars
-                .first,
-                  CharacterSet.letters.contains(scalar)
-            else { return "#" }
-            
-            return String(scalar).uppercased()
-        }
+    private var groupedArtists: [(letter: String, items: [PlayableContent])] {
+        sectioned(browseService.artists)
     }
 
-    private var groupedPlaylists: [String: [PlayableContent]] {
-        Dictionary(grouping: browseService.playlists) { item in
+    private var groupedPlaylists: [(letter: String, items: [PlayableContent])] {
+        sectioned(browseService.playlists)
+    }
+
+    /// Groups items into alphabetical sections sorted by leading letter.
+    /// Computes the grouping a single time so section views don't re-run it
+    /// once per letter (previously O(letters × items) per render).
+    private func sectioned<S: Sequence>(_ items: S) -> [(letter: String, items: [PlayableContent])] where S.Element == PlayableContent {
+        let groups = Dictionary(grouping: items) { item -> String in
             guard let scalar = item.title
                 .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
                 .unicodeScalars
                 .first,
                   CharacterSet.letters.contains(scalar)
             else { return "#" }
-            
+
             return String(scalar).uppercased()
         }
+
+        return groups.keys.sorted().map { (letter: $0, items: groups[$0] ?? []) }
     }
 }

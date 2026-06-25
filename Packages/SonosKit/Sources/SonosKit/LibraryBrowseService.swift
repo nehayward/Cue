@@ -71,13 +71,17 @@ public final class LibraryBrowseService {
     }
 
 
+    /// Fetches one page of genres starting at `offset`. Returns `true` when a
+    /// full page was returned, indicating more items may be available.
     @MainActor
-    public func updateGenres(offset: Int = 0) async {
-        guard let ip = sonosService.prioritizedIP() else { return }
-        let items = await sonosAPI.getLibraryItems(IP: ip, type: "A:GENRE:", offset: offset, requestedCount: 500)
+    @discardableResult
+    public func updateGenres(offset: Int = 0) async -> Bool {
+        guard let ip = sonosService.prioritizedIP() else { return false }
+        let items = await sonosAPI.getLibraryItems(IP: ip, type: "A:GENRE:", offset: offset, requestedCount: pageSize)
         for item in items {
             genres.updateOrAppend(item)
         }
+        return items.count >= pageSize
     }
 
     @MainActor
