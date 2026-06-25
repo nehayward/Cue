@@ -13,6 +13,8 @@ struct PlayableContentList: View {
     @Environment(Router.self) var router
 
     @State private var isLoading: Bool = false
+    @State private var isLoadingMore: Bool = false
+    @State private var hasMoreContent: Bool = true
     @State private var navigationTitle: String = ""
     
     var type: ContentType
@@ -108,13 +110,15 @@ struct PlayableContentList: View {
         }
     }
     
+    @ViewBuilder
     private var loadMoreIndicator: some View {
-        ProgressView()
-            .frame(maxWidth: .infinity, alignment: .center)
-            .listRowBackground(Color.clear)
-            .opacity(0.01)
-            .task { await loadMoreContent() }
-            .listRowSeparator(.hidden)
+        if hasMoreContent {
+            ProgressView()
+                .frame(maxWidth: .infinity, alignment: .center)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .onAppear { Task { await loadMoreContent() } }
+        }
     }
     
     private var loadingOverlay: some View {
@@ -188,33 +192,36 @@ struct PlayableContentList: View {
     private func loadInitialContent() async {
         isLoading = true
         defer { isLoading = false }
-        
+
         switch type {
         case .track:
-            await browseService.updateSongs()
+            hasMoreContent = await browseService.updateSongs()
         case .album:
-            await browseService.updateAlbum()
+            hasMoreContent = await browseService.updateAlbum()
         case .artist:
-            await browseService.updateArtists()
+            hasMoreContent = await browseService.updateArtists()
         case .playlist:
             await browseService.updatePlaylists()
+            hasMoreContent = false
         default:
-            break
+            hasMoreContent = false
         }
     }
-    
+
     private func loadMoreContent() async {
+        guard !isLoading, !isLoadingMore, hasMoreContent else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
         switch type {
         case .track:
-            await browseService.updateSongs(offset: browseService.songs.count - 1)
+            hasMoreContent = await browseService.updateSongs(offset: browseService.songs.count)
         case .album:
-            await browseService.updateAlbum(offset: browseService.albums.count - 1)
+            hasMoreContent = await browseService.updateAlbum(offset: browseService.albums.count)
         case .artist:
-            await browseService.updateArtists(offset: browseService.artists.count - 1)
-        case .playlist:
-            await browseService.updatePlaylists()
+            hasMoreContent = await browseService.updateArtists(offset: browseService.artists.count)
         default:
-            break
+            hasMoreContent = false
         }
     }
 

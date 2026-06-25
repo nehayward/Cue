@@ -21,50 +21,44 @@ public final class LibraryBrowseService {
     public init() { }
 
     /// Number of items requested per `Browse` page. Sonos paginates the music
-    /// library via `StartingIndex` / `RequestedCount`, so we loop through every
-    /// page rather than relying on a single fixed-size request.
+    /// library via `StartingIndex` / `RequestedCount`; callers fetch the next
+    /// page as the user scrolls.
     @ObservationIgnored private let pageSize = 500
 
-    public func updateSongs(offset: Int = 0) async {
-        guard let ip = sonosService.prioritizedIP() else { return }
-        var currentOffset = max(offset, 0)
-        while true {
-            let newSongs = await sonosAPI.getLibraryItems(IP: ip, type: .track, offset: currentOffset, requestedCount: pageSize)
-            if newSongs.isEmpty { break }
-            for newSong in newSongs {
-                songs.updateOrAppend(newSong)
-            }
-            if newSongs.count < pageSize { break }
-            currentOffset += newSongs.count
+    /// Fetches one page of songs starting at `offset`. Returns `true` when a
+    /// full page was returned, indicating more items may be available.
+    @discardableResult
+    public func updateSongs(offset: Int = 0) async -> Bool {
+        guard let ip = sonosService.prioritizedIP() else { return false }
+        let newSongs = await sonosAPI.getLibraryItems(IP: ip, type: .track, offset: max(offset, 0), requestedCount: pageSize)
+        for newSong in newSongs {
+            songs.updateOrAppend(newSong)
         }
+        return newSongs.count >= pageSize
     }
 
-    public func updateAlbum(offset: Int = 0) async {
-        guard let ip = sonosService.prioritizedIP() else { return }
-        var currentOffset = max(offset, 0)
-        while true {
-            let newAlbums = await sonosAPI.getLibraryItems(IP: ip, type: .album, offset: currentOffset, requestedCount: pageSize)
-            if newAlbums.isEmpty { break }
-            for newAlbum in newAlbums {
-                albums.updateOrAppend(newAlbum)
-            }
-            if newAlbums.count < pageSize { break }
-            currentOffset += newAlbums.count
+    /// Fetches one page of albums starting at `offset`. Returns `true` when a
+    /// full page was returned, indicating more items may be available.
+    @discardableResult
+    public func updateAlbum(offset: Int = 0) async -> Bool {
+        guard let ip = sonosService.prioritizedIP() else { return false }
+        let newAlbums = await sonosAPI.getLibraryItems(IP: ip, type: .album, offset: max(offset, 0), requestedCount: pageSize)
+        for newAlbum in newAlbums {
+            albums.updateOrAppend(newAlbum)
         }
+        return newAlbums.count >= pageSize
     }
 
-    public func updateArtists(offset: Int = 0) async {
-        guard let ip = sonosService.prioritizedIP() else { return }
-        var currentOffset = max(offset, 0)
-        while true {
-            let newArtists = await sonosAPI.getLibraryItems(IP: ip, type: .artist, offset: currentOffset, requestedCount: pageSize)
-            if newArtists.isEmpty { break }
-            for newArtist in newArtists {
-                artists.updateOrAppend(newArtist)
-            }
-            if newArtists.count < pageSize { break }
-            currentOffset += newArtists.count
+    /// Fetches one page of artists starting at `offset`. Returns `true` when a
+    /// full page was returned, indicating more items may be available.
+    @discardableResult
+    public func updateArtists(offset: Int = 0) async -> Bool {
+        guard let ip = sonosService.prioritizedIP() else { return false }
+        let newArtists = await sonosAPI.getLibraryItems(IP: ip, type: .artist, offset: max(offset, 0), requestedCount: pageSize)
+        for newArtist in newArtists {
+            artists.updateOrAppend(newArtist)
         }
+        return newArtists.count >= pageSize
     }
     
     @MainActor
