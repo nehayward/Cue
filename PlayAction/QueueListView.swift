@@ -346,7 +346,7 @@ struct QueueListView: View {
                         .opacity(isSelected ? 1 : 0)
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.black)
                         .opacity(isSelected ? 1 : 0)
                 }
                 .frame(width: 26, height: 26)
