@@ -28,6 +28,7 @@ struct AddToPlaylistSheet: View {
     @State private var isLoadingSonos = true
     @State private var showNewPlaylistAlert = false
     @State private var newPlaylistName: String = ""
+    @State private var recentIDs: [String] = []
 
     enum Segment: String { case service, sonos }
 
@@ -42,6 +43,21 @@ struct AddToPlaylistSheet: View {
         let list = segment == .service ? servicePlaylists : sonosPlaylists
         guard !query.isEmpty else { return list }
         return list.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    }
+
+    /// Up to three recently-added playlists for the current segment, shown as a quick-pick.
+    /// Hidden while searching.
+    private var recentPlaylists: [PlayableContent] {
+        guard query.isEmpty else { return [] }
+        let list = segment == .service ? servicePlaylists : sonosPlaylists
+        let byID = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return recentIDs.compactMap { byID[$0] }.prefix(3).map { $0 }
+    }
+
+    /// The full list minus anything already surfaced in "Recently Added".
+    private var otherPlaylists: [PlayableContent] {
+        let recent = Set(recentPlaylists.map(\.id))
+        return currentPlaylists.filter { !recent.contains($0.id) }
     }
 
     private var isLoading: Bool {
@@ -99,6 +115,7 @@ struct AddToPlaylistSheet: View {
         }
         .presentationDetents([.medium, .large])
         .task {
+            recentIDs = LastPlaylist.recentIDs
             if hasServiceSegment, let saved = Segment(rawValue: storedSegment) {
                 segment = saved
             } else {
@@ -171,18 +188,30 @@ struct AddToPlaylistSheet: View {
                 ContentUnavailableView("No Playlists", systemImage: "music.note.list")
                     .listRowSeparator(.hidden)
             } else {
-                ForEach(currentPlaylists) { playlist in
-                    Button {
-                        toggle(playlist)
-                    } label: {
-                        row(for: playlist)
+                if !recentPlaylists.isEmpty {
+                    Section("Recently Added") {
+                        ForEach(recentPlaylists) { selectableRow($0) }
                     }
-                    .tint(.primary)
+                }
+                Section {
+                    ForEach(otherPlaylists) { selectableRow($0) }
+                } header: {
+                    if !recentPlaylists.isEmpty { Text("All Playlists") }
                 }
             }
         }
         .listStyle(.plain)
         .animation(.default, value: segment)
+    }
+
+    @ViewBuilder
+    private func selectableRow(_ playlist: PlayableContent) -> some View {
+        Button {
+            toggle(playlist)
+        } label: {
+            row(for: playlist)
+        }
+        .tint(.primary)
     }
 
     @ViewBuilder

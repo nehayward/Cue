@@ -45,12 +45,26 @@ struct LastPlaylist {
         }
     }
 
-    /// Persists `content` as the last-used playlist and refreshes the Mac menu bar.
+    /// Playlist ids the user added to recently, most-recent first.
+    static var recentIDs: [String] {
+        UserDefaults.standard.stringArray(forKey: AppStorageKeys.recentPlaylistIDs) ?? []
+    }
+
+    private static let recentLimit = 12
+
+    /// Persists `content` as the last-used playlist, records it in the recents list, and refreshes
+    /// the Mac menu bar.
     static func save(_ content: PlayableContent) {
         let defaults = UserDefaults.standard
         defaults.set(content.id, forKey: AppStorageKeys.lastPlaylistID)
         defaults.set(content.title, forKey: AppStorageKeys.lastPlaylistTitle)
         defaults.set(content.content.service.sonosRawValue, forKey: AppStorageKeys.lastPlaylistService)
+
+        // Move this playlist to the front of the recents list (dedup, capped).
+        var recents = recentIDs.filter { $0 != content.id }
+        recents.insert(content.id, at: 0)
+        defaults.set(Array(recents.prefix(recentLimit)), forKey: AppStorageKeys.recentPlaylistIDs)
+
         #if targetEnvironment(macCatalyst)
         UIMenuSystem.main.setNeedsRebuild()
         #endif
