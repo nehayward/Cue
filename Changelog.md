@@ -29,6 +29,14 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 - `"Play:5"` kept; the 2026 portable "Play" matched by exact last-token comparison so its siblings are excluded
 - `"Era"` left broad (Era 100/100 SL/300 all support line-in via the USB-C adapter); `"Move 2"`, `"Five"`, `"Amp"`, `"Connect"`, `"Port"` unchanged
 
+### Sonos library pagination
+- Library browse lists made a single fixed-size `Browse` request and relied on a one-shot `.task`-fired indicator that never re-triggered, so libraries larger than one page were silently truncated — Albums stopped ~mid-"D" (first 500); Artists only looked complete because there were fewer than 500
+- `LibraryBrowseService.updateSongs` / `updateAlbum` / `updateArtists` / `updateGenres` now fetch one page at `offset` and return whether a full page came back (`count >= pageSize`); callers request the next page at `offset == current count`, deduped via `updateOrAppend`
+- `PlayableContentList`: replaced the one-shot `.task` load-more indicator with an `.onAppear` sentinel gated by `isLoadingMore` / `hasMoreContent`, so pages load as the user nears the bottom without racing the initial load
+- `GenreListView`: added a guarded near-the-end paging trigger (`isLoadingMore` / `hasMoreGenres`); `FolderBrowseView`: added offset paging for Sonos folder contents via `browseFolder(folderID:offset:)`, Apple Music folders keep their single-request path
+- `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
+- `PlayableContentList`: consolidated the three alphabetical-grouping closures into one `sectioned(_:)` helper that groups and sorts once per render, down from O(letters × items) caused by re-subscripting the computed dictionary per section
+
 ---
 
 ## 2026.5
