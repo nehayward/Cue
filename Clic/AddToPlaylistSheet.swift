@@ -94,12 +94,11 @@ struct AddToPlaylistSheet: View {
                     Button {
                         addSelectedAndDismiss()
                     } label: {
-                        Image(systemName: "checkmark")
+                        Label("Done", systemImage: "checkmark")
                             .fontWeight(.semibold)
-                            .foregroundStyle(.primary)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
+                    .labelStyle(.iconOnly)
+                    .tint(.green.opacity(0.8))
                     .disabled(selected.isEmpty)
                     .accessibilityLabel("Done")
                 }
