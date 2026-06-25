@@ -443,16 +443,32 @@ struct QueueListView: View {
                 .disabled(isQueueing)
             }
         } else {
+            let isRadio = content?.content.type.isRadio ?? false
             Button {
                 performPlay()
             } label: {
-                Text("Play")
-                    .frame(maxWidth: .infinity)
-                    .bold()
-                    .fontDesign(.rounded)
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text(isRadio ? "Play" : queuePosition.title)
+                        .contentTransition(.identity)
+                }
+                .frame(maxWidth: .infinity)
+                .bold()
+                .fontDesign(.rounded)
+                .padding(.vertical, 14)
+                .foregroundStyle(.accent)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.15))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                        }
+                }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .disabled(selections.isEmpty || isQueueing)
+            .opacity((selections.isEmpty || isQueueing) ? 0.4 : 1)
         }
     }
 

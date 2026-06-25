@@ -21,10 +21,10 @@ struct SelectGroupView: View {
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
     var onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil
 
-    /// Whether the queue-position selector applies — only when a caller wires
-    /// `onQueueSelection` and the content can actually be queued (i.e. not radio).
+    /// Whether the queue-position selector applies — shown whenever there's
+    /// queueable content (i.e. not radio).
     private var showsQueuePositions: Bool {
-        onQueueSelection != nil && (content.map { !$0.content.type.isRadio } ?? false)
+        content.map { !$0.content.type.isRadio } ?? false
     }
 
     private var activeRooms: [Room] {
@@ -226,12 +226,22 @@ struct SelectGroupView: View {
                             }
                             .bold()
                             .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .foregroundStyle(.accent)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.15))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                                    }
+                            }
                         }
+                        .buttonStyle(.plain)
                         .transition(.slide)
-                        .buttonStyle(.bordered)
-                        .tint(.accent)
-                        .foregroundStyle(.accent)
                         .disabled(selections.isEmpty)
+                        .opacity(selections.isEmpty ? 0.4 : 1)
+                        .animation(.default, value: selections.isEmpty)
                     }
                     .padding()
                     .background {
