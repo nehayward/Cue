@@ -16,13 +16,13 @@ struct URLPlayMediaView: View {
     @State private var content: PlayableContent?
 
     var body: some View {
-        SelectGroupView(content: content) { group in
+        SelectGroupView(content: content, defaultPosition: position, onQueueSelection: { group, selectedPosition in
             guard let content else { return }
-            try await sonosService.queue(playable: content, group: group, position: position)
+            try await sonosService.queue(playable: content, group: group, position: selectedPosition)
             playHistoryService.history.remove(content)
             playHistoryService.history.insert(content, at: 0)
             await sonosService.play(ip: group.ip)
-        }
+        })
         .task {
             if content == nil {
                 content = await sonosService.getContent(from: url)

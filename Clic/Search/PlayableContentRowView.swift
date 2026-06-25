@@ -144,31 +144,27 @@ struct PlayableContentRowView: View {
         }
         hideKeyboard()
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, item, parent, index, total] group in
+            let defaultPosition = position ?? QueuePosition.defaultPosition(
+                for: (parent ?? item).content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { [item, parent, index, total] group, selectedPosition in
                 if let parent, position == nil {
-                    let finalPosition = position ?? QueuePosition.defaultPosition(
-                        for: parent.content.type,
-                        replaceQueueByDefault: replaceQueueByDefault
-                    )
-                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: finalPosition, index: index, total: total, showBanner: false))
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: selectedPosition, index: index, total: total, showBanner: false))
                     Router.main.show(destination: .player(groupID: group.coordinatorID))
                     return
                 }
-                let finalPosition = position ?? QueuePosition.defaultPosition(
-                    for: item.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition, index: index, total: total, title: finalPosition.title))
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, index: index, total: total, title: selectedPosition.title))
             }
-            
+
             guard let group = selectedGroupService?.group else {
                 if let selectedGroupService {
-                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
+                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: defaultPosition, content: item))
                 }
                 return
             }
-            
-            try await queueSong(group)
+
+            try await queueSong(group, defaultPosition)
         }
     }
     

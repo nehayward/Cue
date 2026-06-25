@@ -191,36 +191,36 @@ struct PlayableMenuView: View {
         }
         Task { @MainActor in
             hideKeyboard()
-            let queueSong: ((GroupRoom) async throws -> Void) = { group in
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                 if shuffle {
                     await sonosService.setPlayMode(group.ip, mode: [.normal, .shuffle])
                 }
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title, showBanner: true))
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title, showBanner: true))
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: position, content: item))
                 return
             }
-            try await queueSong(group)
+            try await queueSong(group, position)
         }
     }
     
     private func playFolder() {
         Task { @MainActor in
             hideKeyboard()
-            let enqueueFolder: ((GroupRoom) async throws -> Void) = { [self] group in
+            let enqueueFolder: ((GroupRoom, QueuePosition) async throws -> Void) = { [self] group, selectedPosition in
                 guard let browseService = appleMusicBrowseService else { return }
                 let (playlists, _) = await browseService.getPlaylistFolderContents(id: item.id, offset: 0)
                 let items = playlists.enumerated().map { index, playlist in
-                    QueueItem(playableContent: playlist, group: group, position: index == 0 ? .replace : .end, title: "Playing Folder \(item.title)", showBanner: true)
+                    QueueItem(playableContent: playlist, group: group, position: index == 0 ? selectedPosition : .end, title: "Playing Folder \(item.title)", showBanner: true)
                 }
                 QueueManager.shared.add(items: items)
             }
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: enqueueFolder, content: item))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: enqueueFolder, defaultPosition: .replace, content: item))
                 return
             }
-            try await enqueueFolder(group)
+            try await enqueueFolder(group, .replace)
         }
     }
 

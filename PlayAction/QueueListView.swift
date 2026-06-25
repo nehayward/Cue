@@ -277,7 +277,12 @@ struct QueueListView: View {
             }
             .padding()
             .background {
-                RoundedRectangle(cornerRadius: 12).foregroundStyle(.thinMaterial)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    }
             }
             .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, _ in length / 1.75 }
         }
@@ -317,24 +322,44 @@ struct QueueListView: View {
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(room.name).fontWeight(.semibold)
+                    Text(room.name).font(.body.weight(.semibold))
                     Text(subtitle)
                         .font(.caption)
                         .lineLimit(1, reservesSpace: true)
                         .foregroundStyle(isPlaying ? Color.accentColor : Color.secondary)
                 }
-                Spacer()
-                Text("\(Int(room.volume))").font(.callout).foregroundStyle(.secondary)
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(isSelected ? Color.accentColor : .primary.opacity(0.7))
+                Spacer(minLength: 4)
+                Text("\(Int(room.volume))")
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 22)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.quaternary))
+                ZStack {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
+                        .opacity(isSelected ? 0 : 1)
+                    Circle()
+                        .fill(.teal.gradient)
+                        .opacity(isSelected ? 1 : 0)
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .opacity(isSelected ? 1 : 0)
+                }
+                .frame(width: 26, height: 26)
+                .animation(.snappy, value: isSelected)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background {
-                RoundedRectangle(cornerRadius: 12).foregroundStyle(.thinMaterial)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(isSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
+                    }
             }
             .padding(.horizontal)
         }
@@ -361,7 +386,7 @@ struct QueueListView: View {
                 .colorScheme(.light)
                 
                 playButtons
-                    .tint(.teal)
+                    .tint(.accentColor)
             }
             if setVolume {
                 volumeRow
@@ -417,16 +442,31 @@ struct QueueListView: View {
                 .disabled(isQueueing)
             }
         } else {
+            let isRadio = content?.content.type.isRadio ?? false
             Button {
                 performPlay()
             } label: {
-                Text("Play")
-                    .frame(maxWidth: .infinity)
-                    .bold()
-                    .fontDesign(.rounded)
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text(isRadio ? "Play" : queuePosition.title)
+                        .contentTransition(.identity)
+                }
+                .frame(maxWidth: .infinity)
+                .bold()
+                .fontDesign(.rounded)
+                .padding(.vertical, 14)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.15))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                        }
+                }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
             .disabled(selections.isEmpty || isQueueing)
+            .opacity((selections.isEmpty || isQueueing) ? 0.4 : 1)
         }
     }
 
