@@ -14,6 +14,13 @@ private struct SpotifyCreatePlaylistResponse: Codable {
     let id: String
 }
 
+// Minimal `/playlists/{id}?fields=collaborative,owner.id` response for the editability check.
+private struct SpotifyPlaylistEditability: Decodable {
+    struct Owner: Decodable { let id: String }
+    let collaborative: Bool
+    let owner: Owner
+}
+
 /**
  * SpotifyAPI provides access to Spotify's Web API with support for token refresh handling.
  * 
@@ -522,10 +529,22 @@ public final class SpotifyAPI {
     }
 
     /// Whether the playlist is editable by `currentUserID` — they own it or it's collaborative.
-    /// Derived from a single `/playlists/{id}` lookup (owner + collaborative are in that response).
+    /// Uses a `fields`-filtered `/playlists/{id}` request so the response is just the owner id and
+    /// collaborative flag (no tracks payload).
     public func isPlaylistEditable(id: String, currentUserID: String) async -> Bool {
-        guard let details = await playlist(id: id) else { return false }
-        return details.collaborative || details.owner.id == currentUserID
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(id)"
+        components.queryItems = [URLQueryItem(name: "fields", value: "collaborative,owner.id")]
+        guard let url = components.url else { return false }
+        do {
+            let details: SpotifyPlaylistEditability = try await authorizedRequest(url)
+            return details.collaborative || details.owner.id == currentUserID
+        } catch {
+            logger.error("Failed to check playlist editability: \(error.localizedDescription)")
+            return false
+        }
     }
 
     /// The authenticated user's playlists that they can modify (owned or collaborative).
