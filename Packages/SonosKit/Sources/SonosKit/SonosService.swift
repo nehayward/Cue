@@ -75,8 +75,8 @@ public final class SonosService {
         }
     }
 
-    /// All households this device has ever successfully connected to, ordered by
-    /// most-recently connected. Persisted in iCloud so it syncs across devices.
+    /// All households this device has ever successfully connected to.
+    /// Persisted in iCloud so it syncs across devices.
     public var knownHouseholds: [SonosHousehold] {
         sonosSystemDiscoverService.knownHouseholds
     }
@@ -93,6 +93,7 @@ public final class SonosService {
 
     /// Removes a household from the known list. If it was the active household,
     /// the next discovery will start fresh (no preferred household).
+    @MainActor
     public func removeHousehold(id: String) {
         var households = sonosSystemDiscoverService.knownHouseholds
         households.removeAll { $0.id == id }
@@ -104,6 +105,7 @@ public final class SonosService {
     }
 
     /// Renames a household in the known list.
+    @MainActor
     public func renameHousehold(id: String, name: String) {
         var households = sonosSystemDiscoverService.knownHouseholds
         guard let idx = households.firstIndex(where: { $0.id == id }) else { return }

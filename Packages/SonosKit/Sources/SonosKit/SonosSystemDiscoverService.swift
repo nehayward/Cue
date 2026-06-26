@@ -86,6 +86,7 @@ final class SonosSystemDiscoverService {
 
     // Records or updates a household in the persistent known-households list.
     // Called every time we successfully connect to a device so the IP stays current.
+    @MainActor
     private func recordHousehold(id: String, ip: String) {
         var households = knownHouseholds
         if let idx = households.firstIndex(where: { $0.id == id }) {
@@ -102,6 +103,7 @@ final class SonosSystemDiscoverService {
     // Switches the active household: updates the cached IP and preferred household ID
     // so the next getFirstIP(useCache:) call races against the new household's last
     // known address. Call clearDevices() + monitor() after this to reconnect.
+    @MainActor
     func switchToHousehold(id: String) {
         guard let household = knownHouseholds.first(where: { $0.id == id }) else { return }
         sonosStorageIP.sonosIP = household.lastKnownIP
@@ -167,6 +169,7 @@ final class SonosSystemDiscoverService {
     }
 
     /// Performs the actual device discovery
+    @MainActor
     private func performDiscovery() async throws -> String {
         startBrowseAll()
 
