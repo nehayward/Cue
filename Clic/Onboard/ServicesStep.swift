@@ -25,7 +25,8 @@ struct ServicesStep: View {
         (.tidal, .tidal),
         (.plex, .plex),
         (.tunein, .tuneIn),
-        (.soundcloud, .soundcloud)
+        (.soundcloud, .soundcloud),
+        (.deezer, .deezer)
     ]
 
     private var hasAnySupported: Bool {
