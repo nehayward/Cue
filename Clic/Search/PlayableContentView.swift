@@ -17,7 +17,8 @@ struct PlayableContentView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @Environment(PlexRatingCache.self) private var plexRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+    @State private var audioService = AudioPlaybackService.shared
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -48,6 +49,16 @@ struct PlayableContentView: View {
     private var shouldShowPlainContent: Bool {
         hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
     }
+
+    private var isPreviewing: Bool {
+        guard let url = item.previewURL else { return false }
+        return audioService.isPreviewing(url)
+    }
+
+    private var previewProgress: Double {
+        guard audioService.duration > 0 else { return 0 }
+        return min(1, audioService.playbackProgress / audioService.duration)
+    }
     
     var body: some View {
 //        let _ = Self._printChanges()
@@ -76,11 +87,19 @@ struct PlayableContentView: View {
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailingInset))
         .listRowSeparator(.hidden)
+        .onDisappear {
+            if isPreviewing { AudioPlaybackService.shared.stopPreview() }
+        }
     }
     
     private var content: some View {
         Button {
-            play()
+            if isPreviewing {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                AudioPlaybackService.shared.stopPreview()
+            } else {
+                play()
+            }
         } label: {
             HStack {
                 if let index {
@@ -89,20 +108,20 @@ struct PlayableContentView: View {
                         .frame(width: 30, alignment: .center)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 if !hideArtwork {
                     ContentArtworkView(content: item)
                         .frame(width: 50, height: 50)
                         .allowsHitTesting(!hideArtwork)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(item.title)
                             .lineLimit(1)
                             .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
                             .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
-                        
+
                         Spacer(minLength: 0)
 
                         if item.content.service == .plex,
@@ -122,30 +141,70 @@ struct PlayableContentView: View {
                         .opacity(0.7)
                         .font(.footnote)
                 }
-                
+
                 Spacer(minLength: 0)
-                
+
                 if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                    // Keep the Menu in the tree at all times — swapping it out for the
+                    // stop icon via if/else churns the Menu's identity and underlying
+                    // gesture recognizers, which left taps landing mid-rebuild. Instead
+                    // disable it while previewing (so taps fall through to the cell's
+                    // stop handler) and overlay the stop icon on top.
                     Menu {
                         PlayableMenuView(item: item)
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
+                            .opacity(isPreviewing ? 0 : 1)
                     }
                     .tint(.primary)
+                    .disabled(isPreviewing)
+                    .overlay {
+                        if isPreviewing {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color.accentColor)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 }
             }
             .fontDesign(.rounded)
-            .contentShape(Rectangle())
+            .contentShape(.rect)
+            .overlay(alignment: .bottom) {
+                // Gated on isPreviewing so stopping removes the bar instantly,
+                // instead of animating its width back down to zero.
+                if isPreviewing {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient)
+                        .frame(height: 2)
+                        .scaleEffect(x: previewProgress, anchor: .leading)
+                        .animation(.linear(duration: 0.3), value: previewProgress)
+                        .ignoresSafeArea()
+                }
+            }
         }
-        .swipeActions {
+        .swipeActions(edge: .trailing) {
             if Self.swipeableTypes.contains(item.content.type) {
                 Button {
                     play(position: .next)
                 } label: {
                     Label("Play Next", systemImage: "text.insert")
                 }
+                .tint(.accentColor)
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if let previewURL = item.previewURL,
+               !previewURL.absoluteString.isEmpty,
+               [.track, .libraryTrack].contains(item.content.type) {
+                Button {
+                    AudioPlaybackService.shared.preview(url: previewURL, streaming: item.content.service == .plex)
+                } label: {
+                    Label("Preview", systemImage: "music.note")
+                }
+                .tint(.blue)
             }
         }
         .contextMenu {

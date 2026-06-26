@@ -1,5 +1,8 @@
 # 2026.6
 
+–– New Features ––
+- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
+
 –– Bug Fixes & Improvements ––
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 

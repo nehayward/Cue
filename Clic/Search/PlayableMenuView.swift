@@ -13,7 +13,6 @@ struct PlayableMenuView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
-
     var item: PlayableContent
 
     var body: some View {
@@ -53,23 +52,17 @@ struct PlayableMenuView: View {
                     } label: {
                         Label("Replace", systemImage: "play.fill")
                     }
-
-                    Button {
-                        play(position: .next)
-                    } label: {
-                        Label("Play Next", systemImage: "text.insert")
-                    }
-
-                    Button {
-                        play(position: .end)
-                    } label: {
-                        Label("Play Last", systemImage: "text.append")
-                    }
                     
                     Button {
                         play(position: .replace, shuffle: true)
                     } label: {
                         Label("Shuffle", systemImage: "shuffle")
+                    }
+
+                    Button {
+                        play(position: .next)
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
                     }
                 }
 
@@ -81,6 +74,13 @@ struct PlayableMenuView: View {
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
+                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
+                   [.track, .libraryTrack].contains(item.content.type),
+                   let previewURL = item.previewURL,
+                   !previewURL.absoluteString.isEmpty {
+                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
+                }
+
                 ControlGroup("Queue \(item.title)") {
                     Button {
                         play(position: .now)
