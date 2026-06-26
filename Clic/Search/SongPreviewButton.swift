@@ -7,10 +7,13 @@ import SwiftUI
 /// reliably without fighting the menu's view lifecycle.
 struct SongPreviewButton: View {
     let previewURL: URL
+    /// Stream progressively instead of downloading first (Plex serves the full
+    /// track rather than a short clip).
+    var streaming: Bool = false
 
     var body: some View {
         Button {
-            AudioPlaybackService.shared.preview(url: previewURL)
+            AudioPlaybackService.shared.preview(url: previewURL, streaming: streaming)
         } label: {
             Label("Preview Song", systemImage: "music.note")
         }

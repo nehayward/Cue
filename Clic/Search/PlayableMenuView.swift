@@ -74,11 +74,11 @@ struct PlayableMenuView: View {
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
-                if [.spotify, .apple, .deezer].contains(item.content.service),
+                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
                    [.track, .libraryTrack].contains(item.content.type),
                    let previewURL = item.previewURL,
                    !previewURL.absoluteString.isEmpty {
-                    SongPreviewButton(previewURL: previewURL)
+                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
                 }
 
                 ControlGroup("Queue \(item.title)") {

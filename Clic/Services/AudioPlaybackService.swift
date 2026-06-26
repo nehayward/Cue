@@ -27,6 +27,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     var volume: Float = 1.0 {
         didSet {
             audioPlayer?.volume = volume
+            streamPlayer?.volume = volume
         }
     }
 
@@ -48,6 +49,17 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
     @ObservationIgnored private var displayLink: CADisplayLink?
     @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
+
+    // Streaming path (used for sources without a short preview clip, e.g. Plex,
+    // where the only audio is the full track served from the user's server).
+    // AVPlayer streams progressively instead of downloading the whole file first.
+    @ObservationIgnored private var streamPlayer: AVPlayer?
+    @ObservationIgnored private var streamTimeObserver: Any?
+    @ObservationIgnored private var streamEndObserver: NSObjectProtocol?
+    @ObservationIgnored private var streamStatusObservation: NSKeyValueObservation?
+    /// Bumped on every new stream so stale observer callbacks can be ignored
+    /// without capturing the (non-Sendable) player/item into their closures.
+    @ObservationIgnored private var streamSession = 0
 
     // MARK: - Initialization
     override init() {
@@ -105,18 +117,26 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         }
     }
 
-    /// Plays a short preview using the `.playback` session so it is audible even
-    /// when the device's silent/mute switch is on — a preview is always an explicit
+    /// Plays a preview using the `.playback` session so it is audible even when
+    /// the device's silent/mute switch is on — a preview is always an explicit
     /// user tap, so honoring that intent matters more than respecting silent mode
     /// (this also matches Apple Music's own preview behavior). An explicit call
-    /// always (re)starts the clip from the beginning — even if the same URL is
-    /// already previewing — so the user can replay it. Manages its own Task
-    /// internally — call sites do not need `Task { await ... }`.
+    /// always (re)starts from the beginning — even if the same URL is already
+    /// previewing — so the user can replay it. Manages its own Task internally —
+    /// call sites do not need `Task { await ... }`.
+    ///
+    /// Pass `streaming: true` for sources that have no short preview clip and
+    /// instead serve the full track (e.g. Plex). Those stream progressively via
+    /// `AVPlayer` rather than downloading the whole file before playback.
     @MainActor
-    public func preview(url: URL) {
+    public func preview(url: URL, streaming: Bool = false) {
         previewTask?.cancel()
         previewTask = Task { @MainActor in
-            await play(url: url, category: .playback, options: [.duckOthers], isPreview: true)
+            if streaming {
+                playStream(url: url, category: .playback, options: [.duckOthers])
+            } else {
+                await play(url: url, category: .playback, options: [.duckOthers], isPreview: true)
+            }
         }
     }
 
@@ -159,6 +179,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     private func teardownAudio() {
         audioPlayer?.stop()
         audioPlayer = nil
+        teardownStream()
         playbackState = .stopped
         playbackProgress = 0
         duration = 0
@@ -173,6 +194,25 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         }
     }
 
+    /// Tears down the streaming player and its observers. Separate from
+    /// `teardownAudio` only so the setup code reads clearly; always called via it.
+    @MainActor
+    private func teardownStream() {
+        streamSession += 1  // invalidate any in-flight observer callbacks
+        streamPlayer?.pause()
+        if let streamTimeObserver {
+            streamPlayer?.removeTimeObserver(streamTimeObserver)
+        }
+        streamTimeObserver = nil
+        if let streamEndObserver {
+            NotificationCenter.default.removeObserver(streamEndObserver)
+        }
+        streamEndObserver = nil
+        streamStatusObservation?.invalidate()
+        streamStatusObservation = nil
+        streamPlayer = nil
+    }
+
     @MainActor
     public func seek(to position: TimeInterval) {
         guard let audioPlayer = audioPlayer else { return }
@@ -181,6 +221,80 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     }
 
     // MARK: - Private Methods
+
+    /// Streams a track progressively with `AVPlayer`. Used for preview sources
+    /// that serve the full file (e.g. Plex) so playback starts without first
+    /// downloading the whole track into memory. Drives the same observable state
+    /// (`playbackState`, `duration`, `playbackProgress`) as the clip path, so the
+    /// preview UI behaves identically. Streaming is always preview mode.
+    @MainActor
+    private func playStream(
+        url: URL,
+        category: AVAudioSession.Category,
+        options: AVAudioSession.CategoryOptions
+    ) {
+        teardownAudio()
+        isPreviewMode = true  // re-set correctly after teardown
+        currentTrack = url
+        playbackState = .loading
+        streamSession += 1
+        let session = streamSession
+
+        do {
+            try AVAudioSession.sharedInstance().setCategory(category, mode: .default, options: options)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            playbackState = .error(error.localizedDescription)
+            return
+        }
+
+        let item = AVPlayerItem(url: url)
+        let player = AVPlayer(playerItem: item)
+        player.volume = volume
+        streamPlayer = player
+
+        // Flip to .playing and capture the real duration once the item is ready.
+        // Read the values off the item here, then hop to the main actor with only
+        // Sendable values (status/Double/String) — never the item itself.
+        streamStatusObservation = item.observe(\.status, options: [.new]) { [weak self] observedItem, _ in
+            let status = observedItem.status
+            let seconds = observedItem.duration.seconds
+            let errorDescription = observedItem.error?.localizedDescription
+            Task { @MainActor in
+                guard let self, self.streamSession == session else { return }
+                switch status {
+                case .readyToPlay:
+                    if seconds.isFinite, seconds > 0 { self.duration = seconds }
+                    self.playbackState = .playing
+                case .failed:
+                    self.playbackState = .error(errorDescription ?? "Streaming failed")
+                default:
+                    break
+                }
+            }
+        }
+
+        // Drive the progress bar a few times a second.
+        let interval = CMTime(seconds: 0.2, preferredTimescale: 600)
+        streamTimeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            let seconds = time.seconds
+            Task { @MainActor in
+                guard let self, self.streamSession == session else { return }
+                self.playbackProgress = seconds
+            }
+        }
+
+        streamEndObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.stopPreview() }
+        }
+
+        player.play()
+    }
+
     @MainActor
     private func playAudioData(
         _ data: Data,

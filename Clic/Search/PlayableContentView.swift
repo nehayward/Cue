@@ -199,7 +199,7 @@ struct PlayableContentView: View {
                !previewURL.absoluteString.isEmpty,
                [.track, .libraryTrack].contains(item.content.type) {
                 Button {
-                    AudioPlaybackService.shared.preview(url: previewURL)
+                    AudioPlaybackService.shared.preview(url: previewURL, streaming: item.content.service == .plex)
                 } label: {
                     Label("Preview", systemImage: "music.note")
                 }

@@ -764,6 +764,9 @@ extension PlexMetadata {
                 type: ContentType(type)!,
                 location: nil
             ),
+            // Plex has no short preview clip — this is the full track streamed
+            // from the user's server (see AudioPlaybackService streaming path).
+            previewURL: streamURL,
             metadata: .init(
                 duration: Duration.milliseconds(duration ?? 0),
                 popularity: ratingCount,
