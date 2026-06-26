@@ -871,6 +871,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 Task { @MainActor in
                     let sonosService = SonosService.shared
                     let alertService = AlertService.shared
+                    let musicSearchService = MusicSearchService.shared
 
                     // Get current track from selected group
                     guard let selectedID = Router.main.selectedID,
@@ -881,28 +882,53 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         return
                     }
 
-                    let currentTrack = group.coordinatorRoom.track
-                    let playlists = await sonosService.sonosPlaylists()
+                    let track = group.coordinatorRoom.track.toPlayable
 
-                    var menuItems: [UIMenuElement] = []
-
-                    // Add existing playlists
-                    for playlist in playlists {
-                        let action = UIAction(title: playlist.title) { _ in
+                    // Adds `track` to `playlist`, dispatching to Sonos or the streaming service.
+                    func action(for playlist: PlayableContent) -> UIAction {
+                        UIAction(title: playlist.title) { _ in
                             Task { @MainActor in
-                                alertService.showAlertContent(with: currentTrack.toPlayable, subtitle: "Added to \(playlist.title)", symbolName: "plus")
-                                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: currentTrack.toPlayable)
-
-                                // Save as last used playlist and rebuild menu
+                                alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
+                                if playlist.content.service == .library {
+                                    await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
+                                } else {
+                                    _ = await musicSearchService.addToServicePlaylist(track: track, playlist: playlist)
+                                }
                                 LastPlaylist.save(playlist)
-
-                                // Set up tap to navigate to playlist
                                 alertService.alert.handleTap = {
                                     Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
                                 }
                             }
                         }
-                        menuItems.append(action)
+                    }
+
+                    var menuItems: [UIMenuElement] = []
+
+                    // The track's own streaming-service playlists (Apple Music / Spotify / Plex / Deezer).
+                    let service = track.content.service
+                    if [.apple, .spotify, .plex, .deezer].contains(service),
+                       [.track, .libraryTrack].contains(track.content.type) {
+                        let servicePlaylists: [PlayableContent]
+                        switch service {
+                        case .apple:   servicePlaylists = await musicSearchService.appleUserPlaylists()
+                        case .spotify: servicePlaylists = await musicSearchService.spotifyEditablePlaylists()
+                        case .plex:    servicePlaylists = await musicSearchService.plexUserPlaylists()
+                        case .deezer:  servicePlaylists = await musicSearchService.deezerUserPlaylists()
+                        default:       servicePlaylists = []
+                        }
+                        if !servicePlaylists.isEmpty {
+                            menuItems.append(UIMenu(title: service.title, options: .displayInline, children: servicePlaylists.map(action)))
+                        }
+                    }
+
+                    // Sonos playlists accept any track.
+                    let sonosPlaylists = await sonosService.sonosPlaylists()
+                    if !sonosPlaylists.isEmpty {
+                        menuItems.append(UIMenu(title: "Sonos", options: .displayInline, children: sonosPlaylists.map(action)))
+                    }
+
+                    if menuItems.isEmpty {
+                        menuItems = [UIAction(title: "No Playlists", attributes: .disabled) { _ in }]
                     }
 
                     completion(menuItems)
