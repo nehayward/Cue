@@ -25,7 +25,34 @@ final class HardwareVolumeService {
         volumeView?.subviews.compactMap { $0 as? UISlider }.first
     }
 
-    private init() {}
+    private var playbackObservers: [NSObjectProtocol] = []
+
+    private init() {
+        observeLocalPlayback()
+    }
+
+    deinit {
+        playbackObservers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    /// Yield the hardware volume buttons while `AudioPlaybackService` plays local
+    /// audio (e.g. a song preview), then reclaim them when it finishes. This
+    /// keeps the coupling one-way: the player broadcasts, we react. `suspend()` /
+    /// `resume()` are no-ops when we aren't running, so observing unconditionally
+    /// is safe.
+    private func observeLocalPlayback() {
+        let begin = NotificationCenter.default.addObserver(
+            forName: .audioPlaybackDidBegin, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.suspend() }
+        }
+        let end = NotificationCenter.default.addObserver(
+            forName: .audioPlaybackDidEnd, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.resume() }
+        }
+        playbackObservers = [begin, end]
+    }
 
     // MARK: - Public
 
@@ -57,7 +84,7 @@ final class HardwareVolumeService {
     /// configuration, so another audio-session owner (a song preview) can play
     /// and let the buttons control its own volume. Pairs with `resume()`. No-op
     /// if not currently running.
-    func suspend() {
+    private func suspend() {
         task?.cancel()
         task = nil
     }
@@ -65,7 +92,7 @@ final class HardwareVolumeService {
     /// Resume capturing after `suspend()`. Safe to call unconditionally: a no-op
     /// when the service was never started (nothing configured) or is already
     /// running.
-    func resume() {
+    private func resume() {
         guard volumeView != nil, task == nil else { return }
         restart()
     }
