@@ -131,14 +131,14 @@ struct PlayableMenuView: View {
                     }
                 }
 
-                ControlGroup {
-                    AddToLastPlaylistButton(itemToAdd: item)
-                    Button {
-                        router.sheet(to: .addToPlaylist(content: item))
-                    } label: {
-                        Label("Add to Playlist…", systemImage: "text.badge.plus")
-                    }
+                Divider()
+                AddToLastPlaylistButton(itemToAdd: item)
+                Button {
+                    router.sheet(to: .addToPlaylist(content: item))
+                } label: {
+                    Label("Add to Playlist…", systemImage: "text.badge.plus")
                 }
+                Divider()
               
                 // Library songs map to a catalog track behind the scenes, so the
                 // album/artist we open is the Apple Music catalog version — label
