@@ -68,8 +68,7 @@ final class PlaylistEditCoordinator {
     /// Reorders a track within the editing playlist, optimistically updating the visible list and
     /// reverting if the service rejects the move. Reorder isn't undoable (parity with Sonos move).
     func moveTrack(from source: IndexSet, to destination: Int, playlist: PlayableContent) {
-        guard owns(playlist), source.first != nil else { return }
-        let sourceIndex = source.first!
+        guard owns(playlist), let sourceIndex = source.first else { return }
         let previous = tracks
         tracks.move(fromOffsets: source, toOffset: destination)
         let reordered = tracks

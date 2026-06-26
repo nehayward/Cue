@@ -158,12 +158,13 @@ struct MediaDetailView: View {
                         selection.removeAll()
                     } else {
                         Task {
-                            for index in Array(selection).sorted(by: >) {
-                                try await SonosService.shared.removeTrackFromPlaylist(
+                            // Descending so each local removal keeps the remaining indices valid.
+                            for index in Array(selection).sorted(by: >) where tracks.indices.contains(index) {
+                                let removed = (try? await SonosService.shared.removeTrackFromPlaylist(
                                     playlistID: playableContent.id,
                                     index: index
-                                )
-                                tracks.remove(at: index)
+                                )) != nil
+                                if removed { tracks.remove(at: index) }
                             }
                             selection.removeAll()
                         }
@@ -647,10 +648,16 @@ struct MediaDetailView: View {
 
     private func move(from source: IndexSet, to destination: Int) {
         if playableContent.isSonosPlaylist {
+            guard let sourceIndex = source.first else { return }
+            let previous = tracks
             tracks.move(fromOffsets: source, toOffset: destination)
             Task {
-                guard let sourceIndex = source.first else { return }
-                try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+                do {
+                    try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
+                } catch {
+                    tracks = previous
+                    alertService.showAlert(with: "Couldn’t reorder track", imageName: "exclamationmark.triangle")
+                }
             }
         } else {
             editor.moveTrack(from: source, to: destination, playlist: playableContent)

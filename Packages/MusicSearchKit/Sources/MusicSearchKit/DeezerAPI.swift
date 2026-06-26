@@ -74,6 +74,18 @@ public final class DeezerAPI {
         await fetchList("/user/me/history", queryItems: .authed(token: accessToken, index: 0, limit: limit))
     }
 
+    /// The authenticated user's numeric id.
+    public func currentUserID(accessToken: String) async -> Int? {
+        let user: DeezerUser? = await fetch("/user/me", queryItems: [URLQueryItem(name: "access_token", value: accessToken)])
+        return user?.id
+    }
+
+    /// Whether the playlist is owned by `userID` (Deezer only lets you edit your own playlists).
+    public func isPlaylistEditable(id: String, ownedBy userID: Int) async -> Bool {
+        guard let details = await playlist(for: id) else { return false }
+        return details.user?.id == userID
+    }
+
     // MARK: - Playlist management (requires the `manage_library` OAuth scope)
 
     /// Creates a new playlist for the authenticated user. Returns the new playlist id.

@@ -195,9 +195,15 @@ struct AddToPlaylistSheet: View {
         .tint(.primary)
     }
 
+    /// Selection key namespaced by service, so a Sonos playlist and a streaming playlist that
+    /// happen to share a raw id (e.g. both numeric) can't collide across segments.
+    private func key(for playlist: PlayableContent) -> String {
+        "\(playlist.content.service.sonosRawValue):\(playlist.id)"
+    }
+
     @ViewBuilder
     private func row(for playlist: PlayableContent) -> some View {
-        let isSelected = selected[playlist.id] != nil
+        let isSelected = selected[key(for: playlist)] != nil
         HStack(spacing: 12) {
             artwork(playlist.thumbnail ?? playlist.artwork, size: 44, cornerRadius: 6)
 
@@ -216,10 +222,11 @@ struct AddToPlaylistSheet: View {
     // MARK: - Actions
 
     private func toggle(_ playlist: PlayableContent) {
-        if selected[playlist.id] != nil {
-            selected[playlist.id] = nil
+        let key = key(for: playlist)
+        if selected[key] != nil {
+            selected[key] = nil
         } else {
-            selected[playlist.id] = playlist
+            selected[key] = playlist
         }
     }
 

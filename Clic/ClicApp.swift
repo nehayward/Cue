@@ -972,9 +972,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         let currentTrack = group.coordinatorRoom.track.toPlayable
 
+        // Streaming playlists only accept tracks from the same service; Sonos accepts anything.
+        guard last.service == .library || last.service == currentTrack.content.service else {
+            alertService.showAlert(with: "Track isn’t on \(last.service.title)", imageName: "exclamationmark.triangle")
+            return
+        }
+
         Task { @MainActor in
+            guard await last.add(currentTrack) else {
+                alertService.showAlert(with: "Couldn’t add to \(last.title)", imageName: "exclamationmark.triangle")
+                return
+            }
             alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(last.title)", symbolName: "plus")
-            await last.add(currentTrack)
 
             // For Sonos playlists, let tapping the toast open the playlist.
             if last.service == .library {
