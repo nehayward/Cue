@@ -95,6 +95,7 @@ struct PlayableContentView: View {
     private var content: some View {
         Button {
             if isPreviewing {
+                HapticManager.shared.fireHaptic(.buttonPress)
                 AudioPlaybackService.shared.stopPreview()
             } else {
                 play()

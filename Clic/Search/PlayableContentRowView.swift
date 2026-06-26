@@ -145,6 +145,7 @@ struct PlayableContentRowView: View {
             case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
                 // Tapping a cell that's auditioning stops it, matching the list row.
                 if isPreviewing {
+                    HapticManager.shared.fireHaptic(.buttonPress)
                     AudioPlaybackService.shared.stopPreview()
                 } else {
                     play()
