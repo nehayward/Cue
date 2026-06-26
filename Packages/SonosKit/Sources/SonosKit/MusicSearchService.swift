@@ -53,6 +53,8 @@ public final class MusicSearchService {
     /// Session cache of the user's editable playlist ids per service, so the "can edit this
     /// playlist?" check is instant after the first fetch (also warmed by the add-to-playlist sheet).
     @ObservationIgnored private var editablePlaylistIDsCache: [MusicService: Set<String>] = [:]
+    /// Cached Spotify user id (fetched once) for the fast owner-based editability check.
+    @ObservationIgnored private var spotifyUserID: String?
     private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let tuneIn = TuneInAPI()
     private let sonosService = SonosService.shared
@@ -441,14 +443,30 @@ public final class MusicSearchService {
     /// Checks membership in the user's own playlists (the same list the add-to-playlist sheet uses),
     /// which is more reliable than a per-playlist owner lookup.
     public func canEditServicePlaylist(_ playlist: PlayableContent) async -> Bool {
+        let id = playlist.content.id
         switch playlist.content.service {
-        case .spotify, .deezer:
-            return await editablePlaylistIDs(for: playlist.content.service).contains(playlist.content.id)
+        case .spotify:
+            // Fast path: derive from the playlist's own owner/collaborative (one lookup + cached
+            // user id). Fall back to membership in the editable list if it can't be confirmed.
+            if let me = await cachedSpotifyUserID(),
+               await spotifySearchAPI.isPlaylistEditable(id: id, currentUserID: me) {
+                return true
+            }
+            return await editablePlaylistIDs(for: .spotify).contains(id)
+        case .deezer:
+            return await editablePlaylistIDs(for: .deezer).contains(id)
         case .plex:
             return true // Plex playlists live on the user's own server.
         default:
             return false
         }
+    }
+
+    /// The authenticated Spotify user id, cached for the session.
+    private func cachedSpotifyUserID() async -> String? {
+        if let spotifyUserID { return spotifyUserID }
+        spotifyUserID = await spotifySearchAPI.currentUser()?.id
+        return spotifyUserID
     }
 
     /// The cached set of editable playlist ids for `service`, fetching once if cold.
