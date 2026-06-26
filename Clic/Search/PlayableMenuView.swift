@@ -14,6 +14,8 @@ struct PlayableMenuView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
     var item: PlayableContent
+    /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" action.
+    var onRemoveFromPlaylist: (() -> Void)? = nil
 
     var body: some View {
         VStack {
@@ -192,6 +194,14 @@ struct PlayableMenuView: View {
                 playHistoryService.history.remove(item)
             } label: {
                 Label("Remove from History", systemImage: "trash")
+            }
+        }
+
+        if let onRemoveFromPlaylist {
+            Button(role: .destructive) {
+                onRemoveFromPlaylist()
+            } label: {
+                Label("Remove from Playlist", systemImage: "trash")
             }
         }
     }

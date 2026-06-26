@@ -27,6 +27,8 @@ struct PlayableContentView: View {
     var index: Int? = nil
     var dismissOnComplete: Bool = false
     var total: Int = 1
+    /// When set (track shown inside an editable playlist), adds a "Remove from Playlist" menu action.
+    var onRemoveFromPlaylist: (() -> Void)? = nil
     
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
@@ -151,7 +153,7 @@ struct PlayableContentView: View {
                     // disable it while previewing (so taps fall through to the cell's
                     // stop handler) and overlay the stop icon on top.
                     Menu {
-                        PlayableMenuView(item: item)
+                        PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 44, height: 44)
@@ -209,7 +211,7 @@ struct PlayableContentView: View {
         }
         .contextMenu {
             if adding == nil, !hideDetails {
-                PlayableMenuView(item: item)
+                PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
             }
         }
         .draggable(item) {
@@ -236,7 +238,7 @@ struct PlayableContentView: View {
         .fontDesign(.rounded)
         .contextMenu {
             if adding == nil, !hideDetails {
-                PlayableMenuView(item: item)
+                PlayableMenuView(item: item, onRemoveFromPlaylist: onRemoveFromPlaylist)
             }
         }
     }
