@@ -168,8 +168,8 @@ extension View {
                             SpeakerSettingsView(room: room)
                         }
                         .presentationDetents([.medium, .large])
-                    case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
-                        SelectGroupView(content: content, onSelection: onSelection)
+                    case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, onQueueSelection: onQueueSelection, defaultPosition: defaultPosition, content: content):
+                        SelectGroupView(content: content, defaultPosition: defaultPosition, onSelection: onSelection, onQueueSelection: onQueueSelection)
                             .presentationDetents([.fraction(0.8), .large])
                             .environment(selectedGroupService)
                     case .plexManagement:

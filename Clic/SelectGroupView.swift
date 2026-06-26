@@ -12,12 +12,23 @@ struct SelectGroupView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     
     var content: PlayableContent?
+    var defaultPosition: QueuePosition = .now
     @State private var filter: String = ""
     @State private var groupVolume: Double = 0
     @State private var selections = Set<String>()
-    
+    @State private var selectedPosition: QueuePosition = .now
+
     var onSelection: ((GroupRoom) async throws -> Void)? = nil
-    
+    var onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil
+
+    /// Whether the queue-position selector applies — shown when a caller wires
+    /// `onQueueSelection` (a real queue flow) and the content can be queued
+    /// (i.e. not radio). Grouping/radio callers that only pass `onSelection`
+    /// don't get a non-functional picker.
+    private var showsQueuePositions: Bool {
+        onQueueSelection != nil && (content.map { !$0.content.type.isRadio } ?? false)
+    }
+
     private var activeRooms: [Room] {
         sonosService.sortedRooms.filter { $0.state == .active }
     }
@@ -41,7 +52,18 @@ struct SelectGroupView: View {
                     PlayableContentRowView(item: content)
                         .padding([.top, .horizontal])
                 }
-                
+
+                if showsQueuePositions {
+                    Picker("Play", selection: $selectedPosition) {
+                        ForEach([QueuePosition.now, .next, .end, .replace]) { position in
+                            Text(position.shortTitle).tag(position)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ScrollView(.horizontal) {
@@ -72,8 +94,9 @@ struct SelectGroupView: View {
                                         }
                                         .padding()
                                         .background {
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .foregroundStyle(.thinMaterial)
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                   .fill(Color.primary.opacity(0.06))
+                                                   .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                                         }
                                         .containerRelativeFrame(.horizontal, alignment: .topLeading) { length, axis in
                                             length / 1.75
@@ -83,6 +106,7 @@ struct SelectGroupView: View {
                             }
                             .padding(.horizontal)
                         }
+                        .padding(.top)
                         .scrollIndicators(.hidden)
                         .scrollClipDisabled()
                         Divider()
@@ -99,15 +123,34 @@ struct SelectGroupView: View {
                                 }
                             }
                         } label: {
-                            Text(allSelected ? "Deselect All" : "Everywhere")
-                                .contentTransition(.identity)
-                                .frame(maxWidth: .infinity)
-                                .bold()
+                            HStack(spacing: 10) {
+                                Text(allSelected ? "Deselect All" : "Everywhere")
+                                    .fontWeight(.bold)
+                                    .contentTransition(.identity)
+                                Spacer(minLength: 4)
+                                if !selections.isEmpty {
+                                    Text("\(selections.count) of \(activeRooms.count)")
+                                        .font(.subheadline.weight(.semibold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                        .transaction { $0.animation = nil }
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .padding(.horizontal, 16)
+                            .foregroundStyle(.accent)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.accentColor.opacity(allSelected ? 0.22 : 0.14))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                                    }
+                            }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.plain)
                         .fontDesign(.rounded)
-                        .tint(.accent)
-                        .foregroundStyle(.accent)
                         .padding(.horizontal)
                         
                         // Playing rooms first, then others
@@ -121,7 +164,7 @@ struct SelectGroupView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .contentMargins(.bottom, EdgeInsets(top: 0, leading: 0, bottom: 120, trailing: 0), for: .scrollContent)
+                .contentMargins(.bottom, EdgeInsets(top: 0, leading: 0, bottom: 150, trailing: 0), for: .scrollContent)
                 .overlay(alignment: .bottom) {
                     VStack {
                         HStack {
@@ -168,21 +211,40 @@ struct SelectGroupView: View {
                                             await sonosService.setDeviceVolume(ip: room.ip, volume: Int(groupVolume))
                                             await sonosService.setRoomMute(IP: room.ip, mute: false)
                                         }
-                                        try await onSelection?(newGroup)
+                                        if let onQueueSelection {
+                                            try await onQueueSelection(newGroup, selectedPosition)
+                                        } else {
+                                            try await onSelection?(newGroup)
+                                        }
                                         try await Task.sleep(for: .seconds(1))
                                         await sonosService.snapShotGroup(ip: newGroup.ip)
-                                        print("DONE!")
                                     }
                                 }
                             }
                         } label: {
-                            Text("Play")
-                                .bold()
-                                .frame(maxWidth: .infinity)
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                Text(showsQueuePositions ? selectedPosition.title : "Play")
+                                    .contentTransition(.identity)
+                            }
+                            .bold()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .foregroundStyle(.accent)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.15))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1)
+                                    }
+                            }
                         }
+                        .buttonStyle(.plain)
                         .transition(.slide)
-                        .buttonStyle(.borderedProminent)
                         .disabled(selections.isEmpty)
+                        .opacity(selections.isEmpty ? 0.4 : 1)
+                        .animation(.interactiveSpring, value: selections.isEmpty)
                     }
                     .padding()
                     .background {
@@ -197,6 +259,7 @@ struct SelectGroupView: View {
         .foregroundStyle(.primary)
         .fontDesign(.rounded)
         .task {
+            selectedPosition = defaultPosition
             if sonosService.sortedRooms.isEmpty {
                 try? await sonosService.load(useCache: true)
             }
@@ -204,10 +267,10 @@ struct SelectGroupView: View {
         .addDismiss {
             dismiss()
         }
-        .animation(.default, value: sonosService.sorted)
-        .animation(.default, value: selections)
-        .animation(.default, value: playingRooms.map(\.id))
-        .animation(.default, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
+        .animation(.interactiveSpring, value: sonosService.sorted)
+        .animation(.interactiveSpring, value: selections)
+        .animation(.interactiveSpring, value: playingRooms.map(\.id))
+        .animation(.interactiveSpring, value: activeRooms.map { "\($0.id)-\($0.isPlaying)-\($0.track.name)" })
     }
     
     @ViewBuilder
@@ -252,11 +315,12 @@ struct SelectGroupView: View {
                 }
             }
         } label: {
+            let isSelected = selections.contains(room.id)
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(room.name)
-                        .fontWeight(.semibold)
-                    
+                        .font(.body.weight(.semibold))
+
                     if !room.track.name.isEmpty {
                         Text(room.track.name)
                             .font(.caption)
@@ -264,22 +328,50 @@ struct SelectGroupView: View {
                             .foregroundStyle(room.isPlaying ? .accent : .secondary)
                     }
                 }
-                
-                Spacer()
-                
+
+                Spacer(minLength: 4)
+
+                if room.isMuted {
+                    Image(systemName: "speaker.slash.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 Text("\(Int(room.volume))")
-                    .font(.callout)
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
-                
-                Image(systemName: selections.contains(room.id) ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
-                    .contentTransition(.symbolEffect(.replace))
-                    .foregroundStyle(selections.contains(room.id) ? Color.accentColor : .primary.opacity(0.7))
+                    .frame(minWidth: 22)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.quaternary))
+
+                ZStack {
+                    Circle()
+                        .strokeBorder(Color.primary.opacity(0.35), lineWidth: 2)
+                        .opacity(isSelected ? 0 : 1)
+                    Circle()
+                        .fill(Color.accentColor)
+                        .opacity(isSelected ? 1 : 0)
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.black)
+                        .opacity(isSelected ? 1 : 0)
+                }
+                .frame(width: 26, height: 26)
+                .animation(.interactiveSpring, value: isSelected)
             }
             .fontDesign(.rounded)
-            .padding(.horizontal)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(isSelected ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.08), lineWidth: 1)
+                    }
+            }
         } primaryAction: {
             HapticManager.shared.fireHaptic(.selection)
             if selections.contains(room.id) {

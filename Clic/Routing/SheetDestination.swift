@@ -25,7 +25,7 @@ enum SheetDestination: Identifiable, Equatable {
     case confirmDeletePlaylist(content: PlayableContent)
     case addToPlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
-    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, content: PlayableContent? = nil)
+    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
     case volumeControlsScreen(groupID: String)
     case onboard

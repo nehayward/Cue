@@ -596,6 +596,54 @@ public final class MusicSearchService {
         return response.items.first
     }
 
+    /// Converts a MusicKit track sequence to PlayableContent, enriching each Song
+    /// with its previewAssets.
+    ///
+    /// Songs returned via an album/playlist `.tracks` relationship don't carry
+    /// `previewAssets`, so we batch-fetch the missing ones with catalog resource
+    /// requests. The Apple Music catalog `ids` parameter is capped per request,
+    /// so IDs are chunked — otherwise a long playlist would exceed the cap and
+    /// the whole request would fail, leaving every track without a preview.
+    public func tracksToPlayableWithPreviews(_ tracks: some Sequence<MusicKit.Track>) async -> [PlayableContent] {
+        // Apple Music caps the number of ids per catalog resource request.
+        let batchSize = 100
+
+        let trackArray = Array(tracks)
+
+        var previewURLs: [MusicItemID: URL] = [:]
+
+        // Skip the network round trip for songs that already carry a preview.
+        var missingIDs: [MusicItemID] = []
+        for track in trackArray {
+            guard case .song(let song) = track else { continue }
+            if let url = song.previewAssets?.first?.url {
+                previewURLs[song.id] = url
+            } else {
+                missingIDs.append(song.id)
+            }
+        }
+
+        for chunk in stride(from: 0, to: missingIDs.count, by: batchSize) {
+            let ids = Array(missingIDs[chunk..<min(chunk + batchSize, missingIDs.count)])
+            let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids)
+            if let response = try? await request.response() {
+                for song in response.items {
+                    if let url = song.previewAssets?.first?.url {
+                        previewURLs[song.id] = url
+                    }
+                }
+            }
+        }
+
+        return trackArray.map { track in
+            var playable = track.toPlayable
+            if case .song(let song) = track {
+                playable.previewURL = previewURLs[song.id]
+            }
+            return playable
+        }
+    }
+
     public func lookup(id: String) async throws -> Playlist? {
         guard await requestMusicAuthorization() else { return nil }
         let playlistID = MusicItemID(id)

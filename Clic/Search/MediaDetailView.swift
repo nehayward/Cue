@@ -17,8 +17,9 @@ struct MediaDetailView: View {
     @Environment(AlertService.self) private var alertService
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
-    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @Environment(\.undoManager) private var undoManager
+  
+    @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
 
     let playableContent: PlayableContent
     @State private var content: PlayableContent?
@@ -148,7 +149,10 @@ struct MediaDetailView: View {
         .onChange(of: editMode.isEditing) { _, editing in
             withAnimation(.spring) { miniPlayerManager.hidden = editing }
         }
-        .onDisappear { miniPlayerManager.hidden = false }
+        .onDisappear {
+            miniPlayerManager.hidden = false
+            AudioPlaybackService.shared.stopPreview()
+        }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
         .scrollEdgeEffectHidden26(!showNavigationTitle)
@@ -387,11 +391,11 @@ struct MediaDetailView: View {
     private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
             let currentContent = content ?? playableContent
-            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, currentContent, totalSongs, tracks] group in
-                let position = QueuePosition.defaultPosition(
-                    for: currentContent.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
+            let defaultPosition = QueuePosition.defaultPosition(
+                for: currentContent.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { [currentContent, totalSongs, tracks] group, selectedPosition in
                 await SonosService.shared.setPlayMode(group.ip, mode: playMode)
                 group.playMode = playMode
 
@@ -399,7 +403,7 @@ struct MediaDetailView: View {
                     item: QueueItem(
                         playableContent: currentContent,
                         group: group,
-                        position: position,
+                        position: selectedPosition,
                         total: totalSongs ?? tracks.count,
                         showBanner: false
                     )
@@ -409,11 +413,11 @@ struct MediaDetailView: View {
             }
 
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: currentContent))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: defaultPosition, content: currentContent))
                 return
             }
-            
-            try await queue(group)
+
+            try await queue(group, defaultPosition)
         }
     }
     
@@ -455,7 +459,7 @@ struct MediaDetailView: View {
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryAlbum, .apple):
             if let album = await musicSearchService.appleLibraryAlbum(id: playableContent.id), let playableAlbum = album.data.first?.toPlayable {
                 content = playableAlbum
@@ -468,7 +472,7 @@ struct MediaDetailView: View {
             newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
-            newTracks = playlist.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(playlist)
         case (.libraryPlaylist, .apple):
             let (tracks, playlistCount) = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id, offset: offset)
             newTracks = tracks
@@ -498,14 +502,14 @@ struct MediaDetailView: View {
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryTrack, .apple):
             guard let catalogSong = await musicSearchService.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
             guard let song: Song = try? await musicSearchService.lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.track, .spotify):
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumID = song.album.id else { return }

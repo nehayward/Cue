@@ -37,6 +37,10 @@ public struct PlexMetadata: Codable {
     public var sonosID: String?
     public var thumbImageURL: URL?
     public var artImageURL: URL?
+    /// Direct, token-authenticated URL to stream the track's media file from the
+    /// user's Plex server. Populated by `PlexAPI` for track items (Plex has no
+    /// short preview clips, so this is the full file). Drives `previewURL`.
+    public var streamURL: URL?
 
     enum CodingKeys: String, CodingKey {
         case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, userRating
