@@ -1,4 +1,5 @@
 import MusicSearchKit
+import SonosKit
 import SwiftUI
 
 /// Onboarding's Plex setup page — only shown when Plex was found among the
@@ -18,6 +19,22 @@ struct PlexStep: View {
     @State private var isLoading = false
 
     private var isAuthorized: Bool { plexAuthenticator.authToken != nil }
+
+    /// Header copy reflects the current state so it never contradicts the body
+    /// (e.g. claiming "we picked a library" while still loading or when none
+    /// were found).
+    private var headerSubtitle: String {
+        if !isAuthorized {
+            return "Sign in to your Plex account — the same one linked to your Sonos system."
+        }
+        if isLoading {
+            return "Getting your Plex libraries ready…"
+        }
+        if allLibraries.isEmpty {
+            return "Signed in to Plex, but we couldn't find a music library yet."
+        }
+        return "We picked your first library and Remote Access. Tap a library to change it."
+    }
 
     /// All (server, library) pairs flattened for the picker list, preserving
     /// server order then library order.
@@ -62,9 +79,7 @@ struct PlexStep: View {
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
-            Text(isAuthorized
-                 ? "We picked your first library and Remote Access. Tap a library to change it."
-                 : "Sign in to your Plex account — the same one linked to your Sonos system.")
+            Text(headerSubtitle)
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 28)
