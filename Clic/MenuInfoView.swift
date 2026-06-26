@@ -32,7 +32,9 @@ struct MenuInfoView: View {
                     } label: {
                         Label("View Artist", systemImage: "music.mic")
                     }
-                    if !group.TVMode {
+                }
+                if !group.TVMode {
+                    ControlGroup {
                         AddToLastPlaylistButton(itemToAdd: group.coordinatorRoom.track.toPlayable)
                         Button {
                             router.sheet(to: .addToPlaylist(content: group.coordinatorRoom.track.toPlayable))
