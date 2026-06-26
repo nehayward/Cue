@@ -17,7 +17,7 @@ enum PlaybackState: Equatable {
 
 @Observable
 public final class AudioPlaybackService: NSObject, @unchecked Sendable {
-    public static var shared = AudioPlaybackService()
+    public static let shared = AudioPlaybackService()
 
     // MARK: - Public Properties
     var currentTrack: URL?
@@ -46,7 +46,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
 
     // MARK: - Private Properties
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
-    @ObservationIgnored private var progressObserver: Any?
+    @ObservationIgnored private var displayLink: CADisplayLink?
     @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
 
     // MARK: - Initialization
@@ -166,7 +166,8 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         isPreviewMode = false
         stopProgressObserver()
         do {
-            try AVAudioSession.sharedInstance().setActive(false)
+            // Notify others so any audio we ducked returns to full volume.
+            try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         } catch {
             print(error)
         }
@@ -183,8 +184,8 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @MainActor
     private func playAudioData(
         _ data: Data,
-        category: AVAudioSession.Category = .playback,
-        options: AVAudioSession.CategoryOptions = [.duckOthers]
+        category: AVAudioSession.Category,
+        options: AVAudioSession.CategoryOptions
     ) async throws {
         try AVAudioSession.sharedInstance().setCategory(category, mode: .default, options: options)
         try AVAudioSession.sharedInstance().setActive(true)
@@ -210,10 +211,10 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @MainActor
     private func startProgressObserver() {
         stopProgressObserver()
-        let displayLink = CADisplayLink(target: self, selector: #selector(updateProgress))
-        displayLink.preferredFramesPerSecond = 30
-        displayLink.add(to: .main, forMode: .common)
-        progressObserver = displayLink
+        let link = CADisplayLink(target: self, selector: #selector(updateProgress))
+        link.preferredFramesPerSecond = 30
+        link.add(to: .main, forMode: .common)
+        displayLink = link
     }
 
     @MainActor
@@ -222,11 +223,10 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         playbackProgress = audioPlayer.currentTime
     }
 
+    @MainActor
     private func stopProgressObserver() {
-        if let displayLink = progressObserver as? CADisplayLink {
-            displayLink.invalidate()
-        }
-        progressObserver = nil
+        displayLink?.invalidate()
+        displayLink = nil
     }
 }
 
