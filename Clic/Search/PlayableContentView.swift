@@ -19,6 +19,8 @@ struct PlayableContentView: View {
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var audioService = AudioPlaybackService.shared
 
+    @Environment(\.editMode) private var editMode
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -55,6 +57,26 @@ struct PlayableContentView: View {
     private var isPreviewing: Bool {
         guard let url = item.previewURL else { return false }
         return audioService.isPreviewing(url)
+    }
+
+    /// The track has a previewable clip we can audition.
+    private var hasPreview: Bool {
+        guard let url = item.previewURL, !url.absoluteString.isEmpty else { return false }
+        return [.track, .libraryTrack].contains(item.content.type)
+    }
+
+    private var isEditing: Bool {
+        editMode?.wrappedValue.isEditing == true
+    }
+
+    /// Starts or stops auditioning the track's preview clip.
+    private func togglePreview() {
+        HapticManager.shared.fireHaptic(.buttonPress)
+        if isPreviewing {
+            AudioPlaybackService.shared.stopPreview()
+        } else if let url = item.previewURL {
+            AudioPlaybackService.shared.preview(url: url, streaming: item.content.service == .plex)
+        }
     }
 
     private var previewProgress: Double {
@@ -115,6 +137,24 @@ struct PlayableContentView: View {
                     ContentArtworkView(content: item)
                         .frame(width: 50, height: 50)
                         .allowsHitTesting(!hideArtwork)
+                        .overlay {
+                            // In edit mode the row tap is consumed by selection, so offer a
+                            // tappable preview button on the artwork instead.
+                            if isEditing, hasPreview {
+                                Button {
+                                    togglePreview()
+                                } label: {
+                                    Image(systemName: isPreviewing ? "stop.circle.fill" : "play.circle.fill")
+                                        .font(.title2)
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, Color.accentColor)
+                                        .shadow(radius: 2)
+                                        .padding(4)
+                                        .background(.black.opacity(0.25), in: .rect(cornerRadius: 8))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
