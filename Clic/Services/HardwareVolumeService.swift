@@ -53,6 +53,23 @@ final class HardwareVolumeService {
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
+    /// Temporarily stop capturing the hardware volume buttons without discarding
+    /// configuration, so another audio-session owner (a song preview) can play
+    /// and let the buttons control its own volume. Pairs with `resume()`. No-op
+    /// if not currently running.
+    func suspend() {
+        task?.cancel()
+        task = nil
+    }
+
+    /// Resume capturing after `suspend()`. Safe to call unconditionally: a no-op
+    /// when the service was never started (nothing configured) or is already
+    /// running.
+    func resume() {
+        guard volumeView != nil, task == nil else { return }
+        restart()
+    }
+
     // MARK: - Private
 
     private func restart() {

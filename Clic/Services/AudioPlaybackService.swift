@@ -89,6 +89,27 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         #endif
     }
 
+    // MARK: - Hardware volume coordination
+
+    // A preview plays real audio through the device, so for its lifetime the
+    // hardware volume buttons must control the preview — not be repurposed for
+    // Sonos by HardwareVolumeService (which holds the audio session and resets
+    // the system volume). Suspend that service while a preview is active and
+    // resume it once playback ends. Both calls are no-ops when the feature is off.
+    @MainActor
+    private func suspendVolumeButtonCapture() {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        HardwareVolumeService.shared.suspend()
+        #endif
+    }
+
+    @MainActor
+    private func resumeVolumeButtonCapture() {
+        #if os(iOS) && !targetEnvironment(macCatalyst)
+        HardwareVolumeService.shared.resume()
+        #endif
+    }
+
     // MARK: - Public Methods
     @MainActor
     public func play(
@@ -114,6 +135,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         } catch {
             guard !Task.isCancelled else { return }
             playbackState = .error(error.localizedDescription)
+            resumeVolumeButtonCapture()
         }
     }
 
@@ -131,6 +153,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @MainActor
     public func preview(url: URL, streaming: Bool = false) {
         previewTask?.cancel()
+        suspendVolumeButtonCapture()
         previewTask = Task { @MainActor in
             if streaming {
                 playStream(url: url, category: .playback, options: [.duckOthers])
@@ -171,6 +194,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         previewTask?.cancel()
         previewTask = nil
         teardownAudio()
+        resumeVolumeButtonCapture()
     }
 
     /// Tears down the player and resets playback state. Does NOT cancel
@@ -245,6 +269,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             playbackState = .error(error.localizedDescription)
+            resumeVolumeButtonCapture()
             return
         }
 
@@ -268,6 +293,7 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
                     self.playbackState = .playing
                 case .failed:
                     self.playbackState = .error(errorDescription ?? "Streaming failed")
+                    self.resumeVolumeButtonCapture()
                 default:
                     break
                 }
@@ -356,6 +382,7 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
             }
             isPreviewMode = false
             stopProgressObserver()
+            resumeVolumeButtonCapture()
         }
     }
 
@@ -364,6 +391,7 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
             playbackState = .error(error?.localizedDescription ?? "Decode error occurred")
             isPreviewMode = false
             stopProgressObserver()
+            resumeVolumeButtonCapture()
         }
     }
 }
