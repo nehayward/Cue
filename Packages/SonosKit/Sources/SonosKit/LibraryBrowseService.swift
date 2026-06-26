@@ -41,6 +41,7 @@ public final class LibraryBrowseService {
 
     /// Fetches one page of songs starting at `offset`. Returns `true` when a
     /// full page was returned, indicating more items may be available.
+    @MainActor
     @discardableResult
     public func updateSongs(offset: Int = 0) async -> Bool {
         guard let ip = sonosService.prioritizedIP() else { return false }
@@ -53,6 +54,7 @@ public final class LibraryBrowseService {
 
     /// Fetches one page of albums starting at `offset`. Returns `true` when a
     /// full page was returned, indicating more items may be available.
+    @MainActor
     @discardableResult
     public func updateAlbum(offset: Int = 0) async -> Bool {
         guard let ip = sonosService.prioritizedIP() else { return false }
@@ -68,6 +70,7 @@ public final class LibraryBrowseService {
 
     /// Fetches one page of artists starting at `offset`. Returns `true` when a
     /// full page was returned, indicating more items may be available.
+    @MainActor
     @discardableResult
     public func updateArtists(offset: Int = 0) async -> Bool {
         guard let ip = sonosService.prioritizedIP() else { return false }
