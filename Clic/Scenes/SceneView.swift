@@ -86,7 +86,8 @@ struct SceneView: View {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         show = true
                     } label: {
-                        Image(systemName: "plus")
+                        Label("Create Scene", systemImage: "plus")
+                            .labelStyle(.iconOnly)
                             .accessibilityLabel("Create Scene")
                             .bold()
                             .foregroundStyle(Color.accentColor.gradient)

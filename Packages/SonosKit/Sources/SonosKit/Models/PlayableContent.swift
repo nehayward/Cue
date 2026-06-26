@@ -62,6 +62,24 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
     }
     
     public var isPlayable: Bool { metadata?.isPlayable ?? true }
+
+    public var serviceWebURL: URL? {
+        if let location = content.location { return location }
+        // For services where the web URL is deterministic from the content ID,
+        // derive it immediately rather than waiting for the async track info lookup.
+        switch (content.service, content.type) {
+        case (.spotify, .track):   return URL(string: "https://open.spotify.com/track/\(id)")
+        case (.spotify, .album):   return URL(string: "https://open.spotify.com/album/\(id)")
+        case (.spotify, .playlist): return URL(string: "https://open.spotify.com/playlist/\(id)")
+        case (.apple, .track):     return URL(string: "https://music.apple.com/song/\(id)")
+        case (.apple, .album):     return URL(string: "https://music.apple.com/album/\(id)")
+        case (.deezer, .track):    return URL(string: "https://www.deezer.com/track/\(id)")
+        case (.deezer, .album):    return URL(string: "https://www.deezer.com/album/\(id)")
+        case (.deezer, .artist):   return URL(string: "https://www.deezer.com/artist/\(id)")
+        case (.deezer, .playlist): return URL(string: "https://www.deezer.com/playlist/\(id)")
+        default: return nil
+        }
+    }
     
     public var uri: String {
         switch (content.type, content.service) {
@@ -117,6 +135,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return "x-sonos-http:track-%3Esoundcloud%3Atracks%3A\(id)?sid=160&amp;flags=32"
         case (.playlist, .soundcloud):
             return "x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)?sid=160&amp;amp;sn=23"
+        case (.track, .deezer):
+            return "x-sonos-http:tr-flac%3A\(id)?sid=2&amp;flags=32"
+        case (.album, .deezer):
+            return "x-rincon-cpcontainer:0004006calbum-\(id)"
+        case (.playlist, .deezer):
+            return "x-rincon-cpcontainer:0006006cplaylist_spotify%3Aplaylist-\(id)"
+        case (.artist, .deezer):
+            return ""
         case (.unique, _):
             return id
         default:
@@ -277,6 +303,18 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             return """
     &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;SA_RINCON40967_X_#Svc40967-7051ab01-Token&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0006006cplaylist-%3Esoundcloud%3Aplaylists%3A\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
     """
+        case (.track, .deezer):
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="00030020tr-flac%3A\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(deezerServiceToken)&lt;/desc&gt;&lt;res&gt;x-sonos-http:tr-flac%3A\(id)?sid=2&amp;amp;flags=32&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        case (.album, .deezer):
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0004006calbum-\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(deezerServiceToken)&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0004006calbum-\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
+        case (.playlist, .deezer):
+            return """
+    &lt;DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"&gt;&lt;item id="0006006cplaylist_spotify%3Aplaylist-\(id)" parentID="(ignored)" restricted="true"&gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.container.album.musicAlbum&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(deezerServiceToken)&lt;/desc&gt;&lt;res&gt;x-rincon-cpcontainer:0006006cplaylist_spotify%3Aplaylist-\(id)&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+    """
         case (_, .unknown):
             //            assertionFailure("Implement \(content.type)")
             return metadata?.URIMetadata ?? ""
@@ -323,6 +361,8 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         return "SA_RINCON52231_X_#Svc52231-0-Token"
     }
     
+    private var deezerServiceToken: String { "SA_RINCON519_X_#Svc519-0-Token" }
+
     private var spotifyMusicServiceToken: String {
         if let storedTokenID = GroupStorageKeys.storage?.string(forKey: Defaults.GroupStorageKeys.spotifyMusicTokenID), !storedTokenID.isEmpty {
             return storedTokenID
@@ -379,6 +419,10 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
             "x-sonosapi-radio:spotify%3atrackRadio%3a\(radioID)?sid=12&amp;flags=0&amp;sn=1"
         case (.track, .apple), (.songRadio, .apple):
             "x-sonosapi-radio:radio%3Ara.\(radioID)?sid=204&amp;flags=32"
+        case (.track, .deezer), (.songRadio, .deezer):
+            "x-sonosapi-radio:radio-track-\(radioID)?sid=2&amp;flags=8300"
+        case (.artist, .deezer), (.artistRadio, .deezer):
+            "x-sonosapi-radio:radio-artist-\(radioID)?sid=2&amp;flags=8300"
         default:
             nil
         }
@@ -401,6 +445,14 @@ public struct PlayableContent: Equatable, Codable, Hashable, Identifiable, Senda
         case (.track, .apple), (.songRadio, .apple):
             """
 \(Self.defaultXMLNSHeader) id="000c0020radio%3ara.\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle) Radio&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;\(appleXMLNSFooter())
+"""
+        case (.track, .deezer), (.songRadio, .deezer):
+            """
+\(Self.defaultXMLNSHeader) id="radio-track-\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(deezerServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
+"""
+        case (.artist, .deezer), (.artistRadio, .deezer):
+            """
+\(Self.defaultXMLNSHeader) id="radio-artist-\(radioID)" &gt;&lt;dc:title&gt;\(title.metaDataTitle)&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast.#artistRadio&lt;/upnp:class&gt;&lt;desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/"&gt;\(deezerServiceToken)&lt;/desc&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;
 """
         default:
             nil

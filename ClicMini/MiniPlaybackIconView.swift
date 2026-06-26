@@ -73,7 +73,7 @@ public struct VibeMiniGaugeView: View {
                     color.secondary.opacity(0.4),
                     lineWidth: lineWidth
                 )
-            if value > 0 {
+            if value > 0 && total > 0 {
                 Circle()
                     .trim(from: 0, to: CGFloat(min(value/total, 1.0)))
                     .stroke(

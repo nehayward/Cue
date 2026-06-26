@@ -12,6 +12,10 @@ extension CloudStorage where Value: Codable {
                 let value = try decoder.decode(Value.self, from: data)
                 return value
             } catch {
+                // Corrupted/incompatible cloud data should fall back to the
+                // default rather than crash (e.g. a stored OrderedSet that now
+                // contains duplicates throws DecodingError.dataCorrupted).
+                print("CloudStorage decode failed for key \(key): \(error)")
                 assertionFailure("\(error)")
                 return wrappedValue
             }
@@ -47,7 +51,7 @@ extension CloudStorageSync {
             let value = try decoder.decode(Value.self, from: data)
             return value
         } catch {
-            assertionFailure("\(error)")
+            print("CloudStorage decode failed for key \(key): \(error)")
             return nil
         }
     }

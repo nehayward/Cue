@@ -10,6 +10,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
     case tidal
     case tuneIn
     case soundcloud
+    case deezer
     case unknown
 
     public init?(service: String) {
@@ -28,6 +29,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             self = .tuneIn
         case "soundcloud":
             self = .soundcloud
+        case "deezer":
+            self = .deezer
         default:
             return nil
         }
@@ -49,6 +52,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "tunein"
         case .soundcloud:
             "soundcloud"
+        case .deezer:
+            "deezer"
         default:
             nil
         }
@@ -70,11 +75,13 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "SoundCloud"
         case .tuneIn:
             "TuneIn"
+        case .deezer:
+            "Deezer"
         default:
             ""
         }
     }
-    
+
     public var sonosRawValue: String {
         switch self {
         case .apple:
@@ -91,6 +98,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             "tunein"
         case .soundcloud:
             "soundcloud"
+        case .deezer:
+            "deezer"
         default:
             ""
         }
@@ -115,7 +124,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
             SwiftUI.Image(systemName: librarySymbolName)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-        case .tuneIn, .soundcloud:
+        case .tuneIn, .soundcloud, .deezer:
             SwiftUI.Image(self.title, bundle: .musicSearchKitBundle)
                 .renderingMode(.template)
                 .resizable()
@@ -147,12 +156,10 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .aspectRatio(contentMode: .fit)
         case .airplay, .unknown:
             EmptyView()
-        case .tuneIn, .soundcloud:
+        case .tuneIn, .soundcloud, .deezer:
             #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)!
-            let templated = base.withRenderingMode(.alwaysTemplate)
-            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
-            
+            let resized = base.resized(to: CGSize(width: 16, height: 16)).withRenderingMode(.alwaysTemplate)
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -168,8 +175,7 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         case .plex, .tidal, .spotify:
 #if targetEnvironment(macCatalyst)
             let base = UIImage(named: self.sonosRawValue.capitalized, in: .musicSearchKitBundle, with: nil)!
-            let templated = base.withRenderingMode(.alwaysTemplate)
-            let resized = templated.resized(to: CGSize(width: 16, height: 16)).withTintColor(.label)
+            let resized = base.resized(to: CGSize(width: 16, height: 16)).withRenderingMode(.alwaysTemplate)
             SwiftUI.Image(uiImage: resized)
                 .renderingMode(.template)
                 .resizable()
@@ -180,12 +186,43 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .foregroundStyle(brandColor)
-                .tint(brandColor)
+                .foregroundStyle(brandColor.gradient)
 #endif
         }
     }
     
+    /// Service supports radio / mix stations from a track or artist.
+    public var supportsRadio: Bool {
+        switch self {
+        case .spotify, .apple, .deezer: true
+        default: false
+        }
+    }
+
+    /// Service supports navigating to artist and album detail screens.
+    public var supportsViewArtistAlbum: Bool {
+        switch self {
+        case .spotify, .apple, .library, .tidal, .plex, .deezer, .soundcloud: true
+        default: false
+        }
+    }
+
+    /// Service supports favoriting / liking individual tracks.
+    public var supportsFavoriteTrack: Bool {
+        switch self {
+        case .spotify, .apple, .soundcloud, .deezer: true
+        default: false
+        }
+    }
+
+    /// Service supports saving / favoriting albums.
+    public var supportsFavoriteAlbum: Bool {
+        switch self {
+        case .spotify, .apple: true
+        default: false
+        }
+    }
+
     public var brandColor: Color {
         switch self {
         case .apple:
@@ -204,6 +241,8 @@ public enum MusicService: Sendable, Codable, CaseIterable {
                 .primary
         case .soundcloud:
             Color(red: 255.0 / 255.0, green: 85.0 / 255.0, blue: 0 / 255.0)
+        case .deezer:
+            Color(red: 161.0 / 255.0, green: 0 / 255.0, blue: 255.0 / 255.0)
         case .unknown:
                 .primary
         }
@@ -227,6 +266,7 @@ extension MusicService {
         case "tidal":      self = .tidal
         case "tuneIn":     self = .tuneIn
         case "soundcloud": self = .soundcloud
+        case "deezer":     self = .deezer
         default:           self = .unknown
         }
     }

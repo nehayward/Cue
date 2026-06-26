@@ -59,7 +59,8 @@ final class CoreFeatures {
             (.spotify, .spotify),
             (.tidal, .tidal),
             (.tuneIn, .tunein),
-            (.soundcloud, .soundcloud)
+            (.soundcloud, .soundcloud),
+            (.deezer, .deezer)
         ]
 
         for (service, sonosType) in mapping {
@@ -80,6 +81,7 @@ final class CoreFeatures {
         if installed.contains(.tidal) { return .tidal }
         if installed.contains(.plex) { return .plex }
         if installed.contains(.soundcloud) { return .soundcloud }
+        if installed.contains(.deezer) { return .deezer }
         if installed.contains(.tunein) { return .tuneIn }
         return .library
     }

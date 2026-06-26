@@ -23,7 +23,7 @@ enum SheetDestination: Identifiable, Equatable {
     case newPlaylist(group: GroupRoom? = nil)
     case renamePlaylist(content: PlayableContent)
     case speakerSettings(room: Room)
-    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, content: PlayableContent? = nil)
+    case selectGroup(selectedGroupService: SelectedGroupService, onSelection: ((GroupRoom) async throws -> Void)? = nil, onQueueSelection: ((GroupRoom, QueuePosition) async throws -> Void)? = nil, defaultPosition: QueuePosition = .now, content: PlayableContent? = nil)
     case plexManagement
     case volumeControlsScreen(groupID: String)
     case onboard
@@ -31,6 +31,7 @@ enum SheetDestination: Identifiable, Equatable {
     case spotifyUserPlaylists
     case reorderAppleLibrarySections
     case reorderSpotifyLibrarySections
+    case reorderSoundCloudLibrarySections
     case shareToWatch
 
     var id: String {

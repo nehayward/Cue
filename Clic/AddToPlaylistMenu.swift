@@ -67,7 +67,7 @@ struct AddTracksToPlaylistMenu: View {
                 }
             }
         } label: {
-            Label("Add Popular to Playlist", systemImage: "text.badge.plus")
+            Label("Add \(tracks.count) to Playlist", systemImage: "text.badge.plus")
                 .task {
                     playlistsContainer.playlists = await sonosService.sonosPlaylists()
                 }
