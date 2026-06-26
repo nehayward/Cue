@@ -17,13 +17,6 @@ struct PlayableMenuView: View {
 
     var body: some View {
         VStack {
-            if item.content.type != .folder {
-                Button {
-                    router.sheet(to: .createScene(content: item))
-                } label: {
-                    Label("Create Scene", systemImage: "bolt.fill")
-                }
-            }
             switch item.content.type {
             case .artistRadio, .songRadio:
                 if [.spotify, .apple].contains(item.content.service) {
@@ -74,14 +67,7 @@ struct PlayableMenuView: View {
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
-                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
-                   [.track, .libraryTrack].contains(item.content.type),
-                   let previewURL = item.previewURL,
-                   !previewURL.absoluteString.isEmpty {
-                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
-                }
-
-                ControlGroup("Queue \(item.title)") {
+                ControlGroup("Queue \(item.content.type.title)") {
                     Button {
                         play(position: .now)
                     } label: {
@@ -99,6 +85,13 @@ struct PlayableMenuView: View {
                     } label: {
                         Label("Play Last", systemImage: "text.append")
                     }
+                }
+                
+                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
+                   [.track, .libraryTrack].contains(item.content.type),
+                   let previewURL = item.previewURL,
+                   !previewURL.absoluteString.isEmpty {
+                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
                 }
                 
                 if [.spotify, .apple].contains(item.content.service), item.content.type == .track {
@@ -148,6 +141,14 @@ struct PlayableMenuView: View {
             }
         }
         
+        if item.content.type != .folder {
+            Button {
+                router.sheet(to: .createScene(content: item))
+            } label: {
+                Label("Create Scene", systemImage: "bolt.fill")
+            }
+        }
+        
         if [.spotify, .apple].contains(item.content.service),
            [.album, .libraryAlbum].contains(item.content.type) {
             FavoriteMenuButton(item: item)
@@ -160,7 +161,7 @@ struct PlayableMenuView: View {
                 selectedGroupService.group = nil
                 play()
             } label: {
-                Label("Move to Room…", systemImage: "hifispeaker.arrow.forward.fill")
+                Label("Play in Room…", systemImage: "hifispeaker.arrow.forward.fill")
             }
         }
         
