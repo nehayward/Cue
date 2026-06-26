@@ -111,14 +111,26 @@ struct PlayableMenuView: View {
                     }
                 }
                 
-                if ([.album, .track].contains(item.content.type) && item.content.service != .unknown)
-                    || (item.content.type == .libraryTrack && item.content.service == .apple) {
+                if [.album, .track].contains(item.content.type), item.content.service != .unknown {
                     NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
                         Label("View Album", systemImage: "smallcircle.circle.fill")
                     }
 
                     NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
                         Label("View Artist", systemImage: "music.mic")
+                    }
+                }
+
+                // Library songs map to a catalog track behind the scenes, so the
+                // album/artist we open is the catalog version — label it as such
+                // to distinguish it from the on-device library album.
+                if item.content.type == .libraryTrack, item.content.service == .apple {
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                        Label("Catalog Album", systemImage: "smallcircle.circle.fill")
+                    }
+
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                        Label("Catalog Artist", systemImage: "music.mic")
                     }
                 }
 
