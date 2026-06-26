@@ -115,7 +115,7 @@ struct PlayableContentList: View {
             // A near-invisible row keeps the paging trigger alive; the spinner
             // only appears while a next page is actually being fetched (not on
             // the initial load, which has its own full-screen overlay).
-            Group {
+            VStack {
                 if isLoading && !isCurrentListEmpty {
                     ProgressView()
                         .padding(.vertical, 8)
@@ -130,15 +130,14 @@ struct PlayableContentList: View {
         }
     }
     
+    @ViewBuilder
     private var loadingOverlay: some View {
-        Group {
-            // Only the initial load shows the full-screen spinner; paging more
-            // pages happens silently in the background.
-            if isLoading && isCurrentListEmpty {
-                ProgressView()
-                    .padding()
-                    .background(.thickMaterial)
-            }
+        // Only the initial load shows the full-screen spinner; paging more
+        // pages happens silently in the background.
+        if isLoading && isCurrentListEmpty {
+            ProgressView()
+                .padding()
+                .background(.thickMaterial)
         }
     }
 
