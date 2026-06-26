@@ -854,10 +854,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             // Add to Last Playlist command (dynamic title)
             let addToLastPlaylistAction: UIMenuElement
 
-            if let title = LastPlaylist.current?.title {
+            if let last = LastPlaylist.current {
                 addToLastPlaylistAction = UIKeyCommand(
-                    title: "Add to \(title)",
-                    image: UIImage(systemName: "plus"),
+                    title: "Add to \(last.title)",
+                    image: last.service.uiImage ?? UIImage(systemName: "text.badge.plus"),
                     action: #selector(addToLastPlaylist),
                     input: "s",
                     modifierFlags: [.shift, .command]
@@ -886,7 +886,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
                     // Adds `track` to `playlist`, dispatching to Sonos or the streaming service.
                     func action(for playlist: PlayableContent) -> UIAction {
-                        UIAction(title: playlist.title) { _ in
+                        UIAction(title: playlist.title, image: playlist.content.service.uiImage) { _ in
                             Task { @MainActor in
                                 alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
                                 if playlist.content.service == .library {
