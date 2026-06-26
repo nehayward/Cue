@@ -1,6 +1,9 @@
 import Foundation
 import AVFoundation
 import Observation
+#if os(iOS) || os(tvOS) || os(visionOS)
+import UIKit
+#endif
 
 enum PlaybackState: Equatable {
     case idle
@@ -44,10 +47,34 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     // MARK: - Private Properties
     @ObservationIgnored private var audioPlayer: AVAudioPlayer?
     @ObservationIgnored private var progressObserver: Any?
+    @ObservationIgnored private var backgroundObserver: NSObjectProtocol?
 
     // MARK: - Initialization
     override init() {
         super.init()
+        observeAppBackgrounding()
+    }
+
+    deinit {
+        if let backgroundObserver {
+            NotificationCenter.default.removeObserver(backgroundObserver)
+        }
+    }
+
+    /// Stops any in-flight preview when the app is backgrounded. With the
+    /// `.playback` session a clip would otherwise keep playing off-screen, so we
+    /// cut it here. `stopPreview()` is guarded to preview mode, so this never
+    /// touches real Sonos-triggered audio.
+    private func observeAppBackgrounding() {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.stopPreview() }
+        }
+        #endif
     }
 
     // MARK: - Public Methods
