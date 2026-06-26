@@ -50,6 +50,9 @@ public final class MusicSearchService {
     private let plex = PlexAPI.shared
     private let tidal = TidalAPI()
     private let spotifySearchAPI = SpotifyAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
+    /// Session cache of the user's editable playlist ids per service, so the "can edit this
+    /// playlist?" check is instant after the first fetch (also warmed by the add-to-playlist sheet).
+    @ObservationIgnored private var editablePlaylistIDsCache: [MusicService: Set<String>] = [:]
     private let spotifyLookupAPI = SpotifySonosAPI(tokenRefreshHandler: KeychainTokenRefreshHandler.shared)
     private let tuneIn = TuneInAPI()
     private let sonosService = SonosService.shared
@@ -296,13 +299,16 @@ public final class MusicSearchService {
 
     /// The user's editable Spotify playlists (owned or collaborative), as `PlayableContent`.
     public func spotifyEditablePlaylists() async -> [PlayableContent] {
-        await spotifySearchAPI.editableUserPlaylists().compactMap(\.toPlayable)
+        let playlists = await spotifySearchAPI.editableUserPlaylists().compactMap(\.toPlayable)
+        editablePlaylistIDsCache[.spotify] = Set(playlists.map(\.id))
+        return playlists
     }
 
     /// Creates a new Spotify playlist containing `track` and returns it as `PlayableContent`.
     public func createSpotifyPlaylist(name: String, addingTrack track: PlayableContent) async -> PlayableContent? {
         guard let id = await spotifySearchAPI.createPlaylist(name: name) else { return nil }
         _ = await addToSpotifyPlaylist(track: track, playlistID: id)
+        editablePlaylistIDsCache[.spotify, default: []].insert(id)
         return PlayableContent(
             title: name,
             subtitle: "",
@@ -325,7 +331,8 @@ public final class MusicSearchService {
 
     /// Removes a Spotify playlist from the user's library (unfollow).
     public func deleteSpotifyPlaylist(playlistID: String) async -> Bool {
-        await spotifySearchAPI.unfollowPlaylist(playlistID: playlistID)
+        editablePlaylistIDsCache[.spotify]?.remove(playlistID)
+        return await spotifySearchAPI.unfollowPlaylist(playlistID: playlistID)
     }
 
     // MARK: Plex
@@ -372,6 +379,7 @@ public final class MusicSearchService {
         guard let token = await deezerToken(),
               let newID = await deezer.createPlaylist(title: name, accessToken: token) else { return nil }
         _ = await deezer.addTracks(playlistID: newID, trackIDs: [track.content.id], accessToken: token)
+        editablePlaylistIDsCache[.deezer, default: []].insert(newID)
         // Prefer a refetch so the content carries artwork and counts; fall back to a minimal
         // representation if the new playlist isn't queryable yet.
         if let refetched = await lookupDeezerPlaylist(with: newID) { return refetched }
@@ -400,6 +408,7 @@ public final class MusicSearchService {
     /// Deletes a Deezer playlist.
     public func deleteDeezerPlaylist(playlistID: String) async -> Bool {
         guard let token = await deezerToken() else { return false }
+        editablePlaylistIDsCache[.deezer]?.remove(playlistID)
         return await deezer.deletePlaylist(playlistID: playlistID, accessToken: token)
     }
 
@@ -432,17 +441,25 @@ public final class MusicSearchService {
     /// Checks membership in the user's own playlists (the same list the add-to-playlist sheet uses),
     /// which is more reliable than a per-playlist owner lookup.
     public func canEditServicePlaylist(_ playlist: PlayableContent) async -> Bool {
-        let id = playlist.content.id
         switch playlist.content.service {
-        case .spotify:
-            return await spotifyEditablePlaylists().contains { $0.id == id }
-        case .deezer:
-            return await deezerUserPlaylists().contains { $0.id == id }
+        case .spotify, .deezer:
+            return await editablePlaylistIDs(for: playlist.content.service).contains(playlist.content.id)
         case .plex:
             return true // Plex playlists live on the user's own server.
         default:
             return false
         }
+    }
+
+    /// The cached set of editable playlist ids for `service`, fetching once if cold.
+    private func editablePlaylistIDs(for service: MusicService) async -> Set<String> {
+        if let cached = editablePlaylistIDsCache[service] { return cached }
+        switch service {
+        case .spotify: _ = await spotifyEditablePlaylists() // populates the cache
+        case .deezer: _ = await deezerUserPlaylists()
+        default: break
+        }
+        return editablePlaylistIDsCache[service] ?? []
     }
 
     /// Reorders a track within `playlist`. `orderedTracks` is the desired final order and
@@ -1384,7 +1401,11 @@ public final class MusicSearchService {
 
     public func deezerUserPlaylists(offset: Int = 0) async -> [PlayableContent] {
         guard let token = await deezerToken() else { return [] }
-        return await deezer.userPlaylists(accessToken: token, index: offset).map { createDeezerPlaylistContent(from: $0) }
+        let playlists = await deezer.userPlaylists(accessToken: token, index: offset).map { createDeezerPlaylistContent(from: $0) }
+        if offset == 0 {
+            editablePlaylistIDsCache[.deezer] = Set(playlists.map(\.id))
+        }
+        return playlists
     }
 
     public func deezerUserHistory() async -> [PlayableContent] {
