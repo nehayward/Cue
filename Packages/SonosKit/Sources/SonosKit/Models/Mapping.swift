@@ -240,6 +240,9 @@ extension AppleLibraryItem {
                 type: resolvedType,
                 location: nil
             ),
+            // Library items only carry a preview via the included catalog
+            // relationship (see AppleLibraryItem.previewURL).
+            previewURL: previewURL,
             metadata: .init(
                 duration: trackDuration,
                 popularity: 50,
