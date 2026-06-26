@@ -18,25 +18,25 @@ struct FolderBrowseView: View {
             if item.content.service != .apple {
                 Button {
                     Task {
-                        let queue: ((GroupRoom) async throws -> Void) = { group in
+                        let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { group, selectedPosition in
                             QueueManager.shared.addToQueue(
                                 item: QueueItem(
                                     playableContent: item,
                                     group: group,
-                                    position: .now,
+                                    position: selectedPosition,
                                     showBanner: false
                                 )
                             )
                             Router.main.show(destination: .player(groupID: group.coordinatorID))
                             return
                         }
-                        
+
                         guard let group = selectedGroupService.group else {
-                            router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: item))
+                            router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: .now, content: item))
                             return
                         }
-                        
-                        try await queue(group)
+
+                        try await queue(group, .now)
                     }
                 } label: {
                     Text("Play Folder")

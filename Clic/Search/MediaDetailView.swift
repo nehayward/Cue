@@ -342,11 +342,11 @@ struct MediaDetailView: View {
     private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
             let currentContent = content ?? playableContent
-            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, currentContent, totalSongs, tracks] group in
-                let position = QueuePosition.defaultPosition(
-                    for: currentContent.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
+            let defaultPosition = QueuePosition.defaultPosition(
+                for: currentContent.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { [currentContent, totalSongs, tracks] group, selectedPosition in
                 await SonosService.shared.setPlayMode(group.ip, mode: playMode)
                 group.playMode = playMode
 
@@ -354,7 +354,7 @@ struct MediaDetailView: View {
                     item: QueueItem(
                         playableContent: currentContent,
                         group: group,
-                        position: position,
+                        position: selectedPosition,
                         total: totalSongs ?? tracks.count,
                         showBanner: false
                     )
@@ -364,11 +364,11 @@ struct MediaDetailView: View {
             }
 
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: currentContent))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: defaultPosition, content: currentContent))
                 return
             }
-            
-            try await queue(group)
+
+            try await queue(group, defaultPosition)
         }
     }
     
