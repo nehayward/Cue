@@ -112,11 +112,21 @@ struct PlayableContentList: View {
     @ViewBuilder
     private var loadMoreIndicator: some View {
         if hasMoreContent {
-            ProgressView()
-                .frame(maxWidth: .infinity, alignment: .center)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .onAppear { Task { await loadMoreContent() } }
+            // A near-invisible row keeps the paging trigger alive; the spinner
+            // only appears while a next page is actually being fetched (not on
+            // the initial load, which has its own full-screen overlay).
+            Group {
+                if isLoading && !isCurrentListEmpty {
+                    ProgressView()
+                        .padding(.vertical, 8)
+                } else {
+                    Color.clear.frame(height: 1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .onAppear { Task { await loadMoreContent() } }
         }
     }
     

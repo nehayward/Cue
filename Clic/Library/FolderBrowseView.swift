@@ -62,6 +62,13 @@ struct FolderBrowseView: View {
                         await loadMoreIfNeeded(currentItem: folderItem)
                     }
             }
+
+            if isLoading && !items.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+                    .listRowSeparator(.hidden)
+            }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
