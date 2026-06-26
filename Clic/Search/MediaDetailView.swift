@@ -192,11 +192,16 @@ struct MediaDetailView: View {
         }
         .background {
             // Hidden ⌘Z / ⌘⇧Z bindings to drive the playlist editor's UndoManager.
+            // opacity(0) keeps the shortcuts active while making the buttons invisible.
             if isEditablePlaylist {
-                Button("Undo") { undoManager?.undo() }
-                    .keyboardShortcut("z", modifiers: .command)
-                Button("Redo") { undoManager?.redo() }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                Group {
+                    Button("Undo") { undoManager?.undo() }
+                        .keyboardShortcut("z", modifiers: .command)
+                    Button("Redo") { undoManager?.redo() }
+                        .keyboardShortcut("z", modifiers: [.command, .shift])
+                }
+                .opacity(0)
+                .accessibilityHidden(true)
             }
         }
         .contentMargins(.bottom, 120, for: .scrollContent)

@@ -203,7 +203,9 @@ struct PlayableContentView: View {
                     .tint(.primary)
                     .disabled(isPreviewing)
                     .overlay {
-                        if isPreviewing {
+                        // In edit mode the artwork overlay is the preview control, so don't
+                        // also show a (non-working) stop icon here.
+                        if isPreviewing, !isEditing {
                             Image(systemName: "stop.circle.fill")
                                 .font(.title2)
                                 .foregroundStyle(Color.accentColor)
