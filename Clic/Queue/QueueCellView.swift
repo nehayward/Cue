@@ -84,7 +84,7 @@ struct QueueCellView: View {
     }
     
     private var isTrackPlaying: Bool {
-        track.metadata?.position == group.coordinatorRoom.track.position && group.playbackService == .queue
+        group.isNowPlaying(track)
     }
 }
 

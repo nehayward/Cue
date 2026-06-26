@@ -16,10 +16,9 @@ struct QueueScreen: View {
     @State private var router = Router()
     @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
-    // First-load scroll sentinel: empty means we haven't scrolled to now-playing for this
-    // group yet (so the initial scroll is unanimated). The now-playing highlight no longer
-    // uses this — it compares queue position directly.
-    @State private var currentTrackID: String = ""
+    // First-load scroll sentinel: false until we've scrolled to now-playing for this group
+    // (so the initial scroll is unanimated, later ones animate). Reset when the group changes.
+    @State private var hasScrolledToNowPlaying: Bool = false
     @State private var currentGroupIP: String = ""
     @State private var selection: Set<String> = []
     @State private var upNextTracks: [PlayableContent] = []
@@ -87,7 +86,7 @@ struct QueueScreen: View {
                                         group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     }
                                     try? await SonosService.shared.updateTrackInformation(for: [group])
-                                    currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+                                    hasScrolledToNowPlaying = true
                                     try? await Task.sleep(for: .milliseconds(50))
                                     scrollToNowPlayingRow(proxy)
                                 } else {
@@ -128,7 +127,7 @@ struct QueueScreen: View {
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
                                 try? await SonosService.shared.updateTrackInformation(for: [group])
-                                currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+                                hasScrolledToNowPlaying = true
                                 try? await Task.sleep(for: .milliseconds(50))
                                 scrollToNowPlayingRow(proxy)
                             }
@@ -224,7 +223,7 @@ struct QueueScreen: View {
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())
-                        .foregroundStyle(track.metadata?.position == group.coordinatorRoom.track.position ? .primary : .secondary)
+                        .foregroundStyle(group.isNowPlaying(track) ? .primary : .secondary)
                         .frame(width: positionWidth, alignment: .trailing)
                         .padding(.trailing, 8)
                     QueueCellView(track: track, group: group, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
@@ -291,7 +290,7 @@ struct QueueScreen: View {
         }
         .task(id: group.coordinatorRoom.track.trackID) {
             if group.ip != currentGroupIP {
-                currentTrackID = ""
+                hasScrolledToNowPlaying = false
                 currentGroupIP = group.ip
             }
             isLoading = true
@@ -332,8 +331,6 @@ struct QueueScreen: View {
                 }
             }
             try? await SonosService.shared.updateTrackInformation(for: [group])
-            let id = group.coordinatorRoom.track.toPlayable.trackID
-            currentTrackID = id
         }
     }
 
@@ -398,7 +395,7 @@ struct QueueScreen: View {
                 group.coordinatorRoom.queue.insert(item, at: index)
             }
             try? await SonosService.shared.updateTrackInformation(for: [group])
-            currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+            hasScrolledToNowPlaying = true
         }
         for track in sortedTracks {
             guard let position = track.metadata?.position else { continue }
@@ -439,12 +436,12 @@ struct QueueScreen: View {
             self.group.coordinatorRoom.queue = queue
         }
         try? await Task.sleep(for: .milliseconds(10))
-        if !currentTrackID.isEmpty {
+        if hasScrolledToNowPlaying {
             scrollToNowPlayingRow(proxy, anchor: .top)
         } else if let key = group.coordinatorRoom.queue.occurrenceKey(forPosition: group.coordinatorRoom.track.position) {
             proxy.scrollTo(key, anchor: .top)
         }
-        currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+        hasScrolledToNowPlaying = true
     }
 }
 

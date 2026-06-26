@@ -17,6 +17,12 @@ public final class GroupRoom: Identifiable, @unchecked Sendable {
     public var isEditingVolume: Bool = false
     public var isEditingPlayback: Bool = false
     public var playbackService: PlaybackService = .unknown
+
+    /// Whether `track` is the row currently playing from the queue. Matched by queue
+    /// position (unique and stable per song) and gated on playing from the queue.
+    public func isNowPlaying(_ track: PlayableContent) -> Bool {
+        track.metadata?.position == coordinatorRoom.track.position && playbackService == .queue
+    }
     public var availableActions: AvailableActions = []
     public var groupVolume: Double = 0
     public var audioQuality: SonosTrackQuality? = nil
