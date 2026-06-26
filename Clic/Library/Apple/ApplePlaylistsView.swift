@@ -17,6 +17,14 @@ struct ApplePlaylistsView: View {
         @Bindable var appleMusicBrowseService = appleMusicBrowseService
         
         Section {
+            NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
+                await appleMusicBrowseService.updateUsersApplePlaylists(offset: offset)
+            })) {
+                Text("Apple Playlists")
+                    .fontDesign(.rounded)
+                    .fontWeight(.semibold)
+            }
+            .tag(UUID().uuidString)
             if !appleMusicBrowseService.userPlaylists.isEmpty {
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {
@@ -27,28 +35,28 @@ struct ApplePlaylistsView: View {
                 }
                 .listRowBackground(Color.clear)
             }
-        } header: {
-            NavigationLink(value: RouterDestination.playableGridScreen(title: "Playlists", items: $appleMusicBrowseService.userPlaylists, action: { offset in
-                await appleMusicBrowseService.updateUsersApplePlaylists(offset: offset)
-            })) {
-                HStack {
-                    Text("Playlists")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                }
-            }
-            .foregroundStyle(.secondary)
         }
-        .headerProminence(.increased)
         .task {
             await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0, limit: 4)
         }
+        .listRowSeparator(.hidden)
         .listSectionSeparator(.hidden)
+        .listSectionSpacing(0)
+        .listRowInsets(.default)
     }
 }
 
 #Preview {
-    ApplePlaylistsView()
-        .withEnvironments()
+    let appleMusicBrowseService: AppleMusicBrowseService = AppleMusicBrowseService()
+    
+    List {
+        ApplePlaylistsView()
+    }
+    .environment(appleMusicBrowseService)
+    .listStyle(.plain)
+    .forPreview()
+    .task {
+        await appleMusicBrowseService.updateUsersApplePlaylists(offset: 0)
+    }
 }
 

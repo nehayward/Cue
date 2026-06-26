@@ -17,7 +17,8 @@ struct PlayableContentView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @Environment(PlexRatingCache.self) private var plexRatingCache
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+    @State private var audioService = AudioPlaybackService.shared
+
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -48,6 +49,16 @@ struct PlayableContentView: View {
     private var shouldShowPlainContent: Bool {
         hideDetails || item.content.service == .unknown || (adding?.add == true && !item.content.type.isArtist)
     }
+
+    private var isPreviewing: Bool {
+        guard let url = item.previewURL else { return false }
+        return audioService.isPreviewing(url)
+    }
+
+    private var previewProgress: Double {
+        guard audioService.duration > 0 else { return 0 }
+        return min(1, audioService.playbackProgress / audioService.duration)
+    }
     
     var body: some View {
 //        let _ = Self._printChanges()
@@ -74,13 +85,21 @@ struct PlayableContentView: View {
                 }
             }
         }
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: trailingInset))
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailingInset))
         .listRowSeparator(.hidden)
+        .onDisappear {
+            if isPreviewing { AudioPlaybackService.shared.stopPreview() }
+        }
     }
     
     private var content: some View {
         Button {
-            play()
+            if isPreviewing {
+                HapticManager.shared.fireHaptic(.buttonPress)
+                AudioPlaybackService.shared.stopPreview()
+            } else {
+                play()
+            }
         } label: {
             HStack {
                 if let index {
@@ -89,21 +108,20 @@ struct PlayableContentView: View {
                         .frame(width: 30, alignment: .center)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 if !hideArtwork {
                     ContentArtworkView(content: item)
                         .frame(width: 50, height: 50)
                         .allowsHitTesting(!hideArtwork)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(item.title)
                             .lineLimit(1)
                             .foregroundStyle(isCurrentlyPlaying ? Color.accentColor : Color.primary)
-                            .fontWeight(isCurrentlyPlaying ? .bold : .regular)
-                            .animation(.snappy, value: isCurrentlyPlaying)
-                        
+                            .fontWeight(isCurrentlyPlaying ? .semibold : .regular)
+
                         Spacer(minLength: 0)
 
                         if item.content.service == .plex,
@@ -120,33 +138,73 @@ struct PlayableContentView: View {
 
                     Text(subtitleText)
                         .lineLimit(1)
-                        .truncationMode(.head)
-                        .foregroundStyle(.secondary)
+                        .opacity(0.7)
+                        .font(.footnote)
                 }
-                
+
                 Spacer(minLength: 0)
-                
+
                 if adding == nil, !hideDetails, [.track, .favorite, .libraryTrack].contains(item.content.type) {
+                    // Keep the Menu in the tree at all times — swapping it out for the
+                    // stop icon via if/else churns the Menu's identity and underlying
+                    // gesture recognizers, which left taps landing mid-rebuild. Instead
+                    // disable it while previewing (so taps fall through to the cell's
+                    // stop handler) and overlay the stop icon on top.
                     Menu {
                         PlayableMenuView(item: item)
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
+                            .opacity(isPreviewing ? 0 : 1)
                     }
                     .tint(.primary)
+                    .disabled(isPreviewing)
+                    .overlay {
+                        if isPreviewing {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color.accentColor)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 }
             }
             .fontDesign(.rounded)
-            .contentShape(Rectangle())
+            .contentShape(.rect)
+            .overlay(alignment: .bottom) {
+                // Gated on isPreviewing so stopping removes the bar instantly,
+                // instead of animating its width back down to zero.
+                if isPreviewing {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient)
+                        .frame(height: 2)
+                        .scaleEffect(x: previewProgress, anchor: .leading)
+                        .animation(.linear(duration: 0.3), value: previewProgress)
+                        .ignoresSafeArea()
+                }
+            }
         }
-        .swipeActions {
+        .swipeActions(edge: .trailing) {
             if Self.swipeableTypes.contains(item.content.type) {
                 Button {
                     play(position: .next)
                 } label: {
                     Label("Play Next", systemImage: "text.insert")
                 }
+                .tint(.accentColor)
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if let previewURL = item.previewURL,
+               !previewURL.absoluteString.isEmpty,
+               [.track, .libraryTrack].contains(item.content.type) {
+                Button {
+                    AudioPlaybackService.shared.preview(url: previewURL, streaming: item.content.service == .plex)
+                } label: {
+                    Label("Preview", systemImage: "music.note")
+                }
+                .tint(.blue)
             }
         }
         .contextMenu {
@@ -154,7 +212,13 @@ struct PlayableContentView: View {
                 PlayableMenuView(item: item)
             }
         }
-        .draggable(item)
+        .draggable(item) {
+            Text(item.title)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.background, in: .capsule)
+                .contentShape(.dragPreview, .capsule)
+        }
     }
     
     private var folderContent: some View {
@@ -184,31 +248,27 @@ struct PlayableContentView: View {
         }
         hideKeyboard()
         Task { @MainActor in
-            let queueSong: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, item, parent, index, total] group in
+            let defaultPosition = position ?? QueuePosition.defaultPosition(
+                for: (parent ?? item).content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queueSong: ((GroupRoom, QueuePosition) async throws -> Void) = { [item, parent, index, total] group, selectedPosition in
                 if let parent, position == nil {
-                    let finalPosition = position ?? QueuePosition.defaultPosition(
-                        for: parent.content.type,
-                        replaceQueueByDefault: replaceQueueByDefault
-                    )
-                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: finalPosition, index: index, total: total, showBanner: false))
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: parent, group: group, position: selectedPosition, index: index, total: total, showBanner: false))
                     Router.main.show(destination: .player(groupID: group.coordinatorID))
                     return
                 }
-                let finalPosition = position ?? QueuePosition.defaultPosition(
-                    for: item.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
-                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: finalPosition, index: index, total: total, title: finalPosition.title))
+                QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, index: index, total: total, title: selectedPosition.title))
             }
-            
+
             guard let group = selectedGroupService?.group else {
                 if let selectedGroupService {
-                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queueSong, content: item))
+                    router?.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queueSong, defaultPosition: defaultPosition, content: item))
                 }
                 return
             }
-            
-            try await queueSong(group)
+
+            try await queueSong(group, defaultPosition)
         }
     }
     

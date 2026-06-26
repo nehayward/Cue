@@ -5,7 +5,7 @@ extension View {
     func glass26() -> some View {
 #if !os(visionOS)
         if #available(iOS 26.0, *) {
-            self.glassEffect(.clear.interactive(), in: .containerRelative)
+            self.glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
         } else {
             self.background {
                 RoundedRectangle(cornerRadius: 8)
@@ -21,13 +21,32 @@ extension View {
     }
     
     @ViewBuilder
+    func glass26(color: Color?) -> some View {
+#if !os(visionOS)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            self.glassEffect(.regular.tint(color?.opacity(0.5)), in: .rect(cornerRadius: 12))
+        } else {
+            self.background {
+                RoundedRectangle(cornerRadius: 8)
+                    .foregroundStyle(.ultraThinMaterial)
+            }
+        }
+#else
+        self.background {
+            RoundedRectangle(cornerRadius: 8)
+                .foregroundStyle(.ultraThinMaterial)
+        }
+#endif
+    }
+
+    @ViewBuilder
     func toolbarBackground<S>(with glass: Bool = false, in shape: S) -> some View where S: InsettableShape {
 #if !os(visionOS)
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             if glass {
                 self
                     .padding(8)
-                    .glassEffect(.clear.interactive())
+                    .glassEffect(.regular.interactive())
             } else {
                 self
             }

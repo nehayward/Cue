@@ -124,6 +124,7 @@ public final class SonosService {
     @ObservationIgnored private var metadataTask: Task<Void, Never>?
     @ObservationIgnored private var hasAppliedGroupsCache = false
     @ObservationIgnored private var cachedIPVerified = false
+    @ObservationIgnored private var attemptedTrackInfoUniques = Set<String>()
 
     public var sortOption: SonosSortOption {
         didSet {
@@ -494,12 +495,25 @@ public final class SonosService {
 
             // Only get track information if the track ID has changed
             let shouldGetTrackInfo = roomGroup.coordinatorRoom.track.unique != awaitedTrack.unique
+                || !attemptedTrackInfoUniques.contains(awaitedTrack.unique)
             
             if shouldGetTrackInfo {
+                attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                 // Sonos's XML (`dc:title`, `dc:creator`, `r:albumArtist`) already gives us
                 // displayable name/artist — assign immediately so the row never sits blank
                 // while we wait on `getTrackInformation` (which can be slow or rate-limited
                 // for Spotify/Apple Music). Metadata then enhances the track in place.
+                //
+                // Same-album carry: if the new track is on the same album, inherit the
+                // existing artwork URL so ArtworkView's artworkURL never briefly becomes
+                // the Sonos proxy (or nil) before the CDN URL arrives. Spotify sends only
+                // dc:creator (per-track artist), so without this the URL changes twice on
+                // every track change within an album, causing a visible flash.
+                if !awaitedTrack.album.isEmpty,
+                   awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
+                   let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
+                    awaitedTrack.downloadedArtworkURL = priorURL
+                }
                 let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                 if hasDisplayableInfo {
                     roomGroup.coordinatorRoom.track = awaitedTrack
@@ -761,7 +775,8 @@ public final class SonosService {
                     // `let currentTrack = ...` capture is a value copy and
                     // mutations vanish. Write through the Room property
                     // directly so the @Observable setter actually fires.
-                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique {
+                    if roomGroup.coordinatorRoom.track.unique == awaitedTrack.unique,
+                       attemptedTrackInfoUniques.contains(awaitedTrack.unique) {
                         if !roomGroup.isEditingPlayback, roomGroup.coordinatorRoom.playbackPosition != awaitedTrack.playbackPosition {
                             roomGroup.coordinatorRoom.updatePlaybackPosition(awaitedTrack.playbackPosition)
                         }
@@ -783,8 +798,16 @@ public final class SonosService {
                         return
                     }
 
+                    attemptedTrackInfoUniques.insert(awaitedTrack.unique)
                     // Sonos's XML already provides displayable name/artist — assign now so
                     // the row never sits blank waiting on `getTrackInformation`.
+                    //
+                    // Same-album carry: see twin site above.
+                    if !awaitedTrack.album.isEmpty,
+                       awaitedTrack.album == roomGroup.coordinatorRoom.track.album,
+                       let priorURL = roomGroup.coordinatorRoom.track.downloadedArtworkURL {
+                        awaitedTrack.downloadedArtworkURL = priorURL
+                    }
                     let hasDisplayableInfo = !awaitedTrack.name.isEmpty || !awaitedTrack.artist.isEmpty
                     if hasDisplayableInfo {
                         roomGroup.coordinatorRoom.track = awaitedTrack
@@ -1419,6 +1442,9 @@ public final class SonosService {
         case .soundcloud:
             guard let track = await musicSearch.lookupSoundCloudTrack(with: track.trackID) else { return nil }
             return track.artwork
+        case .deezer:
+            guard let track = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return track.artwork
         case .tuneIn:
             return nil
         case .airplay, .unknown, .library:
@@ -1522,6 +1548,19 @@ public final class SonosService {
                 ),
                 track.artwork
             )
+        case .deezer:
+            guard let deezerTrack = await musicSearch.lookupDeezerTrack(with: track.trackID) else { return nil }
+            return (
+                Track.Metadata(
+                    ISRC: nil,
+                    openInURL: URL(string: "https://www.deezer.com/track/\(track.trackID)"),
+                    contentType: .track,
+                    song: nil,
+                    album: deezerTrack.metadata?.album,
+                    artist: deezerTrack.metadata?.artist
+                ),
+                deezerTrack.artwork
+            )
         case .unknown:
             if track.metadata?.contentType != .track { return (nil, nil) }
             guard let artworkURL = await musicSearch.searchSpotifySong(song: track.name, artist: track.artist)?.tracks?.items.first else {
@@ -1609,7 +1648,16 @@ public final class SonosService {
     }
 
     public func getContent(from url: URL) async -> PlayableContent? {
-        guard let content = api.parse(url: url) else { return nil }
+        var parsed = api.parse(url: url)
+        // The Deezer app shares short "smart" links (link.deezer.com, *.page.link)
+        // that carry no type/id, so the path parser can't read them. Resolve them
+        // to the canonical deezer.com/<type>/<id> URL, then re-parse.
+        if parsed == nil, DeezerLinkResolver.isShareLink(url),
+           let resolved = await DeezerLinkResolver.resolve(url),
+           let resolvedContent = api.parse(url: resolved) {
+            parsed = resolvedContent
+        }
+        guard let content = parsed else { return nil }
         switch (content.type, content.service) {
         case (.album, .spotify):
             guard let album = await musicSearch.spotifyAlbumLookup(id: content.id) else { return nil }
@@ -1657,6 +1705,14 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: content.id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: content.id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: content.id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: content.id)
+        case (.artist, .deezer):
+            return await musicSearch.lookupDeezerArtist(id: content.id)
         case (.artist, .apple):
             guard let artist: Artist = try? await musicSearch.lookup(id: content.id) else { return nil }
             return PlayableContent(title: artist.name, subtitle: "", thumbnail: artist.artwork?.url(width: 100, height: 100), artwork: artist.artwork?.url(width: 500, height: 500), content: content)
@@ -1738,6 +1794,12 @@ public final class SonosService {
         case (.track, .soundcloud):
             guard let track = await musicSearch.lookupSoundCloudTrack(with: id) else { return nil }
             return track
+        case (.track, .deezer):
+            return await musicSearch.lookupDeezerTrack(with: id)
+        case (.album, .deezer):
+            return await musicSearch.lookupDeezerAlbum(with: id)
+        case (.playlist, .deezer):
+            return await musicSearch.lookupDeezerPlaylist(with: id)
         case (.playlist, .library):
             let playlist = await libraryPlaylistLookup(ID: id)
             return playlist
@@ -2327,9 +2389,9 @@ public final class SonosService {
         return playableContent.first
     }
 
-    public func libraryLookup(ID: String) async -> [PlayableContent] {
+    public func libraryLookup(ID: String, offset: Int = 0, requestedCount: Int = 100) async -> [PlayableContent] {
         guard let ip = prioritizedIP() else { return [] }
-        let playableContent = await api.libraryLookup(IP: ip, id: ID)
+        let playableContent = await api.libraryLookup(IP: ip, id: ID, offset: offset, requestedCount: requestedCount)
         return playableContent
     }
 

@@ -44,6 +44,9 @@ struct SearchScreen: View {
     @State private var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>] = []
 
     @FocusState private var focusedField: SearchFocusFields?
+    #if targetEnvironment(macCatalyst)
+    @State private var searchBarFocused: Bool = false
+    #endif
 
     @State private var recentQueries = RecentQueriesStorage.shared
     @State private var lastNonEmptyQuery: String = ""
@@ -129,7 +132,6 @@ struct SearchScreen: View {
                             .listRowSeparator(.hidden)
                     }
                 }
-                .listSectionSpacing(12)
                 .onAppear {
                     if favorites {
                         searchFieldIsPresented = false
@@ -167,6 +169,13 @@ struct SearchScreen: View {
                         }
                         .frame(idealWidth: 800)
                         .toolbarBackground(with: true, in: .capsule)
+                        #if targetEnvironment(macCatalyst)
+                        .overlay {
+                            Capsule()
+                                .strokeBorder(Color.accentColor, lineWidth: 2)
+                                .opacity(searchBarFocused ? 1 : 0)
+                        }
+                        #endif
                     }
                     #if !os(visionOS)
                     if #available(iOS 26.0, *) {
@@ -198,7 +207,6 @@ struct SearchScreen: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle(isAlarmSearch ? "Adding to Alarm" : "Search")
             .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
                 isLoading = true
                 if suggestion == nil {
@@ -328,6 +336,14 @@ struct SearchScreen: View {
             .frame(width: 0, height: 0)
             .hidden()
         )
+        #if targetEnvironment(macCatalyst)
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { _ in
+            searchBarFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidEndEditingNotification)) { _ in
+            searchBarFocused = false
+        }
+        #endif
     }
 
     @MainActor
@@ -377,10 +393,10 @@ struct SearchScreen: View {
         Task { @MainActor in
             let position = QueuePosition.defaultPosition(for: item.content.type, replaceQueueByDefault: replaceQueueByDefault)
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: { group in
-                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: { group, selectedPosition in
+                    QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: selectedPosition, title: selectedPosition.title))
                     Router.main.show(destination: .player(groupID: group.coordinatorID))
-                }, content: item))
+                }, defaultPosition: position, content: item))
                 return
             }
             QueueManager.shared.addToQueue(item: QueueItem(playableContent: item, group: group, position: position, title: position.title))
@@ -488,7 +504,9 @@ private struct SearchResultsView: View {
             TidalSearchView(results: musicSearchService.results, filters: $filters)
         case .tuneIn:
             TuneInSearchView(results: musicSearchService.results, filters: $filters)
-        case .soundcloud:
+        default:
+            // ServiceSearchView handles all remaining services (SoundCloud, Deezer, etc.)
+            // New services get a working generic search view without touching this switch.
             ServiceSearchView(results: musicSearchService.results, filters: $filters)
         }
     }
@@ -695,12 +713,7 @@ private struct SearchSuggestionsBar: View {
 }
 
 #Preview("Empty") {
-    UserDefaults.standard.set(MediaSearchService.apple.rawValue, forKey: AppStorageKeys.mediaService)
-    let searchRouter = Router.search
-    let selectedGroupService = SelectedGroupService(group: .theater)
-
-    return SearchScreen()
-        .environment(searchRouter)
-        .environment(selectedGroupService)
-        .withEnvironments()
+    SearchScreen()
+        .environment(Router.search)
+        .forPreview()
 }

@@ -48,7 +48,8 @@ struct ShareToWatchView: View {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "xmark")
+                        Label("Close", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
                     }
                 }
             }

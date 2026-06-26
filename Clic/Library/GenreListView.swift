@@ -21,7 +21,7 @@ struct GenreListView: View {
         List {
             ForEach(browseService.genres) { genre in
                 NavigationLink(value: RouterDestination.playableList(title: genre.title, action: { offset in
-                    await sonosService.libraryLookup(ID: genre.id)
+                    await sonosService.libraryLookup(ID: genre.id, offset: offset)
                 })) {
                     Text(genre.title)
                 }

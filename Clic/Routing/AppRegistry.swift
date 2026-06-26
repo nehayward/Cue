@@ -157,8 +157,8 @@ extension View {
                             SpeakerSettingsView(room: room)
                         }
                         .presentationDetents([.medium, .large])
-                    case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, content: content):
-                        SelectGroupView(content: content, onSelection: onSelection)
+                    case let .selectGroup(selectedGroupService: selectedGroupService, onSelection: onSelection, onQueueSelection: onQueueSelection, defaultPosition: defaultPosition, content: content):
+                        SelectGroupView(content: content, defaultPosition: defaultPosition, onSelection: onSelection, onQueueSelection: onQueueSelection)
                             .presentationDetents([.fraction(0.8), .large])
                             .environment(selectedGroupService)
                     case .plexManagement:
@@ -180,6 +180,8 @@ extension View {
                         ReorderAppleLibrarySectionsView()
                     case .reorderSpotifyLibrarySections:
                         ReorderSpotifyLibrarySectionsView()
+                    case .reorderSoundCloudLibrarySections:
+                        ReorderSoundCloudLibrarySectionsView()
                     case .shareToWatch:
                         ShareToWatchView()
                     case .paywall, .onboard:
@@ -457,7 +459,7 @@ extension View {
             }
             .withEnvironments()
 #if targetEnvironment(macCatalyst)
-            .inspectorColumnWidth(min: 360, ideal: 500, max: 600)
+            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
 #else
             .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
             .presentationBackgroundInteraction(.disabled)
@@ -478,6 +480,7 @@ extension View {
             .environment(AppleMusicBrowseService.shared)
             .environment(SpotifyBrowseService.shared)
             .environment(SoundCloudBrowseService.shared)
+            .environment(DeezerBrowseService.shared)
             .environment(PlexBrowseService.shared)
             .environment(LibraryBrowseService.shared)
             .environment(MiniPlayerManger.shared)
@@ -490,8 +493,11 @@ extension View {
         if override || Router.main.presentedSheet != nil  {
             toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Dismiss", systemImage: "xmark", role: .cancel) {
+                    Button(role: .cancel) {
                         action()
+                    } label: {
+                        Label("Dismiss", systemImage: "xmark")
+                            .labelStyle(.iconOnly)
                     }
                     .keyboardShortcut(.escape, modifiers: [])
                 }

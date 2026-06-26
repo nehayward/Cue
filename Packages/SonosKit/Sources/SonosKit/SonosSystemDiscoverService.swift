@@ -66,9 +66,27 @@ final class SonosSystemDiscoverService {
 
     init() {
         cellularMonitor.pathUpdateHandler = { [weak self] path in
+            // Determine whether a local-network interface (Wi-Fi or wired
+            // Ethernet) is available, rather than asking whether the cellular
+            // interface is in use.
+            //
+            // `path.usesInterfaceType(.cellular)` reports true whenever the
+            // cellular interface participates in the path. With Wi-Fi Assist
+            // enabled, iOS keeps both the Wi-Fi and cellular interfaces active
+            // at the same time, so that check returns true even when Wi-Fi is
+            // connected and Sonos is reachable on the local network. That made
+            // the app incorrectly report "On Cellular" and refuse to connect.
+            //
+            // Instead, only treat the device as cellular-only when no Wi-Fi or
+            // wired interface is available at all. Sonos devices are reachable
+            // over either, so the presence of one means discovery can proceed.
+            let localInterfaceTypes: Set<NWInterface.InterfaceType> = [.wifi, .wiredEthernet]
+            let hasLocalInterface = path.availableInterfaces
+                .map(\.type)
+                .contains(where: localInterfaceTypes.contains)
             self?.cellularUpdateTask?.cancel()
             self?.cellularUpdateTask = Task { @MainActor [weak self] in
-                self?.isCellular = path.usesInterfaceType(.cellular)
+                self?.isCellular = !hasLocalInterface
             }
         }
         cellularMonitor.start(queue: DispatchQueue(label: "CellularMonitor"))

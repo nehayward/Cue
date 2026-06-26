@@ -345,6 +345,7 @@ public final class PlexAPI {
 
         for index in songs.indices {
             songs[index].sonosID = "\(id)%3A3%3A\(songs[index].ratingKey)"
+            songs[index].streamURL = streamURL(for: songs[index], server: plexServer, token: token)
             guard let thumb = songs[index].thumb else { continue }
             songs[index].thumbImageURL = getBaseURL(for: plexServer)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
         }
@@ -1034,8 +1035,20 @@ public final class PlexAPI {
             if let art = item.art {
                 updatedItem.artImageURL = getBaseURL(for: plexServer)?.appending(path: art).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
             }
-            
+
+            updatedItem.streamURL = streamURL(for: item, server: plexServer, token: token)
+
             return updatedItem
         }
+    }
+
+    /// Builds a token-authenticated URL to stream a track's media file from the
+    /// server. Returns nil for items without a playable part (e.g. albums,
+    /// artists, playlists), so only tracks get a stream URL.
+    private func streamURL(for item: PlexMetadata, server: PlexServer, token: String) -> URL? {
+        guard let partKey = item.media?.first?.part.first?.key else { return nil }
+        return getBaseURL(for: server)?
+            .appending(path: partKey)
+            .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
     }
 }

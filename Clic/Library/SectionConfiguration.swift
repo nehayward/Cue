@@ -21,6 +21,11 @@ enum SpotifyLibrarySection: String, Codable, CaseIterable {
     case playlists
 }
 
+enum SoundCloudLibrarySection: String, Codable, CaseIterable {
+    case likedSongs
+    case playlists
+}
+
 /// A reusable system for managing section ordering and visibility with live updates.
 ///
 /// Usage:
@@ -164,6 +169,14 @@ final class SectionConfigurationStores {
             (.playlists, "Playlists", "Spotify")
         ]
     )
+
+    lazy var soundcloudLibrary = SectionConfigurationStore<SoundCloudLibrarySection>(
+        key: "soundcloudLibrarySectionConfig",
+        defaultSections: [
+            (.likedSongs, "Liked Songs", "SoundCloud"),
+            (.playlists, "Playlists", "SoundCloud")
+        ]
+    )
 }
 
 // MARK: - Reorder Sections View
@@ -247,7 +260,8 @@ struct ReorderSectionsView<SectionID: Codable & Hashable & CaseIterable & RawRep
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "checkmark")
+                        Label("Done", systemImage: "checkmark")
+                            .labelStyle(.iconOnly)
                             .fontWeight(.semibold)
                     }
                 }
@@ -306,7 +320,15 @@ struct ReorderAppleLibrarySectionsView: View {
 
 struct ReorderSpotifyLibrarySectionsView: View {
     @State private var store = SectionConfigurationStores.shared.spotifyLibrary
-    
+
+    var body: some View {
+        ReorderSectionsView(configuration: $store.configuration)
+    }
+}
+
+struct ReorderSoundCloudLibrarySectionsView: View {
+    @State private var store = SectionConfigurationStores.shared.soundcloudLibrary
+
     var body: some View {
         ReorderSectionsView(configuration: $store.configuration)
     }

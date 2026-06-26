@@ -18,14 +18,23 @@ struct MediaDetailView: View {
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
-    
+
     let playableContent: PlayableContent
     @State private var content: PlayableContent?
     @State private var editMode: EditMode = .inactive
     @State private var tracks: [PlayableContent] = []
     @State private var isLoaded: Bool = false
     @State private var isLoadingMore: Bool = true
+    @State private var isFetchingPage: Bool = false
+    /// Raw number of source items consumed so far. This is the real pagination offset for
+    /// offset-based services and can exceed `tracks.count` when a page contains items that
+    /// drop out (e.g. Spotify playlists with removed/local tracks that decode to nil).
+    @State private var loadedItemCount: Int = 0
     @State private var totalSongs: Int?
+
+    /// Number of rows before the end at which we start prefetching the next page.
+    /// Loading ahead of the visible edge hides network latency so scrolling stays smooth.
+    private static let prefetchThreshold = 10
     @State private var duration: Duration?
     @State private var selection: Set<Int> = []
     @State private var nextCursor: String?
@@ -73,10 +82,10 @@ struct MediaDetailView: View {
                         return
                     }
 
-                    if index >= tracks.count - 1 && isLoadingMore && (totalSongs == nil || tracks.count < totalSongs!) {
-                        Task {
-                            await updateTracks(offset: tracks.count)
-                        }
+                    let hasMore = totalSongs.map { loadedItemCount < $0 } ?? true
+                    let nearEnd = index >= tracks.count - Self.prefetchThreshold
+                    if nearEnd && isLoadingMore && hasMore {
+                        await updateTracks(offset: loadedItemCount)
                     }
                 }
                 .listRowBackground(Color.white.opacity(0.001))
@@ -106,7 +115,10 @@ struct MediaDetailView: View {
         .onChange(of: editMode.isEditing) { _, editing in
             withAnimation(.spring) { miniPlayerManager.hidden = editing }
         }
-        .onDisappear { miniPlayerManager.hidden = false }
+        .onDisappear {
+            miniPlayerManager.hidden = false
+            AudioPlaybackService.shared.stopPreview()
+        }
         .ignoresSafeArea(edges: .top)
         .onScrollOffset(exceeds: 300, set: $showNavigationTitle)
         .scrollEdgeEffectHidden26(!showNavigationTitle)
@@ -140,7 +152,7 @@ struct MediaDetailView: View {
             }
         }
         .task {
-            await updateTracks(offset: tracks.count)
+            await updateTracks(offset: loadedItemCount)
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -330,11 +342,11 @@ struct MediaDetailView: View {
     private func play(_ playMode: PlayMode = .normal) {
         Task { @MainActor in
             let currentContent = content ?? playableContent
-            let queue: ((GroupRoom) async throws -> Void) = { [replaceQueueByDefault, currentContent, totalSongs, tracks] group in
-                let position = QueuePosition.defaultPosition(
-                    for: currentContent.content.type,
-                    replaceQueueByDefault: replaceQueueByDefault
-                )
+            let defaultPosition = QueuePosition.defaultPosition(
+                for: currentContent.content.type,
+                replaceQueueByDefault: replaceQueueByDefault
+            )
+            let queue: ((GroupRoom, QueuePosition) async throws -> Void) = { [currentContent, totalSongs, tracks] group, selectedPosition in
                 await SonosService.shared.setPlayMode(group.ip, mode: playMode)
                 group.playMode = playMode
 
@@ -342,7 +354,7 @@ struct MediaDetailView: View {
                     item: QueueItem(
                         playableContent: currentContent,
                         group: group,
-                        position: position,
+                        position: selectedPosition,
                         total: totalSongs ?? tracks.count,
                         showBanner: false
                     )
@@ -352,11 +364,11 @@ struct MediaDetailView: View {
             }
 
             guard let group = selectedGroupService.group else {
-                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onSelection: queue, content: currentContent))
+                router.sheet(to: .selectGroup(selectedGroupService: selectedGroupService, onQueueSelection: queue, defaultPosition: defaultPosition, content: currentContent))
                 return
             }
-            
-            try await queue(group)
+
+            try await queue(group, defaultPosition)
         }
     }
     
@@ -365,8 +377,15 @@ struct MediaDetailView: View {
     }
     
     private func updateTracks(offset: Int = 0) async {
+        // Avoid firing duplicate concurrent requests for the same page. With prefetching,
+        // several near-the-end rows can trigger a load before the first one returns; this
+        // guard collapses them into a single in-flight fetch.
+        guard !isFetchingPage else { return }
+        isFetchingPage = true
+
         // Ensure isLoaded is set even if we return early
         defer {
+            isFetchingPage = false
             if offset == 0 {
                 isLoaded = true
             }
@@ -382,12 +401,16 @@ struct MediaDetailView: View {
         }
 
         var newTracks: [PlayableContent] = []
+        // How many raw source items this page consumed. Defaults to the number of playable
+        // tracks produced, but services that can drop items mid-page (Spotify) override it
+        // with the true page size so the next offset doesn't re-read the dropped rows.
+        var consumedCount: Int?
         switch (playableContent.content.type, playableContent.content.service) {
         case (.album, .apple):
             guard let album: Album = try? await musicSearchService.lookup(id: playableContent.content.id) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryAlbum, .apple):
             if let album = await musicSearchService.appleLibraryAlbum(id: playableContent.id), let playableAlbum = album.data.first?.toPlayable {
                 content = playableAlbum
@@ -400,7 +423,7 @@ struct MediaDetailView: View {
             newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
-            newTracks = playlist.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(playlist)
         case (.libraryPlaylist, .apple):
             let (tracks, playlistCount) = await AppleMusicBrowseService.shared.tracksForUserPlaylists(id: playableContent.id, offset: offset)
             newTracks = tracks
@@ -408,6 +431,9 @@ struct MediaDetailView: View {
         case (.playlist, .spotify):
             guard let playlist = await musicSearchService.spotifyPlaylistTracks(id: playableContent.content.id, offset: offset) else { return }
             totalSongs = playlist.total
+            // Advance by the raw page size, not the playable count: a page can contain items
+            // (removed/local tracks) that decode to nil, and offset is a raw playlist index.
+            consumedCount = playlist.items.count
             newTracks = playlist.items
                 .compactMap {
                     $0.track?.toPlayable(
@@ -417,19 +443,24 @@ struct MediaDetailView: View {
                         fingerprint: $0.uid
                     )
                 }
+            // Stop once we've consumed the whole playlist; dropped items mean tracks.count
+            // alone never reaches total, which would otherwise keep refetching empty tails.
+            if playlist.items.isEmpty || offset + playlist.items.count >= playlist.total {
+                isLoadingMore = false
+            }
         case (.track, .apple):
             guard let song: Song = try? await musicSearchService.lookup(id: playableContent.content.id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.libraryTrack, .apple):
             guard let catalogSong = await musicSearchService.appleLibraryLookup(id: playableContent.content.id), let id = catalogSong.data.first?.id else { return }
             guard let song: Song = try? await musicSearchService.lookup(id: id), let albumID = song.albums?.first?.id.description else { return }
             guard let album: Album = try? await musicSearchService.lookup(id: albumID) else { return }
             content = album.toPlayable
             guard let tracks = album.tracks else { return }
-            newTracks = tracks.map(\.toPlayable)
+            newTracks = await musicSearchService.tracksToPlayableWithPreviews(tracks)
         case (.track, .spotify):
             guard let song = await musicSearchService.spotifyTrackLookup(id: playableContent.content.id) else { return }
             guard let albumID = song.album.id else { return }
@@ -491,27 +522,51 @@ struct MediaDetailView: View {
             if nextCursor == nil {
                 isLoadingMore = false
             }
+        case (.album, .deezer):
+            newTracks = await musicSearchService.lookupDeezerAlbumTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.playlist, .deezer):
+            newTracks = await musicSearchService.lookupDeezerPlaylistTracks(id: playableContent.content.id)
+            isLoadingMore = false
+        case (.track, .deezer):
+            let albumID: String?
+            if let existing = playableContent.metadata?.albumID {
+                albumID = existing
+            } else {
+                albumID = await musicSearchService.lookupDeezerTrack(with: playableContent.content.id)?.metadata?.albumID
+            }
+            guard let albumID else { return }
+            guard let album = await musicSearchService.lookupDeezerAlbum(with: albumID) else { return }
+            content = album
+            newTracks = await musicSearchService.lookupDeezerAlbumTracks(id: albumID)
+            isLoadingMore = false
         default:
             return
         }
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
-        
+        loadedItemCount += consumedCount ?? newTracks.count
+
         if let content {
             RecentSearchesStorage.shared.addOrMoveToFront(byID: content)
         }
     }
     
     func appendTracksAvoidingDuplicates(newTracks: [PlayableContent], to tracks: inout [PlayableContent]) {
-        var idCounts: [String: Int] = [:]
-        
+        // Seed counts from the already-loaded tracks in a single pass, then update as we
+        // append. Avoids re-scanning the whole (growing) tracks array for every new row,
+        // which otherwise makes each page append slower the further you paginate.
+        var idCounts: [String: Int] = tracks.reduce(into: [:]) { counts, track in
+            counts[track.id, default: 0] += 1
+        }
+
         for var newTrack in newTracks {
             let originalID = newTrack.id
-            let existingCount = idCounts[originalID] ?? tracks.filter { $0.id == originalID }.count
-            
+            let existingCount = idCounts[originalID, default: 0]
+
             if existingCount > 0 {
                 newTrack.metadata?.position = existingCount + 1
             }
-            
+
             idCounts[originalID] = existingCount + 1
             tracks.append(newTrack)
         }

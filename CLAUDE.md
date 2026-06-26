@@ -134,3 +134,31 @@ The app is built around several Swift packages in `/Packages`:
 - **macOS**: Leverage menu bar app and Mac-specific controls
 - **tvOS**: Optimize for remote control navigation
 - **watchOS**: Keep UI minimal and focused on essential controls
+
+## Deferred Work / Notes
+
+### Song preview in the queue (on hold)
+Idea: bring the song-preview feature (30s clip, progress fill, tap-to-stop)
+to the queue screens, matching the search rows. Implemented and then reverted
+(revert kept on branch `claude/song-preview-feature-unrgql`) — hold for later.
+
+Key findings for whoever picks this up:
+- Queue artwork does **not** carry a preview URL. It is the Sonos speaker's
+  own image (`http://<speaker-IP>:1400/...`) via `ArtworkManager` (Nuke image
+  pipeline only) — there is no Apple Music fetch in that path.
+- Queue items parsed by `QueueParse.swift` already carry a `service` and a
+  catalog track ID in `content.id` (for Apple, the numeric `song:<ID>`), so
+  previews can be enriched by ID without re-fetching tracks.
+- Approach used: `MusicSearchService.enrichWithPreviews([PlayableContent])` —
+  batch `MusicCatalogResourceRequest<Song>` keyed off `content.id`, chunked at
+  100 to respect the API id cap; call it after each `getQueue` in
+  `QueueScreen.scrollToNowPlaying` and `UpNextContentView.loadUpNext` /
+  `loadMoreTracks` (`MusicSearchService.shared` is already in the environment
+  via `.withEnvironments()`).
+- UI parity lives in `QueueCellView` (own cell, not the shared
+  `PlayableContentView`): progress-fill background, tap-to-stop on the cell,
+  stable disabled-Menu + overlay stop icon, leading swipe Preview action,
+  `contextMenu(preview:)` with `SongPreviewCard`, and `SongPreviewButton` in
+  the ellipsis menu.
+- Scope decided: Apple Music only first (Spotify/Deezer would each need their
+  own preview-URL lookup path).

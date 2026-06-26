@@ -9,12 +9,24 @@ struct TrackContainerView: View {
     
     var body: some View {
         Button {
-            guard let uri = group.coordinatorRoom.container?.id?.objectId,
-                  let serviceID = group.coordinatorRoom.container?.id?.serviceId,
-                  let type = ContentType(group.coordinatorRoom.container?.type ?? "") else { return }
-            guard let (service, id, type) = MusicServiceParser.shared.lookup(uri: uri, serviceID: serviceID, type: type) else { return }
+            guard let objectId = group.coordinatorRoom.container?.id?.objectId,
+                  let containerType = ContentType(group.coordinatorRoom.container?.type ?? "") else { return }
+            let serviceID = group.coordinatorRoom.container?.id?.serviceId ?? ""
             Task {
-                guard let content = await SonosService.shared.contentLookup(id: id, type: type, service: service) else { return }
+                let service: MusicService
+                let id: String
+                let resolvedType: ContentType
+                if let parsed = MusicServiceParser.shared.lookup(uri: objectId, serviceID: serviceID, type: containerType) {
+                    (service, id, resolvedType) = parsed
+                } else {
+                    // serviceId missing — infer service from the currently playing track
+                    let inferredService = group.coordinatorRoom.track.musicService
+                    guard let parsed = MusicServiceParser.shared.parse(uri: objectId, service: inferredService) else { return }
+                    service = inferredService
+                    id = parsed.0
+                    resolvedType = parsed.1 ?? containerType
+                }
+                guard let content = await SonosService.shared.contentLookup(id: id, type: resolvedType, service: service) else { return }
                 router?.presentedSheet = .mediaDetail(content: content, group: group)
             }
         } label: {

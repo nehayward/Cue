@@ -14,6 +14,7 @@ struct UpNextContentView: View {
     @Binding var upNext: [PlayableContent]
 
     @State private var isLoading: Bool = false
+    @State private var hasLoaded: Bool = false
     @State private var isPaginating: Bool = true
     @State private var currentStartingIndex: Int = 0
     @State private var pageSize: Int = 50
@@ -24,8 +25,7 @@ struct UpNextContentView: View {
     var body: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
-                ForEach(upNext, id: \.trackID) { track in
-                    let index = upNext.firstIndex(where: { $0.trackID == track.trackID }) ?? 0
+                ForEach(Array(upNext.enumerated()), id: \.element.trackID) { index, track in
                     HStack(spacing: 0) {
                         Text(formatPosition(startPosition + index + 1))
                             .font(.caption.monospacedDigit().smallCaps())
@@ -34,14 +34,8 @@ struct UpNextContentView: View {
                             .padding(.trailing, 8)
                         QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                     }
-                    .geometryGroup()
                     .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.clear)
-                            .padding(.horizontal, 4)
-                    )
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                     .onAppear {
                         guard index >= paginationThreshold,
@@ -74,6 +68,45 @@ struct UpNextContentView: View {
                         }
                 }
             }
+            .listStyle(.plain)
+            .tint(.accentColor.opacity(0.5))
+            .contextMenu(forSelectionType: String.self) { trackIDs in
+                let tracks = trackIDs.compactMap { id in upNext.first { $0.trackID == id } }
+                if tracks.first?.content.service != .unknown {
+                    if trackIDs.count == 1, let track = tracks.first {
+                        AddToPlaylistMenu(itemToAdd: track)
+
+                        Button {
+                            router.navigate(to: .mediaDetail(content: track, group: group))
+                        } label: { Label("View Album", systemImage: "smallcircle.filled.circle.fill") }
+
+                        Button {
+                            router.navigate(to: .artistDetail(content: track, group: group))
+                        } label: { Label("View Artist", systemImage: "music.mic") }
+
+                        Button {
+                            handleLocalMoveNext(track)
+                            Task {
+                                guard let position = track.metadata?.position else { return }
+                                let nextPosition = group.coordinatorRoom.track.position + 1
+                                guard position != nextPosition else { return }
+                                try? await SonosService.shared.reorderQueue(group, from: position, to: nextPosition)
+                            }
+                        } label: {
+                            Text("Play Next")
+                            Text("After \(group.coordinatorRoom.track.name)")
+                            Image(systemName: "text.insert")
+                        }
+                    } else {
+                        AddTracksToPlaylistMenu(tracks: tracks)
+                    }
+                }
+                Button(role: .destructive) {
+                    Task { await deleteSelected(trackIDs) }
+                } label: {
+                    Label(trackIDs.count == 1 ? "Remove" : "Remove \(trackIDs.count) Tracks", systemImage: "trash")
+                }
+            }
             .environment(\.editMode, $editMode)
             .task(id: group.coordinatorRoom.track.trackID) {
                 await loadUpNext()
@@ -88,11 +121,20 @@ struct UpNextContentView: View {
     
     private func loadUpNext() async {
         isLoading = true
-        isPaginating = false // Reset pagination state
-        currentStartingIndex = group.coordinatorRoom.track.position // Start from current track position (0-based for API)
-        upNext = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: currentStartingIndex, total: pageSize)
+        isPaginating = false
+        currentStartingIndex = group.coordinatorRoom.track.position
+        let tracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: currentStartingIndex, total: pageSize)
+        if hasLoaded {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                upNext = tracks
+                isLoading = false
+            }
+        } else {
+            upNext = tracks
+            isLoading = false
+            hasLoaded = true
+        }
         group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
-        isLoading = false
     }
     
     private func hasMoreTracks() -> Bool {
@@ -134,6 +176,31 @@ struct UpNextContentView: View {
         }
     }
     
+    private func deleteSelected(_ trackIDs: Set<String>) async {
+        let selectedTracks = upNext.filter { trackIDs.contains($0.trackID) }
+        let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
+        withAnimation {
+            for track in sortedTracks {
+                upNext.removeAll { $0.trackID == track.trackID }
+            }
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(200))
+            guard let position = sortedTracks.last?.metadata?.position else { return }
+            for index in upNext.indices {
+                if let currentPosition = upNext[index].metadata?.position, currentPosition >= position {
+                    upNext[index].metadata?.position = currentPosition - sortedTracks.count
+                }
+            }
+        }
+        for track in sortedTracks {
+            guard let position = track.metadata?.position else { continue }
+            try? await SonosService.shared.removeTrackFromQueue(group.coordinatorRoom.ip, index: position)
+        }
+        group.coordinatorRoom.queueTotal = (try? await SonosService.shared.getQueueTotal(group: group)) ?? 0
+        selection.removeAll()
+    }
+    
     private func handleLocalMoveNext(_ track: PlayableContent) {
         guard let fromIndex = upNext.firstIndex(where: { $0.trackID == track.trackID }) else { return }
         guard fromIndex != 0 else { return }
@@ -159,24 +226,13 @@ struct UpNextContentView: View {
     }
     
     private func move(from source: IndexSet, to destination: Int) {
-        guard let sourceIndex = source.first else { return }
-        
-        // Get the actual queue positions from track metadata
-        let sourceTrack = upNext[sourceIndex]
+        let sourceTrack = upNext[source.first ?? 0]
         let destinationTrack = destination < upNext.count ? upNext[destination] : upNext.last
-        
         guard let actualSourcePosition = sourceTrack.metadata?.position,
               let actualDestinationPosition = destinationTrack?.metadata?.position else { return }
-        
-        // Move in local array for immediate UI feedback
         upNext.move(fromOffsets: source, toOffset: destination)
-        
         Task {
-            // Use actual queue positions for Sonos API
-            try await SonosService.shared.reorderQueue(group, from: actualSourcePosition, to: actualDestinationPosition)
-            
-            // Refresh the up next list to get updated positions
-            await loadUpNext()
+            try? await SonosService.shared.reorderQueue(group, from: actualSourcePosition, to: actualDestinationPosition)
         }
     }
 }

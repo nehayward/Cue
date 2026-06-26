@@ -59,6 +59,7 @@ public final class MusicSearchService {
         clientSecret: "zCcBaeVvBKX4R0eAwypLes8PmBknZnqI",
         tokenRefreshHandler: KeychainTokenRefreshHandler.shared
     )
+    private let deezer = DeezerAPI()
 
     private var searchSuggestionTask = Task<([MusicCatalogSearchSuggestionsResponse.Suggestion], MusicItemCollection<MusicCatalogSearchSuggestionsResponse.TopResult>)?, Never> { nil }
 
@@ -113,6 +114,8 @@ public final class MusicSearchService {
                         fetched = await self.searchTuneIn(query: capturedQuery)
                     case .soundcloud:
                         fetched = await self.searchSoundCloud(query: capturedQuery)
+                    case .deezer:
+                        fetched = await self.searchDeezer(query: capturedQuery)
                     }
                     // If we were cancelled during the fetch, the API may have returned []
                     // for a cancelled URLSession call. Drop the result so we don't blank
@@ -379,6 +382,54 @@ public final class MusicSearchService {
         catalogResource.properties = [.tracks, .artists, .audioVariants]
         let response = try await catalogResource.response()
         return response.items.first
+    }
+
+    /// Converts a MusicKit track sequence to PlayableContent, enriching each Song
+    /// with its previewAssets.
+    ///
+    /// Songs returned via an album/playlist `.tracks` relationship don't carry
+    /// `previewAssets`, so we batch-fetch the missing ones with catalog resource
+    /// requests. The Apple Music catalog `ids` parameter is capped per request,
+    /// so IDs are chunked — otherwise a long playlist would exceed the cap and
+    /// the whole request would fail, leaving every track without a preview.
+    public func tracksToPlayableWithPreviews(_ tracks: some Sequence<MusicKit.Track>) async -> [PlayableContent] {
+        // Apple Music caps the number of ids per catalog resource request.
+        let batchSize = 100
+
+        let trackArray = Array(tracks)
+
+        var previewURLs: [MusicItemID: URL] = [:]
+
+        // Skip the network round trip for songs that already carry a preview.
+        var missingIDs: [MusicItemID] = []
+        for track in trackArray {
+            guard case .song(let song) = track else { continue }
+            if let url = song.previewAssets?.first?.url {
+                previewURLs[song.id] = url
+            } else {
+                missingIDs.append(song.id)
+            }
+        }
+
+        for chunk in stride(from: 0, to: missingIDs.count, by: batchSize) {
+            let ids = Array(missingIDs[chunk..<min(chunk + batchSize, missingIDs.count)])
+            let request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids)
+            if let response = try? await request.response() {
+                for song in response.items {
+                    if let url = song.previewAssets?.first?.url {
+                        previewURLs[song.id] = url
+                    }
+                }
+            }
+        }
+
+        return trackArray.map { track in
+            var playable = track.toPlayable
+            if case .song(let song) = track {
+                playable.previewURL = previewURLs[song.id]
+            }
+            return playable
+        }
     }
 
     public func lookup(id: String) async throws -> Playlist? {
@@ -1028,7 +1079,7 @@ public final class MusicSearchService {
     private func createSoundCloudPlayableContent(from track: SoundCloudTrack) -> PlayableContent {
         let artist = track.metadataArtist ?? track.user?.username ?? ""
         let subtitle = artist.isEmpty ? (track.description ?? "") : artist
-        
+
         return PlayableContent(
             title: track.title,
             subtitle: subtitle,
@@ -1044,6 +1095,189 @@ public final class MusicSearchService {
                 artist: artist.isEmpty ? nil : artist,
                 album: nil,
                 fingerprint: String(track.id)
+            )
+        )
+    }
+
+    private func searchDeezer(query: String) async -> [PlayableContent] {
+        async let tracks = deezer.search(for: query)
+        async let albums = deezer.searchAlbums(for: query)
+        async let artists = deezer.searchArtists(for: query)
+        async let playlists = deezer.searchPlaylists(for: query)
+
+        var content: [PlayableContent] = []
+        content.append(contentsOf: await tracks.map { createDeezerPlayableContent(from: $0) })
+        content.append(contentsOf: await albums.map { createDeezerAlbumContent(from: $0) })
+        content.append(contentsOf: await artists.map { createDeezerArtistContent(from: $0) })
+        content.append(contentsOf: await playlists.map { createDeezerPlaylistContent(from: $0) })
+        return sortContentByIntelligentSearch(playableContent: content, query: query)
+    }
+
+    public func lookupDeezerTrack(with id: String) async -> PlayableContent? {
+        guard let track = await deezer.track(for: id) else { return nil }
+        return createDeezerPlayableContent(from: track)
+    }
+
+    public func lookupDeezerAlbum(with id: String) async -> PlayableContent? {
+        guard let album = await deezer.album(for: id) else { return nil }
+        return createDeezerAlbumContent(from: album)
+    }
+
+    public func lookupDeezerAlbumTracks(id: String) async -> [PlayableContent] {
+        await deezer.albumTracks(for: id).map { createDeezerPlayableContent(from: $0) }
+    }
+
+    public func lookupDeezerArtistTopTracks(id: String) async -> [PlayableContent] {
+        await deezer.artistTopTracks(for: id).map { createDeezerPlayableContent(from: $0) }
+    }
+
+    public func lookupDeezerArtistAlbums(id: String) async -> [PlayableContent] {
+        await deezer.artistAlbums(for: id).map { createDeezerAlbumContent(from: $0) }
+    }
+
+    public func lookupDeezerArtist(id: String) async -> PlayableContent? {
+        guard let artist = await deezer.artist(for: id) else { return nil }
+        return createDeezerArtistContent(from: artist)
+    }
+
+    public func lookupDeezerPlaylist(with id: String) async -> PlayableContent? {
+        guard let playlist = await deezer.playlist(for: id) else { return nil }
+        return createDeezerPlaylistContent(from: playlist)
+    }
+
+    public func lookupDeezerPlaylistTracks(id: String) async -> [PlayableContent] {
+        await deezer.playlistTracks(for: id).map { createDeezerPlayableContent(from: $0) }
+    }
+
+    // MARK: - Deezer user library
+
+    private func deezerToken() async -> String? {
+        try? await KeychainTokenRefreshHandler.shared.getAccessToken(for: .deezer)
+    }
+
+    public func deezerUserFavoriteTracks(offset: Int = 0) async -> [PlayableContent] {
+        guard let token = await deezerToken() else { return [] }
+        return await deezer.userFavoriteTracks(accessToken: token, index: offset).map { createDeezerPlayableContent(from: $0) }
+    }
+
+    public func deezerUserFavoriteAlbums(offset: Int = 0) async -> [PlayableContent] {
+        guard let token = await deezerToken() else { return [] }
+        return await deezer.userFavoriteAlbums(accessToken: token, index: offset).map { createDeezerAlbumContent(from: $0) }
+    }
+
+    public func deezerUserFavoriteArtists(offset: Int = 0) async -> [PlayableContent] {
+        guard let token = await deezerToken() else { return [] }
+        return await deezer.userFavoriteArtists(accessToken: token, index: offset).map { createDeezerArtistContent(from: $0) }
+    }
+
+    public func deezerUserPlaylists(offset: Int = 0) async -> [PlayableContent] {
+        guard let token = await deezerToken() else { return [] }
+        return await deezer.userPlaylists(accessToken: token, index: offset).map { createDeezerPlaylistContent(from: $0) }
+    }
+
+    public func deezerUserHistory() async -> [PlayableContent] {
+        guard let token = await deezerToken() else { return [] }
+        return await deezer.userHistory(accessToken: token).map { createDeezerPlayableContent(from: $0) }
+    }
+
+    public var isDeezerAuthenticated: Bool {
+        get async { await deezerToken() != nil }
+    }
+
+    public func likeDeezerTrack(id: String) async -> Bool {
+        guard let creds = await deezerSMAPICredentials() else { return false }
+        return await deezer.rateItem(credentials: creds, smapiID: "tr-flac:\(id)", rating: 1)
+    }
+
+    public func unlikeDeezerTrack(id: String) async -> Bool {
+        guard let creds = await deezerSMAPICredentials() else { return false }
+        return await deezer.rateItem(credentials: creds, smapiID: "tr-flac:\(id)", rating: 0)
+    }
+
+    public func isDeezerTrackLiked(id: String) async -> Bool {
+        guard let creds = await deezerSMAPICredentials() else { return false }
+        return await deezer.isItemLiked(credentials: creds, smapiID: "tr-flac:\(id)")
+    }
+
+    private func deezerSMAPICredentials() async -> SMAPICredentials? {
+        guard let creds = try? await KeychainTokenRefreshHandler.shared.getCredentials(for: .deezer) else { return nil }
+        return SMAPICredentials(token: creds.token, key: creds.key, householdId: creds.householdId)
+    }
+
+
+    private func createDeezerPlayableContent(from track: DeezerTrack) -> PlayableContent {
+        let artist = track.artist?.name ?? ""
+        let subtitle = artist.isEmpty ? (track.album?.title ?? "") : artist
+
+        return PlayableContent(
+            title: track.title,
+            subtitle: subtitle,
+            thumbnail: track.album?.artworkURL,
+            artwork: track.album?.artworkURL,
+            content: MediaContent(
+                service: .deezer,
+                id: String(track.id),
+                type: .track,
+                location: URL(string: "https://www.deezer.com/track/\(track.id)")
+            ),
+            previewURL: track.previewURL,
+            metadata: .init(
+                artist: artist.isEmpty ? nil : artist,
+                artistID: track.artist.map { String($0.id) },
+                album: track.album?.title,
+                albumID: track.album.map { String($0.id) },
+                fingerprint: String(track.id)
+            )
+        )
+    }
+
+    private func createDeezerAlbumContent(from album: DeezerAlbum) -> PlayableContent {
+        let artistName = album.artist?.name ?? ""
+        let subtitle = [artistName.isEmpty ? nil : artistName, album.releaseYear].compactMap { $0 }.joined(separator: " • ")
+        return PlayableContent(
+            title: album.title,
+            subtitle: subtitle,
+            thumbnail: album.artworkURL,
+            artwork: album.artworkURL,
+            content: MediaContent(
+                service: .deezer,
+                id: String(album.id),
+                type: .album,
+                location: URL(string: "https://www.deezer.com/album/\(album.id)")
+            ),
+            metadata: .init(
+                artist: artistName.isEmpty ? nil : artistName,
+                artistID: album.artist.map { String($0.id) }
+            )
+        )
+    }
+
+    private func createDeezerArtistContent(from artist: DeezerArtist) -> PlayableContent {
+        PlayableContent(
+            title: artist.name,
+            subtitle: "",
+            thumbnail: artist.artworkURL,
+            artwork: artist.artworkURL,
+            content: MediaContent(
+                service: .deezer,
+                id: String(artist.id),
+                type: .artist,
+                location: URL(string: "https://www.deezer.com/artist/\(artist.id)")
+            )
+        )
+    }
+
+    private func createDeezerPlaylistContent(from playlist: DeezerPlaylist) -> PlayableContent {
+        PlayableContent(
+            title: playlist.title,
+            subtitle: playlist.user?.name ?? "",
+            thumbnail: playlist.artworkURL,
+            artwork: playlist.artworkURL,
+            content: MediaContent(
+                service: .deezer,
+                id: String(playlist.id),
+                type: .playlist,
+                location: URL(string: "https://www.deezer.com/playlist/\(playlist.id)")
             )
         )
     }
