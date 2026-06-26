@@ -89,20 +89,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         #endif
     }
 
-    // MARK: - Session coordination
-
-    // Broadcasts when this service starts and stops owning the shared audio
-    // session to play local audio. Other features that drive the same session
-    // (e.g. hardware volume-button capture) observe these and yield while we
-    // play, then reclaim it. This service stays unaware of those listeners.
-    private func notifyPlaybackBegan() {
-        NotificationCenter.default.post(name: .audioPlaybackDidBegin, object: self)
-    }
-
-    private func notifyPlaybackEnded() {
-        NotificationCenter.default.post(name: .audioPlaybackDidEnd, object: self)
-    }
-
     // MARK: - Public Methods
     @MainActor
     public func play(
@@ -128,7 +114,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         } catch {
             guard !Task.isCancelled else { return }
             playbackState = .error(error.localizedDescription)
-            notifyPlaybackEnded()
         }
     }
 
@@ -146,7 +131,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
     @MainActor
     public func preview(url: URL, streaming: Bool = false) {
         previewTask?.cancel()
-        notifyPlaybackBegan()
         previewTask = Task { @MainActor in
             if streaming {
                 playStream(url: url, category: .playback, options: [.duckOthers])
@@ -187,7 +171,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
         previewTask?.cancel()
         previewTask = nil
         teardownAudio()
-        notifyPlaybackEnded()
     }
 
     /// Tears down the player and resets playback state. Does NOT cancel
@@ -262,7 +245,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             playbackState = .error(error.localizedDescription)
-            notifyPlaybackEnded()
             return
         }
 
@@ -286,7 +268,6 @@ public final class AudioPlaybackService: NSObject, @unchecked Sendable {
                     self.playbackState = .playing
                 case .failed:
                     self.playbackState = .error(errorDescription ?? "Streaming failed")
-                    self.notifyPlaybackEnded()
                 default:
                     break
                 }
@@ -375,7 +356,6 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
             }
             isPreviewMode = false
             stopProgressObserver()
-            notifyPlaybackEnded()
         }
     }
 
@@ -384,20 +364,8 @@ extension AudioPlaybackService: AVAudioPlayerDelegate {
             playbackState = .error(error?.localizedDescription ?? "Decode error occurred")
             isPreviewMode = false
             stopProgressObserver()
-            notifyPlaybackEnded()
         }
     }
-}
-
-// MARK: - Notifications
-public extension Notification.Name {
-    /// Posted when `AudioPlaybackService` begins owning the shared audio session
-    /// to play local audio (e.g. a song preview). Features that drive the same
-    /// session can observe this to yield it.
-    static let audioPlaybackDidBegin = Notification.Name("AudioPlaybackService.didBegin")
-    /// Posted when `AudioPlaybackService` stops playing and releases the session,
-    /// whether by stopping, finishing, or erroring. Safe to treat as idempotent.
-    static let audioPlaybackDidEnd = Notification.Name("AudioPlaybackService.didEnd")
 }
 
 // MARK: - Error Types
