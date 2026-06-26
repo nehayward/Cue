@@ -13,7 +13,6 @@ struct PlayableContentList: View {
     @Environment(Router.self) var router
 
     @State private var isLoading: Bool = false
-    @State private var isLoadingMore: Bool = false
     @State private var hasMoreContent: Bool = true
     @State private var navigationTitle: String = ""
     
@@ -123,11 +122,28 @@ struct PlayableContentList: View {
     
     private var loadingOverlay: some View {
         Group {
-            if isLoading {
+            // Only the initial load shows the full-screen spinner; paging more
+            // pages happens silently in the background.
+            if isLoading && isCurrentListEmpty {
                 ProgressView()
                     .padding()
                     .background(.thickMaterial)
             }
+        }
+    }
+
+    private var isCurrentListEmpty: Bool {
+        switch type {
+        case .track:
+            return browseService.songs.isEmpty
+        case .album:
+            return browseService.albums.isEmpty
+        case .artist:
+            return browseService.artists.isEmpty
+        case .playlist:
+            return browseService.playlists.isEmpty
+        default:
+            return true
         }
     }
     
@@ -209,9 +225,9 @@ struct PlayableContentList: View {
     }
 
     private func loadMoreContent() async {
-        guard !isLoading, !isLoadingMore, hasMoreContent else { return }
-        isLoadingMore = true
-        defer { isLoadingMore = false }
+        guard !isLoading, hasMoreContent else { return }
+        isLoading = true
+        defer { isLoading = false }
 
         switch type {
         case .track:

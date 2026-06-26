@@ -12,7 +12,6 @@ struct FolderBrowseView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService
     @State private var items: OrderedSet<PlayableContent> = []
     @State private var isLoading = false
-    @State private var isLoadingMore = false
     @State private var hasMore = true
 
     /// Matches the `RequestedCount` used by `browseFolder`; a full page implies
@@ -98,13 +97,13 @@ struct FolderBrowseView: View {
     private func loadMoreIfNeeded(currentItem: PlayableContent) async {
         // Apple Music folders are loaded in a single request above.
         guard item.content.service != .apple else { return }
-        guard !isLoading, !isLoadingMore, hasMore,
+        guard !isLoading, hasMore,
               let index = items.firstIndex(of: currentItem),
               index >= items.count - 10
         else { return }
 
-        isLoadingMore = true
-        defer { isLoadingMore = false }
+        isLoading = true
+        defer { isLoading = false }
 
         let newItems = await browseService.browseFolder(folderID: item.id, offset: items.count)
         for newItem in newItems {
