@@ -19,8 +19,6 @@ struct PlayableContentView: View {
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var audioService = AudioPlaybackService.shared
 
-    @Environment(\.editMode) private var editMode
-
     let item: PlayableContent
     var parent: PlayableContent?
     var hideArtwork: Bool = false
@@ -57,26 +55,6 @@ struct PlayableContentView: View {
     private var isPreviewing: Bool {
         guard let url = item.previewURL else { return false }
         return audioService.isPreviewing(url)
-    }
-
-    /// The track has a previewable clip we can audition.
-    private var hasPreview: Bool {
-        guard let url = item.previewURL, !url.absoluteString.isEmpty else { return false }
-        return [.track, .libraryTrack].contains(item.content.type)
-    }
-
-    private var isEditing: Bool {
-        editMode?.wrappedValue.isEditing == true
-    }
-
-    /// Starts or stops auditioning the track's preview clip.
-    private func togglePreview() {
-        HapticManager.shared.fireHaptic(.buttonPress)
-        if isPreviewing {
-            AudioPlaybackService.shared.stopPreview()
-        } else if let url = item.previewURL {
-            AudioPlaybackService.shared.preview(url: url, streaming: item.content.service == .plex)
-        }
     }
 
     private var previewProgress: Double {
@@ -137,23 +115,6 @@ struct PlayableContentView: View {
                     ContentArtworkView(content: item)
                         .frame(width: 50, height: 50)
                         .allowsHitTesting(!hideArtwork)
-                        .overlay {
-                            // In edit mode the List consumes row taps for selection, so a plain
-                            // Button here wouldn't fire — use a high-priority tap gesture to win the
-                            // tap and toggle the preview from the artwork.
-                            if isEditing, hasPreview {
-                                Image(systemName: isPreviewing ? "stop.circle.fill" : "play.circle.fill")
-                                    .font(.title2)
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(.white, Color.accentColor)
-                                    .shadow(radius: 2)
-                                    .padding(4)
-                                    .background(.black.opacity(0.25), in: .rect(cornerRadius: 8))
-                                    .frame(width: 50, height: 50)
-                                    .contentShape(.rect)
-                                    .highPriorityGesture(TapGesture().onEnded { togglePreview() })
-                            }
-                        }
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -202,9 +163,7 @@ struct PlayableContentView: View {
                     .tint(.primary)
                     .disabled(isPreviewing)
                     .overlay {
-                        // In edit mode the artwork overlay is the preview control, so don't
-                        // also show a (non-working) stop icon here.
-                        if isPreviewing, !isEditing {
+                        if isPreviewing {
                             Image(systemName: "stop.circle.fill")
                                 .font(.title2)
                                 .foregroundStyle(Color.accentColor)
