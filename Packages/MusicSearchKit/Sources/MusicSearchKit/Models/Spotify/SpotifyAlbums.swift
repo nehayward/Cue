@@ -77,5 +77,6 @@ public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {
     public let explicit: Bool
     public let durationMs: Int
     public let album: SpotifyAlbumItem?
+    public let previewUrl: String?
     public var allArtists: String { artists.map(\.name).joined(separator: ", ") }
 }

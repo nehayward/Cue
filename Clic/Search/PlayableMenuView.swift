@@ -13,18 +13,10 @@ struct PlayableMenuView: View {
     @Environment(PlayHistoryService.self) private var playHistoryService: PlayHistoryService
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService
     @Environment(AppleMusicBrowseService.self) private var appleMusicBrowseService: AppleMusicBrowseService?
-
     var item: PlayableContent
 
     var body: some View {
         VStack {
-            if item.content.type != .folder {
-                Button {
-                    router.sheet(to: .createScene(content: item))
-                } label: {
-                    Label("Create Scene", systemImage: "bolt.fill")
-                }
-            }
             switch item.content.type {
             case .artistRadio, .songRadio:
                 if [.spotify, .apple].contains(item.content.service) {
@@ -53,23 +45,17 @@ struct PlayableMenuView: View {
                     } label: {
                         Label("Replace", systemImage: "play.fill")
                     }
-
-                    Button {
-                        play(position: .next)
-                    } label: {
-                        Label("Play Next", systemImage: "text.insert")
-                    }
-
-                    Button {
-                        play(position: .end)
-                    } label: {
-                        Label("Play Last", systemImage: "text.append")
-                    }
                     
                     Button {
                         play(position: .replace, shuffle: true)
                     } label: {
                         Label("Shuffle", systemImage: "shuffle")
+                    }
+
+                    Button {
+                        play(position: .next)
+                    } label: {
+                        Label("Play Next", systemImage: "text.insert")
                     }
                 }
 
@@ -81,7 +67,7 @@ struct PlayableMenuView: View {
                     }
                 }
             case .album, .track, .libraryTrack, .libraryAlbum:
-                ControlGroup("Queue \(item.title)") {
+                ControlGroup("Queue \(item.content.type.title)") {
                     Button {
                         play(position: .now)
                     } label: {
@@ -101,7 +87,15 @@ struct PlayableMenuView: View {
                     }
                 }
                 
-                if [.spotify, .apple].contains(item.content.service), item.content.type == .track {
+                if [.spotify, .apple, .deezer, .plex].contains(item.content.service),
+                   [.track, .libraryTrack].contains(item.content.type),
+                   let previewURL = item.previewURL,
+                   !previewURL.absoluteString.isEmpty {
+                    SongPreviewButton(previewURL: previewURL, streaming: item.content.service == .plex)
+                }
+                
+                if (item.content.service == .apple && [.track, .libraryTrack].contains(item.content.type))
+                    || (item.content.service == .spotify && item.content.type == .track) {
                     Button {
                         startRadio()
                     } label: {
@@ -127,6 +121,19 @@ struct PlayableMenuView: View {
                     }
                 }
 
+                // Library songs map to a catalog track behind the scenes, so the
+                // album/artist we open is the Apple Music catalog version — label
+                // it as such to distinguish it from the on-device library album.
+                if item.content.type == .libraryTrack, item.content.service == .apple {
+                    NavigationLink(value: RouterDestination.mediaDetail(content: item, group: selectedGroupService.group)) {
+                        Label("Apple Album", systemImage: "smallcircle.circle.fill")
+                    }
+
+                    NavigationLink(value: RouterDestination.artistDetail(content: item, group: selectedGroupService.group)) {
+                        Label("Apple Artist", systemImage: "music.mic")
+                    }
+                }
+
                 AddToLastPlaylistButton(itemToAdd: item)
                 AddToPlaylistMenu(itemToAdd: item)
 
@@ -148,6 +155,14 @@ struct PlayableMenuView: View {
             }
         }
         
+        if item.content.type != .folder {
+            Button {
+                router.sheet(to: .createScene(content: item))
+            } label: {
+                Label("Create Scene", systemImage: "bolt.fill")
+            }
+        }
+        
         if [.spotify, .apple].contains(item.content.service),
            [.album, .libraryAlbum].contains(item.content.type) {
             FavoriteMenuButton(item: item)
@@ -160,7 +175,7 @@ struct PlayableMenuView: View {
                 selectedGroupService.group = nil
                 play()
             } label: {
-                Label("Move to Room…", systemImage: "hifispeaker.arrow.forward.fill")
+                Label("Play in Room…", systemImage: "hifispeaker.arrow.forward.fill")
             }
         }
         
@@ -228,7 +243,7 @@ struct PlayableMenuView: View {
         Task { @MainActor in
             hideKeyboard()
             let startRadio: ((GroupRoom) async throws -> Void) = { group in
-                let radioItem = item.toRadio
+                guard let radioItem = await resolveRadioSeed(for: item) else { return }
                 QueueManager.shared.addToQueue(item: QueueItem(playableContent: radioItem, group: group, position: .now, title: "Starting radio", showBanner: true))
             }
             guard let group = selectedGroupService.group else {
@@ -237,5 +252,26 @@ struct PlayableMenuView: View {
             }
             try await startRadio(group)
         }
+    }
+
+    /// Builds the radio seed for `content`. Apple library tracks carry a library
+    /// ID (`i.…`) that the radio URI can't use, so we first resolve the matching
+    /// catalog song ID via the library→catalog relationship and seed the station
+    /// from that, falling back to `nil` if no catalog match exists.
+    private func resolveRadioSeed(for content: PlayableContent) async -> PlayableContent? {
+        guard content.content.type == .libraryTrack, content.content.service == .apple else {
+            return content.toRadio
+        }
+        guard let catalogSong = await MusicSearchService.shared.appleLibraryLookup(id: content.content.id),
+              let catalogID = catalogSong.data.first?.id else { return nil }
+        let catalogTrack = PlayableContent(
+            title: content.title,
+            subtitle: content.subtitle,
+            thumbnail: content.thumbnail,
+            artwork: content.artwork,
+            content: MediaContent(service: .apple, id: catalogID, type: .track, location: nil),
+            metadata: content.metadata
+        )
+        return catalogTrack.toRadio
     }
 }

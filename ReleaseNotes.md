@@ -1,5 +1,9 @@
 # 2026.6
 
+–– New Features ––
+- Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
+- Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
+
 –– Bug Fixes & Improvements ––
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll

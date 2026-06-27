@@ -14,6 +14,7 @@ struct PlayableContentRowView: View {
     @Environment(SelectedGroupService.self) private var selectedGroupService: SelectedGroupService?
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     @State private var averageColor: Color?
+    @State private var audioService = AudioPlaybackService.shared
 
     private var displayColor: Color? {
         if let averageColor { return averageColor }
@@ -35,6 +36,16 @@ struct PlayableContentRowView: View {
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
         return trackID == item.content.id.removingPercentEncoding
+    }
+
+    private var isPreviewing: Bool {
+        guard let url = item.previewURL else { return false }
+        return audioService.isPreviewing(url)
+    }
+
+    private var previewProgress: Double {
+        guard audioService.duration > 0 else { return 0 }
+        return min(1, audioService.playbackProgress / audioService.duration)
     }
     
     private var subtitleText: String {
@@ -76,6 +87,16 @@ struct PlayableContentRowView: View {
                     }
                     .frame(width: 50, height: 50)
                     .allowsHitTesting(!hideArtwork)
+                    .overlay {
+                        if isPreviewing {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.title2)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, Color.accentColor)
+                                .shadow(radius: 2)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -96,6 +117,17 @@ struct PlayableContentRowView: View {
             }
             .fontDesign(.rounded)
             .contentShape(.rect)
+            .overlay(alignment: .bottom) {
+                // Gated on isPreviewing so stopping removes the bar instantly,
+                // instead of animating its width back down to zero.
+                if isPreviewing {
+                    Rectangle()
+                        .foregroundStyle(.accent.gradient)
+                        .frame(height: 2)
+                        .scaleEffect(x: previewProgress, anchor: .leading)
+                        .animation(.linear(duration: 0.3), value: previewProgress)
+                }
+            }
             .background {
                 if let displayColor {
                     RoundedRectangle(cornerRadius: 4)
@@ -111,7 +143,13 @@ struct PlayableContentRowView: View {
             case .folder:
                 router?.navigate(to:  .folderBrowse(item: item, title: item.title))
             case .track, .favorite, .radio, .songRadio, .artistRadio, .libraryTrack, .unique, .liveRadio:
-                play()
+                // Tapping a cell that's auditioning stops it, matching the list row.
+                if isPreviewing {
+                    HapticManager.shared.fireHaptic(.buttonPress)
+                    AudioPlaybackService.shared.stopPreview()
+                } else {
+                    play()
+                }
             }
         }
         .foregroundStyle(.primary)
