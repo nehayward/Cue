@@ -11,12 +11,22 @@ import VibesDS
 struct PlayableGridScreen: View {
     @Environment(SonosService.self) private var sonosService
     @Environment(LibraryBrowseService.self) var browseService
+    @Environment(Router.self) private var router
 
     @State private var isLoading: Bool = false
     @Binding var items: OrderedSet<PlayableContent>
 
     var action: ((Int) async -> ())? = nil
     private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
+
+    /// When this grid is showing a service's playlists, the service to create a new playlist on —
+    /// only services that can create an empty playlist (Plex needs a seed track, so it's excluded).
+    private var createPlaylistService: MusicService? {
+        guard let service = items.first?.content.service,
+              items.first?.content.type.isPlaylist == true,
+              MusicSearchService.supportsEmptyPlaylistCreation(service) else { return nil }
+        return service
+    }
 
     var body: some View {
         ScrollView {
@@ -49,6 +59,18 @@ struct PlayableGridScreen: View {
         }
         .contentMargins(.horizontal, 16, for: .scrollContent)
         .animation(.interactiveSpring, value: items)
+        .toolbar {
+            if let service = createPlaylistService {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        router.presentedSheet = .newPlaylist(service: service)
+                    } label: {
+                        Label("New Playlist", systemImage: "plus")
+                            .labelStyle(.iconOnly)
+                    }
+                }
+            }
+        }
         .task {
             isLoading = true
             await action?(0)

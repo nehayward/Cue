@@ -281,10 +281,10 @@ public final class MusicSearchService {
         }
     }
 
-    /// Creates a new Apple Music library playlist containing `track` and returns it as `PlayableContent`.
-    public func createApplePlaylist(name: String, addingTrack track: PlayableContent) async -> PlayableContent? {
+    /// Creates a new Apple Music library playlist, optionally seeded with `track`.
+    public func createApplePlaylist(name: String, addingTrack track: PlayableContent? = nil) async -> PlayableContent? {
         guard let id = try? await apple.createLibraryPlaylist(name: name) else { return nil }
-        _ = await addToApplePlaylist(track: track, playlistID: id)
+        if let track { _ = await addToApplePlaylist(track: track, playlistID: id) }
         return PlayableContent(
             title: name,
             subtitle: "",
@@ -308,10 +308,10 @@ public final class MusicSearchService {
         return playlists
     }
 
-    /// Creates a new Spotify playlist containing `track` and returns it as `PlayableContent`.
-    public func createSpotifyPlaylist(name: String, addingTrack track: PlayableContent) async -> PlayableContent? {
+    /// Creates a new Spotify playlist, optionally seeded with `track`.
+    public func createSpotifyPlaylist(name: String, addingTrack track: PlayableContent? = nil) async -> PlayableContent? {
         guard let id = await spotifySearchAPI.createPlaylist(name: name) else { return nil }
-        _ = await addToSpotifyPlaylist(track: track, playlistID: id)
+        if let track { _ = await addToSpotifyPlaylist(track: track, playlistID: id) }
         editablePlaylistIDsCache[.spotify, default: []].insert(id)
         return PlayableContent(
             title: name,
@@ -378,12 +378,12 @@ public final class MusicSearchService {
 
     // MARK: Deezer
 
-    /// Creates a new Deezer playlist seeded with `track` and returns it as `PlayableContent`.
+    /// Creates a new Deezer playlist, optionally seeded with `track`.
     /// Requires a Deezer token with the `manage_library` scope.
-    public func createDeezerPlaylist(name: String, track: PlayableContent) async -> PlayableContent? {
+    public func createDeezerPlaylist(name: String, track: PlayableContent? = nil) async -> PlayableContent? {
         guard let token = await deezerToken(),
               let newID = await deezer.createPlaylist(title: name, accessToken: token) else { return nil }
-        _ = await deezer.addTracks(playlistID: newID, trackIDs: [track.content.id], accessToken: token)
+        if let track { _ = await deezer.addTracks(playlistID: newID, trackIDs: [track.content.id], accessToken: token) }
         // Prefer a refetch so the content carries artwork and counts; fall back to a minimal
         // representation if the new playlist isn't queryable yet.
         if let refetched = await lookupDeezerPlaylist(with: newID) { return refetched }
@@ -428,15 +428,23 @@ public final class MusicSearchService {
         }
     }
 
-    /// Creates a new playlist on `service` seeded with `track`, returned as `PlayableContent`.
-    public func createServicePlaylist(name: String, seededWith track: PlayableContent, for service: MusicService) async -> PlayableContent? {
+    /// Creates a new playlist on `service`, optionally seeded with `track`. Plex requires a seed
+    /// track (the API can't create an empty playlist), so it returns nil when `track` is nil.
+    public func createServicePlaylist(name: String, seededWith track: PlayableContent? = nil, for service: MusicService) async -> PlayableContent? {
         switch service {
         case .apple: return await createApplePlaylist(name: name, addingTrack: track)
         case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
-        case .plex: return await createPlexPlaylist(name: name, track: track)
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
+        case .plex:
+            guard let track else { return nil }
+            return await createPlexPlaylist(name: name, track: track)
         default: return nil
         }
+    }
+
+    /// Whether `service` can create an empty playlist (no seed track). Plex needs an initial item.
+    public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
+        [.apple, .spotify, .deezer, .library].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.

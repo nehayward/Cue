@@ -20,7 +20,7 @@ enum SheetDestination: Identifiable, Equatable {
     case alarms(group: GroupRoom? = nil)
     case customSleepTimer(recentTimers: Storage<Duration>, onSelect: (Duration) async -> Void)
     case browse(group: GroupRoom? = nil)
-    case newPlaylist(group: GroupRoom? = nil)
+    case newPlaylist(group: GroupRoom? = nil, service: MusicService = .library)
     case renamePlaylist(content: PlayableContent)
     case confirmDeletePlaylist(content: PlayableContent)
     case addToPlaylist(content: PlayableContent)
