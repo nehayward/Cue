@@ -325,15 +325,16 @@ public final class MusicSearchService {
 
     /// Adds a track — or, for an album, all of its tracks — to a Spotify playlist.
     public func addToSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
-        let trackIDs: [String]
+        let uris: [String]
         if [.album, .libraryAlbum].contains(track.content.type) {
+            // /v1/albums/{id} embeds the album's tracks; each carries its canonical track URI.
             guard let details = await spotifyAlbumTracksLookup(id: track.content.id) else { return false }
-            trackIDs = details.tracks.items.compactMap(\.id)
+            uris = details.tracks.items.map(\.uri)
         } else {
-            trackIDs = [track.content.id]
+            uris = ["spotify:track:\(track.content.id)"]
         }
-        guard !trackIDs.isEmpty else { return false }
-        return await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: trackIDs.map { "spotify:track:\($0)" })
+        guard !uris.isEmpty else { return false }
+        return await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: uris)
     }
 
     /// Removes a track from a Spotify playlist.
