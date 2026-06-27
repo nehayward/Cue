@@ -8,7 +8,6 @@ struct UpNextContentView: View {
     @Binding var editMode: EditMode
 
     var group: GroupRoom
-    var currentTrackID: String
     var router: Router
     @Binding var selection: Set<String>
     @Binding var upNext: [PlayableContent]
@@ -25,14 +24,15 @@ struct UpNextContentView: View {
     var body: some View {
         ScrollViewReader { proxy in
             List(selection: $selection) {
-                ForEach(Array(upNext.enumerated()), id: \.element.trackID) { index, track in
+                ForEach(Array(upNext.keyedByOccurrence().enumerated()), id: \.element.key) { index, keyed in
+                    let track = keyed.track
                     HStack(spacing: 0) {
                         Text(formatPosition(startPosition + index + 1))
                             .font(.caption.monospacedDigit().smallCaps())
                             .foregroundStyle(.secondary)
                             .frame(width: positionWidth, alignment: .trailing)
                             .padding(.trailing, 8)
-                        QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
+                        QueueCellView(track: track, group: group, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                     }
                     .listRowSeparator(.hidden)
                     .listSectionSeparator(.hidden, edges: .all)
@@ -69,11 +69,13 @@ struct UpNextContentView: View {
                 }
             }
             .listStyle(.plain)
+            // Breathing room so the last row clears the bottom selection bar and stays tappable.
+            .contentMargins(.bottom, 16, for: .scrollContent)
             .tint(.accentColor.opacity(0.5))
-            .contextMenu(forSelectionType: String.self) { trackIDs in
-                let tracks = trackIDs.compactMap { id in upNext.first { $0.trackID == id } }
+            .contextMenu(forSelectionType: String.self) { selectedKeys in
+                let tracks = upNext.tracks(forKeys: selectedKeys)
                 if tracks.first?.content.service != .unknown {
-                    if trackIDs.count == 1, let track = tracks.first {
+                    if selectedKeys.count == 1, let track = tracks.first {
                         AddToLastPlaylistButton(itemToAdd: track)
                         Button {
                             router.sheet(to: .addToPlaylist(content: track))
@@ -105,9 +107,9 @@ struct UpNextContentView: View {
                     }
                 }
                 Button(role: .destructive) {
-                    Task { await deleteSelected(trackIDs) }
+                    Task { await deleteSelected(selectedKeys) }
                 } label: {
-                    Label(trackIDs.count == 1 ? "Remove" : "Remove \(trackIDs.count) Tracks", systemImage: "trash")
+                    Label(selectedKeys.count == 1 ? "Remove" : "Remove \(selectedKeys.count) Tracks", systemImage: "trash")
                 }
             }
             .environment(\.editMode, $editMode)
@@ -179,8 +181,8 @@ struct UpNextContentView: View {
         }
     }
     
-    private func deleteSelected(_ trackIDs: Set<String>) async {
-        let selectedTracks = upNext.filter { trackIDs.contains($0.trackID) }
+    private func deleteSelected(_ selectedKeys: Set<String>) async {
+        let selectedTracks = upNext.tracks(forKeys: selectedKeys)
         let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
         withAnimation {
             for track in sortedTracks {

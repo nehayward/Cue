@@ -23,6 +23,14 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 
 **Service coverage:** Sonos (full); Spotify / Plex / Deezer (add, remove, reorder, delete, create); Apple Music (add + create only — no public remove/reorder API). Deezer reorder is intentionally excluded (its reorder endpoint takes a full track-id list, unsafe for a paginated playlist); Deezer writes require the `manage_library` OAuth scope.
 
+### Queue shuffle animation
+- Tapping the shuffle button in the queue now animates the Up Next and Full Queue lists reordering into their shuffled positions instead of snapping. Move and delete also animate as a side effect.
+- Reworked queue row identity: rows are now keyed by `content.id` + *occurrence index* (the Nth copy of a song in the loaded window) via `keyedByOccurrence()`, instead of `trackID` (`content.id` + position). Occurrence keys are unique (handles duplicate songs) and stable under reorder, so SwiftUI animates rows *moving* rather than cross-fading. The shuffle action is now just an animated `withAnimation` swap of the fetched order — no identity-preserving workaround needed.
+- List selection, context menus, and delete now resolve the selected occurrence keys back to tracks (`tracks(forKeys:)`); scroll-to-now-playing resolves the row's occurrence key (`occurrenceKey(forPosition:)`) since `ScrollViewReader` matches `ForEach` identity.
+- Shuffle/repeat state (`group.playMode`) is now loaded in `onAppear` for both queue modes; previously it was only fetched in the full-queue view's task, so the shuffle/repeat buttons didn't reflect the speaker state when opening the default Up Next view. Their active color is also now driven via `.tint` on the button (iOS toolbars override `.foregroundStyle` on the label with the bar tint, so the highlight didn't show on iOS).
+- Now-playing row highlight now compares queue position via a shared `GroupRoom.isNowPlaying(_:)` (gated on playing from the queue) instead of `currentTrackID`. `currentTrackID` was only populated in full-queue code paths, so the playing track never highlighted in the default Up Next view; the position check works in both modes and live-updates as the track changes. Both the row number and the cell use the one helper so they can't drift. The first-load scroll sentinel is now a plain `hasScrolledToNowPlaying` flag (the old `currentTrackID` string value was never read).
+- No-op when the returned order is unchanged, so there's no regression for sources that don't reorder `Q:0`.
+
 ### Deezer integration
 - Added `DeezerAPI` client in `MusicSearchKit` — no auth required, hits public `api.deezer.com` endpoints
 - Full search: tracks, albums, artists, playlists (concurrent `async let` in `MusicSearchService.searchDeezer`)

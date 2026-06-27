@@ -7,7 +7,6 @@ import Nuke
 struct QueueCellView: View {
     var track: PlayableContent
     @Bindable var group: GroupRoom
-    var currentTrackID: String
     var router: Router
     var isEditing: Bool
     var onLocalMoveNext: ((PlayableContent) -> Void)? = nil
@@ -85,7 +84,7 @@ struct QueueCellView: View {
     }
     
     private var isTrackPlaying: Bool {
-        currentTrackID == track.trackID && group.playbackService == .queue
+        group.isNowPlaying(track)
     }
 }
 
