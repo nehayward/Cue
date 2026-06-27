@@ -37,9 +37,12 @@ struct AddToPlaylistSheet: View {
 
     private var service: MusicService { content.content.service }
 
-    /// The track's own service supports playlists *and* the item is a track (not an album).
+    /// Whether the track's own service can take this item into one of its playlists. Tracks are
+    /// always fine; Spotify also accepts albums (expanded into their tracks on add).
     private var hasServiceSegment: Bool {
-        [.apple, .spotify, .plex, .deezer].contains(service) && [.track, .libraryTrack].contains(content.content.type)
+        guard [.apple, .spotify, .plex, .deezer].contains(service) else { return false }
+        if [.track, .libraryTrack].contains(content.content.type) { return true }
+        return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
     }
 
     private var currentPlaylists: [PlayableContent] {
@@ -130,6 +133,8 @@ struct AddToPlaylistSheet: View {
             }
             await loadPlaylists()
         }
+        // onChange (not task(id:)) so persistence only fires on a real change — task(id:) also runs
+        // on first appearance and would clobber the saved segment before the load restores it.
         .onChange(of: segment) { _, newValue in
             storedSegment = newValue.rawValue
         }
@@ -248,19 +253,17 @@ struct AddToPlaylistSheet: View {
             for playlist in targets {
                 if await add(content, to: playlist) { added.append(playlist) }
             }
-            await MainActor.run {
-                if added.isEmpty {
-                    alertService.showAlert(with: "Couldn’t add to playlist", imageName: "exclamationmark.triangle")
-                } else {
-                    if let last = added.last { LastPlaylist.save(last) }
-                    let subtitle: LocalizedStringKey = added.count == 1
-                        ? "Added to \(added[0].title)"
-                        : "Added to \(added.count) playlists"
-                    alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
-                    if let target = added.last { deepLink(to: target) }
-                }
-                dismiss()
+            if added.isEmpty {
+                alertService.showAlert(with: "Couldn’t add to playlist", imageName: "exclamationmark.triangle")
+            } else {
+                if let last = added.last { LastPlaylist.save(last) }
+                let subtitle: LocalizedStringKey = added.count == 1
+                    ? "Added to \(added[0].title)"
+                    : "Added to \(added.count) playlists"
+                alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
+                if let target = added.last { deepLink(to: target) }
             }
+            dismiss()
         }
     }
 
@@ -278,7 +281,9 @@ struct AddToPlaylistSheet: View {
             return true
         } else {
             let success = await musicService.addToServicePlaylist(track: track, playlist: playlist)
-            if success {
+            // Only register single-track adds for undo — an album expands to many tracks, which the
+            // single-item undo can't cleanly reverse.
+            if success, [.track, .libraryTrack].contains(track.content.type) {
                 PlaylistEditCoordinator.shared.registerExternalAdd(track: track, to: playlist, undoManager: undoManager)
             }
             return success
@@ -300,14 +305,12 @@ struct AddToPlaylistSheet: View {
                 created = match
             }
 
-            await MainActor.run {
-                if let created {
-                    LastPlaylist.save(created)
-                    alertService.showAlertContent(with: content, subtitle: "Created \(created.title)", symbolName: "plus")
-                    deepLink(to: created)
-                }
-                dismiss()
+            if let created {
+                LastPlaylist.save(created)
+                alertService.showAlertContent(with: content, subtitle: "Created \(created.title)", symbolName: "plus")
+                deepLink(to: created)
             }
+            dismiss()
         }
     }
 }

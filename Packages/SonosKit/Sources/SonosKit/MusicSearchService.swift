@@ -323,9 +323,17 @@ public final class MusicSearchService {
         )
     }
 
-    /// Adds a track to a Spotify playlist.
+    /// Adds a track — or, for an album, all of its tracks — to a Spotify playlist.
     public func addToSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
-        await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: ["spotify:track:\(track.content.id)"])
+        let trackIDs: [String]
+        if [.album, .libraryAlbum].contains(track.content.type) {
+            guard let details = await spotifyAlbumTracksLookup(id: track.content.id) else { return false }
+            trackIDs = details.tracks.items.compactMap(\.id)
+        } else {
+            trackIDs = [track.content.id]
+        }
+        guard !trackIDs.isEmpty else { return false }
+        return await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: trackIDs.map { "spotify:track:\($0)" })
     }
 
     /// Removes a track from a Spotify playlist.
