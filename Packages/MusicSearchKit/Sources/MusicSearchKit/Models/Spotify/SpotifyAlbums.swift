@@ -63,6 +63,13 @@ public struct SpotifyAlbumDetails: Decodable, Sendable {
 
 public struct SpotifyAlbumTracks: Decodable, Sendable {
     public let items: [SpotifyAlbumTrackItems]
+    /// Total number of tracks on the album. Spotify caps a single page at 50, so albums with
+    /// more tracks must be paged through using `offset`; this is how we know when we're done.
+    public let total: Int?
+    /// URL of the next page, or nil when the final page has been reached.
+    public let next: String?
+    public let limit: Int?
+    public let offset: Int?
 }
 
 public struct SpotifyAlbumTrackItems: Decodable, Identifiable, Sendable {

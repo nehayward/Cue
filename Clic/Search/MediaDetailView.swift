@@ -43,6 +43,23 @@ struct MediaDetailView: View {
     var maxHeight: Double {
         UIDevice.current.userInterfaceIdiom == .phone ? 340 : 400
     }
+
+    /// Whether this content loads its tracks page-by-page (vs. a single full fetch). Drives both
+    /// the near-the-end prefetch trigger and whether `updateTracks` honors a non-zero offset.
+    /// Apple playlists are excluded because they're fetched whole in one request.
+    private var supportsPagination: Bool {
+        if playableContent.content.type == .playlist && playableContent.content.service == .apple {
+            return false
+        }
+        if playableContent.content.type.isPlaylist {
+            return true
+        }
+        // Spotify albums can exceed a single 50-track page, so they must be paged too.
+        if playableContent.content.type == .album && playableContent.content.service == .spotify {
+            return true
+        }
+        return false
+    }
     
     var body: some View {
         @Bindable var router = router
@@ -74,11 +91,7 @@ struct MediaDetailView: View {
                 .opacity(item.isPlayable ? 1 : 0.6)
                 .disabled(!item.isPlayable)
                 .task {
-                    guard playableContent.content.type.isPlaylist else {
-                        return
-                    }
-
-                    if playableContent.content.type == .playlist && playableContent.content.service == .apple {
+                    guard supportsPagination else {
                         return
                     }
 
@@ -151,8 +164,8 @@ struct MediaDetailView: View {
 #endif
             }
         }
-        .task {
-            await updateTracks(offset: loadedItemCount)
+        .task(id: playableContent.content.id) {
+            await loadInitialTracks()
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -376,6 +389,22 @@ struct MediaDetailView: View {
         Duration.seconds(tracks.compactMap(\.metadata?.duration?.components.seconds).reduce(Int64.zero, +))
     }
     
+    /// Loads the first page for the current content from a clean slate. Keyed off the content id
+    /// via `.task(id:)`, this re-runs whenever we navigate to a different item — and resetting the
+    /// pagination state up front means segueing back and forth never shows a previous album's
+    /// tracks or a half-finished load.
+    private func loadInitialTracks() async {
+        tracks.removeAll()
+        loadedItemCount = 0
+        totalSongs = nil
+        duration = nil
+        nextCursor = nil
+        isLoaded = false
+        isLoadingMore = true
+        isFetchingPage = false
+        await updateTracks(offset: 0)
+    }
+
     private func updateTracks(offset: Int = 0) async {
         // Avoid firing duplicate concurrent requests for the same page. With prefetching,
         // several near-the-end rows can trigger a load before the first one returns; this
@@ -383,10 +412,12 @@ struct MediaDetailView: View {
         guard !isFetchingPage else { return }
         isFetchingPage = true
 
-        // Ensure isLoaded is set even if we return early
+        // Ensure isLoaded is set even if we return early. Skip it when the task was cancelled
+        // (e.g. the user navigated away mid-load): otherwise a cancelled first page would leave
+        // the view permanently "loaded" with no tracks, showing an empty album after segueing back.
         defer {
             isFetchingPage = false
-            if offset == 0 {
+            if offset == 0 && !Task.isCancelled {
                 isLoaded = true
             }
         }
@@ -396,7 +427,7 @@ struct MediaDetailView: View {
             content = playableContent
         }
 
-        if offset > 0, !playableContent.content.type.isPlaylist {
+        if offset > 0, !supportsPagination {
             return
         }
 
@@ -417,10 +448,19 @@ struct MediaDetailView: View {
             }
             newTracks = await AppleMusicBrowseService.shared.albumLookup(id: content?.id ?? playableContent.id)
         case (.album, .spotify):
-            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id) else { return }
+            guard let albumDetails = await musicSearchService.spotifyAlbumTracksLookup(id: playableContent.content.id, offset: offset, limit: 50) else { return }
             let albumPlayable = albumDetails.toPlayable
             content = albumPlayable
+            totalSongs = albumDetails.tracks.total ?? totalSongs
+            // Advance the offset by the raw page size so the next page picks up where this left off.
+            consumedCount = albumDetails.tracks.items.count
             newTracks = albumDetails.tracks.items.compactMap { $0.toPlayable(album: albumPlayable, thumbnail: albumDetails.images.thumbnail, artwork: albumDetails.images.thumbnail) }
+            // Stop paging once the album is exhausted. If `total` is missing we can't page safely,
+            // so treat the first response as complete rather than refetching forever.
+            let total = albumDetails.tracks.total
+            if albumDetails.tracks.items.isEmpty || total.map({ offset + albumDetails.tracks.items.count >= $0 }) ?? true {
+                isLoadingMore = false
+            }
         case (.playlist, .apple):
             guard let playlist = try? await musicSearchService.getTracksFromPlaylist(id: playableContent.content.id) else { return }
             newTracks = await musicSearchService.tracksToPlayableWithPreviews(playlist)
@@ -543,6 +583,10 @@ struct MediaDetailView: View {
         default:
             return
         }
+        // Bail out if this load was superseded (the view was reused for a different item, or the
+        // user navigated away): appending now would pollute the freshly-reset list with stale rows.
+        if Task.isCancelled { return }
+
         appendTracksAvoidingDuplicates(newTracks: newTracks, to: &tracks)
         loadedItemCount += consumedCount ?? newTracks.count
 
