@@ -44,18 +44,26 @@ public final class SpotifyBrowseService {
     }
     
     public func userAlbums(offset: Int? = nil, limit: Int = 5) async {
-        let offset = offset ?? playlists.count
+        // Fall back to the current album count so an offset-less call continues paging from the
+        // end of what's loaded. (Previously this used `playlists.count`, which made album
+        // pagination start at the wrong place whenever the two lists were different sizes.)
+        let offset = offset ?? albums.count
         guard let container = await spotifyAPI.userAlbums(offset: offset, limit: limit) else {
             return
         }
         let newAlbums = container.items.compactMap { $0?.album.toPlayable }
-    
+
         if offset == 0, !albums.isEmpty {
+            // Refresh of the first page: surface newly-added albums at the top and reconcile
+            // removals — but only within the window we actually re-fetched. Reconciling against
+            // `prefix(10)` while fetching a smaller page (the album list view fetches `limit: 5`)
+            // deleted albums the user had already paged in, making the list shrink and reshuffle
+            // every time they reopened it or segued back to it.
             for new in newAlbums {
                 albums.insert(new, at: 0)
             }
-            
-            for album in albums.prefix(10) {
+
+            for album in albums.prefix(newAlbums.count) {
                 if !newAlbums.contains(album) {
                     albums.remove(album)
                 }
