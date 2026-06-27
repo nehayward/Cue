@@ -58,16 +58,14 @@ struct MediaDetailView: View {
     /// collaborative). Confirmed at load — streaming services let you browse playlists you can't edit.
     @State private var serviceEditable = false
 
-    /// Playlists whose tracks can be removed in-place. Streaming playlists also require confirmed
-    /// ownership, so editing isn't offered on followed/editorial playlists.
+    /// `serviceEditable` is true for Sonos (always yours) and ownership-confirmed for streaming, so
+    /// these are just the capability AND that flag.
     private var isEditablePlaylist: Bool {
-        playableContent.isSonosPlaylist || (playableContent.isEditableServicePlaylist && serviceEditable)
+        playableContent.isRemovablePlaylist && serviceEditable
     }
 
-    /// Playlists whose tracks can be reordered (see `isReorderableServicePlaylist`); streaming
-    /// playlists also require confirmed ownership.
     private var canReorderTracks: Bool {
-        playableContent.isSonosPlaylist || (playableContent.isReorderableServicePlaylist && serviceEditable)
+        playableContent.isReorderablePlaylist && serviceEditable
     }
     
     var body: some View {
@@ -184,10 +182,10 @@ struct MediaDetailView: View {
         }
         .task {
             editor.configure(playlist: playableContent)
-            // Confirm edit permission concurrently so it doesn't delay track loading.
-            async let editable = confirmServiceEditable()
+            // Resolve edit permission independently so the Edit affordance isn't gated on track
+            // loading (instant for Sonos, an ownership lookup for streaming).
+            Task { serviceEditable = await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
-            serviceEditable = await editable
         }
         .background {
             // Hidden ⌘Z / ⌘⇧Z bindings to drive the playlist editor's UndoManager.
@@ -642,8 +640,10 @@ struct MediaDetailView: View {
         }
     }
 
-    /// Whether the current streaming playlist is editable by the user (owned/collaborative).
+    /// Whether the playlist is editable: Sonos playlists always are; streaming playlists require
+    /// confirmed ownership (owned/collaborative).
     private func confirmServiceEditable() async -> Bool {
+        if playableContent.isSonosPlaylist { return true }
         guard playableContent.isEditableServicePlaylist else { return false }
         return await musicSearchService.canEditServicePlaylist(playableContent)
     }

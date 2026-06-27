@@ -508,6 +508,17 @@ extension PlayableContent {
     public var isReorderableServicePlaylist: Bool {
         isSpotifyPlaylist || isPlexPlaylist
     }
+
+    /// Playlists whose tracks Clic can remove (Sonos + the editable streaming services). Pair with a
+    /// confirmed-ownership check before exposing editing for the streaming case.
+    public var isRemovablePlaylist: Bool {
+        isSonosPlaylist || isEditableServicePlaylist
+    }
+
+    /// Playlists whose tracks Clic can reorder (Sonos + the reorderable streaming services).
+    public var isReorderablePlaylist: Bool {
+        isSonosPlaylist || isReorderableServicePlaylist
+    }
 }
 
 /// TODO: ADD
