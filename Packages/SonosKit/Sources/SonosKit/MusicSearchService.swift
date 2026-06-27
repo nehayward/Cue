@@ -210,7 +210,7 @@ public final class MusicSearchService {
         await spotifySearchAPI.album(id: id)
     }
 
-    public func spotifyAlbumTracksLookup(id: String, offset: Int = 0, limit: Int = 50) async -> SpotifyAlbumDetails? {
+    public func spotifyAlbumTracksLookup(id: String, offset: Int = 0, limit: Int = 100) async -> SpotifyAlbumDetails? {
         await spotifySearchAPI.albumDetails(id: id, offset: offset, limit: limit)
     }
 

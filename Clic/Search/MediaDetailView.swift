@@ -402,6 +402,10 @@ struct MediaDetailView: View {
         isLoaded = false
         isLoadingMore = true
         isFetchingPage = false
+        // Clear any editing/selection state too: it's keyed to the previous item's track indices,
+        // so leaving it set could target the wrong rows when the view is reused for another list.
+        selection.removeAll()
+        editMode = .inactive
         await updateTracks(offset: 0)
     }
 
