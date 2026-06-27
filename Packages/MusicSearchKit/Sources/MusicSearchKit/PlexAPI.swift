@@ -130,21 +130,24 @@ public final class PlexAPI {
         "server://\(machineIdentifier)/com.plexapp.plugins.library/library/metadata/\(ratingKey)"
     }
 
-    /// Creates a new audio playlist seeded with a single track (Plex requires an initial item).
+    /// Creates a new audio playlist, optionally seeded with a single track.
     /// - Returns: The new playlist's ratingKey, or `nil` on failure.
-    public func createPlaylist(title: String, trackRatingKey: String) async -> String? {
+    public func createPlaylist(title: String, trackRatingKey: String? = nil) async -> String? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken,
               let machineIdentifier = plexServer.clientIdentifier,
               var url = getBaseURL(for: plexServer)?.appending(path: "playlists") else {
             return nil
         }
-        url.append(queryItems: [
+        var queryItems = [
             URLQueryItem(name: "type", value: "audio"),
             URLQueryItem(name: "title", value: title),
-            URLQueryItem(name: "smart", value: "0"),
-            URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey))
-        ])
+            URLQueryItem(name: "smart", value: "0")
+        ]
+        if let trackRatingKey {
+            queryItems.append(URLQueryItem(name: "uri", value: libraryItemURI(machineIdentifier: machineIdentifier, ratingKey: trackRatingKey)))
+        }
+        url.append(queryItems: queryItems)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Accept")

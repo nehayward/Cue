@@ -1,4 +1,5 @@
 import FocusOnAppear
+import OrderedCollections
 import SwiftUI
 import SonosKit
 
@@ -78,11 +79,25 @@ struct NewPlaylistView: View {
 
     /// Toast + deep-link to the freshly created playlist, and record it as the last-used one.
     private func announceCreated(_ playlist: PlayableContent) {
+        insertIntoBrowseList(playlist)
         alertService.showAlertContent(with: playlist, subtitle: "Created Playlist", symbolName: "checkmark")
         alertService.alert.handleTap = {
             Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
         }
         LastPlaylist.save(playlist)
+    }
+
+    /// Prepend the new playlist into the service's browse collection so the playlist list refreshes
+    /// immediately (the grids/lists bind to these).
+    private func insertIntoBrowseList(_ playlist: PlayableContent) {
+        switch service {
+        case .apple: AppleMusicBrowseService.shared.userPlaylists.insert(playlist, at: 0)
+        case .spotify: SpotifyBrowseService.shared.playlists.insert(playlist, at: 0)
+        case .deezer: DeezerBrowseService.shared.userPlaylists.insert(playlist, at: 0)
+        case .plex: PlexBrowseService.shared.userPlaylists.insert(playlist, at: 0)
+        case .library: LibraryBrowseService.shared.playlists.insert(playlist, at: 0)
+        default: break
+        }
     }
 }
 

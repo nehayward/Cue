@@ -93,6 +93,7 @@ struct SpotifyLibraryScreen: View {
     
     @ViewBuilder
     private func sectionView(for section: SpotifyLibrarySection) -> some View {
+        @Bindable var spotifyBrowseService = spotifyBrowseService
         switch section {
         case .likedSongs:
             Section {
@@ -152,9 +153,8 @@ struct SpotifyLibraryScreen: View {
             
         case .playlists:
             Section {
-                NavigationLink(value: RouterDestination.playableList(title: "Spotify Playlists", showSectionIndex: false, action: { offset in
+                NavigationLink(value: RouterDestination.playableGridScreen(title: "Spotify Playlists", items: $spotifyBrowseService.playlists, action: { offset in
                     await spotifyBrowseService.updatePlaylists(offset: offset)
-                    return Array(spotifyBrowseService.playlists)
                 })) {
                     Text("Playlists")
                         .fontDesign(.rounded)
