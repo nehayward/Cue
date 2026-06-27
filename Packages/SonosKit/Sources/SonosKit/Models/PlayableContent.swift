@@ -502,6 +502,12 @@ extension PlayableContent {
     public var isEditableServicePlaylist: Bool {
         isSpotifyPlaylist || isPlexPlaylist || isDeezerPlaylist
     }
+
+    /// Streaming playlists whose tracks Clic can reorder. Excludes Apple Music (no reorder API) and
+    /// Deezer (its reorder takes a full track-id list, unsafe for a paginated playlist).
+    public var isReorderableServicePlaylist: Bool {
+        isSpotifyPlaylist || isPlexPlaylist
+    }
 }
 
 /// TODO: ADD

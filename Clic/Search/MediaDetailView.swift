@@ -64,12 +64,10 @@ struct MediaDetailView: View {
         playableContent.isSonosPlaylist || (playableContent.isEditableServicePlaylist && serviceEditable)
     }
 
-    /// Playlists whose tracks can be reordered. Excludes Apple Music (no reorder API) and Deezer
-    /// (its reorder takes a full track-id list, unsafe for a paginated/partially loaded playlist),
-    /// and requires confirmed ownership for streaming playlists.
+    /// Playlists whose tracks can be reordered (see `isReorderableServicePlaylist`); streaming
+    /// playlists also require confirmed ownership.
     private var canReorderTracks: Bool {
-        playableContent.isSonosPlaylist
-            || ((playableContent.isSpotifyPlaylist || playableContent.isPlexPlaylist) && serviceEditable)
+        playableContent.isSonosPlaylist || (playableContent.isReorderableServicePlaylist && serviceEditable)
     }
     
     var body: some View {
