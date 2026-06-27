@@ -632,8 +632,12 @@ struct MediaDetailView: View {
     private func removeTrack(at index: Int) {
         if playableContent.isSonosPlaylist {
             Task {
-                try? await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)
-                tracks.remove(at: index)
+                let removed = (try? await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)) != nil
+                if removed, tracks.indices.contains(index) {
+                    tracks.remove(at: index)
+                } else if !removed {
+                    alertService.showAlert(with: "Couldn’t remove track", imageName: "exclamationmark.triangle")
+                }
             }
         } else if playableContent.isEditableServicePlaylist && serviceEditable {
             editor.removeTrack(at: index, undoManager: undoManager)

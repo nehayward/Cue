@@ -504,6 +504,9 @@ public final class MusicSearchService {
                   let playlistKey = plexRatingKey(from: playlist.content.id),
                   let movedItemID = orderedTracks[finalIndex].metadata?.playlistItemID else { return false }
             let afterItemID = finalIndex > 0 ? orderedTracks[finalIndex - 1].metadata?.playlistItemID : nil
+            // For a non-front move we need the preceding item's id; if it's missing, fail rather
+            // than silently moving the track to the front of the playlist.
+            if finalIndex > 0, afterItemID == nil { return false }
             return await plex.movePlaylistItem(playlistRatingKey: playlistKey, playlistItemID: movedItemID, afterItemID: afterItemID)
         default:
             return false

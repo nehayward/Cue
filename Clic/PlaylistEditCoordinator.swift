@@ -124,15 +124,22 @@ final class PlaylistEditCoordinator {
 
     private func add(track: PlayableContent, at index: Int, playlist: PlayableContent, undoManager: UndoManager?) {
         let ownsList = owns(playlist)
+        let insertIndex = min(index, tracks.count)
         if ownsList {
-            tracks.insert(track, at: min(index, tracks.count))
+            tracks.insert(track, at: insertIndex)
         }
 
         Task {
             let success = await service.addToServicePlaylist(track: track, playlist: playlist)
             if !success {
-                if ownsList, let existing = tracks.firstIndex(where: { $0.trackID == track.trackID }) {
-                    tracks.remove(at: existing)
+                // Remove the copy we inserted — prefer the insertion slot if it still holds it, so a
+                // pre-existing duplicate of the same track isn't deleted instead.
+                if ownsList {
+                    if tracks.indices.contains(insertIndex), tracks[insertIndex].trackID == track.trackID {
+                        tracks.remove(at: insertIndex)
+                    } else if let existing = tracks.firstIndex(where: { $0.trackID == track.trackID }) {
+                        tracks.remove(at: existing)
+                    }
                 }
                 alertService.showAlert(with: "Couldn't add track", imageName: "exclamationmark.triangle")
             }

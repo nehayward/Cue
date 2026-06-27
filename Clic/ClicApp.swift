@@ -888,12 +888,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     func action(for playlist: PlayableContent) -> UIAction {
                         UIAction(title: playlist.title, image: playlist.content.service.uiImage) { _ in
                             Task { @MainActor in
-                                alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
+                                let success: Bool
                                 if playlist.content.service == .library {
                                     await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
+                                    success = true
                                 } else {
-                                    _ = await musicSearchService.addToServicePlaylist(track: track, playlist: playlist)
+                                    success = await musicSearchService.addToServicePlaylist(track: track, playlist: playlist)
                                 }
+                                guard success else {
+                                    alertService.showAlert(with: "Couldn’t add to \(playlist.title)", imageName: "exclamationmark.triangle")
+                                    return
+                                }
+                                alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
                                 LastPlaylist.save(playlist)
                                 alertService.alert.handleTap = {
                                     Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
@@ -972,13 +978,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         let currentTrack = group.coordinatorRoom.track.toPlayable
 
-        // Streaming playlists only accept tracks from the same service; Sonos accepts anything.
-        guard last.service == .library || last.service == currentTrack.content.service else {
-            alertService.showAlert(with: "Track isn’t on \(last.service.title)", imageName: "exclamationmark.triangle")
-            return
-        }
-
         Task { @MainActor in
+            // Attempt the add and report the real result — the now-playing track's reported service
+            // isn't reliable enough to pre-gate on (a Spotify track can surface as a Sonos item).
             guard await last.add(currentTrack) else {
                 alertService.showAlert(with: "Couldn’t add to \(last.title)", imageName: "exclamationmark.triangle")
                 return

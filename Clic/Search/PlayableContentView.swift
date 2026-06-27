@@ -138,21 +138,20 @@ struct PlayableContentView: View {
                         .frame(width: 50, height: 50)
                         .allowsHitTesting(!hideArtwork)
                         .overlay {
-                            // In edit mode the row tap is consumed by selection, so offer a
-                            // tappable preview button on the artwork instead.
+                            // In edit mode the List consumes row taps for selection, so a plain
+                            // Button here wouldn't fire — use a high-priority tap gesture to win the
+                            // tap and toggle the preview from the artwork.
                             if isEditing, hasPreview {
-                                Button {
-                                    togglePreview()
-                                } label: {
-                                    Image(systemName: isPreviewing ? "stop.circle.fill" : "play.circle.fill")
-                                        .font(.title2)
-                                        .symbolRenderingMode(.palette)
-                                        .foregroundStyle(.white, Color.accentColor)
-                                        .shadow(radius: 2)
-                                        .padding(4)
-                                        .background(.black.opacity(0.25), in: .rect(cornerRadius: 8))
-                                }
-                                .buttonStyle(.plain)
+                                Image(systemName: isPreviewing ? "stop.circle.fill" : "play.circle.fill")
+                                    .font(.title2)
+                                    .symbolRenderingMode(.palette)
+                                    .foregroundStyle(.white, Color.accentColor)
+                                    .shadow(radius: 2)
+                                    .padding(4)
+                                    .background(.black.opacity(0.25), in: .rect(cornerRadius: 8))
+                                    .frame(width: 50, height: 50)
+                                    .contentShape(.rect)
+                                    .highPriorityGesture(TapGesture().onEnded { togglePreview() })
                             }
                         }
                 }

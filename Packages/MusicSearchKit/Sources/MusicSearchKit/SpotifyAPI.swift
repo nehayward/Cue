@@ -721,6 +721,12 @@ public final class SpotifyAPI {
                     continue
                 }
 
+                // Successful no-content responses (e.g. unfollow / save / remove via PUT/DELETE)
+                // return an empty body — there's nothing to decode.
+                if data.isEmpty, let empty = EmptyResponse() as? T {
+                    return empty
+                }
+
                 do {
                     let response = try decoder.decode(T.self, from: data)
                     return response

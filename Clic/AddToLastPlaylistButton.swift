@@ -10,13 +10,14 @@ struct AddToLastPlaylistButton: View {
 
     var itemToAdd: PlayableContent
 
-    /// The last-used playlist, but only when it can actually accept this item. Streaming playlists
-    /// only take tracks from the same service; Sonos accepts anything.
+    /// The last-used playlist, but only when it can actually accept this item. Sonos accepts
+    /// anything; streaming playlists only take tracks from the same service (never albums, which
+    /// the song-add endpoints can't handle).
     private var lastPlaylist: LastPlaylist? {
-        guard let last = LastPlaylist.current,
-              last.service == .library || last.service == itemToAdd.content.service else {
-            return nil
-        }
+        guard let last = LastPlaylist.current else { return nil }
+        if last.service == .library { return last }
+        guard last.service == itemToAdd.content.service,
+              [.track, .libraryTrack].contains(itemToAdd.content.type) else { return nil }
         return last
     }
 
@@ -49,8 +50,11 @@ struct AddToLastPlaylistButton: View {
 
     private func add(to playlist: LastPlaylist) {
         Task {
+            guard await playlist.add(itemToAdd) else {
+                alertService.showAlert(with: "Couldn’t add to \(playlist.title)", imageName: "exclamationmark.triangle")
+                return
+            }
             alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
-            await playlist.add(itemToAdd)
 
             // For Sonos playlists, let tapping the toast open the playlist.
             if playlist.service == .library {

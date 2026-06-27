@@ -254,16 +254,21 @@ struct AddToPlaylistSheet: View {
         let targets = Array(selected.values)
         guard !targets.isEmpty else { dismiss(); return }
         Task {
+            var added: [PlayableContent] = []
             for playlist in targets {
-                await add(content, to: playlist)
+                if await add(content, to: playlist) { added.append(playlist) }
             }
             await MainActor.run {
-                if let last = targets.last { LastPlaylist.save(last) }
-                let subtitle: LocalizedStringKey = targets.count == 1
-                    ? "Added to \(targets[0].title)"
-                    : "Added to \(targets.count) playlists"
-                alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
-                if let target = targets.last { deepLink(to: target) }
+                if added.isEmpty {
+                    alertService.showAlert(with: "Couldn’t add to playlist", imageName: "exclamationmark.triangle")
+                } else {
+                    if let last = added.last { LastPlaylist.save(last) }
+                    let subtitle: LocalizedStringKey = added.count == 1
+                        ? "Added to \(added[0].title)"
+                        : "Added to \(added.count) playlists"
+                    alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
+                    if let target = added.last { deepLink(to: target) }
+                }
                 dismiss()
             }
         }
@@ -276,12 +281,17 @@ struct AddToPlaylistSheet: View {
         }
     }
 
-    private func add(_ track: PlayableContent, to playlist: PlayableContent) async {
+    /// Adds `track` to `playlist`; returns whether it succeeded.
+    private func add(_ track: PlayableContent, to playlist: PlayableContent) async -> Bool {
         if playlist.content.service == .library {
             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
+            return true
         } else {
-            _ = await musicService.addToServicePlaylist(track: track, playlist: playlist)
-            PlaylistEditCoordinator.shared.registerExternalAdd(track: track, to: playlist, undoManager: undoManager)
+            let success = await musicService.addToServicePlaylist(track: track, playlist: playlist)
+            if success {
+                PlaylistEditCoordinator.shared.registerExternalAdd(track: track, to: playlist, undoManager: undoManager)
+            }
+            return success
         }
     }
 
