@@ -233,21 +233,11 @@ struct AddToPlaylistSheet: View {
     private func loadPlaylists() async {
         async let sonos = sonosService.sonosPlaylists()
         if hasServiceSegment {
-            servicePlaylists = await fetchServicePlaylists()
+            servicePlaylists = await musicService.userPlaylists(for: service)
         }
         isLoadingService = false
         sonosPlaylists = await sonos
         isLoadingSonos = false
-    }
-
-    private func fetchServicePlaylists() async -> [PlayableContent] {
-        switch service {
-        case .apple: return await musicService.appleUserPlaylists()
-        case .spotify: return await musicService.spotifyEditablePlaylists()
-        case .plex: return await musicService.plexUserPlaylists()
-        case .deezer: return await musicService.deezerUserPlaylists()
-        default: return []
-        }
     }
 
     private func addSelectedAndDismiss() {
@@ -301,13 +291,7 @@ struct AddToPlaylistSheet: View {
         Task {
             let created: PlayableContent?
             if segment == .service {
-                switch service {
-                case .apple: created = await musicService.createApplePlaylist(name: name, addingTrack: content)
-                case .spotify: created = await musicService.createSpotifyPlaylist(name: name, addingTrack: content)
-                case .plex: created = await musicService.createPlexPlaylist(name: name, track: content)
-                case .deezer: created = await musicService.createDeezerPlaylist(name: name, track: content)
-                default: created = nil
-                }
+                created = await musicService.createServicePlaylist(name: name, seededWith: content, for: service)
             } else {
                 await sonosService.createPlaylist(title: name)
                 let playlists = await sonosService.sonosPlaylists()

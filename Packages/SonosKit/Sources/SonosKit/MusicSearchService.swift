@@ -417,6 +417,38 @@ public final class MusicSearchService {
 
     // MARK: Service-agnostic dispatch
 
+    /// The user's editable playlists for `service`, as `PlayableContent`.
+    public func userPlaylists(for service: MusicService) async -> [PlayableContent] {
+        switch service {
+        case .apple: return await appleUserPlaylists()
+        case .spotify: return await spotifyEditablePlaylists()
+        case .plex: return await plexUserPlaylists()
+        case .deezer: return await deezerUserPlaylists()
+        default: return []
+        }
+    }
+
+    /// Creates a new playlist on `service` seeded with `track`, returned as `PlayableContent`.
+    public func createServicePlaylist(name: String, seededWith track: PlayableContent, for service: MusicService) async -> PlayableContent? {
+        switch service {
+        case .apple: return await createApplePlaylist(name: name, addingTrack: track)
+        case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
+        case .plex: return await createPlexPlaylist(name: name, track: track)
+        case .deezer: return await createDeezerPlaylist(name: name, track: track)
+        default: return nil
+        }
+    }
+
+    /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
+    public func deleteServicePlaylist(_ playlist: PlayableContent) async -> Bool {
+        switch playlist.content.service {
+        case .spotify: return await deleteSpotifyPlaylist(playlistID: playlist.content.id)
+        case .plex: return await deletePlexPlaylist(playlistID: playlist.content.id)
+        case .deezer: return await deleteDeezerPlaylist(playlistID: playlist.content.id)
+        default: return false
+        }
+    }
+
     /// Adds `track` to `playlist`, dispatching to the playlist's service.
     public func addToServicePlaylist(track: PlayableContent, playlist: PlayableContent) async -> Bool {
         switch playlist.content.service {

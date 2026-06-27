@@ -30,19 +30,19 @@ struct LastPlaylist {
     /// Streaming services dispatch through `MusicSearchService`; everything else goes to Sonos.
     @discardableResult
     func add(_ track: PlayableContent) async -> Bool {
-        switch service {
-        case .apple:
-            return await MusicSearchService.shared.addToApplePlaylist(track: track, playlistID: id)
-        case .spotify:
-            return await MusicSearchService.shared.addToSpotifyPlaylist(track: track, playlistID: id)
-        case .plex:
-            return await MusicSearchService.shared.addToPlexPlaylist(track: track, playlistID: id)
-        case .deezer:
-            return await MusicSearchService.shared.addToDeezerPlaylist(track: track, playlistID: id)
-        default:
+        guard service != .library else {
             await SonosService.shared.addToPlaylist(playlistID: id, playableContent: track)
             return true
         }
+        let playlist = PlayableContent(
+            title: title,
+            subtitle: "",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: service, id: id, type: .playlist, location: nil),
+            metadata: nil
+        )
+        return await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playlist)
     }
 
     /// Playlist ids the user added to recently, most-recent first.

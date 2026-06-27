@@ -914,14 +914,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     let service = track.content.service
                     if [.apple, .spotify, .plex, .deezer].contains(service),
                        [.track, .libraryTrack].contains(track.content.type) {
-                        let servicePlaylists: [PlayableContent]
-                        switch service {
-                        case .apple:   servicePlaylists = await musicSearchService.appleUserPlaylists()
-                        case .spotify: servicePlaylists = await musicSearchService.spotifyEditablePlaylists()
-                        case .plex:    servicePlaylists = await musicSearchService.plexUserPlaylists()
-                        case .deezer:  servicePlaylists = await musicSearchService.deezerUserPlaylists()
-                        default:       servicePlaylists = []
-                        }
+                        let servicePlaylists = await musicSearchService.userPlaylists(for: service)
                         if !servicePlaylists.isEmpty {
                             menuItems.append(UIMenu(title: service.title, options: .displayInline, children: servicePlaylists.map(action)))
                         }
