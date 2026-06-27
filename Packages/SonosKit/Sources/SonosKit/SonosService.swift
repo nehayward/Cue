@@ -48,7 +48,7 @@ public final class SonosService {
 
     public var systemState = SonosSystemState()
     public var isSearching: Bool { sonosSystemDiscoverService.isSearching }
-    public var lastKnownIP: String { sonosSystemDiscoverService.sonosStorageIP.sonosIP }
+    public var lastKnownIP: String { sonosSystemDiscoverService.cachedIP }
     public var state: String { sonosSystemDiscoverService.lastKnownState }
     public var isCellular: Bool { sonosSystemDiscoverService.isCellular }
 
@@ -92,7 +92,7 @@ public final class SonosService {
     }
 
     /// Removes a household from the known list. If it was the active household,
-    /// the next discovery will start fresh (no preferred household).
+    /// monitoring is stopped so the pulse loop cannot reconnect to the removed system.
     @MainActor
     public func removeHousehold(id: String) {
         var households = sonosSystemDiscoverService.knownHouseholds
@@ -100,7 +100,7 @@ public final class SonosService {
         sonosSystemDiscoverService.knownHouseholds = households
         if sonosSystemDiscoverService.preferredHouseHold == id {
             sonosSystemDiscoverService.preferredHouseHold = nil
-            cachedIPVerified = false
+            clearDevices()
         }
     }
 
@@ -263,7 +263,7 @@ public final class SonosService {
                 } else {
                     try? await Task.sleep(for: .milliseconds(1000))
                 }
-            } while (!watcher.isCancelled)
+            } while !Task.isCancelled
         }
 
         self.sonosPulse = Task { [weak self] in
@@ -314,7 +314,7 @@ public final class SonosService {
                     sonosPulse.cancel()
                     print(#function, error)
                 }
-            } while (!sonosPulse.isCancelled)
+            } while !Task.isCancelled
         }
     }
 
@@ -1062,21 +1062,27 @@ public final class SonosService {
 
     @MainActor
     public func getGroups(useCache: Bool) async throws -> [GroupRoom] {
-        let cachedIP = sonosSystemDiscoverService.sonosStorageIP.sonosIP
-        if useCache && !cachedIP.isEmpty {
+        let household = sonosSystemDiscoverService.activeHousehold
+        let knownIPs = household.map { Array($0.knownIPs) } ?? []
+        if useCache && !knownIPs.isEmpty {
             if cachedIPVerified {
-                // IP confirmed good this session — use it directly, no discovery needed.
-                return try await api.getGroups(ipAddress: cachedIP)
+                // IP confirmed good this session — use lastKnownIP directly.
+                let ip = household?.lastKnownIP ?? knownIPs[0]
+                return try await api.getGroups(ipAddress: ip)
             }
-            // First load or post-error: race the saved IP against fresh Bonjour
-            // discovery so both run concurrently. On the same network the cached
-            // IP wins instantly; on a new network discovery wins as soon as it
-            // finds a device.
+            // First load or post-error: race ALL known IPs for this household
+            // plus fresh Bonjour discovery. Whichever responds first wins.
+            // Racing multiple IPs handles the case where one speaker is removed
+            // or got a new DHCP address — another speaker in the same household
+            // still answers immediately.
             let result = await withTaskGroup(of: Result<[GroupRoom], Error>.self) { group in
-                group.addTask { [weak self] in
-                    guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
-                    do { return .success(try await self.api.getGroups(ipAddress: cachedIP)) }
-                    catch { return .failure(error) }
+                for ip in knownIPs {
+                    let ipCopy = ip
+                    group.addTask { [weak self] in
+                        guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                        do { return .success(try await self.api.getGroups(ipAddress: ipCopy)) }
+                        catch { return .failure(error) }
+                    }
                 }
                 group.addTask { [weak self] in
                     guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
@@ -1103,7 +1109,7 @@ public final class SonosService {
             return groups
         }
         // useCache: false — a prior error invalidated the cache; reset so the
-        // next useCache: true call races again with a fresh discovery.
+        // next useCache: true call races again with fresh discovery.
         cachedIPVerified = false
         let ip = try await sonosSystemDiscoverService.getFirstIP(useCache: useCache)
         let groups = try await api.getGroups(ipAddress: ip)
