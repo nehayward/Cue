@@ -229,6 +229,7 @@ struct QueueScreen: View {
             let tracks = trackIDs.compactMap { id in group.coordinatorRoom.queue.elements.first { $0.trackID == id } }
             if tracks.first?.content.service != .unknown {
                 if trackIDs.count == 1, let track = tracks.first {
+                    AddToLastPlaylistButton(itemToAdd: track)
                     Button {
                         router.sheet(to: .addToPlaylist(content: track))
                     } label: { Label("Add to Playlist…", systemImage: "text.badge.plus") }
