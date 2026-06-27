@@ -6,6 +6,8 @@
 
 –– Bug Fixes & Improvements ––
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
+- Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
+- Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
 
 # 2026.5
 
