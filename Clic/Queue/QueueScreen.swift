@@ -16,7 +16,9 @@ struct QueueScreen: View {
     @State private var router = Router()
     @State private var isLoading: Bool = false
     @State private var selectedGroupService = SelectedGroupService()
-    @State private var currentTrackID: String = ""
+    // First-load scroll sentinel: false until we've scrolled to now-playing for this group
+    // (so the initial scroll is unanimated, later ones animate). Reset when the group changes.
+    @State private var hasScrolledToNowPlaying: Bool = false
     @State private var currentGroupIP: String = ""
     @State private var selection: Set<String> = []
     @State private var upNextTracks: [PlayableContent] = []
@@ -29,7 +31,7 @@ struct QueueScreen: View {
                     if queueMode == .full {
                         fullQueueView(proxy: proxy)
                     } else {
-                        UpNextContentView(editMode: $editMode, group: group, currentTrackID: currentTrackID, router: router, selection: $selection, upNext: $upNextTracks)
+                        UpNextContentView(editMode: $editMode, group: group, router: router, selection: $selection, upNext: $upNextTracks)
                     }
                 }
                 .withSheetDestinations(sheetDestinations: $router.presentedSheet, onDismiss: {
@@ -77,19 +79,22 @@ struct QueueScreen: View {
                                 group.playMode = currentPlayMode
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 if queueMode == .full {
-                                    group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
-                                    try? await SonosService.shared.updateTrackInformation(for: [group])
-                                    let id = group.coordinatorRoom.track.toPlayable.trackID
-                                    currentTrackID = id
-                                    try? await Task.sleep(for: .milliseconds(50))
-                                    withAnimation {
-                                        proxy.scrollTo(id)
+                                    // Rows are keyed by a reorder-stable occurrence key, so simply
+                                    // swapping in the new order animates rows sliding into place.
+                                    let newQueue = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip)
+                                    withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
+                                        group.coordinatorRoom.queue = OrderedSet(newQueue)
                                     }
+                                    try? await SonosService.shared.updateTrackInformation(for: [group])
+                                    hasScrolledToNowPlaying = true
+                                    try? await Task.sleep(for: .milliseconds(50))
+                                    scrollToNowPlayingRow(proxy)
                                 } else {
-                                    isLoading = true
                                     let position = await SonosService.shared.getTrack(ip: group.coordinatorRoom.ip)?.position ?? 0
-                                    upNextTracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: position, total: 50)
-                                    isLoading = false
+                                    let newTracks = await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip, with: position, total: 50)
+                                    withAnimation(.easeInOut(duration: shuffleAnimationDuration)) {
+                                        upNextTracks = newTracks
+                                    }
                                 }
                             }
                         } label: {
@@ -98,6 +103,9 @@ struct QueueScreen: View {
                                 .foregroundStyle(group.playMode.contains(.shuffle) ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
+                        // iOS toolbars override foregroundStyle on the label with the bar tint,
+                        // so drive the active color via tint, which the toolbar respects.
+                        .tint(group.playMode.contains(.shuffle) ? Color.accentColor : Color.secondary)
                         
                         Button {
                             var currentPlayMode = group.playMode
@@ -119,12 +127,9 @@ struct QueueScreen: View {
                                 await SonosService.shared.setPlayMode(group.ip, mode: currentPlayMode)
                                 group.coordinatorRoom.queue = OrderedSet(await SonosService.shared.getQueue(ip: group.coordinatorRoom.ip))
                                 try? await SonosService.shared.updateTrackInformation(for: [group])
-                                let id = group.coordinatorRoom.track.toPlayable.trackID
-                                currentTrackID = id
+                                hasScrolledToNowPlaying = true
                                 try? await Task.sleep(for: .milliseconds(50))
-                                withAnimation {
-                                    proxy.scrollTo(id)
-                                }
+                                scrollToNowPlayingRow(proxy)
                             }
                         } label: {
                             Label("Repeat", systemImage: group.playMode.contains(.repeatOne) ? "repeat.1" : "repeat")
@@ -132,7 +137,8 @@ struct QueueScreen: View {
                                 .foregroundStyle(group.playMode.isRepeatEnabled ? .accent : .secondary)
                                 .contentTransition(.symbolEffect(.automatic))
                         }
-                        
+                        .tint(group.playMode.isRepeatEnabled ? Color.accentColor : Color.secondary)
+
                         QueueMoreInfoView(group: group, router: router, editMode: $editMode, queueMode: $queueMode, upNextTracks: $upNextTracks)
                             .contentTransition(.identity)
                     }
@@ -153,6 +159,9 @@ struct QueueScreen: View {
                 if let playbackService = await SonosService.shared.playbackService(ip: group.ip) {
                     group.playbackService = playbackService
                 }
+                // Sync the shuffle/repeat state for both modes; the full-queue view's
+                // task only runs when that mode is visible, leaving Up Next stale.
+                group.playMode = await SonosService.shared.playMode(ip: group.ip)
             }
         }
         .overlay {
@@ -209,14 +218,15 @@ struct QueueScreen: View {
     @ViewBuilder
     private func fullQueueView(proxy: ScrollViewProxy) -> some View {
         List(selection: $selection) {
-            ForEach(Array(group.coordinatorRoom.queue.enumerated()), id: \.element.trackID) { index, track in
+            ForEach(Array(group.coordinatorRoom.queue.keyedByOccurrence().enumerated()), id: \.element.key) { index, keyed in
+                let track = keyed.track
                 HStack(spacing: 0) {
                     Text(formatPosition(index + 1))
                         .font(.caption.monospacedDigit().smallCaps())
-                        .foregroundStyle(track.trackID == currentTrackID ? .primary : .secondary)
+                        .foregroundStyle(group.isNowPlaying(track) ? .primary : .secondary)
                         .frame(width: positionWidth, alignment: .trailing)
                         .padding(.trailing, 8)
-                    QueueCellView(track: track, group: group, currentTrackID: currentTrackID, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
+                    QueueCellView(track: track, group: group, router: router, isEditing: editMode.isEditing, onLocalMoveNext: handleLocalMoveNext, onLocalDelete: handleLocalDelete)
                 }
                 .listRowSeparator(.hidden)
                 .listSectionSeparator(.hidden, edges: .all)
@@ -225,10 +235,10 @@ struct QueueScreen: View {
             .onMove(perform: move)
         }
         .tint(.accentColor.opacity(0.5))
-        .contextMenu(forSelectionType: String.self) { trackIDs in
-            let tracks = trackIDs.compactMap { id in group.coordinatorRoom.queue.elements.first { $0.trackID == id } }
+        .contextMenu(forSelectionType: String.self) { selectedKeys in
+            let tracks = group.coordinatorRoom.queue.tracks(forKeys: selectedKeys)
             if tracks.first?.content.service != .unknown {
-                if trackIDs.count == 1, let track = tracks.first {
+                if selectedKeys.count == 1, let track = tracks.first {
                     AddToPlaylistMenu(itemToAdd: track)
 
                     Button {
@@ -257,13 +267,15 @@ struct QueueScreen: View {
                 }
             }
             Button(role: .destructive) {
-                Task { await deleteFullQueueTracks(trackIDs) }
+                Task { await deleteFullQueueTracks(selectedKeys) }
             } label: {
-                Label(trackIDs.count == 1 ? "Remove" : "Remove \(trackIDs.count) Tracks", systemImage: "xmark")
+                Label(selectedKeys.count == 1 ? "Remove" : "Remove \(selectedKeys.count) Tracks", systemImage: "xmark")
             }
         }
         .environment(\.editMode, $editMode)
         .listStyle(.plain)
+        // Breathing room so the last row clears the bottom selection bar and stays tappable.
+        .contentMargins(.bottom, 16, for: .scrollContent)
         .overlay {
             if !isLoading, group.coordinatorRoom.queue.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 12)], spacing: 16) {
@@ -278,7 +290,7 @@ struct QueueScreen: View {
         }
         .task(id: group.coordinatorRoom.track.trackID) {
             if group.ip != currentGroupIP {
-                currentTrackID = ""
+                hasScrolledToNowPlaying = false
                 currentGroupIP = group.ip
             }
             isLoading = true
@@ -319,8 +331,6 @@ struct QueueScreen: View {
                 }
             }
             try? await SonosService.shared.updateTrackInformation(for: [group])
-            let id = group.coordinatorRoom.track.toPlayable.trackID
-            currentTrackID = id
         }
     }
 
@@ -329,6 +339,17 @@ struct QueueScreen: View {
         group.coordinatorRoom.queue.elements.move(fromOffsets: source, toOffset: destination)
         Task {
             try? await SonosService.shared.reorderQueue(group, from: sourceIndex + 1, to: destination + 1)
+        }
+    }
+
+    private let shuffleAnimationDuration: TimeInterval = 0.35
+
+    /// Scrolls the full queue to the now-playing row. Rows are identified by their occurrence
+    /// key, so the scroll target has to be resolved the same way rather than from `trackID`.
+    private func scrollToNowPlayingRow(_ proxy: ScrollViewProxy, anchor: UnitPoint? = nil) {
+        guard let key = group.coordinatorRoom.queue.occurrenceKey(forPosition: group.coordinatorRoom.track.position) else { return }
+        withAnimation {
+            proxy.scrollTo(key, anchor: anchor)
         }
     }
 
@@ -355,10 +376,8 @@ struct QueueScreen: View {
         }
     }
 
-    private func deleteFullQueueTracks(_ trackIDs: Set<String>) async {
-        let selectedTracks = trackIDs.compactMap { id in
-            group.coordinatorRoom.queue.elements.first { $0.trackID == id }
-        }
+    private func deleteFullQueueTracks(_ selectedKeys: Set<String>) async {
+        let selectedTracks = group.coordinatorRoom.queue.tracks(forKeys: selectedKeys)
         let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
         withAnimation {
             for track in sortedTracks {
@@ -376,7 +395,7 @@ struct QueueScreen: View {
                 group.coordinatorRoom.queue.insert(item, at: index)
             }
             try? await SonosService.shared.updateTrackInformation(for: [group])
-            currentTrackID = group.coordinatorRoom.track.toPlayable.trackID
+            hasScrolledToNowPlaying = true
         }
         for track in sortedTracks {
             guard let position = track.metadata?.position else { continue }
@@ -386,8 +405,8 @@ struct QueueScreen: View {
         selection.removeAll()
     }
 
-    private func deleteUpNextTracks(_ trackIDs: Set<String>) async {
-        let selectedTracks = upNextTracks.filter { trackIDs.contains($0.trackID) }
+    private func deleteUpNextTracks(_ selectedKeys: Set<String>) async {
+        let selectedTracks = upNextTracks.tracks(forKeys: selectedKeys)
         let sortedTracks = selectedTracks.sorted { ($0.metadata?.position ?? 0) > ($1.metadata?.position ?? 0) }
         withAnimation {
             for track in sortedTracks {
@@ -417,15 +436,12 @@ struct QueueScreen: View {
             self.group.coordinatorRoom.queue = queue
         }
         try? await Task.sleep(for: .milliseconds(10))
-        let id = group.coordinatorRoom.track.toPlayable.trackID
-        if !currentTrackID.isEmpty {
-            withAnimation {
-                proxy.scrollTo(id, anchor: .top)
-            }
-        } else {
-            proxy.scrollTo(id, anchor: .top)
+        if hasScrolledToNowPlaying {
+            scrollToNowPlayingRow(proxy, anchor: .top)
+        } else if let key = group.coordinatorRoom.queue.occurrenceKey(forPosition: group.coordinatorRoom.track.position) {
+            proxy.scrollTo(key, anchor: .top)
         }
-        currentTrackID = id
+        hasScrolledToNowPlaying = true
     }
 }
 
