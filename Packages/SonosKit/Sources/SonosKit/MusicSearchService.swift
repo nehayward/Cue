@@ -434,14 +434,18 @@ public final class MusicSearchService {
         case .apple: return await createApplePlaylist(name: name, addingTrack: track)
         case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
-        case .plex: return await createPlexPlaylist(name: name, track: track)
+        case .plex:
+            // Plex's API needs an initial item, so a Plex playlist can only be created seeded.
+            guard let track else { return nil }
+            return await createPlexPlaylist(name: name, track: track)
         default: return nil
         }
     }
 
-    /// Whether `service` supports creating a playlist.
+    /// Whether `service` supports creating an empty playlist (no seed track). Plex needs an initial
+    /// item, so it's excluded — Plex playlists are created seeded from a track instead.
     public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
-        [.apple, .spotify, .deezer, .plex, .library].contains(service)
+        [.apple, .spotify, .deezer, .library].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
