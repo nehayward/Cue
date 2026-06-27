@@ -327,19 +327,43 @@ public final class MusicSearchService {
     public func addToSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
         let uris: [String]
         if [.album, .libraryAlbum].contains(track.content.type) {
-            // /v1/albums/{id} embeds the album's tracks; each carries its canonical track URI.
-            guard let details = await spotifyAlbumTracksLookup(id: track.content.id) else { return false }
-            uris = details.tracks.items.map(\.uri)
+            uris = await spotifyAlbumTrackURIs(albumID: track.content.id)
         } else {
             uris = ["spotify:track:\(track.content.id)"]
         }
         guard !uris.isEmpty else { return false }
-        return await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: uris)
+        // Spotify's add-tracks endpoint accepts at most 100 URIs per request, so a long album is
+        // posted in chunks — otherwise the request is rejected and nothing is added.
+        for start in stride(from: 0, to: uris.count, by: 100) {
+            let chunk = Array(uris[start..<min(start + 100, uris.count)])
+            guard await spotifySearchAPI.addTracksToPlaylist(playlistID: playlistID, trackURIs: chunk) else { return false }
+        }
+        return true
     }
 
-    /// Removes a track from a Spotify playlist.
-    public func removeFromSpotifyPlaylist(track: PlayableContent, playlistID: String) async -> Bool {
-        await spotifySearchAPI.removeTracksFromPlaylist(playlistID: playlistID, trackURIs: ["spotify:track:\(track.content.id)"])
+    /// Every track URI for a Spotify album, paging through the album's embedded track list.
+    /// `/v1/albums/{id}` returns at most 50 tracks per page, so a large album (box set/compilation)
+    /// has to be walked by offset — otherwise tracks past the first page are silently dropped.
+    private func spotifyAlbumTrackURIs(albumID: String) async -> [String] {
+        let pageLimit = 50
+        var uris: [String] = []
+        var offset = 0
+        while true {
+            guard let details = await spotifyAlbumTracksLookup(id: albumID, offset: offset, limit: pageLimit) else { break }
+            let page = details.tracks.items
+            uris.append(contentsOf: page.map(\.uri))
+            offset += page.count
+            if page.count < pageLimit { break }
+            if let total = details.tracks.total, offset >= total { break }
+        }
+        return uris
+    }
+
+    /// Removes a track from a Spotify playlist. When `position` is the track's playlist index, only
+    /// that occurrence is removed; otherwise Spotify removes every occurrence of the track.
+    public func removeFromSpotifyPlaylist(track: PlayableContent, playlistID: String, position: Int? = nil) async -> Bool {
+        let positions = position.map { [$0] }
+        return await spotifySearchAPI.removeTracksFromPlaylist(playlistID: playlistID, trackURIs: ["spotify:track:\(track.content.id)"], positions: positions)
     }
 
     /// Removes a Spotify playlist from the user's library (unfollow).
@@ -480,9 +504,13 @@ public final class MusicSearchService {
 
     /// Removes `track` from `playlist`, dispatching to the playlist's service.
     /// Apple Music has no remove endpoint, so it returns `false`.
-    public func removeFromServicePlaylist(track: PlayableContent, playlist: PlayableContent) async -> Bool {
+    ///
+    /// `position` is the track's index within the playlist, used by Spotify to remove a single
+    /// occurrence rather than every copy. Plex already targets a unique per-row id; Deezer's API
+    /// only removes by track id, so it ignores `position`.
+    public func removeFromServicePlaylist(track: PlayableContent, playlist: PlayableContent, position: Int? = nil) async -> Bool {
         switch playlist.content.service {
-        case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id)
+        case .spotify: return await removeFromSpotifyPlaylist(track: track, playlistID: playlist.content.id, position: position)
         case .plex: return await removeFromPlexPlaylist(track: track, playlistID: playlist.content.id)
         case .deezer: return await removeFromDeezerPlaylist(track: track, playlistID: playlist.content.id)
         default: return false

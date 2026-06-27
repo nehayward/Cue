@@ -631,8 +631,12 @@ public final class SpotifyAPI {
         }
     }
 
-    /// Removes all occurrences of the given tracks (Spotify URIs) from a playlist.
-    public func removeTracksFromPlaylist(playlistID: String, trackURIs: [String]) async -> Bool {
+    /// Removes the given tracks (Spotify URIs) from a playlist.
+    ///
+    /// When `positions` is supplied it must line up 1:1 with `trackURIs`, and each track is removed
+    /// only at that playlist position — so a playlist containing the same track more than once loses
+    /// just the chosen occurrence. With `positions` nil, Spotify removes *all* occurrences of each URI.
+    public func removeTracksFromPlaylist(playlistID: String, trackURIs: [String], positions: [Int]? = nil) async -> Bool {
         guard !trackURIs.isEmpty else { return true }
 
         var components = URLComponents()
@@ -641,7 +645,12 @@ public final class SpotifyAPI {
         components.path = "/v1/playlists/\(playlistID)/tracks"
         guard let url = components.url else { return false }
 
-        let tracks = trackURIs.map { ["uri": $0] }
+        let tracks: [[String: Any]]
+        if let positions, positions.count == trackURIs.count {
+            tracks = zip(trackURIs, positions).map { ["uri": $0, "positions": [$1]] }
+        } else {
+            tracks = trackURIs.map { ["uri": $0] }
+        }
         guard let body = try? JSONSerialization.data(withJSONObject: ["tracks": tracks]) else { return false }
 
         do {

@@ -49,17 +49,30 @@ final class PlaylistEditCoordinator {
     /// Removes several selected tracks as a single undoable group.
     func removeSelected(_ indexes: [Int], undoManager: UndoManager?) {
         guard let playlist else { return }
+        let ownsList = owns(playlist)
         let items: [(track: PlayableContent, index: Int)] = indexes
             .sorted(by: >)
             .compactMap { tracks.indices.contains($0) ? (tracks[$0], $0) : nil }
         guard !items.isEmpty else { return }
 
+        // Optimistic removal + undo registration, highest index first so the remaining indices stay valid.
         undoManager?.beginUndoGrouping()
         for item in items {
-            remove(track: item.track, at: item.index, playlist: playlist, undoManager: undoManager, showToast: false)
+            if ownsList, tracks.indices.contains(item.index) {
+                tracks.remove(at: item.index)
+            }
+            registerRemoveUndo(track: item.track, at: item.index, playlist: playlist, undoManager: undoManager)
         }
         undoManager?.setActionName(items.count == 1 ? "Remove Track" : "Remove Tracks")
         undoManager?.endUndoGrouping()
+
+        // Network removals run sequentially, highest playlist position first, so each positional
+        // delete (Spotify) sees an unshifted index — concurrent deletes would race on stale positions.
+        Task {
+            for item in items {
+                await performRemoval(track: item.track, at: item.index, playlist: playlist, ownsList: ownsList)
+            }
+        }
 
         showUndoToast(message: items.count == 1 ? "Removed \(items[0].track.title)" : "Removed \(items.count) tracks",
                       undoManager: undoManager)
@@ -103,22 +116,35 @@ final class PlaylistEditCoordinator {
         }
 
         Task {
-            let success = await service.removeFromServicePlaylist(track: track, playlist: playlist)
-            if !success {
-                if ownsList { tracks.insert(track, at: min(index, tracks.count)) }
-                alertService.showAlert(with: "Couldn't remove track", imageName: "exclamationmark.triangle")
-            }
+            await performRemoval(track: track, at: index, playlist: playlist, ownsList: ownsList)
         }
 
-        undoManager?.registerUndo(withTarget: self) { coordinator in
-            MainActor.assumeIsolated {
-                coordinator.add(track: track, at: index, playlist: playlist, undoManager: undoManager)
-            }
-        }
+        registerRemoveUndo(track: track, at: index, playlist: playlist, undoManager: undoManager)
         undoManager?.setActionName("Remove Track")
 
         if showToast {
             showUndoToast(message: "Removed \(track.title)", undoManager: undoManager)
+        }
+    }
+
+    /// Performs the service-side removal and rolls the optimistic UI back on failure. `index` is the
+    /// track's playlist position when this coordinator owns the on-screen list, which lets Spotify
+    /// remove a single occurrence instead of every copy.
+    private func performRemoval(track: PlayableContent, at index: Int, playlist: PlayableContent, ownsList: Bool) async {
+        let position = ownsList ? index : nil
+        let success = await service.removeFromServicePlaylist(track: track, playlist: playlist, position: position)
+        if !success {
+            if ownsList { tracks.insert(track, at: min(index, tracks.count)) }
+            alertService.showAlert(with: "Couldn't remove track", imageName: "exclamationmark.triangle")
+        }
+    }
+
+    /// Registers the inverse (re-add) of a removal with the undo manager.
+    private func registerRemoveUndo(track: PlayableContent, at index: Int, playlist: PlayableContent, undoManager: UndoManager?) {
+        undoManager?.registerUndo(withTarget: self) { coordinator in
+            MainActor.assumeIsolated {
+                coordinator.add(track: track, at: index, playlist: playlist, undoManager: undoManager)
+            }
         }
     }
 

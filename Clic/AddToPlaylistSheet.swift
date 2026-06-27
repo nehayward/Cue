@@ -28,7 +28,7 @@ struct AddToPlaylistSheet: View {
     @State private var isLoadingSonos = true
     @State private var showNewPlaylistAlert = false
     @State private var newPlaylistName: String = ""
-    @State private var recentIDs: [String] = []
+    @State private var recentKeys: [String] = []
     // PlayableContentRowView embeds PlayableMenuView, which needs a SelectedGroupService that the
     // sheet's environment doesn't provide. Supply a throwaway one (the header is non-interactive).
     @State private var headerGroupService = SelectedGroupService(group: nil)
@@ -56,8 +56,10 @@ struct AddToPlaylistSheet: View {
     private var recentPlaylists: [PlayableContent] {
         guard query.isEmpty else { return [] }
         let list = segment == .service ? servicePlaylists : sonosPlaylists
-        let byID = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return recentIDs.compactMap { byID[$0] }.prefix(3).map { $0 }
+        // Match on the service-namespaced key so a recent id from one service can't surface a
+        // same-id playlist in the other segment.
+        let byKey = Dictionary(list.map { (key(for: $0), $0) }, uniquingKeysWith: { first, _ in first })
+        return recentKeys.compactMap { byKey[$0] }.prefix(3).map { $0 }
     }
 
     /// The full list minus anything already surfaced in "Recently Added".
@@ -125,7 +127,7 @@ struct AddToPlaylistSheet: View {
         }
         .presentationDetents([.medium, .large])
         .task {
-            recentIDs = LastPlaylist.recentIDs
+            recentKeys = LastPlaylist.recentKeys
             if hasServiceSegment, let saved = Segment(rawValue: storedSegment) {
                 segment = saved
             } else {

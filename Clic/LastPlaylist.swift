@@ -45,9 +45,15 @@ struct LastPlaylist {
         return await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playlist)
     }
 
-    /// Playlist ids the user added to recently, most-recent first.
-    static var recentIDs: [String] {
+    /// Recently-added playlist keys, most-recent first. Each key is namespaced by service
+    /// (`"<service>:<id>"`) so a Sonos and a streaming playlist that share a raw id stay distinct.
+    static var recentKeys: [String] {
         UserDefaults.standard.stringArray(forKey: AppStorageKeys.recentPlaylistIDs) ?? []
+    }
+
+    /// The recents key for a playlist: its service paired with its raw id.
+    static func recentKey(for content: PlayableContent) -> String {
+        "\(content.content.service.sonosRawValue):\(content.id)"
     }
 
     private static let recentLimit = 12
@@ -61,8 +67,9 @@ struct LastPlaylist {
         defaults.set(content.content.service.sonosRawValue, forKey: AppStorageKeys.lastPlaylistService)
 
         // Move this playlist to the front of the recents list (dedup, capped).
-        var recents = recentIDs.filter { $0 != content.id }
-        recents.insert(content.id, at: 0)
+        let key = recentKey(for: content)
+        var recents = recentKeys.filter { $0 != key }
+        recents.insert(key, at: 0)
         defaults.set(Array(recents.prefix(recentLimit)), forKey: AppStorageKeys.recentPlaylistIDs)
 
         #if targetEnvironment(macCatalyst)
