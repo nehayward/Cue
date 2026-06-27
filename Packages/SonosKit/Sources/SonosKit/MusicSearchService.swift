@@ -1524,7 +1524,7 @@ public final class MusicSearchService {
     private func createDeezerPlaylistContent(from playlist: DeezerPlaylist) -> PlayableContent {
         PlayableContent(
             title: playlist.title,
-            subtitle: playlist.user?.name ?? "",
+            subtitle: playlist.creator?.name ?? "",
             thumbnail: playlist.artworkURL,
             artwork: playlist.artworkURL,
             content: MediaContent(

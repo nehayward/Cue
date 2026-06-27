@@ -83,7 +83,7 @@ public final class DeezerAPI {
     /// Whether the playlist is owned by `userID` (Deezer only lets you edit your own playlists).
     public func isPlaylistEditable(id: String, ownedBy userID: Int) async -> Bool {
         guard let details = await playlist(for: id) else { return false }
-        return details.user?.id == userID
+        return details.creator?.id == userID
     }
 
     // MARK: - Playlist management (requires the `manage_library` OAuth scope)

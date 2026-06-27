@@ -7,7 +7,8 @@ public struct DeezerPlaylist: Codable {
     public let pictureMedium: String?
     public let pictureBig: String?
     public let pictureXl: String?
-    public let user: DeezerUser?
+    /// The playlist owner. Deezer returns this under `creator` (not `user`).
+    public let creator: DeezerUser?
 
     public var artworkURL: URL? {
         if let pictureXl, let url = URL(string: pictureXl) { return url }
