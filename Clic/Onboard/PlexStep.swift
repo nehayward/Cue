@@ -1,4 +1,5 @@
 import MusicSearchKit
+import NukeUI
 import SonosKit
 import SwiftUI
 
@@ -16,6 +17,9 @@ struct PlexStep: View {
     @State private var servers: [PlexServer] = []
     /// Music libraries keyed by server `clientIdentifier`.
     @State private var librariesByServer: [String: [PlexLibrarySection]] = [:]
+    /// A few artist artwork URLs per library (keyed by `PlexLibrarySection.id`),
+    /// shown as overlapping circles to make libraries easier to recognize.
+    @State private var artworkByLibrary: [String: [URL]] = [:]
     @State private var isLoading = false
 
     private var isAuthorized: Bool { plexAuthenticator.authToken != nil }
@@ -150,7 +154,7 @@ struct PlexStep: View {
     private var libraryList: some View {
         ScrollView {
             VStack(spacing: 10) {
-                ForEach(Array(allLibraries.enumerated()), id: \.offset) { _, pair in
+                ForEach(allLibraries, id: \.library.id) { pair in
                     libraryRow(server: pair.server, library: pair.library)
                 }
             }
@@ -172,6 +176,10 @@ struct PlexStep: View {
             musicSearchService.plexLibrarySelectionID = library.key
         } label: {
             HStack(spacing: 14) {
+                if let urls = artworkByLibrary[library.id], !urls.isEmpty {
+                    ArtistCircleCluster(urls: urls)
+                }
+
                 VStack(alignment: .leading, spacing: 1) {
                     Text(library.title)
                         .font(.headline)
@@ -253,6 +261,7 @@ struct PlexStep: View {
         let fetchedServers = await musicSearchService.getPlexServers()
         servers = fetchedServers
         librariesByServer = [:]
+        artworkByLibrary = [:]
 
         await withTaskGroup(of: Void.self) { group in
             for server in fetchedServers {
@@ -273,5 +282,63 @@ struct PlexStep: View {
             musicSearchService.plexServerID = id
             musicSearchService.plexLibrarySelectionID = firstLibrary.key
         }
+
+        // Fetch artwork previews in the background so the library list shows
+        // immediately and the circles fill in as they arrive.
+        Task { await loadArtwork() }
+    }
+
+    /// Loads a few artist artwork URLs for each library to render the preview
+    /// circles. Runs after the list is visible and updates rows incrementally.
+    @MainActor
+    private func loadArtwork() async {
+        await withTaskGroup(of: Void.self) { group in
+            for pair in allLibraries {
+                let library = pair.library
+                guard artworkByLibrary[library.id] == nil else { continue }
+                let server = pair.server
+                group.addTask {
+                    let artists = await PlexAPI.shared.getArtists(server: server, sectionKey: library.key)
+                    let urls = Array(artists.compactMap(\.thumbImageURL).prefix(3))
+                    await MainActor.run { artworkByLibrary[library.id] = urls }
+                }
+            }
+        }
+    }
+}
+
+/// A small cluster of overlapping circular artist thumbnails, used as a leading
+/// accessory on a Plex library row so libraries are easier to recognize at a
+/// glance.
+private struct ArtistCircleCluster: View {
+    let urls: [URL]
+    var diameter: CGFloat = 38
+    var overlap: CGFloat = 14
+
+    var body: some View {
+        HStack(spacing: -overlap) {
+            ForEach(Array(urls.prefix(3).enumerated()), id: \.offset) { index, url in
+                LazyImage(url: url) { state in
+                    if let image = state.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Circle()
+                            .fill(.white.opacity(0.08))
+                            .overlay {
+                                Image(systemName: "music.mic")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                    }
+                }
+                .frame(width: diameter, height: diameter)
+                .clipShape(Circle())
+                // Ring separates overlapping circles against the row and each
+                // other; later circles sit behind earlier ones.
+                .overlay { Circle().strokeBorder(.black.opacity(0.55), lineWidth: 2) }
+                .zIndex(Double(urls.count - index))
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

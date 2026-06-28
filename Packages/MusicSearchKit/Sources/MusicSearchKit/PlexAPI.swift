@@ -421,7 +421,50 @@ public final class PlexAPI {
             return []
         }
     }
-    
+
+    /// Fetches a handful of artists (with resolved artwork URLs) from a
+    /// specific library section on a specific server. Unlike `artists()`, this
+    /// doesn't depend on the currently-selected server/library — used to preview
+    /// libraries (e.g. onboarding) before one is chosen.
+    public func getArtists(server: PlexServer, sectionKey: String, limit: Int = 12) async -> [PlexMetadata] {
+        guard let token = server.accessToken,
+              let base = server.baseURL(preferring: connectionPreference) else {
+            return []
+        }
+
+        var url = base.appending(path: "/library/sections/\(sectionKey)/all")
+        url.append(queryItems: [
+            URLQueryItem(name: "type", value: "8"), // 8 = artist
+            URLQueryItem(name: "X-Plex-Container-Size", value: "\(limit)"),
+            URLQueryItem(name: "X-Plex-Container-Start", value: "0")
+        ])
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+        request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+
+        guard let (data, _) = try? await session.data(for: request) else {
+            return []
+        }
+
+        do {
+            let container = try decoder.decode(PlexContainer<PlexArtistContainer>.self, from: data)
+            guard var artists = container.mediaContainer.metadata else { return [] }
+            for index in artists.indices {
+                guard let thumb = artists[index].thumb else { continue }
+                artists[index].thumbImageURL = base
+                    .appending(path: thumb)
+                    .appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: token)])
+            }
+            return artists
+        } catch {
+            logger.error(error)
+            return []
+        }
+    }
+
     public func getMusicLibraries() async -> [PlexLibrarySection] {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else {
