@@ -19,6 +19,26 @@ public final class SpotifyBrowseService {
 
     public init() { }
 
+    /// Merges a freshly-fetched page into a browse collection.
+    ///
+    /// For the first page (`isFirstPage`), the collection is rebuilt as the fetched page followed
+    /// by any previously-loaded items that fell outside it. Spotify returns saved items
+    /// newest-first, so a newly-added item lands at the top — but re-fetching the same first page
+    /// is a no-op, so revisiting a browse section never reshuffles what's already there. For
+    /// later pages, the new items are simply appended. Removals are reconciled by the
+    /// pull-to-refresh, which clears the collection before reloading.
+    private func merge(_ newItems: [PlayableContent], into collection: inout OrderedSet<PlayableContent>, isFirstPage: Bool) {
+        if isFirstPage {
+            let fetched = Set(newItems)
+            let retained = collection.filter { !fetched.contains($0) }
+            collection = OrderedSet(newItems + retained)
+        } else {
+            for item in newItems {
+                collection.updateOrAppend(item)
+            }
+        }
+    }
+
     public func updatePlaylists(offset: Int? = nil, limit: Int = 5) async {
         let offset = offset ?? playlists.count
         guard let container = await spotifyAPI.userPlaylists(offset: offset, limit: limit) else {
@@ -26,13 +46,7 @@ public final class SpotifyBrowseService {
         }
         
         let newUserPlaylists = container.items.compactMap { $0?.toPlayable }
-        // Merge in place: keep already-loaded items where they are and append genuinely new ones.
-        // (A reload of the first page used to reinsert at the front and prune, which made the
-        // browse preview resort every time the section reappeared.) Removals are handled by the
-        // pull-to-refresh, which clears the set before reloading.
-        for new in newUserPlaylists {
-            playlists.updateOrAppend(new)
-        }
+        merge(newUserPlaylists, into: &playlists, isFirstPage: offset == 0)
     }
     
     public func userAlbums(offset: Int? = nil, limit: Int = 5) async {
@@ -44,27 +58,14 @@ public final class SpotifyBrowseService {
             return
         }
         let newAlbums = container.items.compactMap { $0?.album.toPlayable }
-        // Merge in place: keep already-loaded albums where they are and append genuinely new ones.
-        // (A reload of the first page used to reinsert at the front and prune, which made the
-        // browse preview resort every time the section reappeared and could drop albums the user
-        // had already paged in.) Removals are handled by the pull-to-refresh, which clears the set
-        // before reloading.
-        for new in newAlbums {
-            albums.updateOrAppend(new)
-        }
+        merge(newAlbums, into: &albums, isFirstPage: offset == 0)
     }
 
     public func updateSongs(offset: Int? = nil, limit: Int = 25) async {
         let offset = offset ?? tracks.count
         guard let container = await spotifyAPI.userTracks(offset: offset, limit: limit) else { return }
         let newTracks = container.items.compactMap { $0?.track.toPlayable }
-        // Merge in place: keep already-loaded songs where they are and append genuinely new ones.
-        // (A reload of the first page used to reinsert at the front and prune, which made the
-        // browse preview resort every time the section reappeared.) Removals are handled by the
-        // pull-to-refresh, which clears the set before reloading.
-        for new in newTracks {
-            tracks.updateOrAppend(new)
-        }
+        merge(newTracks, into: &tracks, isFirstPage: offset == 0)
     }
     
     /// Updates both playlists and songs concurrently
