@@ -176,7 +176,7 @@ public final class PlexAPI {
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
-        guard let (data, _) = try? await session.data(for: request) else {
+        guard let (data, _) = await loadData(for: request) else {
             logger.warning("Search request failed \(String(describing: request.url?.absoluteString))")
             return nil
         }
@@ -1100,6 +1100,40 @@ public final class PlexAPI {
         return resolvedBaseURL ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
+    /// Drops the cached server + resolved connection so the next request
+    /// re-resolves the best connection. Called when a request through the
+    /// cached connection fails (e.g. a stale local connection after the device
+    /// has moved networks). The cache is shared across the singleton, so a
+    /// failure on any call lets every other browse call recover on its next
+    /// attempt.
+    private func invalidateResolvedConnection() {
+        resolvedBaseURL = nil
+        plexServer = nil
+    }
+
+    /// Performs a request; if it fails at the connection level, drops the
+    /// cached connection, re-resolves, and retries once against a *different*
+    /// connection — so a cached local URL that's unreachable after leaving home
+    /// transparently fails over to remote (and vice-versa). Only retries when
+    /// re-resolution actually yields a different connection, to avoid doubling
+    /// the timeout when the server is simply down.
+    private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
+        if let result = try? await session.data(for: request) {
+            return result
+        }
+        invalidateResolvedConnection()
+        guard let url = request.url,
+              let server = await getPlexServer(),
+              let newBase = getBaseURL(for: server),
+              let retryURL = url.rebasing(to: newBase),
+              retryURL != url else {
+            return nil
+        }
+        var retryRequest = request
+        retryRequest.url = retryURL
+        return try? await session.data(for: retryRequest)
+    }
+
     private func authorizedRequest(from url: URL) async -> URLRequest? {
         guard let plexServer = await getPlexServer(),
               let token = plexServer.accessToken else { 
@@ -1118,8 +1152,8 @@ public final class PlexAPI {
         guard let request = await authorizedRequest(from: url) else {
             return nil
         }
-        
-        guard let (data, urlResponse) = try? await session.data(for: request) else { return nil }
+
+        guard let (data, urlResponse) = await loadData(for: request) else { return nil }
         
         if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
             // MARK: Reset
@@ -1167,5 +1201,21 @@ public final class PlexAPI {
             
             return updatedItem
         }
+    }
+}
+
+private extension URL {
+    /// Returns a copy of this URL with its scheme/host/port replaced by those
+    /// of `base`, preserving the path and query. Used to retry a Plex request
+    /// against a different connection of the same server.
+    func rebasing(to base: URL) -> URL? {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              let baseComponents = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        components.scheme = baseComponents.scheme
+        components.host = baseComponents.host
+        components.port = baseComponents.port
+        return components.url
     }
 }
