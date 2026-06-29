@@ -24,29 +24,36 @@ struct NewPlaylistView: View {
             Text(titleText)
                 .font(.headline)
                 .fontDesign(.rounded)
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .leading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityLabel("Cancel")
+                }
 
             TextField("Playlist Title", text: $playlistName)
                 .textFieldStyle(.roundedBorder)
                 .focusOnAppear()
                 .onSubmit(createOrUpdate)
 
-            HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Spacer()
-
-                Button(playlist != nil ? "Update" : "Create") {
-                    createOrUpdate()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(playlistName.isEmpty || playlistName == playlist?.title)
+            Button {
+                createOrUpdate()
+            } label: {
+                Text(playlist != nil ? "Update" : "Create")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .disabled(playlistName.isEmpty || playlistName == playlist?.title)
         }
         .padding(24)
-        .presentationDetents([.height(160)])
+        .presentationDetents([.height(200)])
         .presentationBackground(.regularMaterial)
         .task {
             if let playlist {
