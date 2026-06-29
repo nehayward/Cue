@@ -108,14 +108,23 @@ final class PlaylistEditCoordinator {
         [.spotify, .plex, .deezer].contains(playlist.content.service)
     }
 
+    /// Registers a main-actor undo handler with `undoManager`. The single `assumeIsolated` lives
+    /// here: `UndoManager` runs handlers synchronously on whatever thread calls `undo()`/`redo()`,
+    /// which is always main here (toast tap, the ⌘Z buttons, shake, the Edit menu). Running
+    /// synchronously (vs. a `Task`) is what lets each handler re-register its inverse onto the redo
+    /// stack. The handler receives the coordinator so `UndoManager` holds the only strong reference.
+    private func registerUndo(undoManager: UndoManager?, _ body: @escaping @MainActor (PlaylistEditCoordinator) -> Void) {
+        undoManager?.registerUndo(withTarget: self) { target in
+            MainActor.assumeIsolated { body(target) }
+        }
+    }
+
     /// Registers native undo for an add that already happened elsewhere (e.g. the "Add to Playlist"
     /// menu). Only meaningful where the inverse (remove) is supported — Spotify, Plex, and Deezer.
     func registerExternalAdd(track: PlayableContent, to playlist: PlayableContent, undoManager: UndoManager?) {
         guard supportsUndo(playlist) else { return }
-        undoManager?.registerUndo(withTarget: self) { coordinator in
-            MainActor.assumeIsolated {
-                coordinator.remove(track: track, at: 0, playlist: playlist, undoManager: undoManager, showToast: false)
-            }
+        registerUndo(undoManager: undoManager) {
+            $0.remove(track: track, at: 0, playlist: playlist, undoManager: undoManager, showToast: false)
         }
         undoManager?.setActionName("Add Track")
     }
@@ -161,10 +170,8 @@ final class PlaylistEditCoordinator {
     /// Registers the inverse (re-add) of a removal with the undo manager, where the service supports it.
     private func registerRemoveUndo(track: PlayableContent, at index: Int, playlist: PlayableContent, undoManager: UndoManager?) {
         guard supportsUndo(playlist) else { return }
-        undoManager?.registerUndo(withTarget: self) { coordinator in
-            MainActor.assumeIsolated {
-                coordinator.add(track: track, at: index, playlist: playlist, undoManager: undoManager)
-            }
+        registerUndo(undoManager: undoManager) {
+            $0.add(track: track, at: index, playlist: playlist, undoManager: undoManager)
         }
     }
 
@@ -191,12 +198,10 @@ final class PlaylistEditCoordinator {
             }
         }
 
-        undoManager?.registerUndo(withTarget: self) { coordinator in
-            MainActor.assumeIsolated {
-                // The row may have shifted since the add; prefer its current position.
-                let currentIndex = coordinator.tracks.firstIndex(where: { $0.trackID == track.trackID }) ?? index
-                coordinator.remove(track: track, at: currentIndex, playlist: playlist, undoManager: undoManager, showToast: false)
-            }
+        registerUndo(undoManager: undoManager) { coordinator in
+            // The row may have shifted since the add; prefer its current position.
+            let currentIndex = coordinator.tracks.firstIndex(where: { $0.trackID == track.trackID }) ?? index
+            coordinator.remove(track: track, at: currentIndex, playlist: playlist, undoManager: undoManager, showToast: false)
         }
         undoManager?.setActionName("Add Track")
     }
