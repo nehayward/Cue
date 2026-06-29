@@ -835,7 +835,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     override func buildMenu(with builder: UIMenuBuilder) {
         /// Only operate on the main menu bar.
         if builder.system == .main {
-            builder.remove(menu: .edit)
+            // Keep Edit ▸ Undo/Redo — it drives native ⌘Z / ⌘⇧Z for playlist editing — but drop the
+            // rest of the Edit menu's text-editing items, which a music controller doesn't use.
+            builder.remove(menu: .standardEdit)
+            builder.remove(menu: .find)
+            builder.remove(menu: .spelling)
+            builder.remove(menu: .substitutions)
+            builder.remove(menu: .transformations)
+            builder.remove(menu: .speech)
+            builder.remove(menu: .autoFill)
             builder.remove(menu: .format)
             builder.remove(menu: .newScene)
             builder.remove(menu: .open)
