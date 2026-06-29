@@ -947,6 +947,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             )
 
             builder.insertChild(fileMenuItems, atStartOfMenu: .file)
+
+            #if targetEnvironment(macCatalyst)
+            // Custom Edit menu with our own Undo/Redo. The system Edit menu was removed above; its
+            // Undo/Redo validate against the responder chain's undo manager, which isn't the one our
+            // playlist edits register on (SwiftUI's environment manager). These route through the
+            // responder chain to that manager via `playlistUndo`/`playlistRedo` instead.
+            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
+            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
+            let editMenu = UIMenu(title: "Edit", identifier: UIMenu.Identifier("com.clic.editMenu"), children: [undoCommand, redoCommand])
+            builder.insertSibling(editMenu, afterMenu: .file)
+            #endif
+        }
+    }
+
+    /// Drives the foreground playlist editor's undo, routed from the Catalyst Edit menu / ⌘Z.
+    @objc func playlistUndo() {
+        PlaylistUndoMenuBridge.shared.editor?.undo()
+    }
+
+    /// Drives the foreground playlist editor's redo, routed from the Catalyst Edit menu / ⌘⇧Z.
+    @objc func playlistRedo() {
+        PlaylistUndoMenuBridge.shared.editor?.redo()
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        switch action {
+        case #selector(playlistUndo):
+            return PlaylistUndoMenuBridge.shared.editor?.canUndo ?? false
+        case #selector(playlistRedo):
+            return PlaylistUndoMenuBridge.shared.editor?.canRedo ?? false
+        default:
+            return super.canPerformAction(action, withSender: sender)
         }
     }
 

@@ -9,7 +9,6 @@ import Defaults
 /// last-used segment. Supports selecting several playlists at once and adding them all on Done.
 struct AddToPlaylistSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.undoManager) private var undoManager
     @Environment(SonosService.self) private var sonosService
     @Environment(AlertService.self) private var alertService
 
@@ -282,13 +281,7 @@ struct AddToPlaylistSheet: View {
             await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
             return true
         } else {
-            let success = await musicService.addToServicePlaylist(track: track, playlist: playlist)
-            // Only register single-track adds for undo — an album expands to many tracks, which the
-            // single-item undo can't cleanly reverse.
-            if success, [.track, .libraryTrack].contains(track.content.type) {
-                PlaylistEditCoordinator.shared.registerExternalAdd(track: track, to: playlist, undoManager: undoManager)
-            }
-            return success
+            return await musicService.addToServicePlaylist(track: track, playlist: playlist)
         }
     }
 

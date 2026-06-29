@@ -17,8 +17,7 @@ struct MediaDetailView: View {
     @Environment(AlertService.self) private var alertService
     @Environment(MusicSearchService.self) private var musicSearchService: MusicSearchService
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
-    @Environment(\.undoManager) private var undoManager
-  
+
     @AppStorage(Defaults.AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
 
     let playableContent: PlayableContent
@@ -149,7 +148,7 @@ struct MediaDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
-                    editor.removeSelected(Array(selection), undoManager: undoManager)
+                    editor.removeSelected(Array(selection))
                     selection.removeAll()
                 } label: {
                     Text("Remove (\(selection.count))")
@@ -168,25 +167,33 @@ struct MediaDetailView: View {
         }
         .task {
             editor.configure(playlist: playableContent)
+            // Point the Catalyst Edit-menu bridge at this editor so native Edit ▸ Undo/Redo can
+            // drive playlist undo through the responder chain.
+            PlaylistUndoMenuBridge.shared.editor = editor
             // Resolve edit permission independently so the Edit affordance isn't gated on track
             // loading (instant for Sonos, an ownership lookup for streaming).
             Task { serviceEditable = await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
         }
         .background {
-            // Hidden ⌘Z / ⌘⇧Z bindings to drive the playlist editor's UndoManager. Only the
-            // streaming-service edits are undoable (Sonos has no positional re-add), so the
-            // shortcuts are scoped to those. opacity(0) keeps them active but invisible.
+            // iOS/iPadOS has no menu bar, so bind ⌘Z / ⌘⇧Z to the editor's UndoManager here for
+            // hardware keyboards. On Catalyst the native Edit ▸ Undo/Redo menu provides these (see
+            // AppDelegate.buildMenu), so we skip them there to avoid firing undo twice. Only the
+            // streaming-service edits are undoable (Sonos has no positional re-add).
+            #if !targetEnvironment(macCatalyst)
             if playableContent.isEditableServicePlaylist && serviceEditable {
-                Button("Undo") { undoManager?.undo() }
+                Button("Undo") { editor.undo() }
                     .keyboardShortcut("z", modifiers: .command)
+                    .disabled(!editor.canUndo)
                     .opacity(0)
                     .accessibilityHidden(true)
-                Button("Redo") { undoManager?.redo() }
+                Button("Redo") { editor.redo() }
                     .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!editor.canRedo)
                     .opacity(0)
                     .accessibilityHidden(true)
             }
+            #endif
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
@@ -614,7 +621,7 @@ struct MediaDetailView: View {
     /// Removes the track at `index` from the playlist. The editor dispatches to Sonos or the
     /// streaming service and keeps its track list in sync.
     private func removeTrack(at index: Int) {
-        editor.removeTrack(at: index, undoManager: undoManager)
+        editor.removeTrack(at: index)
     }
 
     /// Whether the playlist is editable: Sonos playlists always are; streaming playlists require
