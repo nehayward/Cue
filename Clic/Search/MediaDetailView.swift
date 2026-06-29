@@ -149,22 +149,8 @@ struct MediaDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if isEditablePlaylist && !selection.isEmpty {
                 Button(role: .destructive) {
-                    if playableContent.isEditableServicePlaylist {
-                        editor.removeSelected(Array(selection), undoManager: undoManager)
-                        selection.removeAll()
-                    } else {
-                        Task {
-                            // Descending so each local removal keeps the remaining indices valid.
-                            for index in Array(selection).sorted(by: >) where tracks.indices.contains(index) {
-                                let removed = (try? await SonosService.shared.removeTrackFromPlaylist(
-                                    playlistID: playableContent.id,
-                                    index: index
-                                )) != nil
-                                if removed { tracks.remove(at: index) }
-                            }
-                            selection.removeAll()
-                        }
-                    }
+                    editor.removeSelected(Array(selection), undoManager: undoManager)
+                    selection.removeAll()
                 } label: {
                     Text("Remove (\(selection.count))")
                         .frame(maxWidth: .infinity)
@@ -188,17 +174,18 @@ struct MediaDetailView: View {
             await updateTracks(offset: loadedItemCount)
         }
         .background {
-            // Hidden ⌘Z / ⌘⇧Z bindings to drive the playlist editor's UndoManager.
-            // opacity(0) keeps the shortcuts active while making the buttons invisible.
-            if isEditablePlaylist {
-                Group {
-                    Button("Undo") { undoManager?.undo() }
-                        .keyboardShortcut("z", modifiers: .command)
-                    Button("Redo") { undoManager?.redo() }
-                        .keyboardShortcut("z", modifiers: [.command, .shift])
-                }
-                .opacity(0)
-                .accessibilityHidden(true)
+            // Hidden ⌘Z / ⌘⇧Z bindings to drive the playlist editor's UndoManager. Only the
+            // streaming-service edits are undoable (Sonos has no positional re-add), so the
+            // shortcuts are scoped to those. opacity(0) keeps them active but invisible.
+            if playableContent.isEditableServicePlaylist && serviceEditable {
+                Button("Undo") { undoManager?.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                    .opacity(0)
+                    .accessibilityHidden(true)
+                Button("Redo") { undoManager?.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .opacity(0)
+                    .accessibilityHidden(true)
             }
         }
         .contentMargins(.bottom, 120, for: .scrollContent)
@@ -624,20 +611,10 @@ struct MediaDetailView: View {
         }
     }
     
-    /// Removes the track at `index` from the playlist, dispatching to Sonos or the streaming service.
+    /// Removes the track at `index` from the playlist. The editor dispatches to Sonos or the
+    /// streaming service and keeps its track list in sync.
     private func removeTrack(at index: Int) {
-        if playableContent.isSonosPlaylist {
-            Task {
-                let removed = (try? await SonosService.shared.removeTrackFromPlaylist(playlistID: playableContent.id, index: index)) != nil
-                if removed, tracks.indices.contains(index) {
-                    tracks.remove(at: index)
-                } else if !removed {
-                    alertService.showAlert(with: "Couldn’t remove track", imageName: "exclamationmark.triangle")
-                }
-            }
-        } else if playableContent.isEditableServicePlaylist && serviceEditable {
-            editor.removeTrack(at: index, undoManager: undoManager)
-        }
+        editor.removeTrack(at: index, undoManager: undoManager)
     }
 
     /// Whether the playlist is editable: Sonos playlists always are; streaming playlists require
@@ -649,21 +626,7 @@ struct MediaDetailView: View {
     }
 
     private func move(from source: IndexSet, to destination: Int) {
-        if playableContent.isSonosPlaylist {
-            guard let sourceIndex = source.first else { return }
-            let previous = tracks
-            tracks.move(fromOffsets: source, toOffset: destination)
-            Task {
-                do {
-                    try await SonosService.shared.reorderPlaylist(playlistID: playableContent.id, from: sourceIndex, to: destination)
-                } catch {
-                    tracks = previous
-                    alertService.showAlert(with: "Couldn’t reorder track", imageName: "exclamationmark.triangle")
-                }
-            }
-        } else {
-            editor.moveTrack(from: source, to: destination, playlist: playableContent)
-        }
+        editor.moveTrack(from: source, to: destination, playlist: playableContent)
     }
 }
 

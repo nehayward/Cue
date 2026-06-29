@@ -32,14 +32,13 @@ struct DeletePlaylistConfirmationView: View {
                 Button(role: .destructive) {
                     delete()
                 } label: {
-                    Group {
-                        if isDeleting {
-                            ProgressView()
-                        } else {
-                            Text("Delete Playlist")
-                        }
+                    if isDeleting {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Delete Playlist")
+                            .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
