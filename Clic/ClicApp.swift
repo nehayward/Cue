@@ -811,6 +811,16 @@ private struct PlaybackTransportControls: View {
 }
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        // macOS auto-injects "Start Dictation" and "Emoji & Symbols" into any Edit menu. Opt out so
+        // ours carries only Undo/Redo. (AutoFill is removed via the menu builder.)
+        UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
+        UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
+        #endif
+        return true
+    }
+
     func application(
        _ application: UIApplication,
        configurationForConnecting connectingSceneSession: UISceneSession,
@@ -836,6 +846,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         /// Only operate on the main menu bar.
         if builder.system == .main {
             builder.remove(menu: .edit)
+            builder.remove(menu: .autoFill)
             builder.remove(menu: .format)
             builder.remove(menu: .newScene)
             builder.remove(menu: .open)
