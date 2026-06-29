@@ -1,102 +1,115 @@
 import Foundation
 
 final class AlarmListParser {
-    // First extract the Alarms content
+    // Extract the <Alarms>…</Alarms> section.
     private static let alarmsPattern = #"<Alarms>(.*?)</Alarms>"#
-    // Then match each Alarm tag
-    private static let alarmPattern = #"<Alarm[^>]+/>"#
-    // Capture full metadata content between ProgramMetaData=" and next attribute
-    private static let metadataPattern = #"ProgramMetaData="([^"]*(?:"[^"]*)*)"(?=\s+(?:PlayMode|Volume|IncludeLinkedZones)=")"#
-    // Match other attributes, excluding metadata
-    private static let attributePattern = #"(?<!ProgramMeta)\b(\w+)="([^"]*)""#
-    
-    private var alarms: [Alarm] = []
-    
+    // Match each Alarm element by anchoring on its final attribute rather than
+    // on the next `>`. The old `<Alarm[^>]+/>` broke whenever an alarm's
+    // ProgramMetaData decoded to contain a literal `>` (single-escaped DIDL),
+    // silently dropping that alarm.
+    private static let alarmPattern = #"<Alarm\b.*?\bIncludeLinkedZones="[^"]*"\s*/>"#
+
     func parseAlarms(from xml: String) -> [Alarm] {
+        // Preferred path: decode a single entity level so the inner <Alarms>
+        // document stays well-formed, then let Foundation's XMLParser do the
+        // parsing. This is robust to attribute values that contain quotes or
+        // angle brackets (i.e. every music alarm's DIDL metadata) — the cases
+        // that silently broke the `<Alarm[^>]+/>` regex below.
+        if let parsed = parseWithXMLParser(from: xml), !parsed.isEmpty {
+            return parsed
+        }
+        // Fallback for any response the XMLParser can't make sense of so we
+        // never regress to fewer alarms than the legacy regex would surface.
+        return parseWithRegex(from: xml)
+    }
+
+    private func parseWithXMLParser(from xml: String) -> [Alarm]? {
+        let decoded = xml.xmlEntityDecodedOnce
+        guard let start = decoded.range(of: "<Alarms>"),
+              let end = decoded.range(of: "</Alarms>"),
+              start.upperBound <= end.lowerBound else {
+            return nil
+        }
+
+        let alarmsDoc = String(decoded[start.lowerBound..<end.upperBound])
+        guard let data = alarmsDoc.data(using: .utf8) else { return nil }
+
+        let delegate = AlarmsXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.delegate = delegate
+        guard parser.parse() else { return nil }
+        return delegate.alarms
+    }
+
+    private func parseWithRegex(from xml: String) -> [Alarm] {
         var alarms: [Alarm] = []
         let unescapedXML = xml.unescaped
-        
-        print("Input XML: \(unescapedXML)") // Debug logging
-        
+
         // First extract the Alarms section
         guard let alarmsRegex = try? NSRegularExpression(pattern: Self.alarmsPattern, options: [.dotMatchesLineSeparators]),
               let match = alarmsRegex.firstMatch(in: unescapedXML, options: [], range: NSRange(unescapedXML.startIndex..<unescapedXML.endIndex, in: unescapedXML)),
               let alarmsRange = Range(match.range(at: 1), in: unescapedXML) else {
-            print("Could not find Alarms section") // Debug logging
             return []
         }
-        
+
         let alarmsContent = String(unescapedXML[alarmsRange])
-        print("Found alarms section: \(alarmsContent)") // Debug logging
-        
+
         // Then find all individual Alarm tags
         guard let alarmRegex = try? NSRegularExpression(pattern: Self.alarmPattern, options: [.dotMatchesLineSeparators]) else {
             return []
         }
-        
+
         let alarmMatches = alarmRegex.matches(in: alarmsContent, options: [], range: NSRange(alarmsContent.startIndex..<alarmsContent.endIndex, in: alarmsContent))
-        
-        print("Found \(alarmMatches.count) alarm tags") // Debug logging
-        
-        // Parse each alarm
+
+        // Parse each alarm. Each field is extracted with a targeted pattern so
+        // that embedded quotes or angle brackets inside ProgramMetaData can't
+        // desync the parse (which a single sweep of `\w+="…"` was prone to).
         for alarmMatch in alarmMatches {
             guard let alarmRange = Range(alarmMatch.range, in: alarmsContent) else { continue }
             let alarmString = String(alarmsContent[alarmRange])
-            print("\nParsing alarm: \(alarmString)") // Debug logging
-            
-            // First extract metadata content
-            var programMetaData = ""
-            if let metadataRegex = try? NSRegularExpression(pattern: Self.metadataPattern, options: [.dotMatchesLineSeparators]),
-               let metadataMatch = metadataRegex.firstMatch(in: alarmString, options: [], range: NSRange(alarmString.startIndex..<alarmString.endIndex, in: alarmString)),
-               let metadataRange = Range(metadataMatch.range(at: 1), in: alarmString) {
-                programMetaData = String(alarmString[metadataRange])
-                    .replacingOccurrences(of: "&lt;", with: "<")
-                    .replacingOccurrences(of: "&gt;", with: ">")
-                    .replacingOccurrences(of: "&quot;", with: "\"")
-                    .replacingOccurrences(of: "&amp;", with: "&")
-                print("Found metadata: \(programMetaData)") // Debug
-            }
-            
-            // Parse other attributes
+
             var attributes: [String: String] = [:]
-            if let attrRegex = try? NSRegularExpression(pattern: Self.attributePattern, options: []) {
-                let attrMatches = attrRegex.matches(in: alarmString, options: [], range: NSRange(alarmString.startIndex..<alarmString.endIndex, in: alarmString))
-                
-                for attrMatch in attrMatches {
-                    guard let keyRange = Range(attrMatch.range(at: 1), in: alarmString),
-                          let valueRange = Range(attrMatch.range(at: 2), in: alarmString) else { continue }
-                    
-                    let key = String(alarmString[keyRange])
-                    let value = String(alarmString[valueRange])
+            // Attributes that sit before ProgramMetaData are always clean.
+            for key in ["ID", "StartTime", "Duration", "Recurrence", "Enabled", "RoomUUID", "ProgramURI"] {
+                if let value = Self.value(#"\b\#(key)="([^"]*)""#, in: alarmString) {
                     attributes[key] = value
-                    
-                    print("Parsing attribute: \(key) = \(value)") // Debug logging
                 }
             }
-            
-            // Check if it's a buzzer alarm and set empty metadata if it is
-            if let programURI = attributes["ProgramURI"], programURI == "x-rincon-buzzer:0" {
-                programMetaData = ""
-            }
-            
-            // Add metadata back to attributes
+            // Trailing attributes are anchored on their neighbours so the
+            // (possibly messy) metadata in between is skipped over.
+            attributes["PlayMode"] = Self.value(#"\bPlayMode="([^"]*)"\s+Volume="#, in: alarmString)
+            attributes["Volume"] = Self.value(#"\bVolume="([^"]*)"\s+IncludeLinkedZones="#, in: alarmString)
+            attributes["IncludeLinkedZones"] = Self.value(#"\bIncludeLinkedZones="([^"]*)"\s*/>"#, in: alarmString)
+
+            // Metadata is whatever sits between ProgramMetaData=" and PlayMode=.
+            var programMetaData = Self.value(#"\bProgramMetaData="(.*?)"\s+PlayMode="#, in: alarmString, dotMatchesNewlines: true) ?? ""
+            programMetaData = programMetaData
+                .replacingOccurrences(of: "&lt;", with: "<")
+                .replacingOccurrences(of: "&gt;", with: ">")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+                .replacingOccurrences(of: "&amp;", with: "&")
             attributes["ProgramMetaData"] = programMetaData
-            
-            print("Final attributes: \(attributes)") // Debug logging
-            
-            // Create alarm from attributes
-            if let alarm = createAlarm(from: attributes) {
+
+            if let alarm = Self.makeAlarm(from: attributes) {
                 alarms.append(alarm)
-                print("Created alarm with ID: \(alarm.id)") // Debug logging
-            } else {
-                print("Failed to create alarm from attributes") // Debug logging
             }
         }
-        
+
         return alarms
     }
-    
-    private func createAlarm(from attributes: [String: String]) -> Alarm? {
+
+    /// First capture group of `pattern` in `text`, or nil.
+    private static func value(_ pattern: String, in text: String, dotMatchesNewlines: Bool = false) -> String? {
+        let options: NSRegularExpression.Options = dotMatchesNewlines ? [.dotMatchesLineSeparators] : []
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options),
+              let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..<text.endIndex, in: text)),
+              let range = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        return String(text[range])
+    }
+
+    static func makeAlarm(from attributes: [String: String]) -> Alarm? {
         guard let id = attributes["ID"],
               let roomUUID = attributes["RoomUUID"],
               let startTime = attributes["StartTime"],
@@ -106,12 +119,13 @@ final class AlarmListParser {
               let volume = attributes["Volume"] else {
             return nil
         }
-        
+
         let duration = attributes["Duration"] ?? ""
-        let programMetaData = attributes["ProgramMetaData"] ?? ""
+        // Buzzer alarms have no media metadata.
+        let programMetaData = programURI == "x-rincon-buzzer:0" ? "" : (attributes["ProgramMetaData"] ?? "")
         let includeLinkedZones = attributes["IncludeLinkedZones"] ?? "0"
         let playMode = attributes["PlayMode"] ?? "NORMAL"
-        
+
         return Alarm(
             id: id,
             roomID: roomUUID,
@@ -128,5 +142,18 @@ final class AlarmListParser {
             shuffle: playMode == "SHUFFLE"
         )
     }
-    
+}
+
+/// Collects every `<Alarm .../>` element. Using a real XML parser means
+/// attribute values containing escaped DIDL metadata (quotes, `<`, `>`) are
+/// handled correctly instead of derailing a hand-rolled attribute regex.
+private final class AlarmsXMLDelegate: NSObject, XMLParserDelegate {
+    var alarms: [Alarm] = []
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
+        guard elementName == "Alarm" else { return }
+        if let alarm = AlarmListParser.makeAlarm(from: attributeDict) {
+            alarms.append(alarm)
+        }
+    }
 }
