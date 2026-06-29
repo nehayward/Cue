@@ -15,11 +15,12 @@ public final class PlexBrowseService {
     public init() { }
 
     public func updateUserPlaylists(offset: Int? = 0) async {
-        let playlists = await plexAPI.playlists()
-        let newUserPlaylists = playlists.map(\.toPlayable)
-        for newUserPlaylist in newUserPlaylists {
-            userPlaylists.updateOrAppend(newUserPlaylist)
-        }
+        let refreshed = OrderedSet(await plexAPI.playlists().map(\.toPlayable))
+        // Replace wholesale so deleted playlists disappear and re-created ones reappear. Keep the
+        // current list on an empty/failed fetch (auth blip) rather than flashing it away, and skip
+        // a no-op assignment so a reload triggered from the grid can't loop.
+        guard !refreshed.isEmpty, refreshed != userPlaylists else { return }
+        userPlaylists = refreshed
     }
     
     public func artists(offset: Int? = 0) async -> [PlayableContent]  {

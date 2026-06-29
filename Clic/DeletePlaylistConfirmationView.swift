@@ -78,12 +78,26 @@ struct DeletePlaylistConfirmationView: View {
             }
 
             if success {
+                removeFromBrowseList(content)
                 alertService.showAlert(with: "Removed \(content.title)", imageName: "trash")
             } else {
                 alertService.showAlert(with: "Couldn’t remove \(content.title)", imageName: "exclamationmark.triangle")
             }
             isDeleting = false
             dismiss()
+        }
+    }
+
+    /// Drop the deleted playlist from the service's browse collection so its grid/list updates
+    /// immediately (mirrors `NewPlaylistView.insertIntoBrowseList`).
+    private func removeFromBrowseList(_ content: PlayableContent) {
+        switch content.content.service {
+        case .apple: AppleMusicBrowseService.shared.userPlaylists.remove(content)
+        case .spotify: SpotifyBrowseService.shared.playlists.remove(content)
+        case .deezer: DeezerBrowseService.shared.userPlaylists.remove(content)
+        case .plex: PlexBrowseService.shared.userPlaylists.remove(content)
+        case .library: LibraryBrowseService.shared.playlists.remove(content)
+        default: break
         }
     }
 }

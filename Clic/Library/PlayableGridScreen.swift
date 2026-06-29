@@ -20,7 +20,7 @@ struct PlayableGridScreen: View {
     private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
 
     /// When this grid is showing a service's playlists, the service to create a new playlist on —
-    /// only services that can create an empty playlist (Plex needs a seed track, so it's excluded).
+    /// only services that can create an empty playlist.
     private var createPlaylistService: MusicService? {
         guard let service = items.first?.content.service,
               items.first?.content.type.isPlaylist == true,
@@ -49,6 +49,9 @@ struct PlayableGridScreen: View {
                     Text("No Items")
                 }
             }
+        }
+        .refreshable {
+            await action?(0)
         }
         .miniPlayerOnScrollHandler()
         .overlay {

@@ -845,13 +845,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     override func buildMenu(with builder: UIMenuBuilder) {
         /// Only operate on the main menu bar.
         if builder.system == .main {
-            builder.remove(menu: .edit)
-            builder.remove(menu: .autoFill)
             builder.remove(menu: .format)
             builder.remove(menu: .newScene)
             builder.remove(menu: .open)
             builder.remove(menu: .openRecent)
             builder.remove(menu: .document)
+
+            #if targetEnvironment(macCatalyst)
+            // Keep the real Edit menu but strip it to our own working Undo/Redo. The system
+            // Undo/Redo validate against the responder chain's undo manager (not the one our edits
+            // use), and macOS injects AutoFill / Start Dictation / Emoji & Symbols — so remove those
+            // children and swap our commands in for `.undoRedo`. (Dictation & Emoji are also
+            // suppressed via the NSDisabled* defaults at launch.)
+            builder.remove(menu: .autoFill)
+            builder.remove(menu: .standardEdit)
+            builder.remove(menu: .spelling)
+            builder.remove(menu: .substitutions)
+            builder.remove(menu: .transformations)
+            builder.remove(menu: .speech)
+            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
+            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
+            builder.replace(menu: .undoRedo, with: UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand]))
+            #else
+            builder.remove(menu: .edit)
+            #endif
 
             // Add New Playlist to File menu
             let newPlaylistCommand = UIKeyCommand(
@@ -958,17 +975,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             )
 
             builder.insertChild(fileMenuItems, atStartOfMenu: .file)
-
-            #if targetEnvironment(macCatalyst)
-            // Custom Edit menu with our own Undo/Redo. The system Edit menu was removed above; its
-            // Undo/Redo validate against the responder chain's undo manager, which isn't the one our
-            // playlist edits register on (SwiftUI's environment manager). These route through the
-            // responder chain to that manager via `playlistUndo`/`playlistRedo` instead.
-            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
-            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
-            let editMenu = UIMenu(title: "Edit", identifier: UIMenu.Identifier("com.clic.editMenu"), children: [undoCommand, redoCommand])
-            builder.insertSibling(editMenu, afterMenu: .file)
-            #endif
         }
     }
 
