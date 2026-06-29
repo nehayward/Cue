@@ -256,42 +256,12 @@ struct PlexManagementView: View {
 //            }
             List {
                 Section {
-                    ForEach(PlexAPI.ConnectionPreference.allCases, id: \.self) { preference in
-                        Button {
-                            HapticManager.shared.fireHaptic(.buttonPress)
-                            musicSearchService.plexConnectionPreference = preference
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(preference.displayName)
-                                            .font(.body.bold())
-                                            .foregroundStyle(.primary)
-                                        
-                                        if preference == .nonLocal {
-                                            Text("Recommended")
-                                                .font(.caption.smallCaps())
-                                                .foregroundStyle(.accent)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.accent.opacity(0.1)))
-                                        }
-                                    }
-                                    
-                                    Text(preference.description)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.accent)
-                                    .opacity(musicSearchService.plexConnectionPreference == preference  ? 1 : 0)
-                            }
-                            
-                        }
-                        .listRowSeparator(.hidden)
-                        .buttonStyle(.plain)
-                    }
+                    PlexConnectionPicker(selection: Binding(
+                        get: { musicSearchService.plexConnectionPreference },
+                        set: { musicSearchService.plexConnectionPreference = $0 }
+                    ))
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 } header: {
                     Text("Connection Type")
                         .font(.headline)

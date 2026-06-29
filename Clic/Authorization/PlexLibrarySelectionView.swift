@@ -27,7 +27,7 @@ struct PlexLibrarySelectionView: View {
                                         .font(.body.bold())
                                         .foregroundStyle(.primary)
                                     
-                                    if preference == .nonLocal {
+                                    if preference == .auto {
                                         Text("Recommended")
                                             .font(.caption.smallCaps())
                                             .foregroundStyle(.accent)

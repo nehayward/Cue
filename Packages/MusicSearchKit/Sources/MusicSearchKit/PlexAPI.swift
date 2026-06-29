@@ -36,37 +36,66 @@ public final class PlexAPI {
             if let preference = UserDefaults.standard.string(forKey: "com.clic.plexServer.connectionPreference"), let connection = ConnectionPreference(rawValue: preference) {
                 return connection
             }
-            return ConnectionPreference.nonLocal
+            return ConnectionPreference.auto
         }
         set {
             withMutation(keyPath: \.connectionPreference) {
                 UserDefaults.standard.set(newValue.rawValue, forKey: "com.clic.plexServer.connectionPreference")
             }
+            // Drop the cached server + resolved connection so the next request
+            // re-resolves against the newly chosen preference.
+            plexServer = nil
+            resolvedBaseURL = nil
         }
     }
-    
+
     @ObservationIgnored
     var _connectionPreference: String?
-    
+
+    /// Best base URL for the selected server, resolved once (see
+    /// `resolveBaseURL`) and reused for browse requests. Cleared when the
+    /// connection preference or selected server changes.
+    @ObservationIgnored
+    private var resolvedBaseURL: URL?
+
     public enum ConnectionPreference: String, CaseIterable {
+        /// Hybrid: use the local connection when reachable (fast), otherwise
+        /// fall back to remote. Resolved by racing the connections.
+        case auto = "auto"
         case nonLocal = "nonLocal"
         case local = "local"
-        
+
         public var displayName: String {
             switch self {
+            case .auto:
+                return "Automatic"
             case .local:
                 return "Local Network"
             case .nonLocal:
                 return "Remote Access"
             }
         }
-        
+
+        /// Short label for the segmented picker.
+        public var shortName: String {
+            switch self {
+            case .auto:
+                return "Auto"
+            case .local:
+                return "Local"
+            case .nonLocal:
+                return "Remote"
+            }
+        }
+
         public var description: String {
             switch self {
+            case .auto:
+                return "Uses your local network at home and remote access when you're away."
             case .local:
-                return "Use local network connection (faster, requires same network)"
+                return "Local network only — faster, but requires the same network."
             case .nonLocal:
-                return "Use remote access (works from anywhere, may be slower)"
+                return "Remote access — works from anywhere, may be slower."
             }
         }
     }
@@ -393,11 +422,16 @@ public final class PlexAPI {
         let fallback = server.baseURL(preferring: connectionPreference)
         guard let token = server.accessToken else { return fallback }
 
-        // When the user forces Local, only consider local URIs; otherwise race
-        // local (fast at home) against remote (works anywhere).
-        let candidateStrings = connectionPreference == .local
-            ? server.localURIs
-            : server.localURIs + server.nonLocalURIs
+        // Candidate connections to probe, per preference:
+        //  - .local: local only
+        //  - .nonLocal: remote only
+        //  - .auto: race local (fast at home) against remote (works anywhere)
+        let candidateStrings: [String]
+        switch connectionPreference {
+        case .local:    candidateStrings = server.localURIs
+        case .nonLocal: candidateStrings = server.nonLocalURIs
+        case .auto:     candidateStrings = server.localURIs + server.nonLocalURIs
+        }
         let candidates = candidateStrings.compactMap { URL(string: $0) }
         guard !candidates.isEmpty else { return fallback }
 
@@ -1055,11 +1089,15 @@ public final class PlexAPI {
         let plexServers = await getPlexServers()
         let preferredServer = plexServers.filter { $0.clientIdentifier == serverID }.first
         self.plexServer = preferredServer
+        // Resolve the fastest connection once so browse requests reuse it.
+        if let preferredServer {
+            self.resolvedBaseURL = await resolveBaseURL(for: preferredServer)
+        }
         return preferredServer
     }
-    
+
     private func getBaseURL(for plexServer: PlexServer) -> URL? {
-        return plexServer.baseURL(preferring: connectionPreference)
+        return resolvedBaseURL ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
     private func authorizedRequest(from url: URL) async -> URLRequest? {

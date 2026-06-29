@@ -52,16 +52,22 @@ public struct PlexServer: Codable {
     func baseURL(preferring connectionType: PlexAPI.ConnectionPreference) -> URL? {
         switch connectionType {
         case .local:
-            guard let connection = localURIs.first else { 
+            guard let connection = localURIs.first else {
                 return nil
             }
             return URL(string: connection)
         case .nonLocal:
-            guard let connection = nonLocalURIs.first else { 
+            guard let connection = nonLocalURIs.first else {
                 // Fallback to local if no non-local connection available
                 return localURIs.first.flatMap { URL(string: $0) }
             }
             return URL(string: connection)
+        case .auto:
+            // Synchronous best-guess only — the real choice is made by racing
+            // connections in `PlexAPI.resolveBaseURL`. Prefer remote here since
+            // it works anywhere; fall back to local if there's no remote URI.
+            let preferred = nonLocalURIs.first ?? localURIs.first
+            return preferred.flatMap { URL(string: $0) }
         }
     }
 }

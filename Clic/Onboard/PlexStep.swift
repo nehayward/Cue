@@ -37,7 +37,14 @@ struct PlexStep: View {
         if allLibraries.isEmpty {
             return "Signed in to Plex, but we couldn't find a music library yet."
         }
-        return "We picked your first library and Remote Access. Tap a library to change it."
+        return "We picked your first library. Tap a library to change it, or adjust how Clic connects."
+    }
+
+    private var connectionBinding: Binding<PlexAPI.ConnectionPreference> {
+        Binding(
+            get: { musicSearchService.plexConnectionPreference },
+            set: { musicSearchService.plexConnectionPreference = $0 }
+        )
     }
 
     /// All (server, library) pairs flattened for the picker list, preserving
@@ -70,6 +77,11 @@ struct PlexStep: View {
         // token lands, load servers and apply the default selection.
         .onChange(of: plexAuthenticator.authToken, initial: true) { _, token in
             if token != nil { Task { await loadAndSelectDefaults() } }
+        }
+        // Reload libraries/artwork over the newly chosen connection when the
+        // user switches connection type.
+        .onChange(of: musicSearchService.plexConnectionPreference) { _, _ in
+            if isAuthorized { Task { await loadAndSelectDefaults() } }
         }
     }
 
@@ -140,14 +152,23 @@ struct PlexStep: View {
                 Text("No music libraries found")
                     .font(.headline)
                     .foregroundStyle(.white)
-                Text("Make sure your Plex Media Server is online with Remote Access enabled, then continue.")
+                Text("Make sure your Plex Media Server is online and reachable, then continue.")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                     .padding(.horizontal, 28)
             }
             .padding(.top, 16)
         } else {
-            libraryList
+            VStack(spacing: 16) {
+                // Same connection switch used on the Plex settings screen.
+                PlexConnectionPicker(selection: connectionBinding)
+                    .environment(\.colorScheme, .dark)
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: 500)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                libraryList
+            }
         }
     }
 
@@ -247,15 +268,19 @@ struct PlexStep: View {
     /// selects the first available library so Plex works out of the box.
     @MainActor
     private func loadAndSelectDefaults() async {
+        // Avoid overlapping loads (e.g. auth + connection-change firing close
+        // together) racing the shared state.
+        guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
 
         let freshSetup = musicSearchService.plexServerID == nil
-        // Default to Remote Access — works from anywhere and matches the
-        // recommendation in the full setup flow. Set before fetching libraries
-        // so the section URLs resolve against the remote connection.
-        if freshSetup {
-            musicSearchService.plexConnectionPreference = .nonLocal
+        // Default to Automatic — uses the fast local connection at home and
+        // remote when away. Set before fetching libraries so section URLs
+        // resolve against the right connection. Only write when it differs so
+        // we don't trigger a redundant reload via the preference observer.
+        if freshSetup, musicSearchService.plexConnectionPreference != .auto {
+            musicSearchService.plexConnectionPreference = .auto
         }
 
         let fetchedServers = await musicSearchService.getPlexServers()
