@@ -5,6 +5,7 @@
 - Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
 
 –– Bug Fixes & Improvements ––
+- Fixed some alarms not appearing in the Alarms list — alarms for speakers that are grouped, part of a stereo pair, or temporarily offline are now always shown, and music alarms (Apple Music, Spotify, radio stations) no longer occasionally go missing. Pull down to refresh the list
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
 - Fixed Genres, Imported Playlists, and folder contents being cut off in large libraries — these now load fully as you scroll
