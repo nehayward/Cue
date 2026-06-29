@@ -381,11 +381,17 @@ public final class MusicSearchService {
     }
 
     /// Creates a new Plex playlist, optionally seeded with `track`, returned as `PlayableContent`.
+    /// Creates a Plex playlist, optionally seeded with `track` (omit it for an empty playlist).
     public func createPlexPlaylist(name: String, track: PlayableContent? = nil) async -> PlayableContent? {
         let trackKey = track.flatMap { plexRatingKey(from: $0.content.id) }
-        guard let newKey = await plex.createPlaylist(title: name, trackRatingKey: trackKey) else { return nil }
         // Refetch so the returned content carries the sonos-formatted id and artwork.
-        return await plex.lookupPlaylist(key: newKey)?.toPlayable
+        if let newKey = await plex.createPlaylist(title: name, trackRatingKey: trackKey),
+           let created = await plex.lookupPlaylist(key: newKey)?.toPlayable {
+            return created
+        }
+        // Empty Plex playlists can come back without the new id in the create response; fall back to
+        // locating it by title.
+        return await plex.playlists().map(\.toPlayable).first(where: { $0.title == name })
     }
 
     /// Adds a track to a Plex playlist.
@@ -467,18 +473,14 @@ public final class MusicSearchService {
         case .apple: return await createApplePlaylist(name: name, addingTrack: track)
         case .spotify: return await createSpotifyPlaylist(name: name, addingTrack: track)
         case .deezer: return await createDeezerPlaylist(name: name, track: track)
-        case .plex:
-            // Plex's API needs an initial item, so a Plex playlist can only be created seeded.
-            guard let track else { return nil }
-            return await createPlexPlaylist(name: name, track: track)
+        case .plex: return await createPlexPlaylist(name: name, track: track)
         default: return nil
         }
     }
 
-    /// Whether `service` supports creating an empty playlist (no seed track). Plex needs an initial
-    /// item, so it's excluded — Plex playlists are created seeded from a track instead.
+    /// Whether `service` supports creating an empty playlist (no seed track).
     public static func supportsEmptyPlaylistCreation(_ service: MusicService) -> Bool {
-        [.apple, .spotify, .deezer, .library].contains(service)
+        [.apple, .spotify, .deezer, .plex, .library].contains(service)
     }
 
     /// Deletes `playlist`, dispatching to its service. Apple Music has no delete API.
