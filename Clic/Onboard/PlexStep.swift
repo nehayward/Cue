@@ -309,14 +309,13 @@ struct PlexStep: View {
 
 /// A small cluster of overlapping circular artist thumbnails, used as a trailing
 /// accessory on a Plex library row so libraries are easier to recognize at a
-/// glance. Each circle sitting behind another is masked with a cutout that
-/// reveals the background through the seam (rather than painting a solid ring).
+/// glance. Each circle gets a solid white ring so overlapping circles read as
+/// cleanly separated.
 private struct ArtistCircleCluster: View {
     let urls: [URL]
     var diameter: CGFloat = 38
     var overlap: CGFloat = 14
-    /// Width of the transparent gap carved between overlapping circles.
-    var gap: CGFloat = 2.5
+    var ringWidth: CGFloat = 2
 
     private var shown: [URL] { Array(urls.prefix(3)) }
 
@@ -325,17 +324,10 @@ private struct ArtistCircleCluster: View {
             ForEach(Array(shown.enumerated()), id: \.offset) { index, url in
                 avatar(url)
                     .frame(width: diameter, height: diameter)
-                    // Carve out where the previous (on-top) circle overlaps so
-                    // the row background shows through the seam. The first
-                    // circle is on top and isn't cut.
-                    .mask {
-                        AvatarCutoutMask(
-                            cutsNeighbor: index > 0,
-                            neighborCenterX: diameter / 2 - (diameter - overlap),
-                            neighborDiameter: diameter + gap * 2
-                        )
-                        .fill(Color.white, style: FillStyle(eoFill: true))
-                    }
+                    .clipShape(Circle())
+                    // White ring separates each circle from the one behind it.
+                    // Front circles sit on top so their ring forms the seam.
+                    .overlay { Circle().strokeBorder(Color.white, lineWidth: ringWidth) }
                     .zIndex(Double(shown.count - index))
             }
         }
@@ -357,29 +349,5 @@ private struct ArtistCircleCluster: View {
                     }
             }
         }
-    }
-}
-
-/// Mask shape for an avatar in an overlapping stack: the avatar circle minus
-/// the circle of the neighbor that sits on top of it (even-odd fill), leaving a
-/// transparent crescent so the background shows through the overlap seam.
-private struct AvatarCutoutMask: Shape {
-    var cutsNeighbor: Bool
-    var neighborCenterX: CGFloat
-    var neighborDiameter: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addEllipse(in: rect)
-        if cutsNeighbor {
-            let r = neighborDiameter / 2
-            path.addEllipse(in: CGRect(
-                x: neighborCenterX - r,
-                y: rect.midY - r,
-                width: neighborDiameter,
-                height: neighborDiameter
-            ))
-        }
-        return path
     }
 }

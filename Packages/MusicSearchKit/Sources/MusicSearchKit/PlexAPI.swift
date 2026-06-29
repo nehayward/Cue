@@ -384,17 +384,63 @@ public final class PlexAPI {
         }
     }
     
+    /// Picks the fastest reachable base URL for a server by racing its candidate
+    /// connections (local + remote) concurrently and using whichever responds
+    /// first — so we use the LAN connection at home and remote when away,
+    /// without paying a sequential timeout penalty. Falls back to the
+    /// connection-preference URL if no probe succeeds.
+    func resolveBaseURL(for server: PlexServer) async -> URL? {
+        let fallback = server.baseURL(preferring: connectionPreference)
+        guard let token = server.accessToken else { return fallback }
+
+        // When the user forces Local, only consider local URIs; otherwise race
+        // local (fast at home) against remote (works anywhere).
+        let candidateStrings = connectionPreference == .local
+            ? server.localURIs
+            : server.localURIs + server.nonLocalURIs
+        let candidates = candidateStrings.compactMap { URL(string: $0) }
+        guard !candidates.isEmpty else { return fallback }
+
+        let session = self.session
+        let winner = await withTaskGroup(of: URL?.self) { group -> URL? in
+            for url in candidates {
+                group.addTask {
+                    var request = URLRequest(url: url.appending(path: "identity"))
+                    request.timeoutInterval = 4
+                    request.addValue("application/json", forHTTPHeaderField: "Accept")
+                    request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
+                    request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
+                    guard let (_, response) = try? await session.data(for: request),
+                          let http = response as? HTTPURLResponse,
+                          (200..<300).contains(http.statusCode) else { return nil }
+                    return url
+                }
+            }
+            // Return the first connection to respond, then cancel the rest.
+            for await result in group {
+                if let url = result {
+                    group.cancelAll()
+                    return url
+                }
+            }
+            return nil
+        }
+
+        return winner ?? fallback
+    }
+
     public func getMusicLibraries(server: PlexServer) async -> [PlexLibrarySection] {
         guard let token = server.accessToken else {
             return []
         }
 
-        guard let sectionsURL = server.baseURL(preferring: connectionPreference)?.appending(path: "library/sections") else {
+        guard let sectionsURL = (await resolveBaseURL(for: server))?.appending(path: "library/sections") else {
             return []
         }
 
         var request = URLRequest(url: sectionsURL)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -428,7 +474,7 @@ public final class PlexAPI {
     /// libraries (e.g. onboarding) before one is chosen.
     public func getArtists(server: PlexServer, sectionKey: String, limit: Int = 12) async -> [PlexMetadata] {
         guard let token = server.accessToken,
-              let base = server.baseURL(preferring: connectionPreference) else {
+              let base = await resolveBaseURL(for: server) else {
             return []
         }
 
@@ -441,6 +487,7 @@ public final class PlexAPI {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
@@ -906,10 +953,11 @@ public final class PlexAPI {
         components.queryItems = [.init(name: "includeHttps", value: "1"), .init(name: "includeRelay", value: "1")]
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
-        
+
         guard let (data, urlResponse) = try? await session.data(for: request) else { return [] }
         
         if let httpResponse = urlResponse as? HTTPURLResponse, httpResponse.statusCode == 401 {
@@ -1021,6 +1069,7 @@ public final class PlexAPI {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 10
         request.addValue("application/json", forHTTPHeaderField: "Accept")
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")

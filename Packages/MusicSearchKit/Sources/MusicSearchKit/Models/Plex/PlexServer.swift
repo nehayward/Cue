@@ -37,6 +37,11 @@ public struct PlexServer: Codable {
             .filter { !$0.local }
             .filter { !$0.address.lowercased().contains("quick") }
             .sorted {
+                // Relay connections proxy through plex.tv at a throttled
+                // bandwidth cap, so always prefer direct remote connections.
+                let r0 = $0.relay ?? false
+                let r1 = $1.relay ?? false
+                if r0 != r1 { return !r0 }
                 let p0 = Self.preferredPorts.firstIndex(of: $0.port ?? -1) ?? Int.max
                 let p1 = Self.preferredPorts.firstIndex(of: $1.port ?? -1) ?? Int.max
                 return p0 < p1
