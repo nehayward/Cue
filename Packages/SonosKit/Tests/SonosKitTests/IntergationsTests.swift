@@ -58,7 +58,7 @@ final class IntegrationsTests: XCTestCase {
     // MARK: Alarms
     func testListAlarms() async throws {
         try await sonosService.load(useCache: true)
-        try await sonosService.listAlarms()
+        _ = await sonosService.listAlarms()
     }
     
 }

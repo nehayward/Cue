@@ -103,7 +103,9 @@ struct AlarmListView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            alarms = await sonosService.listAlarms()
+            if let fetched = await sonosService.listAlarms() {
+                alarms = fetched
+            }
             isLoaded = true
         }
         .onAppear {
@@ -111,16 +113,18 @@ struct AlarmListView: View {
             Task {
                 try? await Task.sleep(for: .milliseconds(300))
                 var fetched = await sonosService.listAlarms()
-                // The household may still be settling on first appear; if the
-                // first read comes back empty, retry briefly before showing the
-                // empty state so we don't flash "No Alarms" over real ones.
+                // Retry only when the request itself failed (nil) — e.g. a
+                // speaker that's still being discovered. A successful response
+                // with no alarms ([]) is authoritative, so we don't keep hitting
+                // the network or stall the empty state for genuinely-empty
+                // households.
                 var attempt = 0
-                while fetched.isEmpty, attempt < 2 {
+                while fetched == nil, attempt < 2 {
                     try? await Task.sleep(for: .milliseconds(500))
                     fetched = await sonosService.listAlarms()
                     attempt += 1
                 }
-                alarms = fetched
+                alarms = fetched ?? []
                 isLoaded = true
             }
         }

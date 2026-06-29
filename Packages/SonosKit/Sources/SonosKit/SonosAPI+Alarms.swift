@@ -100,18 +100,22 @@ extension SonosAPI {
         }
     }
 
-    func listAlarms(IP: String) async -> [Alarm] {
+    /// Returns the household's alarms, or `nil` if the request could not be
+    /// completed. A successful response with no alarms returns an empty array —
+    /// callers must distinguish that from `nil` (failure) so they don't treat a
+    /// transient network error as "no alarms."
+    func listAlarms(IP: String) async -> [Alarm]? {
         let arguments: OrderedKeys = [
             ("InstanceID", 0)
         ]
 
         guard let (data, response) = try? await sendSoapRequest(ip: IP, action: "ListAlarms", arguments: arguments, endpoint: "AlarmClock") else {
-            return []
+            return nil
         }
 
         if (response as? HTTPURLResponse)?.statusCode != 200 {
             print("Failed")
-            return []
+            return nil
         }
 
         let xml = String(decoding: data, as: UTF8.self)

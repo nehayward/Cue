@@ -70,6 +70,28 @@ final class AlarmListParserTests: XCTestCase {
         XCTAssertTrue(music?.shuffle ?? false)
     }
 
+    /// The regex fallback must not assume a fixed attribute order. Here the
+    /// trailing attributes appear first and ProgramMetaData sits in the middle;
+    /// every field (including Volume, which `makeAlarm` requires) must still be
+    /// read so the alarm isn't silently dropped.
+    func testParsesReorderedAttributes() {
+        let xml = """
+        <r><CurrentAlarmList>&lt;Alarms&gt;\
+        &lt;Alarm IncludeLinkedZones="1" Volume="33" PlayMode="SHUFFLE" ProgramMetaData="&lt;DIDL-Lite&gt;&lt;item&gt;&lt;dc:title&gt;X&lt;/dc:title&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;" ProgramURI="x-sonos-http:t" RoomUUID="RINCON_C" Enabled="1" Recurrence="DAILY" Duration="" StartTime="05:00:00" ID="50"/&gt;\
+        &lt;/Alarms&gt;</CurrentAlarmList></r>
+        """
+
+        let alarms = AlarmListParser().parseAlarms(from: xml)
+        XCTAssertEqual(alarms.map(\.id), ["50"])
+
+        let alarm = try? XCTUnwrap(alarms.first)
+        XCTAssertEqual(alarm?.volume, 33)
+        XCTAssertEqual(alarm?.roomID, "RINCON_C")
+        XCTAssertTrue(alarm?.shuffle ?? false)
+        XCTAssertTrue(alarm?.includeLinkedZones ?? false)
+        XCTAssertTrue(alarm?.programMetaData?.contains("DIDL-Lite") ?? false)
+    }
+
     /// `xmlEntityDecodedOnce` must decode exactly one entity level so that a
     /// double-escaped quote (`&amp;quot;`) becomes `&quot;`, not a bare `"`.
     func testSingleLevelEntityDecode() {
