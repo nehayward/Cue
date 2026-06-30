@@ -390,8 +390,14 @@ public final class MusicSearchService {
             return created
         }
         // Empty Plex playlists can come back without the new id in the create response; fall back to
-        // locating it by title.
-        return await plex.playlists().map(\.toPlayable).first(where: { $0.title == name })
+        // locating it by title, retrying once in case the server hasn't surfaced it yet.
+        for attempt in 0..<2 {
+            if attempt > 0 { try? await Task.sleep(for: .milliseconds(500)) }
+            if let match = await plex.playlists().map(\.toPlayable).first(where: { $0.title == name }) {
+                return match
+            }
+        }
+        return nil
     }
 
     /// Adds a track to a Plex playlist.

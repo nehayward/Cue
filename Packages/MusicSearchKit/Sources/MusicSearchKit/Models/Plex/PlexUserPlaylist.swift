@@ -1,12 +1,20 @@
 import Foundation
 
 public struct PlexUserPlaylistContainer: Codable {
-    let size: Int
+    let size: Int?
     let metadata: [PlexUserPlaylist]
 
     enum CodingKeys: String, CodingKey {
         case size
         case metadata = "Metadata"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        size = try container.decodeIfPresent(Int.self, forKey: .size)
+        // Plex omits `Metadata` entirely for an empty result (e.g. creating an item-less playlist),
+        // so default to [] rather than failing the whole decode.
+        metadata = try container.decodeIfPresent([PlexUserPlaylist].self, forKey: .metadata) ?? []
     }
 }
 
