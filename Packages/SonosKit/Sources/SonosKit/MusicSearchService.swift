@@ -383,26 +383,21 @@ public final class MusicSearchService {
     /// Creates a new Plex playlist, optionally seeded with `track`, returned as `PlayableContent`.
     /// Creates a Plex playlist, optionally seeded with `track` (omit it for an empty playlist).
     public func createPlexPlaylist(name: String, track: PlayableContent? = nil) async -> PlayableContent? {
-        let trackKey = track.flatMap { plexRatingKey(from: $0.content.id) }
-        // Refetch so the returned content carries the sonos-formatted id and artwork.
-        let newKey = await plex.createPlaylist(title: name, trackRatingKey: trackKey)
-        print("🎵 PLEX createPlexPlaylist name=\(name) seeded=\(trackKey != nil) newKey=\(newKey ?? "nil")")
-        if let newKey, let created = await plex.lookupPlaylist(key: newKey)?.toPlayable {
-            print("🎵 PLEX createPlexPlaylist: returned via lookup id=\(created.id)")
-            return created
+        // Seeded create — Plex builds the playlist directly from the track.
+        if let trackKey = track.flatMap({ plexRatingKey(from: $0.content.id) }) {
+            guard let newKey = await plex.createPlaylist(title: name, trackRatingKey: trackKey) else { return nil }
+            return await plex.lookupPlaylist(key: newKey)?.toPlayable
         }
-        // Empty Plex playlists can come back without the new id in the create response; fall back to
-        // locating it by title, retrying once in case the server hasn't surfaced it yet.
-        for attempt in 0..<2 {
-            if attempt > 0 { try? await Task.sleep(for: .milliseconds(500)) }
-            let all = await plex.playlists().map(\.toPlayable)
-            print("🎵 PLEX createPlexPlaylist: fallback attempt \(attempt) titles=\(all.map(\.title))")
-            if let match = all.first(where: { $0.title == name }) {
-                return match
+        // Empty playlist — Plex rejects an item-less create (400 Bad Request), so seed it with any
+        // library track and then remove that track, leaving the playlist empty.
+        guard let seedKey = await plex.songs(offset: 0, limit: 1).first?.ratingKey,
+              let newKey = await plex.createPlaylist(title: name, trackRatingKey: seedKey) else { return nil }
+        if let items = await plex.lookupPlaylist(key: newKey, type: .song, ascending: true)?.metadata {
+            for itemID in items.compactMap(\.playlistItemID) {
+                _ = await plex.removeFromPlaylist(playlistRatingKey: newKey, playlistItemID: "\(itemID)")
             }
         }
-        print("🎵 PLEX createPlexPlaylist: FAILED to locate \(name)")
-        return nil
+        return await plex.lookupPlaylist(key: newKey)?.toPlayable
     }
 
     /// Adds a track to a Plex playlist.

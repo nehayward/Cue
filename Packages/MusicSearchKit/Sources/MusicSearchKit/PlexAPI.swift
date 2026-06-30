@@ -154,22 +154,10 @@ public final class PlexAPI {
         request.addValue("Clic", forHTTPHeaderField: "X-Plex-Client-Identifier")
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
-        guard let (data, response) = try? await session.data(for: request) else {
-            print("🎵 PLEX CREATE: request failed url=\(url.absoluteString)")
-            return nil
-        }
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let body = String(data: data, encoding: .utf8) ?? "<\(data.count) bytes>"
-        print("🎵 PLEX CREATE status=\(statusCode)\n🎵 url=\(url.absoluteString)\n🎵 body=\(body)")
-
-        guard (200...299).contains(statusCode) else { return nil }
-        guard let container = try? decoder.decode(PlexContainer<PlexUserPlaylistContainer>.self, from: data) else {
-            print("🎵 PLEX CREATE: 2xx but response didn't decode — body=\(body)")
-            return nil
-        }
-        let ratingKey = container.mediaContainer.metadata.first?.ratingKey
-        print("🎵 PLEX CREATE: ratingKey=\(ratingKey ?? "nil") (metadata count=\(container.mediaContainer.metadata.count))")
-        return ratingKey
+        guard let (data, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { return nil }
+        let container = try? decoder.decode(PlexContainer<PlexUserPlaylistContainer>.self, from: data)
+        return container?.mediaContainer.metadata.first?.ratingKey
     }
 
     /// Adds a track to an existing playlist.
