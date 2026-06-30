@@ -155,20 +155,20 @@ public final class PlexAPI {
         request.addValue(token, forHTTPHeaderField: "X-Plex-Token")
 
         guard let (data, response) = try? await session.data(for: request) else {
-            logger.error("🎵 PLEX CREATE: request failed url=\(url.absoluteString)")
+            print("🎵 PLEX CREATE: request failed url=\(url.absoluteString)")
             return nil
         }
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
         let body = String(data: data, encoding: .utf8) ?? "<\(data.count) bytes>"
-        logger.error("🎵 PLEX CREATE status=\(statusCode) url=\(url.absoluteString) body=\(body)")
+        print("🎵 PLEX CREATE status=\(statusCode)\n🎵 url=\(url.absoluteString)\n🎵 body=\(body)")
 
         guard (200...299).contains(statusCode) else { return nil }
         guard let container = try? decoder.decode(PlexContainer<PlexUserPlaylistContainer>.self, from: data) else {
-            logger.error("🎵 PLEX CREATE: 2xx but response didn't decode — body=\(body)")
+            print("🎵 PLEX CREATE: 2xx but response didn't decode — body=\(body)")
             return nil
         }
         let ratingKey = container.mediaContainer.metadata.first?.ratingKey
-        logger.error("🎵 PLEX CREATE: ratingKey=\(ratingKey ?? "nil") (metadata count=\(container.mediaContainer.metadata.count))")
+        print("🎵 PLEX CREATE: ratingKey=\(ratingKey ?? "nil") (metadata count=\(container.mediaContainer.metadata.count))")
         return ratingKey
     }
 
