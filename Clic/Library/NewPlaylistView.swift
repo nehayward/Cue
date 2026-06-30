@@ -20,45 +20,42 @@ struct NewPlaylistView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Text(titleText)
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .fontDesign(.rounded)
-
-                TextField("Playlist Title", text: $playlistName)
-                    .textFieldStyle(.roundedBorder)
-                    .focusOnAppear()
-                    .onSubmit(createOrUpdate)
-
+        VStack(spacing: 20) {
+            HStack {
                 Button {
-                    createOrUpdate()
+                    dismiss()
                 } label: {
-                    Text(playlist != nil ? "Update" : "Create")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
+                    Image(systemName: "xmark")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
-                .disabled(playlistName.isEmpty || playlistName == playlist?.title)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Cancel")
+                Spacer()
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                    }
-                    .keyboardShortcut(.cancelAction)
-                    .accessibilityLabel("Cancel")
-                }
+
+            Text(titleText)
+                .font(.title3)
+                .fontWeight(.bold)
+                .fontDesign(.rounded)
+
+            TextField("Playlist Title", text: $playlistName)
+                .textFieldStyle(.roundedBorder)
+                .focusOnAppear()
+                .onSubmit(createOrUpdate)
+
+            Button {
+                createOrUpdate()
+            } label: {
+                Text(playlist != nil ? "Update" : "Create")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .disabled(playlistName.isEmpty || playlistName == playlist?.title)
         }
-        .presentationDetents([.height(240)])
+        .padding(20)
+        .presentationDetents([.height(250)])
         .presentationBackground(.regularMaterial)
         .task {
             if let playlist {
