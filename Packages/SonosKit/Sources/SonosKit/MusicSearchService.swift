@@ -468,7 +468,7 @@ public final class MusicSearchService {
         case .apple: return await appleUserPlaylists()
         case .spotify: return await spotifyEditablePlaylists()
         case .plex: return await plexUserPlaylists()
-        case .deezer: return await deezerUserPlaylists()
+        case .deezer: return await deezerEditablePlaylists()
         default: return []
         }
     }
@@ -1516,6 +1516,17 @@ public final class MusicSearchService {
     public func deezerUserPlaylists(offset: Int = 0) async -> [PlayableContent] {
         guard let token = await deezerToken() else { return [] }
         return await deezer.userPlaylists(accessToken: token, index: offset).map { createDeezerPlaylistContent(from: $0) }
+    }
+
+    /// The user's *owned* Deezer playlists (creator == current user). `/user/me/playlists` also
+    /// returns followed playlists, which can't be edited — so the editing/add surfaces filter to
+    /// owned ones, mirroring Spotify's editable-only list.
+    public func deezerEditablePlaylists() async -> [PlayableContent] {
+        guard let token = await deezerToken(),
+              let me = await cachedDeezerUserID() else { return [] }
+        return await deezer.userPlaylists(accessToken: token, index: 0)
+            .filter { $0.creator?.id == me }
+            .map { createDeezerPlaylistContent(from: $0) }
     }
 
     public func deezerUserHistory() async -> [PlayableContent] {

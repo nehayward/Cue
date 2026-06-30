@@ -63,6 +63,19 @@ struct PlayableGridScreen: View {
         .contentMargins(.horizontal, 16, for: .scrollContent)
         .animation(.interactiveSpring, value: items)
         .toolbar {
+            if action != nil {
+                // An explicit refresh that works on every platform (pull-to-refresh isn't available
+                // on Mac/Catalyst), so deletes/creates made elsewhere can be pulled in.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await action?(0) }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("Refresh")
+                }
+            }
             if let service = createPlaylistService {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {

@@ -34,35 +34,28 @@ final class PlaylistEditCoordinator {
         let undo: @MainActor () -> Void
         let redo: @MainActor () -> Void
     }
-    private var undoStack: [EditStep] = []
-    private var redoStack: [EditStep] = []
+    private var history = UndoRedoStack<EditStep>()
 
-    var canUndo: Bool { !undoStack.isEmpty }
-    var canRedo: Bool { !redoStack.isEmpty }
+    var canUndo: Bool { history.canUndo }
+    var canRedo: Bool { history.canRedo }
 
     func undo() {
-        guard let step = undoStack.popLast() else { return }
-        step.undo()
-        redoStack.append(step)
+        history.undo()?.undo()
     }
 
     func redo() {
-        guard let step = redoStack.popLast() else { return }
-        step.redo()
-        undoStack.append(step)
+        history.redo()?.redo()
     }
 
     /// Records a reversible edit. A fresh edit invalidates the redo history.
     private func pushStep(name: String, undo: @escaping @MainActor () -> Void, redo: @escaping @MainActor () -> Void) {
-        undoStack.append(EditStep(name: name, undo: undo, redo: redo))
-        redoStack.removeAll()
+        history.push(EditStep(name: name, undo: undo, redo: redo))
     }
 
     func configure(playlist: PlayableContent) {
         if self.playlist?.content.id != playlist.content.id {
             // Switching playlists: the previous edit history no longer applies.
-            undoStack.removeAll()
-            redoStack.removeAll()
+            history.removeAll()
         }
         self.playlist = playlist
     }

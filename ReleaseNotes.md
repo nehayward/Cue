@@ -11,6 +11,7 @@
 –– Bug Fixes & Improvements ––
 - Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
 - Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
+- Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
 - Fixed some alarms not appearing in the Alarms list — alarms for speakers that are grouped, part of a stereo pair, or temporarily offline are now always shown, and music alarms (Apple Music, Spotify, radio stations) no longer occasionally go missing. Pull down to refresh the list
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll
