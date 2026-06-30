@@ -952,22 +952,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 children: [addToPlaylistDeferred]
             )
 
+            #if targetEnvironment(macCatalyst)
+            // A dedicated Playlist menu gathers every playlist action plus Undo/Redo. We don't reuse
+            // the Edit menu (macOS injects AutoFill/Dictation/Emoji into it); Undo/Redo route through
+            // the responder chain (playlistUndo/playlistRedo) and enable via canPerformAction.
+            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
+            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
+            let playlistMenu = UIMenu(title: "Playlist", identifier: UIMenu.Identifier("com.clic.playlistMenu"), children: [
+                UIMenu(title: "", options: .displayInline, children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]),
+                UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
+            ])
+            builder.insertSibling(playlistMenu, afterMenu: .file)
+            #else
+            // iOS/iPadOS: no dedicated Playlist menu, so keep these in the File menu.
             let fileMenuItems = UIMenu(
                 title: "",
                 options: .displayInline,
                 children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]
             )
-
             builder.insertChild(fileMenuItems, atStartOfMenu: .file)
-
-            #if targetEnvironment(macCatalyst)
-            // Undo/Redo for playlist editing live in their own Playlist menu (not Edit), so macOS
-            // doesn't inject AutoFill/Dictation/Emoji. They route through the responder chain
-            // (playlistUndo/playlistRedo) and enable via canPerformAction.
-            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
-            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
-            let playlistMenu = UIMenu(title: "Playlist", identifier: UIMenu.Identifier("com.clic.playlistMenu"), children: [undoCommand, redoCommand])
-            builder.insertSibling(playlistMenu, afterMenu: .file)
             #endif
         }
     }

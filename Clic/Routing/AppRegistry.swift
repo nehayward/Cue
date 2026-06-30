@@ -14,9 +14,6 @@ extension View {
             case let .newPlaylist(group, service):
                 NewPlaylistView(group: group, service: service)
                     .withEnvironments()
-                    .presentationSizingFitted()
-                    .frame(minWidth: 200, idealWidth: 300, maxWidth: 500, minHeight: 100, maxHeight: 600)
-                    .presentationDragIndicator(.hidden)
             case let .customSleepTimer(recentTimers, onSelect):
                 SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
             case let .confirmDeletePlaylist(content):

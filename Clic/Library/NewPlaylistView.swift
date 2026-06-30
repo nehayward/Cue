@@ -20,42 +20,47 @@ struct NewPlaylistView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            HStack {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text(titleText)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .fontDesign(.rounded)
+
+                TextField("Playlist Title", text: $playlistName)
+                    .textFieldStyle(.roundedBorder)
+                    .focusOnAppear()
+                    .onSubmit(createOrUpdate)
+
                 Button {
-                    dismiss()
+                    createOrUpdate()
                 } label: {
-                    Image(systemName: "xmark")
+                    Text(playlist != nil ? "Update" : "Create")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
                 }
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Cancel")
-                Spacer()
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+                .disabled(playlistName.isEmpty || playlistName == playlist?.title)
             }
-
-            Text(titleText)
-                .font(.title3)
-                .fontWeight(.bold)
-                .fontDesign(.rounded)
-
-            TextField("Playlist Title", text: $playlistName)
-                .textFieldStyle(.roundedBorder)
-                .focusOnAppear()
-                .onSubmit(createOrUpdate)
-
-            Button {
-                createOrUpdate()
-            } label: {
-                Text(playlist != nil ? "Update" : "Create")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    .accessibilityLabel("Cancel")
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
-            .disabled(playlistName.isEmpty || playlistName == playlist?.title)
         }
-        .padding(20)
-        .presentationDetents([.height(250)])
+        .presentationDetents([.height(260)])
+        .presentationDragIndicator(.hidden)
         .presentationBackground(.regularMaterial)
         .task {
             if let playlist {
