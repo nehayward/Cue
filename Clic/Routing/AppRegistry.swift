@@ -9,7 +9,15 @@ import SwiftUI
 @MainActor
 extension View {
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
-        sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
+        sheet(item: sheetDestinations, onDismiss: {
+            // Zoom sources are one-shot: drop the registration once the sheet
+            // is gone so a later plain presentation of the same destination
+            // doesn't try to zoom from an offscreen view.
+            MainActor.assumeIsolated {
+                SheetZoomTransition.source = nil
+            }
+            onDismiss?()
+        }) { destination in
             switch destination {
             case let .newPlaylist(group, service):
                 NewPlaylistView(group: group, service: service)
@@ -56,7 +64,7 @@ extension View {
                             }
                     case let .sceneSearchAdd(adding):
                         let searchRouter = Router.search
-                        @State var selectedGroupService = SelectedGroupService()
+                        let selectedGroupService = SelectedGroupService()
                         
                         SearchScreen()
                             .environment(adding)
@@ -82,7 +90,7 @@ extension View {
                     case .scenes:
                         SceneView()
                     case let .mediaDetail(content, group):
-                        @State var router = Router.secondary
+                        @Bindable var router = Router.secondary
                         let selectedGroupService = SelectedGroupService(group: group)
 
                         NavigationStack(path: $router.path) {
@@ -109,7 +117,7 @@ extension View {
                         .withAlert()
                     case let .artistDetail(content, group):
                         let router = Router.secondary
-                        @State var selectedGroupService = SelectedGroupService(group: group)
+                        let selectedGroupService = SelectedGroupService(group: group)
                         
                         NavigationStack {
                             ArtistDetailView(playableContent: content)
@@ -133,8 +141,8 @@ extension View {
                         
                     case let .searchAdd(adding):
                         let searchRouter = Router.search
-                        @State var selectedGroupService = SelectedGroupService()
-                        
+                        let selectedGroupService = SelectedGroupService()
+
                         SearchScreen(isAlarmSearch: true)
                             .environment(adding)
                             .environment(searchRouter)
@@ -147,7 +155,8 @@ extension View {
                                     Router.main.presentedSheet = nil
                                 }
                         }
-                    case let .customSleepTimer(recentTimers, onSelect):
+                    case .customSleepTimer:
+                        // Handled above, before the shared sheet chrome.
                         EmptyView()
                     case let .browse(group: group):
                         let selectedGroupService = SelectedGroupService(group: group)
@@ -202,6 +211,7 @@ extension View {
                     }
                 }
                 .withEnvironments()
+                .zoomTransition(for: destination)
                 .presentationSizingiOS18()
                 .frame(idealWidth: 600, idealHeight: 800)
                 #if targetEnvironment(macCatalyst)
@@ -262,7 +272,7 @@ extension View {
                         }
                 case let .sceneSearchAdd(adding):
                     let searchRouter = Router.search
-                    @State var selectedGroupService = SelectedGroupService()
+                    let selectedGroupService = SelectedGroupService()
                     
                     SearchScreen()
                         .environment(adding)
@@ -300,8 +310,8 @@ extension View {
                     .environment(selectedGroupService)
                     
                 case let .artistDetail(content, group):
-                    @State var router = Router()
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    @Bindable var router = Router()
+                    let selectedGroupService = SelectedGroupService(group: group)
                     
                     NavigationStack(path: $router.path) {
                         ArtistDetailView(playableContent: content)
@@ -317,8 +327,8 @@ extension View {
                     .environment(router)
                     .environment(selectedGroupService)
                 case let .searchAdd(adding):
-                    @State var router = Router()
-                    @State var selectedGroupService = SelectedGroupService()
+                    let router = Router()
+                    let selectedGroupService = SelectedGroupService()
                     
                     SearchScreen(isAlarmSearch: true)
                         .environment(adding)
@@ -335,7 +345,7 @@ extension View {
                 case let .customSleepTimer(recentTimers, onSelect):
                     SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
                 case let .browse(group: group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
                         .environment(selectedGroupService)
                 case let .newPlaylist(group, service):

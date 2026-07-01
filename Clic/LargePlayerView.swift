@@ -366,6 +366,7 @@ fileprivate struct SongTitleButton: View {
     @Bindable var group: GroupRoom
 
     @State private var isHovering: Bool = false
+    @Namespace private var zoom
 
     private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
@@ -373,7 +374,8 @@ fileprivate struct SongTitleButton: View {
         Button {
             guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+            router.sheet(to: .mediaDetail(content: group.coordinatorRoom.track.toPlayable, group: group),
+                         zoomFrom: "nowPlayingAlbum", in: zoom)
         } label: {
             MarqueeText(group.coordinatorRoom.track.song)
                 .bold()
@@ -384,6 +386,7 @@ fileprivate struct SongTitleButton: View {
                 .contentTransition(.identity)
         }
         .buttonStyle(.plain)
+        .zoomTransitionSource(id: isSupported ? AnyHashable("nowPlayingAlbum") : nil, in: zoom)
         .onHover { hovering in
             guard isSupported else { return }
             withAnimation(.interactiveSpring) {
@@ -400,6 +403,7 @@ fileprivate struct ArtistButton: View {
     let showArtworkOnly: Bool
 
     @State private var isHovering: Bool = false
+    @Namespace private var zoom
 
     private var isSupported: Bool { group.coordinatorRoom.track.musicService.supportsViewArtistAlbum }
 
@@ -407,7 +411,8 @@ fileprivate struct ArtistButton: View {
         Button {
             guard isSupported else { return }
             HapticManager.shared.fireHaptic(.buttonPress)
-            router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group))
+            router.sheet(to: .artistDetail(content: group.coordinatorRoom.track.toPlayable, group: group),
+                         zoomFrom: "nowPlayingArtist", in: zoom)
         } label: {
             Text(group.coordinatorRoom.track.artist)
                 .multilineTextAlignment(.center)
@@ -420,6 +425,7 @@ fileprivate struct ArtistButton: View {
                 .contentTransition(.identity)
         }
         .buttonStyle(.plain)
+        .zoomTransitionSource(id: isSupported ? AnyHashable("nowPlayingArtist") : nil, in: zoom)
         .onHover { hovering in
             guard isSupported else { return }
             withAnimation(.interactiveSpring) {
