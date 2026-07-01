@@ -26,6 +26,19 @@ struct LastPlaylist {
         return LastPlaylist(id: id, title: title, service: MusicService(service: raw) ?? .library)
     }
 
+    /// A lightweight `PlayableContent` for this playlist (id / title / service) — enough to open its
+    /// detail screen or dispatch a service add.
+    var playableContent: PlayableContent {
+        PlayableContent(
+            title: title,
+            subtitle: "",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: service, id: id, type: .playlist, location: nil),
+            metadata: nil
+        )
+    }
+
     /// Adds `track` to this playlist via the appropriate service. Returns whether it succeeded.
     /// Streaming services dispatch through `MusicSearchService`; everything else goes to Sonos.
     @discardableResult
@@ -34,15 +47,7 @@ struct LastPlaylist {
             await SonosService.shared.addToPlaylist(playlistID: id, playableContent: track)
             return true
         }
-        let playlist = PlayableContent(
-            title: title,
-            subtitle: "",
-            thumbnail: nil,
-            artwork: nil,
-            content: MediaContent(service: service, id: id, type: .playlist, location: nil),
-            metadata: nil
-        )
-        return await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playlist)
+        return await MusicSearchService.shared.addToServicePlaylist(track: track, playlist: playableContent)
     }
 
     /// Recently-added playlist keys, most-recent first. Each key is namespaced by service

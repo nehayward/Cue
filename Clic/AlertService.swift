@@ -12,6 +12,7 @@ public final class AlertService: @unchecked Sendable {
     @MainActor
     func showAlert(with text: String) {
         alertTask?.cancel()
+        alert.handleTap = nil
         alert.isShowing = false
         alert.text = text
         showAlert(show: false)
@@ -33,6 +34,7 @@ public final class AlertService: @unchecked Sendable {
     @MainActor
     func showAlert(with text: String, imageName: String, delay: Duration = .seconds(3)) {
         alertTask?.cancel()
+        alert.handleTap = nil
         alert.content = nil
         alert.subtitle = ""
         alert.text = text
@@ -94,6 +96,9 @@ public final class AlertService: @unchecked Sendable {
 
     func showAlertContent(with content: PlayableContent, subtitle: LocalizedStringKey, symbolName: String = "") {
         alertTask?.cancel()
+        // Clear any previous tap handler so a stale deep-link (or none) can't fire on this toast;
+        // callers that want tap-through set `handleTap` right after calling this.
+        alert.handleTap = nil
         alert.text = content.title
         alert.subtitle = subtitle
         withAnimation {
@@ -130,7 +135,7 @@ public final class Alert: Equatable {
     var subtitle: LocalizedStringKey = ""
     var imageName: String?
     var content: PlayableContent?
-    var handleTap: (() -> Void)? = { print("Hello") }
+    var handleTap: (() -> Void)? = nil
 
     public static func == (lhs: Alert, rhs: Alert) -> Bool {
         lhs.isShowing != rhs.isShowing

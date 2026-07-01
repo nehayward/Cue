@@ -56,13 +56,18 @@ struct AddToLastPlaylistButton: View {
             }
             alertService.showAlertContent(with: itemToAdd, subtitle: "Added to \(playlist.title)", symbolName: "plus")
 
-            // For Sonos playlists, let tapping the toast open the playlist.
+            // Let tapping the toast open the playlist. For Sonos, resolve the real playlist so the
+            // detail carries artwork; streaming playlists open from a lightweight stub (the detail
+            // view loads them by id).
+            let target: PlayableContent?
             if playlist.service == .library {
-                let playlists = await sonosService.sonosPlaylists()
-                if let match = playlists.first(where: { $0.id == playlist.id }) {
-                    alertService.alert.handleTap = {
-                        Router.main.presentedSheet = .mediaDetail(content: match, group: nil)
-                    }
+                target = await sonosService.sonosPlaylists().first(where: { $0.id == playlist.id })
+            } else {
+                target = playlist.playableContent
+            }
+            if let target {
+                alertService.alert.handleTap = {
+                    Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
                 }
             }
         }

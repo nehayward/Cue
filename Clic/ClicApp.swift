@@ -1018,13 +1018,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
             alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(last.title)", symbolName: "plus")
 
-            // For Sonos playlists, let tapping the toast open the playlist.
+            // Let tapping the toast open the playlist. Sonos resolves the real playlist for artwork;
+            // streaming opens from a lightweight stub (the detail view loads it by id).
+            let target: PlayableContent?
             if last.service == .library {
-                let playlists = await sonosService.sonosPlaylists()
-                if let playlist = playlists.first(where: { $0.id == last.id }) {
-                    alertService.alert.handleTap = {
-                        Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
-                    }
+                target = await sonosService.sonosPlaylists().first(where: { $0.id == last.id })
+            } else {
+                target = last.playableContent
+            }
+            if let target {
+                alertService.alert.handleTap = {
+                    Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
                 }
             }
         }
