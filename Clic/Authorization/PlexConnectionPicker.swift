@@ -13,6 +13,9 @@ import SwiftUI
 struct PlexConnectionPicker: View {
     @Binding var selection: PlexAPI.ConnectionPreference
 
+    /// The mode surfaced with a "Recommended" badge.
+    private let recommended: PlexAPI.ConnectionPreference = .auto
+
     @Namespace private var pillNamespace
 
     var body: some View {
@@ -27,6 +30,8 @@ struct PlexConnectionPicker: View {
                 Capsule(style: .continuous)
                     .fill(Color.primary.opacity(0.08))
             }
+            // Leave room above the capsule for the floating "Recommended" badge.
+            .padding(.top, 12)
 
             Text(selection.description)
                 .font(.caption)
@@ -61,5 +66,21 @@ struct PlexConnectionPicker: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        // Persistent "Recommended" badge floating above the recommended
+        // segment — mirrors the badge the card-style Plex screens show.
+        .overlay(alignment: .top) {
+            if preference == recommended {
+                Text("Recommended")
+                    .font(.system(size: 9, weight: .heavy))
+                    .textCase(.uppercase)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.accentColor))
+                    .fixedSize()
+                    .offset(y: -12)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
