@@ -44,27 +44,20 @@ struct AddToPlaylistSheet: View {
         return service == .spotify && [.album, .libraryAlbum].contains(content.content.type)
     }
 
-    private var currentPlaylists: [PlayableContent] {
+    /// The playlists to display, split into the "Recently Added" quick-pick (top 3, hidden while
+    /// searching) and everything else. Computed once per render — `playlistList` reads it in several
+    /// places, so folding it into one value avoids rebuilding the lookup dictionary each time.
+    private var displayedSections: (recent: [PlayableContent], other: [PlayableContent]) {
         let list = segment == .service ? servicePlaylists : sonosPlaylists
-        guard !query.isEmpty else { return list }
-        return list.filter { $0.title.localizedCaseInsensitiveContains(query) }
-    }
-
-    /// Up to three recently-added playlists for the current segment, shown as a quick-pick.
-    /// Hidden while searching.
-    private var recentPlaylists: [PlayableContent] {
-        guard query.isEmpty else { return [] }
-        let list = segment == .service ? servicePlaylists : sonosPlaylists
+        guard query.isEmpty else {
+            return ([], list.filter { $0.title.localizedCaseInsensitiveContains(query) })
+        }
         // Match on the service-namespaced key so a recent id from one service can't surface a
         // same-id playlist in the other segment.
         let byKey = Dictionary(list.map { (key(for: $0), $0) }, uniquingKeysWith: { first, _ in first })
-        return recentKeys.compactMap { byKey[$0] }.prefix(3).map { $0 }
-    }
-
-    /// The full list minus anything already surfaced in "Recently Added".
-    private var otherPlaylists: [PlayableContent] {
-        let recent = Set(recentPlaylists.map(\.id))
-        return currentPlaylists.filter { !recent.contains($0.id) }
+        let recent = recentKeys.compactMap { byKey[$0] }.prefix(3).map { $0 }
+        let recentIDs = Set(recent.map(\.id))
+        return (recent, list.filter { !recentIDs.contains($0.id) })
     }
 
     private var isLoading: Bool {
@@ -157,9 +150,9 @@ struct AddToPlaylistSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 
-    @ViewBuilder
     private var playlistList: some View {
-        List {
+        let sections = displayedSections
+        return List {
             Button {
                 newPlaylistName = content.metadata?.album ?? content.title
                 showNewPlaylistAlert = true
@@ -171,19 +164,19 @@ struct AddToPlaylistSheet: View {
             if isLoading {
                 HStack { Spacer(); ProgressView(); Spacer() }
                     .listRowSeparator(.hidden)
-            } else if currentPlaylists.isEmpty {
+            } else if sections.recent.isEmpty && sections.other.isEmpty {
                 ContentUnavailableView("No Playlists", systemImage: "music.note.list")
                     .listRowSeparator(.hidden)
             } else {
-                if !recentPlaylists.isEmpty {
+                if !sections.recent.isEmpty {
                     Section("Recently Added") {
-                        ForEach(recentPlaylists) { selectableRow($0) }
+                        ForEach(sections.recent) { selectableRow($0) }
                     }
                 }
                 Section {
-                    ForEach(otherPlaylists) { selectableRow($0) }
+                    ForEach(sections.other) { selectableRow($0) }
                 } header: {
-                    if !recentPlaylists.isEmpty { Text("All Playlists") }
+                    if !sections.recent.isEmpty { Text("All Playlists") }
                 }
             }
         }
@@ -257,12 +250,14 @@ struct AddToPlaylistSheet: View {
             if added.isEmpty {
                 alertService.showAlert(with: "Couldn’t add to playlist", imageName: "exclamationmark.triangle")
             } else {
-                if let last = added.last { LastPlaylist.save(last) }
                 let subtitle: LocalizedStringKey = added.count == 1
                     ? "Added to \(added[0].title)"
                     : "Added to \(added.count) playlists"
                 alertService.showAlertContent(with: content, subtitle: subtitle, symbolName: "plus")
-                if let target = added.last { deepLink(to: target) }
+                if let last = added.last {
+                    LastPlaylist.save(last)
+                    deepLink(to: last)  // deepLink must run after showAlertContent creates the alert
+                }
             }
             dismiss()
         }
