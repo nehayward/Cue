@@ -28,6 +28,8 @@ struct AddToPlaylistSheet: View {
     @State private var showNewPlaylistAlert = false
     @State private var newPlaylistName: String = ""
     @State private var recentKeys: [String] = []
+    // iPad has room for the full-height sheet; iPhone opens at medium. Both stay resizable.
+    @State private var detent: PresentationDetent = UIDevice.current.userInterfaceIdiom == .pad ? .large : .medium
     // PlayableContentRowView embeds PlayableMenuView, which needs a SelectedGroupService that the
     // sheet's environment doesn't provide. Supply a throwaway one (the header is non-interactive).
     @State private var headerGroupService = SelectedGroupService(group: nil)
@@ -117,7 +119,7 @@ struct AddToPlaylistSheet: View {
                 Text("Create a new \(segment == .service ? service.title : "Sonos") playlist with “\(content.title)”.")
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .task {
             recentKeys = LastPlaylist.recentKeys
             if hasServiceSegment, let saved = Segment(rawValue: storedSegment) {

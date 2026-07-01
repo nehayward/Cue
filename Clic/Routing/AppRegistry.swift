@@ -106,6 +106,7 @@ extension View {
                         .environment(router)
                         .environment(selectedGroupService)
                         .customizeWindowSizeForMacOS15()
+                        .withAlert()
                     case let .artistDetail(content, group):
                         let router = Router.secondary
                         @State var selectedGroupService = SelectedGroupService(group: group)

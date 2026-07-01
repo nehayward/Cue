@@ -175,26 +175,6 @@ struct MediaDetailView: View {
             Task { serviceEditable = await confirmServiceEditable() }
             await updateTracks(offset: loadedItemCount)
         }
-        .background {
-            // iOS/iPadOS has no menu bar, so bind ⌘Z / ⌘⇧Z to the editor's UndoManager here for
-            // hardware keyboards. On Catalyst the native Edit ▸ Undo/Redo menu provides these (see
-            // AppDelegate.buildMenu), so we skip them there to avoid firing undo twice. Only the
-            // streaming-service edits are undoable (Sonos has no positional re-add).
-            #if !targetEnvironment(macCatalyst)
-            if playableContent.isEditableServicePlaylist && serviceEditable {
-                Button("Undo") { editor.undo() }
-                    .keyboardShortcut("z", modifiers: .command)
-                    .disabled(!editor.canUndo)
-                    .opacity(0)
-                    .accessibilityHidden(true)
-                Button("Redo") { editor.redo() }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
-                    .disabled(!editor.canRedo)
-                    .opacity(0)
-                    .accessibilityHidden(true)
-            }
-            #endif
-        }
         .contentMargins(.bottom, 120, for: .scrollContent)
         .navigationTitle(content?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)

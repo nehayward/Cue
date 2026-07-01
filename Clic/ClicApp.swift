@@ -952,10 +952,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 children: [addToPlaylistDeferred]
             )
 
-            #if targetEnvironment(macCatalyst)
-            // A dedicated Playlist menu gathers every playlist action plus Undo/Redo. We don't reuse
-            // the Edit menu (macOS injects AutoFill/Dictation/Emoji into it); Undo/Redo route through
-            // the responder chain (playlistUndo/playlistRedo) and enable via canPerformAction.
+            // A dedicated Playlist menu gathers every playlist action plus Undo/Redo, on all
+            // platforms — so ⌘Z works with a hardware keyboard on iPad/iPhone too, not just Catalyst.
+            // (We don't reuse the Edit menu: macOS injects AutoFill/Dictation/Emoji into it.)
+            // Undo/Redo route through the responder chain (playlistUndo/playlistRedo) and enable via
+            // canPerformAction.
             let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
             let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
             let playlistMenu = UIMenu(title: "Playlist", identifier: UIMenu.Identifier("com.clic.playlistMenu"), children: [
@@ -963,24 +964,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
             ])
             builder.insertSibling(playlistMenu, afterMenu: .file)
-            #else
-            // iOS/iPadOS: no dedicated Playlist menu, so keep these in the File menu.
-            let fileMenuItems = UIMenu(
-                title: "",
-                options: .displayInline,
-                children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]
-            )
-            builder.insertChild(fileMenuItems, atStartOfMenu: .file)
-            #endif
         }
     }
 
-    /// Drives the foreground playlist editor's undo, routed from the Catalyst Edit menu / ⌘Z.
+    /// Drives the foreground playlist editor's undo, routed from the Playlist menu / ⌘Z.
     @objc func playlistUndo() {
         PlaylistUndoMenuBridge.shared.editor?.undo()
     }
 
-    /// Drives the foreground playlist editor's redo, routed from the Catalyst Edit menu / ⌘⇧Z.
+    /// Drives the foreground playlist editor's redo, routed from the Playlist menu / ⌘⇧Z.
     @objc func playlistRedo() {
         PlaylistUndoMenuBridge.shared.editor?.redo()
     }

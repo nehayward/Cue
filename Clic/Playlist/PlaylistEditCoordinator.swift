@@ -206,7 +206,7 @@ final class PlaylistEditCoordinator {
     }
 }
 
-/// Bridges the foreground playlist editor to the Catalyst Edit-menu commands, which dispatch
+/// Bridges the foreground playlist editor to the Playlist-menu Undo/Redo commands, which dispatch
 /// through the UIKit responder chain (the app delegate) rather than SwiftUI. `MediaDetailView`
 /// points this at its editor while on screen; the app delegate's Undo/Redo route here.
 @MainActor
