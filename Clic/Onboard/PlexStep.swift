@@ -275,13 +275,10 @@ struct PlexStep: View {
         defer { isLoading = false }
 
         let freshSetup = musicSearchService.plexServerID == nil
-        // Default to Automatic — uses the fast local connection at home and
-        // remote when away. Set before fetching libraries so section URLs
-        // resolve against the right connection. Only write when it differs so
-        // we don't trigger a redundant reload via the preference observer.
-        if freshSetup, musicSearchService.plexConnectionPreference != .auto {
-            musicSearchService.plexConnectionPreference = .auto
-        }
+        // No need to write a default connection preference: when unset it
+        // already resolves to Automatic (fast local at home, remote away), and
+        // not writing means we (a) respect a returning user's explicit choice
+        // and (b) don't self-trigger the connection-preference observer below.
 
         let fetchedServers = await musicSearchService.getPlexServers()
         servers = fetchedServers
@@ -323,7 +320,9 @@ struct PlexStep: View {
                 guard artworkByLibrary[library.id] == nil else { continue }
                 let server = pair.server
                 group.addTask {
-                    let artists = await PlexAPI.shared.getArtists(server: server, sectionKey: library.key)
+                    // Fetch a few more than the 3 shown so we still get 3 even
+                    // when some artists have no artwork.
+                    let artists = await PlexAPI.shared.getArtists(server: server, sectionKey: library.key, limit: 6)
                     let urls = Array(artists.compactMap(\.thumbImageURL).prefix(3))
                     await MainActor.run { artworkByLibrary[library.id] = urls }
                 }

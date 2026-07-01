@@ -7,8 +7,23 @@ public final class PlexAPI {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private let decoder: JSONDecoder
     @ObservationIgnored private let parser = PlexParser()
-    @ObservationIgnored private var plexServer: PlexServer?
     @ObservationIgnored private let logger = SwiftyBeaver.self
+
+    // MARK: - Connection cache
+    // `plexServer`, `resolvedBaseURL`, and `resolvedBaseURLByServer` are read
+    // and written from concurrent tasks (parallel browse calls, the loadData
+    // self-heal path, onboarding fan-out). They're guarded by `cacheLock` so
+    // access is race-free while keeping `getBaseURL` synchronous. Never hold the
+    // lock across an `await`.
+    @ObservationIgnored private let cacheLock = NSLock()
+    @ObservationIgnored private var plexServer: PlexServer?
+    @ObservationIgnored private var resolvedBaseURLByServer: [String: URL] = [:]
+
+    private func withCacheLock<T>(_ body: () -> T) -> T {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return body()
+    }
 
     private let authenticator: PlexAuthenticator
     
@@ -42,10 +57,13 @@ public final class PlexAPI {
             withMutation(keyPath: \.connectionPreference) {
                 UserDefaults.standard.set(newValue.rawValue, forKey: "com.clic.plexServer.connectionPreference")
             }
-            // Drop the cached server + resolved connection so the next request
+            // Drop the cached server + resolved connections so the next request
             // re-resolves against the newly chosen preference.
-            plexServer = nil
-            resolvedBaseURL = nil
+            withCacheLock {
+                plexServer = nil
+                resolvedBaseURL = nil
+                resolvedBaseURLByServer.removeAll()
+            }
         }
     }
 
@@ -54,7 +72,7 @@ public final class PlexAPI {
 
     /// Best base URL for the selected server, resolved once (see
     /// `resolveBaseURL`) and reused for browse requests. Cleared when the
-    /// connection preference or selected server changes.
+    /// connection preference or selected server changes. Guarded by `cacheLock`.
     @ObservationIgnored
     private var resolvedBaseURL: URL?
 
@@ -186,7 +204,7 @@ public final class PlexAPI {
         logger.info("\(xml)")
         #endif
         
-        return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference)
+        return parser.parseXML(xmlData: data, plexServer: plexServer, connectionPreference: connectionPreference, baseURL: getBaseURL(for: plexServer))
     }
 
     public func playlists() async -> [PlexUserPlaylist] {
@@ -418,7 +436,14 @@ public final class PlexAPI {
     /// first — so we use the LAN connection at home and remote when away,
     /// without paying a sequential timeout penalty. Falls back to the
     /// connection-preference URL if no probe succeeds.
-    func resolveBaseURL(for server: PlexServer) async -> URL? {
+    func resolveBaseURL(for server: PlexServer, forceRefresh: Bool = false) async -> URL? {
+        // Reuse a previously-raced result for this server unless a caller forces
+        // a refresh (loadData does this when a cached connection went stale).
+        let cacheKey = server.clientIdentifier
+        if !forceRefresh, let cacheKey, let cached = withCacheLock({ resolvedBaseURLByServer[cacheKey] }) {
+            return cached
+        }
+
         let fallback = server.baseURL(preferring: connectionPreference)
         guard let token = server.accessToken else { return fallback }
 
@@ -460,6 +485,10 @@ public final class PlexAPI {
             return nil
         }
 
+        // Cache only a real probe winner, so a failed race re-probes next time.
+        if let cacheKey, let winner {
+            withCacheLock { resolvedBaseURLByServer[cacheKey] = winner }
+        }
         return winner ?? fallback
     }
 
@@ -1083,48 +1112,46 @@ public final class PlexAPI {
 //      }
 //"""
 //        return try? JSONDecoder().decode(PlexServer.self, from: jsonData.data(using: .utf8)!)
-        if let plexServer {
-            return plexServer
+        if let cached = withCacheLock({ plexServer }) {
+            return cached
         }
         let plexServers = await getPlexServers()
         let preferredServer = plexServers.filter { $0.clientIdentifier == serverID }.first
-        self.plexServer = preferredServer
         // Resolve the fastest connection once so browse requests reuse it.
+        var resolved: URL?
         if let preferredServer {
-            self.resolvedBaseURL = await resolveBaseURL(for: preferredServer)
+            resolved = await resolveBaseURL(for: preferredServer)
+        }
+        withCacheLock {
+            plexServer = preferredServer
+            resolvedBaseURL = resolved
         }
         return preferredServer
     }
 
     private func getBaseURL(for plexServer: PlexServer) -> URL? {
-        return resolvedBaseURL ?? plexServer.baseURL(preferring: connectionPreference)
+        return withCacheLock { resolvedBaseURL } ?? plexServer.baseURL(preferring: connectionPreference)
     }
 
-    /// Drops the cached server + resolved connection so the next request
-    /// re-resolves the best connection. Called when a request through the
-    /// cached connection fails (e.g. a stale local connection after the device
-    /// has moved networks). The cache is shared across the singleton, so a
-    /// failure on any call lets every other browse call recover on its next
-    /// attempt.
-    private func invalidateResolvedConnection() {
-        resolvedBaseURL = nil
-        plexServer = nil
-    }
-
-    /// Performs a request; if it fails at the connection level, drops the
-    /// cached connection, re-resolves, and retries once against a *different*
-    /// connection — so a cached local URL that's unreachable after leaving home
-    /// transparently fails over to remote (and vice-versa). Only retries when
-    /// re-resolution actually yields a different connection, to avoid doubling
-    /// the timeout when the server is simply down.
+    /// Performs a request; if it fails at the connection level, re-resolves this
+    /// server's connection and retries once against a *different* connection —
+    /// so a cached local URL that's unreachable after leaving home transparently
+    /// fails over to remote (and vice-versa). Keeps the cached server (no extra
+    /// plex.tv round trip); only the stale connection is re-raced, and the retry
+    /// only fires when re-resolution yields a different connection (avoids
+    /// doubling the timeout when the server is simply down).
     private func loadData(for request: URLRequest) async -> (Data, URLResponse)? {
         if let result = try? await session.data(for: request) {
             return result
         }
-        invalidateResolvedConnection()
         guard let url = request.url,
-              let server = await getPlexServer(),
-              let newBase = getBaseURL(for: server),
+              let server = await getPlexServer() else {
+            return nil
+        }
+        // Force a fresh race for this server's connection and cache the winner.
+        let newBase = await resolveBaseURL(for: server, forceRefresh: true)
+        withCacheLock { resolvedBaseURL = newBase }
+        guard let newBase,
               let retryURL = url.rebasing(to: newBase),
               retryURL != url else {
             return nil
