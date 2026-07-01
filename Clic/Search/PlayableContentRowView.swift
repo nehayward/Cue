@@ -35,7 +35,11 @@ struct PlayableContentRowView: View {
     
     private var isCurrentlyPlaying: Bool {
         guard let trackID = selectedGroupService?.group?.coordinatorRoom.track.trackID else { return false }
-        return trackID == item.content.id.removingPercentEncoding
+        // Compare both IDs decoded. The now-playing trackID is percent-encoded for some
+        // services (e.g. Plex, whose ID is `clientID%3A3%3AratingKey` — the parser re-encodes
+        // the colons via `.urlPathAllowed`), while `content.id` is already decoded here, so an
+        // encoded-vs-decoded compare never matched and the Plex row never highlighted.
+        return trackID.removingPercentEncoding == item.content.id.removingPercentEncoding
     }
 
     private var isPreviewing: Bool {
