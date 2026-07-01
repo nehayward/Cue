@@ -37,6 +37,7 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - Deezer "Add to Playlist" now lists only playlists you own. `userPlaylists(for: .deezer)` filters `/user/me/playlists` to `creator == me` (new `deezerEditablePlaylists()`), mirroring Spotify — previously followed playlists were offered as targets and the add silently failed. Browse still shows all playlists.
 - Service playlist browse grids gain a toolbar refresh button (`PlayableGridScreen`), so creates/deletes can be pulled in on Mac/Catalyst where SwiftUI pull-to-refresh doesn't fire.
 - `PlaylistEditCoordinator`'s undo/redo history is extracted into a pure, unit-tested `UndoRedoStack` (SonosKit) covering push/undo/redo, redo invalidation on a fresh edit, and clearing.
+- Viewing a Plex artist from a track (e.g. "View Artist" on a song in `MediaDetailView`) now shows the artist's albums. `ArtistDetailView.loadPlexArtistData` always populates `albums` and picks the first non-empty category (`albumType = .firstAvailable(...)`) like the direct-artist path — previously the track path passed `setAlbums: false` and never selected a category, so the Albums section rendered with the picker stuck on an empty "Album" tab.
 
 ### Queue shuffle animation
 - Tapping the shuffle button in the queue now animates the Up Next and Full Queue lists reordering into their shuffled positions instead of snapping. Move and delete also animate as a side effect.
