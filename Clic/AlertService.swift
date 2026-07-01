@@ -12,6 +12,7 @@ public final class AlertService: @unchecked Sendable {
     @MainActor
     func showAlert(with text: String) {
         alertTask?.cancel()
+        alert.handleTap = nil
         alert.isShowing = false
         alert.text = text
         showAlert(show: false)
@@ -33,6 +34,7 @@ public final class AlertService: @unchecked Sendable {
     @MainActor
     func showAlert(with text: String, imageName: String, delay: Duration = .seconds(3)) {
         alertTask?.cancel()
+        alert.handleTap = nil
         alert.content = nil
         alert.subtitle = ""
         alert.text = text
@@ -65,8 +67,38 @@ public final class AlertService: @unchecked Sendable {
         }
     }
 
+    /// Shows a tappable "Undo" banner that runs `action` when tapped, and auto-dismisses after a short window.
+    @MainActor
+    func showUndoAlert(with text: String, delay: Duration = .seconds(5), action: @escaping () -> Void) {
+        alertTask?.cancel()
+        alert.content = nil
+        alert.subtitle = "Tap to undo"
+        alert.text = text
+        alert.imageName = "arrow.uturn.backward"
+        showAlert(show: true)
+        alert.handleTap = { [weak self] in
+            action()
+            self?.showAlert(show: false)
+        }
+
+        alertTask = Task { [weak self] in
+            guard let self else { return }
+            try Task.checkCancellation()
+            try await Task.sleep(for: delay)
+            try Task.checkCancellation()
+            showAlert(show: false)
+            try await Task.sleep(for: .milliseconds(800))
+            alert.text = ""
+            alert.subtitle = ""
+            alert.imageName = nil
+        }
+    }
+
     func showAlertContent(with content: PlayableContent, subtitle: LocalizedStringKey, symbolName: String = "") {
         alertTask?.cancel()
+        // Clear any previous tap handler so a stale deep-link (or none) can't fire on this toast;
+        // callers that want tap-through set `handleTap` right after calling this.
+        alert.handleTap = nil
         alert.text = content.title
         alert.subtitle = subtitle
         withAnimation {
@@ -103,7 +135,7 @@ public final class Alert: Equatable {
     var subtitle: LocalizedStringKey = ""
     var imageName: String?
     var content: PlayableContent?
-    var handleTap: (() -> Void)? = { print("Hello") }
+    var handleTap: (() -> Void)? = nil
 
     public static func == (lhs: Alert, rhs: Alert) -> Bool {
         lhs.isShowing != rhs.isShowing

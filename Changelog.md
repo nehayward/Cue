@@ -6,6 +6,38 @@ Developer-facing record of changes per version. More detailed than ReleaseNotes.
 
 ## 2026.6
 
+### Playlist management across music services
+First-class playlist management for Apple Music, Spotify, Plex, and Deezer alongside Sonos.
+
+**Add to playlist**
+- New `AddToPlaylistSheet` (replaces the old single-track Sonos `AddToPlaylistMenu`): share-sheet-style, segmented between the track's own service and Sonos, with multi-select + one Done, search, a "New Playlist" action, a "Recently Added" quick-pick (top 3), and a confirmation toast that deep-links to the target playlist
+- Wired into every track-menu surface: `PlayableMenuView` (search/library/detail), `MenuInfoView` (Large Player), the queue menus (`QueueCellView`/`QueueScreen`/`UpNextContentView`), and the macOS native `UIMenu` (now lists the track's service playlists + Sonos)
+- One-tap "Add to last playlist" shortcut (`AddToLastPlaylistButton`) with the destination service icon, gated to service-compatible tracks; last-used playlist (id/title/service) and recents tracked centrally in `LastPlaylist`
+- `MusicSearchService` gains create/add/remove/delete wrappers + service-agnostic dispatch (`addToServicePlaylist`/`removeFromServicePlaylist`/`reorderServicePlaylist`); `SpotifyAPI`/`PlexAPI`/`DeezerAPI`/`AppleMusicAPI` gain the underlying mutation endpoints
+
+**Edit playlists** (`MediaDetailView` + `PlaylistEditCoordinator`)
+- Swipe-, menu-, and bulk-remove; drag-to-reorder; delete playlist — all optimistic with rollback on failure. Sonos and streaming edits both route through `PlaylistEditCoordinator`, which owns the track list so edits survive view rebuilds
+- Undo/Redo for add/remove via an owned undo/redo stack on the coordinator (replaces `UndoManager`): one stack drives the tap-to-undo toast, the iOS ⌘Z / ⌘⇧Z keyboard shortcuts, and a native Catalyst Edit ▸ Undo/Redo menu. Sonos edits aren't undoable (its add appends — no positional re-add)
+- Editing gated to playlists the user can actually modify: Spotify via owner/collaborative from a `fields`-filtered `/playlists/{id}` lookup (cached user id + membership fallback); Deezer via per-playlist owner check; Plex always (server-owned); Apple never
+
+**Create playlists**
+- Create playlists per service from the browse screens ("+") and the add sheet, including **empty** playlists for Apple, Spotify, Deezer, Plex, and Sonos. Plex empty creation posts `type=audio` with no seed (with a title-based fallback when the create response omits the new id)
+- `DeletePlaylistConfirmationView` and `NewPlaylistView` follow the app's sheet pattern — top ✕ dismiss, single prominent action button
+
+**Service coverage:** Sonos (full); Spotify / Plex / Deezer (add, remove, reorder, delete, create); Apple Music (add + create only — no public remove/reorder API). Deezer reorder is intentionally excluded (its reorder endpoint takes a full track-id list, unsafe for a paginated playlist); Deezer writes require the `manage_library` OAuth scope.
+
+**Catalyst menu**
+- Native Edit ▸ Undo/Redo wired to the playlist editor through the app delegate / responder chain (`PlaylistUndoMenuBridge`); enable/disable follows the undo stack via `canPerformAction`
+- Removed the auto-injected AutoFill / Start Dictation / Emoji & Symbols items from the Edit menu (`NSDisabledDictationMenuItem` / `NSDisabledCharacterPaletteMenuItem` + `.autoFill` builder removal)
+
+**Fixes**
+- Removing a track from a Spotify playlist now deletes only the selected occurrence, not every copy. The remove request now sends the track's playlist position (`positions`) instead of just its URI, which Spotify treats as "remove all occurrences." Multi-select removals run sequentially (highest position first) so the positional indices stay valid. Plex was already safe (unique per-row id); Deezer's API only removes by track id, so a duplicated Deezer track still removes all copies (upstream limitation).
+- Adding a Spotify album with more than 50 tracks now adds the whole album. `addToSpotifyPlaylist` pages through the album's tracks (50 per page) instead of taking only the first page, and posts them in chunks of 100 (the add-tracks request cap) — previously the overflow was silently dropped while still reporting success.
+- "Recently Added" in the Add-to-Playlist sheet is now keyed by service (`<service>:<id>`), matching the selection logic, so a recent id from one service can no longer surface a same-id playlist in the other segment.
+- Deezer "Add to Playlist" now lists only playlists you own. `userPlaylists(for: .deezer)` filters `/user/me/playlists` to `creator == me` (new `deezerEditablePlaylists()`), mirroring Spotify — previously followed playlists were offered as targets and the add silently failed. Browse still shows all playlists.
+- Service playlist browse grids gain a toolbar refresh button (`PlayableGridScreen`), so creates/deletes can be pulled in on Mac/Catalyst where SwiftUI pull-to-refresh doesn't fire.
+- `PlaylistEditCoordinator`'s undo/redo history is extracted into a pure, unit-tested `UndoRedoStack` (SonosKit) covering push/undo/redo, redo invalidation on a fresh edit, and clearing.
+
 ### Queue shuffle animation
 - Tapping the shuffle button in the queue now animates the Up Next and Full Queue lists reordering into their shuffled positions instead of snapping. Move and delete also animate as a side effect.
 - Reworked queue row identity: rows are now keyed by `content.id` + *occurrence index* (the Nth copy of a song in the loaded window) via `keyedByOccurrence()`, instead of `trackID` (`content.id` + position). Occurrence keys are unique (handles duplicate songs) and stable under reorder, so SwiftUI animates rows *moving* rather than cross-fading. The shuffle action is now just an animated `withAnimation` swap of the fetched order — no identity-preserving workaround needed.

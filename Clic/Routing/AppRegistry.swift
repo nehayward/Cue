@@ -11,14 +11,18 @@ extension View {
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
         sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
             switch destination {
-            case let .newPlaylist(group: group):
-                NewPlaylistView(group: group)
+            case let .newPlaylist(group, service):
+                NewPlaylistView(group: group, service: service)
                     .withEnvironments()
-                    .presentationSizingFitted()
-                    .frame(minWidth: 200, idealWidth: 300, maxWidth: 500, minHeight: 100, maxHeight: 600)
-                    .presentationDragIndicator(.hidden)
             case let .customSleepTimer(recentTimers, onSelect):
                 SleepTimerCustomView(recentTimers: recentTimers, onSelect: onSelect)
+            case let .confirmDeletePlaylist(content):
+                DeletePlaylistConfirmationView(content: content)
+                    .withEnvironments()
+            case let .addToPlaylist(content):
+                AddToPlaylistSheet(content: content)
+                    .presentationDragIndicator(.hidden)
+                    .withEnvironments()
             default:
                 Group {
                     switch destination {
@@ -102,6 +106,7 @@ extension View {
                         .environment(router)
                         .environment(selectedGroupService)
                         .customizeWindowSizeForMacOS15()
+                        .withAlert()
                     case let .artistDetail(content, group):
                         let router = Router.secondary
                         @State var selectedGroupService = SelectedGroupService(group: group)
@@ -149,6 +154,10 @@ extension View {
                         BrowseScreen()
                             .environment(selectedGroupService)
                     case .newPlaylist:
+                        EmptyView()
+                    case .confirmDeletePlaylist:
+                        EmptyView()
+                    case .addToPlaylist:
                         EmptyView()
                     case let .renamePlaylist(content: content):
                         NewPlaylistView(playlist: content)
@@ -329,8 +338,8 @@ extension View {
                     @State var selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen()
                         .environment(selectedGroupService)
-                case let .newPlaylist(group: group):
-                    NewPlaylistView(group: group)
+                case let .newPlaylist(group, service):
+                    NewPlaylistView(group: group, service: service)
                 case let .renamePlaylist(content: content):
                     NewPlaylistView(playlist: content)
                 case let .volumeControlsScreen(groupID: groupID):

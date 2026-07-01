@@ -4,6 +4,23 @@ import OSLog
 // Empty response type for PUT/DELETE operations that don't return content
 private struct EmptyResponse: Codable {}
 
+// Returned by playlist mutation endpoints (add/remove tracks)
+private struct SpotifySnapshotResponse: Codable {
+    let snapshotId: String
+}
+
+// Created when POSTing a new playlist
+private struct SpotifyCreatePlaylistResponse: Codable {
+    let id: String
+}
+
+// Minimal `/playlists/{id}?fields=collaborative,owner.id` response for the editability check.
+private struct SpotifyPlaylistEditability: Decodable {
+    struct Owner: Decodable { let id: String }
+    let collaborative: Bool
+    let owner: Owner
+}
+
 /**
  * SpotifyAPI provides access to Spotify's Web API with support for token refresh handling.
  * 
@@ -492,6 +509,176 @@ public final class SpotifyAPI {
         }
     }
 
+    // MARK: - Playlist Management
+
+    /// The authenticated user (`/v1/me`). Needed to create playlists and to determine playlist ownership.
+    public func currentUser() async -> SpotifyUser? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/me"
+        guard let url = components.url else { return nil }
+
+        do {
+            let user: SpotifyUser = try await authorizedRequest(url)
+            return user
+        } catch {
+            logger.error("Failed to fetch current user: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Whether the playlist is editable by `currentUserID` — they own it or it's collaborative.
+    /// Uses a `fields`-filtered `/playlists/{id}` request so the response is just the owner id and
+    /// collaborative flag (no tracks payload).
+    public func isPlaylistEditable(id: String, currentUserID: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(id)"
+        components.queryItems = [URLQueryItem(name: "fields", value: "collaborative,owner.id")]
+        guard let url = components.url else { return false }
+        do {
+            let details: SpotifyPlaylistEditability = try await authorizedRequest(url)
+            return details.collaborative || details.owner.id == currentUserID
+        } catch {
+            logger.error("Failed to check playlist editability: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// The authenticated user's playlists that they can modify (owned or collaborative).
+    public func editableUserPlaylists() async -> [SpotifyUserPlaylists] {
+        guard let me = await currentUser() else { return [] }
+
+        var results: [SpotifyUserPlaylists] = []
+        var offset = 0
+        let limit = 50
+        // Page through the user's playlists, keeping only the editable ones.
+        while true {
+            guard let response = await userPlaylists(offset: offset, limit: limit) else { break }
+            let page = response.items.compactMap { $0 }
+            results.append(contentsOf: page.filter { $0.isEditable(by: me.id) })
+            if response.next == nil || page.isEmpty { break }
+            offset += limit
+        }
+        return results
+    }
+
+    /// Creates a new playlist owned by the authenticated user.
+    public func createPlaylist(name: String, description: String? = nil, isPublic: Bool = false) async -> String? {
+        guard let me = await currentUser() else { return nil }
+        guard let userID = me.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else { return nil }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/users/\(userID)/playlists"
+        guard let url = components.url else { return nil }
+
+        var attributes: [String: Any] = ["name": name, "public": isPublic]
+        if let description { attributes["description"] = description }
+        guard let body = try? JSONSerialization.data(withJSONObject: attributes) else { return nil }
+
+        do {
+            let response: SpotifyCreatePlaylistResponse = try await authorizedRequest(url, method: "POST", body: body)
+            return response.id
+        } catch {
+            logger.error("Failed to create playlist: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Reorders items in a playlist. `rangeStart` is the index of the first item to move,
+    /// `insertBefore` is the index to move it before, `rangeLength` how many contiguous items.
+    public func reorderPlaylistItems(playlistID: String, rangeStart: Int, insertBefore: Int, rangeLength: Int = 1) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(playlistID)/tracks"
+        guard let url = components.url else { return false }
+
+        let body: [String: Any] = ["range_start": rangeStart, "insert_before": insertBefore, "range_length": rangeLength]
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return false }
+
+        do {
+            let _: SpotifySnapshotResponse = try await authorizedRequest(url, method: "PUT", body: data)
+            return true
+        } catch {
+            logger.error("Failed to reorder playlist: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Adds tracks (Spotify URIs, e.g. `spotify:track:ID`) to a playlist.
+    public func addTracksToPlaylist(playlistID: String, trackURIs: [String]) async -> Bool {
+        guard !trackURIs.isEmpty else { return true }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(playlistID)/tracks"
+        guard let url = components.url else { return false }
+
+        guard let body = try? JSONSerialization.data(withJSONObject: ["uris": trackURIs]) else { return false }
+
+        do {
+            let _: SpotifySnapshotResponse = try await authorizedRequest(url, method: "POST", body: body)
+            return true
+        } catch {
+            logger.error("Failed to add tracks to playlist: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Removes the given tracks (Spotify URIs) from a playlist.
+    ///
+    /// When `positions` is supplied it must line up 1:1 with `trackURIs`, and each track is removed
+    /// only at that playlist position — so a playlist containing the same track more than once loses
+    /// just the chosen occurrence. With `positions` nil, Spotify removes *all* occurrences of each URI.
+    public func removeTracksFromPlaylist(playlistID: String, trackURIs: [String], positions: [Int]? = nil) async -> Bool {
+        guard !trackURIs.isEmpty else { return true }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(playlistID)/tracks"
+        guard let url = components.url else { return false }
+
+        let tracks: [[String: Any]]
+        if let positions, positions.count == trackURIs.count {
+            tracks = zip(trackURIs, positions).map { ["uri": $0, "positions": [$1]] }
+        } else {
+            tracks = trackURIs.map { ["uri": $0] }
+        }
+        guard let body = try? JSONSerialization.data(withJSONObject: ["tracks": tracks]) else { return false }
+
+        do {
+            let _: SpotifySnapshotResponse = try await authorizedRequest(url, method: "DELETE", body: body)
+            return true
+        } catch {
+            logger.error("Failed to remove tracks from playlist: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Removes a playlist from the user's library. Spotify has no hard delete; unfollowing is the equivalent.
+    public func unfollowPlaylist(playlistID: String) async -> Bool {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "api.spotify.com"
+        components.path = "/v1/playlists/\(playlistID)/followers"
+        guard let url = components.url else { return false }
+
+        do {
+            let _: EmptyResponse = try await authorizedRequest(url, method: "DELETE")
+            return true
+        } catch {
+            logger.error("Failed to unfollow playlist: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     enum AuthError: Error {
         case missingToken
         case invalidToken
@@ -499,16 +686,20 @@ public final class SpotifyAPI {
         case missingTokenHandler
     }
 
-    func authorizedRequest<T: Decodable>(_ url: URL, method: String = "GET", allowRetry: Bool = true) async throws -> T {
+    func authorizedRequest<T: Decodable>(_ url: URL, method: String = "GET", body: Data? = nil, allowRetry: Bool = true) async throws -> T {
         guard let handler = tokenRefreshHandler else {
             throw AuthError.missingTokenHandler
         }
-        
+
         var retryCount = 0
         while retryCount < maxRetries {
             if let credentials = try await handler.getCredentials() {
                 var request = try await authorizedRequest(from: url, token: credentials.token)
                 request.httpMethod = method
+                if let body {
+                    request.httpBody = body
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                }
                 let (data, urlResponse) = try await session.data(for: request)
 
                 // check the http status code and refresh + retry if we received 401 Unauthorized
@@ -537,6 +728,12 @@ public final class SpotifyAPI {
 
                     // Retry the request with the freshly refreshed credentials.
                     continue
+                }
+
+                // Successful no-content responses (e.g. unfollow / save / remove via PUT/DELETE)
+                // return an empty body — there's nothing to decode.
+                if data.isEmpty, let empty = EmptyResponse() as? T {
+                    return empty
                 }
 
                 do {

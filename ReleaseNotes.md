@@ -1,10 +1,17 @@
 # 2026.6
 
 –– New Features ––
+- Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
+- Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
+- Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
+- Add to Last Playlist: A one-tap shortcut — in the track menu and the Mac File menu — to drop the current song into the playlist you used last
 - Song Previews: Long-press an Apple Music or Spotify track and tap Preview Song to hear a quick clip — or swipe right on a track in a list. A progress bar fills as the clip plays, and you can tap the track to stop it
 - Library Song Actions: Long-press a song in your Apple Music library to open its Apple Album or Apple Artist, or start a Song Radio — Clic resolves the matching catalog track behind the scenes
 
 –– Bug Fixes & Improvements ––
+- Fixed removing one track from a Spotify playlist also deleting other copies of the same song — only the track you remove is removed now
+- Fixed adding a large album (more than 50 tracks) to a Spotify playlist only adding the first batch — every track is added now
+- Fixed the Deezer "Add to Playlist" list showing playlists you follow but don't own — only your own playlists are offered now, so the add no longer silently fails
 - Fixed some alarms not appearing in the Alarms list — alarms for speakers that are grouped, part of a stereo pair, or temporarily offline are now always shown, and music alarms (Apple Music, Spotify, radio stations) no longer occasionally go missing. Pull down to refresh the list
 - Fixed "Switch to Line In" appearing on speakers that don't support line-in
 - Fixed the library Albums list stopping partway through the alphabet — albums, songs, and artists now load your entire library as you scroll

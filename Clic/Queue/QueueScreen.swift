@@ -239,7 +239,10 @@ struct QueueScreen: View {
             let tracks = group.coordinatorRoom.queue.tracks(forKeys: selectedKeys)
             if tracks.first?.content.service != .unknown {
                 if selectedKeys.count == 1, let track = tracks.first {
-                    AddToPlaylistMenu(itemToAdd: track)
+                    AddToLastPlaylistButton(itemToAdd: track)
+                    Button {
+                        router.sheet(to: .addToPlaylist(content: track))
+                    } label: { Label("Add to Playlist…", systemImage: "text.badge.plus") }
 
                     Button {
                         router.navigate(to: .mediaDetail(content: track, group: group))

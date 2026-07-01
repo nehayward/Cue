@@ -811,6 +811,16 @@ private struct PlaybackTransportControls: View {
 }
 
 class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        #if targetEnvironment(macCatalyst)
+        // macOS auto-injects "Start Dictation" and "Emoji & Symbols" into any Edit menu. Opt out so
+        // ours carries only Undo/Redo. (AutoFill is removed via the menu builder.)
+        UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
+        UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
+        #endif
+        return true
+    }
+
     func application(
        _ application: UIApplication,
        configurationForConnecting connectingSceneSession: UISceneSession,
@@ -835,6 +845,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     override func buildMenu(with builder: UIMenuBuilder) {
         /// Only operate on the main menu bar.
         if builder.system == .main {
+            // Remove the system Edit menu entirely — macOS force-injects AutoFill / Start Dictation /
+            // Emoji & Symbols into any Edit menu. Undo/Redo live in a dedicated Playlist menu instead.
             builder.remove(menu: .edit)
             builder.remove(menu: .format)
             builder.remove(menu: .newScene)
@@ -852,13 +864,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             )
 
             // Add to Last Playlist command (dynamic title)
-            let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle)
             let addToLastPlaylistAction: UIMenuElement
 
-            if let title = lastPlaylistTitle {
+            if let last = LastPlaylist.current {
                 addToLastPlaylistAction = UIKeyCommand(
-                    title: "Add to \(title)",
-                    image: UIImage(systemName: "plus"),
+                    title: "Add to \(last.title)",
+                    image: last.service.uiImage ?? UIImage(systemName: "text.badge.plus"),
                     action: #selector(addToLastPlaylist),
                     input: "s",
                     modifierFlags: [.shift, .command]
@@ -872,6 +883,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 Task { @MainActor in
                     let sonosService = SonosService.shared
                     let alertService = AlertService.shared
+                    let musicSearchService = MusicSearchService.shared
 
                     // Get current track from selected group
                     guard let selectedID = Router.main.selectedID,
@@ -882,30 +894,52 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         return
                     }
 
-                    let currentTrack = group.coordinatorRoom.track
-                    let playlists = await sonosService.sonosPlaylists()
+                    let track = group.coordinatorRoom.track.toPlayable
 
-                    var menuItems: [UIMenuElement] = []
-
-                    // Add existing playlists
-                    for playlist in playlists {
-                        let action = UIAction(title: playlist.title) { _ in
+                    // Adds `track` to `playlist`, dispatching to Sonos or the streaming service.
+                    func action(for playlist: PlayableContent) -> UIAction {
+                        UIAction(title: playlist.title, image: playlist.content.service.uiImage) { _ in
                             Task { @MainActor in
-                                alertService.showAlertContent(with: currentTrack.toPlayable, subtitle: "Added to \(playlist.title)", symbolName: "plus")
-                                await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: currentTrack.toPlayable)
-
-                                // Save as last used playlist and rebuild menu
-                                UserDefaults.standard.set(playlist.id, forKey: AppStorageKeys.lastPlaylistID)
-                                UserDefaults.standard.set(playlist.title, forKey: AppStorageKeys.lastPlaylistTitle)
-                                UIMenuSystem.main.setNeedsRebuild()
-
-                                // Set up tap to navigate to playlist
+                                let success: Bool
+                                if playlist.content.service == .library {
+                                    await sonosService.addToPlaylist(playlistID: playlist.id, playableContent: track)
+                                    success = true
+                                } else {
+                                    success = await musicSearchService.addToServicePlaylist(track: track, playlist: playlist)
+                                }
+                                guard success else {
+                                    alertService.showAlert(with: "Couldn’t add to \(playlist.title)", imageName: "exclamationmark.triangle")
+                                    return
+                                }
+                                alertService.showAlertContent(with: track, subtitle: "Added to \(playlist.title)", symbolName: "plus")
+                                LastPlaylist.save(playlist)
                                 alertService.alert.handleTap = {
                                     Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
                                 }
                             }
                         }
-                        menuItems.append(action)
+                    }
+
+                    var menuItems: [UIMenuElement] = []
+
+                    // The track's own streaming-service playlists (Apple Music / Spotify / Plex / Deezer).
+                    let service = track.content.service
+                    if [.apple, .spotify, .plex, .deezer].contains(service),
+                       [.track, .libraryTrack].contains(track.content.type) {
+                        let servicePlaylists = await musicSearchService.userPlaylists(for: service)
+                        if !servicePlaylists.isEmpty {
+                            menuItems.append(UIMenu(title: service.title, options: .displayInline, children: servicePlaylists.map(action)))
+                        }
+                    }
+
+                    // Sonos playlists accept any track.
+                    let sonosPlaylists = await sonosService.sonosPlaylists()
+                    if !sonosPlaylists.isEmpty {
+                        menuItems.append(UIMenu(title: "Sonos", options: .displayInline, children: sonosPlaylists.map(action)))
+                    }
+
+                    if menuItems.isEmpty {
+                        menuItems = [UIAction(title: "No Playlists", attributes: .disabled) { _ in }]
                     }
 
                     completion(menuItems)
@@ -918,13 +952,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 children: [addToPlaylistDeferred]
             )
 
-            let fileMenuItems = UIMenu(
-                title: "",
-                options: .displayInline,
-                children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]
-            )
+            // A dedicated Playlist menu gathers every playlist action plus Undo/Redo, on all
+            // platforms — so ⌘Z works with a hardware keyboard on iPad/iPhone too, not just Catalyst.
+            // (We don't reuse the Edit menu: macOS injects AutoFill/Dictation/Emoji into it.)
+            // Undo/Redo route through the responder chain (playlistUndo/playlistRedo) and enable via
+            // canPerformAction.
+            let undoCommand = UIKeyCommand(title: "Undo", action: #selector(playlistUndo), input: "z", modifierFlags: .command)
+            let redoCommand = UIKeyCommand(title: "Redo", action: #selector(playlistRedo), input: "z", modifierFlags: [.command, .shift])
+            let playlistMenu = UIMenu(title: "Playlist", identifier: UIMenu.Identifier("com.clic.playlistMenu"), children: [
+                UIMenu(title: "", options: .displayInline, children: [newPlaylistCommand, addToLastPlaylistAction, addToPlaylistMenu]),
+                UIMenu(title: "", options: .displayInline, children: [undoCommand, redoCommand])
+            ])
+            builder.insertSibling(playlistMenu, afterMenu: .file)
+        }
+    }
 
-            builder.insertChild(fileMenuItems, atStartOfMenu: .file)
+    /// Drives the foreground playlist editor's undo, routed from the Playlist menu / ⌘Z.
+    @objc func playlistUndo() {
+        PlaylistUndoMenuBridge.shared.editor?.undo()
+    }
+
+    /// Drives the foreground playlist editor's redo, routed from the Playlist menu / ⌘⇧Z.
+    @objc func playlistRedo() {
+        PlaylistUndoMenuBridge.shared.editor?.redo()
+    }
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        switch action {
+        case #selector(playlistUndo):
+            return PlaylistUndoMenuBridge.shared.editor?.canUndo ?? false
+        case #selector(playlistRedo):
+            return PlaylistUndoMenuBridge.shared.editor?.canRedo ?? false
+        default:
+            return super.canPerformAction(action, withSender: sender)
         }
     }
 
@@ -936,8 +996,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let sonosService = SonosService.shared
         let alertService = AlertService.shared
 
-        guard let lastPlaylistID = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistID),
-              let lastPlaylistTitle = UserDefaults.standard.string(forKey: AppStorageKeys.lastPlaylistTitle) else {
+        guard let last = LastPlaylist.current else {
             alertService.showAlert(with: "No Recent Playlist", imageName: "exclamationmark.triangle")
             return
         }
@@ -951,14 +1010,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let currentTrack = group.coordinatorRoom.track.toPlayable
 
         Task { @MainActor in
-            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(lastPlaylistTitle)", symbolName: "plus")
-            await sonosService.addToPlaylist(playlistID: lastPlaylistID, playableContent: currentTrack)
+            // Attempt the add and report the real result — the now-playing track's reported service
+            // isn't reliable enough to pre-gate on (a Spotify track can surface as a Sonos item).
+            guard await last.add(currentTrack) else {
+                alertService.showAlert(with: "Couldn’t add to \(last.title)", imageName: "exclamationmark.triangle")
+                return
+            }
+            alertService.showAlertContent(with: currentTrack, subtitle: "Added to \(last.title)", symbolName: "plus")
 
-            // Set up tap to navigate to playlist
-            let playlists = await sonosService.sonosPlaylists()
-            if let playlist = playlists.first(where: { $0.id == lastPlaylistID }) {
+            // Let tapping the toast open the playlist. Sonos resolves the real playlist for artwork;
+            // streaming opens from a lightweight stub (the detail view loads it by id).
+            let target: PlayableContent?
+            if last.service == .library {
+                target = await sonosService.sonosPlaylists().first(where: { $0.id == last.id })
+            } else {
+                target = last.playableContent
+            }
+            if let target {
                 alertService.alert.handleTap = {
-                    Router.main.presentedSheet = .mediaDetail(content: playlist, group: nil)
+                    Router.main.presentedSheet = .mediaDetail(content: target, group: nil)
                 }
             }
         }

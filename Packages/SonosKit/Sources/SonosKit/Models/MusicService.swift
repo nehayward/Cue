@@ -191,6 +191,32 @@ public enum MusicService: Sendable, Codable, CaseIterable {
         }
     }
     
+    #if canImport(UIKit) && !os(watchOS) && !os(visionOS)
+    /// A `UIImage` version of the service logo, for UIKit menus (e.g. the Mac menu bar). Mirrors
+    /// the `icon` mapping: SF Symbols for Apple/Library/AirPlay, bundle assets for the rest.
+    /// Bundle logos are resized to a menu-glyph size — unlike SF Symbols, UIKit menus render them
+    /// at the asset's native (oversized) dimensions otherwise.
+    public var uiImage: UIImage? {
+        let glyph = CGSize(width: 18, height: 18)
+        switch self {
+        case .apple:
+            return UIImage(systemName: "apple.logo")
+        case .library:
+            return UIImage(systemName: librarySymbolName)
+        case .airplay:
+            return UIImage(systemName: "airplayaudio")
+        case .tuneIn, .soundcloud, .deezer:
+            return UIImage(named: self.title, in: .musicSearchKitBundle, with: nil)?
+                .resized(to: glyph).withRenderingMode(.alwaysTemplate)
+        case .plex, .tidal, .spotify:
+            return UIImage(named: self.sonosRawValue.capitalized, in: .musicSearchKitBundle, with: nil)?
+                .resized(to: glyph).withRenderingMode(.alwaysTemplate)
+        case .unknown:
+            return nil
+        }
+    }
+    #endif
+
     /// Service supports radio / mix stations from a track or artist.
     public var supportsRadio: Bool {
         switch self {

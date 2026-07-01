@@ -3,6 +3,7 @@ import Foundation
 public struct PlexMetadata: Codable {
     public let ratingKey: String
     public let key: String
+    public let playlistItemID: Int?
     public let parentRatingKey: String?
     public let grandparentRatingKey: String?
     public let grandparentTitle: String?
@@ -42,7 +43,7 @@ public struct PlexMetadata: Codable {
     public var streamURL: URL?
 
     enum CodingKeys: String, CodingKey {
-        case ratingKey, key, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, userRating
+        case ratingKey, key, playlistItemID, parentRatingKey, grandparentRatingKey, guid, parentGuid, grandparentGuid, parentStudio, type, title, grandparentKey, parentKey, grandparentTitle, parentTitle, originalTitle, summary, index, parentIndex, ratingCount, parentYear, year, thumb, art, parentThumb, grandparentThumb, grandparentArt, duration, addedAt, updatedAt, userRating
         case media = "Media"
     }
 }
