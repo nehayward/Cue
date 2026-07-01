@@ -75,9 +75,14 @@ struct ClicApp: App {
             } detail: {
                 ContainerLargePlayerView()
             }
+            // Inspector first, sheets outside it: modifiers apply inside-out,
+            // and a `.sheet` hosted *inside* `.inspector` gets torn down when
+            // the inspector restructures (column ↔ sheet on iPad size-class
+            // changes, Catalyst window resizes) — dismissing the presented
+            // sheet out from under the user.
+            .withInspector(inspectorDestination: $router.inspectorSheet)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-            .withInspector(inspectorDestination: $router.inspectorSheet)
             .visionOrnament(router: router)
             .withAlert()
             .environment(router)

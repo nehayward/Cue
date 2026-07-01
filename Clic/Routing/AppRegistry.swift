@@ -442,7 +442,20 @@ extension View {
     
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
 #if !os(visionOS)
-        inspector(isPresented: .constant(inspectorDestination.wrappedValue != nil)) {
+        // Must be a real two-way binding, not `.constant`. In compact widths
+        // (iPad Split View / Stage Manager, narrow Catalyst windows) the
+        // inspector falls back to a sheet presentation; when the system
+        // dismisses it — the user drags it away, or another sheet presents —
+        // a constant `true` can't record that, so SwiftUI re-presents the
+        // inspector and tears down whatever sheet was just shown.
+        inspector(isPresented: Binding(
+            get: { inspectorDestination.wrappedValue != nil },
+            set: { isPresented in
+                if !isPresented {
+                    inspectorDestination.wrappedValue = nil
+                }
+            }
+        )) {
             VStack {
                 switch inspectorDestination.wrappedValue {
                 case let .search(group):
