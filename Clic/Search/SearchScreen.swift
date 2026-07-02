@@ -223,6 +223,9 @@ struct SearchScreen: View {
                 if suggestion == nil {
                     searchCompletionTapped = false
                 }
+                // Ranking boosts items the user has played; injected here so
+                // SonosKit stays free of app-side play-history state.
+                musicSearchService.recentlyPlayedIDs = Set(playHistoryService.history.prefix(50).map(\.id))
                 await musicSearchService.search(for: selectedSearchServices)
                 suggestion = nil
                 isLoading = false

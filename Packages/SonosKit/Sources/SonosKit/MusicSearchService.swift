@@ -1,9 +1,6 @@
-import CloudStorage
-import Defaults
 import Foundation
 import MusicKit
 import MusicSearchKit
-import OrderedCollections
 
 @MainActor
 @Observable
@@ -79,6 +76,11 @@ public final class MusicSearchService {
 
     public var results: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
+
+    /// IDs of recently played items, injected by the app (e.g. from
+    /// PlayHistoryService before a search) so ranking can boost items the
+    /// user actually plays. Left empty, ranking simply applies no boost.
+    @ObservationIgnored public var recentlyPlayedIDs: Set<String> = []
 
     public init() {
         print(#file, #function)
@@ -1191,14 +1193,6 @@ public final class MusicSearchService {
         default:
             return (playableContent, [])
         }
-    }
-
-    /// Same synced store PlayHistoryService writes; read here so ranking can
-    /// boost items the user has actually played.
-    @ObservationIgnored @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = []
-
-    private var recentlyPlayedIDs: Set<String> {
-        Set(playHistory.prefix(50).map(\.id))
     }
 
     func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
