@@ -11,15 +11,19 @@ final class SearchRankingTests: XCTestCase {
         type: ContentType = .track,
         service: MusicService = .spotify,
         popularity: Int? = nil,
+        albumYear: Date? = nil,
         id: String = UUID().uuidString
     ) -> PlayableContent {
-        PlayableContent(
+        let metadata: PlayableContentMetadata? = popularity != nil || albumYear != nil
+            ? PlayableContentMetadata(popularity: popularity, albumYear: albumYear)
+            : nil
+        return PlayableContent(
             title: title,
             subtitle: subtitle,
             thumbnail: nil,
             artwork: nil,
             content: MediaContent(service: service, id: id, type: type, location: nil),
-            metadata: popularity.map { PlayableContentMetadata(popularity: $0) }
+            metadata: metadata
         )
     }
 
@@ -183,6 +187,47 @@ final class SearchRankingTests: XCTestCase {
             ["Dua Lipa", "Houdini", "Dua", "Radical Optimism", "Dua"]
         )
         XCTAssertEqual(results.first?.id, "dua-lipa")
+    }
+
+    func testTopArtistAlbumsInheritArtistPopularity() {
+        // Spotify's search API reports no popularity for albums, so the
+        // focused artist's albums must borrow the artist's popularity to
+        // surface alongside the tracks instead of sinking below them.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Dua", subtitle: "Artist", type: .artist, popularity: 25, id: "dua-obscure"),
+                item(title: "Dua Lipa", subtitle: "Artist", type: .artist, popularity: 90, id: "dua-lipa"),
+                item(title: "Houdini", subtitle: "Dua Lipa", popularity: 85),
+                item(title: "Radical Optimism", subtitle: "Dua Lipa • Jun 2024", type: .album, id: "album"),
+            ],
+            query: "dua"
+        )
+
+        XCTAssertEqual(
+            titles(results),
+            ["Dua Lipa", "Radical Optimism", "Houdini", "Dua"]
+        )
+    }
+
+    func testNewReleaseGetsSlightBoost() {
+        let now = Date()
+        let fresh = item(
+            title: "Comeback",
+            subtitle: "Artist",
+            type: .album,
+            albumYear: now.addingTimeInterval(-30 * 24 * 60 * 60),
+            id: "fresh"
+        )
+        let old = item(
+            title: "Comeback",
+            subtitle: "Artist",
+            type: .album,
+            albumYear: now.addingTimeInterval(-10 * 365 * 24 * 60 * 60),
+            id: "old"
+        )
+
+        let results = SearchRanking.sort([old, fresh], query: "comeback", now: now)
+        XCTAssertEqual(results.map(\.id), ["fresh", "old"])
     }
 
     func testSongPlusArtistQueryFindsTheTrack() {

@@ -22,12 +22,13 @@ enum SearchRanking {
         _ playableContent: [PlayableContent],
         query: String,
         recentlyPlayedIDs: Set<String> = [],
-        mergingServices: Bool = false
+        mergingServices: Bool = false,
+        now: Date = Date()
     ) -> [PlayableContent] {
         var uniqueItems: [String: (item: PlayableContent, score: Double, index: Int)] = [:]
 
         for (index, item) in playableContent.enumerated() {
-            let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+            let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs, now: now)
             let key = mergingServices
                 ? "\(mergeKind(of: item.content.type))|\(normalized(item.title))|\(normalized(item.subtitle))"
                 : "\(item.id)-\(item.title)-\(item.subtitle)"
@@ -61,6 +62,24 @@ enum SearchRanking {
             let text = textScore(item: entries[topArtist].item, query: query)
             if text >= topArtistMinimumText {
                 entries[topArtist].score += topArtistBonus * text
+
+                // Spotify's search API reports popularity for tracks and
+                // artists but not albums, which buried the focused artist's
+                // albums below every popular track. Albums by the top artist
+                // inherit its popularity as their quality signal so they
+                // surface alongside the artist's tracks.
+                let artistName = normalized(entries[topArtist].item.title)
+                let artistQuality = min(Double(entries[topArtist].item.metadata?.popularity ?? 0) / 100, 1)
+                if !artistName.isEmpty, artistQuality > 0 {
+                    for index in entries.indices {
+                        let candidate = entries[index].item
+                        guard candidate.content.type == .album || candidate.content.type == .libraryAlbum,
+                              (candidate.metadata?.popularity ?? 0) == 0,
+                              matchesWholeWords(normalized(candidate.metadata?.artist ?? candidate.subtitle), phrase: artistName)
+                        else { continue }
+                        entries[index].score += artistQuality * popularityWeight
+                    }
+                }
             }
         }
 
@@ -109,8 +128,17 @@ enum SearchRanking {
     private static let primaryTitleFactor = 0.97
     /// Items the user has actually played rise above comparable matches.
     private static let historyWeight = 0.1
+    /// Releases from the last two years get a slight lift — strongest when
+    /// brand new — like Spotify's search.
+    private static let recencyWeight = 0.05
+    private static let recencyWindow: TimeInterval = 2 * 365.25 * 24 * 60 * 60
 
-    static func score(item: PlayableContent, query: String, recentlyPlayedIDs: Set<String> = []) -> Double {
+    static func score(
+        item: PlayableContent,
+        query: String,
+        recentlyPlayedIDs: Set<String> = [],
+        now: Date = Date()
+    ) -> Double {
         let text = textScore(item: item, query: query)
 
         // Spotify reports popularity (0-100); Plex and the local library
@@ -133,10 +161,21 @@ enum SearchRanking {
 
         let historyBoost = recentlyPlayedIDs.contains(item.id) ? historyWeight * text : 0
 
+        let recencyBoost: Double
+        if let released = item.metadata?.albumYear {
+            let age = now.timeIntervalSince(released)
+            recencyBoost = age >= 0 && age < recencyWindow
+                ? recencyWeight * (1 - age / recencyWindow) * text
+                : 0
+        } else {
+            recencyBoost = 0
+        }
+
         return text * textWeight
             + qualityScore * popularityWeight
             + typeBoost * text
             + historyBoost
+            + recencyBoost
     }
 
     /// The best text relevance across the item's title (with and without a
@@ -228,6 +267,18 @@ enum SearchRanking {
         }
         if result.hasSuffix(" ") { result.removeLast() }
         return result
+    }
+
+    /// Whether `phrase` appears in `text` bounded by word breaks on both
+    /// sides — "dua" matches "dua lipa jun 2024" but not "duality". Both
+    /// strings must already be normalized.
+    private static func matchesWholeWords(_ text: String, phrase: String) -> Bool {
+        guard let range = text.range(of: phrase) else { return false }
+        let startsWord = range.lowerBound == text.startIndex
+            || text[text.index(before: range.lowerBound)] == " "
+        let endsWord = range.upperBound == text.endIndex
+            || text[range.upperBound] == " "
+        return startsWord && endsWord
     }
 
     /// The title with a trailing version/remix suffix removed:
