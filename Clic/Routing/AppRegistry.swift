@@ -506,6 +506,7 @@ private struct InspectorDestinationModifier: ViewModifier {
     /// explicitly.
     @State private var isPresented = false
     @State private var openedAt: ContinuousClock.Instant?
+    @State private var sizeClassChangedAt: ContinuousClock.Instant?
 
     func body(content: Content) -> some View {
         content
@@ -528,22 +529,38 @@ private struct InspectorDestinationModifier: ViewModifier {
                 }
                 isPresented = hasDestination
             }
+            // Resizing across the compact boundary converts the inspector
+            // between column and sheet, and the system dismisses the old
+            // presentation on the way through. That must not count as the
+            // user closing it — re-sync the mirror from the destination so
+            // e.g. the queue comes back when the window is dragged wide
+            // again, and any divergence (presented but no destination — an
+            // empty panel) self-heals here too.
+            .onChange(of: horizontalSizeClass) {
+                sizeClassChangedAt = ContinuousClock.now
+                let hasDestination = destination != nil
+                if isPresented != hasDestination {
+                    isPresented = hasDestination
+                }
+            }
             // Mirror → source of truth. Only a system-initiated dismissal
             // lands here (our own writes go through `destination` above).
             .onChange(of: isPresented) { _, newValue in
                 guard !newValue, destination != nil else { return }
-                if horizontalSizeClass != .compact {
-                    // The column has no user dismiss gesture — a false here
-                    // is presentation churn (window too narrow during
-                    // launch, other presentations settling). Re-present.
-                    isPresented = true
-                } else if let openedAt, ContinuousClock.now - openedAt < .seconds(1) {
-                    // Compact presents as a sheet, but a dismissal while the
-                    // presentation is still settling (keyboard summoning,
-                    // size-class churn) isn't the user dragging it away.
+
+                let now = ContinuousClock.now
+                let settling = openedAt.map { now - $0 < .seconds(1) } ?? false
+                let resizing = sizeClassChangedAt.map { now - $0 < .seconds(1.5) } ?? false
+
+                if horizontalSizeClass != .compact || settling || resizing {
+                    // Presentation churn, not user intent: the regular-width
+                    // column has no dismiss gesture; a compact sheet that's
+                    // still settling (keyboard summoning) or mid column↔sheet
+                    // conversion (window resize) wasn't dragged away.
+                    // The destination is the source of truth — re-present.
                     isPresented = true
                 } else {
-                    // A real drag-to-dismiss.
+                    // A real drag-to-dismiss of the compact sheet.
                     destination = nil
                 }
             }
