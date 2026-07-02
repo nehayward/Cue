@@ -4,6 +4,7 @@
 //
 //  Created by Nick Hayward on 8/28/25.
 //
+import SonosKit
 import SwiftUI
 
 extension View {
@@ -27,9 +28,14 @@ extension View {
                         Router.search.presentedSheet = nil
                     }
                 case let .queue(group):
-                    QueueScreen(group: group) {
+                    // Track the selected group live and remount per group —
+                    // QueueScreen's loading is appear-driven, so a param-only
+                    // group change leaves the previous queue on screen.
+                    let current = SonosService.shared.sorted.first(where: { $0.coordinatorID == router.selectedID }) ?? group
+                    QueueScreen(group: current) {
                         router.inspectorSheet = nil
                     }
+                    .id(current.coordinatorID)
                 case let .browse(group):
                     let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen {

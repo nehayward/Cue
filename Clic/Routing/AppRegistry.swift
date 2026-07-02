@@ -528,7 +528,21 @@ private struct InspectorDestinationModifier: ViewModifier {
 }
 
 private struct InspectorContentView: View {
+    @Environment(SonosService.self) private var sonosService
+    @Environment(Router.self) private var router
     @Binding var destination: InspectorDestination?
+
+    /// The destination enum captures the group at the moment the inspector
+    /// was opened, but the inspector is meant to track the *selected* group.
+    /// Resolve it live here (reads registered on this view's body), instead
+    /// of relying on ClicApp's selectedID onChange to reassign the enum.
+    private func currentGroup(_ fallback: GroupRoom?) -> GroupRoom? {
+        if let id = router.selectedID,
+           let live = sonosService.sorted.first(where: { $0.coordinatorID == id }) {
+            return live
+        }
+        return fallback
+    }
 
     var body: some View {
         VStack {
@@ -545,20 +559,28 @@ private struct InspectorContentView: View {
                     destination = nil
                 }
                 .environment(Router.search)
-                .environment(SelectedGroupService(group: group))
+                .environment(SelectedGroupService(group: currentGroup(group)))
                 .onDisappear {
                     Router.search.path.removeAll()
                     Router.search.presentedSheet = nil
                 }
             case let .queue(group):
-                QueueScreen(group: group) {
+                let current = currentGroup(group) ?? group
+                QueueScreen(group: current) {
                     destination = nil
                 }
+                // Remount per group: QueueScreen's loading is appear-driven
+                // (selectedGroupService sync, playMode fetch, queue/scroll
+                // state in @State), so a param-only group change leaves the
+                // previous group's queue on screen. Keyed by coordinatorID,
+                // so topology refreshes that replace the GroupRoom instance
+                // don't reset it.
+                .id(current.coordinatorID)
             case let .browse(group):
                 BrowseScreen {
                     destination = nil
                 }
-                .environment(SelectedGroupService(group: group))
+                .environment(SelectedGroupService(group: currentGroup(group)))
             default:
                 EmptyView()
                     .onAppear {
