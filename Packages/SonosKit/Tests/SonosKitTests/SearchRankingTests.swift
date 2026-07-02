@@ -163,6 +163,28 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(results[1].subtitle, "Jessie J")
     }
 
+    func testPopularArtistAndTheirHitsOutrankObscureExactNameArtists() {
+        // Searching "dua" on Spotify must not show a wall of artists named
+        // "Dua": the popular artist takes the top slot, and her popular
+        // tracks/albums beat obscure artists whose name merely matches better.
+        let results = SearchRanking.sort(
+            [
+                item(title: "Dua", subtitle: "Artist", type: .artist, popularity: 25, id: "dua-1"),
+                item(title: "Dua", subtitle: "Artist", type: .artist, popularity: 15, id: "dua-2"),
+                item(title: "Dua Lipa", subtitle: "Artist", type: .artist, popularity: 90, id: "dua-lipa"),
+                item(title: "Houdini", subtitle: "Dua Lipa", popularity: 85),
+                item(title: "Radical Optimism", subtitle: "Dua Lipa", type: .album, popularity: 78),
+            ],
+            query: "dua"
+        )
+
+        XCTAssertEqual(
+            titles(results),
+            ["Dua Lipa", "Houdini", "Dua", "Radical Optimism", "Dua"]
+        )
+        XCTAssertEqual(results.first?.id, "dua-lipa")
+    }
+
     func testSongPlusArtistQueryFindsTheTrack() {
         let results = SearchRanking.sort(
             [
@@ -200,7 +222,7 @@ final class SearchRankingTests: XCTestCase {
 
     func testRecentlyPlayedItemWinsAmongComparableMatches() {
         let played = item(title: "Fat Bottomed Girls", subtitle: "Queen", popularity: 60, id: "played-id")
-        let notPlayed = item(title: "Bohemian Rhapsody", subtitle: "Queen", popularity: 95)
+        let notPlayed = item(title: "Bohemian Rhapsody", subtitle: "Queen", popularity: 90)
 
         let results = SearchRanking.sort(
             [notPlayed, played],

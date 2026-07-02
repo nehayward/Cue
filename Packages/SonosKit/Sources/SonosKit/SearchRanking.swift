@@ -44,7 +44,27 @@ enum SearchRanking {
             }
         }
 
-        return uniqueItems.values
+        var entries = Array(uniqueItems.values)
+
+        // Spotify-style top result: exactly one artist — the best-scoring,
+        // genuinely matching one — gets the top-slot boost. Boosting every
+        // matching artist walls off tracks and albums behind a run of
+        // same-named artists (searching "dua" must rank Dua Lipa and her
+        // popular songs above ten obscure artists named "Dua").
+        let topArtist = entries.indices
+            .filter { entries[$0].item.content.type == .artist }
+            .max { lhs, rhs in
+                if entries[lhs].score != entries[rhs].score { return entries[lhs].score < entries[rhs].score }
+                return entries[lhs].index > entries[rhs].index
+            }
+        if let topArtist {
+            let text = textScore(item: entries[topArtist].item, query: query)
+            if text >= topArtistMinimumText {
+                entries[topArtist].score += topArtistBonus * text
+            }
+        }
+
+        return entries
             .sorted { lhs, rhs in
                 if lhs.score != rhs.score { return lhs.score > rhs.score }
                 return lhs.index < rhs.index
@@ -68,12 +88,19 @@ enum SearchRanking {
     /// Text relevance dominates so a weak title match can never ride
     /// popularity to the top.
     private static let textWeight = 0.7
-    /// Popularity only orders results whose text matches are comparable.
-    /// Spotify is the main service that reports it; others leave it nil.
-    private static let popularityWeight = 0.15
+    /// Popularity orders results whose text matches are comparable, and is
+    /// weighted heavily enough that a popular artist's hits outrank obscure
+    /// exact-name matches — mirroring Spotify/Apple ordering. Spotify and
+    /// Tidal report it; other services leave it nil.
+    private static let popularityWeight = 0.25
     /// A match on the subtitle (artist/album line) is meaningful but weaker
     /// than a match on the item's own title.
-    private static let subtitleFactor = 0.85
+    private static let subtitleFactor = 0.9
+    /// Extra lift for the single best-matching artist (applied in `sort`),
+    /// so the artist the user is likely typing lands on top.
+    private static let topArtistBonus = 0.2
+    /// An artist must actually match this well before it can take the top slot.
+    private static let topArtistMinimumText = 0.75
     /// Matches that need title + subtitle combined ("rhapsody queen").
     private static let combinedFactor = 0.9
     /// Matching the title with its version suffix stripped ("Love Story
@@ -84,6 +111,37 @@ enum SearchRanking {
     private static let historyWeight = 0.1
 
     static func score(item: PlayableContent, query: String, recentlyPlayedIDs: Set<String> = []) -> Double {
+        let text = textScore(item: item, query: query)
+
+        // Spotify reports popularity (0-100); Plex and the local library
+        // report user star ratings (0-10) instead. Either works as the
+        // quality signal between comparable text matches.
+        let popularity = min(Double(item.metadata?.popularity ?? 0) / 100, 1)
+        let userRating = min((item.metadata?.userRating ?? 0) / 10, 1)
+        let qualityScore = max(popularity, userRating)
+
+        // Small nudge for playable catalog content; the winning artist gets
+        // its bigger top-slot bonus in `sort`, not here — a flat artist
+        // boost would rank every same-named artist above tracks and albums.
+        // Scaled by textScore so a boost only lifts items that match.
+        let typeBoost: Double
+        switch item.content.type {
+        case .artist, .album, .track: typeBoost = 0.05
+        case .libraryArtist: typeBoost = -0.05
+        default: typeBoost = 0
+        }
+
+        let historyBoost = recentlyPlayedIDs.contains(item.id) ? historyWeight * text : 0
+
+        return text * textWeight
+            + qualityScore * popularityWeight
+            + typeBoost * text
+            + historyBoost
+    }
+
+    /// The best text relevance across the item's title (with and without a
+    /// version suffix), subtitle, and combined title + subtitle.
+    static func textScore(item: PlayableContent, query: String) -> Double {
         var titleScore = textMatchScore(source: item.title, query: query)
         let primary = primaryTitle(of: item.title)
         if primary != item.title {
@@ -92,32 +150,7 @@ enum SearchRanking {
         let subtitleScore = textMatchScore(source: item.subtitle, query: query)
         let combinedScore = textMatchScore(source: "\(item.title) \(item.subtitle)", query: query)
 
-        let textScore = max(titleScore, subtitleScore * subtitleFactor, combinedScore * combinedFactor)
-
-        // Spotify reports popularity (0-100); Plex and the local library
-        // report user star ratings (0-10) instead. Either works as the
-        // quality tiebreaker between comparable text matches.
-        let popularity = min(Double(item.metadata?.popularity ?? 0) / 100, 1)
-        let userRating = min((item.metadata?.userRating ?? 0) / 10, 1)
-        let qualityScore = max(popularity, userRating)
-
-        // Searching a name should surface the artist above same-named tracks,
-        // the way Spotify/Apple do. Scaled by textScore below so a boost can
-        // only lift items that actually match the query.
-        let typeBoost: Double
-        switch item.content.type {
-        case .artist: typeBoost = 0.25
-        case .album, .track: typeBoost = 0.05
-        case .libraryArtist: typeBoost = -0.05
-        default: typeBoost = 0
-        }
-
-        let historyBoost = recentlyPlayedIDs.contains(item.id) ? historyWeight * textScore : 0
-
-        return textScore * textWeight
-            + qualityScore * popularityWeight
-            + typeBoost * textScore
-            + historyBoost
+        return max(titleScore, subtitleScore * subtitleFactor, combinedScore * combinedFactor)
     }
 
     // MARK: - Text matching
