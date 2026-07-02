@@ -237,6 +237,47 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(titles(results), ["Rated Track", "Unrated Track"])
     }
 
+    // MARK: Multiservice merge
+
+    func testMergedSearchCollapsesCrossServiceDuplicates() {
+        let libraryTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .library, id: "lib-1")
+        let appleTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .apple, id: "apple-1")
+
+        let merged = SearchRanking.sort([libraryTrack, appleTrack], query: "queen", mergingServices: true)
+        XCTAssertEqual(merged.count, 1)
+        // On a scoring tie, prefer the streaming catalog over the library.
+        XCTAssertEqual(merged.first?.content.service, .apple)
+
+        // Without merging, service-specific IDs keep both.
+        let unmerged = SearchRanking.sort([libraryTrack, appleTrack], query: "queen")
+        XCTAssertEqual(unmerged.count, 2)
+    }
+
+    func testMergedSearchCollapsesLibraryAndCatalogTypeVariants() {
+        let libraryAlbum = item(title: "A Night at the Opera", subtitle: "Queen", type: .libraryAlbum, service: .library, id: "lib-album")
+        let catalogAlbum = item(title: "A Night at the Opera", subtitle: "Queen", type: .album, service: .apple, id: "apple-album")
+
+        let merged = SearchRanking.sort([libraryAlbum, catalogAlbum], query: "queen", mergingServices: true)
+        XCTAssertEqual(merged.count, 1)
+    }
+
+    func testMergedSearchKeepsDifferentKindsApart() {
+        let artist = item(title: "Queen", type: .artist, service: .apple, id: "artist-1")
+        let track = item(title: "Queen", type: .track, service: .library, id: "track-1")
+
+        let merged = SearchRanking.sort([artist, track], query: "queen", mergingServices: true)
+        XCTAssertEqual(merged.count, 2)
+    }
+
+    func testMergedSearchKeepsHigherScoredDuplicate() {
+        let libraryTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .library, id: "lib-1")
+        let spotifyTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .spotify, popularity: 90, id: "sp-1")
+
+        let merged = SearchRanking.sort([libraryTrack, spotifyTrack], query: "queen", mergingServices: true)
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged.first?.content.service, .spotify)
+    }
+
     // MARK: Dedup & stability
 
     func testDuplicatesAreRemoved() {

@@ -12,18 +12,31 @@ enum SearchRanking {
     /// Deduplicates and sorts content by relevance score (descending). Ties
     /// keep the incoming order: services already return relevance-ordered
     /// results, so equal-scoring items shouldn't be scrambled alphabetically.
+    ///
+    /// With `mergingServices` the input spans several services, so the same
+    /// song/album/artist appears once per service; duplicates then collapse
+    /// by kind + normalized text instead of by service-specific ID, keeping
+    /// the better-scoring entry (streaming catalog beats the local library
+    /// on a tie — richer artwork and previews).
     static func sort(
         _ playableContent: [PlayableContent],
         query: String,
-        recentlyPlayedIDs: Set<String> = []
+        recentlyPlayedIDs: Set<String> = [],
+        mergingServices: Bool = false
     ) -> [PlayableContent] {
         var uniqueItems: [String: (item: PlayableContent, score: Double, index: Int)] = [:]
 
         for (index, item) in playableContent.enumerated() {
             let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
-            let key = "\(item.id)-\(item.title)-\(item.subtitle)"
+            let key = mergingServices
+                ? "\(mergeKind(of: item.content.type))|\(normalized(item.title))|\(normalized(item.subtitle))"
+                : "\(item.id)-\(item.title)-\(item.subtitle)"
             if let existing = uniqueItems[key] {
-                if itemScore > existing.score {
+                let preferOnTie = mergingServices
+                    && itemScore == existing.score
+                    && existing.item.content.service == .library
+                    && item.content.service != .library
+                if itemScore > existing.score || preferOnTie {
                     uniqueItems[key] = (item, itemScore, existing.index)
                 }
             } else {
@@ -37,6 +50,17 @@ enum SearchRanking {
                 return lhs.index < rhs.index
             }
             .map { $0.item }
+    }
+
+    /// Groups catalog and library variants of a content type so the same
+    /// entity found by two services collapses to one row in a merged search.
+    private static func mergeKind(of type: ContentType) -> String {
+        if type.isTrack { return "track" }
+        if type.isArtist { return "artist" }
+        if type.isPlaylist { return "playlist" }
+        if type.isRadio { return "radio" }
+        if type == .album || type == .libraryAlbum { return "album" }
+        return String(describing: type)
     }
 
     // MARK: - Weights

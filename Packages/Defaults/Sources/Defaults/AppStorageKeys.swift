@@ -2,6 +2,8 @@ import Foundation
 
 public enum AppStorageKeys {
     public static let mediaService = "\(Prefix.id).mediaService"
+    /// Comma-separated raw values of services searched alongside the primary one.
+    public static let searchAlsoServices = "\(Prefix.id).searchAlsoServices"
     public static let browseMediaService = "\(Prefix.id).browseMediaService"
     public static let appleMusicAuthorized = "\(Prefix.id).appleMusicAuthorized"
     public static let colorScheme = "\(Prefix.id).colorScheme"

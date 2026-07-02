@@ -100,6 +100,11 @@ public final class MusicSearchService {
             return results
         }
 
+        // With several providers selected, results accumulate into one
+        // merged, deduplicated, re-ranked list instead of last-writer-wins.
+        let isMultiServiceSearch = providers.count > 1
+        var mergedResults: [PlayableContent] = []
+
         await withTaskGroup(of: (MediaSearchService, [PlayableContent]?).self) { group in
             for provider in providers {
                 group.addTask { [weak self] in
@@ -143,10 +148,20 @@ public final class MusicSearchService {
                 // search() call will handle the fresh query, so drop these.
                 if self.query != capturedQuery { continue }
                 guard let providerResults else { continue }
-                if provider == .tuneIn {
+                if provider == .tuneIn, !isMultiServiceSearch {
                     self.suggestions.removeAll()
                 }
-                self.results = providerResults
+                if isMultiServiceSearch {
+                    mergedResults.append(contentsOf: providerResults)
+                    self.results = SearchRanking.sort(
+                        mergedResults,
+                        query: capturedQuery,
+                        recentlyPlayedIDs: recentlyPlayedIDs,
+                        mergingServices: true
+                    )
+                } else {
+                    self.results = providerResults
+                }
             }
         }
 
@@ -1182,9 +1197,12 @@ public final class MusicSearchService {
     /// boost items the user has actually played.
     @ObservationIgnored @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = []
 
+    private var recentlyPlayedIDs: Set<String> {
+        Set(playHistory.prefix(50).map(\.id))
+    }
+
     func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        let recentlyPlayedIDs = Set(playHistory.prefix(50).map(\.id))
-        return SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+        SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
     }
     
     public func requestMusicAuthorization() async -> Bool {

@@ -29,6 +29,7 @@ struct SearchScreen: View {
     @Environment(MiniPlayerManger.self) private var miniPlayerManager
 
     @AppStorage(AppStorageKeys.mediaService) private var musicSearchSelection: MediaSearchService = .apple
+    @AppStorage(AppStorageKeys.searchAlsoServices) private var searchAlsoServicesRaw: String = ""
     @AppStorage(AppStorageKeys.appleMusicAuthorized) private var appleMusicAuthorized: AppleMusicAuthorization = .notDetermined
     @AppStorage(AppStorageKeys.defaultPlayAction) private var replaceQueueByDefault: Bool = false
     var favorites: Bool = false
@@ -67,6 +68,14 @@ struct SearchScreen: View {
 #else
         0
 #endif
+    }
+
+    /// The primary service plus any "Also Search" services from the menu.
+    /// Extras only count while their service is enabled in Settings.
+    private var selectedSearchServices: Set<MediaSearchService> {
+        MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+            .filter { coreFeatures.enabledServices($0).wrappedValue }
+            .union([musicSearchSelection])
     }
 
     private var currentFilteredResults: [PlayableContent] {
@@ -120,6 +129,7 @@ struct SearchScreen: View {
                     } else {
                         SearchResultsView(
                             service: musicSearchSelection,
+                            isMultiService: selectedSearchServices.count > 1,
                             query: $musicSearchService.query,
                             filters: $filters,
                             plexLibrariesFilters: $plexLibrariesFilters
@@ -201,18 +211,19 @@ struct SearchScreen: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         MediaServiceMenu(
                             musicSearchSelection: $musicSearchSelection,
-                            filters: $filters
+                            filters: $filters,
+                            searchAlsoServicesRaw: $searchAlsoServicesRaw
                         )
                     }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: musicSearchService.query + musicSearchSelection.rawValue) {
+            .task(id: musicSearchService.query + musicSearchSelection.rawValue + searchAlsoServicesRaw) {
                 isLoading = true
                 if suggestion == nil {
                     searchCompletionTapped = false
                 }
-                await musicSearchService.search(for: musicSearchSelection)
+                await musicSearchService.search(for: selectedSearchServices)
                 suggestion = nil
                 isLoading = false
                 playlistsContainer.playlists = await sonosService.sonosPlaylists()
@@ -287,6 +298,10 @@ struct SearchScreen: View {
             }
         }
         .onChange(of: musicSearchSelection) {
+            keyboardSelectedIndex = nil
+            musicSearchService.results = []
+        }
+        .onChange(of: searchAlsoServicesRaw) {
             keyboardSelectedIndex = nil
             musicSearchService.results = []
         }
@@ -479,6 +494,7 @@ private struct SearchEmptyStateView: View {
 
 private struct SearchResultsView: View {
     let service: MediaSearchService
+    let isMultiService: Bool
     @Binding var query: String
     @Binding var filters: [FilterSelection]
     @Binding var plexLibrariesFilters: [GenericFilter<PlexLibrarySection>]
@@ -486,28 +502,34 @@ private struct SearchResultsView: View {
     @Environment(MusicSearchService.self) private var musicSearchService
 
     var body: some View {
-        switch service {
-        case .spotify:
-            SpotifySearchView(results: musicSearchService.results, filters: $filters)
-        case .apple:
-            AppleMusicSearchScreen(results: musicSearchService.results, filters: $filters)
-        case .library:
-            LibrarySearchView(results: musicSearchService.results, filters: $filters)
-        case .plex:
-            PlexSearchView(
-                query: $query,
-                results: musicSearchService.results,
-                filters: $filters,
-                plexLibrariesFilters: $plexLibrariesFilters
-            )
-        case .tidal:
-            TidalSearchView(results: musicSearchService.results, filters: $filters)
-        case .tuneIn:
-            TuneInSearchView(results: musicSearchService.results, filters: $filters)
-        default:
-            // ServiceSearchView handles all remaining services (SoundCloud, Deezer, etc.)
-            // New services get a working generic search view without touching this switch.
+        if isMultiService {
+            // Merged multiservice results are one ranked list; the generic
+            // view renders rows for any service.
             ServiceSearchView(results: musicSearchService.results, filters: $filters)
+        } else {
+            switch service {
+            case .spotify:
+                SpotifySearchView(results: musicSearchService.results, filters: $filters)
+            case .apple:
+                AppleMusicSearchScreen(results: musicSearchService.results, filters: $filters)
+            case .library:
+                LibrarySearchView(results: musicSearchService.results, filters: $filters)
+            case .plex:
+                PlexSearchView(
+                    query: $query,
+                    results: musicSearchService.results,
+                    filters: $filters,
+                    plexLibrariesFilters: $plexLibrariesFilters
+                )
+            case .tidal:
+                TidalSearchView(results: musicSearchService.results, filters: $filters)
+            case .tuneIn:
+                TuneInSearchView(results: musicSearchService.results, filters: $filters)
+            default:
+                // ServiceSearchView handles all remaining services (SoundCloud, Deezer, etc.)
+                // New services get a working generic search view without touching this switch.
+                ServiceSearchView(results: musicSearchService.results, filters: $filters)
+            }
         }
     }
 }
@@ -547,9 +569,15 @@ private struct MacCatalystSuggestionsList: View {
 private struct MediaServiceMenu: View {
     @Binding var musicSearchSelection: MediaSearchService
     @Binding var filters: [FilterSelection]
+    @Binding var searchAlsoServicesRaw: String
 
     @Environment(Router.self) private var router
     @State private var coreFeatures = CoreFeatures.shared
+
+    private var alsoSearchServices: Set<MediaSearchService> {
+        MediaSearchService.set(fromRawList: searchAlsoServicesRaw)
+            .subtracting([musicSearchSelection])
+    }
 
     var body: some View {
         Menu {
@@ -558,6 +586,8 @@ private struct MediaServiceMenu: View {
                     Button {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         musicSearchSelection = service
+                        // The new primary can't also be an extra.
+                        searchAlsoServicesRaw = alsoSearchServices.subtracting([service]).rawList
                         Analytics.shared.track(.selectedMusicService, with: ["MusicService": service.rawValue])
                         Analytics.shared.setSelection(metadata: ["MusicService": service.rawValue])
 
@@ -577,6 +607,7 @@ private struct MediaServiceMenu: View {
                     .id(service)
                 }
             }
+            alsoSearchSection
             Button {
                 HapticManager.shared.fireHaptic(.buttonPress)
                 router.presentedSheet = .settings(destination: .servicePreferenceScreen)
@@ -589,9 +620,68 @@ private struct MediaServiceMenu: View {
                 .frame(width: 24, height: 24)
                 .contentShape(.circle)
                 .toolbarBackground(in: .circle)
+                .overlay(alignment: .topTrailing) {
+                    if !alsoSearchServices.isEmpty {
+                        Text("+\(alsoSearchServices.count)")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(3)
+                            .background(.thinMaterial, in: .circle)
+                            .offset(x: 8, y: -8)
+                    }
+                }
         }
         .popoverTip(AppTip.mediaService)
         .foregroundStyle(musicSearchSelection.brandColor.gradient)
+    }
+
+    /// Extra services searched together with the primary one, merged into a
+    /// single ranked result list. TuneIn stays single-service — a radio
+    /// directory doesn't mix into a catalog search.
+    private var alsoSearchSection: some View {
+        Section("Also Search") {
+            ForEach(MediaSearchService.allCases, id: \.self) { service in
+                if service != musicSearchSelection,
+                   service != .tuneIn,
+                   coreFeatures.enabledServices(service).wrappedValue {
+                    Toggle(isOn: alsoSearchBinding(for: service)) {
+                        HStack {
+                            Text(service.title)
+                            service.iconForMusicService
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func alsoSearchBinding(for service: MediaSearchService) -> Binding<Bool> {
+        Binding(
+            get: { alsoSearchServices.contains(service) },
+            set: { include in
+                HapticManager.shared.fireHaptic(.buttonPress)
+                var services = alsoSearchServices
+                if include {
+                    services.insert(service)
+                } else {
+                    services.remove(service)
+                }
+                searchAlsoServicesRaw = services.rawList
+            }
+        )
+    }
+}
+
+extension MediaSearchService {
+    static func set(fromRawList raw: String) -> Set<MediaSearchService> {
+        Set(raw.split(separator: ",").compactMap { MediaSearchService(rawValue: String($0)) })
+    }
+}
+
+extension Collection where Element == MediaSearchService {
+    /// Stable comma-separated form for AppStorage (sorted so the search
+    /// `.task(id:)` string doesn't churn on set-order changes).
+    var rawList: String {
+        map(\.rawValue).sorted().joined(separator: ",")
     }
 }
 
