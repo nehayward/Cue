@@ -317,6 +317,7 @@
 				TVArtworkBadgeView.swift,
 				TVArtworkView.swift,
 				TVGroupScreen.swift,
+				TVLyricsScreen.swift,
 				TVOverviewView.swift,
 				TVPlayerView.swift,
 				TVSettingsScreen.swift,
