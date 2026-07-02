@@ -452,51 +452,7 @@ extension View {
     
     func withInspector(inspectorDestination: Binding<InspectorDestination?>) -> some View {
 #if !os(visionOS)
-        // Must be a real two-way binding, not `.constant`. In compact widths
-        // (iPad Split View / Stage Manager, narrow Catalyst windows) the
-        // inspector falls back to a sheet presentation; when the system
-        // dismisses it — the user drags it away, or another sheet presents —
-        // a constant `true` can't record that, so SwiftUI re-presents the
-        // inspector and tears down whatever sheet was just shown.
-        inspector(isPresented: Binding(
-            get: { inspectorDestination.wrappedValue != nil },
-            set: { isPresented in
-                if !isPresented {
-                    inspectorDestination.wrappedValue = nil
-                }
-            }
-        )) {
-            VStack {
-                switch inspectorDestination.wrappedValue {
-                case let .search(group):
-                    SearchScreen {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                    .environment(SelectedGroupService(group: group))
-                case let .queue(group):
-                    QueueScreen(group: group) {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                case let .browse(group):
-                    BrowseScreen {
-                        inspectorDestination.wrappedValue = nil
-                    }
-                    .environment(SelectedGroupService(group: group))
-                default:
-                    EmptyView()
-                        .onAppear {
-                            inspectorDestination.wrappedValue = nil
-                        }
-                }
-            }
-            .withEnvironments()
-#if targetEnvironment(macCatalyst)
-            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
-#else
-            .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
-            .presentationBackgroundInteraction(.disabled)
-#endif
-        }
+        modifier(InspectorDestinationModifier(destination: inspectorDestination))
 #else
         self
 #endif
@@ -545,3 +501,71 @@ extension View {
         .frame(idealWidth: 600, idealHeight: 800)
     }
 }
+
+#if !os(visionOS)
+private struct InspectorDestinationModifier: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Binding var destination: InspectorDestination?
+
+    func body(content: Content) -> some View {
+        content.inspector(isPresented: Binding(
+            get: { destination != nil },
+            set: { isPresented in
+                // Honor a system-initiated dismissal only in compact width,
+                // where the inspector presents as a sheet the user can drag
+                // away. In regular width it's a column with no dismiss
+                // gesture — a `false` there is presentation churn (a window
+                // still too narrow while launching, other presentations
+                // settling) and latching it closes the inspector right after
+                // it opens.
+                if !isPresented, horizontalSizeClass == .compact {
+                    destination = nil
+                }
+            }
+        )) {
+            VStack {
+                switch destination {
+                case let .search(group):
+                    // Router.search, matching the sheet registry. SearchScreen
+                    // reads Router from the environment and attaches its own
+                    // sheet host to `router.presentedSheet`; without this it
+                    // inherits Router.main, whose presentedSheet the app-level
+                    // host already binds. Two hosts on one binding: whichever
+                    // loses the presentation race writes nil back and
+                    // dismisses the sheet that just appeared.
+                    SearchScreen {
+                        destination = nil
+                    }
+                    .environment(Router.search)
+                    .environment(SelectedGroupService(group: group))
+                    .onDisappear {
+                        Router.search.path.removeAll()
+                        Router.search.presentedSheet = nil
+                    }
+                case let .queue(group):
+                    QueueScreen(group: group) {
+                        destination = nil
+                    }
+                case let .browse(group):
+                    BrowseScreen {
+                        destination = nil
+                    }
+                    .environment(SelectedGroupService(group: group))
+                default:
+                    EmptyView()
+                        .onAppear {
+                            destination = nil
+                        }
+                }
+            }
+            .withEnvironments()
+#if targetEnvironment(macCatalyst)
+            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
+#else
+            .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
+            .presentationBackgroundInteraction(.disabled)
+#endif
+        }
+    }
+}
+#endif

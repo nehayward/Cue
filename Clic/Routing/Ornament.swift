@@ -13,16 +13,25 @@ extension View {
             VStack {
                 switch router.inspectorSheet {
                 case let .search(group):
+                    // Router.search, matching the sheet registry — otherwise
+                    // SearchScreen inherits Router.main and attaches a second
+                    // sheet host to Router.main.presentedSheet alongside the
+                    // app-level one.
                     SearchScreen {
                         router.inspectorSheet = nil
                     }
+                    .environment(Router.search)
                     .environment(SelectedGroupService(group: group))
+                    .onDisappear {
+                        Router.search.path.removeAll()
+                        Router.search.presentedSheet = nil
+                    }
                 case let .queue(group):
                     QueueScreen(group: group) {
                         router.inspectorSheet = nil
                     }
                 case let .browse(group):
-                    @State var selectedGroupService = SelectedGroupService(group: group)
+                    let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen {
                         router.inspectorSheet = nil
                     }
