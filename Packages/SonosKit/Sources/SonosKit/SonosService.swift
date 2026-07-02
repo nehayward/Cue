@@ -42,8 +42,10 @@ public final class SonosService {
     @ObservationIgnored private lazy var api = SonosAPI()
     @ObservationIgnored private lazy var mediaServerHandler = MediaServerHandler()
 
+    // The shared instance, not a private one: all uses here are stateless
+    // catalog lookups, and a second instance duplicates auth/session setup.
     @MainActor
-    @ObservationIgnored private lazy var musicSearch = MusicSearchService()
+    @ObservationIgnored private lazy var musicSearch = MusicSearchService.shared
     @ObservationIgnored private var isGroupingTask: Task<Void, Error> = Task { }
 
     public var systemState = SonosSystemState()

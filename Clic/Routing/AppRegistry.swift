@@ -497,42 +497,56 @@ extension View {
 private struct InspectorDestinationModifier: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Binding var destination: InspectorDestination?
+
+    /// Local mirror of `destination != nil`. `inspector(isPresented:)` wants
+    /// a Bool it *owns* and can freely write during presentation churn;
+    /// giving it real @State (instead of a computed Binding whose setter has
+    /// to guess which writes to trust) lets the system settle, and the two
+    /// onChange handlers below reconcile mirror ↔ source of truth
+    /// explicitly.
+    @State private var isPresented = false
     @State private var openedAt: ContinuousClock.Instant?
 
     func body(content: Content) -> some View {
-        content.inspector(isPresented: Binding(
-            get: { destination != nil },
-            set: { isPresented in
-                // Honor a system-initiated dismissal only in compact width,
-                // where the inspector presents as a sheet the user can drag
-                // away. In regular width it's a column with no dismiss
-                // gesture — a `false` there is presentation churn (a window
-                // still too narrow while launching, other presentations
-                // settling) and latching it closes the inspector right after
-                // it opens.
-                guard !isPresented, horizontalSizeClass == .compact else { return }
-                // A `false` reported while the presentation is still
-                // settling (keyboard summoning, size-class churn) isn't the
-                // user dragging the sheet away — ignore it.
-                if let openedAt, ContinuousClock.now - openedAt < .seconds(1) { return }
-                destination = nil
+        content
+            .inspector(isPresented: $isPresented) {
+                // A dedicated view rather than inline content: the inspector
+                // hosts its content in its own column/sheet and doesn't
+                // reliably re-invoke this closure when the destination is
+                // reassigned — e.g. .queue(oldGroup) → .queue(newGroup) when
+                // the selected group changes. A view whose own body reads
+                // the binding registers the Observation dependency on the
+                // hosted view itself, so it updates in place.
+                InspectorContentView(destination: $destination)
             }
-        )) {
-            // A dedicated view rather than inline content: the inspector
-            // hosts its content in its own column/sheet and doesn't reliably
-            // re-invoke this closure when the destination is reassigned —
-            // e.g. .queue(oldGroup) → .queue(newGroup) when the selected
-            // group changes — which left the queue showing the previous
-            // group. A view whose own body reads the binding registers the
-            // Observation dependency on the hosted view itself, so it
-            // updates in place.
-            InspectorContentView(destination: $destination)
-        }
-        .onChange(of: destination != nil) { _, isPresented in
-            if isPresented {
-                openedAt = ContinuousClock.now
+            // Source of truth → mirror. `initial: true` covers a destination
+            // that was set before this modifier first rendered (state
+            // restoration at launch).
+            .onChange(of: destination != nil, initial: true) { _, hasDestination in
+                if hasDestination {
+                    openedAt = ContinuousClock.now
+                }
+                isPresented = hasDestination
             }
-        }
+            // Mirror → source of truth. Only a system-initiated dismissal
+            // lands here (our own writes go through `destination` above).
+            .onChange(of: isPresented) { _, newValue in
+                guard !newValue, destination != nil else { return }
+                if horizontalSizeClass != .compact {
+                    // The column has no user dismiss gesture — a false here
+                    // is presentation churn (window too narrow during
+                    // launch, other presentations settling). Re-present.
+                    isPresented = true
+                } else if let openedAt, ContinuousClock.now - openedAt < .seconds(1) {
+                    // Compact presents as a sheet, but a dismissal while the
+                    // presentation is still settling (keyboard summoning,
+                    // size-class churn) isn't the user dragging it away.
+                    isPresented = true
+                } else {
+                    // A real drag-to-dismiss.
+                    destination = nil
+                }
+            }
     }
 }
 

@@ -239,16 +239,10 @@ struct ClicApp: App {
             activeSubscription =  newValue.isActive
         }
         .onChange(of: router.selectedID) {
-            if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                if let sheet = router.inspectorSheet, sheet.id == "search" {
-                    router.inspectorSheet = .search(group: sonosService.sorted[group])
-                } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
-                    router.inspectorSheet = .queue(group: sonosService.sorted[group])
-                } else if let sheet = router.inspectorSheet, sheet.id == "browse" {
-                    router.inspectorSheet = .browse(group: sonosService.sorted[group])
-                }
-            }
-
+            // No inspector re-targeting here: InspectorContentView (and the
+            // visionOS ornament) resolve the selected group live from
+            // router.selectedID, so the destination enum's captured group is
+            // only a fallback.
             savedGroupID = router.selectedID
         }
         .onChange(of: sonosService.groups) {

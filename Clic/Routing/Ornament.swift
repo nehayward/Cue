@@ -7,6 +7,18 @@
 import SonosKit
 import SwiftUI
 
+/// The inspector destinations capture the group at open time; the ornament
+/// tracks the *selected* group, so resolve it live with the capture as
+/// fallback.
+@MainActor
+private func liveGroup(router: Router, fallback: GroupRoom?) -> GroupRoom? {
+    if let id = router.selectedID,
+       let live = SonosService.shared.sorted.first(where: { $0.coordinatorID == id }) {
+        return live
+    }
+    return fallback
+}
+
 extension View {
     func visionOrnament(router: Router) -> some View {
 #if os(visionOS)
@@ -22,7 +34,7 @@ extension View {
                         router.inspectorSheet = nil
                     }
                     .environment(Router.search)
-                    .environment(SelectedGroupService(group: group))
+                    .environment(SelectedGroupService(group: liveGroup(router: router, fallback: group)))
                     .onDisappear {
                         Router.search.path.removeAll()
                         Router.search.presentedSheet = nil
@@ -31,17 +43,16 @@ extension View {
                     // Track the selected group live and remount per group —
                     // QueueScreen's loading is appear-driven, so a param-only
                     // group change leaves the previous queue on screen.
-                    let current = SonosService.shared.sorted.first(where: { $0.coordinatorID == router.selectedID }) ?? group
+                    let current = liveGroup(router: router, fallback: group) ?? group
                     QueueScreen(group: current) {
                         router.inspectorSheet = nil
                     }
                     .id(current.coordinatorID)
                 case let .browse(group):
-                    let selectedGroupService = SelectedGroupService(group: group)
                     BrowseScreen {
                         router.inspectorSheet = nil
                     }
-                    .environment(selectedGroupService)
+                    .environment(SelectedGroupService(group: liveGroup(router: router, fallback: group)))
                 default:
                     // No onAppear-nil: a late-firing onAppear from this
                     // branch can write nil over a freshly-set destination.

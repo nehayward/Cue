@@ -77,9 +77,7 @@ public final class MusicSearchService {
     public var results: [PlayableContent] = []
     public var newReleases: [SpotifyAlbumItem] = []
 
-    public init() {
-        print(#file, #function)
-    }
+    public init() {}
 
     public func search(for providers: Set<MediaSearchService>) async {
         if query.isEmpty {
