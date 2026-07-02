@@ -43,10 +43,9 @@ extension View {
                     }
                     .environment(selectedGroupService)
                 default:
+                    // No onAppear-nil: a late-firing onAppear from this
+                    // branch can write nil over a freshly-set destination.
                     EmptyView()
-                        .onAppear {
-                            router.inspectorSheet = nil
-                        }
                 }
             }
             .glassBackgroundEffect()

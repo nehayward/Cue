@@ -497,6 +497,7 @@ extension View {
 private struct InspectorDestinationModifier: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Binding var destination: InspectorDestination?
+    @State private var openedAt: ContinuousClock.Instant?
 
     func body(content: Content) -> some View {
         content.inspector(isPresented: Binding(
@@ -509,9 +510,12 @@ private struct InspectorDestinationModifier: ViewModifier {
                 // still too narrow while launching, other presentations
                 // settling) and latching it closes the inspector right after
                 // it opens.
-                if !isPresented, horizontalSizeClass == .compact {
-                    destination = nil
-                }
+                guard !isPresented, horizontalSizeClass == .compact else { return }
+                // A `false` reported while the presentation is still
+                // settling (keyboard summoning, size-class churn) isn't the
+                // user dragging the sheet away — ignore it.
+                if let openedAt, ContinuousClock.now - openedAt < .seconds(1) { return }
+                destination = nil
             }
         )) {
             // A dedicated view rather than inline content: the inspector
@@ -523,6 +527,11 @@ private struct InspectorDestinationModifier: ViewModifier {
             // Observation dependency on the hosted view itself, so it
             // updates in place.
             InspectorContentView(destination: $destination)
+        }
+        .onChange(of: destination != nil) { _, isPresented in
+            if isPresented {
+                openedAt = ContinuousClock.now
+            }
         }
     }
 }
@@ -582,10 +591,13 @@ private struct InspectorContentView: View {
                 }
                 .environment(SelectedGroupService(group: currentGroup(group)))
             default:
+                // No onAppear-nil here: a late-firing onAppear from this
+                // branch (built during a close, appearing during the next
+                // open's transition) wrote nil over a freshly-set
+                // destination and dismissed the inspector right after it
+                // opened. Unsupported destinations are never assigned, so
+                // showing nothing is enough.
                 EmptyView()
-                    .onAppear {
-                        destination = nil
-                    }
             }
         }
         .withEnvironments()
