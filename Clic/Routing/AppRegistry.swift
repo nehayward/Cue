@@ -9,15 +9,7 @@ import SwiftUI
 @MainActor
 extension View {
     func withSheetDestinations(sheetDestinations: Binding<SheetDestination?>, onDismiss: (() -> Void)? = nil) -> some View {
-        sheet(item: sheetDestinations, onDismiss: {
-            // Zoom sources are one-shot: drop the registration once the sheet
-            // is gone so a later plain presentation of the same destination
-            // doesn't try to zoom from an offscreen view.
-            MainActor.assumeIsolated {
-                SheetZoomTransition.source = nil
-            }
-            onDismiss?()
-        }) { destination in
+        sheet(item: sheetDestinations, onDismiss: onDismiss) { destination in
             switch destination {
             case let .newPlaylist(group, service):
                 NewPlaylistView(group: group, service: service)
@@ -211,7 +203,6 @@ extension View {
                     }
                 }
                 .withEnvironments()
-                .zoomTransition(for: destination)
                 .presentationSizingiOS18()
                 .frame(idealWidth: 600, idealHeight: 800)
                 #if targetEnvironment(macCatalyst)
@@ -447,7 +438,6 @@ extension View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .zoomTransition(for: destination)
         }
     }
     
@@ -509,16 +499,8 @@ private struct InspectorDestinationModifier: ViewModifier {
     @Binding var destination: InspectorDestination?
 
     func body(content: Content) -> some View {
-        // Read the destination here, not only inside the inspector's content
-        // closure: reads during body evaluation register the Observation
-        // dependency that re-runs this modifier when the destination is
-        // reassigned — including same-case reassignments like
-        // .queue(oldGroup) → .queue(newGroup) when the selected group
-        // changes. Deferring the read to the lazily-evaluated closure left
-        // the queue inspector showing the previous group.
-        let currentDestination = destination
-        return content.inspector(isPresented: Binding(
-            get: { currentDestination != nil },
+        content.inspector(isPresented: Binding(
+            get: { destination != nil },
             set: { isPresented in
                 // Honor a system-initiated dismissal only in compact width,
                 // where the inspector presents as a sheet the user can drag
@@ -532,49 +514,65 @@ private struct InspectorDestinationModifier: ViewModifier {
                 }
             }
         )) {
-            VStack {
-                switch currentDestination {
-                case let .search(group):
-                    // Router.search, matching the sheet registry. SearchScreen
-                    // reads Router from the environment and attaches its own
-                    // sheet host to `router.presentedSheet`; without this it
-                    // inherits Router.main, whose presentedSheet the app-level
-                    // host already binds. Two hosts on one binding: whichever
-                    // loses the presentation race writes nil back and
-                    // dismisses the sheet that just appeared.
-                    SearchScreen {
-                        destination = nil
-                    }
-                    .environment(Router.search)
-                    .environment(SelectedGroupService(group: group))
-                    .onDisappear {
-                        Router.search.path.removeAll()
-                        Router.search.presentedSheet = nil
-                    }
-                case let .queue(group):
-                    QueueScreen(group: group) {
-                        destination = nil
-                    }
-                case let .browse(group):
-                    BrowseScreen {
-                        destination = nil
-                    }
-                    .environment(SelectedGroupService(group: group))
-                default:
-                    EmptyView()
-                        .onAppear {
-                            destination = nil
-                        }
-                }
-            }
-            .withEnvironments()
-#if targetEnvironment(macCatalyst)
-            .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
-#else
-            .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
-            .presentationBackgroundInteraction(.disabled)
-#endif
+            // A dedicated view rather than inline content: the inspector
+            // hosts its content in its own column/sheet and doesn't reliably
+            // re-invoke this closure when the destination is reassigned —
+            // e.g. .queue(oldGroup) → .queue(newGroup) when the selected
+            // group changes — which left the queue showing the previous
+            // group. A view whose own body reads the binding registers the
+            // Observation dependency on the hosted view itself, so it
+            // updates in place.
+            InspectorContentView(destination: $destination)
         }
+    }
+}
+
+private struct InspectorContentView: View {
+    @Binding var destination: InspectorDestination?
+
+    var body: some View {
+        VStack {
+            switch destination {
+            case let .search(group):
+                // Router.search, matching the sheet registry. SearchScreen
+                // reads Router from the environment and attaches its own
+                // sheet host to `router.presentedSheet`; without this it
+                // inherits Router.main, whose presentedSheet the app-level
+                // host already binds. Two hosts on one binding: whichever
+                // loses the presentation race writes nil back and
+                // dismisses the sheet that just appeared.
+                SearchScreen {
+                    destination = nil
+                }
+                .environment(Router.search)
+                .environment(SelectedGroupService(group: group))
+                .onDisappear {
+                    Router.search.path.removeAll()
+                    Router.search.presentedSheet = nil
+                }
+            case let .queue(group):
+                QueueScreen(group: group) {
+                    destination = nil
+                }
+            case let .browse(group):
+                BrowseScreen {
+                    destination = nil
+                }
+                .environment(SelectedGroupService(group: group))
+            default:
+                EmptyView()
+                    .onAppear {
+                        destination = nil
+                    }
+            }
+        }
+        .withEnvironments()
+#if targetEnvironment(macCatalyst)
+        .inspectorColumnWidth(min: 360, ideal: 450, max: 450)
+#else
+        .inspectorColumnWidth(min: 260, ideal: 360, max: 500)
+        .presentationBackgroundInteraction(.disabled)
+#endif
     }
 }
 #endif

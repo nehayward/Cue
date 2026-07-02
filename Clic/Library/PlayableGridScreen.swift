@@ -19,16 +19,6 @@ struct PlayableGridScreen: View {
     var action: ((Int) async -> ())? = nil
     private let adaptiveColumn = [GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16), GridItem(.adaptive(minimum: 120, maximum: 200), spacing: 16)]
 
-    @Namespace private var zoom
-
-    /// Zoom-from-card is being trialed on the Plex playlists grid only —
-    /// widen to other grids later if it feels right.
-    private var zoomNamespaceIfEnabled: Namespace.ID? {
-        guard let first = items.first?.content,
-              first.service == .plex, first.type.isPlaylist else { return nil }
-        return zoom
-    }
-
     /// When this grid is showing a service's playlists, the service to create a new playlist on —
     /// only services that can create an empty playlist.
     private var createPlaylistService: MusicService? {
@@ -42,7 +32,7 @@ struct PlayableGridScreen: View {
         ScrollView {
             LazyVGrid(columns: adaptiveColumn, spacing: 16) {
                 ForEach(items) { item in
-                    PlayableCardView(item: item, zoomNamespace: zoomNamespaceIfEnabled)
+                    PlayableCardView(item: item)
                         .task {
                             if items.firstIndex(of: item) ?? 0 >= items.count - 1 {
                                 Task {
