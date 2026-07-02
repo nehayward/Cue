@@ -13,30 +13,37 @@ enum SearchRanking {
     /// keep the incoming order: services already return relevance-ordered
     /// results, so equal-scoring items shouldn't be scrambled alphabetically.
     ///
-    /// With `mergingServices` the input spans several services, so the same
-    /// song/album/artist appears once per service; duplicates then collapse
-    /// by kind + normalized text instead of by service-specific ID, keeping
-    /// the better-scoring entry (streaming catalog beats the local library
-    /// on a tie — richer artwork and previews).
+    /// With `mergingSources` the input spans several sources — multiple
+    /// services, or one service's library + catalog (Apple), or several
+    /// Plex sections — so the same song/album/artist can appear once per
+    /// source under different IDs. Those kinds then collapse by normalized
+    /// title + artist, keeping the better-scoring entry (a streaming catalog
+    /// beats the local library on a tie — richer artwork and previews).
     static func sort(
         _ playableContent: [PlayableContent],
         query: String,
         recentlyPlayedIDs: Set<String> = [],
-        mergingServices: Bool = false,
+        mergingSources: Bool = false,
         now: Date = Date()
     ) -> [PlayableContent] {
         var uniqueItems: [String: (item: PlayableContent, score: Double, index: Int)] = [:]
 
         for (index, item) in playableContent.enumerated() {
             let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs, now: now)
-            let key = mergingServices
-                ? "\(mergeKind(of: item.content.type))|\(normalized(item.title))|\(normalized(item.subtitle))"
-                : "\(item.id)-\(item.title)-\(item.subtitle)"
+            let key: String
+            if mergingSources, let kind = collapsibleKind(of: item.content.type) {
+                // Artist metadata beats the subtitle for identity: subtitles
+                // embed extras like codec ("Queen • FLAC") or year that
+                // differ between sources for the same content.
+                let attribution = normalized(item.metadata?.artist ?? item.subtitle)
+                key = "\(kind)|\(normalized(item.title))|\(attribution)"
+            } else {
+                key = "\(item.id)-\(item.title)-\(item.subtitle)"
+            }
             if let existing = uniqueItems[key] {
-                let preferOnTie = mergingServices
-                    && itemScore == existing.score
-                    && existing.item.content.service == .library
-                    && item.content.service != .library
+                let preferOnTie = itemScore == existing.score
+                    && isLibraryVariant(existing.item)
+                    && !isLibraryVariant(item)
                 if itemScore > existing.score || preferOnTie {
                     uniqueItems[key] = (item, itemScore, existing.index)
                 }
@@ -91,15 +98,28 @@ enum SearchRanking {
             .map { $0.item }
     }
 
-    /// Groups catalog and library variants of a content type so the same
-    /// entity found by two services collapses to one row in a merged search.
-    private static func mergeKind(of type: ContentType) -> String {
+    /// Kinds that collapse across sources when merging, grouping catalog and
+    /// library variants together. Playlists, radio, and the rest keep their
+    /// ID-based identity — same-named playlists are usually genuinely
+    /// different lists.
+    private static func collapsibleKind(of type: ContentType) -> String? {
         if type.isTrack { return "track" }
         if type.isArtist { return "artist" }
-        if type.isPlaylist { return "playlist" }
-        if type.isRadio { return "radio" }
         if type == .album || type == .libraryAlbum { return "album" }
-        return String(describing: type)
+        return nil
+    }
+
+    /// Library copies lose ties to catalog copies of the same content —
+    /// covers both the Sonos library service and per-service library types
+    /// (Apple's `.libraryTrack`/`.libraryAlbum`/`.libraryArtist`).
+    private static func isLibraryVariant(_ item: PlayableContent) -> Bool {
+        if item.content.service == .library { return true }
+        switch item.content.type {
+        case .libraryTrack, .libraryAlbum, .libraryArtist, .libraryPlaylist, .libraryImportedPlaylists:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Weights

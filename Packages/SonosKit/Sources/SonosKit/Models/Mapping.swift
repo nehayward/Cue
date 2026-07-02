@@ -637,7 +637,8 @@ extension PlexTrack {
                 albumID: parentRatingKey,
                 albumYear: nil,
                 audioCodec: audioCodec,
-                librarySectionID: librarySectionID.map(String.init)
+                librarySectionID: librarySectionID.map(String.init),
+                userRating: userRating
             )
         )
     }
@@ -662,7 +663,8 @@ extension PlexAlbum {
                 artistID: parentRatingKey,
                 album: title,
                 albumYear: nil,
-                librarySectionID: librarySectionID.map(String.init)
+                librarySectionID: librarySectionID.map(String.init),
+                userRating: userRating
             )
         )
     }

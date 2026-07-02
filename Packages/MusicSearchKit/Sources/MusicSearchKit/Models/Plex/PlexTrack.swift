@@ -16,4 +16,6 @@ public struct PlexTrack {
     public var imageURL: URL?
     public var id: String
     public var librarySectionID: Int?
+    /// Plex star rating 0-10 (10 = loved); drives the heart in search rows.
+    public var userRating: Double? = nil
 }

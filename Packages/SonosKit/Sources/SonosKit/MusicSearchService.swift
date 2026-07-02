@@ -159,7 +159,7 @@ public final class MusicSearchService {
                         mergedResults,
                         query: capturedQuery,
                         recentlyPlayedIDs: recentlyPlayedIDs,
-                        mergingServices: true
+                        mergingSources: true
                     )
                 } else {
                     self.results = providerResults
@@ -725,7 +725,9 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: libResults)
         playableContent.append(contentsOf: appleResults)
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // The library and catalog return the same songs/albums under
+        // different IDs — collapse them so each shows once.
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query, collapsingDuplicates: true)
     }
 
     public func lookup(id: String) async throws -> Song? {
@@ -1002,7 +1004,9 @@ public final class MusicSearchService {
         playableContent.append(contentsOf: results.artists.map(\.toPlayable))
         playableContent.append(contentsOf: results.playlists.map(\.toPlayable))
 
-        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
+        // Plex can return the same item from multiple library sections —
+        // collapse the copies so each shows once.
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query, collapsingDuplicates: true)
     }
 
     public func lookupPlexSong(with id: String) async -> PlayableContent? {
@@ -1195,8 +1199,20 @@ public final class MusicSearchService {
         }
     }
 
-    func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
+    /// Set `collapsingDuplicates` when the input spans several sources of the
+    /// same catalog (Apple library + catalog, multiple Plex sections) so the
+    /// same song/album/artist shows once.
+    func sortContentByIntelligentSearch(
+        playableContent: [PlayableContent],
+        query: String,
+        collapsingDuplicates: Bool = false
+    ) -> [PlayableContent] {
+        SearchRanking.sort(
+            playableContent,
+            query: query,
+            recentlyPlayedIDs: recentlyPlayedIDs,
+            mergingSources: collapsingDuplicates
+        )
     }
     
     public func requestMusicAuthorization() async -> Bool {

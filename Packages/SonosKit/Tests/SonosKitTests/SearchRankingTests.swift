@@ -310,7 +310,7 @@ final class SearchRankingTests: XCTestCase {
         let libraryTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .library, id: "lib-1")
         let appleTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .apple, id: "apple-1")
 
-        let merged = SearchRanking.sort([libraryTrack, appleTrack], query: "queen", mergingServices: true)
+        let merged = SearchRanking.sort([libraryTrack, appleTrack], query: "queen", mergingSources: true)
         XCTAssertEqual(merged.count, 1)
         // On a scoring tie, prefer the streaming catalog over the library.
         XCTAssertEqual(merged.first?.content.service, .apple)
@@ -324,7 +324,7 @@ final class SearchRankingTests: XCTestCase {
         let libraryAlbum = item(title: "A Night at the Opera", subtitle: "Queen", type: .libraryAlbum, service: .library, id: "lib-album")
         let catalogAlbum = item(title: "A Night at the Opera", subtitle: "Queen", type: .album, service: .apple, id: "apple-album")
 
-        let merged = SearchRanking.sort([libraryAlbum, catalogAlbum], query: "queen", mergingServices: true)
+        let merged = SearchRanking.sort([libraryAlbum, catalogAlbum], query: "queen", mergingSources: true)
         XCTAssertEqual(merged.count, 1)
     }
 
@@ -332,7 +332,26 @@ final class SearchRankingTests: XCTestCase {
         let artist = item(title: "Queen", type: .artist, service: .apple, id: "artist-1")
         let track = item(title: "Queen", type: .track, service: .library, id: "track-1")
 
-        let merged = SearchRanking.sort([artist, track], query: "queen", mergingServices: true)
+        let merged = SearchRanking.sort([artist, track], query: "queen", mergingSources: true)
+        XCTAssertEqual(merged.count, 2)
+    }
+
+    func testAppleLibraryAndCatalogCopiesCollapse() {
+        // searchApple concatenates library + catalog results; the same song
+        // exists in both under different IDs and must show only once.
+        let libraryCopy = item(title: "Bohemian Rhapsody", subtitle: "Queen", type: .libraryTrack, service: .apple, popularity: 50, id: "library-id")
+        let catalogCopy = item(title: "Bohemian Rhapsody", subtitle: "Queen", type: .track, service: .apple, id: "catalog-id")
+
+        let merged = SearchRanking.sort([libraryCopy, catalogCopy], query: "queen", mergingSources: true)
+        XCTAssertEqual(merged.count, 1)
+    }
+
+    func testSameTitledPlaylistsDoNotCollapse() {
+        // Same-named playlists are usually genuinely different lists.
+        let spotifyList = item(title: "Chill", type: .playlist, service: .spotify, id: "playlist-1")
+        let appleList = item(title: "Chill", type: .playlist, service: .apple, id: "playlist-2")
+
+        let merged = SearchRanking.sort([spotifyList, appleList], query: "chill", mergingSources: true)
         XCTAssertEqual(merged.count, 2)
     }
 
@@ -340,7 +359,7 @@ final class SearchRankingTests: XCTestCase {
         let libraryTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .library, id: "lib-1")
         let spotifyTrack = item(title: "Bohemian Rhapsody", subtitle: "Queen", service: .spotify, popularity: 90, id: "sp-1")
 
-        let merged = SearchRanking.sort([libraryTrack, spotifyTrack], query: "queen", mergingServices: true)
+        let merged = SearchRanking.sort([libraryTrack, spotifyTrack], query: "queen", mergingSources: true)
         XCTAssertEqual(merged.count, 1)
         XCTAssertEqual(merged.first?.content.service, .spotify)
     }

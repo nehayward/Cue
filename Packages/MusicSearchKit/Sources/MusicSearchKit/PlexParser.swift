@@ -27,6 +27,7 @@ public final class PlexParser {
                 }
 
                 let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: parentThumbnail).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let userRating = (track.element?.attribute(by: "userRating")?.text).flatMap(Double.init)
 
                 return PlexTrack(
                     title: title,
@@ -43,7 +44,8 @@ public final class PlexParser {
                     grandparentRatingKey: grandparentRatingKey,
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
-                    librarySectionID: Int(librarySectionID)
+                    librarySectionID: Int(librarySectionID),
+                    userRating: userRating
                 )
             }
         }
@@ -64,6 +66,7 @@ public final class PlexParser {
 
                 let art = track.element?.attribute(by: "art")?.text ?? ""
                 let imageURL = plexServer.baseURL(preferring: connectionPreference)?.appending(path: thumb).appending(queryItems: [URLQueryItem(name: "X-Plex-Token", value: accessToken)])
+                let userRating = (track.element?.attribute(by: "userRating")?.text).flatMap(Double.init)
 
                 return PlexAlbum(
                     title: title,
@@ -76,6 +79,7 @@ public final class PlexParser {
                     imageURL: imageURL,
                     id: "\(id)%3A3%3A\(ratingKey)",
                     librarySectionID: Int(librarySectionID),
+                    userRating: userRating
                 )
             }
         }
