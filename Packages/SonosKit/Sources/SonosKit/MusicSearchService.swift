@@ -1,6 +1,9 @@
+import CloudStorage
+import Defaults
 import Foundation
 import MusicKit
 import MusicSearchKit
+import OrderedCollections
 
 @MainActor
 @Observable
@@ -1092,7 +1095,9 @@ public final class MusicSearchService {
     private func searchTuneIn(query: String) async -> [PlayableContent] {
         let results = await tuneIn.search(for: query)
         let playableContent = results.map(\.toPlayable)
-        return playableContent
+        // Ranking is safe here now that score ties preserve TuneIn's own
+        // order — exact station-name matches float, the rest stay put.
+        return sortContentByIntelligentSearch(playableContent: playableContent, query: query)
     }
 
     public func lookupTuneInStation(id: String) async -> TuneInStation? {
@@ -1173,8 +1178,13 @@ public final class MusicSearchService {
         }
     }
 
+    /// Same synced store PlayHistoryService writes; read here so ranking can
+    /// boost items the user has actually played.
+    @ObservationIgnored @CloudStorage(CloudKeys.playHistory) private var playHistory: OrderedSet<PlayableContent> = []
+
     func sortContentByIntelligentSearch(playableContent: [PlayableContent], query: String) -> [PlayableContent] {
-        SearchRanking.sort(playableContent, query: query)
+        let recentlyPlayedIDs = Set(playHistory.prefix(50).map(\.id))
+        return SearchRanking.sort(playableContent, query: query, recentlyPlayedIDs: recentlyPlayedIDs)
     }
     
     public func requestMusicAuthorization() async -> Bool {

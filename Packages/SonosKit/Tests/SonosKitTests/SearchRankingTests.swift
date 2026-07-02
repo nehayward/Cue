@@ -65,6 +65,39 @@ final class SearchRankingTests: XCTestCase {
         XCTAssertEqual(SearchRanking.textMatchScore(source: "Mr. Brightside", query: "mr brightside"), 1.0)
     }
 
+    func testTypoToleranceMatchesMisspellings() {
+        let artistTypo = SearchRanking.textMatchScore(source: "Beyoncé", query: "beyonse")
+        XCTAssertEqual(artistTypo, 0.6, accuracy: 0.001)
+
+        let transposition = SearchRanking.textMatchScore(source: "Bohemian Rhapsody", query: "bohemain rhapsody")
+        XCTAssertEqual(transposition, 0.675, accuracy: 0.001)
+    }
+
+    func testShortWordsGetNoTypoTolerance() {
+        // "love" must not count "Dove" as a typo; only the weak
+        // subsequence fallback may apply.
+        XCTAssertLessThan(SearchRanking.textMatchScore(source: "Dove", query: "love"), 0.5)
+        XCTAssertEqual(SearchRanking.typoTolerance(for: "love"), 0)
+        XCTAssertEqual(SearchRanking.typoTolerance(for: "queen"), 1)
+        XCTAssertEqual(SearchRanking.typoTolerance(for: "bohemian"), 2)
+    }
+
+    func testEditDistance() {
+        XCTAssertEqual(SearchRanking.editDistance("bohemian", "bohemain", limit: 2), 2)
+        XCTAssertEqual(SearchRanking.editDistance("beyonce", "beyonse", limit: 1), 1)
+        XCTAssertEqual(SearchRanking.editDistance("queen", "queen", limit: 1), 0)
+        // Bails out early when the distance exceeds the limit.
+        XCTAssertGreaterThan(SearchRanking.editDistance("somebody", "rhapsody", limit: 2), 2)
+    }
+
+    func testPrimaryTitleStripsVersionSuffixes() {
+        XCTAssertEqual(SearchRanking.primaryTitle(of: "Love Story (Taylor's Version)"), "Love Story")
+        XCTAssertEqual(SearchRanking.primaryTitle(of: "Blinding Lights - Radio Edit"), "Blinding Lights")
+        XCTAssertEqual(SearchRanking.primaryTitle(of: "Time [Remastered 2011]"), "Time")
+        XCTAssertEqual(SearchRanking.primaryTitle(of: "(I Can't Get No) Satisfaction"), "(I Can't Get No) Satisfaction")
+        XCTAssertEqual(SearchRanking.primaryTitle(of: "Plain Title"), "Plain Title")
+    }
+
     func testNormalized() {
         XCTAssertEqual(SearchRanking.normalized("Mr. Brightside"), "mr brightside")
         XCTAssertEqual(SearchRanking.normalized("Don't Stop Me Now"), "dont stop me now")
@@ -150,6 +183,58 @@ final class SearchRankingTests: XCTestCase {
             query: "star"
         )
         XCTAssertEqual(titles(results), ["Starman", "Superstar"])
+    }
+
+    func testVersionSuffixDoesNotDiluteExactMatch() {
+        let results = SearchRanking.sort(
+            [
+                item(title: "Love Story and More"),
+                item(title: "Love Story (Taylor's Version)"),
+            ],
+            query: "love story"
+        )
+        // Both are prefix matches on the full title, but stripping the
+        // version suffix makes the second an (almost) exact match.
+        XCTAssertEqual(titles(results), ["Love Story (Taylor's Version)", "Love Story and More"])
+    }
+
+    func testRecentlyPlayedItemWinsAmongComparableMatches() {
+        let played = item(title: "Fat Bottomed Girls", subtitle: "Queen", popularity: 60, id: "played-id")
+        let notPlayed = item(title: "Bohemian Rhapsody", subtitle: "Queen", popularity: 95)
+
+        let results = SearchRanking.sort(
+            [notPlayed, played],
+            query: "queen",
+            recentlyPlayedIDs: ["played-id"]
+        )
+        XCTAssertEqual(titles(results), ["Fat Bottomed Girls", "Bohemian Rhapsody"])
+    }
+
+    func testRecentlyPlayedCannotOutrankBetterTextMatch() {
+        let results = SearchRanking.sort(
+            [
+                item(title: "Bohemian Rhapsody", subtitle: "Queen", type: .track, id: "played-id"),
+                item(title: "Queen", subtitle: "Artist", type: .artist),
+            ],
+            query: "queen",
+            recentlyPlayedIDs: ["played-id"]
+        )
+        XCTAssertEqual(results.first?.content.type, .artist)
+    }
+
+    func testUserRatingActsAsQualitySignalWhenPopularityMissing() {
+        let rated = PlayableContent(
+            title: "Rated Track",
+            subtitle: "Queen",
+            thumbnail: nil,
+            artwork: nil,
+            content: MediaContent(service: .plex, id: "rated", type: .track, location: nil),
+            metadata: PlayableContentMetadata(userRating: 10)
+        )
+        let unrated = item(title: "Unrated Track", subtitle: "Queen", service: .plex)
+
+        let results = SearchRanking.sort([unrated, rated], query: "queen")
+        XCTAssertEqual(titles(results), ["Rated Track", "Unrated Track"])
     }
 
     // MARK: Dedup & stability
