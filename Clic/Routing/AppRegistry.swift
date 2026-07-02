@@ -507,6 +507,10 @@ private struct InspectorDestinationModifier: ViewModifier {
     @State private var isPresented = false
     @State private var openedAt: ContinuousClock.Instant?
     @State private var sizeClassChangedAt: ContinuousClock.Instant?
+    /// What was open when the window collapsed to compact. The inspector
+    /// closes rather than converting to a full-height sheet, and this brings
+    /// it back when the window is widened again.
+    @State private var stashedForCompact: InspectorDestination?
 
     func body(content: Content) -> some View {
         content
@@ -529,18 +533,30 @@ private struct InspectorDestinationModifier: ViewModifier {
                 }
                 isPresented = hasDestination
             }
-            // Resizing across the compact boundary converts the inspector
-            // between column and sheet, and the system dismisses the old
-            // presentation on the way through. That must not count as the
-            // user closing it — re-sync the mirror from the destination so
-            // e.g. the queue comes back when the window is dragged wide
-            // again, and any divergence (presented but no destination — an
-            // empty panel) self-heals here too.
-            .onChange(of: horizontalSizeClass) {
+            // Crossing the compact boundary: rather than letting the system
+            // convert the column into a full-height sheet (or fighting its
+            // dismissal), close the inspector on collapse and remember what
+            // was open, then restore it when the window is widened again.
+            .onChange(of: horizontalSizeClass) { _, newValue in
                 sizeClassChangedAt = ContinuousClock.now
-                let hasDestination = destination != nil
-                if isPresented != hasDestination {
-                    isPresented = hasDestination
+                if newValue == .compact {
+                    if destination != nil {
+                        stashedForCompact = destination
+                        destination = nil
+                    }
+                } else {
+                    if let stashed = stashedForCompact {
+                        if destination == nil {
+                            destination = stashed
+                        }
+                        stashedForCompact = nil
+                    }
+                    // Heal any divergence left by the conversion churn
+                    // (presented with no destination shows an empty panel).
+                    let hasDestination = destination != nil
+                    if isPresented != hasDestination {
+                        isPresented = hasDestination
+                    }
                 }
             }
             // Mirror → source of truth. Only a system-initiated dismissal
@@ -560,8 +576,11 @@ private struct InspectorDestinationModifier: ViewModifier {
                     // The destination is the source of truth — re-present.
                     isPresented = true
                 } else {
-                    // A real drag-to-dismiss of the compact sheet.
+                    // A real drag-to-dismiss of the compact sheet — also
+                    // drop the stash so widening doesn't resurrect what the
+                    // user just closed.
                     destination = nil
+                    stashedForCompact = nil
                 }
             }
     }
