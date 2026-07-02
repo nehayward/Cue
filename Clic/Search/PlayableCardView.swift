@@ -19,8 +19,10 @@ struct PlayableCardView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
-    
-    
+    /// When set, opening this card's detail zooms out of the card
+    /// (iOS 18+; nil keeps the standard push).
+    var zoomNamespace: Namespace.ID? = nil
+
     var body: some View {
         VStack {
             if let add = adding?.add, add {
@@ -35,6 +37,7 @@ struct PlayableCardView: View {
                 }
             }
         }
+        .zoomTransitionSource(id: zoomNamespace != nil ? AnyHashable(item.id) : nil, in: zoomNamespace)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden, edges: .all)
         .overlay(alignment: .topTrailing) {
@@ -99,7 +102,12 @@ struct PlayableCardView: View {
         if !hideAction {
             switch item.content.type {
             case .playlist, .album, .libraryPlaylist, .libraryAlbum, .libraryImportedPlaylists:
-                router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+                if let zoomNamespace {
+                    router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group),
+                                    zoomFrom: item.id, in: zoomNamespace)
+                } else {
+                    router.navigate(to: .mediaDetail(content: item, group: selectedGroupService.group))
+                }
             case .artist, .libraryArtist:
                 router.navigate(to: .artistDetail(content: item, group: selectedGroupService.group))
             case .track, .favorite, .radio, .artistRadio, .songRadio, .liveRadio, .unique:

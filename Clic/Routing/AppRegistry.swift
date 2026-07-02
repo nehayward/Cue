@@ -447,6 +447,7 @@ extension View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .zoomTransition(for: destination)
         }
     }
     
@@ -508,8 +509,16 @@ private struct InspectorDestinationModifier: ViewModifier {
     @Binding var destination: InspectorDestination?
 
     func body(content: Content) -> some View {
-        content.inspector(isPresented: Binding(
-            get: { destination != nil },
+        // Read the destination here, not only inside the inspector's content
+        // closure: reads during body evaluation register the Observation
+        // dependency that re-runs this modifier when the destination is
+        // reassigned — including same-case reassignments like
+        // .queue(oldGroup) → .queue(newGroup) when the selected group
+        // changes. Deferring the read to the lazily-evaluated closure left
+        // the queue inspector showing the previous group.
+        let currentDestination = destination
+        return content.inspector(isPresented: Binding(
+            get: { currentDestination != nil },
             set: { isPresented in
                 // Honor a system-initiated dismissal only in compact width,
                 // where the inspector presents as a sheet the user can drag
@@ -524,7 +533,7 @@ private struct InspectorDestinationModifier: ViewModifier {
             }
         )) {
             VStack {
-                switch destination {
+                switch currentDestination {
                 case let .search(group):
                     // Router.search, matching the sheet registry. SearchScreen
                     // reads Router from the environment and attaches its own
