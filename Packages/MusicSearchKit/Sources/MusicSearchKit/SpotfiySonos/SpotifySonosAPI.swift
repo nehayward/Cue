@@ -728,17 +728,23 @@ public final class SpotifySonosAPI {
         return String(match)
     }
     
-    private func performRequest(_ metadataRequest: MetadataRequest) async throws -> String {
+    private func performRequest(_ metadataRequest: MetadataRequest, allowTokenRefresh: Bool = true) async throws -> String {
         let request = createRequest(metadataRequest)
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw SpotifyMetadataError.invalidResponse
         }
-        
+
         let responseString = String(data: data, encoding: .utf8) ?? ""
-        
+
         if responseString.contains("Client.TokenRefreshRequired") {
+            // If the token we just refreshed is still rejected, refreshing again
+            // won't help — bail out instead of recursing forever.
+            guard allowTokenRefresh else {
+                throw SpotifyMetadataError.tokenRefreshFailed
+            }
+
             // Use the unified coordinator to prevent race conditions
             let credentials = Credentials(
                 deviceId: metadataRequest.deviceId,
@@ -746,13 +752,13 @@ public final class SpotifySonosAPI {
                 token: metadataRequest.token,
                 key: metadataRequest.key
             )
-            
+
             guard let (token, key) = try await TokenRefreshCoordinator.shared.refreshToken(credentials: credentials) else {
                 throw SpotifyMetadataError.tokenRefreshFailed
             }
-            
+
             try await tokenRefreshHandler?.handleTokenRefresh(householdId: metadataRequest.householdId, token: token, key: key)
-            
+
             // Retry with new tokens
             let newRequest = MetadataRequest(
                 deviceId: metadataRequest.deviceId,
@@ -763,7 +769,7 @@ public final class SpotifySonosAPI {
                 index: metadataRequest.index,
                 count: metadataRequest.count
             )
-            return try await performRequest(newRequest)
+            return try await performRequest(newRequest, allowTokenRefresh: false)
         }
         
         guard httpResponse.statusCode == 200 else {

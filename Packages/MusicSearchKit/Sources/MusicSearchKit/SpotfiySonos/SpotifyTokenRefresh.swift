@@ -32,53 +32,32 @@ public struct SpotifyTokenRefreshResponse {
 // Unified token refresh coordinator to prevent race conditions
 public final class TokenRefreshCoordinator {
     public static let shared = TokenRefreshCoordinator()
-    
-    private var refreshInProgress: [String: Bool] = [:]
+
+    private var refreshTasks: [String: Task<(String, String)?, Error>] = [:]
     private let lock = OSAllocatedUnfairLock()
-    
+
     private init() {}
-    
+
     public func refreshToken(credentials: Credentials) async throws -> (String, String)? {
         let key = "\(credentials.token):\(credentials.key)"
-        
-        // Check if refresh is already in progress
-        let shouldStartRefresh = lock.withLock {
-            if refreshInProgress[key] == true {
-                return false // Refresh already in progress
-            } else {
-                refreshInProgress[key] = true
-                return true // Start new refresh
+
+        // Concurrent callers holding the same stale credentials share a single
+        // in-flight refresh; a second network refresh here would invalidate the
+        // token the first one just obtained.
+        let task = lock.withLock { () -> Task<(String, String)?, Error> in
+            if let existing = refreshTasks[key] {
+                return existing
             }
-        }
-        
-        if !shouldStartRefresh {
-            // Wait for the existing refresh to complete by polling
-            while true {
-                try await Task.sleep(for: .milliseconds(10)) // 10ms - much faster
-                let isStillInProgress = lock.withLock {
-                    refreshInProgress[key] == true
+            let task = Task { [weak self] () throws -> (String, String)? in
+                defer {
+                    self?.lock.withLock { _ = self?.refreshTasks.removeValue(forKey: key) }
                 }
-                if !isStillInProgress {
-                    break
-                }
+                return try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
             }
-            
-            // Try to get fresh credentials after the refresh completed
-            return try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
+            refreshTasks[key] = task
+            return task
         }
-        
-        // Perform the actual refresh
-        do {
-            let result = try await SpotifySonosAPI.shared.refreshTokenIfNeeded(credentials: credentials)
-            lock.withLock {
-                refreshInProgress[key] = false
-            }
-            return result
-        } catch {
-            lock.withLock {
-                refreshInProgress[key] = false
-            }
-            throw error
-        }
+
+        return try await task.value
     }
 }
