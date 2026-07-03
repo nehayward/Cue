@@ -9,42 +9,29 @@ import Foundation
 /// so a future multiservice (merged) search can rank one combined list.
 enum SearchRanking {
 
-    /// Deduplicates and sorts content by relevance score (descending). Ties
-    /// keep the incoming order: services already return relevance-ordered
-    /// results, so equal-scoring items shouldn't be scrambled alphabetically.
+    /// Deduplicates exact repeats (same ID) and sorts content by relevance
+    /// score (descending). Ties keep the incoming order: services already
+    /// return relevance-ordered results, so equal-scoring items shouldn't be
+    /// scrambled alphabetically.
     ///
-    /// With `mergingSources` the input spans several sources — multiple
-    /// services, or one service's library + catalog (Apple), or several
-    /// Plex sections — so the same song/album/artist can appear once per
-    /// source under different IDs. Those kinds then collapse by normalized
-    /// title + artist, keeping the better-scoring entry (a streaming catalog
-    /// beats the local library on a tie — richer artwork and previews).
+    /// Deliberately no fuzzy cross-source dedup: the "same" song from two
+    /// services, the library and the catalog, or two Plex sections stays
+    /// visible so the user chooses which copy to play — and downstream
+    /// filters (like Plex's per-section filter) never lose the copy they
+    /// needed.
     static func sort(
         _ playableContent: [PlayableContent],
         query: String,
         recentlyPlayedIDs: Set<String> = [],
-        mergingSources: Bool = false,
         now: Date = Date()
     ) -> [PlayableContent] {
         var uniqueItems: [String: (item: PlayableContent, score: Double, index: Int)] = [:]
 
         for (index, item) in playableContent.enumerated() {
             let itemScore = score(item: item, query: query, recentlyPlayedIDs: recentlyPlayedIDs, now: now)
-            let key: String
-            if mergingSources, let kind = collapsibleKind(of: item.content.type) {
-                // Artist metadata beats the subtitle for identity: subtitles
-                // embed extras like codec ("Queen • FLAC") or year that
-                // differ between sources for the same content.
-                let attribution = normalized(item.metadata?.artist ?? item.subtitle)
-                key = "\(kind)|\(normalized(item.title))|\(attribution)"
-            } else {
-                key = "\(item.id)-\(item.title)-\(item.subtitle)"
-            }
+            let key = "\(item.id)-\(item.title)-\(item.subtitle)"
             if let existing = uniqueItems[key] {
-                let preferOnTie = itemScore == existing.score
-                    && isLibraryVariant(existing.item)
-                    && !isLibraryVariant(item)
-                if itemScore > existing.score || preferOnTie {
+                if itemScore > existing.score {
                     uniqueItems[key] = (item, itemScore, existing.index)
                 }
             } else {
@@ -96,30 +83,6 @@ enum SearchRanking {
                 return lhs.index < rhs.index
             }
             .map { $0.item }
-    }
-
-    /// Kinds that collapse across sources when merging, grouping catalog and
-    /// library variants together. Playlists, radio, and the rest keep their
-    /// ID-based identity — same-named playlists are usually genuinely
-    /// different lists.
-    private static func collapsibleKind(of type: ContentType) -> String? {
-        if type.isTrack { return "track" }
-        if type.isArtist { return "artist" }
-        if type == .album || type == .libraryAlbum { return "album" }
-        return nil
-    }
-
-    /// Library copies lose ties to catalog copies of the same content —
-    /// covers both the Sonos library service and per-service library types
-    /// (Apple's `.libraryTrack`/`.libraryAlbum`/`.libraryArtist`).
-    private static func isLibraryVariant(_ item: PlayableContent) -> Bool {
-        if item.content.service == .library { return true }
-        switch item.content.type {
-        case .libraryTrack, .libraryAlbum, .libraryArtist, .libraryPlaylist, .libraryImportedPlaylists:
-            return true
-        default:
-            return false
-        }
     }
 
     // MARK: - Weights
