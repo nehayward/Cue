@@ -75,9 +75,14 @@ struct ClicApp: App {
             } detail: {
                 ContainerLargePlayerView()
             }
+            // Inspector first, sheets outside it: modifiers apply inside-out,
+            // and a `.sheet` hosted *inside* `.inspector` gets torn down when
+            // the inspector restructures (column ↔ sheet on iPad size-class
+            // changes, Catalyst window resizes) — dismissing the presented
+            // sheet out from under the user.
+            .withInspector(inspectorDestination: $router.inspectorSheet)
             .withSheetDestinations(sheetDestinations: $router.presentedSheet)
             .withFullScreenCoverDestinations(destinations: $router.presentedFullScreenCover)
-            .withInspector(inspectorDestination: $router.inspectorSheet)
             .visionOrnament(router: router)
             .withAlert()
             .environment(router)
@@ -234,16 +239,10 @@ struct ClicApp: App {
             activeSubscription =  newValue.isActive
         }
         .onChange(of: router.selectedID) {
-            if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                if let sheet = router.inspectorSheet, sheet.id == "search" {
-                    router.inspectorSheet = .search(group: sonosService.sorted[group])
-                } else if let sheet = router.inspectorSheet, sheet.id == "queue" {
-                    router.inspectorSheet = .queue(group: sonosService.sorted[group])
-                } else if let sheet = router.inspectorSheet, sheet.id == "browse" {
-                    router.inspectorSheet = .browse(group: sonosService.sorted[group])
-                }
-            }
-
+            // No inspector re-targeting here: InspectorContentView (and the
+            // visionOS ornament) resolve the selected group live from
+            // router.selectedID, so the destination enum's captured group is
+            // only a fallback.
             savedGroupID = router.selectedID
         }
         .onChange(of: sonosService.groups) {
@@ -295,24 +294,16 @@ struct ClicApp: App {
                 Divider()
                 Button {
                     if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        if router.inspectorSheet != .search(group: sonosService.sorted[group]) {
-                            router.inspectorSheet = .search(group: sonosService.sorted[group])
-                        } else {
-                            router.inspectorSheet = nil
-                        }
+                        router.toggleInspector(.search(group: sonosService.sorted[group]))
                     }
                 } label: {
                     Label("\(router.inspectorSheet?.id ?? "" == "search" ? "Hide" : "Show") Search", systemImage: "magnifyingglass")
                 }
                 .keyboardShortcut("s", modifiers: [])
-                
+
                 Button {
                     if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        if router.inspectorSheet != .browse(group: sonosService.sorted[group]) {
-                            router.inspectorSheet = .browse(group: sonosService.sorted[group])
-                        } else {
-                            router.inspectorSheet = nil
-                        }
+                        router.toggleInspector(.browse(group: sonosService.sorted[group]))
                     }
                 } label: {
                     Label("\(router.inspectorSheet?.id ?? "" == "browse" ? "Hide" : "Show") Browse", image: "home.fill")
@@ -321,11 +312,7 @@ struct ClicApp: App {
 
                 Button {
                     if let id = router.selectedID, let group = sonosService.sorted.firstIndex(where: { $0.coordinatorID == id }) {
-                        if router.inspectorSheet != .queue(group: sonosService.sorted[group]) {
-                            router.inspectorSheet = .queue(group: sonosService.sorted[group])
-                        } else {
-                            router.inspectorSheet = nil
-                        }
+                        router.toggleInspector(.queue(group: sonosService.sorted[group]))
                     }
                 } label: {
                     Label("\(router.inspectorSheet?.id ?? "" == "queue" ? "Hide" : "Show") Queue", systemImage: "list.dash")
