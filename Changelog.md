@@ -91,6 +91,25 @@ First-class playlist management for Apple Music, Spotify, Plex, and Deezer along
 - `LibraryBrowseScreen`: Imported Playlists load-more closure now forwards `offset` to `updateImportedPlaylists(offset:)` instead of discarding it (was always re-fetching page 0)
 - Alphabetical grouping moved out of `PlayableContentList` (where a computed dictionary was re-grouped once per section header and again per letter subscript — O(letters × items) every render) into cached `LibrarySection` arrays on `LibraryBrowseService` (`albumSections` / `artistSections` / `playlistSections`), recomputed only when the underlying set changes; the view now renders the prebuilt sections, so non-data re-renders do zero grouping work. Playlist deletion routed through `removePlaylist(id:)` so the cache stays in sync
 
+### Search relevance overhaul (SearchRanking)
+- Ranking extracted from `MusicSearchService` into a pure, unit-tested `SearchRanking` engine (SonosKit) — the old scoring counted an in-order character subsequence, so "Love" and "Lyrics of Vengeance" tied for the query "love", and popularity carried the dominant weight (0.5)
+- Tiered text matching: exact (1.0) > prefix (0.9) > whole-word substring (0.8) > all query words present (0.75, typo-tolerant words discounted) > mid-word substring (0.55) > length-penalized subsequence (≤ 0.4). Normalization is case-, diacritic- and punctuation-insensitive ("beyonce" == "Beyoncé", "dont" == "Don't", "Mr. Brightside" == "mr brightside")
+- Typo tolerance via bounded Levenshtein per word (1 edit for 5–7 letters, 2 for 8+, none shorter — "love" must not match "dove"); titles also scored with version suffixes stripped ("Love Story (Taylor's Version)" counts as "Love Story" at 0.97)
+- Weights: text 0.7 (dominant — popularity can never carry a weak match past a strong one), quality 0.25 (Spotify/Tidal popularity or Plex/library `userRating`, whichever is present), small type nudge 0.05, recently-played boost 0.1 (IDs injected by the app from `PlayHistoryService` — SonosKit holds no app state), recency boost up to 0.05 for releases under 2 years (`albumYear`)
+- Exactly one artist — the best-scoring, genuinely matching one — gets the top-slot bonus (0.2); a flat artist boost walled tracks/albums behind runs of same-named artists (searching "dua" showed ten artists named "Dua" above every track)
+- The top artist's albums inherit its popularity when the service reports none (Spotify's search API omits album popularity), so the focused artist's albums surface beside their tracks
+- Score ties keep the service's API order instead of sorting alphabetically — preserves Apple's own relevance ordering (MusicKit reports no popularity)
+- Dedup is exact-identity only (`id-title-subtitle`); fuzzy cross-source dedup was tried and reverted — collapsing per-section Plex copies could leave zero songs once the per-section library filter excluded the surviving copy, and cross-service copies should stay user-selectable
+- First regression tests for ranking: `SearchRankingTests` in SonosKitTests (tiers, weights, typo tolerance, top-artist, recency, dedup)
+
+### Multiservice search (Also Search)
+- The search service menu (`MediaServiceMenu`) gains an "Also Search" section: toggle extra services to search alongside the primary one (e.g. Library + Apple Music); persisted as a sorted raw-value list in `AppStorageKeys.searchAlsoServices`, shown as a "+N" badge on the menu icon. Picking a new primary strips it from the extras; extras only apply while enabled in Settings; TuneIn stays single-service
+- `MusicSearchService.search` accumulates multi-provider results into one merged, re-ranked list as each provider completes (previously last-writer-wins overwrote `results` per provider); merged results render through the generic `ServiceSearchView` as a single ranked list, single-service searches keep their per-service views
+- TuneIn results now go through ranking too — safe now that ties preserve the API's order (exact station-name matches float, the rest stay put)
+
+### Plex hearts in search results
+- `PlexParser` now reads the `userRating` attribute for tracks and albums (`PlexTrack`/`PlexAlbum` → `PlayableContentMetadata.userRating`), so the heart `PlayableContentView` already renders appears in Plex search rows — and rated tracks feed the ranking's quality signal
+
 ---
 
 ## 2026.5
