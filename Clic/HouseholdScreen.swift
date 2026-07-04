@@ -146,8 +146,8 @@ struct HouseholdScreen: View {
                     Text(subtitle(for: household, rooms: rooms))
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
 
                 Spacer()
@@ -177,17 +177,12 @@ struct HouseholdScreen: View {
         return "Last connected \(household.lastConnected.formatted(.relative(presentation: .named)))"
     }
 
-    /// Comma-joined speaker names, capped at 4 + "+N more" so the subtitle stays
-    /// readable when a household has many speakers.
+    /// "(7) Living Room, Kitchen, …" — the total speaker count always leads (so it
+    /// stays visible), followed by the names. The cell truncates to a single line.
     private func speakerNamesSummary(for rooms: [Room]) -> String {
         let names = rooms.map(\.name).sorted()
         guard !names.isEmpty else { return "No speakers" }
-        let displayLimit = 4
-        if names.count <= displayLimit {
-            return names.formatted(.list(type: .and))
-        }
-        let visible = names.prefix(displayLimit).joined(separator: ", ")
-        return "\(visible) +\(names.count - displayLimit) more"
+        return "(\(names.count)) \(names.joined(separator: ", "))"
     }
 
     @ViewBuilder
