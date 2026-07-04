@@ -82,9 +82,7 @@ public final class MusicSearchService {
     /// user actually plays. Left empty, ranking simply applies no boost.
     @ObservationIgnored public var recentlyPlayedIDs: Set<String> = []
 
-    public init() {
-        print(#file, #function)
-    }
+    public init() {}
 
     public func search(for providers: Set<MediaSearchService>) async {
         if query.isEmpty {

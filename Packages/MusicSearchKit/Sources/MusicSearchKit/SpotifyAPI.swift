@@ -54,6 +54,13 @@ public final class SpotifyAPI {
     private let maxRetries = 3
     private let retryDelay: TimeInterval = 0.5 // 500 milliseconds
 
+    /// Spotify only sends the slim, market-aware payload when a market is specified: the
+    /// deprecated `available_markets` array (~185 country codes on every track and album
+    /// object) is replaced by a single `is_playable` flag. `from_token` resolves to the
+    /// country on the user's access token, so availability is unchanged — responses are
+    /// just much smaller and faster to download and decode.
+    private static let marketFilter = URLQueryItem(name: "market", value: "from_token")
+
     public init(session: URLSession = .shared, decoder: JSONDecoder = JSONDecoder(), tokenRefreshHandler: TokenRefreshHandler? = nil) {
         self.tokenRefreshHandler = tokenRefreshHandler
         self.session = session
@@ -88,7 +95,8 @@ public final class SpotifyAPI {
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "type", value: types.map(\.rawValue).joined(separator: ",")),
-            URLQueryItem(name: "limit", value: "\(limit)")
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            Self.marketFilter
         ]
 
         guard let url = components.url else { return nil }
@@ -110,7 +118,8 @@ public final class SpotifyAPI {
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "type", value: "track"),
-            URLQueryItem(name: "limit", value: "\(limit)")
+            URLQueryItem(name: "limit", value: "\(limit)"),
+            Self.marketFilter
         ]
 
         guard let url = components.url else { return nil }
@@ -146,6 +155,7 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/tracks/\(id)"
+        components.queryItems = [Self.marketFilter]
         guard let url = components.url else { return nil }
 
         do {
@@ -156,12 +166,13 @@ public final class SpotifyAPI {
             return nil
         }
     }
-    
+
     public func save(id: String) async -> SpotifyTrackItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/tracks/\(id)"
+        components.queryItems = [Self.marketFilter]
         guard let url = components.url else { return nil }
 
         do {
@@ -172,12 +183,13 @@ public final class SpotifyAPI {
             return nil
         }
     }
-    
+
     public func removeTrack(id: String) async -> SpotifyTrackItem? {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/tracks/\(id)"
+        components.queryItems = [Self.marketFilter]
         guard let url = components.url else { return nil }
 
         do {
@@ -194,7 +206,15 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/playlists/\(id)"
-        
+        // Callers only use the playlist metadata (name, owner, images, track count), so
+        // filter out `tracks.items` — otherwise Spotify inlines the first 100 full track
+        // objects, which dwarfs the rest of the response. `PlaylistTracks.items` is
+        // optional, so decoding is unaffected; use `playlistTracks(id:)` for the tracks.
+        components.queryItems = [
+            URLQueryItem(name: "fields", value: "collaborative,description,external_urls,href,id,images,name,owner(display_name,external_urls,href,id,type,uri),public,snapshot_id,tracks(href,total),type,uri"),
+            Self.marketFilter
+        ]
+
         guard let url = components.url else { return nil }
 
         do {
@@ -227,9 +247,14 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/playlists/\(id)/tracks"
+        // `SpotifyPlaylistsFullContainer` only decodes `total` and each item's `uid` and
+        // `track`, so ask for exactly that — dropping added_at/added_by/video_thumbnail
+        // and the paging boilerplate from every one of the 50 items per page.
         components.queryItems = [
             .init(name: "offset", value: "\(offset)"),
-            .init(name: "limit", value: "\(limit)")
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "fields", value: "total,items(uid,track)"),
+            Self.marketFilter
         ]
         guard let url = components.url else { return nil }
 
@@ -271,7 +296,8 @@ public final class SpotifyAPI {
         components.path = "/v1/me/tracks"
         components.queryItems = [
             .init(name: "offset", value: "\(offset)"),
-            .init(name: "limit", value: "\(limit)")
+            .init(name: "limit", value: "\(limit)"),
+            Self.marketFilter
         ]
         guard let url = components.url else { return nil }
 
@@ -292,7 +318,8 @@ public final class SpotifyAPI {
         components.path = "/v1/me/albums"
         components.queryItems = [
             .init(name: "offset", value: "\(offset)"),
-            .init(name: "limit", value: "\(limit)")
+            .init(name: "limit", value: "\(limit)"),
+            Self.marketFilter
         ]
         guard let url = components.url else { return nil }
 
@@ -311,6 +338,7 @@ public final class SpotifyAPI {
         components.scheme = "https"
         components.host = "api.spotify.com"
         components.path = "/v1/albums/\(id)"
+        components.queryItems = [Self.marketFilter]
         guard let url = components.url else { return nil }
 
         do {
@@ -329,7 +357,8 @@ public final class SpotifyAPI {
         components.path = "/v1/albums/\(id)"
         components.queryItems = [
             .init(name: "offset", value: "\(offset)"),
-            .init(name: "limit", value: "\(limit)")
+            .init(name: "limit", value: "\(limit)"),
+            Self.marketFilter
         ]
 
         guard let url = components.url else { return nil }
@@ -368,8 +397,8 @@ public final class SpotifyAPI {
         components.host = "api.spotify.com"
         components.path = "/v1/artists/\(id)/top-tracks"
         components.queryItems = [
-//            URLQueryItem(name: "market", value: ""),
-            URLQueryItem(name: "limit", value: "50")
+            URLQueryItem(name: "limit", value: "50"),
+            Self.marketFilter
         ]
 
         guard let url = components.url else { return [] }
@@ -390,7 +419,8 @@ public final class SpotifyAPI {
         components.path = "/v1/artists/\(id)/albums"
         components.queryItems = [
             URLQueryItem(name: "limit", value: "50"),
-            URLQueryItem(name: "include_groups", value: "album")
+            URLQueryItem(name: "include_groups", value: "album"),
+            Self.marketFilter
         ]
 
         guard let url = components.url else { return nil }

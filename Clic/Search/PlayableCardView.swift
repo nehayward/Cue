@@ -19,8 +19,7 @@ struct PlayableCardView: View {
     var item: PlayableContent
     var hideArtwork: Bool = false
     var hideAction: Bool = false
-    
-    
+
     var body: some View {
         VStack {
             if let add = adding?.add, add {
