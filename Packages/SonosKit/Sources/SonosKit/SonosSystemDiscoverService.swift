@@ -181,7 +181,7 @@ final class SonosSystemDiscoverService {
     @MainActor
     private func mirrorLegacyIP() {
         let ip = cachedIP
-        if !ip.isEmpty, legacyIP != ip { legacyIP = ip }
+        if !ip.isEmpty, sonosStorageIP.legacyIP != ip { sonosStorageIP.legacyIP = ip }
     }
 
     // Records or updates a household in the persistent known-households list.
