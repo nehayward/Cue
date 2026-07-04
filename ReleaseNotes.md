@@ -1,7 +1,7 @@
 # 2026.6
 
 –– New Features ––
-- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — switch systems with a tap, rename a home, or swipe to remove one. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
+- Multiple Homes: Clic now remembers every Sonos system you connect to. Manage them under Preferences ▸ Households — each home shows its speakers and whether it's an S1 or S2 system so they're easy to tell apart. Switch systems with a tap, and long-press or swipe to rename or remove a home. Open the screen anywhere and Clic scans for new systems on that network (like a friend's house) and adds them automatically
 - Playlist Management: Add any song to your Apple Music, Spotify, Plex, or Deezer playlists — not just Sonos. The new Add to Playlist sheet lets you pick several playlists at once, create a new one, search, and jump to a recently-used playlist; tap the confirmation to open the playlist you added to
 - Edit Playlists: Open a Spotify, Plex, Deezer, or Sonos playlist you own and tap Edit to remove tracks (swipe, menu, or multi-select), drag to reorder, or delete the playlist — with Undo (⌘Z on Mac)
 - Create Playlists: Make a new playlist for Apple Music, Spotify, Deezer, Plex, or Sonos from its browse screen — including an empty one you fill in later
