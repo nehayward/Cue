@@ -15,13 +15,15 @@ struct TVModeViewCell: View {
             Text(settings?.audioInputFormat.description ?? " ")
                 .bold()
                 .tint(.primary)
-            HStack {
+            HStack(alignment: .top) {
                 Button {
                     guard let settings else { return }
                     Task {
                         HapticManager.shared.fireHaptic(.buttonPress)
                         try? await SonosService.shared.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode)
-                        group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
+                        if let updated = try? await SonosService.shared.getTVSettings(group: group) {
+                            group.tvSettings = updated
+                        }
                     }
                 } label: {
                     Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -40,35 +42,46 @@ struct TVModeViewCell: View {
                 MuteButton(group: group)
 
                 if group.isArcUltra {
-                    Menu {
-                        ForEach([0, 1, 2, 3, 4], id: \.self) { level in
-                            Button {
-                                Task {
-                                    HapticManager.shared.fireHaptic(.buttonPress)
-                                    try? await SonosService.shared.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
-                                    group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
-                                }
-                            } label: {
-                                let labels = ["Off", "Low", "Medium", "High", "Max"]
-                                if speechLevel == level {
-                                    Label(labels[level], systemImage: "checkmark")
-                                } else {
-                                    Text(labels[level])
+                    VStack(spacing: 4) {
+                        Menu {
+                            ForEach([0, 1, 2, 3, 4], id: \.self) { level in
+                                Button {
+                                    Task {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        // Optimistic update so the label changes immediately
+                                        group.tvSettings?.speechEnhanceEnabled = level > 0
+                                        if level > 0 { group.tvSettings?.dialogLevelValue = level }
+                                        try? await SonosService.shared.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
+                                        if let updated = try? await SonosService.shared.getTVSettings(group: group) {
+                                            group.tvSettings = updated
+                                        }
+                                    }
+                                } label: {
+                                    let labels = ["Off", "Low", "Medium", "High", "Max"]
+                                    if speechLevel == level {
+                                        Label(labels[level], systemImage: "checkmark")
+                                    } else {
+                                        Text(labels[level])
+                                    }
                                 }
                             }
+                        } label: {
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
                         }
-                    } label: {
-                        Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 40, height: 36)
+                        .buttonStyle(.bordered)
+                        .tint(speechLevel > 0 ? .accent : nil)
+                        .animation(.spring, value: speechLevel)
+                        .disabled(settings == nil)
+
+                        Text(settings?.speechLevelDescription ?? "Off")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(speechLevel > 0 ? .accent : nil)
-                    .animation(.spring, value: speechLevel)
-                    .disabled(settings == nil)
                 } else {
                     let dialogLevel = settings?.dialogLevel ?? false
                     Button {
@@ -76,7 +89,9 @@ struct TVModeViewCell: View {
                         Task {
                             HapticManager.shared.fireHaptic(.buttonPress)
                             try? await SonosService.shared.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel)
-                            group.tvSettings = try? await SonosService.shared.getTVSettings(group: group)
+                            if let updated = try? await SonosService.shared.getTVSettings(group: group) {
+                                group.tvSettings = updated
+                            }
                         }
                     } label: {
                         Label("Dialog Mode", systemImage: "person.wave.2.fill")
@@ -93,12 +108,6 @@ struct TVModeViewCell: View {
                     .animation(.spring, value: dialogLevel)
                     .disabled(settings == nil)
                 }
-            }
-
-            if group.isArcUltra {
-                Text(settings?.speechLevelDescription ?? "Off")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .fontDesign(.rounded)
