@@ -134,6 +134,18 @@ public struct SonosDevice: Identifiable {
     public var subs: [Sub] = []
     public var queue: [PlayableContent] = []
     
+    public var isSoundbar: Bool {
+        let keywords = ["Ray", "Beam", "Playbar", "Arc", "Amp", "Playbase"]
+        if let info {
+            return keywords.contains(where: info.modelDisplayName.contains)
+        }
+        return false
+    }
+
+    public var isArcUltra: Bool {
+        info?.modelDisplayName.lowercased().hasSuffix("arc ultra") ?? false
+    }
+
     public var sonosAlbumARTURL: URL? {
         guard let endpoint = currentTrackMetadata?.albumArtURI?.unescaped else {
             return nil
