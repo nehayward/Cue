@@ -66,6 +66,21 @@ public final class SonosService {
         cachedIPVerified = false
     }
 
+    /// Forces the next `getGroups(useCache:)` call to re-race all known-household
+    /// IPs (plus Bonjour) instead of trusting the IP verified earlier this
+    /// session. Call this on foreground: the network may have changed while the
+    /// app was backgrounded (home → friend's house), and the stale cached IP is
+    /// now unreachable — blindly hitting it would block on the network timeout
+    /// before falling back to discovery. Re-racing keeps switching instant while
+    /// still only running discovery once per foreground (the flag is set back to
+    /// true after the first successful load, so steady-state polls stay on the
+    /// fast path). Unlike `clearDevices()`, this leaves the current groups/rooms
+    /// on screen so the UI doesn't flash empty.
+    @MainActor
+    public func invalidateVerifiedConnection() {
+        cachedIPVerified = false
+    }
+
     public var preferredHouseHold: String? {
         get {
             sonosSystemDiscoverService.preferredHouseHold

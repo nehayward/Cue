@@ -474,6 +474,11 @@ struct ClicApp: App {
             // screen and the user has tapped Continue. WelcomeScreen kicks off
             // `monitor()` on dismiss.
             guard hasOnboarded, !OnboardingDebug.forceShow else { return }
+            // The network may have changed while backgrounded (e.g. home →
+            // friend's house). Re-race known IPs + discovery on the next poll
+            // instead of blocking on a now-stale cached IP. Cheap: an unchanged
+            // network still wins in ms, and the flag re-verifies after one load.
+            sonosService.invalidateVerifiedConnection()
             sonosService.monitor()
 #if targetEnvironment(macCatalyst)
             // Window is open — live monitoring + `.task(id:)` keep the dock
