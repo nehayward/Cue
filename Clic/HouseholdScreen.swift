@@ -187,14 +187,15 @@ struct HouseholdScreen: View {
 
     /// Scans the current network for Sonos systems and merges any newly-found
     /// homes into the list. `announce` is true only for the manual refresh button
-    /// so the on-appear auto-scan stays silent.
+    /// so the on-appear auto-scan stays silent; the manual scan also re-adds a
+    /// reachable home the user previously removed (an explicit "look again").
     @MainActor
     private func scanForNew(announce: Bool = false) async {
         guard !isScanning else { return }
         isScanning = true
         defer { isScanning = false }
         let before = Set(households.map(\.id))
-        let updated = await sonosService.discoverHouseholds()
+        let updated = await sonosService.discoverHouseholds(includeRemoved: announce)
         households = updated.sorted { $0.lastConnected > $1.lastConnected }
         guard announce else { return }
         let newCount = households.filter { !before.contains($0.id) }.count

@@ -42,6 +42,32 @@ final class SonosSystemDiscoverService {
         }
     }
 
+    /// Households the user explicitly removed. Device-local (an intent, not
+    /// synced state): blocked IDs are never auto-recorded or auto-adopted, so a
+    /// home you delete while standing in front of it doesn't reappear on the next
+    /// pulse or screen revisit. Cleared per-household by an explicit re-add
+    /// (switch or a manual Households scan).
+    var removedHouseholdIDs: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "clic.removedHouseholds") ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: "clic.removedHouseholds") }
+    }
+
+    func isBlocked(_ id: String) -> Bool { removedHouseholdIDs.contains(id) }
+
+    @MainActor
+    func blockHousehold(id: String) {
+        var ids = removedHouseholdIDs
+        ids.insert(id)
+        removedHouseholdIDs = ids
+    }
+
+    @MainActor
+    func unblockHousehold(id: String) {
+        var ids = removedHouseholdIDs
+        ids.remove(id)
+        removedHouseholdIDs = ids
+    }
+
     var knownHouseholds: [SonosHousehold] {
         get { sonosStorageIP.knownHouseholds }
         set { sonosStorageIP.knownHouseholds = newValue }
@@ -73,6 +99,11 @@ final class SonosSystemDiscoverService {
     private var permissionsDenied: Bool = false
     private var connections: [NWConnection?] = []
     private var allIPs: Set<String> = []
+    // Guards the shared NWBrowser/allIPs/connections state so the reconnect
+    // discovery and the Households-screen scan don't run concurrent browses that
+    // reset each other mid-flight. Bounded + cancellation-aware (see
+    // waitForExclusiveBrowse) so it can never deadlock.
+    @ObservationIgnored private var browseBusy = false
     private var householdIDCache: [String: (id: String, timestamp: Date)] = [:] // IP -> (HouseholdID, Timestamp)
 
     var lastKnownIP: String = ""
@@ -116,10 +147,30 @@ final class SonosSystemDiscoverService {
         }
     }
 
+    // Bounded, cancellation-aware gate around the shared browser state. Not a
+    // hard lock: on timeout or cancellation it proceeds anyway (never worse than
+    // the previous always-concurrent behaviour) so it cannot hang a task.
+    @MainActor
+    private func waitForExclusiveBrowse() async {
+        var waited = 0
+        while browseBusy, waited < 6000, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(50))
+            waited += 50
+        }
+        browseBusy = true
+    }
+
+    @MainActor
+    private func releaseExclusiveBrowse() {
+        browseBusy = false
+    }
+
     // Records or updates a household in the persistent known-households list.
     // Accumulates all known IPs so the race in getGroups can probe them all.
+    // Skips households the user explicitly removed so they don't silently return.
     @MainActor
     private func recordHousehold(id: String, ip: String) {
+        guard !isBlocked(id) else { return }
         var households = knownHouseholds
         if let idx = households.firstIndex(where: { $0.id == id }) {
             let unchanged = households[idx].lastKnownIP == ip && households[idx].knownIPs.contains(ip)
@@ -152,8 +203,10 @@ final class SonosSystemDiscoverService {
 
     // Adopts a household as preferred and records the responding IP. Called when a
     // known-household IP wins the getGroups race, switching networks without Bonjour.
+    // A blocked (user-removed) household is never adopted.
     @MainActor
     func adoptHousehold(id: String, ip: String) {
+        guard !isBlocked(id) else { return }
         preferredHouseHold = id
         recordHousehold(id: id, ip: ip)
     }
@@ -219,9 +272,11 @@ final class SonosSystemDiscoverService {
             throw SonosServiceError.sonosSystemNotFound
         }
 
+        await waitForExclusiveBrowse()
         defer {
             isSearching = false
             stopBrowsing()
+            releaseExclusiveBrowse()
         }
         isSearching = true
 
@@ -267,6 +322,8 @@ final class SonosSystemDiscoverService {
                 if let result = try? await taskGroup.next() {
                     let (resultIP, householdID) = result
                     guard !resultIP.isEmpty, !householdID.isEmpty else { continue }
+                    // A household the user removed must not auto-reconnect.
+                    if isBlocked(householdID) { continue }
 
                     // Keep a widening fallback in case the preferred household is never found.
                     if anyFallback == nil { anyFallback = (resultIP, householdID) }
@@ -301,6 +358,7 @@ final class SonosSystemDiscoverService {
             // Drain remaining results.
             while !Task.isCancelled, let (resultIP, householdID) = try? await taskGroup.next() {
                 guard !resultIP.isEmpty, !householdID.isEmpty else { continue }
+                if isBlocked(householdID) { continue }
                 if anyFallback == nil { anyFallback = (resultIP, householdID) }
                 if let preferred = preferredHouseHold, householdID == preferred {
                     preferredFallback = (resultIP, householdID)
@@ -373,10 +431,12 @@ final class SonosSystemDiscoverService {
             return []
         }
 
+        await waitForExclusiveBrowse()
         startBrowseAll()
 
         defer {
             stopBrowsing()
+            releaseExclusiveBrowse()
         }
 
         let startTime = Date.now
