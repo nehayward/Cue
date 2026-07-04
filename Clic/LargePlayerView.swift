@@ -769,42 +769,44 @@ fileprivate struct TVModeView: View {
                     MuteButton(group: group)
 
                     if group.isArcUltra {
-                        VStack(spacing: 4) {
-                            Menu {
-                                ForEach([0, 1, 2, 3, 4], id: \.self) { level in
-                                    Button {
-                                        Task {
-                                            HapticManager.shared.fireHaptic(.buttonPress)
-                                            group.tvSettings?.speechEnhanceEnabled = level > 0
-                                            if level > 0 { group.tvSettings?.dialogLevelValue = level }
-                                            try? await sonosService.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
-                                            if let updated = try? await sonosService.getTVSettings(group: group) {
-                                                group.tvSettings = updated
-                                            }
-                                        }
-                                    } label: {
-                                        let labels = ["Off", "Low", "Medium", "High", "Max"]
-                                        if speechLevel == level {
-                                            Label(labels[level], systemImage: "checkmark")
-                                        } else {
-                                            Text(labels[level])
+                        Menu {
+                            ForEach([0, 1, 2, 3, 4], id: \.self) { level in
+                                Button {
+                                    Task {
+                                        HapticManager.shared.fireHaptic(.buttonPress)
+                                        group.tvSettings?.speechEnhanceEnabled = level > 0
+                                        if level > 0 { group.tvSettings?.dialogLevelValue = level }
+                                        try? await sonosService.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
+                                        if let updated = try? await sonosService.getTVSettings(group: group) {
+                                            group.tvSettings = updated
                                         }
                                     }
+                                } label: {
+                                    let labels = ["Off", "Low", "Medium", "High", "Max"]
+                                    if speechLevel == level {
+                                        Label(labels[level], systemImage: "checkmark")
+                                    } else {
+                                        Text(labels[level])
+                                    }
                                 }
-                            } label: {
-                                Label("Speech Enhancement", systemImage: "person.wave.2.fill")
-                                    .font(.title)
-                                    .symbolRenderingMode(.hierarchical)
-                                    .labelStyle(.iconOnly)
-                                    .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
-                                    .frame(width: 40, height: 36)
                             }
-                            .buttonStyle(.bordered)
-                            .tint(speechLevel > 0 ? .accent : nil)
-                            .animation(.spring, value: speechLevel)
-                            Text(group.tvSettings?.speechLevelDescription ?? "Off")
+                        } label: {
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(speechLevel > 0 ? .accent : nil)
+                        .animation(.spring, value: speechLevel)
+                        .overlay(alignment: .bottom) {
+                            Text(group.tvSettings?.speechLevelDescription ?? "")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                                .offset(y: 18)
                         }
                     } else {
                         Button {
