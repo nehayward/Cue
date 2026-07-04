@@ -2112,6 +2112,19 @@ public final class SonosService {
     }
 
     // MARK: TV
+    public func getTVSettings(group: GroupRoom) async throws -> TVSettings {
+        try await getTVSettings(ip: group.coordinatorRoom.ip, isArcUltra: group.isArcUltra)
+    }
+
+    public func setArcUltraSpeechLevel(_ ip: String, level: Int) async throws {
+        if level == 0 {
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: false)
+        } else {
+            try await api.setSpeechEnhanceEnabled(IP: ip, enabled: true)
+            try await api.setDialogLevelValue(IP: ip, value: level)
+        }
+    }
+
     public func getTVSettings(ip: String, isArcUltra: Bool = false) async throws -> TVSettings {
         async let audioInputFormat = api.getAudioInputFormat(IP: ip)
         async let nightMode = api.getNightMode(IP: ip)

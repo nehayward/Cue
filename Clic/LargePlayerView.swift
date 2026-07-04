@@ -746,12 +746,13 @@ fileprivate struct TVModeView: View {
                     .font(.title)
                     .bold()
             }
+            let speechLevel = group.tvSettings?.speechLevel ?? 0
             HStack(spacing: 24) {
                 if let settings = Binding<TVSettings>($group.tvSettings) {
                     Button {
                         Task {
                             try? await sonosService.setNightMode(group.coordinatorRoom.ip, enabled: !settings.nightMode.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                            group.tvSettings = try? await sonosService.getTVSettings(group: group)
                         }
                     } label: {
                         Label("Night Mode", systemImage: "moon.zzz.fill")
@@ -764,27 +765,63 @@ fileprivate struct TVModeView: View {
                     .buttonStyle(.bordered)
                     .tint(settings.nightMode.wrappedValue ? .accent : nil)
                     .animation(.spring, value: settings.nightMode.wrappedValue)
-                    
+
                     MuteButton(group: group)
 
-                    Button {
-                        Task {
-                            try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled:  !settings.dialogLevel.wrappedValue)
-                            group.tvSettings = try await sonosService.getTVSettings(ip: group.coordinatorRoom.ip)
+                    if group.isArcUltra {
+                        Menu {
+                            ForEach([0, 1, 2, 3, 4], id: \.self) { level in
+                                Button {
+                                    Task {
+                                        try? await sonosService.setArcUltraSpeechLevel(group.coordinatorRoom.ip, level: level)
+                                        group.tvSettings = try? await sonosService.getTVSettings(group: group)
+                                    }
+                                } label: {
+                                    let labels = ["Off", "Low", "Medium", "High", "Max"]
+                                    if speechLevel == level {
+                                        Label(labels[level], systemImage: "checkmark")
+                                    } else {
+                                        Text(labels[level])
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Speech Enhancement", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(speechLevel > 0 ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
                         }
-                    } label: {
-                        Label("Dialog Mode", systemImage: "person.wave.2.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.hierarchical)
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                            .frame(width: 40, height: 36)
+                        .buttonStyle(.bordered)
+                        .tint(speechLevel > 0 ? .accent : nil)
+                        .animation(.spring, value: speechLevel)
+                    } else {
+                        Button {
+                            Task {
+                                try? await sonosService.setDialogLevel(group.coordinatorRoom.ip, enabled: !settings.dialogLevel.wrappedValue)
+                                group.tvSettings = try? await sonosService.getTVSettings(group: group)
+                            }
+                        } label: {
+                            Label("Dialog Mode", systemImage: "person.wave.2.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                                .frame(width: 40, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
+                        .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
+                        .animation(.spring, value: settings.dialogLevel.wrappedValue)
                     }
-                    .buttonStyle(.bordered)
-                    .foregroundStyle(settings.dialogLevel.wrappedValue ? .accent : .secondary.opacity(0.8))
-                    .tint(settings.dialogLevel.wrappedValue ? .accent : nil)
-                    .animation(.spring, value: settings.dialogLevel.wrappedValue)
                 }
+            }
+
+            if group.isArcUltra {
+                Text(group.tvSettings?.speechLevelDescription ?? "Off")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .fontDesign(.rounded)
