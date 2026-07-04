@@ -789,7 +789,7 @@ public final class SonosService {
                     if awaitedTrack == .tv {
                         roomGroup.playbackService = .tv
 
-                        if let settings = try? await getTVSettings(ip: roomGroup.ip), roomGroup.tvSettings != settings {
+                        if let settings = try? await getTVSettings(group: roomGroup), roomGroup.tvSettings != settings {
                             roomGroup.tvSettings = settings
                         }
                         return
@@ -1002,7 +1002,7 @@ public final class SonosService {
                     // TODO: Move into playback
                     Task { @MainActor [weak self] in
                         if roomGroup.playbackService == .tv {
-                            if let settings = try? await self?.getTVSettings(ip: roomGroup.ip), roomGroup.tvSettings != settings {
+                            if let settings = try? await self?.getTVSettings(group: roomGroup), roomGroup.tvSettings != settings {
                                 roomGroup.tvSettings = settings
                             }
                         } else if roomGroup.tvSettings != nil {

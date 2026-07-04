@@ -77,10 +77,6 @@ struct TVModeViewCell: View {
                         .tint(speechLevel > 0 ? .accent : nil)
                         .animation(.spring, value: speechLevel)
                         .disabled(settings == nil)
-
-                        Text(settings?.speechLevelDescription ?? "Off")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
                 } else {
                     let dialogLevel = settings?.dialogLevel ?? false
