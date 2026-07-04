@@ -1127,13 +1127,6 @@ public final class SonosService {
 
         cachedIPVerified = false
 
-        // Identity verification is only needed when more than one household is
-        // known: that's the only time a responding IP could belong to the "wrong"
-        // one (two homes both on 192.168.x.x, or a DHCP-reassigned address). With
-        // a single known household there's nothing to confuse it with, so we skip
-        // the extra getHouseHoldID round-trip and keep the common reconnect instant.
-        let soleKnownID = knownHouseholds.count == 1 ? knownHouseholds.first?.id : nil
-
         // Race path: probe every known IP in parallel plus Bonjour discovery. The
         // first VERIFIED-known response wins and becomes active, switching
         // households automatically when the network changed. `URLSession.data`
@@ -1144,18 +1137,19 @@ public final class SonosService {
                 for ip in candidateIPs {
                     group.addTask { [weak self] in
                         guard let self else { return .failure(SonosServiceError.sonosSystemNotFound) }
+                        // Fire the groups fetch and the identity check concurrently so
+                        // verifying who actually answered adds no serial latency. An IP
+                        // is NEVER a stable household identity — DHCP reassigns it and
+                        // different LANs reuse 192.168.x.x — so we ALWAYS confirm the
+                        // responding device's household (checked against knownIDs below)
+                        // before accepting it. Skipping this even for a lone known home
+                        // would let a reassigned/colliding IP silently drive a stranger's
+                        // system and poison the stored household record.
+                        async let groupsResult = self.api.getGroups(ipAddress: ip)
+                        async let verifiedID = self.api.getHouseHoldID(for: ip)
                         do {
-                            let groups = try await self.api.getGroups(ipAddress: ip)
-                            // Resolve identity from the device (not the stored map)
-                            // when multiple households could collide; otherwise the
-                            // sole known household is unambiguous.
-                            let verifiedID: String
-                            if let soleKnownID {
-                                verifiedID = soleKnownID
-                            } else {
-                                verifiedID = await self.api.getHouseHoldID(for: ip)
-                            }
-                            return .knownWin(groups: groups, ip: ip, verifiedID: verifiedID)
+                            let groups = try await groupsResult
+                            return .knownWin(groups: groups, ip: ip, verifiedID: await verifiedID)
                         } catch {
                             return .failure(error)
                         }
@@ -2807,14 +2801,32 @@ public final class SonosService {
         return sortedRooms.first ?? allRooms.first
     }
     
+    @MainActor
     public func setPriorityDevice() -> Room? {
         guard let device = priorityDevice() else { return nil }
-        sonosSystemDiscoverService.sonosStorageIP.sonosIP = device.ip
+        // Pin this speaker's IP as the active household's preferred address so
+        // reconnects favour it (wired/newer, non-portable). Derived state flows
+        // through the household model; no separate IP key to write.
+        if let id = sonosSystemDiscoverService.activeHousehold?.id {
+            sonosSystemDiscoverService.recordDiscoveredHousehold(id: id, ip: device.ip)
+            cachedIPVerified = false
+        }
         return device
     }
-    
+
+    /// Manually connect to a Sonos speaker by IP. This is the ONLY bootstrap path
+    /// on networks where Bonjour/mDNS discovery is blocked, so it must populate the
+    /// household model directly: resolve the household living at `ip` and adopt it
+    /// as the active one, then reconnect.
+    @MainActor
     public func setStaticIP(ip: String) async {
-        sonosSystemDiscoverService.sonosStorageIP.sonosIP = ip
+        let householdID = await api.getHouseHoldID(for: ip)
+        if !householdID.isEmpty {
+            // Explicit user action — unblock in case it was previously removed.
+            sonosSystemDiscoverService.unblockHousehold(id: householdID)
+            sonosSystemDiscoverService.adoptHousehold(id: householdID, ip: ip)
+        }
+        cachedIPVerified = false
         try? await load(useCache: true)
     }
 

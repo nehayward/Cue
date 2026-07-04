@@ -23,9 +23,19 @@ extension NWBrowser.State {
 }
 
 class SonosStorageIP: ObservableObject {
-    /// Legacy key — only read for one-time migration; no longer written.
+    /// Legacy `sonos_ip` key. The main app's source of truth is now
+    /// `knownHouseholds`, but we still MIRROR the active household's IP here
+    /// (write-only) so external consumers that read this key directly — Clic Mini
+    /// and the Watch app — keep following the active system. Also read once on
+    /// first launch to migrate a pre-household install (see getFirstIP).
     @CloudStorage("sonos_ip") var legacyIP = ""
     @CloudStorage("sonos_known_households") var knownHouseholds: [SonosHousehold] = []
+    /// Households the user explicitly removed. Kept in the SAME synced store as
+    /// `knownHouseholds` (not device-local UserDefaults) so it is visible to the
+    /// widget/intent extension processes that also run getGroups — otherwise they
+    /// would re-adopt a deleted home and write it back into the synced list — and
+    /// so a deletion on one device doesn't get resurrected by another.
+    @CloudStorage("sonos_removed_households") var removedHouseholds: [String] = []
 }
 
 @Observable
@@ -42,14 +52,14 @@ final class SonosSystemDiscoverService {
         }
     }
 
-    /// Households the user explicitly removed. Device-local (an intent, not
-    /// synced state): blocked IDs are never auto-recorded or auto-adopted, so a
-    /// home you delete while standing in front of it doesn't reappear on the next
-    /// pulse or screen revisit. Cleared per-household by an explicit re-add
-    /// (switch or a manual Households scan).
+    /// Households the user explicitly removed. Blocked IDs are never auto-recorded
+    /// or auto-adopted, so a home you delete while standing in front of it doesn't
+    /// reappear on the next pulse or screen revisit. Backed by synced CloudStorage
+    /// (see SonosStorageIP.removedHouseholds) so extensions and other devices honour
+    /// it too. Cleared per-household by an explicit re-add (switch or manual scan).
     var removedHouseholdIDs: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: "clic.removedHouseholds") ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: "clic.removedHouseholds") }
+        get { Set(sonosStorageIP.removedHouseholds) }
+        set { sonosStorageIP.removedHouseholds = Array(newValue) }
     }
 
     func isBlocked(_ id: String) -> Bool { removedHouseholdIDs.contains(id) }
@@ -165,6 +175,15 @@ final class SonosSystemDiscoverService {
         browseBusy = false
     }
 
+    // Mirrors the active household's IP into the legacy `sonos_ip` key for
+    // external consumers (Clic Mini, Watch) that still read it directly. The main
+    // app never reads it except for first-launch migration. No-op when unchanged.
+    @MainActor
+    private func mirrorLegacyIP() {
+        let ip = cachedIP
+        if !ip.isEmpty, legacyIP != ip { legacyIP = ip }
+    }
+
     // Records or updates a household in the persistent known-households list.
     // Accumulates all known IPs so the race in getGroups can probe them all.
     // Skips households the user explicitly removed so they don't silently return.
@@ -190,6 +209,7 @@ final class SonosSystemDiscoverService {
             households.append(SonosHousehold(id: id, lastKnownIP: ip, name: name))
         }
         knownHouseholds = households
+        mirrorLegacyIP()
     }
 
     // Switches the active household. cachedIP is derived from knownHouseholds so
@@ -199,6 +219,7 @@ final class SonosSystemDiscoverService {
     func switchToHousehold(id: String) {
         guard knownHouseholds.contains(where: { $0.id == id }) else { return }
         preferredHouseHold = id
+        mirrorLegacyIP()
     }
 
     // Adopts a household as preferred and records the responding IP. Called when a
@@ -367,6 +388,13 @@ final class SonosSystemDiscoverService {
             }
 
             taskGroup.cancelAll()
+
+            // If this discovery was cancelled — e.g. it ran as the Bonjour arm of
+            // the getGroups race and a known-IP task already won — do NOT apply the
+            // terminal fallbacks. They mutate preferredHouseHold, which would
+            // clobber the selection the winner just made (or the one switchHousehold
+            // set). The caller's result is discarded on cancellation anyway.
+            if Task.isCancelled { throw CancellationError() }
 
             // Use the preferred household's IP if we found it.
             if let (ip, id) = preferredFallback {

@@ -12,6 +12,14 @@ struct HouseholdScreen: View {
     @State private var editingHousehold: SonosHousehold? = nil
     @State private var renameText: String = ""
 
+    /// Speaker rooms per household id, fetched lazily from each household's last
+    /// known IP so the row can show which speakers it contains. Reachable homes
+    /// populate; an offline home just shows its name + last-connected.
+    @State private var roomsByHousehold: [String: [Room]] = [:]
+    /// swGen per household id — 2 for Sonos S2, 1 for S1. Nil until the deviceInfo
+    /// fetch lands (or if it fails for an offline home).
+    @State private var swGenByHousehold: [String: Int] = [:]
+
     var body: some View {
         Group {
             if households.isEmpty && !isScanning {
@@ -46,8 +54,9 @@ struct HouseholdScreen: View {
             refreshHouseholds()
         }
         .task {
-            // Then scan the current network for any new homes (e.g. a friend's
-            // system) and merge them in. Runs once when the screen appears.
+            // Enrich stored rows with speaker names / S1-S2, then scan the network
+            // for any new homes (e.g. a friend's system) and merge them in.
+            await enrichHouseholds()
             await scanForNew()
         }
     }
@@ -57,18 +66,26 @@ struct HouseholdScreen: View {
             Section {
                 ForEach(households) { household in
                     householdRow(for: household)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .contextMenu {
+                            Button {
+                                beginRename(household)
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
                             Button(role: .destructive) {
-                                sonosService.removeHousehold(id: household.id)
-                                refreshHouseholds()
-                                alertService.showAlert(with: "Household removed")
+                                delete(household)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
-
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                delete(household)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                             Button {
-                                renameText = household.name
-                                editingHousehold = household
+                                beginRename(household)
                             } label: {
                                 Label("Rename", systemImage: "pencil")
                             }
@@ -76,7 +93,7 @@ struct HouseholdScreen: View {
                         }
                 }
             } footer: {
-                Text("Tap to switch Sonos systems. Swipe left to rename or remove. Tap \(Image(systemName: "arrow.clockwise")) to scan for new systems on this network.")
+                Text("Tap to switch Sonos systems. Long-press or swipe for rename and remove. Tap \(Image(systemName: "arrow.clockwise")) to scan for new systems on this network.")
             }
         }
         .contentMargins(.top, EdgeInsets(), for: .scrollContent)
@@ -84,6 +101,7 @@ struct HouseholdScreen: View {
 
     private func householdRow(for household: SonosHousehold) -> some View {
         let isActive = household.id == sonosService.activeHousehold?.id
+        let rooms = roomsByHousehold[household.id] ?? []
 
         return Button {
             guard !isActive else { return }
@@ -92,19 +110,28 @@ struct HouseholdScreen: View {
             alertService.showAlert(with: "Switched to \(household.name)")
         } label: {
             HStack(spacing: 14) {
+                // S1/S2 badge tile once known; otherwise the gradient home glyph.
                 ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(LinearGradient(
-                            colors: [Color(red: 0.4, green: 0.6, blue: 0.95),
-                                     Color(red: 0.25, green: 0.45, blue: 0.85)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                    Image("home.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(.white)
-                        .padding(7)
+                    if let badge = systemBadge(for: household.id) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black)
+                        Text(badge)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                    } else {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LinearGradient(
+                                colors: [Color(red: 0.4, green: 0.6, blue: 0.95),
+                                         Color(red: 0.25, green: 0.45, blue: 0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ))
+                        Image("home.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .foregroundStyle(.white)
+                            .padding(7)
+                    }
                 }
                 .frame(width: 32, height: 32)
                 .shadow(color: .black.opacity(0.15), radius: 2, x: 0, y: 1)
@@ -113,9 +140,14 @@ struct HouseholdScreen: View {
                     Text(household.name)
                         .font(.headline)
                         .foregroundStyle(.primary)
-                    Text("Last connected \(household.lastConnected, style: .relative) ago")
+                        .lineLimit(1)
+                    // Speaker names when we have them (identifies which system this
+                    // is), otherwise fall back to the last-connected timestamp.
+                    Text(subtitle(for: household, rooms: rooms))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
 
                 Spacer()
@@ -130,6 +162,32 @@ struct HouseholdScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// "S2"/"S1" for the household once its swGen is known, else nil.
+    private func systemBadge(for id: String) -> String? {
+        guard let gen = swGenByHousehold[id] else { return nil }
+        return gen >= 2 ? "S2" : "S1"
+    }
+
+    private func subtitle(for household: SonosHousehold, rooms: [Room]) -> String {
+        if !rooms.isEmpty {
+            return speakerNamesSummary(for: rooms)
+        }
+        return "Last connected \(household.lastConnected.formatted(.relative(presentation: .named)))"
+    }
+
+    /// Comma-joined speaker names, capped at 4 + "+N more" so the subtitle stays
+    /// readable when a household has many speakers.
+    private func speakerNamesSummary(for rooms: [Room]) -> String {
+        let names = rooms.map(\.name).sorted()
+        guard !names.isEmpty else { return "No speakers" }
+        let displayLimit = 4
+        if names.count <= displayLimit {
+            return names.formatted(.list(type: .and))
+        }
+        let visible = names.prefix(displayLimit).joined(separator: ", ")
+        return "\(visible) +\(names.count - displayLimit) more"
     }
 
     @ViewBuilder
@@ -179,10 +237,46 @@ struct HouseholdScreen: View {
         }
     }
 
+    private func beginRename(_ household: SonosHousehold) {
+        renameText = household.name
+        editingHousehold = household
+    }
+
+    private func delete(_ household: SonosHousehold) {
+        sonosService.removeHousehold(id: household.id)
+        roomsByHousehold[household.id] = nil
+        swGenByHousehold[household.id] = nil
+        refreshHouseholds()
+        alertService.showAlert(with: "Household removed")
+    }
+
     @MainActor
     private func refreshHouseholds() {
         households = sonosService.knownHouseholds
             .sorted { $0.lastConnected > $1.lastConnected }
+    }
+
+    /// Fetches speaker names + S1/S2 for each known household from its last known
+    /// IP, in parallel. Best-effort: offline homes simply don't populate.
+    @MainActor
+    private func enrichHouseholds() async {
+        await withTaskGroup(of: Void.self) { group in
+            for household in households {
+                let id = household.id
+                let ip = household.lastKnownIP
+                guard !ip.isEmpty else { continue }
+                group.addTask { @MainActor in
+                    if let groups = try? await SonosService.shared.getGroups(with: ip) {
+                        roomsByHousehold[id] = groups.flatMap(\.rooms)
+                    }
+                }
+                group.addTask { @MainActor in
+                    if let info = await SonosService.shared.deviceInfo(for: ip) {
+                        swGenByHousehold[id] = info.swGen
+                    }
+                }
+            }
+        }
     }
 
     /// Scans the current network for Sonos systems and merges any newly-found
@@ -197,6 +291,8 @@ struct HouseholdScreen: View {
         let before = Set(households.map(\.id))
         let updated = await sonosService.discoverHouseholds(includeRemoved: announce)
         households = updated.sorted { $0.lastConnected > $1.lastConnected }
+        // Pull speaker names / S1-S2 for anything newly discovered.
+        await enrichHouseholds()
         guard announce else { return }
         let newCount = households.filter { !before.contains($0.id) }.count
         if newCount > 0 {
