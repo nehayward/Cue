@@ -2330,6 +2330,13 @@ public final class SonosService {
         await api.refreshLibrary(IP: ip)
     }
 
+    /// Share paths backing the music library (e.g. `//nas/Music`), from browsing the `S:` container.
+    public func libraryShares() async -> [String] {
+        guard let ip = prioritizedIP() else { return [] }
+        let shares = await api.getLibraryItems(IP: ip, type: "S:", requestedCount: 100)
+        return shares.map(\.title)
+    }
+
     // MARK: - Sonos Playlists/Queue
     public func sonosPlaylists() async -> [PlayableContent] {
         // MARK: Update use faster Sonos Devices if Available
